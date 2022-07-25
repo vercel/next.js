@@ -136,7 +136,9 @@ export default function AppRouter({
     return { searchParams: searchParamsObj, pathname: url.pathname }
   }, [canonicalUrl])
 
-  // Server response only patches the tree
+  /**
+   * Server response that only patches the cache and tree.
+   */
   const changeByServerResponse = React.useCallback(
     (previousTree: FlightRouterState, flightData: FlightData) => {
       dispatch({
@@ -153,6 +155,9 @@ export default function AppRouter({
     []
   )
 
+  /**
+   * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
+   */
   const appRouter = React.useMemo<AppRouterInstance>(() => {
     const navigate = (
       href: string,
@@ -174,7 +179,7 @@ export default function AppRouter({
     }
 
     const routerInstance: AppRouterInstance = {
-      // TODO-APP: implement prefetching of loading / flight
+      // TODO-APP: implement prefetching of flight
       prefetch: (_href) => Promise.resolve(),
       replace: (href) => {
         // @ts-ignore startTransition exists

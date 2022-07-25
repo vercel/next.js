@@ -14,11 +14,33 @@ export type CacheNode = {
 }
 
 export type AppRouterInstance = {
+  /**
+   * Reload the current page. Fetches new data from the server.
+   */
   reload(): void
+  /**
+   * Hard navigate to the provided href. Fetches new data from the server.
+   * Pushes a new history entry.
+   */
   push(href: string): void
+  /**
+   * Soft navigate to the provided href. Does not fetch data from the server if it was already fetched.
+   * Pushes a new history entry.
+   */
   softPush(href: string): void
+  /**
+   * Hard navigate to the provided href. Does not fetch data from the server if it was already fetched.
+   * Replaces the current history entry.
+   */
   replace(href: string): void
+  /**
+   * Soft navigate to the provided href. Does not fetch data from the server if it was already fetched.
+   * Replaces the current history entry.
+   */
   softReplace(href: string): void
+  /**
+   * Soft prefetch the provided href. Does not fetch data from the server if it was already fetched.
+   */
   prefetch(href: string): Promise<void>
 }
 
