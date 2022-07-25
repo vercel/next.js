@@ -906,8 +906,9 @@ export async function renderToHTMLOrFlight(
     )
   }
 
-  // Below this line is handling for rendering to HTML
+  // Below this line is handling for rendering to HTML.
 
+  // Create full component tree from root to leaf.
   const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
     loaderTree: loaderTree,
@@ -915,15 +916,15 @@ export async function renderToHTMLOrFlight(
     firstItem: true,
   })
 
+  // AppRouter is provided by next-app-loader
   const AppRouter =
     ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
-  > | null = null
+  > = new TransformStream()
 
-  serverComponentsInlinedTransformStream = new TransformStream()
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
   const initialStylesheets: string[] = getCssInlinedLinkTags(
@@ -931,6 +932,10 @@ export async function renderToHTMLOrFlight(
     serverComponentManifest
   )
 
+  /**
+   * A new React Component that renders the provided React Component
+   * using Flight which can then be rendered to HTML.
+   */
   const ServerComponentsRenderer = createServerComponentRenderer(
     () => {
       const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
@@ -955,9 +960,15 @@ export async function renderToHTMLOrFlight(
     }
   )
 
+  /**
+   * Style registry for styled-jsx
+   */
   const jsxStyleRegistry = createStyleRegistry()
 
-  const styledJsxFlushEffect = () => {
+  /**
+   * styled-jsx styles as React Component
+   */
+  const styledJsxFlushEffect = (): React.ReactNode => {
     const styles = jsxStyleRegistry.styles()
     jsxStyleRegistry.flush()
     return <>{styles}</>
