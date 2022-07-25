@@ -56,6 +56,7 @@ export function InnerLayoutRouter({
   tree,
   // isActive,
   path,
+  rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   url: string
@@ -65,6 +66,7 @@ export function InnerLayoutRouter({
   tree: FlightRouterState
   isActive: boolean
   path: string
+  rootLayoutIncluded: boolean
 }) {
   const {
     changeByServerResponse,
@@ -216,19 +218,24 @@ export function InnerLayoutRouter({
     throw createInfinitePromise()
   }
 
-  return (
-    <div ref={focusAndScrollRef}>
-      <AppTreeContext.Provider
-        value={{
-          tree: tree[1][parallelRouterKey],
-          childNodes: childNode.parallelRoutes,
-          // TODO-APP: overriding of url for parallel routes
-          url: url,
-        }}
-      >
-        {childNode.subTreeData}
-      </AppTreeContext.Provider>
-    </div>
+  const subtree = (
+    <AppTreeContext.Provider
+      value={{
+        tree: tree[1][parallelRouterKey],
+        childNodes: childNode.parallelRoutes,
+        // TODO-APP: overriding of url for parallel routes
+        url: url,
+      }}
+    >
+      {childNode.subTreeData}
+    </AppTreeContext.Provider>
+  )
+
+  // Ensure root layout is not wrapped in a div
+  return rootLayoutIncluded ? (
+    <div ref={focusAndScrollRef}>{subtree}</div>
+  ) : (
+    subtree
   )
 }
 
@@ -251,11 +258,13 @@ export default function OuterLayoutRouter({
   segmentPath,
   childProp,
   loading,
+  rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
   childProp: ChildProp
   loading: React.ReactNode | undefined
+  rootLayoutIncluded: boolean
 }) {
   const { childNodes, tree, url } = useContext(AppTreeContext)
 
@@ -297,6 +306,7 @@ export default function OuterLayoutRouter({
               segmentPath={segmentPath}
               path={preservedSegment}
               isActive={currentChildSegment === preservedSegment}
+              rootLayoutIncluded={rootLayoutIncluded}
             />
           </LoadingBoundary>
         )

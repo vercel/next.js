@@ -32,14 +32,14 @@ describe('Middleware overriding a Node.js API', () => {
 
     afterAll(() => killApp(context.app))
 
-    it('shows a warning but allows overriding', async () => {
+    it('does not show a warning and allows overriding', async () => {
       const res = await fetchViaHTTP(context.appPort, '/')
       await waitFor(500)
       expect(res.status).toBe(200)
-      expect(output).toContain('A Node.js API is used (process.cwd')
       expect(output).toContain('fixed-value')
       expect(output).not.toContain('TypeError')
-      expect(output).not.toContain(`A Node.js API is used (process.env`)
+      expect(output).not.toContain('A Node.js API is used (process.env')
+      expect(output).not.toContain('A Node.js API is used (process.cwd')
     })
   })
 })

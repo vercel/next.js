@@ -19,6 +19,7 @@ const dirPluginCoreWebVitalsConfig = join(
   '../plugin-core-web-vitals-config'
 )
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
+const dirBaseDirectories = join(__dirname, '../base-directories')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
 const dirInvalidOlderEslintVersion = join(
@@ -77,6 +78,33 @@ describe('ESLint', () => {
       expect(output).not.toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
+    })
+
+    test('base directories are linted by default during builds', async () => {
+      const { stdout, stderr } = await nextBuild(dirBaseDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+
+      expect(output).toContain('Failed to compile')
+      expect(output).toContain(
+        'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
+      )
+      expect(output).toContain(
+        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead'
+      )
+      expect(output).toContain('Warning: Do not include stylesheets manually')
+      expect(output).toContain(
+        'Warning: Synchronous scripts should not be used'
+      )
+
+      // Files in pages, components, lib, and src directories are linted
+      expect(output).toContain('pages/_document.js')
+      expect(output).toContain('components/bar.js')
+      expect(output).toContain('lib/foo.js')
+      expect(output).toContain('src/index.js')
     })
 
     test('custom directories', async () => {
@@ -285,6 +313,31 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
+    })
+
+    test('base directories are linted by default', async () => {
+      const { stdout, stderr } = await nextLint(dirBaseDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
+      )
+      expect(output).toContain(
+        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead'
+      )
+      expect(output).toContain('Warning: Do not include stylesheets manually')
+      expect(output).toContain(
+        'Warning: Synchronous scripts should not be used'
+      )
+
+      // Files in pages, components, lib, and src directories are linted
+      expect(output).toContain('pages/_document.js')
+      expect(output).toContain('components/bar.js')
+      expect(output).toContain('lib/foo.js')
+      expect(output).toContain('src/index.js')
     })
 
     test('shows warnings and errors with next/core-web-vitals config', async () => {

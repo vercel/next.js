@@ -126,7 +126,7 @@ If you're using `eslint-plugin-next` in a project where Next.js isn't installed 
 
 ## Linting Custom Directories and Files
 
-By default, Next.js will run ESLint for all files in the `pages/`, `components/`, and `lib/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
+By default, Next.js will run ESLint for all files in the `pages/`, `components/`, `lib/`, and `src/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
 
 ```js
 module.exports = {
