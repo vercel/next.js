@@ -1441,7 +1441,7 @@ jobs:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
     name: stable - x86_64-unknown-freebsd - node@16
-    runs-on: macos-10.15
+    runs-on: macos-12
     steps:
       - name: tune mac network
         run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
@@ -1456,7 +1456,7 @@ jobs:
           rm -rf test
       - name: Build
         id: build
-        uses: vmactions/freebsd-vm@v0.1.6
+        uses: vmactions/freebsd-vm@v0.2.0
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup

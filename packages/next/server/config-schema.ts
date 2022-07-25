@@ -16,6 +16,9 @@ const configSchema = {
       },
       type: 'object',
     },
+    analyticsId: {
+      type: 'string',
+    },
     assetPrefix: {
       minLength: 1,
       type: 'string',
@@ -333,7 +336,14 @@ const configSchema = {
           type: 'boolean',
         },
         optimizeCss: {
-          type: 'boolean',
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              type: 'object',
+            },
+          ] as any,
         },
         outputFileTracingRoot: {
           minLength: 1,
@@ -404,8 +414,8 @@ const configSchema = {
       isFunction: true,
     } as any,
     generateEtags: {
-      isFunction: true,
-    } as any,
+      type: 'boolean',
+    },
     headers: {
       isFunction: true,
     } as any,

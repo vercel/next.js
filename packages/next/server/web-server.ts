@@ -1,7 +1,7 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
-import type { NextParsedUrlQuery } from './request-meta'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
@@ -11,6 +11,7 @@ import BaseServer from './base-server'
 import { renderToHTML } from './render'
 import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
+import { addRequestMeta } from './request-meta'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -102,6 +103,12 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getFilesystemPaths() {
     return new Set<string>()
+  }
+  protected attachRequestMeta(
+    req: WebNextRequest,
+    parsedUrl: NextUrlWithParsedQuery
+  ) {
+    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
   }
   protected getPrerenderManifest() {
     return {
