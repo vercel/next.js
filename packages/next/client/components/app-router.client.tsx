@@ -10,7 +10,13 @@ import type {
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
-import { reducer } from './reducer'
+import {
+  ACTION_NAVIGATE,
+  ACTION_RELOAD,
+  ACTION_RESTORE,
+  ACTION_SERVER_PATCH,
+  reducer,
+} from './reducer'
 import {
   QueryContext,
   // ParamsContext,
@@ -109,15 +115,13 @@ export default function AppRouter({
   const changeByServerResponse = React.useCallback(
     (previousTree: FlightRouterState, flightData: FlightData) => {
       dispatch({
-        type: 'server-patch',
-        payload: {
-          flightData,
-          previousTree,
-          cache: {
-            data: null,
-            subTreeData: null,
-            parallelRoutes: new Map(),
-          },
+        type: ACTION_SERVER_PATCH,
+        flightData,
+        previousTree,
+        cache: {
+          data: null,
+          subTreeData: null,
+          parallelRoutes: new Map(),
         },
       })
     },
@@ -131,18 +135,16 @@ export default function AppRouter({
       navigateType: 'push' | 'replace'
     ) => {
       return dispatch({
-        type: 'navigate',
-        payload: {
-          url: new URL(href, location.origin),
-          cacheType,
-          navigateType,
-          cache: {
-            data: null,
-            subTreeData: null,
-            parallelRoutes: new Map(),
-          },
-          mutable: {},
+        type: ACTION_NAVIGATE,
+        url: new URL(href, location.origin),
+        cacheType,
+        navigateType,
+        cache: {
+          data: null,
+          subTreeData: null,
+          parallelRoutes: new Map(),
         },
+        mutable: {},
       })
     }
 
@@ -177,17 +179,16 @@ export default function AppRouter({
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
-            type: 'reload',
-            payload: {
-              // TODO-APP: revisit if this needs to be passed.
-              url: new URL(window.location.href),
-              cache: {
-                data: null,
-                subTreeData: null,
-                parallelRoutes: new Map(),
-              },
-              mutable: {},
+            type: ACTION_RELOAD,
+
+            // TODO-APP: revisit if this needs to be passed.
+            url: new URL(window.location.href),
+            cache: {
+              data: null,
+              subTreeData: null,
+              parallelRoutes: new Map(),
             },
+            mutable: {},
           })
         })
       },
@@ -238,11 +239,9 @@ export default function AppRouter({
     // Without startTransition works if the cache is there for this path
     React.startTransition(() => {
       dispatch({
-        type: 'restore',
-        payload: {
-          url: new URL(window.location.href),
-          tree: state.tree,
-        },
+        type: ACTION_RESTORE,
+        url: new URL(window.location.href),
+        tree: state.tree,
       })
     })
   }, [])
