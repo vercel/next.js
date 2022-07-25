@@ -35,7 +35,7 @@ function fillCacheWithNewSubTreeData(
   const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
   let childCacheNode = childSegmentMap.get(segmentForCache)
 
-  // In case of last segment start off the fetch at this level and don't copy further down.
+  // In case of last segment start the fetch at this level and don't copy further down.
   if (isLastEntry) {
     if (
       !childCacheNode ||
@@ -469,7 +469,6 @@ export function reducer(
 
       cache.data = null
 
-      // TODO-APP: ensure flightDataPath does not have "" as first item
       const flightDataPath = flightData[0]
 
       const [treePatch] = flightDataPath.slice(-2)
