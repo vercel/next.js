@@ -7,11 +7,11 @@ import type {
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
 
-const fillCacheWithNewSubTreeData = (
+function fillCacheWithNewSubTreeData(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightDataPath: FlightDataPath
-) => {
+): void {
   const isLastEntry = flightDataPath.length <= 4
   const [parallelRouteKey, segment] = flightDataPath
 
@@ -73,12 +73,12 @@ const fillCacheWithNewSubTreeData = (
   )
 }
 
-const fillCacheWithDataProperty = (
+function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
   segments: string[],
   fetchResponse: any
-): { bailOptimistic: boolean } | undefined => {
+): { bailOptimistic: boolean } | undefined {
   const isLastEntry = segments.length === 1
 
   const parallelRouteKey = 'children'
@@ -148,10 +148,10 @@ const fillCacheWithDataProperty = (
   )
 }
 
-const canOptimisticallyRender = (
+function canOptimisticallyRender(
   segments: string[],
   flightRouterState: FlightRouterState
-): boolean => {
+): boolean {
   const segment = segments[0]
   const isLastSegment = segments.length === 1
   const [existingSegment, existingParallelRoutes, , , loadingMarker] =
@@ -186,13 +186,13 @@ const canOptimisticallyRender = (
   )
 }
 
-const createOptimisticTree = (
+function createOptimisticTree(
   segments: string[],
   flightRouterState: FlightRouterState | null,
   _isFirstSegment: boolean,
   parentRefetch: boolean,
   _href?: string
-): FlightRouterState => {
+): FlightRouterState {
   const [existingSegment, existingParallelRoutes] = flightRouterState || [
     null,
     {},
@@ -238,7 +238,6 @@ const createOptimisticTree = (
   // if (isFirstSegment) {
   //   result[2] = href
   // }
-
   // Copy the loading flag from existing tree
   if (flightRouterState && flightRouterState[4]) {
     result[4] = flightRouterState[4]
@@ -247,11 +246,11 @@ const createOptimisticTree = (
   return result
 }
 
-const walkTreeWithFlightDataPath = (
+function walkTreeWithFlightDataPath(
   flightSegmentPath: FlightData[0],
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
-): FlightRouterState => {
+): FlightRouterState {
   const [segment, parallelRoutes /* , url */] = flightRouterState
 
   // Root refresh
@@ -262,7 +261,6 @@ const walkTreeWithFlightDataPath = (
     // if (url) {
     //   tree[2] = url
     // }
-
     return tree
   }
 
@@ -293,7 +291,6 @@ const walkTreeWithFlightDataPath = (
   // if (url) {
   //   tree[2] = url
   // }
-
   // Copy loading flag
   if (flightRouterState[4]) {
     tree[4] = flightRouterState[4]
