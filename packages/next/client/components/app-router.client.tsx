@@ -3,26 +3,43 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import {
   AppRouterContext,
   AppTreeContext,
-  FullAppTreeContext,
+  GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
-import { reducer } from './reducer'
 import {
-  QueryContext,
+  ACTION_NAVIGATE,
+  ACTION_RELOAD,
+  ACTION_RESTORE,
+  ACTION_SERVER_PATCH,
+  reducer,
+} from './reducer'
+import {
+  SearchParamsContext,
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 
-function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
+/**
+ * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
+ */
+function fetchFlight(
+  url: URL,
+  flightRouterState: FlightRouterState
+): ReadableStream {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
+  // Enable flight response
   searchParams.append('__flight__', '1')
-  searchParams.append('__flight_router_state_tree__', flightRouterStateData)
+  // Provide the current router state
+  searchParams.append(
+    '__flight_router_state_tree__',
+    JSON.stringify(flightRouterState)
+  )
 
   const { readable, writable } = new TransformStream()
 
@@ -33,14 +50,20 @@ function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
   return readable
 }
 
+/**
+ * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
+ */
 export function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState
 ): { readRoot: () => FlightData } {
-  const flightRouterStateData = JSON.stringify(flightRouterState)
-  return createFromReadableStream(fetchFlight(url, flightRouterStateData))
+  // Handle the `fetch` readable stream that can be read using `readRoot`.
+  return createFromReadableStream(fetchFlight(url, flightRouterState))
 }
 
+/**
+ * Renders development error overlay when NODE_ENV is development.
+ */
 function ErrorOverlay({
   children,
 }: React.PropsWithChildren<{}>): React.ReactElement {
@@ -54,10 +77,14 @@ function ErrorOverlay({
   }
 }
 
+// Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 // TODO-APP: move this back into AppRouter
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
   typeof window === 'undefined' ? null! : new Map()
 
+/**
+ * The global router that wraps the application components.
+ */
 export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
@@ -72,7 +99,7 @@ export default function AppRouter({
   hotReloader?: React.ReactNode
 }) {
   const [{ tree, cache, pushRef, focusRef, canonicalUrl }, dispatch] =
-    React.useReducer<typeof reducer>(reducer, {
+    React.useReducer(reducer, {
       tree: initialTree,
       cache: {
         data: null,
@@ -90,40 +117,47 @@ export default function AppRouter({
     })
 
   useEffect(() => {
+    // Ensure initialParallelRoutes is cleaned up from memory once it's used.
     initialParallelRoutes = null!
   }, [])
 
-  const { query, pathname } = React.useMemo(() => {
+  // Add memoized pathname/query for useSearchParams and usePathname.
+  const { searchParams, pathname } = React.useMemo(() => {
     const url = new URL(
       canonicalUrl,
       typeof window === 'undefined' ? 'http://n' : window.location.href
     )
-    const queryObj: { [key: string]: string } = {}
+
+    // Convert searchParams to a plain object to match server-side.
+    const searchParamsObj: { [key: string]: string } = {}
     url.searchParams.forEach((value, key) => {
-      queryObj[key] = value
+      searchParamsObj[key] = value
     })
-    return { query: queryObj, pathname: url.pathname }
+    return { searchParams: searchParamsObj, pathname: url.pathname }
   }, [canonicalUrl])
 
-  // Server response only patches the tree
+  /**
+   * Server response that only patches the cache and tree.
+   */
   const changeByServerResponse = React.useCallback(
     (previousTree: FlightRouterState, flightData: FlightData) => {
       dispatch({
-        type: 'server-patch',
-        payload: {
-          flightData,
-          previousTree,
-          cache: {
-            data: null,
-            subTreeData: null,
-            parallelRoutes: new Map(),
-          },
+        type: ACTION_SERVER_PATCH,
+        flightData,
+        previousTree,
+        cache: {
+          data: null,
+          subTreeData: null,
+          parallelRoutes: new Map(),
         },
       })
     },
     []
   )
 
+  /**
+   * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
+   */
   const appRouter = React.useMemo<AppRouterInstance>(() => {
     const navigate = (
       href: string,
@@ -131,23 +165,21 @@ export default function AppRouter({
       navigateType: 'push' | 'replace'
     ) => {
       return dispatch({
-        type: 'navigate',
-        payload: {
-          url: new URL(href, location.origin),
-          cacheType,
-          navigateType,
-          cache: {
-            data: null,
-            subTreeData: null,
-            parallelRoutes: new Map(),
-          },
-          mutable: {},
+        type: ACTION_NAVIGATE,
+        url: new URL(href, location.origin),
+        cacheType,
+        navigateType,
+        cache: {
+          data: null,
+          subTreeData: null,
+          parallelRoutes: new Map(),
         },
+        mutable: {},
       })
     }
 
     const routerInstance: AppRouterInstance = {
-      // TODO-APP: implement prefetching of loading / flight
+      // TODO-APP: implement prefetching of flight
       prefetch: (_href) => Promise.resolve(),
       replace: (href) => {
         // @ts-ignore startTransition exists
@@ -177,17 +209,16 @@ export default function AppRouter({
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
-            type: 'reload',
-            payload: {
-              // TODO-APP: revisit if this needs to be passed.
-              url: new URL(window.location.href),
-              cache: {
-                data: null,
-                subTreeData: null,
-                parallelRoutes: new Map(),
-              },
-              mutable: {},
+            type: ACTION_RELOAD,
+
+            // TODO-APP: revisit if this needs to be passed.
+            url: new URL(window.location.href),
+            cache: {
+              data: null,
+              subTreeData: null,
+              parallelRoutes: new Map(),
             },
+            mutable: {},
           })
         })
       },
@@ -197,6 +228,7 @@ export default function AppRouter({
   }, [])
 
   useEffect(() => {
+    // When mpaNavigation flag is set do a hard navigation to the new url.
     if (pushRef.mpaNavigation) {
       window.location.href = canonicalUrl
       return
@@ -207,6 +239,7 @@ export default function AppRouter({
     // __N is used to identify if the history entry can be handled by the old router.
     const historyState = { __NA: true, tree }
     if (pushRef.pendingPush) {
+      // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
 
       window.history.pushState(historyState, '', canonicalUrl)
@@ -215,11 +248,18 @@ export default function AppRouter({
     }
   }, [tree, pushRef, canonicalUrl])
 
+  // Add `window.nd` for debugging purposes.
+  // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
   if (typeof window !== 'undefined') {
     // @ts-ignore this is for debugging
     window.nd = { router: appRouter, cache, tree }
   }
 
+  /**
+   * Handle popstate event, this is used to handle back/forward in the browser.
+   * By default dispatches ACTION_RESTORE, however if the history entry was not pushed/replaced by app-router it will reload the page.
+   * That case can happen when the old router injected the history entry.
+   */
   const onPopState = React.useCallback(({ state }: PopStateEvent) => {
     if (!state) {
       // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
@@ -238,15 +278,14 @@ export default function AppRouter({
     // Without startTransition works if the cache is there for this path
     React.startTransition(() => {
       dispatch({
-        type: 'restore',
-        payload: {
-          url: new URL(window.location.href),
-          tree: state.tree,
-        },
+        type: ACTION_RESTORE,
+        url: new URL(window.location.href),
+        tree: state.tree,
       })
     })
   }, [])
 
+  // Register popstate event to call onPopstate.
   React.useEffect(() => {
     window.addEventListener('popstate', onPopState)
     return () => {
@@ -255,8 +294,8 @@ export default function AppRouter({
   }, [onPopState])
   return (
     <PathnameContext.Provider value={pathname}>
-      <QueryContext.Provider value={query}>
-        <FullAppTreeContext.Provider
+      <SearchParamsContext.Provider value={searchParams}>
+        <GlobalLayoutRouterContext.Provider
           value={{
             changeByServerResponse,
             tree,
@@ -274,12 +313,20 @@ export default function AppRouter({
                 stylesheets: initialStylesheets,
               }}
             >
-              <ErrorOverlay>{cache.subTreeData}</ErrorOverlay>
-              {hotReloader}
+              <ErrorOverlay>
+                {
+                  // ErrorOverlay intentionally only wraps the children of app-router.
+                  cache.subTreeData
+                }
+              </ErrorOverlay>
+              {
+                // HotReloader uses the router tree and router.reload() in order to apply Server Component changes.
+                hotReloader
+              }
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
-        </FullAppTreeContext.Provider>
-      </QueryContext.Provider>
+        </GlobalLayoutRouterContext.Provider>
+      </SearchParamsContext.Provider>
     </PathnameContext.Provider>
   )
 }
