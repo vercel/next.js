@@ -53,7 +53,7 @@ export const AppTreeContext = React.createContext<{
   url: string
   stylesheets?: string[]
 }>(null as any)
-export const FullAppTreeContext = React.createContext<{
+export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
   changeByServerResponse: (
     previousTree: FlightRouterState,
@@ -65,5 +65,5 @@ export const FullAppTreeContext = React.createContext<{
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
   AppTreeContext.displayName = 'AppTreeContext'
-  FullAppTreeContext.displayName = 'FullAppTreeContext'
+  GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
 }

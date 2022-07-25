@@ -300,11 +300,20 @@ function walkTreeWithFlightDataPath(
 }
 
 type PushRef = {
+  /**
+   * If the app-router should push a new history entry in useEffect()
+   */
   pendingPush: boolean
+  /**
+   * Multi-page navigation through location.href.
+   */
   mpaNavigation: boolean
 }
 
 export type FocusRef = {
+  /**
+   * If focus should be set in the layout-router's useEffect()
+   */
   focus: boolean
 }
 

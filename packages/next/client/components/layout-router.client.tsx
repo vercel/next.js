@@ -8,7 +8,7 @@ import type {
 } from '../../server/app-render'
 import {
   AppTreeContext,
-  FullAppTreeContext,
+  GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
 import { matchSegment } from './match-segments'
@@ -72,7 +72,7 @@ export function InnerLayoutRouter({
     changeByServerResponse,
     tree: fullTree,
     focusRef,
-  } = useContext(FullAppTreeContext)
+  } = useContext(GlobalLayoutRouterContext)
   const focusAndScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

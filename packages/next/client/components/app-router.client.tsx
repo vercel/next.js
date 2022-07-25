@@ -3,7 +3,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import {
   AppRouterContext,
   AppTreeContext,
-  FullAppTreeContext,
+  GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import type {
   CacheNode,
@@ -228,6 +228,7 @@ export default function AppRouter({
   }, [])
 
   useEffect(() => {
+    // When mpaNavigation flag is set do a hard navigation to the new url.
     if (pushRef.mpaNavigation) {
       window.location.href = canonicalUrl
       return
@@ -238,6 +239,7 @@ export default function AppRouter({
     // __N is used to identify if the history entry can be handled by the old router.
     const historyState = { __NA: true, tree }
     if (pushRef.pendingPush) {
+      // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
 
       window.history.pushState(historyState, '', canonicalUrl)
@@ -246,11 +248,18 @@ export default function AppRouter({
     }
   }, [tree, pushRef, canonicalUrl])
 
+  // Add `window.nd` for debugging purposes.
+  // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
   if (typeof window !== 'undefined') {
     // @ts-ignore this is for debugging
     window.nd = { router: appRouter, cache, tree }
   }
 
+  /**
+   * Handle popstate event, this is used to handle back/forward in the browser.
+   * By default dispatches ACTION_RESTORE, however if the history entry was not pushed/replaced by app-router it will reload the page.
+   * That case can happen when the old router injected the history entry.
+   */
   const onPopState = React.useCallback(({ state }: PopStateEvent) => {
     if (!state) {
       // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
@@ -276,6 +285,7 @@ export default function AppRouter({
     })
   }, [])
 
+  // Register popstate event to call onPopstate.
   React.useEffect(() => {
     window.addEventListener('popstate', onPopState)
     return () => {
@@ -285,7 +295,7 @@ export default function AppRouter({
   return (
     <PathnameContext.Provider value={pathname}>
       <SearchParamsContext.Provider value={searchParams}>
-        <FullAppTreeContext.Provider
+        <GlobalLayoutRouterContext.Provider
           value={{
             changeByServerResponse,
             tree,
@@ -307,7 +317,7 @@ export default function AppRouter({
               {hotReloader}
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
-        </FullAppTreeContext.Provider>
+        </GlobalLayoutRouterContext.Provider>
       </SearchParamsContext.Provider>
     </PathnameContext.Provider>
   )
