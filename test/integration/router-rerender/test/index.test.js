@@ -27,14 +27,8 @@ const runTests = () => {
 
   describe('with rewrites', () => {
     // TODO: Figure out the `isReady` issue.
-    it.todo(
-      'should not trigger unncessary rerenders when rewrites are used',
-      async () => {}
-    )
-    it.todo(
-      'should rerender with the correct query parameter if present with rewrites',
-      async () => {}
-    )
+    it.skip('should not trigger unncessary rerenders when rewrites are used', async () => {})
+    it.skip('should rerender with the correct query parameter if present with rewrites', async () => {})
   })
 }
 
