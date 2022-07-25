@@ -318,7 +318,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 ## Deprecating examples
 
-Replace the app with just a `README.md` file.
+Replace the app with a `README.md` file. For example:
 
 ```markdown
 ## Deprecated
