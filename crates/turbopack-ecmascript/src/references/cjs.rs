@@ -289,3 +289,32 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
         Ok(CodeGeneration { visitors }.into())
     }
 }
+
+#[turbo_tasks::value(shared, CodeGenerateable)]
+#[derive(Hash, Debug)]
+pub struct CjsRequireCacheAccess {
+    pub path: AstPathVc,
+}
+
+#[turbo_tasks::value_impl]
+impl CodeGenerateable for CjsRequireCacheAccess {
+    #[turbo_tasks::function]
+    async fn code_generation(
+        &self,
+        _chunk_context: EcmascriptChunkContextVc,
+        _context: ChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
+        let mut visitors = Vec::new();
+
+        let path = &self.path.await?;
+        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+            if let Expr::Member(_) = expr {
+                *expr = Expr::Ident(Ident::new("__turbopack_cache__".into(), DUMMY_SP));
+            } else {
+                unreachable!("`CjsRequireCacheAccess` is only created from `MemberExpr`");
+            }
+        }));
+
+        Ok(CodeGeneration { visitors }.into())
+    }
+}

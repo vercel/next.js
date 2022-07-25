@@ -26,6 +26,12 @@ pub enum Effect {
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
+    Member {
+        obj: JsValue,
+        prop: JsValue,
+        ast_path: Vec<AstParentKind>,
+        span: Span,
+    },
     ImportedBinding {
         request: String,
         export: Option<String>,
@@ -61,6 +67,15 @@ impl Effect {
                 for arg in args.iter_mut() {
                     arg.normalize();
                 }
+            }
+            Effect::Member {
+                obj,
+                prop,
+                ast_path: _,
+                span: _,
+            } => {
+                obj.normalize();
+                prop.normalize();
             }
             Effect::ImportedBinding {
                 request: _,
@@ -682,6 +697,28 @@ impl Analyzer<'_> {
         }
     }
 
+    fn check_member_expr_for_effects<'ast: 'r, 'r>(
+        &mut self,
+        member_expr: &'ast MemberExpr,
+        ast_path: &AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        let obj_value = self.eval_context.eval(&member_expr.obj);
+        let prop_value = match &member_expr.prop {
+            // TODO avoid clone
+            MemberProp::Ident(i) => i.sym.clone().into(),
+            MemberProp::PrivateName(_) => {
+                return;
+            }
+            MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval_context.eval(expr),
+        };
+        self.data.effects.push(Effect::Member {
+            obj: obj_value,
+            prop: prop_value,
+            ast_path: as_parent_path(ast_path),
+            span: member_expr.span(),
+        });
+    }
+
     fn take_return_values(&mut self) -> Box<JsValue> {
         let values = self.cur_fn_return_values.take().unwrap();
 
@@ -752,6 +789,15 @@ impl VisitAstPath for Analyzer<'_> {
             self.check_call_expr_for_effects(n, ast_path);
             n.visit_children_with_path(self, ast_path);
         }
+    }
+
+    fn visit_member_expr<'ast: 'r, 'r>(
+        &mut self,
+        member_expr: &'ast MemberExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.check_member_expr_for_effects(member_expr, ast_path);
+        member_expr.visit_children_with_path(self, ast_path);
     }
 
     fn visit_expr<'ast: 'r, 'r>(

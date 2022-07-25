@@ -110,6 +110,7 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<StringV
         "i: __turbopack_import__",
         "s: __turbopack_esm__",
         "v: __turbopack_export_value__",
+        "c: __turbopack_cache__",
         "p: process",
     ];
     if content.options.module {

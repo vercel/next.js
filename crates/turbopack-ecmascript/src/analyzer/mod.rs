@@ -812,16 +812,20 @@ impl JsValue {
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
                     WellKnownObjectKind::NodePreGyp => (
-                      "@mapbox/node-pre-gyp",
-                      "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
+                        "@mapbox/node-pre-gyp",
+                        "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
                     ),
                     WellKnownObjectKind::NodeExpressApp => (
-                      "express",
+                        "express",
                         "The Node.js express package: https://github.com/expressjs/express"
                     ),
                     WellKnownObjectKind::NodeProtobufLoader => (
-                      "@grpc/proto-loader",
+                        "@grpc/proto-loader",
                         "The Node.js @grpc/proto-loader package: https://github.com/grpc/grpc-node"
+                    ),
+                    WellKnownObjectKind::RequireCache => (
+                        "require.cache",
+                        "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache"
                     ),
                 };
                 if depth > 0 {
@@ -1406,7 +1410,6 @@ impl JsValue {
                 FreeVarKind::Object
                 | FreeVarKind::Require
                 | FreeVarKind::Import
-                | FreeVarKind::RequireResolve
                 | FreeVarKind::NodeProcess,
             ) => false,
             JsValue::FreeVar(FreeVarKind::Other(_)) => false,
@@ -1417,7 +1420,11 @@ impl JsValue {
 
             JsValue::Variable(_) | JsValue::Unknown(..) | JsValue::Argument(..) => false,
 
-            JsValue::Call(_, box JsValue::FreeVar(FreeVarKind::RequireResolve), _) => true,
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                _,
+            ) => true,
             JsValue::Call(..) | JsValue::MemberCall(..) | JsValue::Member(..) => false,
             JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) => false,
         }
@@ -1801,9 +1808,6 @@ pub enum FreeVarKind {
     /// A reference to `import`
     Import,
 
-    /// A reference to global `require.resolve`
-    RequireResolve,
-
     /// Node.js process
     NodeProcess,
 
@@ -1823,6 +1827,7 @@ pub enum WellKnownObjectKind {
     NodePreGyp,
     NodeExpressApp,
     NodeProtobufLoader,
+    RequireCache,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

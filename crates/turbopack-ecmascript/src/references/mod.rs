@@ -74,7 +74,9 @@ use crate::{
     code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
     magic_identifier,
     references::{
-        cjs::{CjsRequireAssetReferenceVc, CjsRequireResolveAssetReferenceVc},
+        cjs::{
+            CjsRequireAssetReferenceVc, CjsRequireCacheAccess, CjsRequireResolveAssetReferenceVc,
+        },
         esm::{EsmBinding, EsmExportsVc},
     },
 };
@@ -999,6 +1001,30 @@ pub(crate) async fn analyze_ecmascript_module(
                 Ok(())
             }
 
+            async fn handle_member(
+                ast_path: &Vec<AstParentKind>,
+                obj: JsValue,
+                prop: JsValue,
+                code_gen: &mut Vec<CodeGenerateableVc>,
+            ) -> Result<()> {
+                match (obj, prop) {
+                    (
+                        JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                        JsValue::Constant(ConstantValue::Str(s)),
+                    ) if &*s == "cache" => {
+                        code_gen.push(
+                            CjsRequireCacheAccess {
+                                path: AstPathVc::cell(ast_path.clone()),
+                            }
+                            .into(),
+                        );
+                    }
+                    _ => {}
+                }
+
+                Ok(())
+            }
+
             let cache = Mutex::new(LinkCache::new());
             let linker =
                 |value| value_visitor(source, context, value, target, node_native_bindings);
@@ -1068,6 +1094,17 @@ pub(crate) async fn analyze_ecmascript_module(
                             node_native_bindings,
                         )
                         .await?;
+                    }
+                    Effect::Member {
+                        obj,
+                        prop,
+                        ast_path,
+                        span: _,
+                    } => {
+                        let obj = link_value(obj).await?;
+                        let prop = link_value(prop).await?;
+
+                        handle_member(&ast_path, obj, prop, &mut code_gen).await?;
                     }
                     Effect::ImportedBinding {
                         request,

@@ -333,6 +333,9 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
         (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
+        (WellKnownFunctionKind::Require, Some("cache")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::RequireCache)
+        }
         (WellKnownFunctionKind::NodeStrongGlobalize, Some("SetRootDir")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir)
         }
