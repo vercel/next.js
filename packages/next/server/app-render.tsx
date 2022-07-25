@@ -636,7 +636,7 @@ export async function renderToHTMLOrFlight(
     const parallelRouteMap = await Promise.all(
       Object.keys(parallelRoutes).map(
         async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
-          const currentSegmentPath = firstItem
+          const currentSegmentPath: FlightSegmentPath = firstItem
             ? [parallelRouteKey]
             : [actualSegment, parallelRouteKey]
 
@@ -650,16 +650,16 @@ export async function renderToHTMLOrFlight(
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
-          const childSegmentParam = getDynamicParamFromSegment(
-            parallelRoutes[parallelRouteKey][0]
-          )
+          const childSegment = parallelRoutes[parallelRouteKey][0]
+          const childSegmentParam = getDynamicParamFromSegment(childSegment)
           const childProp: ChildProp = {
             current: <ChildComponent />,
             segment: childSegmentParam
               ? childSegmentParam.treeSegment
-              : parallelRoutes[parallelRouteKey][0],
+              : childSegment,
           }
 
+          // This is turned back into an object below.
           return [
             parallelRouteKey,
             <LayoutRouter
@@ -674,6 +674,7 @@ export async function renderToHTMLOrFlight(
       )
     )
 
+    // Convert the parallel route map into an object after all promises have been resolved.
     const parallelRouteComponents = parallelRouteMap.reduce(
       (list, [parallelRouteKey, Comp]) => {
         list[parallelRouteKey] = Comp
@@ -682,7 +683,7 @@ export async function renderToHTMLOrFlight(
       {} as { [key: string]: React.ReactNode }
     )
 
-    // When the segment does not have a layout/page we still have to add the layout router to ensure the path holds the loading component
+    // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
     if (!Component) {
       return {
         Component: () => <>{parallelRouteComponents.children}</>,
@@ -767,9 +768,9 @@ export async function renderToHTMLOrFlight(
     return {
       Component: () => {
         let props
+        // The data fetching was kicked off before rendering (see above)
+        // if the data was not resolved yet the layout rendering will be suspended
         if (fetcher) {
-          // The data fetching was kicked off before rendering (see above)
-          // if the data was not resolved yet the layout rendering will be suspended
           const record = preloadDataFetchingRecord(
             dataCache,
             dataCacheKey,
@@ -801,17 +802,24 @@ export async function renderToHTMLOrFlight(
     }
   }
 
+  // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
   if (isFlight) {
     // TODO-APP: throw on invalid flightRouterState
+    /**
+     * Use router state to decide at what common layout to render the page.
+     * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
+     */
     const walkTreeWithFlightRouterState = async (
-      treeToFilter: LoaderTree,
+      loaderTreeToFilter: LoaderTree,
       parentParams: { [key: string]: string | string[] },
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
     ): Promise<FlightDataPath> => {
-      const [segment, parallelRoutes] = treeToFilter
+      const [segment, parallelRoutes] = loaderTreeToFilter
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
+      // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
+      // That way even when rendering the subtree getServerSideProps/getStaticProps get the right parameters.
       const segmentParam = getDynamicParamFromSegment(segment)
       const currentParams =
         // Handle null case where dynamic param is optional
@@ -825,8 +833,13 @@ export async function renderToHTMLOrFlight(
         ? segmentParam.treeSegment
         : segment
 
+      /**
+       * Decide if the current segment is where rendering has to start.
+       */
       const renderComponentsOnThisLevel =
+        // No further router state available
         !flightRouterState ||
+        // Segment in router state does not match current segment
         !matchSegment(actualSegment, flightRouterState[0]) ||
         // Last item in the tree
         parallelRoutesKeys.length === 0 ||
@@ -836,14 +849,16 @@ export async function renderToHTMLOrFlight(
       if (!parentRendered && renderComponentsOnThisLevel) {
         return [
           actualSegment,
-          createFlightRouterStateFromLoaderTree(treeToFilter),
+          // Create router state using the slice of the loaderTree
+          createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
+          // Create component tree using the slice of the loaderTree
           React.createElement(
             (
               await createComponentTree(
                 // This ensures flightRouterPath is valid and filters down the tree
                 {
                   createSegmentPath: (child) => child,
-                  loaderTree: treeToFilter,
+                  loaderTree: loaderTreeToFilter,
                   parentParams: currentParams,
                   firstItem: true,
                 }
@@ -853,6 +868,7 @@ export async function renderToHTMLOrFlight(
         ]
       }
 
+      // Walk through all parallel routes.
       for (const parallelRouteKey of parallelRoutesKeys) {
         const parallelRoute = parallelRoutes[parallelRouteKey]
         const path = await walkTreeWithFlightRouterState(
@@ -870,6 +886,8 @@ export async function renderToHTMLOrFlight(
       return [actualSegment]
     }
 
+    // Flight data that is going to be passed to the browser.
+    // Currently a single item array but in the future multiple patches might be combined in a single request.
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
       (
@@ -887,6 +905,8 @@ export async function renderToHTMLOrFlight(
       }).pipeThrough(createBufferedTransformStream())
     )
   }
+
+  // Below this line is handling for rendering to HTML
 
   const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
