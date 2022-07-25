@@ -1939,8 +1939,6 @@ export function prepareServerlessUrl(
   })
 }
 
-export { stringifyQuery } from './server-route-utils'
-
 export class NoFallbackError extends Error {}
 
 // Internal wrapper around build errors at development

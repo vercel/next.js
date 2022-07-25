@@ -59,12 +59,12 @@ import { RenderOpts, renderToHTML } from './render'
 import { renderToHTML as appRenderToHTML } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
+import { stringifyQuery } from './server-route-utils'
 
 import BaseServer, {
   Options,
   FindComponentsResult,
   prepareServerlessUrl,
-  stringifyQuery,
   RoutingItem,
   NoFallbackError,
 } from './base-server'
