@@ -3,14 +3,13 @@ import type { FocusRef } from '../../client/components/reducer'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 export type ChildSegmentMap = Map<string, CacheNode>
-type ParallelRoutesCacheNodes = Map<string, ChildSegmentMap>
 
 export type CacheNode = {
   data: ReturnType<
     typeof import('../../client/components/app-router.client').fetchServerResponse
   > | null
   subTreeData: null | React.ReactNode
-  parallelRoutes: ParallelRoutesCacheNodes
+  parallelRoutes: Map<string, ChildSegmentMap>
 }
 
 export type AppRouterInstance = {
