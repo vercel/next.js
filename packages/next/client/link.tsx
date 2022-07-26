@@ -164,110 +164,6 @@ type LinkPropsReal = React.PropsWithChildren<
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
     if (process.env.NODE_ENV !== 'production') {
-      function createPropError(args: {
-        key: string
-        expected: string
-        actual: string
-      }) {
-        return new Error(
-          `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
-            (typeof window !== 'undefined'
-              ? "\nOpen your browser's console to view the Component stack trace."
-              : '')
-        )
-      }
-
-      // TypeScript trick for type-guarding:
-      const requiredPropsGuard: Record<LinkPropsRequired, true> = {
-        href: true,
-      } as const
-      const requiredProps: LinkPropsRequired[] = Object.keys(
-        requiredPropsGuard
-      ) as LinkPropsRequired[]
-      requiredProps.forEach((key: LinkPropsRequired) => {
-        if (key === 'href') {
-          if (
-            props[key] == null ||
-            (typeof props[key] !== 'string' && typeof props[key] !== 'object')
-          ) {
-            // React doesn't show the stack trace and there's
-            // no `href` to help identify which link, so we
-            // instead console.error(ref) during mount.
-          }
-        } else {
-          // TypeScript trick for type-guarding:
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const _: never = key
-        }
-      })
-
-      // TypeScript trick for type-guarding:
-      const optionalPropsGuard: Record<LinkPropsOptional, true> = {
-        as: true,
-        replace: true,
-        soft: true,
-        scroll: true,
-        shallow: true,
-        passHref: true,
-        prefetch: true,
-        locale: true,
-        onClick: true,
-        onMouseEnter: true,
-        legacyBehavior: true,
-      } as const
-      const optionalProps: LinkPropsOptional[] = Object.keys(
-        optionalPropsGuard
-      ) as LinkPropsOptional[]
-      optionalProps.forEach((key: LinkPropsOptional) => {
-        const valType = typeof props[key]
-
-        if (key === 'as') {
-          if (props[key] && valType !== 'string' && valType !== 'object') {
-            throw createPropError({
-              key,
-              expected: '`string` or `object`',
-              actual: valType,
-            })
-          }
-        } else if (key === 'locale') {
-          if (props[key] && valType !== 'string') {
-            throw createPropError({
-              key,
-              expected: '`string`',
-              actual: valType,
-            })
-          }
-        } else if (key === 'onClick' || key === 'onMouseEnter') {
-          if (props[key] && valType !== 'function') {
-            throw createPropError({
-              key,
-              expected: '`function`',
-              actual: valType,
-            })
-          }
-        } else if (
-          key === 'replace' ||
-          key === 'soft' ||
-          key === 'scroll' ||
-          key === 'shallow' ||
-          key === 'passHref' ||
-          key === 'prefetch' ||
-          key === 'legacyBehavior'
-        ) {
-          if (props[key] != null && valType !== 'boolean') {
-            throw createPropError({
-              key,
-              expected: '`boolean`',
-              actual: valType,
-            })
-          }
-        } else {
-          // TypeScript trick for type-guarding:
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const _: never = key
-        }
-      })
-
       // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
       // eslint-disable-next-line react-hooks/rules-of-hooks
       const hasWarned = React.useRef(false)
@@ -282,9 +178,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     let children: React.ReactNode
 
     const {
-      href: hrefProp = process.env.NODE_ENV !== 'production'
-        ? '/__NEXT_LINK_HREF_IS_MISSING_CHECK_THE_CONSOLE'
-        : '',
+      href: _hrefProp,
       as: asProp,
       children: childrenProp,
       prefetch: prefetchProp,
@@ -299,6 +193,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
       ...restProps
     } = props
+    let hrefProp = _hrefProp
+    if (process.env.NODE_ENV !== 'production') {
+      hrefProp = '/__NEXT_LINK_HREF_IS_MISSING_CHECK_THE_CONSOLE'
+    }
 
     children = childrenProp
 
@@ -380,13 +278,72 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     const setRef = React.useCallback(
       (el: Element) => {
-        if (
-          process.env.NODE_ENV !== 'production' &&
-          el &&
-          href === '/__NEXT_LINK_HREF_IS_MISSING_CHECK_THE_CONSOLE'
-        ) {
-          console.error(`<Link> is missing required "href" property:`, el)
+        if (process.env.NODE_ENV !== 'production' && el) {
+          function logPropError(key: string, actual: string, expected: string) {
+            console.error(
+              `Failed prop type on \`next/link\`: The prop \`${key}\` expects a ${expected} in \`Link\`, but got \`${actual}\` instead.`,
+              el
+            )
+          }
+
+          const hrefType = _hrefProp == null ? 'null' : typeof _hrefProp
+
+          if (!_hrefProp) {
+            console.error(
+              `<Link> is missing required "href" property. (Its type was \`${hrefType}\`):`,
+              el
+            )
+          } else if (!['string', 'object'].includes(hrefType)) {
+            logPropError('href', hrefType, '`string` or `object`')
+          }
+
+          const optionalPropsGuard: Record<LinkPropsOptional, true> = {
+            as: true,
+            replace: true,
+            soft: true,
+            scroll: true,
+            shallow: true,
+            passHref: true,
+            prefetch: true,
+            locale: true,
+            onClick: true,
+            onMouseEnter: true,
+            legacyBehavior: true,
+          } as const
+
+          const optionalProps: LinkPropsOptional[] = Object.keys(
+            optionalPropsGuard
+          ) as LinkPropsOptional[]
+
+          for (const key of optionalProps) {
+            if (!props[key]) return
+            const valType = typeof props[key]
+            if (key === 'as' || !['string', 'object'].includes(valType)) {
+              logPropError(key, valType, '`string` or `object`')
+            } else if (key === 'locale' && valType !== 'string') {
+              logPropError(key, valType, '`string`')
+            } else if (
+              ['onClick', 'onMouseEnter'].includes(key) &&
+              valType !== 'function'
+            ) {
+              logPropError(key, valType, '`function`')
+            } else if (
+              [
+                'replace',
+                'soft',
+                'scroll',
+                'shallow',
+                'passHref',
+                'prefetch',
+                'legacyBehavior',
+              ].includes(key) &&
+              valType !== 'boolean'
+            ) {
+              logPropError(key, valType, '`boolean`')
+            }
+          }
         }
+
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
           resetVisible()
