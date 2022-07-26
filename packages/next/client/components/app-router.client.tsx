@@ -99,7 +99,7 @@ export default function AppRouter({
   children: React.ReactNode
   hotReloader?: React.ReactNode
 }) {
-  const [{ tree, cache, pushRef, focusRef, canonicalUrl }, dispatch] =
+  const [{ tree, cache, pushRef, focusAndScrollRef, canonicalUrl }, dispatch] =
     React.useReducer(reducer, {
       tree: initialTree,
       cache: {
@@ -109,7 +109,7 @@ export default function AppRouter({
           typeof window === 'undefined' ? new Map() : initialParallelRoutes,
       },
       pushRef: { pendingPush: false, mpaNavigation: false },
-      focusRef: { focus: false },
+      focusAndScrollRef: { apply: false },
       canonicalUrl:
         initialCanonicalUrl +
         // Hash is read as the initial value for canonicalUrl in the browser
@@ -300,7 +300,7 @@ export default function AppRouter({
           value={{
             changeByServerResponse,
             tree,
-            focusRef,
+            focusAndScrollRef: focusAndScrollRef,
           }}
         >
           <AppRouterContext.Provider value={appRouter}>

@@ -1,5 +1,5 @@
 import React from 'react'
-import type { FocusRef } from '../../client/components/reducer'
+import type { FocusAndScrollRef } from '../../client/components/reducer'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 export type ChildSegmentMap = Map<string, CacheNode>
@@ -58,7 +58,7 @@ export const GlobalLayoutRouterContext = React.createContext<{
     previousTree: FlightRouterState,
     flightData: FlightData
   ) => void
-  focusRef: FocusRef
+  focusAndScrollRef: FocusAndScrollRef
 }>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {

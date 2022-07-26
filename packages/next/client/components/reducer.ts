@@ -310,18 +310,18 @@ type PushRef = {
   mpaNavigation: boolean
 }
 
-export type FocusRef = {
+export type FocusAndScrollRef = {
   /**
-   * If focus should be set in the layout-router's useEffect()
+   * If focus and scroll should be set in the layout-router's useEffect()
    */
-  focus: boolean
+  apply: boolean
 }
 
 type AppRouterState = {
   tree: FlightRouterState
   cache: CacheNode
   pushRef: PushRef
-  focusRef: FocusRef
+  focusAndScrollRef: FocusAndScrollRef
   canonicalUrl: string
 }
 
@@ -374,7 +374,7 @@ export function reducer(
       return {
         canonicalUrl: href,
         pushRef: state.pushRef,
-        focusRef: state.focusRef,
+        focusAndScrollRef: state.focusAndScrollRef,
         cache: state.cache,
         tree: tree,
       }
@@ -402,7 +402,7 @@ export function reducer(
         return {
           canonicalUrl: href,
           pushRef: { pendingPush, mpaNavigation: false },
-          focusRef: { focus: true },
+          focusAndScrollRef: { apply: true },
           cache: state.cache,
           tree: optimisticTree,
         }
@@ -419,7 +419,7 @@ export function reducer(
           return {
             canonicalUrl: href,
             pushRef: { pendingPush, mpaNavigation: false },
-            focusRef: { focus: true },
+            focusAndScrollRef: { apply: true },
             cache: cache,
             tree: mutable.patchedTree,
           }
@@ -457,7 +457,7 @@ export function reducer(
             return {
               canonicalUrl: href,
               pushRef: { pendingPush, mpaNavigation: false },
-              focusRef: { focus: true },
+              focusAndScrollRef: { apply: true },
               cache: cache,
               tree: optimisticTree,
             }
@@ -474,7 +474,7 @@ export function reducer(
           return {
             canonicalUrl: flightData,
             pushRef: { pendingPush: true, mpaNavigation: true },
-            focusRef: { focus: false },
+            focusAndScrollRef: { apply: false },
             cache: state.cache,
             tree: state.tree,
           }
@@ -502,7 +502,7 @@ export function reducer(
         return {
           canonicalUrl: href,
           pushRef: { pendingPush, mpaNavigation: false },
-          focusRef: { focus: true },
+          focusAndScrollRef: { apply: true },
           cache: cache,
           tree: newTree,
         }
@@ -518,7 +518,7 @@ export function reducer(
         return {
           canonicalUrl: state.canonicalUrl,
           pushRef: state.pushRef,
-          focusRef: state.focusRef,
+          focusAndScrollRef: state.focusAndScrollRef,
           tree: state.tree,
           cache: state.cache,
         }
@@ -529,7 +529,7 @@ export function reducer(
         return {
           canonicalUrl: flightData,
           pushRef: { pendingPush: true, mpaNavigation: true },
-          focusRef: { focus: false },
+          focusAndScrollRef: { apply: false },
           cache: state.cache,
           tree: state.tree,
         }
@@ -555,7 +555,7 @@ export function reducer(
       return {
         canonicalUrl: state.canonicalUrl,
         pushRef: state.pushRef,
-        focusRef: state.focusRef,
+        focusAndScrollRef: state.focusAndScrollRef,
         tree: newTree,
         cache: cache,
       }
@@ -576,7 +576,7 @@ export function reducer(
         return {
           canonicalUrl: href,
           pushRef: { pendingPush, mpaNavigation: false },
-          focusRef: { focus: true },
+          focusAndScrollRef: { apply: true },
           cache: cache,
           tree: mutable.patchedTree,
         }
@@ -597,7 +597,7 @@ export function reducer(
         return {
           canonicalUrl: flightData,
           pushRef: { pendingPush: true, mpaNavigation: true },
-          focusRef: { focus: false },
+          focusAndScrollRef: { apply: false },
           cache: state.cache,
           tree: state.tree,
         }
@@ -630,7 +630,7 @@ export function reducer(
         canonicalUrl: href,
         pushRef: { pendingPush, mpaNavigation: false },
         // TODO-APP: Revisit if this needs to be true in certain cases
-        focusRef: { focus: false },
+        focusAndScrollRef: { apply: false },
         cache: cache,
         tree: newTree,
       }

@@ -13,8 +13,6 @@ import {
 import { fetchServerResponse } from './app-router.client'
 import { matchSegment } from './match-segments'
 
-let infinitePromise: Promise<void> | Error
-
 /**
  * Check if every segment in array a and b matches
  */
@@ -34,6 +32,11 @@ function segmentPathMatches(
   const pathToLayout = flightDataPath.slice(0, -3)
   return equalSegmentPaths(layoutSegmentPath, pathToLayout)
 }
+
+/**
+ * Used to cache in createInfinitePromise
+ */
+let infinitePromise: Promise<void> | Error
 
 /**
  * Create a Promise that does not resolve. This is used to suspend when data is not available yet.
@@ -71,6 +74,7 @@ export function InnerLayoutRouter({
   childProp,
   segmentPath,
   tree,
+  // TODO-APP: implement `<Offscreen>` when available.
   // isActive,
   path,
   rootLayoutIncluded,
@@ -88,34 +92,43 @@ export function InnerLayoutRouter({
   const {
     changeByServerResponse,
     tree: fullTree,
-    focusRef,
+    focusAndScrollRef,
   } = useContext(GlobalLayoutRouterContext)
-  const focusAndScrollRef = useRef<HTMLDivElement>(null)
+  const focusAndScrollElementRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (focusRef.focus && focusAndScrollRef.current) {
-      focusRef.focus = false
-      focusAndScrollRef.current.focus()
+    // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
+    if (focusAndScrollRef.apply && focusAndScrollElementRef.current) {
+      // State is mutated to ensure that the focus and scroll is applied only once.
+      focusAndScrollRef.apply = false
+      // Set focus on the element
+      focusAndScrollElementRef.current.focus()
       // Only scroll into viewport when the layout is not visible currently.
-      if (!topOfElementInViewport(focusAndScrollRef.current)) {
-        focusAndScrollRef.current.scrollIntoView()
+      if (!topOfElementInViewport(focusAndScrollElementRef.current)) {
+        focusAndScrollElementRef.current.scrollIntoView()
       }
     }
-  }, [focusRef])
+  }, [focusAndScrollRef])
 
+  // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(path)
 
+  // If childProp is available this means it's the Flight / SSR case.
   if (childProp && !childNode) {
+    // Add the segment's subTreeData to the cache.
+    // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
     childNodes.set(path, {
       data: null,
       subTreeData: childProp.current,
       parallelRoutes: new Map(),
     })
+    // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
     childProp.current = null
     // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
     childNode = childNodes.get(path)
   }
 
+  // When childNode is not available during rendering client-side we need to create
   if (!childNode) {
     const walkAddRefetch = (
       segmentPathToWalk: FlightSegmentPath | undefined,
@@ -250,7 +263,7 @@ export function InnerLayoutRouter({
 
   // Ensure root layout is not wrapped in a div
   return rootLayoutIncluded ? (
-    <div ref={focusAndScrollRef}>{subtree}</div>
+    <div ref={focusAndScrollElementRef}>{subtree}</div>
   ) : (
     subtree
   )
