@@ -53,7 +53,7 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { renderToHTML as appRenderToHTML } from './app-render'
+import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
@@ -615,7 +615,7 @@ export default class NextNodeServer extends BaseServer {
       (renderOpts.isAppPath || query.__flight__)
     ) {
       const isPagesDir = !renderOpts.isAppPath
-      return appRenderToHTML(
+      return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
         pathname,
