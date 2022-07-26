@@ -24,6 +24,8 @@ import type {
 } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from '../types'
 import type { CustomRoutes } from '../lib/load-custom-routes'
+import { isTargetLikeServerless } from './utils'
+import { SERVERLESS_DIRECTORY, SERVER_DIRECTORY } from '../shared/lib/constants'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
@@ -498,6 +500,25 @@ export default class NextNodeServer extends BaseServer {
       ...userFilesPublic,
       ...userFilesStatic,
     ]))
+  }
+
+  protected getCustomRoutes(): CustomRoutes {
+    const customRoutes = this.getRoutesManifest()
+    let rewrites: CustomRoutes['rewrites']
+
+    // rewrites can be stored as an array when an array is
+    // returned in next.config.js so massage them into
+    // the expected object format
+    if (Array.isArray(customRoutes.rewrites)) {
+      rewrites = {
+        beforeFiles: [],
+        afterFiles: customRoutes.rewrites,
+        fallback: [],
+      }
+    } else {
+      rewrites = customRoutes.rewrites
+    }
+    return Object.assign(customRoutes, { rewrites })
   }
 
   protected sendRenderResult(
@@ -996,6 +1017,12 @@ export default class NextNodeServer extends BaseServer {
   protected getServerComponentManifest() {
     if (!this.nextConfig.experimental.serverComponents) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
+  }
+
+  protected getFallback(page: string): Promise<string> {
+    page = normalizePagePath(page)
+    const cacheFs = this.getCacheFilesystem()
+    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1852,6 +1879,17 @@ export default class NextNodeServer extends BaseServer {
     }
 
     return result
+  }
+
+  protected get _isLikeServerless(): boolean {
+    return isTargetLikeServerless(this.nextConfig.target)
+  }
+
+  protected get serverDistDir() {
+    return join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
   }
 }
 

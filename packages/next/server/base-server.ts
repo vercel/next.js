@@ -27,21 +27,17 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 
 import {
-  CacheFs,
   NormalizeError,
   DecodeError,
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import { join, resolve } from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/get-redirect-status'
 import {
   NEXT_BUILTIN_DOCUMENT,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-  SERVERLESS_DIRECTORY,
-  SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
@@ -52,7 +48,6 @@ import {
   checkIsManualRevalidate,
 } from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
-import { isTargetLikeServerless } from './utils'
 import Router from './router'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
@@ -66,7 +61,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
-import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
+import { getUtils } from './serverless-utils'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { ImageConfigComplete } from '../shared/lib/image-config'
@@ -78,7 +73,6 @@ import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -201,15 +195,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
-  protected abstract generateRewrites({
-    restrictedRedirectPaths,
-  }: {
-    restrictedRedirectPaths: string[]
-  }): {
-    beforeFiles: Route[]
-    afterFiles: Route[]
-    fallback: Route[]
-  }
   protected abstract getFilesystemPaths(): Set<string>
   protected abstract findPageComponents(
     pathname: string,
@@ -218,7 +203,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     isAppDir?: boolean
   ): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
-  protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
   protected abstract attachRequestMeta(
@@ -226,6 +210,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl: NextUrlWithParsedQuery
   ): void
   protected abstract hasPage(pathname: string): Promise<boolean>
+  protected abstract getFallback(page: string): Promise<string>
+  protected abstract getCustomRoutes(): CustomRoutes
 
   protected abstract generateRoutes(): {
     headers: Route[]
@@ -297,7 +283,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = options
     this.serverOptions = options
 
-    this.dir = resolve(dir)
+    this.dir =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? dir
+        : require('../shared/lib/isomorphic/path').resolve(dir)
     this.quiet = quiet
     this.loadEnvConfig({ dev })
 
@@ -306,7 +295,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
     this.port = port
-    this.distDir = join(this.dir, this.nextConfig.distDir)
+    this.distDir =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? this.nextConfig.distDir
+        : require('../shared/lib/isomorphic/path').join(
+            this.dir,
+            this.nextConfig.distDir
+          )
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
@@ -672,31 +667,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // Backwards compatibility
   protected async close(): Promise<void> {}
-
-  protected getCustomRoutes(): CustomRoutes {
-    const customRoutes = this.getRoutesManifest()
-    let rewrites: CustomRoutes['rewrites']
-
-    // rewrites can be stored as an array when an array is
-    // returned in next.config.js so massage them into
-    // the expected object format
-    if (Array.isArray(customRoutes.rewrites)) {
-      rewrites = {
-        beforeFiles: [],
-        afterFiles: customRoutes.rewrites,
-        fallback: [],
-      }
-    } else {
-      rewrites = customRoutes.rewrites
-    }
-    return Object.assign(customRoutes, { rewrites })
-  }
-
-  protected getFallback(page: string): Promise<string> {
-    page = normalizePagePath(page)
-    const cacheFs = this.getCacheFilesystem()
-    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
-  }
 
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
@@ -1876,16 +1846,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
   }
 
-  protected getCacheFilesystem(): CacheFs {
-    return {
-      readFile: () => Promise.resolve(''),
-      readFileSync: () => '',
-      writeFile: () => Promise.resolve(),
-      mkdir: () => Promise.resolve(),
-      stat: () => Promise.resolve({ mtime: new Date() }),
-    }
-  }
-
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     // The development server will provide an implementation for this
     return null
@@ -1910,17 +1870,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
-  }
-
-  protected get _isLikeServerless(): boolean {
-    return isTargetLikeServerless(this.nextConfig.target)
-  }
-
-  protected get serverDistDir() {
-    return join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
   }
 }
 

@@ -38,19 +38,12 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected generateRewrites() {
-    // @TODO: assuming minimal mode right now
-    return {
-      beforeFiles: [],
-      afterFiles: [],
-      fallback: [],
-    }
-  }
   protected handleCompression() {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
-  protected getRoutesManifest() {
+
+  protected getCustomRoutes() {
     return {
       headers: [],
       rewrites: {
@@ -80,6 +73,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getHasStaticDir() {
     return false
+  }
+
+  protected async getFallback() {
+    return ''
   }
 
   protected generateRoutes(): {
