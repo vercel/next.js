@@ -975,6 +975,9 @@ export async function isPageStatic(
       }
     })
     .catch((err) => {
+      if (err.message === 'INVALID_DEFAULT_EXPORT') {
+        throw err
+      }
       console.error(err)
       throw new Error(`Failed to collect page data for ${page}`)
     })
