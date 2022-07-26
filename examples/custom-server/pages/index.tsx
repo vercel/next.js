@@ -5,12 +5,12 @@ export default function Home() {
     <ul>
       <li>
         <Link href="/a" as="/a">
-          <a>a</a>
+          a
         </Link>
       </li>
       <li>
         <Link href="/b" as="/b">
-          <a>b</a>
+          b
         </Link>
       </li>
     </ul>
