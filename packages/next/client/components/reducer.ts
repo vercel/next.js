@@ -451,13 +451,13 @@ export function reducer(
         )
 
         return {
-          // Set href
+          // Set href.
           canonicalUrl: href,
           // Set pendingPush. mpaNavigation is handled during rendering in layout-router for this case.
           pushRef: { pendingPush, mpaNavigation: false },
           // All navigation requires scroll and focus management to trigger.
           focusAndScrollRef: { apply: true },
-          // Existing cache is used for soft navigation
+          // Existing cache is used for soft navigation.
           cache: state.cache,
           // Optimistic tree is applied.
           tree: optimisticTree,
@@ -474,15 +474,15 @@ export function reducer(
           JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
         ) {
           return {
-            // Set href
+            // Set href.
             canonicalUrl: href,
             // TODO-APP: verify mpaNavigation not being set is correct here.
             pushRef: { pendingPush, mpaNavigation: false },
             // All navigation requires scroll and focus management to trigger.
             focusAndScrollRef: { apply: true },
-            // Apply cache
+            // Apply cache.
             cache: cache,
-            // Apply patched router state
+            // Apply patched router state.
             tree: mutable.patchedTree,
           }
         }
@@ -523,15 +523,15 @@ export function reducer(
             mutable.previousTree = state.tree
             mutable.patchedTree = optimisticTree
             return {
-              // Set href
+              // Set href.
               canonicalUrl: href,
-              // Set pendingPush
+              // Set pendingPush.
               pushRef: { pendingPush, mpaNavigation: false },
               // All navigation requires scroll and focus management to trigger.
               focusAndScrollRef: { apply: true },
-              // Apply patched cache
+              // Apply patched cache.
               cache: cache,
-              // Apply optimistic tree
+              // Apply optimistic tree.
               tree: optimisticTree,
             }
           }
@@ -589,15 +589,15 @@ export function reducer(
         fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
 
         return {
-          // Set href
+          // Set href.
           canonicalUrl: href,
-          // Set pendingPush
+          // Set pendingPush.
           pushRef: { pendingPush, mpaNavigation: false },
           // All navigation requires scroll and focus management to trigger.
           focusAndScrollRef: { apply: true },
-          // Apply patched cache
+          // Apply patched cache.
           cache: cache,
-          // Apply patched tree
+          // Apply patched tree.
           tree: newTree,
         }
       }
@@ -607,30 +607,31 @@ export function reducer(
     }
     case ACTION_SERVER_PATCH: {
       const { flightData, previousTree, cache } = action
+      // When a fetch is slow to resolve it could be that you navigated away while the request was happening or before the reducer runs.
+      // In that case opt-out of applying the patch given that the data could be stale.
       if (JSON.stringify(previousTree) !== JSON.stringify(state.tree)) {
         // TODO-APP: Handle tree mismatch
         console.log('TREE MISMATCH')
-        return {
-          canonicalUrl: state.canonicalUrl,
-          pushRef: state.pushRef,
-          focusAndScrollRef: state.focusAndScrollRef,
-          tree: state.tree,
-          cache: state.cache,
-        }
+        // Keep everything as-is.
+        return state
       }
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return {
+          // Set href.
           canonicalUrl: flightData,
+          // Enable mpaNavigation as this is a navigation that the app-router shouldn't handle.
           pushRef: { pendingPush: true, mpaNavigation: true },
+          // Don't apply scroll and focus management.
           focusAndScrollRef: { apply: false },
+          // Other state is kept as-is.
           cache: state.cache,
           tree: state.tree,
         }
       }
 
-      // TODO-APP: flightData could hold multiple paths
+      // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
       const flightDataPath = flightData[0]
 
       // Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
@@ -649,29 +650,36 @@ export function reducer(
       fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
 
       return {
+        // Keep href as it was set during navigate / restore
         canonicalUrl: state.canonicalUrl,
+        // Keep pushRef as server-patch only causes cache/tree update.
         pushRef: state.pushRef,
+        // Keep focusAndScrollRef as server-patch only causes cache/tree update.
         focusAndScrollRef: state.focusAndScrollRef,
+        // Apply patched router state
         tree: newTree,
+        // Apply patched cache
         cache: cache,
       }
     }
     case ACTION_RELOAD: {
       const { url, cache, mutable } = action
       const href = url.pathname + url.search + url.hash
+      // Reload is always a replace.
       const pendingPush = false
 
-      // When doing a hard push there can be two cases: with optimistic tree and without
-      // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
-      // The without optimistic tree case happens when there is no loading state, in that case we suspend in this reducer
-
+      // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
       if (
         mutable.patchedTree &&
         JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
       ) {
         return {
+          // Set href.
           canonicalUrl: href,
+          // set pendingPush (always false in this case).
           pushRef: { pendingPush, mpaNavigation: false },
+          // Apply focus and scroll.
+          // TODO-APP: might need to disable this for Fast Refresh.
           focusAndScrollRef: { apply: true },
           cache: cache,
           tree: mutable.patchedTree,
@@ -679,6 +687,7 @@ export function reducer(
       }
 
       if (!cache.data) {
+        // Fetch data from the root of the tree.
         cache.data = fetchServerResponse(url, [
           state.tree[0],
           state.tree[1],
@@ -699,17 +708,21 @@ export function reducer(
         }
       }
 
+      // Remove cache.data as it has been resolved at this point.
       cache.data = null
 
+      // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
       const flightDataPath = flightData[0]
 
+      // FlightDataPath with more than two items means unexpected Flight data was returned
       if (flightDataPath.length !== 2) {
         // TODO-APP: handle this case better
         console.log('RELOAD FAILED')
         return state
       }
 
-      const [treePatch, subTreeData] = flightDataPath.slice(-2)
+      // Given the path can only have two items the items are only the router state and subTreeData for the root.
+      const [treePatch, subTreeData] = flightDataPath
       const newTree = walkTreeWithFlightDataPath(
         // TODO-APP: remove ''
         [''],
@@ -720,17 +733,23 @@ export function reducer(
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
 
+      // Set subTreeData for the root node of the cache.
       cache.subTreeData = subTreeData
 
       return {
+        // Set href, this doesn't reuse the state.canonicalUrl as because of concurrent rendering the href might change between dispatching and applying.
         canonicalUrl: href,
+        // set pendingPush (always false in this case).
         pushRef: { pendingPush, mpaNavigation: false },
-        // TODO-APP: Revisit if this needs to be true in certain cases
+        // TODO-APP: might need to disable this for Fast Refresh.
         focusAndScrollRef: { apply: false },
+        // Apply patched cache.
         cache: cache,
+        // Apply patched router state.
         tree: newTree,
       }
     }
+    // This case should never be hit as dispatch is strongly typed.
     default:
       throw new Error('Unknown action')
   }
