@@ -1571,6 +1571,7 @@ export default async function getBaseWebpackConfig(
           imageSizes: config.images.imageSizes,
           path: config.images.path,
           loader: config.images.loader,
+          dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
           experimentalUnoptimized: config?.experimental?.images?.unoptimized,
           experimentalFuture: config.experimental?.images?.allowFutureImage,
           ...(dev
