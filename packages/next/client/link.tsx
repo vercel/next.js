@@ -51,6 +51,11 @@ type InternalLinkProps = {
   /**
    * requires experimental.newNextLinkBehavior
    */
+  onTouchStart?: (e: any) => void
+  // e: any because as it would otherwise overlap with existing types
+  /**
+   * requires experimental.newNextLinkBehavior
+   */
   onClick?: (e: any) => void
 }
 
@@ -190,6 +195,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       locale,
       onClick,
       onMouseEnter,
+      onTouchStart,
       legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
       ...restProps
     } = props
@@ -309,6 +315,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             onClick: true,
             onMouseEnter: true,
             legacyBehavior: true,
+            onTouchStart: true,
           } as const
 
           const optionalProps: LinkPropsOptional[] = Object.keys(
@@ -323,7 +330,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             } else if (key === 'locale' && valType !== 'string') {
               logPropError(key, valType, '`string`')
             } else if (
-              ['onClick', 'onMouseEnter'].includes(key) &&
+              ['onClick', 'onMouseEnter', 'onTouchStart'].includes(key) &&
               valType !== 'function'
             ) {
               logPropError(key, valType, '`function`')
@@ -375,6 +382,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }, [as, href, isVisible, locale, p, router])
 
     const childProps: {
+      onTouchStart: React.TouchEventHandler
       onMouseEnter: React.MouseEventHandler
       onClick: React.MouseEventHandler
       href?: string
@@ -426,6 +434,23 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
+        if (isLocalURL(href)) {
+          prefetch(router, href, as, { priority: true })
+        }
+      },
+      onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
+        if (!legacyBehavior && typeof onTouchStart === 'function') {
+          onTouchStart(e)
+        }
+
+        if (
+          legacyBehavior &&
+          child.props &&
+          typeof child.props.onTouchStart === 'function'
+        ) {
+          child.props.onTouchStart(e)
+        }
+
         if (isLocalURL(href)) {
           prefetch(router, href, as, { priority: true })
         }
