@@ -169,12 +169,16 @@ export function makePublicRouterInstance(router: Router): NextRouter {
           Array.isArray(scopedRouter[property]) ? [] : {},
           scopedRouter[property]
         ), // makes sure query is not stateful
+        configurable: true,
+        enumerable: true,
       })
       continue
     }
 
     Object.defineProperty(instance, property, {
       value: scopedRouter[property],
+      configurable: true,
+      enumerable: true,
     })
   }
 
