@@ -97,6 +97,8 @@ const externals = {
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
+
+  // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
