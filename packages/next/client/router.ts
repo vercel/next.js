@@ -172,6 +172,7 @@ export function makePublicRouterInstance(router: Router): NextRouter {
       })
       continue
     }
+
     Object.defineProperty(instance, property, {
       value: scopedRouter[property],
     })
@@ -182,9 +183,8 @@ export function makePublicRouterInstance(router: Router): NextRouter {
 
   coreMethodFields.forEach((field) => {
     instance[field] = (...args: any[]) => {
-      // Explicitly distinguishes from any
-      const scopedField = scopedRouter[field]
-      return (scopedField as any)(...args)
+      // Explicitly distinguishes from 'scopedRouter' any
+      return (scopedRouter[field] as any)(...args)
     }
   })
 
