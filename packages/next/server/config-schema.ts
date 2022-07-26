@@ -328,6 +328,9 @@ const configSchema = {
             },
           ] as any,
         },
+        optimisticClientCache: {
+          type: 'boolean',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
