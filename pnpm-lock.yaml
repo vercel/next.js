@@ -327,7 +327,7 @@ importers:
       '@types/rimraf': 3.0.0
       '@types/tar': 4.0.3
       '@types/validate-npm-package-name': 3.0.0
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': https://files-33g6wesm3-uncurated-tests.vercel.app/vercel-ncc-0.33.4.tgz
       async-retry: 1.3.1
       chalk: 2.4.2
       commander: 2.20.0
@@ -347,7 +347,7 @@ importers:
       '@types/rimraf': 3.0.0
       '@types/tar': 4.0.3
       '@types/validate-npm-package-name': 3.0.0
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': '@files-33g6wesm3-uncurated-tests.vercel.app/vercel-ncc-0.33.4.tgz'
       async-retry: 1.3.1
       chalk: 2.4.2
       commander: 2.20.0
@@ -462,7 +462,7 @@ importers:
       '@types/uuid': 8.3.1
       '@types/webpack-sources1': npm:@types/webpack-sources@0.1.5
       '@types/ws': 8.2.0
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': https://files-33g6wesm3-uncurated-tests.vercel.app/vercel-ncc-0.33.4.tgz
       '@vercel/nft': 0.21.0
       acorn: 8.5.0
       ajv: 8.11.0
@@ -653,7 +653,7 @@ importers:
       '@types/uuid': 8.3.1
       '@types/webpack-sources1': /@types/webpack-sources/0.1.5
       '@types/ws': 8.2.0
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': '@files-33g6wesm3-uncurated-tests.vercel.app/vercel-ncc-0.33.4.tgz'
       '@vercel/nft': 0.21.0
       acorn: 8.5.0
       ajv: 8.11.0
@@ -797,12 +797,12 @@ importers:
 
   packages/next-env:
     specifiers:
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': https://files-33g6wesm3-uncurated-tests.vercel.app/vercel-ncc-0.33.4.tgz
       dotenv: 10.0.0
       dotenv-expand: 8.0.1
       rimraf: 3.0.2
     devDependencies:
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': '@files-33g6wesm3-uncurated-tests.vercel.app/vercel-ncc-0.33.4.tgz'
       dotenv: 10.0.0
       dotenv-expand: 8.0.1
       rimraf: 3.0.2
@@ -6207,11 +6207,6 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/ncc/0.33.4:
-    resolution: {integrity: sha512-ln18hs7dMffelP47tpkaR+V5Tj6coykNyxJrlcmCormPqRQjB/Gv4cu2FfBG+PMzIfdZp2CLDsrrB1NPU22Qhg==}
-    hasBin: true
-    dev: true
-
   /@vercel/nft/0.21.0:
     resolution: {integrity: sha512-hFCAETfI5cG8l5iAiLhMC2bReC5K7SIybzrxGorv+eGspIbIFsVw7Vg85GovXm/LxA08pIDrAlrhR6GN36XB/Q==}
     hasBin: true
@@ -10448,6 +10443,7 @@ packages:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
     dependencies:
       eslint: 7.32.0
+    dev: false
 
   /eslint-plugin-react/7.23.2_eslint@7.24.0:
     resolution: {integrity: sha512-AfjgFQB+nYszudkxRkTFu0UR1zEQig0ArVMPloKhxwlwkzaw/fBiH0QWcBBhZONlXqQC51+nfqFrkn4EzHcGBw==}
@@ -22774,6 +22770,13 @@ packages:
 
   /zwitch/1.0.5:
     resolution: {integrity: sha512-V50KMwwzqJV0NpZIZFwfOD5/lyny3WlSzRiXgA0G7VUnRlqttta1L6UQIHzd6EuBY/cHGfwTIck7w1yH6Q5zUw==}
+    dev: true
+
+  '@files-33g6wesm3-uncurated-tests.vercel.app/vercel-ncc-0.33.4.tgz':
+    resolution: {tarball: https://files-33g6wesm3-uncurated-tests.vercel.app/vercel-ncc-0.33.4.tgz}
+    name: '@vercel/ncc'
+    version: 0.33.4
+    hasBin: true
     dev: true
 
   github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540:
