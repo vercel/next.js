@@ -131,6 +131,7 @@ use turbopack_ecmascript::target::CompileTargetVc;
 #[case::ts_morph("integration/ts-morph.js", true)]
 #[case::typescript("integration/typescript.js", true)]
 #[case::uglify("integration/uglify.js", true)]
+#[case::underscore("integration/underscore.js", true)]
 #[case::vm2("integration/vm2.js", true)]
 #[case::vue("integration/vue.js", true)]
 #[case::whatwg_url("integration/whatwg-url.js", true)]

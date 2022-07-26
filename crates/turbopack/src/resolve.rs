@@ -115,6 +115,7 @@ pub async fn resolve_options(context: FileSystemPathVc) -> Result<ResolveOptions
                     ("development".to_string(), ConditionValue::Unknown),
                     ("import".to_string(), ConditionValue::Unknown),
                     ("require".to_string(), ConditionValue::Unknown),
+                    ("node".to_string(), ConditionValue::Set),
                 ]
                 .into_iter()
                 .collect(),
