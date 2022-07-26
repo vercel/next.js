@@ -41,6 +41,7 @@ function fetchFlight(
     JSON.stringify(flightRouterState)
   )
 
+  // TODO-APP: Verify that TransformStream is supported.
   const { readable, writable } = new TransformStream()
 
   fetch(flightUrl.toString()).then((res) => {
