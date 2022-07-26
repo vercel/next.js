@@ -128,8 +128,12 @@ export function InnerLayoutRouter({
     childNode = childNodes.get(path)
   }
 
-  // When childNode is not available during rendering client-side we need to create
+  // When childNode is not available during rendering client-side we need to fetch it from the server.
   if (!childNode) {
+    /**
+     * Add refetch marker to router state at the point of the current layout segment.
+     * This ensures the response returned is not further down than the current layout segment.
+     */
     const walkAddRefetch = (
       segmentPathToWalk: FlightSegmentPath | undefined,
       treeToRecreate: FlightRouterState
@@ -175,9 +179,15 @@ export function InnerLayoutRouter({
       return treeToRecreate
     }
 
+    /**
+     * Router state with refetch marker added
+     */
     // TODO-APP: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
+    /**
+     * Flight data fetch kicked off during render and put into the cache.
+     */
     const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
     childNodes.set(path, {
       data,
@@ -188,19 +198,23 @@ export function InnerLayoutRouter({
     childNode = childNodes.get(path)
   }
 
-  // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-  childNode = childNodes.get(path)
-
+  // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
   if (!childNode) {
     throw new Error('Child node should always exist')
   }
 
+  // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
   if (childNode.subTreeData && childNode.data) {
     throw new Error('Child node should not have both subTreeData and data')
   }
 
+  // If cache node has a data request we have to readRoot and update the cache.
   if (childNode.data) {
     // TODO-APP: error case
+    /**
+     * Flight response data
+     */
+    // When the data has not resolved yet readRoot will suspend here.
     const flightData = childNode.data.readRoot()
 
     // Handle case when navigating to page in `pages` from `app`
@@ -209,28 +223,36 @@ export function InnerLayoutRouter({
       return null
     }
 
+    /**
+     * If the fast path was triggered.
+     * The fast path is when the returned Flight data path matches the layout segment path, then we can write the data to the cache in render instead of dispatching an action.
+     */
     let fastPath: boolean = false
-    // segmentPath matches what came back from the server. This is the happy path.
+
+    // If there are multiple patches returned in the Flight data we need to dispatch to ensure a single render.
     if (flightData.length === 1) {
       const flightDataPath = flightData[0]
 
       if (segmentPathMatches(flightDataPath, segmentPath)) {
+        // Ensure data is set to null as subTreeData will be set in the cache now.
         childNode.data = null
         // Last item is the subtreeData
         // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
         const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
+        // Add subTreeData into the cache
         childNode.subTreeData = subTreeData
+        // This field is required for new items
         childNode.parallelRoutes = new Map()
         fastPath = true
       }
     }
 
+    // When the fast path is not used a new action is dispatched to update the tree and cache.
     if (!fastPath) {
-      // For push we can set data in the cache
-
       // segmentPath from the server does not match the layout's segmentPath
       childNode.data = null
 
+      // setTimeout is used to start a new transition during render, this is an intentional hack around React.
       setTimeout(() => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
@@ -243,12 +265,14 @@ export function InnerLayoutRouter({
     }
   }
 
-  // TODO-APP: double check users can't return null in a component that will kick in here
+  // If cache node has no subTreeData and no data request we have to infinitely suspend as the data will likely flow in from another place.
+  // TODO-APP: double check users can't return null in a component that will kick in here.
   if (!childNode.subTreeData) {
     throw createInfinitePromise()
   }
 
   const subtree = (
+    // The layout router context narrows down tree and childNodes at each level.
     <LayoutRouterContext.Provider
       value={{
         tree: tree[1][parallelRouterKey],
@@ -261,7 +285,7 @@ export function InnerLayoutRouter({
     </LayoutRouterContext.Provider>
   )
 
-  // Ensure root layout is not wrapped in a div
+  // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return rootLayoutIncluded ? (
     <div ref={focusAndScrollElementRef}>{subtree}</div>
   ) : (
@@ -269,6 +293,10 @@ export function InnerLayoutRouter({
   )
 }
 
+/**
+ * Renders suspense boundary with the provided "loading" property as the fallback.
+ * If no loading property is provided it renders the children without a suspense boundary.
+ */
 function LoadingBoundary({
   children,
   loading,
