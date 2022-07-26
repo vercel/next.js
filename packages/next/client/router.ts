@@ -85,9 +85,11 @@ urlPropertyFields.forEach((field) => {
 })
 
 coreMethodFields.forEach((field) => {
-  const router = getRouter()
   Object.defineProperty(singletonRouter, field, {
-    value: router[field],
+    get() {
+      const router = getRouter()
+      return router[field]
+    },
   })
 })
 
@@ -179,9 +181,11 @@ export function makePublicRouterInstance(router: Router): NextRouter {
   instance.events = Router.events
 
   coreMethodFields.forEach((field) => {
-    Object.defineProperty(instance, field, {
-      value: scopedRouter[field],
-    })
+    instance[field] = (...args: any[]) => {
+      // Explicitly distinguishes from any
+      const scopedField = scopedRouter[field]
+      return (scopedField as any)(...args)
+    }
   })
 
   return instance
