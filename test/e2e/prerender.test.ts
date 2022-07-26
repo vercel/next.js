@@ -2002,6 +2002,67 @@ describe('Prerender', () => {
       })
     }
 
+    if (!isDev) {
+      it('should handle manual revalidate for fallback: blocking', async () => {
+        const beforeRevalidate = Date.now()
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-manual-1'
+        )
+
+        if (!isDeploy) {
+          await waitForCacheWrite(
+            '/blocking-fallback/test-manual-1',
+            beforeRevalidate
+          )
+        }
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+        const cacheHeader = isDeploy ? 'x-vercel-cache' : 'x-nextjs-cache'
+
+        expect(res.headers.get(cacheHeader)).toMatch(/MISS/)
+        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
+
+        if (!isDeploy) {
+          const res2 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html2 = await res2.text()
+          const $2 = cheerio.load(html2)
+
+          expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(initialTime).toBe($2('#time').text())
+        }
+
+        const res3 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback/test-manual-1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res3.status).toBe(200)
+        const revalidateData = await res3.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        await check(async () => {
+          const res4 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html4 = await res4.text()
+          const $4 = cheerio.load(html4)
+          expect($4('#time').text()).not.toBe(initialTime)
+          expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          return 'success'
+        }, 'success')
+      })
+    }
+
     if (!isDev && !isDeploy) {
       it('should automatically reset cache TTL when an error occurs and build cache was available', async () => {
         await next.patchFile('error.txt', 'yes')
@@ -2054,56 +2115,6 @@ describe('Prerender', () => {
               : next.cliOutput,
           'success'
         )
-      })
-
-      it('should handle manual revalidate for fallback: blocking', async () => {
-        const beforeRevalidate = Date.now()
-        const res = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        await waitForCacheWrite(
-          '/blocking-fallback/test-manual-1',
-          beforeRevalidate
-        )
-        const html = await res.text()
-        const $ = cheerio.load(html)
-        const initialTime = $('#time').text()
-
-        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
-        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
-
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
-        expect(initialTime).toBe($2('#time').text())
-
-        const res3 = await fetchViaHTTP(
-          next.url,
-          '/api/manual-revalidate',
-          {
-            pathname: '/blocking-fallback/test-manual-1',
-          },
-          { redirect: 'manual' }
-        )
-
-        expect(res3.status).toBe(200)
-        const revalidateData = await res3.json()
-        expect(revalidateData.revalidated).toBe(true)
-
-        const res4 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        const html4 = await res4.text()
-        const $4 = cheerio.load(html4)
-        expect($4('#time').text()).not.toBe(initialTime)
-        expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
       })
 
       it('should not manual revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
