@@ -20,9 +20,6 @@ import { addBasePath } from './add-base-path'
 const hasUseTransition = typeof React.useTransition !== 'undefined'
 
 type Url = string | UrlObject
-type RequiredKeys<T> = {
-  [K in keyof T]-?: {} extends Pick<T, K> ? never : K
-}[keyof T]
 type OptionalKeys<T> = {
   [K in keyof T]-?: {} extends Pick<T, K> ? K : never
 }[keyof T]
@@ -62,7 +59,6 @@ type InternalLinkProps = {
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
 export type LinkProps = InternalLinkProps
-type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
 const prefetched: { [cacheKey: string]: boolean } = {}
