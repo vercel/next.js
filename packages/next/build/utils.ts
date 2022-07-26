@@ -44,6 +44,8 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 
+export type ROUTER_TYPE = 'pages' | 'app'
+
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
@@ -166,15 +168,15 @@ export async function printTreeView(
   const printFileTree = async ({
     list,
     size,
-    type,
+    routerType,
   }: {
     list: ReadonlyArray<string>
     size: ComputeFilesManifest
-    type: 'pages' | 'app'
+    routerType: ROUTER_TYPE
   }) => {
-    messages.push([type === 'app' ? 'App' : 'Pages', '', ''])
+    messages.push([routerType === 'app' ? 'App' : 'Pages', '', ''])
     messages.push(
-      [type === 'app' ? 'Route' : 'Page', 'Size', 'First Load JS'].map(
+      [routerType === 'app' ? 'Route' : 'Page', 'Size', 'First Load JS'].map(
         (entry) => chalk.underline(entry)
       ) as [string, string, string]
     )
@@ -196,7 +198,7 @@ export async function printTreeView(
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
       const symbol =
-        type === 'app' || item === '/_app' || item === '/_app.server'
+        routerType === 'app' || item === '/_app' || item === '/_app.server'
           ? ' '
           : pageInfo?.static
           ? '○'
@@ -211,7 +213,7 @@ export async function printTreeView(
       if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
 
       messages.push([
-        `${border} ${type === 'pages' ? `${symbol} ` : ''}${
+        `${border} ${routerType === 'pages' ? `${symbol} ` : ''}${
           pageInfo?.initialRevalidateSeconds
             ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
             : item
@@ -357,7 +359,7 @@ export async function printTreeView(
 
   if (lists.app && sizes.app) {
     await printFileTree({
-      type: 'app',
+      routerType: 'app',
       list: lists.app,
       size: sizes.app,
     })
@@ -376,21 +378,21 @@ export async function printTreeView(
 
   // Print the tree view for the app directory.
   await printFileTree({
-    type: 'pages',
+    routerType: 'pages',
     list: lists.pages,
     size: sizes.pages,
   })
 
   const middlewareInfo = middlewareManifest.middleware?.['/']
   if (middlewareInfo?.files.length > 0) {
-    const sizes = await Promise.all(
+    const middlewareSizes = await Promise.all(
       middlewareInfo.files
         .map((dep) => `${distPath}/${dep}`)
         .map(gzipSize ? fsStatGzip : fsStat)
     )
 
     messages.push(['', '', ''])
-    messages.push(['ƒ Middleware', getPrettySize(sum(sizes)), ''])
+    messages.push(['ƒ Middleware', getPrettySize(sum(middlewareSizes)), ''])
   }
 
   console.log(
@@ -704,7 +706,7 @@ function denormalizeAppPagePath(page: string): string {
 }
 
 export async function getJsPageSizeInKb(
-  pageType: 'pages' | 'app',
+  routerType: ROUTER_TYPE,
   page: string,
   distPath: string,
   buildManifest: BuildManifest,
@@ -712,7 +714,7 @@ export async function getJsPageSizeInKb(
   gzipSize: boolean = true,
   computedManifestData?: ComputeFilesManifestResult
 ): Promise<[number, number]> {
-  const pageManifest = pageType === 'pages' ? buildManifest : appBuildManifest
+  const pageManifest = routerType === 'pages' ? buildManifest : appBuildManifest
   if (!pageManifest) {
     throw new Error('expected appBuildManifest with an "app" pageType')
   }
@@ -725,13 +727,13 @@ export async function getJsPageSizeInKb(
       gzipSize
     ))
 
-  const pageData = pageType === 'pages' ? data.pages : data.app
+  const pageData = routerType === 'pages' ? data.pages : data.app
   if (!pageData) {
     throw new Error('expected "app" manifest data with an "app" pageType')
   }
 
   const pagePath =
-    pageType === 'pages'
+    routerType === 'pages'
       ? denormalizePagePath(page)
       : denormalizeAppPagePath(page)
 
