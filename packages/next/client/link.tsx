@@ -296,7 +296,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
           if (!_hrefProp) {
             console.error(
-              `<Link> is missing required "href" property. (Its type was \`${hrefType}\`):`,
+              `Link is missing required "href" property. (Its type was \`${hrefType}\`):`,
               el
             )
           } else if (!['string', 'object'].includes(hrefType)) {
@@ -320,12 +320,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
           const optionalProps: LinkPropsOptional[] = Object.keys(
             optionalPropsGuard
-          ) as LinkPropsOptional[]
+          ).filter((k) => k in props) as LinkPropsOptional[]
 
           for (const key of optionalProps) {
-            if (!props[key]) return
             const valType = typeof props[key]
-            if (key === 'as' || !['string', 'object'].includes(valType)) {
+            if (key === 'as' && !['string', 'object'].includes(valType)) {
               logPropError(key, valType, '`string` or `object`')
             } else if (key === 'locale' && valType !== 'string') {
               logPropError(key, valType, '`string`')
