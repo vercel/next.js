@@ -2009,27 +2009,32 @@ describe('Prerender', () => {
           next.url,
           '/blocking-fallback/test-manual-1'
         )
-        await waitForCacheWrite(
-          '/blocking-fallback/test-manual-1',
-          beforeRevalidate
-        )
+
+        if (!isDeploy) {
+          await waitForCacheWrite(
+            '/blocking-fallback/test-manual-1',
+            beforeRevalidate
+          )
+        }
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-
-        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
-        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
-
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
         const cacheHeader = isDeploy ? 'x-vercel-cache' : 'x-nextjs-cache'
 
-        expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
-        expect(initialTime).toBe($2('#time').text())
+        expect(res.headers.get(cacheHeader)).toMatch(/MISS/)
+        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
+
+        if (!isDeploy) {
+          const res2 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html2 = await res2.text()
+          const $2 = cheerio.load(html2)
+
+          expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(initialTime).toBe($2('#time').text())
+        }
 
         const res3 = await fetchViaHTTP(
           next.url,
