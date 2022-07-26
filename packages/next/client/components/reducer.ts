@@ -301,7 +301,7 @@ function walkTreeWithFlightDataPath(
 
 type PushRef = {
   /**
-   * If the app-router should push a new history entry in useEffect()
+   * If the app-router should push a new history entry in app-router's useEffect()
    */
   pendingPush: boolean
   /**
@@ -330,41 +330,89 @@ export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 
+/**
+ * Reload triggers a reload of the full page data.
+ * - fetches the Flight data and fills subTreeData at the root of the cache.
+ * - The router state is updated at the root of the state tree.
+ */
+interface ReloadAction {
+  type: typeof ACTION_RELOAD
+  url: URL
+  cache: CacheNode
+  mutable: {
+    previousTree?: FlightRouterState
+    patchedTree?: FlightRouterState
+  }
+}
+
+/**
+ * Navigate triggers a navigation to the provided url. It supports a combination of `cacheType` (`hard` and `soft`) and `navigateType` (`push` and `replace`).
+ *
+ * `navigateType`:
+ * - `push` - pushes a new history entry in the browser history
+ * - `replace` - replaces the current history entry in the browser history
+ *
+ * `cacheType`:
+ * - `hard` - Creates a new cache in one of two ways:
+ *   - Not optimistic
+ *      - Default if there is no loading.js.
+ *      - Fetch data in the reducer and suspend there.
+ *      - Copies the previous cache nodes as far as possible and applies new subTreeData.
+ *      - Applies the new router state.
+ *   - optimistic
+ *      - Enabled when somewhere in the router state path to the page there is a loading.js.
+ *      - Similar to `soft` but kicks off the data fetch in the reducer and applies `data` in the spot that should suspend.
+ *      - This enables showing loading states while navigating.
+ *      - Will trigger fast path or server-patch case in layout-router.
+ * - `soft`
+ *   - Reuses the existing cache.
+ *   - Creates an optimistic router state that causes the fetch to start in layout-router when there is missing data.
+ *   - If there is no missing data the existing cache data is rendered.
+ */
+interface NavigateAction {
+  type: typeof ACTION_NAVIGATE
+  url: URL
+  cacheType: 'soft' | 'hard'
+  navigateType: 'push' | 'replace'
+  cache: CacheNode
+  mutable: {
+    previousTree?: FlightRouterState
+    patchedTree?: FlightRouterState
+  }
+}
+
+/**
+ * Restore applies the provided router state.
+ * - Only used for `popstate` (back/forward navigation) where a known router state has to be applied.
+ * - Router state is applied as-is from the history state.
+ * - If any data is missing it will be fetched in layout-router during rendering and trigger fast path or server-patch case.
+ * - If no data is missing the existing cached data is rendered.
+ */
+interface RestoreAction {
+  type: typeof ACTION_RESTORE
+  url: URL
+  tree: FlightRouterState
+}
+
+/**
+ * Server-patch applies the provided Flight data to the cache and router tree.
+ * - Only triggered in layout-router when the data can't be handled in the fast path.
+ * - Main case where this is triggered is when a rewrite applies and Flight data for a different path is returned from the server.
+ * - Creates a new cache and router state with the Flight data applied.
+ */
+interface ServerPatchAction {
+  type: typeof ACTION_SERVER_PATCH
+  flightData: FlightData
+  previousTree: FlightRouterState
+  cache: CacheNode
+}
+
+/**
+ * Reducer that handles the app-router state updates.
+ */
 export function reducer(
   state: AppRouterState,
-  action:
-    | {
-        type: typeof ACTION_RELOAD
-        url: URL
-        cache: CacheNode
-        mutable: {
-          previousTree?: FlightRouterState
-          patchedTree?: FlightRouterState
-        }
-      }
-    | {
-        type: typeof ACTION_NAVIGATE
-
-        url: URL
-        cacheType: 'soft' | 'hard'
-        navigateType: 'push' | 'replace'
-        cache: CacheNode
-        mutable: {
-          previousTree?: FlightRouterState
-          patchedTree?: FlightRouterState
-        }
-      }
-    | {
-        type: typeof ACTION_RESTORE
-        url: URL
-        tree: FlightRouterState
-      }
-    | {
-        type: typeof ACTION_SERVER_PATCH
-        flightData: FlightData
-        previousTree: FlightRouterState
-        cache: CacheNode
-      }
+  action: ReloadAction | NavigateAction | RestoreAction | ServerPatchAction
 ): AppRouterState {
   switch (action.type) {
     case ACTION_RESTORE: {
