@@ -265,7 +265,7 @@ Below are the steps to add a new link:
 
 When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high quality examples:
 
-- TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred as it's less to maintain). TypeScript helps eliminate a class of bugs while also providing better developer experience, even for newcomers.
+- TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred). TypeScript helps eliminate a class of bugs while providing a better developer experience, even for newcomers.
 - Examples should not add custom ESLint or Prettier configurations (we have specific templates for those)
 - If API routes aren't used in an example, they should be omitted
 - If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
