@@ -44,7 +44,7 @@ const urlPropertyFields = [
   'isPreview',
   'isLocaleDomain',
   'domainLocales',
-]
+] as const
 const routerEvents = [
   'routeChangeStart',
   'beforeHistoryChange',
@@ -62,7 +62,7 @@ const coreMethodFields = [
   'back',
   'prefetch',
   'beforePopState',
-]
+] as const
 
 // Events is a static property on the router, the router doesn't have to be initialized to use it
 Object.defineProperty(singletonRouter, 'events', {
@@ -71,25 +71,24 @@ Object.defineProperty(singletonRouter, 'events', {
   },
 })
 
-urlPropertyFields.forEach((field: string) => {
+urlPropertyFields.forEach((field) => {
   // Here we need to use Object.defineProperty because we need to return
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
   // proper way to access it
   Object.defineProperty(singletonRouter, field, {
     get() {
-      const router = getRouter() as any
-      return router[field] as string
+      const router = getRouter()
+      return router[field]
     },
   })
 })
 
-coreMethodFields.forEach((field: string) => {
-  // We don't really know the types here, so we add them later instead
-  ;(singletonRouter as any)[field] = (...args: any[]) => {
-    const router = getRouter() as any
-    return router[field](...args)
-  }
+coreMethodFields.forEach((field) => {
+  const router = getRouter()
+  Object.defineProperty(singletonRouter, field, {
+    value: router[field],
+  })
 })
 
 routerEvents.forEach((event) => {
@@ -158,28 +157,31 @@ export function createRouter(
  * @internal
  */
 export function makePublicRouterInstance(router: Router): NextRouter {
-  const scopedRouter = router as any
-  const instance = {} as any
+  const scopedRouter = router
+  const instance = {} as NextRouter
 
   for (const property of urlPropertyFields) {
     if (typeof scopedRouter[property] === 'object') {
-      instance[property] = Object.assign(
-        Array.isArray(scopedRouter[property]) ? [] : {},
-        scopedRouter[property]
-      ) // makes sure query is not stateful
+      Object.defineProperty(instance, property, {
+        value: Object.assign(
+          Array.isArray(scopedRouter[property]) ? [] : {},
+          scopedRouter[property]
+        ), // makes sure query is not stateful
+      })
       continue
     }
-
-    instance[property] = scopedRouter[property]
+    Object.defineProperty(instance, property, {
+      value: scopedRouter[property],
+    })
   }
 
   // Events is a static property on the router, the router doesn't have to be initialized to use it
   instance.events = Router.events
 
   coreMethodFields.forEach((field) => {
-    instance[field] = (...args: any[]) => {
-      return scopedRouter[field](...args)
-    }
+    Object.defineProperty(instance, field, {
+      value: scopedRouter[field],
+    })
   })
 
   return instance
