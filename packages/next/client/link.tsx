@@ -292,7 +292,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             )
           }
 
-          const hrefType = _hrefProp == null ? 'null' : typeof _hrefProp
+          const hrefType = _hrefProp === null ? 'null' : typeof _hrefProp
 
           if (!_hrefProp) {
             console.error(
