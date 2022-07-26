@@ -171,14 +171,12 @@ export function renderToInitialStream({
 export async function continueFromInitialStream(
   renderStream: ReactReadableStream,
   {
-    dev,
     suffix,
     dataStream,
     generateStaticHTML,
     flushEffectHandler,
     initialStylesheets,
   }: {
-    dev?: boolean
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
@@ -200,16 +198,9 @@ export async function continueFromInitialStream(
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
     createHeadInjectionTransformStream(
-      dev
-        ? `<style data-next-hide-fouc>body{display:none}</style>
-    <noscript data-next-hide-fouc>
-      <style>body{display:block}</style>
-    </noscript>`
-        : initialStylesheets
-        ? initialStylesheets
-            .map((href) => `<link rel="stylesheet" href="/_next/${href}">`)
-            .join('')
-        : ''
+      (initialStylesheets || [])
+        .map((href) => `<link rel="stylesheet" href="/_next/${href}">`)
+        .join('')
     ),
   ].filter(nonNullable)
 
