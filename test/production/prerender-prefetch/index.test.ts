@@ -134,43 +134,83 @@ describe('Prerender prefetch', () => {
     expect(isNaN(newTime)).toBe(false)
   })
 
-  it('should attempt cache update on link hover', async () => {
-    const browser = await webdriver(next.url, '/')
-    const timeRes = await fetchViaHTTP(
-      next.url,
-      `/_next/data/${next.buildId}/blog/first.json`,
-      undefined,
-      {
-        headers: {
-          purpose: 'prefetch',
-        },
-      }
-    )
-    const startTime = (await timeRes.json()).pageProps.now
+  if (process.env.DEVICE_NAME) {
+    it('should attempt cache update on touchstart', async () => {
+      const browser = await webdriver(next.url, '/')
+      const timeRes = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/blog/first.json`,
+        undefined,
+        {
+          headers: {
+            purpose: 'prefetch',
+          },
+        }
+      )
+      const startTime = (await timeRes.json()).pageProps.now
 
-    // ensure stale data is used by default
-    await browser.elementByCss('#to-blog-first').click()
-    await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+      // ensure stale data is used by default
+      await browser.elementByCss('#to-blog-first').click()
+      await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
 
-    expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(
-      startTime
-    )
-    await browser.back().waitForElementByCss('#to-blog-first')
-    const requests = []
+      expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(
+        startTime
+      )
+      await browser.back().waitForElementByCss('#to-blog-first')
+      const requests = []
 
-    browser.on('request', (req) => {
-      requests.push(req.url())
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
+
+      // now trigger cache update and navigate again
+      await check(async () => {
+        await browser.elementByCss('#to-blog-second').touchStart()
+        await browser.elementByCss('#to-blog-first').touchStart()
+        return requests.some((url) => url.includes('/blog/first.json'))
+          ? 'success'
+          : requests
+      }, 'success')
     })
+  } else {
+    it('should attempt cache update on link hover', async () => {
+      const browser = await webdriver(next.url, '/')
+      const timeRes = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/blog/first.json`,
+        undefined,
+        {
+          headers: {
+            purpose: 'prefetch',
+          },
+        }
+      )
+      const startTime = (await timeRes.json()).pageProps.now
 
-    // now trigger cache update and navigate again
-    await check(async () => {
-      await browser.elementByCss('#to-blog-second').moveTo()
-      await browser.elementByCss('#to-blog-first').moveTo()
-      return requests.some((url) => url.includes('/blog/first.json'))
-        ? 'success'
-        : requests
-    }, 'success')
-  })
+      // ensure stale data is used by default
+      await browser.elementByCss('#to-blog-first').click()
+      await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+
+      expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(
+        startTime
+      )
+      await browser.back().waitForElementByCss('#to-blog-first')
+      const requests = []
+
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
+
+      // now trigger cache update and navigate again
+      await check(async () => {
+        await browser.elementByCss('#to-blog-second').moveTo()
+        await browser.elementByCss('#to-blog-first').moveTo()
+        return requests.some((url) => url.includes('/blog/first.json'))
+          ? 'success'
+          : requests
+      }, 'success')
+    })
+  }
 
   it('should handle failed data fetch and empty cache correctly', async () => {
     const browser = await webdriver(next.url, '/')
