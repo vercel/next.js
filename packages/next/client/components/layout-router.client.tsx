@@ -306,6 +306,11 @@ export default function OuterLayoutRouter({
   const currentChildSegment = Array.isArray(treeSegment)
     ? treeSegment[1]
     : treeSegment
+
+  /**
+   * Decides which segments to keep rendering, all segments that are not active will be wrapped in `<Offscreen>`.
+   */
+  // TODO-APP: Add handling of `<Offscreen>` when it's available.
   const preservedSegments: string[] = [currentChildSegment]
 
   return (
@@ -317,6 +322,8 @@ export default function OuterLayoutRouter({
         : null} */}
       {preservedSegments.map((preservedSegment) => {
         return (
+          // Loading boundary is render for each segment to ensure they have their own loading state.
+          // The loading boundary is passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
           <LoadingBoundary loading={loading} key={preservedSegment}>
             <InnerLayoutRouter
               parallelRouterKey={parallelRouterKey}
