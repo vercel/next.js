@@ -77,7 +77,6 @@ pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
                     queue.push_back(reference.resolve_reference());
                 }
             }
-            ResolveResult::Nested(_) => todo!(),
             ResolveResult::Keyed(_, _) => todo!(),
             ResolveResult::Unresolveable(references) => {
                 for reference in references {
