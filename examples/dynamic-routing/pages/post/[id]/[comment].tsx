@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router'
 import Header from '../../../components/header'
 
-const Comment = () => {
+export default function Comment() {
   const router = useRouter()
   const { id, comment } = router.query
 
@@ -13,5 +13,3 @@ const Comment = () => {
     </>
   )
 }
-
-export default Comment

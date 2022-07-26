@@ -2,7 +2,7 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Header from '../../../components/header'
 
-const Post = () => {
+export default function Post() {
   const router = useRouter()
   const { id } = router.query
 
@@ -13,17 +13,15 @@ const Post = () => {
       <ul>
         <li>
           <Link href="/post/[id]/[comment]" as={`/post/${id}/first-comment`}>
-            <a>First comment</a>
+            First comment
           </Link>
         </li>
         <li>
           <Link href="/post/[id]/[comment]" as={`/post/${id}/second-comment`}>
-            <a>Second comment</a>
+            Second comment
           </Link>
         </li>
       </ul>
     </>
   )
 }
-
-export default Post
