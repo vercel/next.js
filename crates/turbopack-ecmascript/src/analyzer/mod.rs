@@ -860,6 +860,7 @@ impl JsValue {
                     ),
                     WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
                     WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
+                    WellKnownFunctionKind::Define => ("define".to_string(), "The define method from AMD"),
                     WellKnownFunctionKind::FsReadMethod(name) => (
                         format!("fs.{name}"),
                         "A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html",
@@ -1409,6 +1410,7 @@ impl JsValue {
             JsValue::FreeVar(
                 FreeVarKind::Object
                 | FreeVarKind::Require
+                | FreeVarKind::Define
                 | FreeVarKind::Import
                 | FreeVarKind::NodeProcess,
             ) => false,
@@ -1805,6 +1807,9 @@ pub enum FreeVarKind {
     /// A reference to global `require`
     Require,
 
+    /// A reference to global `define` (AMD)
+    Define,
+
     /// A reference to `import`
     Import,
 
@@ -1840,6 +1845,7 @@ pub enum WellKnownFunctionKind {
     Import,
     Require,
     RequireResolve,
+    Define,
     FsReadMethod(JsWord),
     PathToFileUrl,
     ChildProcessSpawnMethod(JsWord),
@@ -1886,6 +1892,9 @@ pub mod test_utils {
             },
             JsValue::FreeVar(FreeVarKind::Require) => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+            }
+            JsValue::FreeVar(FreeVarKind::Define) => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Define)
             }
             JsValue::FreeVar(FreeVarKind::Dirname) => "__dirname".into(),
             JsValue::FreeVar(FreeVarKind::Filename) => "__filename".into(),

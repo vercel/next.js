@@ -13,11 +13,13 @@ use turbopack_core::{
     resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
 };
 
+use super::pattern_mapping::{PatternMapping, PatternMappingVc};
 use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::AstPathVc,
     resolve::cjs_resolve,
+    utils::module_id_to_lit,
     EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc,
 };
 
@@ -57,79 +59,6 @@ impl ChunkableAssetReference for CjsAssetReference {
     #[turbo_tasks::function]
     fn is_chunkable(&self) -> BoolVc {
         BoolVc::cell(true)
-    }
-}
-
-#[turbo_tasks::value(shared)]
-enum PatternMapping {
-    Invalid,
-    Single(ModuleId),
-    Map(HashMap<String, ModuleId>),
-}
-
-impl PatternMapping {
-    fn create(&self) -> Expr {
-        match self {
-            PatternMapping::Invalid => {
-                // TODO improve error message
-                quote!("(() => {throw new Error(\"Invalid\")})()" as Expr)
-            }
-            PatternMapping::Single(ModuleId::Number(n)) => Expr::Lit(Lit::Num((*n as f64).into())),
-            PatternMapping::Single(ModuleId::String(s)) => Expr::Lit(Lit::Str(Str {
-                span: DUMMY_SP,
-                value: (s as &str).into(),
-                raw: None,
-            })),
-            PatternMapping::Map(_) => {
-                todo!("emit an error for this case: Complex expression can't be transformed");
-            }
-        }
-    }
-
-    fn apply(&self, _key_expr: Expr) -> Expr {
-        // TODO handle PatternMapping::Map
-        self.create()
-    }
-}
-
-#[turbo_tasks::function]
-async fn resolve_to_pattern_mapping(
-    request: RequestVc,
-    context: AssetContextVc,
-    chunk_context: EcmascriptChunkContextVc,
-) -> Result<PatternMappingVc> {
-    let resolve_result = cjs_resolve(request, context).await?;
-    async fn handle_asset(
-        asset: AssetVc,
-        chunk_context: EcmascriptChunkContextVc,
-    ) -> Result<PatternMappingVc> {
-        if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-            Ok(PatternMapping::Single(chunk_context.id(placeable).await?.clone()).into())
-        } else {
-            println!(
-                "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
-                asset.path().to_string().await?
-            );
-            Ok(PatternMapping::Invalid.into())
-        }
-    }
-    match &*resolve_result {
-        ResolveResult::Alternatives(assets, _) => {
-            if let Some(asset) = assets.first() {
-                handle_asset(*asset, chunk_context).await
-            } else {
-                Ok(PatternMapping::Invalid.into())
-            }
-        }
-        ResolveResult::Single(asset, _) => handle_asset(*asset, chunk_context).await,
-        _ => {
-            // TODO implement mapping
-            println!(
-                "the reference resolves to a non-trivial result, which is not supported yet: {:?}",
-                &*resolve_result
-            );
-            Ok(PatternMapping::Invalid.into())
-        }
     }
 }
 
@@ -185,7 +114,8 @@ impl CodeGenerateable for CjsRequireAssetReference {
         chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
-        let pm = resolve_to_pattern_mapping(self.request, self.context, chunk_context).await?;
+        let pm =
+            PatternMappingVc::resolve_request(self.request, self.context, chunk_context).await?;
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;
@@ -263,7 +193,8 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
         chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
-        let pm = resolve_to_pattern_mapping(self.request, self.context, chunk_context).await?;
+        let pm =
+            PatternMappingVc::resolve_request(self.request, self.context, chunk_context).await?;
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;

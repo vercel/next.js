@@ -29,6 +29,7 @@ use code_gen::CodeGenerateableVc;
 use parse::{parse, ParseResult};
 pub use parse::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use path_visitor::ApplyVisitors;
+use references::AnalyzeEcmascriptModuleResult;
 use swc_common::GLOBALS;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 use swc_ecma_visit::{VisitMutWith, VisitMutWithPath};
@@ -49,7 +50,7 @@ use self::{
         EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions,
         EcmascriptExportsVc,
     },
-    references::{AnalyseEcmascriptModuleResult, AnalyseEcmascriptModuleResultVc},
+    references::AnalyzeEcmascriptModuleResultVc,
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
@@ -102,7 +103,7 @@ impl ModuleAssetVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn analyze(self) -> Result<AnalyseEcmascriptModuleResultVc> {
+    pub async fn analyze(self) -> Result<AnalyzeEcmascriptModuleResultVc> {
         let this = self.await?;
         Ok(analyze_ecmascript_module(
             this.source,
@@ -189,7 +190,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         chunk_context: EcmascriptChunkContextVc,
         context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkItemContentVc> {
-        let AnalyseEcmascriptModuleResult {
+        let AnalyzeEcmascriptModuleResult {
             references,
             code_generation,
             ..

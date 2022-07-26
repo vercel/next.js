@@ -17,7 +17,7 @@ use crate::{
 
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum ModuleId {
     Number(u32),
     String(String),
@@ -25,7 +25,7 @@ pub enum ModuleId {
 
 /// A chunk id, which can be a number or string
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum ChunkId {
     Number(u32),
     String(String),

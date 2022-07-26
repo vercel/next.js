@@ -199,6 +199,7 @@ impl EvalContext {
                 if is_unresolved(i, self.unresolved_mark) {
                     match &*i.sym {
                         "require" => JsValue::FreeVar(FreeVarKind::Require),
+                        "define" => JsValue::FreeVar(FreeVarKind::Define),
                         "__dirname" => JsValue::FreeVar(FreeVarKind::Dirname),
                         "__filename" => JsValue::FreeVar(FreeVarKind::Filename),
                         "process" => JsValue::FreeVar(FreeVarKind::NodeProcess),

@@ -1,5 +1,6 @@
 use json::codegen::Generator;
-use swc_ecma_ast::Expr;
+use swc_common::DUMMY_SP;
+use swc_ecma_ast::{Expr, Lit, Str};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{ConstantNumber, ConstantValue, JsValue};
@@ -38,6 +39,17 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     };
     result.normalize();
     result
+}
+
+pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
+    Expr::Lit(match module_id {
+        ModuleId::Number(n) => Lit::Num((*n as f64).into()),
+        ModuleId::String(s) => Lit::Str(Str {
+            span: DUMMY_SP,
+            value: (s as &str).into(),
+            raw: None,
+        }),
+    })
 }
 
 pub fn stringify_module_id(id: &ModuleId) -> String {
