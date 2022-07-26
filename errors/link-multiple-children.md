@@ -29,7 +29,10 @@ import Link from 'next/link'
 export default function Home() {
   return (
     <Link href="/about">
-      <a>To About</a>
+      <div>
+        <a>To About</a>
+        <a>Second To About</a>
+      </div>
     </Link>
   )
 }
