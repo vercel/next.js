@@ -222,21 +222,6 @@ export function createSuffixStream(
   })
 }
 
-export function createPrefixStream(
-  prefix: string
-): TransformStream<Uint8Array, Uint8Array> {
-  let prefixFlushed = false
-  return new TransformStream({
-    transform(chunk, controller) {
-      if (!prefixFlushed) {
-        controller.enqueue(encodeText(prefix))
-        prefixFlushed = true
-      }
-      controller.enqueue(chunk)
-    },
-  })
-}
-
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
 export function createDeferredSuffixStream(
