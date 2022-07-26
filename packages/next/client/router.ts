@@ -15,9 +15,10 @@ export { Router }
 
 export type { NextRouter }
 
+type InternalSingletonRouter = SingletonRouterBase & Partial<NextRouter>
 export type SingletonRouter = SingletonRouterBase & NextRouter
 
-const singletonRouter: SingletonRouterBase = {
+const singletonRouter: InternalSingletonRouter = {
   router: null, // holds the actual router instance
   readyCallbacks: [],
   ready(cb: () => void) {
@@ -85,12 +86,11 @@ urlPropertyFields.forEach((field) => {
 })
 
 coreMethodFields.forEach((field) => {
-  Object.defineProperty(singletonRouter, field, {
-    get() {
-      const router = getRouter()
-      return router[field]
-    },
-  })
+  // We don't really know the types here, so we add them later instead
+  singletonRouter[field] = (...args: any[]) => {
+    const router = getRouter()
+    return (router[field] as any)(...args)
+  }
 })
 
 routerEvents.forEach((event) => {
