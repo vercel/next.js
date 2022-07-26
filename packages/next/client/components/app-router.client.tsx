@@ -2,7 +2,7 @@ import React, { useEffect } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
-  AppTreeContext,
+  LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import type {
@@ -304,7 +304,7 @@ export default function AppRouter({
           }}
         >
           <AppRouterContext.Provider value={appRouter}>
-            <AppTreeContext.Provider
+            <LayoutRouterContext.Provider
               value={{
                 childNodes: cache.parallelRoutes,
                 tree: tree,
@@ -324,7 +324,7 @@ export default function AppRouter({
                 // HotReloader uses the router tree and router.reload() in order to apply Server Component changes.
                 hotReloader
               }
-            </AppTreeContext.Provider>
+            </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
         </GlobalLayoutRouterContext.Provider>
       </SearchParamsContext.Provider>

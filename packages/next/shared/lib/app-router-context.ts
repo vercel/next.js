@@ -46,7 +46,7 @@ export type AppRouterInstance = {
 export const AppRouterContext = React.createContext<AppRouterInstance>(
   null as any
 )
-export const AppTreeContext = React.createContext<{
+export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
@@ -63,6 +63,6 @@ export const GlobalLayoutRouterContext = React.createContext<{
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
-  AppTreeContext.displayName = 'AppTreeContext'
+  LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
 }

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef } from 'react'
-import type { ChildProp } from '../../server/app-render'
+import type { ChildProp, Segment } from '../../server/app-render'
 import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
@@ -7,7 +7,7 @@ import type {
   FlightDataPath,
 } from '../../server/app-render'
 import {
-  AppTreeContext,
+  LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
@@ -15,23 +15,34 @@ import { matchSegment } from './match-segments'
 
 let infinitePromise: Promise<void> | Error
 
-function equalArray(a: any[], b: any[]) {
+/**
+ * Check if every segment in array a and b matches
+ */
+function equalSegmentPaths(a: Segment[], b: Segment[]) {
+  // Comparing length is a fast path.
   return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
 }
 
-function pathMatches(
+/**
+ * Check if flightDataPath matches layoutSegmentPath
+ */
+function segmentPathMatches(
   flightDataPath: FlightDataPath,
   layoutSegmentPath: FlightSegmentPath
 ): boolean {
-  // The last two items are the tree and subTreeData
+  // The last three items are the current segment, tree, and subTreeData
   const pathToLayout = flightDataPath.slice(0, -3)
-  return equalArray(layoutSegmentPath, pathToLayout)
+  return equalSegmentPaths(layoutSegmentPath, pathToLayout)
 }
 
+/**
+ * Create a Promise that does not resolve. This is used to suspend when data is not available yet.
+ */
 function createInfinitePromise() {
   if (!infinitePromise) {
+    // Only create the Promise once
     infinitePromise = new Promise((/* resolve */) => {
-      // Note: this is used to debug when the rendering is never updated.
+      // This is used to debug when the rendering is never updated.
       // setTimeout(() => {
       //   infinitePromise = new Error('Infinite promise')
       //   resolve()
@@ -42,11 +53,17 @@ function createInfinitePromise() {
   return infinitePromise
 }
 
+/**
+ * Check if the top of the HTMLElement is in the viewport.
+ */
 function topOfElementInViewport(element: HTMLElement) {
   const rect = element.getBoundingClientRect()
   return rect.top >= 0
 }
 
+/**
+ * InnerLayoutRouter handles rendering the provided segment based on the cache.
+ */
 export function InnerLayoutRouter({
   parallelRouterKey,
   url,
@@ -184,7 +201,7 @@ export function InnerLayoutRouter({
     if (flightData.length === 1) {
       const flightDataPath = flightData[0]
 
-      if (pathMatches(flightDataPath, segmentPath)) {
+      if (segmentPathMatches(flightDataPath, segmentPath)) {
         childNode.data = null
         // Last item is the subtreeData
         // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
@@ -219,7 +236,7 @@ export function InnerLayoutRouter({
   }
 
   const subtree = (
-    <AppTreeContext.Provider
+    <LayoutRouterContext.Provider
       value={{
         tree: tree[1][parallelRouterKey],
         childNodes: childNode.parallelRoutes,
@@ -228,7 +245,7 @@ export function InnerLayoutRouter({
       }}
     >
       {childNode.subTreeData}
-    </AppTreeContext.Provider>
+    </LayoutRouterContext.Provider>
   )
 
   // Ensure root layout is not wrapped in a div
@@ -253,6 +270,10 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
+/**
+ * OuterLayoutRouter handles the current segment as well as <Offscreen> rendering of other segments.
+ * It can be rendered next to each other with a different `parallelRouterKey`, allowing for Parallel routes.
+ */
 export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
@@ -266,23 +287,25 @@ export default function OuterLayoutRouter({
   loading: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
-  const { childNodes, tree, url } = useContext(AppTreeContext)
+  const { childNodes, tree, url } = useContext(LayoutRouterContext)
 
+  // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
+  // If the parallel router cache node does not exist yet, create it.
+  // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
   if (!childNodesForParallelRouter) {
     childNodes.set(parallelRouterKey, new Map())
     childNodesForParallelRouter = childNodes.get(parallelRouterKey)!
   }
 
-  // This relates to the segments in the current router
-  // tree[1].children[0] refers to tree.children.segment in the data format
+  // Get the active segment in the tree
+  // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
   const treeSegment = tree[1][parallelRouterKey][0]
-  const childPropSegment = Array.isArray(childProp.segment)
-    ? childProp.segment[1]
-    : childProp.segment
-  const currentChildSegment =
-    (Array.isArray(treeSegment) ? treeSegment[1] : treeSegment) ??
-    childPropSegment
+
+  // If segment is an array it's a dynamic route and we want to read the dynamic route value as the segment to get from the cache.
+  const currentChildSegment = Array.isArray(treeSegment)
+    ? treeSegment[1]
+    : treeSegment
   const preservedSegments: string[] = [currentChildSegment]
 
   return (
@@ -301,7 +324,7 @@ export default function OuterLayoutRouter({
               tree={tree}
               childNodes={childNodesForParallelRouter!}
               childProp={
-                childPropSegment === preservedSegment ? childProp : null
+                currentChildSegment === preservedSegment ? childProp : null
               }
               segmentPath={segmentPath}
               path={preservedSegment}

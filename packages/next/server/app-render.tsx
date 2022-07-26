@@ -313,7 +313,6 @@ export type FlightDataPath =
 export type FlightData = Array<FlightDataPath> | string
 export type ChildProp = {
   current: React.ReactNode
-  segment: Segment
 }
 
 /**
@@ -650,13 +649,8 @@ export async function renderToHTMLOrFlight(
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
-          const childSegment = parallelRoutes[parallelRouteKey][0]
-          const childSegmentParam = getDynamicParamFromSegment(childSegment)
           const childProp: ChildProp = {
             current: <ChildComponent />,
-            segment: childSegmentParam
-              ? childSegmentParam.treeSegment
-              : childSegment,
           }
 
           // This is turned back into an object below.
