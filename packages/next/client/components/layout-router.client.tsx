@@ -343,6 +343,10 @@ export default function OuterLayoutRouter({
   // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
   const treeSegment = tree[1][parallelRouterKey][0]
 
+  const childPropSegment = Array.isArray(childProp.segment)
+    ? childProp.segment[1]
+    : childProp.segment
+
   // If segment is an array it's a dynamic route and we want to read the dynamic route value as the segment to get from the cache.
   const currentChildSegment = Array.isArray(treeSegment)
     ? treeSegment[1]
@@ -372,7 +376,7 @@ export default function OuterLayoutRouter({
               tree={tree}
               childNodes={childNodesForParallelRouter!}
               childProp={
-                currentChildSegment === preservedSegment ? childProp : null
+                childPropSegment === preservedSegment ? childProp : null
               }
               segmentPath={segmentPath}
               path={preservedSegment}
