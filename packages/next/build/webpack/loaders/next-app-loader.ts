@@ -130,7 +130,6 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         ? `require('next/dist/client/components/hot-reloader.client.js').default`
         : 'null'
     }
-    export const hooksClientContext = require('next/dist/client/components/hooks-client-context.js')
 
     export const __next_app_webpack_require__ = __webpack_require__
   `

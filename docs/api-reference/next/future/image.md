@@ -39,6 +39,13 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Note: there is no `fill` mode so `width` & `height` props are required
 - Note: the [`onError`](#onerror) prop might behave differently
 
+The default layout for `next/image` was `intrinsic`, which would shrink the `width` if the image was larger than it's container. Since no styles are automatically applied to `next/future/image`, you'll need to add the following CSS to achieve the same behavior:
+
+```css
+max-width: 100%;
+height: auto;
+```
+
 ## Required Props
 
 The `<Image />` component requires the following properties.
