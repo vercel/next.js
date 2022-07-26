@@ -314,8 +314,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             locale: true,
             onClick: true,
             onMouseEnter: true,
-            legacyBehavior: true,
             onTouchStart: true,
+            legacyBehavior: true,
           } as const
 
           const optionalProps: LinkPropsOptional[] = Object.keys(
