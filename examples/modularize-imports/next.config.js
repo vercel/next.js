@@ -1,4 +1,9 @@
-module.exports = {
+// @ts-check
+
+/**
+ * @type {import('next').NextConfig}
+ **/
+const nextConfig = {
   experimental: {
     modularizeImports: {
       '../components/halves': {
@@ -7,3 +12,5 @@ module.exports = {
     },
   },
 }
+
+module.exports = nextConfig
