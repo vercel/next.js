@@ -539,7 +539,7 @@ export function reducer(
 
         // Below is the not-optimistic case.
 
-        // If no in-flight fetch at the top start it.
+        // If no in-flight fetch at the top, start it.
         if (!cache.data) {
           cache.data = fetchServerResponse(url, state.tree)
         }
