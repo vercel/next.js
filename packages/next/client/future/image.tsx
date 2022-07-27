@@ -289,7 +289,7 @@ function handleLoading(
           const { position } = window.getComputedStyle(img.parentElement)
           if (position !== 'relative') {
             warnOnce(
-              `Fill mode image with src "${src}" has a parent element without CSS position: "relative". This is required for the Fill attribute to function correctly.`
+              `Fill mode image with src "${src}" has a parent element without CSS position: "relative". This is required for the "fill" property to function correctly.`
             )
           }
         }
@@ -413,17 +413,27 @@ export default function Image({
       if (fill) {
         if (width) {
           throw new Error(
-            `Image with src "${src}" has both "width" and "fill" properties. Images in fill mode should not specify width or height.`
+            `Image with src "${src}" has both "width" and "fill" properties. Only one should be used.`
           )
         }
         if (height) {
           throw new Error(
-            `Image with src "${src}" has both "height" and "fill" properties. Images in fill mode should not specify height or width.`
+            `Image with src "${src}" has both "height" and "fill" properties. Only one should be used.`
           )
         }
-        if (style?.position) {
+        if (style?.position && style.position !== 'absolute') {
           throw new Error(
-            `Image with src "${src}" has a style attribute which modifies the CSS 'position' attribute. Fill images have position: 'absolute' and this should not be modified.`
+            `Image with src "${src}" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
+          )
+        }
+        if (style?.width && style.width !== '100%') {
+          throw new Error(
+            `Image with src "${src}" has both "fill" and "style.width" properties. Images with "fill" always use width 100% - it cannot be modified.`
+          )
+        }
+        if (style?.height && style.height !== '100%') {
+          throw new Error(
+            `Image with src "${src}" has both "fill" and "style.height" properties. Images with "fill" always use height 100% - it cannot be modified.`
           )
         }
       } else {
@@ -462,12 +472,12 @@ export default function Image({
 
     if ('objectFit' in rest) {
       throw new Error(
-        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" attribute.`
+        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" property.`
       )
     }
     if ('objectPosition' in rest) {
       throw new Error(
-        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" attribute.`
+        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" property.`
       )
     }
 
@@ -475,17 +485,6 @@ export default function Image({
       if ((widthInt || 0) * (heightInt || 0) < 1600) {
         warnOnce(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
-        )
-      }
-
-      if ('objectFit' in rest) {
-        throw new Error(
-          `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" attribute.`
-        )
-      }
-      if ('objectPosition' in rest) {
-        throw new Error(
-          `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" attribute.`
         )
       }
 
