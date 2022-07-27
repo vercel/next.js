@@ -158,7 +158,7 @@ export async function printTreeView(
 
   const messages: [string, string, string][] = []
 
-  const sizes = await computeFromManifest(
+  const stats = await computeFromManifest(
     { build: buildManifest, app: appBuildManifest },
     distPath,
     gzipSize,
@@ -167,14 +167,11 @@ export async function printTreeView(
 
   const printFileTree = async ({
     list,
-    size,
     routerType,
   }: {
     list: ReadonlyArray<string>
-    size: ComputeFilesManifest
     routerType: ROUTER_TYPE
   }) => {
-    messages.push([routerType === 'app' ? 'App' : 'Pages', '', ''])
     messages.push(
       [routerType === 'app' ? 'Route' : 'Page', 'Size', 'First Load JS'].map(
         (entry) => chalk.underline(entry)
@@ -240,7 +237,9 @@ export async function printTreeView(
 
       const uniqueCssFiles =
         buildManifest.pages[item]?.filter(
-          (file) => file.endsWith('.css') && size.unique.files.includes(file)
+          (file) =>
+            file.endsWith('.css') &&
+            stats.router[routerType]?.unique.files.includes(file)
         ) || []
 
       if (uniqueCssFiles.length > 0) {
@@ -248,11 +247,10 @@ export async function printTreeView(
 
         uniqueCssFiles.forEach((file, index, { length }) => {
           const innerSymbol = index === length - 1 ? '└' : '├'
+          const size = stats.sizes.get(file)
           messages.push([
             `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
-            typeof size.unique.size.files[file] === 'number'
-              ? prettyBytes(size.unique.size.files[file])
-              : '',
+            typeof size === 'number' ? prettyBytes(size) : '',
             '',
           ])
         })
@@ -326,13 +324,17 @@ export async function printTreeView(
       }
     })
 
-    const sharedFilesSize = size.common.size.total
-    const sharedFiles = size.common.size.files
+    const sharedFilesSize = stats.router[routerType]?.common.size.total
+    const sharedFiles = stats.router[routerType]?.common.files ?? []
 
-    messages.push(['+ First Load JS', getPrettySize(sharedFilesSize), ''])
+    messages.push([
+      '+ First Load JS',
+      typeof sharedFilesSize === 'number' ? getPrettySize(sharedFilesSize) : '',
+      '',
+    ])
     const sharedCssFiles: string[] = []
     ;[
-      ...Object.keys(sharedFiles)
+      ...sharedFiles
         .filter((file) => {
           if (file.endsWith('.css')) {
             sharedCssFiles.push(file)
@@ -348,20 +350,22 @@ export async function printTreeView(
 
       const originalName = fileName.replace('<buildId>', buildId)
       const cleanName = getCleanName(fileName)
+      const size = stats.sizes.get(originalName)
 
       messages.push([
         `  ${innerSymbol} ${cleanName}`,
-        prettyBytes(sharedFiles[originalName]),
+        typeof size === 'number' ? prettyBytes(size) : '',
         '',
       ])
     })
   }
 
-  if (lists.app && sizes.app) {
+  // If enabled, then print the tree for the app directory.
+  if (lists.app && stats.router.app) {
+    messages.push(['App', '', ''])
     await printFileTree({
       routerType: 'app',
       list: lists.app,
-      size: sizes.app,
     })
 
     messages.push(['', '', ''])
@@ -373,14 +377,17 @@ export async function printTreeView(
   } as any)
 
   if (!lists.pages.includes('/404')) {
+    if (lists.app && stats.router.app) {
+      messages.push(['Pages', '', ''])
+    }
+
     lists.pages = [...lists.pages, '/404']
   }
 
-  // Print the tree view for the app directory.
+  // Print the tree view for the pages directory.
   await printFileTree({
     routerType: 'pages',
     list: lists.pages,
-    size: sizes.pages,
   })
 
   const middlewareInfo = middlewareManifest.middleware?.['/']
@@ -525,7 +532,6 @@ export function printCustomRoutes({
 type ComputeFilesGroup = {
   files: ReadonlyArray<string>
   size: {
-    files: Record<string, number>
     total: number
   }
 }
@@ -536,8 +542,11 @@ type ComputeFilesManifest = {
 }
 
 type ComputeFilesManifestResult = {
-  pages: ComputeFilesManifest
-  app?: ComputeFilesManifest
+  router: {
+    pages: ComputeFilesManifest
+    app?: ComputeFilesManifest
+  }
+  sizes: Map<string, number>
 }
 
 let cachedBuildManifest: BuildManifest | undefined
@@ -645,21 +654,25 @@ export async function computeFromManifest(
   }): Promise<ComputeFilesManifest> => {
     const entries = [...listing.each.entries()]
 
-    const shapeGroup = (group: [string, number][]): ComputeFilesGroup => ({
-      files: group.map(([f]) => f),
-      size: group.reduce<ComputeFilesGroup['size']>(
+    const shapeGroup = (group: [string, number][]): ComputeFilesGroup =>
+      group.reduce(
         (acc, [f]) => {
-          // TODO: (wyattjoh) see if we can remove this
-          const size = stats.get(f)!
+          acc.files.push(f)
 
-          acc.files[f] = size
-          acc.total += size
+          const size = stats.get(f)
+          if (typeof size === 'number') {
+            acc.size.total += size
+          }
 
           return acc
         },
-        { files: {}, total: 0 }
-      ),
-    })
+        {
+          files: [] as string[],
+          size: {
+            total: 0,
+          },
+        }
+      )
 
     return {
       unique: shapeGroup(entries.filter(([, len]) => len === 1)),
@@ -672,14 +685,21 @@ export async function computeFromManifest(
   }
 
   lastCompute = {
-    pages: await groupFiles(files.pages),
-    app: files.app ? await groupFiles(files.app) : undefined,
+    router: {
+      pages: await groupFiles(files.pages),
+      app: files.app ? await groupFiles(files.app) : undefined,
+    },
+    sizes: stats,
   }
 
   cachedBuildManifest = manifests.build
   cachedAppBuildManifest = manifests.app
   lastComputePageInfo = !!pageInfos
   return lastCompute!
+}
+
+export function unique<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
+  return [...new Set([...main, ...sub])]
 }
 
 export function difference<T>(
@@ -691,6 +711,9 @@ export function difference<T>(
   return [...a].filter((x) => !b.has(x))
 }
 
+/**
+ * Return an array of the items shared by both arrays.
+ */
 function intersect<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
   const a = new Set(main)
   const b = new Set(sub)
@@ -712,23 +735,25 @@ export async function getJsPageSizeInKb(
   buildManifest: BuildManifest,
   appBuildManifest?: AppBuildManifest,
   gzipSize: boolean = true,
-  computedManifestData?: ComputeFilesManifestResult
+  cachedStats?: ComputeFilesManifestResult
 ): Promise<[number, number]> {
   const pageManifest = routerType === 'pages' ? buildManifest : appBuildManifest
   if (!pageManifest) {
     throw new Error('expected appBuildManifest with an "app" pageType')
   }
 
-  const data =
-    computedManifestData ??
+  // If stats was not provided, then compute it again.
+  const stats =
+    cachedStats ??
     (await computeFromManifest(
       { build: buildManifest, app: appBuildManifest },
       distPath,
       gzipSize
     ))
 
-  const pageData = routerType === 'pages' ? data.pages : data.app
+  const pageData = stats.router[routerType]
   if (!pageData) {
+    // This error shouldn't happen and represents an error in Next.js.
     throw new Error('expected "app" manifest data with an "app" pageType')
   }
 
@@ -744,26 +769,41 @@ export async function getJsPageSizeInKb(
 
   const fnMapRealPath = (dep: string) => `${distPath}/${dep}`
 
-  const allFilesReal = [...new Set([...pageFiles, ...appFiles])].map(
-    fnMapRealPath
-  )
+  const allFilesReal = unique(pageFiles, appFiles).map(fnMapRealPath)
   const selfFilesReal = difference(
+    // Find the files shared by the pages files and the unique files...
     intersect(pageFiles, pageData.unique.files),
+    // but without the common files.
     pageData.common.files
   ).map(fnMapRealPath)
 
-  // TODO: (wyattjoh) see if we can reuse the manifest sizes
-
   const getSize = gzipSize ? fsStatGzip : fsStat
+
+  // Try to get the file size from the page data if available, otherwise do a
+  // raw compute.
+  const getCachedSize = async (file: string) => {
+    const key = file.slice(distPath.length + 1)
+    const size: number | undefined = stats.sizes.get(key)
+
+    // If the size wasn't in the stats bundle, then get it from the file
+    // directly.
+    if (typeof size !== 'number') {
+      return getSize(file)
+    }
+
+    return size
+  }
 
   try {
     // Doesn't use `Promise.all`, as we'd double compute duplicate files. This
     // function is memoized, so the second one will instantly resolve.
-    const allFilesSize = sum(await Promise.all(allFilesReal.map(getSize)))
-    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(getSize)))
+    const allFilesSize = sum(await Promise.all(allFilesReal.map(getCachedSize)))
+    const selfFilesSize = sum(
+      await Promise.all(selfFilesReal.map(getCachedSize))
+    )
 
     return [selfFilesSize, allFilesSize]
-  } catch (_) {}
+  } catch {}
   return [-1, -1]
 }
 
