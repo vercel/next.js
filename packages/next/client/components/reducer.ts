@@ -433,7 +433,7 @@ export function reducer(
       const { url, cacheType, navigateType, cache, mutable } = action
       const { pathname, search, hash } = url
       const href = pathname + search + hash
-      const pendingPush = navigateType === 'push' ? true : false
+      const pendingPush = navigateType === 'push'
 
       const segments = pathname.split('/')
       // TODO-APP: figure out something better for index pages
