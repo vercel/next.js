@@ -12,19 +12,17 @@ use std::{
 
 use anyhow::anyhow;
 use clap::Parser;
-use turbo_tasks::{util::FormatDuration, TransientValue, TurboTasks};
+use turbo_tasks::{util::FormatDuration, TransientValue, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
-use turbopack::{
-    ecmascript::{target::CompileTargetVc, ModuleAssetVc as EcmascriptModuleAssetVc},
-    GraphOptionsVc, ModuleAssetContextVc,
-};
+use turbopack::{ecmascript::ModuleAssetVc as EcmascriptModuleAssetVc, ModuleAssetContextVc};
 use turbopack_core::{
     chunk::{
         dev::{DevChunkingContext, DevChunkingContextVc},
         ChunkGroupVc, ChunkableAssetVc,
     },
     context::AssetContextVc,
+    environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     lazy::LazyAssetVc,
     source_asset::SourceAssetVc,
 };
@@ -83,7 +81,18 @@ async fn main() {
             let source_asset = SourceAssetVc::new(FileSystemPathVc::new(fs, "src/index.js")).into();
             let context: AssetContextVc = ModuleAssetContextVc::new(
                 root,
-                GraphOptionsVc::new(false, false, CompileTargetVc::current()),
+                EnvironmentVc::new(
+                    Value::new(ExecutionEnvironment::Browser(
+                        BrowserEnvironment {
+                            dom: true,
+                            web_worker: false,
+                            service_worker: false,
+                            browser_version: 0,
+                        }
+                        .into(),
+                    )),
+                    Value::new(EnvironmentIntention::Client),
+                ),
             )
             .into();
             let module = context.process(source_asset);
