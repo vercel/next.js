@@ -4,7 +4,10 @@ import { useRouter } from 'next/router'
 export default function LocaleSwitcher() {
   const router = useRouter()
   const { locales, locale: activeLocale } = router
-  const otherLocales = locales.filter((locale) => locale !== activeLocale)
+
+  const otherLocales = (locales || []).filter(
+    (locale) => locale !== activeLocale
+  )
 
   return (
     <div>
@@ -15,7 +18,7 @@ export default function LocaleSwitcher() {
           return (
             <li key={locale}>
               <Link href={{ pathname, query }} as={asPath} locale={locale}>
-                <a>{locale}</a>
+                {locale}
               </Link>
             </li>
           )
