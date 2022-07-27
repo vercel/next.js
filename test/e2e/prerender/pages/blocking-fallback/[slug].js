@@ -10,12 +10,23 @@ export async function getStaticPaths() {
       {
         params: { slug: 'test-errors-1' },
       },
+      {
+        params: { slug: 'lots-of-data' },
+      },
     ],
     fallback: 'blocking',
   }
 }
 
 export async function getStaticProps({ params }) {
+  if (params.slug === 'lots-of-data') {
+    return {
+      props: {
+        lotsOfData: new Array(256 * 1000).fill('a').join(''),
+      },
+    }
+  }
+
   if (params.slug.startsWith('test-errors')) {
     const errorFile = path.join(process.cwd(), 'error.txt')
     if (fs.existsSync(errorFile)) {
