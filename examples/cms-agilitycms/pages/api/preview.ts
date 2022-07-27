@@ -1,6 +1,10 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { validatePreview } from '../../lib/api'
 
-export default async function handler(req, res) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   // Check the secret and next parameters
   // This secret should only be known to this API route and the CMS
 
@@ -19,6 +23,9 @@ export default async function handler(req, res) {
   res.setPreviewData({})
 
   // Redirect to the slug
+  if (!('slug' in validationResp)) {
+    throw new Error('invariant missing slug in validation response')
+  }
   res.writeHead(307, { Location: validationResp.slug })
   res.end()
 }

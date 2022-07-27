@@ -24,10 +24,10 @@ export const requireComponentDependancyByName = (name) => {
   if (!Component) {
     // eslint-disable-next-line no-throw-literal
     throw `Could not find a component with the name ${name}. Tried searching:
-        ${userComponentsPath}/${kebabCaseName}.js',
-        ${libComponentsPath}/${kebabCaseName}.js',
-        ${userComponentsPath}/${pascalCaseName}.js',
-        ${libComponentsPath}/${pascalCaseName}.js'.`
+        ${userComponentsPath}/${kebabCaseName}.tsx',
+        ${libComponentsPath}/${kebabCaseName}.tsx',
+        ${userComponentsPath}/${pascalCaseName}.tsx',
+        ${libComponentsPath}/${pascalCaseName}.tsx'.`
   }
 
   return Component
@@ -38,13 +38,13 @@ const requireComponent = (name) => {
 
   try {
     //check the user path first (must be relative paths)
-    Component = require(`../components/${name}.js`).default
+    Component = require(`../components/${name}.tsx`).default
   } catch {}
 
   if (!Component)
     try {
       //fallback to lib path (must be relative paths)
-      Component = require(`./components/${name}.js`).default
+      Component = require(`./components/${name}.tsx`).default
     } catch {}
 
   return Component

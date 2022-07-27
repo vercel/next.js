@@ -198,6 +198,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
     },
+    '/blocking-fallback/lots-of-data': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/lots-of-data.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: '/blocking-fallback/[slug]',
+    },
     '/blocking-fallback/test-errors-1': {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1.json`,
       initialRevalidateSeconds: 1,
@@ -961,6 +966,11 @@ describe('Prerender', () => {
       await check(
         () => next.cliOutput,
         /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      )
+      await renderViaHTTP(next.url, '/blocking-fallback/lots-of-data')
+      await check(
+        () => next.cliOutput,
+        /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
       )
     })
 
