@@ -411,8 +411,10 @@ interface ServerPatchAction {
  * Reducer that handles the app-router state updates.
  */
 export function reducer(
-  state: AppRouterState,
-  action: ReloadAction | NavigateAction | RestoreAction | ServerPatchAction
+  state: Readonly<AppRouterState>,
+  action: Readonly<
+    ReloadAction | NavigateAction | RestoreAction | ServerPatchAction
+  >
 ): AppRouterState {
   switch (action.type) {
     case ACTION_RESTORE: {
