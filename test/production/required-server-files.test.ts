@@ -1243,4 +1243,38 @@ describe('should set-up next', () => {
     expect(envVariables.envProd).not.toBeUndefined()
     expect(envVariables.envLocal).toBeUndefined()
   })
+
+  it('should run middleware correctly without minimalMode', async () => {
+    await killApp(server)
+    const testServer = join(next.testDir, 'standalone/server.js')
+    await fs.writeFile(
+      testServer,
+      (
+        await fs.readFile(testServer, 'utf8')
+      ).replace('minimalMode: true', 'minimalMode: false')
+    )
+    appPort = await findPort()
+    server = await initNextServerScript(
+      testServer,
+      /Listening on/,
+      {
+        ...process.env,
+        PORT: appPort,
+      },
+      undefined,
+      {
+        cwd: next.testDir,
+        onStderr(msg) {
+          if (msg.includes('top-level')) {
+            errors.push(msg)
+          }
+          stderr += msg
+        },
+      }
+    )
+
+    const res = await fetchViaHTTP(appPort, '/')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('index page')
+  })
 })

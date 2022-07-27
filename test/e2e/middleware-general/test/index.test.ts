@@ -114,6 +114,7 @@ describe('Middleware Runtime', () => {
             page: '/',
             regexp: '^/.*$',
             wasm: [],
+            assets: [],
           },
         })
       })

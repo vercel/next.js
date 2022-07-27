@@ -1,7 +1,7 @@
 import { SERVER_RUNTIME } from '../../../lib/constants'
 
 export default async function transformSource(this: any): Promise<string> {
-  let { modules, runtime, ssr } = this.getOptions()
+  let { modules, runtime, ssr, server } = this.getOptions()
   if (!Array.isArray(modules)) {
     modules = modules ? [modules] : []
   }
@@ -9,6 +9,7 @@ export default async function transformSource(this: any): Promise<string> {
   const requests = modules as string[]
   const code =
     requests
+      .filter((request) => (server ? !request.endsWith('.css') : true))
       .map((request) => `import(/* webpackMode: "eager" */ '${request}')`)
       .join(';\n') +
     `

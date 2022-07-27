@@ -9,17 +9,28 @@ If a page has [Dynamic Routes](/docs/routing/dynamic-routes.md) and uses `getSta
 When you export a function called `getStaticPaths` (Static Site Generation) from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
 
 ```jsx
+// pages/posts/[id].js
+
+// Generates `/posts/1` and `/posts/2`
 export async function getStaticPaths() {
   return {
-    paths: [
-      { params: { ... } }
-    ],
-    fallback: true // false or 'blocking'
-  };
+    paths: [{ params: { id: '1' } }, { params: { id: '2' } }],
+    fallback: false, // can also be true or 'blocking'
+  }
+}
+
+// `getStaticPaths` requires using `getStaticProps`
+export async function getStaticProps(context) {
+  return {
+    // Passed to the page component as props
+    props: { post: {} },
+  }
+}
+
+export default function Post({ post }) {
+  // Render post...
 }
 ```
-
-`getStaticPaths` **must** be used with `getStaticProps`. You **cannot** use it with [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
 
 The [`getStaticPaths` API reference](/docs/api-reference/data-fetching/get-static-paths.md) covers all parameters and props that can be used with `getStaticPaths`.
 
@@ -45,13 +56,51 @@ You should use `getStaticPaths` if you’re statically pre-rendering pages that 
 
 ## Where can I use getStaticPaths
 
-`getStaticPaths` can only be exported from a [dynamic route](/docs/routing/dynamic-routes.md) that also uses `getStaticProps`. You **cannot** export it from non-page files e.g. from your `components` folder.
-
-Note that you must use export `getStaticPaths` as a standalone function — it will **not** work if you add `getStaticPaths` as a property of the page component.
+- `getStaticPaths` **must** be used with `getStaticProps`
+- You **cannot** use `getStaticPaths` with [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md)
+- You can export `getStaticPaths` from a [Dynamic Route](/docs/routing/dynamic-routes.md) that also uses `getStaticProps`
+- You **cannot** export `getStaticPaths` from non-page file (e.g. your `components` folder)
+- You must export `getStaticPaths` as a standalone function, and not a property of the page component
 
 ## Runs on every request in development
 
 In development (`next dev`), `getStaticPaths` will be called on every request.
+
+## Generating paths on-demand
+
+`getStaticProps` allows you to control which pages are generated during the build instead of on-demand with [`fallback`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-blocking). Generating more pages during a build will cause slower builds.
+
+You can defer generating all pages on-demand by returning an empty array for `paths`. This can be especially helpful when deploying your Next.js application to multiple environments. For example, you can have faster builds by generating all pages on-demand for previews (but not production builds). This is helpful for sites with hundreds/thousands of static pages.
+
+```jsx
+// pages/posts/[id].js
+
+export async function getStaticPaths() {
+  // When this is true (in preview environments) don't
+  // prerender any static pages
+  // (faster builds, but slower initial page load)
+  if (process.env.SKIP_BUILD_STATIC_GENERATION) {
+    return {
+      paths: [],
+      fallback: 'blocking',
+    }
+  }
+
+  // Call an external API endpoint to get posts
+  const res = await fetch('https://.../posts')
+  const posts = await res.json()
+
+  // Get the paths we want to prerender based on posts
+  // In production environments, prerender all pages
+  // (slower builds, but faster initial page load)
+  const paths = posts.map((post) => ({
+    params: { id: post.id },
+  }))
+
+  // { fallback: false } means other routes should 404
+  return { paths, fallback: false }
+}
+```
 
 ## Related
 
