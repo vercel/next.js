@@ -4,13 +4,40 @@ import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
-export type CacheNode = {
-  data: ReturnType<
-    typeof import('../../client/components/app-router.client').fetchServerResponse
-  > | null
-  subTreeData: null | React.ReactNode
-  parallelRoutes: Map<string, ChildSegmentMap>
-}
+/**
+ * Cache node used in app-router / layout-router.
+ */
+export type CacheNode =
+  | {
+      /**
+       * In-flight request for this node.
+       */
+      data: null
+      /**
+       * React Component for this node.
+       */
+      subTreeData: React.ReactNode
+      /**
+       * Child parallel routes.
+       */
+      parallelRoutes: Map<string, ChildSegmentMap>
+    }
+  | {
+      /**
+       * In-flight request for this node.
+       */
+      data: ReturnType<
+        typeof import('../../client/components/app-router.client').fetchServerResponse
+      >
+      /**
+       * React Component for this node.
+       */
+      subTreeData: null
+      /**
+       * Child parallel routes.
+       */
+      parallelRoutes: Map<string, ChildSegmentMap>
+    }
 
 export type AppRouterInstance = {
   /**
