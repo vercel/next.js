@@ -56,6 +56,9 @@ export class Cookies extends Map<string, string> {
       )
     )
   }
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return Object.fromEntries(this.entries())
+  }
 }
 
 export class NextCookies extends Cookies {

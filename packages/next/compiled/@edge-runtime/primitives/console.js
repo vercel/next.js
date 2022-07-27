@@ -105,6 +105,15 @@ var require_dist = __commonJS({
         if (formattedPrimitive !== void 0) {
           return formattedPrimitive;
         }
+        const symbols = Object.getOwnPropertySymbols(value);
+        if (symbols.length > 0) {
+          symbols.forEach((symbol) => {
+            const obj = value;
+            const symbolKey = `[${symbol.toString()}]`;
+            obj[symbolKey] = obj[symbol];
+            delete obj[symbol];
+          });
+        }
         const keys = ctx.showHidden ? Object.getOwnPropertyNames(value) : Object.keys(value);
         const visibleKeys = /* @__PURE__ */ new Set();
         keys.forEach((key) => visibleKeys.add(key));
@@ -121,8 +130,10 @@ var require_dist = __commonJS({
             return format2(value[ctx.customInspectSymbol]());
           }
         }
+        const isValueFunction = kind(value, "function");
+        const isValueArray = Array.isArray(value);
         let base = "";
-        if (kind(value, "function")) {
+        if (isValueFunction) {
           base = `[Function${value.name ? ": " + value.name : ""}]`;
         } else if (isRegExp(value)) {
           base = " " + RegExp.prototype.toString.call(value);
@@ -133,17 +144,17 @@ var require_dist = __commonJS({
         } else if (hasCustomSymbol(value, ctx.customInspectSymbol)) {
           base = " " + value[ctx.customInspectSymbol]();
         }
-        const braces = Array.isArray(value) ? ["[", "]"] : ["{", "}"];
-        if (keys.length === 0 && (!Array.isArray(value) || value.length === 0)) {
+        const braces = isValueArray ? ["[", "]"] : isValueFunction ? ["", ""] : ["{", "}"];
+        if (keys.length === 0 && (!isValueArray || value.length === 0)) {
           return braces[0] + base + braces[1];
         }
         if (recurseTimes && recurseTimes < 0) {
           return isRegExp(value) ? RegExp.prototype.toString.call(value) : "[Object]";
         }
         ctx.seen.push(value);
-        const output = Array.isArray(value) ? formatArray(ctx, value, recurseTimes, visibleKeys, keys) : keys.map((key) => formatProperty(ctx, value, recurseTimes, visibleKeys, key, false));
+        let output = isValueArray ? formatArray(ctx, value, recurseTimes, visibleKeys, keys) : keys.map((key) => formatProperty(ctx, value, recurseTimes, visibleKeys, key, false));
         ctx.seen.pop();
-        return reduceToSingleString(output, base, braces);
+        return reduceToSingleString(output, base, braces, isValueFunction);
       }
       __name(formatValue, "formatValue");
       function inspect(value, opts2) {
@@ -151,7 +162,7 @@ var require_dist = __commonJS({
         return formatValue(opts2, value, opts2.depth);
       }
       __name(inspect, "inspect");
-      function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
+      function formatProperty(ctx, value, recurseTimes, visibleKeys, key, isArray) {
         let name;
         let str;
         const desc = Object.getOwnPropertyDescriptor(value, key) || {
@@ -169,7 +180,7 @@ var require_dist = __commonJS({
           if (ctx.seen.indexOf(desc.value) < 0) {
             str = formatValue(ctx, desc.value, recurseTimes === null || recurseTimes === void 0 ? null : recurseTimes - 1);
             if (str.indexOf("\n") > -1) {
-              if (array) {
+              if (isArray) {
                 str = str.split("\n").map((line) => `  ${line}`).join("\n").slice(2);
               } else {
                 str = "\n" + str.split("\n").map((line) => `   ${line}`).join("\n");
@@ -180,17 +191,11 @@ var require_dist = __commonJS({
           }
         }
         if (name === void 0) {
-          if (array && key.match(/^\d+$/)) {
+          if (isArray && key.match(/^\d+$/)) {
             return str;
           }
-          name = JSON.stringify("" + key);
-          if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-            name = name.slice(1, -1);
-          } else {
-            name = name.replace(/'/g, "\\'").replace(/\\"/g, '"').replace(/(^"|"$)/g, "'");
-          }
         }
-        return `${name}: ${str}`;
+        return `${key}: ${str}`;
       }
       __name(formatProperty, "formatProperty");
       function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
@@ -252,14 +257,18 @@ var require_dist = __commonJS({
       return kind(value, "object") && (Object.prototype.toString.call(value) === "[object Error]" || value instanceof Error);
     }
     __name(isError, "isError");
-    function reduceToSingleString(output, base, braces) {
+    function reduceToSingleString(output, base, braces, isValueFunction) {
       const length = output.reduce((prev, cur) => {
         return prev + cur.replace(/\u001b\[\d\d?m/g, "").length + 1;
       }, 0);
       if (length > 60) {
-        return braces[0] + (base === "" ? "" : base + "\n ") + " " + output.join(",\n  ") + " " + braces[1];
+        const prefix2 = isValueFunction ? " {" : "";
+        const suffix2 = isValueFunction ? "\n}" : " ";
+        return braces[0] + (base === "" ? "" : base + prefix2 + "\n ") + ` ${output.join(",\n  ")}` + suffix2 + braces[1];
       }
-      return braces[0] + base + " " + output.join(", ") + " " + braces[1];
+      const prefix = isValueFunction ? " { " : " ";
+      const suffix = isValueFunction ? " } " : " ";
+      return (braces[0] + base + prefix + output.join(", ") + suffix + braces[1]).trim();
     }
     __name(reduceToSingleString, "reduceToSingleString");
     function safeStringify(object) {
