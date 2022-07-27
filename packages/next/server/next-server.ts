@@ -1,6 +1,7 @@
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
+import type { TLSSocket } from 'tls'
 import type { Route } from './router'
 import {
   CacheFs,
@@ -80,11 +81,7 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import {
-  bodyStreamToNodeStream,
-  clonableBodyForRequest,
-  requestToBodyStream,
-} from './body-streams'
+import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { shouldUseReactRoot } from './utils'
@@ -1121,6 +1118,12 @@ export default class NextNodeServer extends BaseServer {
         ...binding,
         filePath: join(this.distDir, binding.filePath),
       })),
+      assets: (pageInfo.assets ?? []).map((binding) => {
+        return {
+          ...binding,
+          filePath: join(this.distDir, binding.filePath),
+        }
+      }),
     }
   }
 
@@ -1199,10 +1202,6 @@ export default class NextNodeServer extends BaseServer {
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
     const method = (params.request.method || 'GET').toUpperCase()
-    let originalBody =
-      method !== 'GET' && method !== 'HEAD'
-        ? clonableBodyForRequest(params.request.body)
-        : undefined
 
     const middlewareList = this.getMiddleware()
     for (const middleware of middlewareList) {
@@ -1223,10 +1222,11 @@ export default class NextNodeServer extends BaseServer {
         }
 
         result = await run({
+          distDir: this.distDir,
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
-          wasm: middlewareInfo.wasm,
+          edgeFunctionEntry: middlewareInfo,
           request: {
             headers: params.request.headers,
             method,
@@ -1237,15 +1237,10 @@ export default class NextNodeServer extends BaseServer {
             },
             url: url,
             page: page,
-            body: originalBody?.cloneBodyStream(),
+            body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
           },
           useCache: !this.nextConfig.experimental.runtime,
-          onWarning: (warning: Error) => {
-            if (params.onWarning) {
-              warning.message += ` "./${middlewareInfo.name}"`
-              params.onWarning(warning)
-            }
-          },
+          onWarning: params.onWarning,
         })
 
         for (let [key, value] of result.response.headers) {
@@ -1275,7 +1270,6 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    await originalBody?.finalize()
     return result
   }
 
@@ -1518,12 +1512,35 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
+  protected attachRequestMeta(
+    req: BaseNextRequest,
+    parsedUrl: NextUrlWithParsedQuery
+  ) {
+    const protocol = (
+      (req as NodeNextRequest).originalRequest?.socket as TLSSocket
+    )?.encrypted
+      ? 'https'
+      : 'http'
+
+    // When there are hostname and port we build an absolute URL
+    const initUrl =
+      this.hostname && this.port
+        ? `${protocol}://${this.hostname}:${this.port}${req.url}`
+        : req.url
+
+    addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
+    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+    addRequestMeta(req, '_protocol', protocol)
+    addRequestMeta(req, '__NEXT_CLONABLE_BODY', getClonableBody(req.body))
+  }
+
   protected async runEdgeFunction(params: {
     req: BaseNextRequest | NodeNextRequest
     res: BaseNextResponse | NodeNextResponse
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
@@ -1549,13 +1566,12 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    const nodeReq = params.req as NodeNextRequest
-
     const result = await run({
+      distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
       env: middlewareInfo.env,
-      wasm: middlewareInfo.wasm,
+      edgeFunctionEntry: middlewareInfo,
       request: {
         headers: params.req.headers,
         method: params.req.method,
@@ -1569,19 +1585,10 @@ export default class NextNodeServer extends BaseServer {
           name: params.page,
           ...(params.params && { params: params.params }),
         },
-        body:
-          ['GET', 'HEAD'].includes(params.req.method) ||
-          !nodeReq.originalRequest
-            ? undefined
-            : requestToBodyStream(nodeReq.originalRequest),
+        body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
       },
       useCache: !this.nextConfig.experimental.runtime,
-      onWarning: (_warning: Error) => {
-        // if (params.onWarning) {
-        //   warning.message += ` "./${middlewareInfo.name}"`
-        //   params.onWarning(warning)
-        // }
-      },
+      onWarning: params.onWarning,
     })
 
     params.res.statusCode = result.response.status

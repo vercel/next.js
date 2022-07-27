@@ -79,6 +79,12 @@ export class FlightManifestPlugin {
         id: string | number,
         mod: any
       ) {
+        // if appDir is enabled we shouldn't process chunks from
+        // the pages dir
+        if (chunk.name?.startsWith('pages/') && appDir) {
+          return
+        }
+
         const isCSSModule =
           mod.type === 'css/mini-extract' ||
           (mod.loaders &&
@@ -113,44 +119,20 @@ export class FlightManifestPlugin {
 
         if (isCSSModule) {
           if (!manifest[resource]) {
-            if (dev) {
-              const chunkIdNameMapping = (chunk.ids || []).map((chunkId) => {
-                return (
-                  chunkId +
-                  ':' +
-                  (chunk.name || chunk.id) +
-                  (dev ? '' : '-' + chunk.hash)
-                )
-              })
-              manifest[resource] = {
-                default: {
-                  id,
-                  name: 'default',
-                  chunks: chunkIdNameMapping,
-                },
-              }
-              moduleIdMapping[id]['default'] = {
-                id: ssrNamedModuleId,
-                name: 'default',
-                chunks: chunkIdNameMapping,
-              }
-              manifest.__ssr_module_mapping__ = moduleIdMapping
-            } else {
-              const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
-              manifest[resource] = {
-                default: {
-                  id,
-                  name: 'default',
-                  chunks,
-                },
-              }
-              moduleIdMapping[id]['default'] = {
-                id: ssrNamedModuleId,
+            const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
+            manifest[resource] = {
+              default: {
+                id,
                 name: 'default',
                 chunks,
-              }
-              manifest.__ssr_module_mapping__ = moduleIdMapping
+              },
             }
+            moduleIdMapping[id]['default'] = {
+              id: ssrNamedModuleId,
+              name: 'default',
+              chunks,
+            }
+            manifest.__ssr_module_mapping__ = moduleIdMapping
           }
           return
         }
