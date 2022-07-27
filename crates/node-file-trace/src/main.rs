@@ -25,7 +25,7 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbopack::{
-    ecmascript::target::CompileTarget, emit, rebase::RebasedAssetVc, GraphOptionsVc,
+    ecmascript::target::CompileTargetVc, emit, rebase::RebasedAssetVc, GraphOptionsVc,
     ModuleAssetContextVc,
 };
 use turbopack_core::{
@@ -160,7 +160,7 @@ async fn input_to_modules<'a>(
     let root = FileSystemPathVc::new(fs, "");
     let context: AssetContextVc = ModuleAssetContextVc::new(
         root,
-        GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+        GraphOptionsVc::new(false, true, CompileTargetVc::current()),
     )
     .into();
     let mut list = Vec::new();

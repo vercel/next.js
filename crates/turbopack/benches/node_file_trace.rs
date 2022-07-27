@@ -10,8 +10,8 @@ use turbopack::{
     emit, emit_with_completion, rebase::RebasedAssetVc, register, GraphOptionsVc,
     ModuleAssetContextVc,
 };
-use turbopack_core::{context::AssetContext, source_asset::SourceAssetVc};
-use turbopack_ecmascript::target::CompileTarget;
+use turbopack_core::source_asset::SourceAssetVc;
+use turbopack_ecmascript::target::CompileTargetVc;
 
 pub fn benchmark(c: &mut Criterion) {
     register();
@@ -67,7 +67,7 @@ pub fn benchmark(c: &mut Criterion) {
                                 let source = SourceAssetVc::new(input);
                                 let context = ModuleAssetContextVc::new(
                                     input_dir,
-                                    GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+                                    GraphOptionsVc::new(false, true, CompileTargetVc::current()),
                                 );
                                 let module = context.process(source.into());
                                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
@@ -106,7 +106,7 @@ pub fn benchmark(c: &mut Criterion) {
                             let source = SourceAssetVc::new(input);
                             let context = ModuleAssetContextVc::new(
                                 input_dir,
-                                GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+                                GraphOptionsVc::new(false, true, CompileTargetVc::current()),
                             );
                             let module = context.process(source.into());
                             let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
@@ -115,7 +115,7 @@ pub fn benchmark(c: &mut Criterion) {
 
                             Ok(NothingVc::new().into())
                         });
-                        tt.wait_task_completion(task, true).await;
+                        tt.wait_task_completion(task, true).await.unwrap();
                     }
                 })
             });

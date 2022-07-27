@@ -106,15 +106,16 @@ pub async fn resolve_node_pre_gyp_files(
                     node_pre_gyp_config.binary.module_path.as_str(),
                     format!("{}", version),
                 );
-                let platform = compile_target.platform();
-                let native_binding_path = PLATFORM_TEMPLATE.replace(&native_binding_path, platform);
+                let platform = compile_target.platform;
                 let native_binding_path =
-                    ARCH_TEMPLATE.replace(&native_binding_path, compile_target.arch());
+                    PLATFORM_TEMPLATE.replace(&native_binding_path, platform.as_str());
+                let native_binding_path =
+                    ARCH_TEMPLATE.replace(&native_binding_path, compile_target.arch.as_str());
                 let native_binding_path = LIBC_TEMPLATE.replace(
                     &native_binding_path,
                     // node-pre-gyp only cares about libc on linux
-                    if platform == Platform::Linux.to_str() {
-                        compile_target.libc()
+                    if platform == Platform::Linux {
+                        compile_target.libc.as_str()
                     } else {
                         "unknown"
                     },
@@ -246,8 +247,8 @@ pub async fn resolve_node_gyp_build_files(
         }
     }
     let compile_target = compile_target.await?;
-    let arch = compile_target.arch();
-    let platform = compile_target.platform();
+    let arch = compile_target.arch;
+    let platform = compile_target.platform;
     let prebuilt_dir = format!("{}-{}", platform, arch);
     Ok(resolve_raw(
         context,

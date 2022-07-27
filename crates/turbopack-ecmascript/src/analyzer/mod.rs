@@ -1940,7 +1940,7 @@ mod tests {
         linker::{link, LinkCache},
         JsValue,
     };
-    use crate::target::{Arch, CompileTarget, Endianness, Libc, Platform, Target};
+    use crate::target::{Arch, CompileTarget, Endianness, Libc, Platform};
 
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
@@ -2026,12 +2026,12 @@ mod tests {
                             &(|val| {
                                 Box::pin(super::test_utils::visitor(
                                     val,
-                                    CompileTarget::Target(Target::new(
-                                        Arch::X64,
-                                        Platform::Linux,
-                                        Endianness::Little,
-                                        Libc::Glibc,
-                                    ))
+                                    CompileTarget {
+                                        arch: Arch::X64,
+                                        platform: Platform::Linux,
+                                        endianness: Endianness::Little,
+                                        libc: Libc::Glibc,
+                                    }
                                     .into(),
                                 ))
                             }),

@@ -5,193 +5,7 @@ use turbo_tasks::trace::TraceRawVcs;
 
 #[turbo_tasks::value(shared, serialization: auto_for_input)]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
-pub enum CompileTarget {
-    Current,
-    Target(Target),
-}
-
-#[turbo_tasks::value_impl]
-impl CompileTargetVc {
-    #[turbo_tasks::function]
-    pub fn current() -> Self {
-        Self::cell(CompileTarget::Current)
-    }
-}
-
-impl Display for CompileTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CompileTarget::Current => write!(f, "current target"),
-            CompileTarget::Target(t) => write!(f, "{:?}", t),
-        }
-    }
-}
-
-impl CompileTarget {
-    pub fn endianness(&self) -> &'static str {
-        if let CompileTarget::Target(Target { endianness, .. }) = self {
-            return endianness.to_str();
-        }
-        #[cfg(target_endian = "little")]
-        {
-            "LE"
-        }
-        #[cfg(target_endian = "big")]
-        {
-            "BE"
-        }
-    }
-
-    #[allow(unreachable_code)]
-    pub fn arch(&self) -> &'static str {
-        if let CompileTarget::Target(Target { arch, .. }) = self {
-            return arch.to_str();
-        }
-        #[cfg(target_arch = "x86")]
-        {
-            return "ia32";
-        }
-        #[cfg(target_arch = "x86_64")]
-        {
-            return "x64";
-        }
-        #[cfg(target_arch = "arm")]
-        {
-            return "arm";
-        }
-        #[cfg(target_arch = "aarch64")]
-        {
-            return "arm64";
-        }
-        #[cfg(target_arch = "mips")]
-        {
-            return "mips";
-        }
-        #[cfg(target_arch = "powerpc")]
-        {
-            return "ppc";
-        }
-        #[cfg(target_arch = "powerpc64")]
-        {
-            return "ppc64";
-        }
-        #[cfg(target_arch = "s390x")]
-        {
-            return "s390x";
-        }
-        "unknown"
-    }
-
-    #[allow(unreachable_code)]
-    pub fn platform(&self) -> &'static str {
-        if let CompileTarget::Target(Target { platform, .. }) = self {
-            return platform.to_str();
-        }
-        #[cfg(target_os = "windows")]
-        {
-            return "win32";
-        }
-        #[cfg(target_os = "linux")]
-        {
-            return "linux";
-        }
-        #[cfg(target_os = "macos")]
-        {
-            return "darwin";
-        }
-        #[cfg(target_os = "android")]
-        {
-            return "android";
-        }
-        #[cfg(target_os = "freebsd")]
-        {
-            return "freebsd";
-        }
-        #[cfg(target_os = "openbsd")]
-        {
-            return "openbsd";
-        }
-        #[cfg(target_os = "solaris")]
-        {
-            return "sunos";
-        }
-        "unknown"
-    }
-
-    #[allow(unreachable_code)]
-    pub fn libc(&self) -> &'static str {
-        if let CompileTarget::Target(Target { libc, .. }) = self {
-            return libc.to_str();
-        }
-        #[cfg(target_env = "gnu")]
-        {
-            return "glibc";
-        }
-        #[cfg(target_env = "musl")]
-        {
-            return "musl";
-        }
-        #[cfg(target_env = "msvc")]
-        {
-            return "msvc";
-        }
-        #[cfg(target_env = "sgx")]
-        {
-            return "sgx";
-        }
-        "unknown"
-    }
-
-    pub fn dylib_ext(&self) -> &'static str {
-        let platform = if let CompileTarget::Target(Target { platform, .. }) = self {
-            *platform
-        } else {
-            #[cfg(target_os = "windows")]
-            {
-                Platform::Win32
-            }
-            #[cfg(target_os = "linux")]
-            {
-                Platform::Linux
-            }
-            #[cfg(target_os = "macos")]
-            {
-                Platform::Darwin
-            }
-            #[cfg(target_os = "android")]
-            {
-                Platform::Android
-            }
-            #[cfg(target_os = "freebsd")]
-            {
-                Platform::Freebsd
-            }
-            #[cfg(target_os = "openbsd")]
-            {
-                Platform::Openbsd
-            }
-            #[cfg(target_os = "solaris")]
-            {
-                Platform::Sunos
-            }
-            #[cfg(target_os = "solaris")]
-            {
-                return "unknown";
-            }
-        };
-        match platform {
-            Platform::Win32 => "dll",
-            Platform::Darwin => "dylib",
-            _ => "so",
-        }
-    }
-}
-
-#[derive(
-    PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize,
-)]
-#[non_exhaustive]
-pub struct Target {
+pub struct CompileTarget {
     /// <https://nodejs.org/api/os.html#osarch>
     pub arch: Arch,
     /// <https://nodejs.org/api/os.html#osplatform>
@@ -201,14 +15,135 @@ pub struct Target {
     pub libc: Libc,
 }
 
-impl Target {
-    pub fn new(arch: Arch, platform: Platform, endianness: Endianness, libc: Libc) -> Self {
-        Self {
-            arch,
-            platform,
-            endianness,
-            libc,
+#[turbo_tasks::value_impl]
+impl CompileTargetVc {
+    #[turbo_tasks::function]
+    pub fn current() -> Self {
+        Self::cell(CompileTarget {
+            arch: CompileTarget::current_arch(),
+            platform: CompileTarget::current_platform(),
+            endianness: CompileTarget::current_endianness(),
+            libc: CompileTarget::current_libc(),
+        })
+    }
+}
+
+impl Display for CompileTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl CompileTarget {
+    pub fn dylib_ext(&self) -> &'static str {
+        let platform = self.platform;
+        match platform {
+            Platform::Win32 => "dll",
+            Platform::Darwin => "dylib",
+            _ => "so",
         }
+    }
+
+    fn current_endianness() -> Endianness {
+        #[cfg(target_endian = "little")]
+        {
+            Endianness::Little
+        }
+        #[cfg(target_endian = "big")]
+        {
+            Endianness::Big
+        }
+    }
+
+    #[allow(unreachable_code)]
+    fn current_arch() -> Arch {
+        #[cfg(target_arch = "x86")]
+        {
+            return Arch::Ia32;
+        }
+        #[cfg(target_arch = "x86_64")]
+        {
+            return Arch::X64;
+        }
+        #[cfg(target_arch = "arm")]
+        {
+            return Arch::Arm;
+        }
+        #[cfg(target_arch = "aarch64")]
+        {
+            return Arch::Arm64;
+        }
+        #[cfg(target_arch = "mips")]
+        {
+            return Arch::Mips;
+        }
+        #[cfg(target_arch = "powerpc")]
+        {
+            return Arch::Ppc;
+        }
+        #[cfg(target_arch = "powerpc64")]
+        {
+            return Arch::Ppc64;
+        }
+        #[cfg(target_arch = "s390x")]
+        {
+            return Arch::S390x;
+        }
+        Arch::Unknown
+    }
+
+    #[allow(unreachable_code)]
+    fn current_platform() -> Platform {
+        #[cfg(target_os = "windows")]
+        {
+            return Platform::Win32;
+        }
+        #[cfg(target_os = "linux")]
+        {
+            return Platform::Linux;
+        }
+        #[cfg(target_os = "macos")]
+        {
+            return Platform::Darwin;
+        }
+        #[cfg(target_os = "android")]
+        {
+            return Platform::Android;
+        }
+        #[cfg(target_os = "freebsd")]
+        {
+            return Platform::Freebsd;
+        }
+        #[cfg(target_os = "openbsd")]
+        {
+            return Platform::Openbsd;
+        }
+        #[cfg(target_os = "solaris")]
+        {
+            return Platform::Sunos;
+        }
+        Platform::Unknown
+    }
+
+    #[allow(unreachable_code)]
+    fn current_libc() -> Libc {
+        #[cfg(target_env = "gnu")]
+        {
+            return Libc::Glibc;
+        }
+        #[cfg(target_env = "musl")]
+        {
+            return Libc::Musl;
+        }
+        #[cfg(target_env = "msvc")]
+        {
+            return Libc::Msvc;
+        }
+        #[cfg(target_env = "sgx")]
+        {
+            return Libc::Sgx;
+        }
+        Libc::Unknown
     }
 }
 
@@ -228,10 +163,11 @@ pub enum Arch {
     S390,
     S390x,
     X64,
+    Unknown,
 }
 
 impl Arch {
-    pub fn to_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Arm => "arm",
             Self::Arm64 => "arm64",
@@ -243,7 +179,14 @@ impl Arch {
             Self::S390 => "s390",
             Self::S390x => "s390x",
             Self::X64 => "x64",
+            Self::Unknown => "unknown",
         }
+    }
+}
+
+impl Display for Arch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -261,10 +204,11 @@ pub enum Platform {
     Openbsd,
     Sunos,
     Win32,
+    Unknown,
 }
 
 impl Platform {
-    pub fn to_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Aix => "aix",
             Self::Android => "android",
@@ -274,7 +218,14 @@ impl Platform {
             Self::Openbsd => "openbsd",
             Self::Sunos => "sunos",
             Self::Win32 => "win32",
+            Self::Unknown => "unknown",
         }
+    }
+}
+
+impl Display for Platform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -288,11 +239,17 @@ pub enum Endianness {
 }
 
 impl Endianness {
-    pub fn to_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Big => "BE",
             Self::Little => "LE",
         }
+    }
+}
+
+impl Display for Endianness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -303,15 +260,23 @@ impl Endianness {
 pub enum Libc {
     Glibc,
     Musl,
+    Msvc,
     Unknown,
 }
 
 impl Libc {
-    pub fn to_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Glibc => "glibc",
             Self::Musl => "musl",
+            Self::Msvc => "msvc",
             Self::Unknown => "unknown",
         }
+    }
+}
+
+impl Display for Libc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }

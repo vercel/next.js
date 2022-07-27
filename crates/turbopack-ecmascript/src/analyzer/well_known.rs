@@ -60,9 +60,9 @@ pub async fn well_known_function_call(
         ),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
-        WellKnownFunctionKind::OsArch => target.await?.arch().into(),
-        WellKnownFunctionKind::OsPlatform => target.await?.platform().into(),
-        WellKnownFunctionKind::OsEndianness => target.await?.endianness().into(),
+        WellKnownFunctionKind::OsArch => target.await?.arch.as_str().into(),
+        WellKnownFunctionKind::OsPlatform => target.await?.platform.as_str().into(),
+        WellKnownFunctionKind::OsEndianness => target.await?.endianness.as_str().into(),
         WellKnownFunctionKind::NodeExpress => {
             JsValue::WellKnownObject(WellKnownObjectKind::NodeExpressApp)
         }
@@ -480,8 +480,8 @@ fn os_module_member(prop: JsValue) -> JsValue {
 
 async fn node_process_member(prop: JsValue, target: CompileTargetVc) -> Result<JsValue> {
     Ok(match prop.as_str() {
-        Some("arch") => target.await?.arch().into(),
-        Some("platform") => target.await?.platform().into(),
+        Some("arch") => target.await?.arch.as_str().into(),
+        Some("platform") => target.await?.platform.as_str().into(),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),

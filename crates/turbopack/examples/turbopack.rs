@@ -19,7 +19,7 @@ use turbo_tasks_memory::{
 };
 use turbopack::{emit, rebase::RebasedAssetVc, register, GraphOptionsVc};
 use turbopack_core::source_asset::SourceAssetVc;
-use turbopack_ecmascript::target::CompileTarget;
+use turbopack_ecmascript::target::CompileTargetVc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
             let source = SourceAssetVc::new(entry);
             let context = turbopack::ModuleAssetContextVc::new(
                 input,
-                GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+                GraphOptionsVc::new(false, true, CompileTargetVc::current()),
             );
             let module = context.process(source.into());
             let rebased = RebasedAssetVc::new(module, input, output);

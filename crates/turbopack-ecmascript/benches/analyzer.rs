@@ -18,7 +18,7 @@ use turbopack_ecmascript::{
         linker::{link, LinkCache},
         test_utils::visitor,
     },
-    target::CompileTarget,
+    target::{Arch, CompileTarget, Endianness, Libc, Platform},
 };
 
 pub fn benchmark(c: &mut Criterion) {
@@ -69,12 +69,26 @@ pub fn benchmark(c: &mut Criterion) {
                     b.to_async(r).iter(|| async {
                         let cache = Mutex::new(LinkCache::new());
                         for val in var_graph.values.values() {
-                            VcStorage::with(link(
-                                &var_graph,
-                                val.clone(),
-                                &(|val| Box::pin(visitor(val, CompileTarget::Current.into()))),
-                                &cache,
-                            ))
+                            VcStorage::with(async {
+                                link(
+                                    &var_graph,
+                                    val.clone(),
+                                    &(|val| {
+                                        Box::pin(visitor(
+                                            val,
+                                            CompileTarget {
+                                                arch: Arch::Unknown,
+                                                endianness: Endianness::Big,
+                                                platform: Platform::Unknown,
+                                                libc: Libc::Unknown,
+                                            }
+                                            .into(),
+                                        ))
+                                    }),
+                                    &cache,
+                                )
+                                .await
+                            })
                             .await
                             .unwrap();
                         }
