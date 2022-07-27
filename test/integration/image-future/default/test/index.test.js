@@ -949,7 +949,7 @@ function runTests(mode) {
       await getComputedStyle(browser, 'img-blur', 'background-position')
     ).toBe('1px 2px')
   })
-  describe.only('Fill-mode tests', () => {
+  describe('Fill-mode tests', () => {
     let browser
     beforeAll(async () => {
       browser = await webdriver(appPort, '/fill')
