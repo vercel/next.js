@@ -14,7 +14,7 @@ const react18Deps = {
   'react-dom': '^18.0.0',
 }
 
-describe('react 18 streaming SSR and RSC in minimal mode', () => {
+describe('react 18 streaming SSR in minimal mode', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -124,7 +124,7 @@ describe('react 18 streaming SSR with custom next configs', () => {
   })
 })
 
-describe('react 18 streaming SSR and RSC with custom server', () => {
+describe('react 18 streaming SSR with custom server', () => {
   let next
   let server
   let appPort
@@ -158,7 +158,7 @@ describe('react 18 streaming SSR and RSC with custom server', () => {
     await next.destroy()
     if (server) await killApp(server)
   })
-  it('should render rsc correctly under custom server', async () => {
+  it('should render page correctly under custom server', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toContain('streaming')
   })
