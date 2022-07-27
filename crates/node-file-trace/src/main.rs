@@ -18,21 +18,20 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
-use turbo_tasks::{backend::Backend, util::FormatDuration, NothingVc, TaskId, TurboTasks};
+use turbo_tasks::{backend::Backend, util::FormatDuration, NothingVc, TaskId, TurboTasks, Value};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
 };
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
-use turbopack::{
-    ecmascript::target::CompileTargetVc, emit, rebase::RebasedAssetVc, GraphOptionsVc,
-    ModuleAssetContextVc,
-};
+use turbopack::{emit, rebase::RebasedAssetVc, ModuleAssetContextVc};
 use turbopack_core::{
     asset::{AssetVc, AssetsVc},
     context::AssetContextVc,
+    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     reference::all_assets,
     source_asset::SourceAssetVc,
+    target::CompileTargetVc,
 };
 
 use crate::nft_json::NftJsonAssetVc;
@@ -160,7 +159,17 @@ async fn input_to_modules<'a>(
     let root = FileSystemPathVc::new(fs, "");
     let context: AssetContextVc = ModuleAssetContextVc::new(
         root,
-        GraphOptionsVc::new(false, true, CompileTargetVc::current()),
+        EnvironmentVc::new(
+            Value::new(ExecutionEnvironment::NodeJsLambda(
+                NodeJsEnvironment {
+                    typescript_enabled: false,
+                    compile_target: CompileTargetVc::current(),
+                    node_version: 0,
+                }
+                .into(),
+            )),
+            Value::new(EnvironmentIntention::Server),
+        ),
     )
     .into();
     let mut list = Vec::new();

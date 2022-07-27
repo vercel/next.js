@@ -10,16 +10,19 @@ use std::{
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks};
+use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::{
     stats::Stats,
     viz::graph::{visualize_stats_tree, wrap_html},
     MemoryBackend,
 };
-use turbopack::{emit, rebase::RebasedAssetVc, register, GraphOptionsVc};
-use turbopack_core::source_asset::SourceAssetVc;
-use turbopack_ecmascript::target::CompileTargetVc;
+use turbopack::{emit, rebase::RebasedAssetVc, register};
+use turbopack_core::{
+    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    source_asset::SourceAssetVc,
+    target::CompileTargetVc,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -43,7 +46,17 @@ async fn main() -> Result<()> {
             let source = SourceAssetVc::new(entry);
             let context = turbopack::ModuleAssetContextVc::new(
                 input,
-                GraphOptionsVc::new(false, true, CompileTargetVc::current()),
+                EnvironmentVc::new(
+                    Value::new(ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment {
+                            typescript_enabled: false,
+                            compile_target: CompileTargetVc::current(),
+                            node_version: 0,
+                        }
+                        .into(),
+                    )),
+                    Value::new(EnvironmentIntention::Server),
+                ),
             );
             let module = context.process(source.into());
             let rebased = RebasedAssetVc::new(module, input, output);

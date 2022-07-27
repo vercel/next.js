@@ -11,14 +11,16 @@ use swc_ecma_ast::EsVersion;
 use swc_ecma_parser::parse_file_as_program;
 use swc_ecma_transforms_base::resolver;
 use swc_ecma_visit::VisitMutWith;
+use turbo_tasks::Value;
 use turbo_tasks_testing::VcStorage;
-use turbopack_ecmascript::{
-    analyzer::{
-        graph::{create_graph, EvalContext},
-        linker::{link, LinkCache},
-        test_utils::visitor,
-    },
+use turbopack_core::{
+    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     target::{Arch, CompileTarget, Endianness, Libc, Platform},
+};
+use turbopack_ecmascript::analyzer::{
+    graph::{create_graph, EvalContext},
+    linker::{link, LinkCache},
+    test_utils::visitor,
 };
 
 pub fn benchmark(c: &mut Criterion) {
@@ -76,13 +78,23 @@ pub fn benchmark(c: &mut Criterion) {
                                     &(|val| {
                                         Box::pin(visitor(
                                             val,
-                                            CompileTarget {
-                                                arch: Arch::Unknown,
-                                                endianness: Endianness::Big,
-                                                platform: Platform::Unknown,
-                                                libc: Libc::Unknown,
-                                            }
-                                            .into(),
+                                            EnvironmentVc::new(
+                                                Value::new(ExecutionEnvironment::NodeJsLambda(
+                                                    NodeJsEnvironment {
+                                                        typescript_enabled: false,
+                                                        compile_target: CompileTarget {
+                                                            arch: Arch::Unknown,
+                                                            endianness: Endianness::Big,
+                                                            platform: Platform::Unknown,
+                                                            libc: Libc::Unknown,
+                                                        }
+                                                        .into(),
+                                                        node_version: 0,
+                                                    }
+                                                    .into(),
+                                                )),
+                                                Value::new(EnvironmentIntention::Server),
+                                            ),
                                         ))
                                     }),
                                     &cache,

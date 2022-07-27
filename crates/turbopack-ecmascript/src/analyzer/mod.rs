@@ -1873,14 +1873,15 @@ pub mod test_utils {
     use std::sync::Arc;
 
     use anyhow::Result;
+    use turbopack_core::environment::EnvironmentVc;
 
     use super::{
         well_known::replace_well_known, FreeVarKind, JsValue, WellKnownFunctionKind,
         WellKnownObjectKind,
     };
-    use crate::{analyzer::builtin::replace_builtin, target::CompileTargetVc};
+    use crate::analyzer::builtin::replace_builtin;
 
-    pub async fn visitor(v: JsValue, target: CompileTargetVc) -> Result<(JsValue, bool)> {
+    pub async fn visitor(v: JsValue, environment: EnvironmentVc) -> Result<(JsValue, bool)> {
         let mut new_value = match v {
             JsValue::Call(
                 _,
@@ -1913,7 +1914,7 @@ pub mod test_utils {
                 _ => return Ok((v, false)),
             },
             _ => {
-                let (mut v, m1) = replace_well_known(v, target).await?;
+                let (mut v, m1) = replace_well_known(v, environment).await?;
                 let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }
@@ -1933,14 +1934,19 @@ mod tests {
     use swc_ecma_transforms_base::resolver;
     use swc_ecma_visit::VisitMutWith;
     use testing::NormalizedOutput;
-    use turbo_tasks::util::FormatDuration;
+    use turbo_tasks::{util::FormatDuration, Value};
+    use turbopack_core::{
+        environment::{
+            EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment,
+        },
+        target::{Arch, CompileTarget, Endianness, Libc, Platform},
+    };
 
     use super::{
         graph::{create_graph, EvalContext},
         linker::{link, LinkCache},
         JsValue,
     };
-    use crate::target::{Arch, CompileTarget, Endianness, Libc, Platform};
 
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
@@ -2026,13 +2032,23 @@ mod tests {
                             &(|val| {
                                 Box::pin(super::test_utils::visitor(
                                     val,
-                                    CompileTarget {
-                                        arch: Arch::X64,
-                                        platform: Platform::Linux,
-                                        endianness: Endianness::Little,
-                                        libc: Libc::Glibc,
-                                    }
-                                    .into(),
+                                    EnvironmentVc::new(
+                                        Value::new(ExecutionEnvironment::NodeJsLambda(
+                                            NodeJsEnvironment {
+                                                typescript_enabled: true,
+                                                compile_target: CompileTarget {
+                                                    arch: Arch::X64,
+                                                    platform: Platform::Linux,
+                                                    endianness: Endianness::Little,
+                                                    libc: Libc::Glibc,
+                                                }
+                                                .into(),
+                                                node_version: 0,
+                                            }
+                                            .into(),
+                                        )),
+                                        Value::new(EnvironmentIntention::Server),
+                                    ),
                                 ))
                             }),
                             &cache,

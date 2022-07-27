@@ -1,14 +1,14 @@
 use std::{mem::take, sync::Arc};
 
 use anyhow::Result;
+use turbopack_core::environment::EnvironmentVc;
 use url::Url;
 
 use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
-use crate::target::CompileTargetVc;
 
 pub async fn replace_well_known(
     value: JsValue,
-    target: CompileTargetVc,
+    environment: EnvironmentVc,
 ) -> Result<(JsValue, bool)> {
     Ok(match value {
         JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
@@ -16,7 +16,7 @@ pub async fn replace_well_known(
                 kind,
                 JsValue::Unknown(None, "this is not analyzed yet"),
                 args,
-                target,
+                environment,
             )
             .await?,
             true,
@@ -30,9 +30,10 @@ pub async fn replace_well_known(
             }
             (JsValue::Call(usize, callee, args), false)
         }
-        JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => {
-            (well_known_object_member(kind, prop, target).await?, true)
-        }
+        JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => (
+            well_known_object_member(kind, prop, environment).await?,
+            true,
+        ),
         JsValue::Member(_, box JsValue::WellKnownFunction(kind), box prop) => {
             (well_known_function_member(kind, prop), true)
         }
@@ -44,7 +45,7 @@ pub async fn well_known_function_call(
     kind: WellKnownFunctionKind,
     _this: JsValue,
     args: Vec<JsValue>,
-    target: CompileTargetVc,
+    environment: EnvironmentVc,
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownFunctionKind::ObjectAssign => object_assign(args),
@@ -60,9 +61,16 @@ pub async fn well_known_function_call(
         ),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
-        WellKnownFunctionKind::OsArch => target.await?.arch.as_str().into(),
-        WellKnownFunctionKind::OsPlatform => target.await?.platform.as_str().into(),
-        WellKnownFunctionKind::OsEndianness => target.await?.endianness.as_str().into(),
+        WellKnownFunctionKind::OsArch => environment.compile_target().await?.arch.as_str().into(),
+        WellKnownFunctionKind::OsPlatform => {
+            environment.compile_target().await?.platform.as_str().into()
+        }
+        WellKnownFunctionKind::OsEndianness => environment
+            .compile_target()
+            .await?
+            .endianness
+            .as_str()
+            .into(),
         WellKnownFunctionKind::NodeExpress => {
             JsValue::WellKnownObject(WellKnownObjectKind::NodeExpressApp)
         }
@@ -355,7 +363,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
 pub async fn well_known_object_member(
     kind: WellKnownObjectKind,
     prop: JsValue,
-    target: CompileTargetVc,
+    environment: EnvironmentVc,
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownObjectKind::GlobalObject => global_object(prop),
@@ -364,7 +372,7 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::UrlModule => url_module_member(prop),
         WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
         WellKnownObjectKind::OsModule => os_module_member(prop),
-        WellKnownObjectKind::NodeProcess => node_process_member(prop, target).await?,
+        WellKnownObjectKind::NodeProcess => node_process_member(prop, environment).await?,
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
@@ -478,10 +486,10 @@ fn os_module_member(prop: JsValue) -> JsValue {
     }
 }
 
-async fn node_process_member(prop: JsValue, target: CompileTargetVc) -> Result<JsValue> {
+async fn node_process_member(prop: JsValue, environment: EnvironmentVc) -> Result<JsValue> {
     Ok(match prop.as_str() {
-        Some("arch") => target.await?.arch.as_str().into(),
-        Some("platform") => target.await?.platform.as_str().into(),
+        Some("arch") => environment.compile_target().await?.arch.as_str().into(),
+        Some("platform") => environment.compile_target().await?.platform.as_str().into(),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),

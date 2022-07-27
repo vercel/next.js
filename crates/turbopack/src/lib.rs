@@ -14,15 +14,16 @@ use std::{
 };
 
 use anyhow::Result;
-use ecmascript::{target::CompileTargetVc, typescript::resolve::TypescriptTypesAssetReferenceVc};
+use ecmascript::typescript::resolve::TypescriptTypesAssetReferenceVc;
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphVc};
 use module_options::{module_options, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType};
 use resolve::{resolve_options, typescript_resolve_options};
-use turbo_tasks::{primitives::BoolVc, CompletionVc, Value};
+use turbo_tasks::{CompletionVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
     context::{AssetContext, AssetContextVc},
+    environment::EnvironmentVc,
     reference::all_referenced_assets,
     resolve::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc},
 };
@@ -36,55 +37,8 @@ mod resolve;
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 
-#[turbo_tasks::value]
-pub struct GraphOptions {
-    pub typescript: bool,
-    pub node_native_bindings: bool,
-    pub compile_target: CompileTargetVc,
-}
-
-#[turbo_tasks::value_impl]
-impl GraphOptionsVc {
-    #[turbo_tasks::function]
-    pub fn new(
-        typescript: bool,
-        node_native_bindings: bool,
-        compile_target: CompileTargetVc,
-    ) -> Self {
-        Self::cell(GraphOptions {
-            typescript,
-            node_native_bindings,
-            compile_target,
-        })
-    }
-
-    #[turbo_tasks::function]
-    pub async fn compile_target(self) -> Result<CompileTargetVc> {
-        Ok(self.await?.compile_target)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn node_native_bindings(self) -> Result<BoolVc> {
-        Ok(BoolVc::cell(self.await?.node_native_bindings))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn with_typescript(self) -> Result<GraphOptionsVc> {
-        let o = self.await?;
-        if o.typescript {
-            Ok(self)
-        } else {
-            Ok(Self::new(true, o.node_native_bindings, o.compile_target))
-        }
-    }
-}
-
 #[turbo_tasks::function]
-async fn module(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetVc> {
-    module_(source, graph_options).await
-}
-
-async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetVc> {
+async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> {
     let path = source.path();
     let options = module_options(path.parent());
     let options = options.await?;
@@ -111,31 +65,27 @@ async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<Asset
         {
             ModuleType::Ecmascript(transforms) => turbopack_ecmascript::ModuleAssetVc::new(
                 source,
-                ModuleAssetContextVc::new(path.parent(), graph_options).into(),
+                ModuleAssetContextVc::new(path.parent(), environment).into(),
                 Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
                 *transforms,
-                graph_options.compile_target(),
-                *graph_options.node_native_bindings().await?,
+                environment,
             )
             .into(),
             ModuleType::Typescript(transforms) => turbopack_ecmascript::ModuleAssetVc::new(
                 source,
-                ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript()).into(),
+                ModuleAssetContextVc::new(path.parent(), environment.with_typescript()).into(),
                 Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
                 *transforms,
-                graph_options.compile_target(),
-                *graph_options.node_native_bindings().await?,
+                environment,
             )
             .into(),
             ModuleType::TypescriptDeclaration(transforms) => {
                 turbopack_ecmascript::ModuleAssetVc::new(
                     source,
-                    ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript())
-                        .into(),
+                    ModuleAssetContextVc::new(path.parent(), environment.with_typescript()).into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
                     *transforms,
-                    graph_options.compile_target(),
-                    *graph_options.node_native_bindings().await?,
+                    environment,
                 )
                 .into()
             }
@@ -143,12 +93,12 @@ async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<Asset
             ModuleType::Raw => source,
             ModuleType::Css => turbopack_css::ModuleAssetVc::new(
                 source,
-                ModuleAssetContextVc::new(path.parent(), graph_options).into(),
+                ModuleAssetContextVc::new(path.parent(), environment).into(),
             )
             .into(),
             ModuleType::Static => turbopack_static::ModuleAssetVc::new(
                 source,
-                ModuleAssetContextVc::new(path.parent(), graph_options).into(),
+                ModuleAssetContextVc::new(path.parent(), environment).into(),
             )
             .into(),
             ModuleType::Custom(_) => todo!(),
@@ -158,15 +108,18 @@ async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<Asset
 
 #[turbo_tasks::value(AssetContext)]
 pub struct ModuleAssetContext {
-    context: FileSystemPathVc,
-    options: GraphOptionsVc,
+    context_path: FileSystemPathVc,
+    environment: EnvironmentVc,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleAssetContextVc {
     #[turbo_tasks::function]
-    pub fn new(context: FileSystemPathVc, options: GraphOptionsVc) -> Self {
-        Self::cell(ModuleAssetContext { context, options })
+    pub fn new(context_path: FileSystemPathVc, environment: EnvironmentVc) -> Self {
+        Self::cell(ModuleAssetContext {
+            context_path,
+            environment,
+        })
     }
 }
 
@@ -174,15 +127,20 @@ impl ModuleAssetContextVc {
 impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     fn context_path(&self) -> FileSystemPathVc {
-        self.context
+        self.context_path
+    }
+
+    #[turbo_tasks::function]
+    fn environment(&self) -> EnvironmentVc {
+        self.environment
     }
 
     #[turbo_tasks::function]
     async fn resolve_options(&self) -> Result<ResolveOptionsVc> {
-        Ok(if self.options.await?.typescript {
-            typescript_resolve_options(self.context)
+        Ok(if *self.environment.is_typescript_enabled().await? {
+            typescript_resolve_options(self.context_path)
         } else {
-            resolve_options(self.context)
+            resolve_options(self.context_path)
         })
     }
 
@@ -197,13 +155,13 @@ impl AssetContext for ModuleAssetContext {
             turbopack_core::resolve::resolve(context_path, request, resolve_options).await?;
         let mut result = result
             .map(
-                |a| module(a, self.options).resolve(),
+                |a| module(a, self.environment).resolve(),
                 |i| async move { Ok(i) },
             )
             .await?;
-        if self.options.await?.typescript {
+        if *self.environment.is_typescript_enabled().await? {
             let types_reference = TypescriptTypesAssetReferenceVc::new(
-                ModuleAssetContextVc::new(context_path, self.options).into(),
+                ModuleAssetContextVc::new(context_path, self.environment).into(),
                 request,
             );
             result.add_reference(types_reference.into());
@@ -216,7 +174,7 @@ impl AssetContext for ModuleAssetContext {
         Ok(result
             .await?
             .map(
-                |a| module(a, self.options).resolve(),
+                |a| module(a, self.environment).resolve(),
                 |i| async move { Ok(i) },
             )
             .await?
@@ -225,12 +183,17 @@ impl AssetContext for ModuleAssetContext {
 
     #[turbo_tasks::function]
     fn process(&self, asset: AssetVc) -> AssetVc {
-        module(asset, self.options)
+        module(asset, self.environment)
     }
 
     #[turbo_tasks::function]
     fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc {
-        ModuleAssetContextVc::new(path, self.options).into()
+        ModuleAssetContextVc::new(path, self.environment).into()
+    }
+
+    #[turbo_tasks::function]
+    fn with_environment(&self, environment: EnvironmentVc) -> AssetContextVc {
+        ModuleAssetContextVc::new(self.context_path, environment).into()
     }
 }
 

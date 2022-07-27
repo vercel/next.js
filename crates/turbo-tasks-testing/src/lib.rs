@@ -1,28 +1,59 @@
+#![feature(box_syntax)]
+
 use std::{
     borrow::Cow,
     future::Future,
-    sync::{Arc, Mutex},
+    mem::replace,
+    sync::{Arc, Mutex, Weak},
 };
 
 use anyhow::{anyhow, Result};
-use event_listener::EventListener;
+use event_listener::{Event, EventListener};
 use turbo_tasks::{
-    backend::CellContent, test_helpers::with_turbo_tasks_for_testing, RawVc, TaskId, TurboTasksApi,
-    TurboTasksCallApi,
+    backend::CellContent, registry, test_helpers::with_turbo_tasks_for_testing, RawVc, TaskId,
+    TurboTasksApi, TurboTasksCallApi,
 };
+
+enum Task {
+    Spawned(Event),
+    Finished(RawVc),
+}
 
 #[derive(Default)]
 pub struct VcStorage {
+    this: Weak<Self>,
     cells: Mutex<Vec<CellContent>>,
+    tasks: Mutex<Vec<Task>>,
 }
 
 impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
-        _func: turbo_tasks::FunctionId,
-        _inputs: Vec<turbo_tasks::TaskInput>,
+        func: turbo_tasks::FunctionId,
+        inputs: Vec<turbo_tasks::TaskInput>,
     ) -> RawVc {
-        unreachable!()
+        let this = self.this.upgrade().unwrap();
+        let func = registry::get_function(func).bind(&inputs);
+        let handle = tokio::runtime::Handle::current();
+        let future = func();
+        let i = {
+            let mut tasks = self.tasks.lock().unwrap();
+            let i = tasks.len();
+            tasks.push(Task::Spawned(Event::new()));
+            i
+        };
+        handle.spawn(with_turbo_tasks_for_testing(
+            this.clone(),
+            TaskId::from(i),
+            async move {
+                let result = future.await.unwrap();
+                let mut tasks = this.tasks.lock().unwrap();
+                if let Task::Spawned(event) = replace(&mut tasks[i], Task::Finished(result)) {
+                    event.notify(usize::MAX);
+                }
+            },
+        ));
+        RawVc::TaskOutput(i.into())
     }
 
     fn native_call(
@@ -68,18 +99,23 @@ impl TurboTasksApi for VcStorage {
 
     fn try_read_task_output(
         &self,
-        _task: TaskId,
+        task: TaskId,
         _strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>> {
-        unreachable!()
+        let tasks = self.tasks.lock().unwrap();
+        let task = tasks.get(*task).unwrap();
+        match task {
+            Task::Spawned(event) => Ok(Err(event.listen())),
+            Task::Finished(result) => Ok(Ok(*result)),
+        }
     }
 
     fn try_read_task_output_untracked(
         &self,
-        _task: TaskId,
-        _strongly_consistent: bool,
+        task: TaskId,
+        strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>> {
-        unreachable!()
+        self.try_read_task_output(task, strongly_consistent)
     }
 
     fn try_read_task_cell(
@@ -130,6 +166,13 @@ impl TurboTasksApi for VcStorage {
 
 impl VcStorage {
     pub fn with<T>(f: impl Future<Output = T>) -> impl Future<Output = T> {
-        with_turbo_tasks_for_testing(Arc::new(VcStorage::default()), TaskId::from(0), f)
+        with_turbo_tasks_for_testing(
+            Arc::new_cyclic(|weak| VcStorage {
+                this: weak.clone(),
+                ..Default::default()
+            }),
+            TaskId::from(0),
+            f,
+        )
     }
 }

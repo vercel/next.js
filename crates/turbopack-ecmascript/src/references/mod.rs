@@ -31,6 +31,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
     context::AssetContextVc,
+    environment::EnvironmentVc,
     reference::{AssetReferenceVc, AssetReferencesVc, SourceMapVc},
     resolve::{
         find_context_file, parse::RequestVc, pattern::Pattern, resolve, FindContextFileResult,
@@ -64,7 +65,6 @@ use super::{
     parse::{parse, Buffer, EcmascriptInputTransformsVc, ParseResult},
     resolve::{apply_cjs_specific_options, cjs_resolve},
     special_cases::special_cases,
-    target::CompileTargetVc,
     utils::js_value_to_pattern,
     webpack::{
         parse::{webpack_runtime, WebpackRuntime, WebpackRuntimeVc},
@@ -158,8 +158,7 @@ pub(crate) async fn analyze_ecmascript_module(
     context: AssetContextVc,
     ty: Value<ModuleAssetType>,
     transforms: EcmascriptInputTransformsVc,
-    target: CompileTargetVc,
-    node_native_bindings: bool,
+    environment: EnvironmentVc,
 ) -> Result<AnalyzeEcmascriptModuleResultVc> {
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new();
     let path = source.path();
@@ -386,8 +385,7 @@ pub(crate) async fn analyze_ecmascript_module(
                 link_value: &'a F,
                 is_typescript: bool,
                 analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-                target: CompileTargetVc,
-                node_native_bindings: bool,
+                environment: EnvironmentVc,
             ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
                 Box::pin(handle_call(
                     handler,
@@ -401,8 +399,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     link_value,
                     is_typescript,
                     analysis,
-                    target,
-                    node_native_bindings,
+                    environment,
                 ))
             }
 
@@ -421,8 +418,7 @@ pub(crate) async fn analyze_ecmascript_module(
                 link_value: &F,
                 is_typescript: bool,
                 analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-                target: CompileTargetVc,
-                node_native_bindings: bool,
+                environment: EnvironmentVc,
             ) -> Result<()> {
                 fn explain_args(args: &[JsValue]) -> (String, String) {
                     JsValue::explain_args(args, 10, 2)
@@ -443,8 +439,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 link_value,
                                 is_typescript,
                                 analysis,
-                                target,
-                                node_native_bindings,
+                                environment,
                             )
                             .await?;
                         }
@@ -470,8 +465,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                             link_value,
                                             is_typescript,
                                             analysis,
-                                            target,
-                                            node_native_bindings,
+                                            environment,
                                         )
                                         .await?;
                                     }
@@ -761,7 +755,7 @@ pub(crate) async fn analyze_ecmascript_module(
                             analysis.add_reference(NodePreGypConfigReferenceVc::new(
                                 source.path().parent(),
                                 pat.into(),
-                                target,
+                                environment.compile_target(),
                             ));
                             return Ok(());
                         }
@@ -794,7 +788,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 );
                                 analysis.add_reference(NodeGypBuildReferenceVc::new(
                                     current_context,
-                                    target,
+                                    environment.compile_target(),
                                 ));
                                 return Ok(());
                             }
@@ -1054,8 +1048,7 @@ pub(crate) async fn analyze_ecmascript_module(
             }
 
             let cache = Mutex::new(LinkCache::new());
-            let linker =
-                |value| value_visitor(source, context, value, target, node_native_bindings);
+            let linker = |value| value_visitor(source, context, value, environment);
             let effects = take(&mut var_graph.effects);
             let link_value = |value| link(&var_graph, value, &linker, &cache);
 
@@ -1086,8 +1079,7 @@ pub(crate) async fn analyze_ecmascript_module(
                             &link_value,
                             is_typescript,
                             &mut analysis,
-                            target,
-                            node_native_bindings,
+                            environment,
                         )
                         .await?;
                     }
@@ -1118,8 +1110,7 @@ pub(crate) async fn analyze_ecmascript_module(
                             &link_value,
                             is_typescript,
                             &mut analysis,
-                            target,
-                            node_native_bindings,
+                            environment,
                         )
                         .await?;
                     }
@@ -1250,10 +1241,9 @@ async fn value_visitor(
     source: AssetVc,
     context: AssetContextVc,
     v: JsValue,
-    target: CompileTargetVc,
-    node_native_bindings: bool,
+    environment: EnvironmentVc,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, m) = value_visitor_inner(source, context, v, target, node_native_bindings).await?;
+    let (mut v, m) = value_visitor_inner(source, context, v, environment).await?;
     v.normalize_shallow();
     Ok((v, m))
 }
@@ -1262,8 +1252,7 @@ async fn value_visitor_inner(
     source: AssetVc,
     context: AssetContextVc,
     v: JsValue,
-    target: CompileTargetVc,
-    node_native_bindings: bool,
+    environment: EnvironmentVc,
 ) -> Result<(JsValue, bool)> {
     Ok((
         match v {
@@ -1323,31 +1312,43 @@ async fn value_visitor_inner(
             JsValue::FreeVar(_) => JsValue::Unknown(Some(Arc::new(v)), "unknown global"),
             JsValue::Module(ref name) => match &**name {
                 // TODO check externals
-                "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
-                "fs/promises" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-                "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-                "child_process" => JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
-                "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-                "@mapbox/node-pre-gyp" if node_native_bindings => {
+                "path" if *environment.node_externals().await? => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::PathModule)
+                }
+                "fs/promises" if *environment.node_externals().await? => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::FsModule)
+                }
+                "fs" if *environment.node_externals().await? => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::FsModule)
+                }
+                "child_process" if *environment.node_externals().await? => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)
+                }
+                "os" if *environment.node_externals().await? => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::OsModule)
+                }
+                "process" if *environment.node_externals().await? => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
+                }
+                "@mapbox/node-pre-gyp" if *environment.node_externals().await? => {
                     JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
                 }
-                "node-gyp-build" if node_native_bindings => {
+                "node-gyp-build" if *environment.node_externals().await? => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild)
                 }
-                "bindings" if node_native_bindings => {
+                "bindings" if *environment.node_externals().await? => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
                 }
-                "express" if node_native_bindings => {
+                "express" if *environment.node_externals().await? => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress)
                 }
-                "strong-globalize" if node_native_bindings => {
+                "strong-globalize" if *environment.node_externals().await? => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalize)
                 }
-                "resolve-from" if node_native_bindings => {
+                "resolve-from" if *environment.node_externals().await? => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
                 }
-                "@grpc/proto-loader" if node_native_bindings => {
+                "@grpc/proto-loader" if *environment.node_externals().await? => {
                     JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader)
                 }
                 _ => JsValue::Unknown(
@@ -1360,7 +1361,7 @@ async fn value_visitor_inner(
                 "cross function analyzing is not yet supported",
             ),
             _ => {
-                let (mut v, m1) = replace_well_known(v, target).await?;
+                let (mut v, m1) = replace_well_known(v, environment).await?;
                 let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }

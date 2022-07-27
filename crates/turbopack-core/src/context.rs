@@ -1,7 +1,9 @@
+use anyhow::Result;
 use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::{
     asset::AssetVc,
+    environment::EnvironmentVc,
     resolve::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc},
 };
 
@@ -10,6 +12,7 @@ use crate::{
 /// type (e. g. from SourceAsset to ModuleAsset).
 #[turbo_tasks::value_trait]
 pub trait AssetContext {
+    fn environment(&self) -> EnvironmentVc;
     fn context_path(&self) -> FileSystemPathVc;
     fn resolve_options(&self) -> ResolveOptionsVc;
     fn resolve_asset(
@@ -21,4 +24,5 @@ pub trait AssetContext {
     fn process(&self, asset: AssetVc) -> AssetVc;
     fn process_resolve_result(&self, result: ResolveResultVc) -> ResolveResultVc;
     fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc;
+    fn with_environment(&self, environment: EnvironmentVc) -> AssetContextVc;
 }

@@ -15,7 +15,6 @@ mod path_visitor;
 pub(crate) mod references;
 pub mod resolve;
 pub(crate) mod special_cases;
-pub mod target;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
@@ -33,7 +32,6 @@ use references::AnalyzeEcmascriptModuleResult;
 use swc_common::GLOBALS;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 use swc_ecma_visit::{VisitMutWith, VisitMutWithPath};
-use target::CompileTargetVc;
 use turbo_tasks::{
     primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
 };
@@ -42,6 +40,7 @@ use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
+    environment::EnvironmentVc,
     reference::AssetReferencesVc,
 };
 
@@ -72,8 +71,7 @@ pub struct ModuleAsset {
     pub context: AssetContextVc,
     pub ty: ModuleAssetType,
     pub transforms: EcmascriptInputTransformsVc,
-    pub target: CompileTargetVc,
-    pub node_native_bindings: bool,
+    pub environment: EnvironmentVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -84,16 +82,14 @@ impl ModuleAssetVc {
         context: AssetContextVc,
         ty: Value<ModuleAssetType>,
         transforms: EcmascriptInputTransformsVc,
-        target: CompileTargetVc,
-        node_native_bindings: bool,
+        environment: EnvironmentVc,
     ) -> Self {
         Self::cell(ModuleAsset {
             source,
             context,
             ty: ty.into_value(),
             transforms,
-            target,
-            node_native_bindings,
+            environment,
         })
     }
 
@@ -110,8 +106,7 @@ impl ModuleAssetVc {
             this.context,
             Value::new(this.ty),
             this.transforms,
-            this.target,
-            this.node_native_bindings,
+            this.environment,
         ))
     }
 }

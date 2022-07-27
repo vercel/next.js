@@ -21,14 +21,15 @@ use rstest::*;
 use rstest_reuse::{self, *};
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
-use turbo_tasks::{backend::Backend, TurboTasks};
+use turbo_tasks::{backend::Backend, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
-use turbopack::{
-    emit_with_completion, rebase::RebasedAssetVc, register, GraphOptionsVc, ModuleAssetContextVc,
+use turbopack::{emit_with_completion, rebase::RebasedAssetVc, register, ModuleAssetContextVc};
+use turbopack_core::target::CompileTargetVc;
+use turbopack_core::{
+    environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    source_asset::SourceAssetVc,
 };
-use turbopack_core::source_asset::SourceAssetVc;
-use turbopack_ecmascript::target::CompileTargetVc;
 
 #[template]
 #[rstest]
@@ -207,6 +208,7 @@ fn bench_against_node_nft_mt(#[case] input: String, #[case] should_succeed: bool
     bench_against_node_nft_inner(input, should_succeed, true);
 }
 
+#[cfg(feature = "bench_against_node_nft")]
 fn bench_against_node_nft_inner(input: String, should_succeed: bool, multi_threaded: bool) {
     node_file_trace(
         input,
@@ -306,7 +308,17 @@ fn node_file_trace<B: Backend + 'static>(
                 let source = SourceAssetVc::new(input);
                 let context = ModuleAssetContextVc::new(
                     input_dir,
-                    GraphOptionsVc::new(false, true, CompileTargetVc::current()),
+                    EnvironmentVc::new(
+                        Value::new(ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment {
+                                typescript_enabled: false,
+                                compile_target: CompileTargetVc::current(),
+                                node_version: 0,
+                            }
+                            .into(),
+                        )),
+                        Value::new(EnvironmentIntention::Server),
+                    ),
                 );
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);

@@ -26,6 +26,16 @@ impl CompileTargetVc {
             libc: CompileTarget::current_libc(),
         })
     }
+
+    #[turbo_tasks::function]
+    pub fn unknown() -> Self {
+        Self::cell(CompileTarget {
+            arch: Arch::Unknown,
+            platform: Platform::Unknown,
+            endianness: Endianness::Big,
+            libc: Libc::Unknown,
+        })
+    }
 }
 
 impl Display for CompileTarget {

@@ -14,12 +14,10 @@ use turbopack_core::{
         resolve_raw, AffectingResolvingAssetReferenceVc, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
-};
-
-use crate::{
-    references::raw::SourceAssetReferenceVc,
     target::{CompileTargetVc, Platform},
 };
+
+use crate::references::raw::SourceAssetReferenceVc;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct NodePreGypConfigJson {
@@ -47,12 +45,12 @@ impl NodePreGypConfigReferenceVc {
     pub fn new(
         context: FileSystemPathVc,
         config_file_pattern: PatternVc,
-        target: CompileTargetVc,
+        compile_target: CompileTargetVc,
     ) -> Self {
         Self::cell(NodePreGypConfigReference {
             context,
             config_file_pattern,
-            compile_target: target,
+            compile_target,
         })
     }
 }
