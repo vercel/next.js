@@ -46,14 +46,10 @@ pub(crate) fn expand_import_map(
                         })
                         .clone();
 
-                    if &*package_name == "@emotion/react" && export_name == "Global" {
-                    } else if &*package_name == "@emotion/styled" && export_name == "default" {
-                    }
-
                     let kind = package_transformers
                         .exported_names
                         .iter()
-                        .find(|v| v.name == &**export_name)
+                        .find(|v| v.name == **export_name)
                         .map(|v| v.kind)
                         .or_else(|| {
                             if export_name == "default" {
