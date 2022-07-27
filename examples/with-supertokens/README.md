@@ -8,9 +8,13 @@ This is a simple set up for applications protected by SuperTokens.
 
 ```bash
 npx create-next-app --example with-supertokens with-supertokens-app
-# or
+```
+
+```bash
 yarn create next-app --example with-supertokens with-supertokens-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-supertokens with-supertokens-app
 ```
 
