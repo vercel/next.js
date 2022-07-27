@@ -9,7 +9,7 @@ import {
 } from './hooks-client-context'
 import {
   AppRouterContext,
-  AppTreeContext,
+  LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 
 /**
@@ -59,7 +59,7 @@ export function usePathname(): string {
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string {
-  const { tree } = useContext(AppTreeContext)
+  const { tree } = useContext(LayoutRouterContext)
 
   const segment = tree[1][parallelRouteKey][0]
 
