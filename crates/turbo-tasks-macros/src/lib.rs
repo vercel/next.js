@@ -79,8 +79,7 @@ fn get_check_trait_method_ident(trait_ident: &Ident, struct_ident: &Ident) -> Id
     Ident::new(
         &format!(
             "__trait_{}_need_to_be_in_turbo_tasks_value_attr_of_{}_",
-            trait_ident.to_string(),
-            struct_ident.to_string()
+            trait_ident, struct_ident
         ),
         trait_ident.span(),
     )

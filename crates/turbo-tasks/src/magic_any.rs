@@ -133,11 +133,12 @@ impl dyn MagicAny {
     }
 }
 
+type MagicAnyDeserializeSeedFunctor =
+    fn(&mut dyn erased_serde::Deserializer<'_>) -> Result<Box<dyn MagicAny>, erased_serde::Error>;
+
 #[derive(Clone, Copy)]
 pub struct MagicAnyDeserializeSeed {
-    functor: fn(
-        &mut dyn erased_serde::Deserializer<'_>,
-    ) -> Result<Box<dyn MagicAny>, erased_serde::Error>,
+    functor: MagicAnyDeserializeSeedFunctor,
 }
 
 impl MagicAnyDeserializeSeed {
@@ -171,11 +172,13 @@ impl<'de> DeserializeSeed<'de> for MagicAnyDeserializeSeed {
     }
 }
 
+type AnyDeserializeSeedFunctor = fn(
+    &mut dyn erased_serde::Deserializer<'_>,
+) -> Result<Box<dyn Any + Sync + Send>, erased_serde::Error>;
+
 #[derive(Clone, Copy)]
 pub struct AnyDeserializeSeed {
-    functor: fn(
-        &mut dyn erased_serde::Deserializer<'_>,
-    ) -> Result<Box<dyn Any + Sync + Send>, erased_serde::Error>,
+    functor: AnyDeserializeSeedFunctor,
 }
 
 impl AnyDeserializeSeed {

@@ -37,6 +37,8 @@ enum FindAssetResult {
     Found(AssetVc),
 }
 
+type FallbackHandler = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
+
 #[turbo_tasks::value(cell: new, serialization: none, eq: manual)]
 pub struct DevServer {
     root_path: FileSystemPathVc,
@@ -44,7 +46,7 @@ pub struct DevServer {
     #[trace_ignore]
     addr: SocketAddr,
     #[trace_ignore]
-    fallback_handler: Arc<dyn Fn(&str) -> Option<String> + Send + Sync>,
+    fallback_handler: FallbackHandler,
 }
 
 #[turbo_tasks::value_impl]
@@ -54,7 +56,7 @@ impl DevServerVc {
         root_path: FileSystemPathVc,
         root_asset: AssetVc,
         addr: TransientValue<SocketAddr>,
-        fallback_handler: TransientValue<Arc<dyn Fn(&str) -> Option<String> + Send + Sync>>,
+        fallback_handler: TransientValue<FallbackHandler>,
     ) -> Self {
         Self::cell(DevServer {
             root_path,
@@ -208,20 +210,15 @@ impl DevServerVc {
                                     loop {
                                         select! {
                                             Some(message) = websocket.next() => {
-                                                match message? {
-                                                    Message::Text(msg) => {
-                                                        let data = json::parse(&msg)?;
-                                                        if let Some(chunk) = data.as_str() {
-                                                            let root_path_str = root_path_str.await?;
-                                                            if chunk.starts_with(&*root_path_str) {
-                                                                let asset_path = &chunk[root_path_str.len()..];
-                                                                let stream = self.change_stream(root_asset, asset_path).skip(1);
-                                                                change_stream_futures.push(stream.into_future());
-                                                            }
+                                                if let Message::Text(msg) = message? {
+                                                    let data = json::parse(&msg)?;
+                                                    if let Some(chunk) = data.as_str() {
+                                                        let root_path_str = root_path_str.await?;
+                                                        if chunk.starts_with(&*root_path_str) {
+                                                            let asset_path = &chunk[root_path_str.len()..];
+                                                            let stream = self.change_stream(root_asset, asset_path).skip(1);
+                                                            change_stream_futures.push(stream.into_future());
                                                         }
-                                                    }
-                                                    _ => {
-                                                        // ignore
                                                     }
                                                 }
                                             }

@@ -813,11 +813,11 @@ impl FileSystemPathVc {
             }
             .into());
         }
-        return Ok(RealPathResult {
+        Ok(RealPathResult {
             path: current.resolve().await?,
             symlinks,
         }
-        .into());
+        .into())
     }
 }
 

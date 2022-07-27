@@ -268,7 +268,7 @@ impl ResolveResultVc {
         Ok(AssetsVc::cell(match &*this {
             ResolveResult::Single(asset, _) => vec![*asset],
             ResolveResult::Keyed(map, _) => map.values().copied().collect(),
-            ResolveResult::Alternatives(assets, _) => assets.iter().copied().collect(),
+            ResolveResult::Alternatives(assets, _) => assets.clone(),
             ResolveResult::Special(_, _) | ResolveResult::Unresolveable(_) => Vec::new(),
         }))
     }
