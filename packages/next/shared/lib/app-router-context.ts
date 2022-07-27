@@ -7,37 +7,22 @@ export type ChildSegmentMap = Map<string, CacheNode>
 /**
  * Cache node used in app-router / layout-router.
  */
-export type CacheNode =
-  | {
-      /**
-       * In-flight request for this node.
-       */
-      data: null
-      /**
-       * React Component for this node.
-       */
-      subTreeData: React.ReactNode
-      /**
-       * Child parallel routes.
-       */
-      parallelRoutes: Map<string, ChildSegmentMap>
-    }
-  | {
-      /**
-       * In-flight request for this node.
-       */
-      data: ReturnType<
-        typeof import('../../client/components/app-router.client').fetchServerResponse
-      >
-      /**
-       * React Component for this node.
-       */
-      subTreeData: null
-      /**
-       * Child parallel routes.
-       */
-      parallelRoutes: Map<string, ChildSegmentMap>
-    }
+export type CacheNode = {
+  /**
+   * In-flight request for this node.
+   */
+  data: ReturnType<
+    typeof import('../../client/components/app-router.client').fetchServerResponse
+  > | null
+  /**
+   * React Component for this node.
+   */
+  subTreeData: React.ReactNode | null
+  /**
+   * Child parallel routes.
+   */
+  parallelRoutes: Map<string, ChildSegmentMap>
+}
 
 export type AppRouterInstance = {
   /**
