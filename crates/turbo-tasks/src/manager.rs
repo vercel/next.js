@@ -66,7 +66,10 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         task: TaskId,
         strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>>;
-    unsafe fn try_read_task_output_untracked(
+
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_task_output_untracked(
         &self,
         task: TaskId,
         strongly_consistent: bool,
@@ -77,12 +80,18 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         task: TaskId,
         index: usize,
     ) -> Result<Result<CellContent, EventListener>>;
-    unsafe fn try_read_task_cell_untracked(
+
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
     ) -> Result<Result<CellContent, EventListener>>;
-    unsafe fn try_read_own_task_cell(
+
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_own_task_cell_untracked(
         &self,
         current_task: TaskId,
         index: usize,
@@ -249,10 +258,10 @@ impl<B: Backend> TurboTasks<B> {
                 .map_err(|_| anyhow!("unable to send result"))?;
             Ok(NothingVc::new().into())
         });
-        // SAFETY: A Once task will never invalidate, therefore we don't need to track a
-        // dependency
-        let raw_result = unsafe { read_task_output_untracked(self, task_id, false) }.await?;
-        unsafe { raw_result.into_read_untracked::<Nothing>(self) }.await?;
+        // INVALIDATION: A Once task will never invalidate, therefore we don't need to
+        // track a dependency
+        let raw_result = read_task_output_untracked(self, task_id, false).await?;
+        raw_result.into_read_untracked::<Nothing>(self).await?;
         Ok(rx.await?)
     }
 
@@ -444,7 +453,8 @@ impl<B: Backend> TurboTasks<B> {
     }
 
     pub async fn wait_task_completion(&self, id: TaskId, fully_settled: bool) -> Result<()> {
-        let result = unsafe { read_task_output_untracked(self, id, fully_settled).await };
+        // INVALIDATION: This doesn't return a value, only waits for it to be ready.
+        let result = read_task_output_untracked(self, id, fully_settled).await;
         result.map(|_| ())
     }
 
@@ -636,15 +646,13 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
         )
     }
 
-    unsafe fn try_read_task_output_untracked(
+    fn try_read_task_output_untracked(
         &self,
         task: TaskId,
         strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>> {
-        unsafe {
-            self.backend
-                .try_read_task_output_untracked(task, strongly_consistent, self)
-        }
+        self.backend
+            .try_read_task_output_untracked(task, strongly_consistent, self)
     }
 
     fn try_read_task_cell(
@@ -656,23 +664,21 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
             .try_read_task_cell(task, index, current_task("reading Vcs"), self)
     }
 
-    unsafe fn try_read_task_cell_untracked(
+    fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
     ) -> Result<Result<CellContent, EventListener>> {
-        unsafe { self.backend.try_read_task_cell_untracked(task, index, self) }
+        self.backend.try_read_task_cell_untracked(task, index, self)
     }
 
-    unsafe fn try_read_own_task_cell(
+    fn try_read_own_task_cell_untracked(
         &self,
         current_task: TaskId,
         index: usize,
     ) -> Result<CellContent> {
-        unsafe {
-            self.backend
-                .try_read_own_task_cell(current_task, index, self)
-        }
+        self.backend
+            .try_read_own_task_cell_untracked(current_task, index, self)
     }
 
     fn get_fresh_cell(&self, task: TaskId) -> usize {
@@ -680,7 +686,8 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn read_current_task_cell(&self, index: usize) -> Result<CellContent> {
-        unsafe { self.try_read_own_task_cell(current_task("reading Vcs"), index) }
+        // INVALIDATION: don't need to track a dependency to itself
+        self.try_read_own_task_cell_untracked(current_task("reading Vcs"), index)
     }
 
     fn update_current_task_cell(&self, index: usize, content: CellContent) {
@@ -853,7 +860,7 @@ pub fn weak_turbo_tasks() -> Weak<dyn TurboTasksApi> {
     TURBO_TASKS.with(|arc| Arc::downgrade(arc))
 }
 
-pub unsafe fn with_turbo_tasks_for_testing<T>(
+pub fn with_turbo_tasks_for_testing<T>(
     tt: Arc<dyn TurboTasksApi>,
     current_task: TaskId,
     f: impl Future<Output = T>,
@@ -867,7 +874,7 @@ pub unsafe fn with_turbo_tasks_for_testing<T>(
 /// Get an [Invalidator] that can be used to invalidate the current [Task]
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {
-    let handle = tokio::runtime::Handle::current();
+    let handle = Handle::current();
     Invalidator {
         task: current_task("turbo_tasks::get_invalidator()"),
         turbo_tasks: weak_turbo_tasks(),
@@ -909,13 +916,15 @@ pub(crate) async fn read_task_output(
     }
 }
 
-pub(crate) async unsafe fn read_task_output_untracked(
+/// INVALIDATION: Be careful with this, it will not track dependencies, so
+/// using it could break cache invalidation.
+pub(crate) async fn read_task_output_untracked(
     this: &dyn TurboTasksApi,
     id: TaskId,
     strongly_consistent: bool,
 ) -> Result<RawVc> {
     loop {
-        match unsafe { this.try_read_task_output_untracked(id, strongly_consistent) }? {
+        match this.try_read_task_output_untracked(id, strongly_consistent)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
@@ -935,13 +944,15 @@ pub(crate) async fn read_task_cell(
     }
 }
 
-pub(crate) async unsafe fn read_task_cell_untracked(
+/// INVALIDATION: Be careful with this, it will not track dependencies, so
+/// using it could break cache invalidation.
+pub(crate) async fn read_task_cell_untracked(
     this: &dyn TurboTasksApi,
     id: TaskId,
     index: usize,
 ) -> Result<CellContent> {
     loop {
-        match unsafe { this.try_read_task_cell_untracked(id, index) }? {
+        match this.try_read_task_cell_untracked(id, index)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }

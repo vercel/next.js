@@ -1239,7 +1239,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         result
     }
 
-    unsafe fn try_read_task_output_untracked(
+    fn try_read_task_output_untracked(
         &self,
         task: TaskId,
         _strongly_consistent: bool,
@@ -1342,7 +1342,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    unsafe fn try_read_task_cell_untracked(
+    fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
@@ -1380,7 +1380,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    unsafe fn try_read_own_task_cell(
+    fn try_read_own_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,

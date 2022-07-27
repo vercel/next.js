@@ -151,32 +151,42 @@ impl CellContent {
 pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
     fn initialize(&mut self, task_id_provider: &dyn TaskIdProvider) {}
+
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
+
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
+
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi);
+
     fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi);
+
     fn get_task_description(&self, task: TaskId) -> String;
+
     type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static>: Future<Output = Result<()>>
         + Send
         + 'static;
+
     fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
         &self,
         task: TaskId,
         future: T,
     ) -> Self::ExecutionScopeFuture<T>;
+
     fn try_start_task_execution(
         &self,
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Option<TaskExecutionSpec>;
+
     fn task_execution_result(
         &self,
         task: TaskId,
         result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     );
+
     fn task_execution_completed(
         &self,
         task: TaskId,
@@ -184,6 +194,7 @@ pub trait Backend: Sync + Send {
         duration: Duration,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool;
+
     fn run_backend_job<'a>(
         &'a self,
         id: BackendJobId,
@@ -197,7 +208,10 @@ pub trait Backend: Sync + Send {
         strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>>;
-    unsafe fn try_read_task_output_untracked(
+
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_task_output_untracked(
         &self,
         task: TaskId,
         strongly_consistent: bool,
@@ -219,24 +233,26 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>>;
 
-    unsafe fn try_read_task_cell_untracked(
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>>;
 
-    unsafe fn try_read_own_task_cell(
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_own_task_cell_untracked(
         &self,
         current_task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<CellContent> {
-        unsafe {
-            match self.try_read_task_cell_untracked(current_task, index, turbo_tasks)? {
-                Ok(content) => Ok(content),
-                Err(_) => Ok(CellContent(None)),
-            }
+        match self.try_read_task_cell_untracked(current_task, index, turbo_tasks)? {
+            Ok(content) => Ok(content),
+            Err(_) => Ok(CellContent(None)),
         }
     }
 
@@ -264,6 +280,7 @@ pub trait Backend: Sync + Send {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId;
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,

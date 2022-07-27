@@ -288,7 +288,9 @@ impl DevServerVc {
                             Ok(())
                         }));
                         loop {
-                            match unsafe { tt.try_read_task_output_untracked(task_id, false)? } {
+                            // INVALIDATION: this is just for a single http response, we don't care
+                            // about invalidation.
+                            match tt.try_read_task_output_untracked(task_id, false)? {
                                 Ok(_) => break,
                                 Err(listener) => listener.await,
                             }

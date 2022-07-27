@@ -74,7 +74,7 @@ impl TurboTasksApi for VcStorage {
         unreachable!()
     }
 
-    unsafe fn try_read_task_output_untracked(
+    fn try_read_task_output_untracked(
         &self,
         _task: TaskId,
         _strongly_consistent: bool,
@@ -90,7 +90,7 @@ impl TurboTasksApi for VcStorage {
         self.read_current_task_cell(index).map(Ok)
     }
 
-    unsafe fn try_read_task_cell_untracked(
+    fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
@@ -98,7 +98,7 @@ impl TurboTasksApi for VcStorage {
         self.try_read_task_cell(task, index)
     }
 
-    unsafe fn try_read_own_task_cell(
+    fn try_read_own_task_cell_untracked(
         &self,
         _current_task: TaskId,
         index: usize,
@@ -130,6 +130,6 @@ impl TurboTasksApi for VcStorage {
 
 impl VcStorage {
     pub fn with<T>(f: impl Future<Output = T>) -> impl Future<Output = T> {
-        unsafe { with_turbo_tasks_for_testing(Arc::new(VcStorage::default()), TaskId::from(0), f) }
+        with_turbo_tasks_for_testing(Arc::new(VcStorage::default()), TaskId::from(0), f)
     }
 }

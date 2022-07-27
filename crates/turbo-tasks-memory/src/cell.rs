@@ -20,10 +20,12 @@ impl Cell {
 
     pub fn read_content(&mut self, reader: TaskId) -> CellContent {
         self.dependent_tasks.insert(reader);
-        unsafe { self.read_content_untracked() }
+        self.read_content_untracked()
     }
 
-    pub unsafe fn read_content_untracked(&self) -> CellContent {
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    pub fn read_content_untracked(&self) -> CellContent {
         self.content.clone()
     }
 

@@ -43,10 +43,12 @@ impl Display for OutputContent {
 impl Output {
     pub fn read(&mut self, reader: TaskId) -> Result<RawVc> {
         self.dependent_tasks.insert(reader);
-        unsafe { self.read_untracked() }
+        self.read_untracked()
     }
 
-    pub unsafe fn read_untracked(&mut self) -> Result<RawVc> {
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    pub fn read_untracked(&mut self) -> Result<RawVc> {
         match &self.content {
             OutputContent::Empty => Err(anyhow!("Output it empty")),
             OutputContent::Error(err) => Err(err.clone().into()),

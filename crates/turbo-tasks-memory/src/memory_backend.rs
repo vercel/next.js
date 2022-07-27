@@ -281,13 +281,13 @@ impl Backend for MemoryBackend {
         })
     }
 
-    unsafe fn try_read_task_output_untracked(
+    fn try_read_task_output_untracked(
         &self,
         task: TaskId,
         strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.try_get_output(task, strongly_consistent, turbo_tasks, |output| unsafe {
+        self.try_get_output(task, strongly_consistent, turbo_tasks, |output| {
             output.read_untracked()
         })
     }
@@ -319,14 +319,14 @@ impl Backend for MemoryBackend {
         })))
     }
 
-    unsafe fn try_read_task_cell_untracked(
+    fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
         Ok(Ok(self.with_task(task, |task| {
-            task.with_cell(index, |cell| unsafe { cell.read_content_untracked() })
+            task.with_cell(index, |cell| cell.read_content_untracked())
         })))
     }
 

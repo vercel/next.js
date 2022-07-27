@@ -128,21 +128,25 @@ impl RawVc {
         ReadRawVcFuture::new_strongly_consistent(self)
     }
 
-    pub async unsafe fn into_read_untracked<T: Any + Send + Sync>(
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    pub async fn into_read_untracked<T: Any + Send + Sync>(
         self,
         turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<RawVcReadResult<T>> {
-        unsafe { self.into_read_untracked_internal(false, turbo_tasks).await }
+        self.into_read_untracked_internal(false, turbo_tasks).await
     }
 
-    pub async unsafe fn into_strongly_consistent_read_untracked<T: Any + Send + Sync>(
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    pub async fn into_strongly_consistent_read_untracked<T: Any + Send + Sync>(
         self,
         turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<RawVcReadResult<T>> {
-        unsafe { self.into_read_untracked_internal(true, turbo_tasks).await }
+        self.into_read_untracked_internal(true, turbo_tasks).await
     }
 
-    async unsafe fn into_read_untracked_internal<T: Any + Send + Sync>(
+    async fn into_read_untracked_internal<T: Any + Send + Sync>(
         self,
         strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksApi,
@@ -152,13 +156,11 @@ impl RawVc {
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    current = unsafe {
-                        read_task_output_untracked(turbo_tasks, task, strongly_consistent)
-                    }
-                    .await?
+                    current =
+                        read_task_output_untracked(turbo_tasks, task, strongly_consistent).await?
                 }
                 RawVc::TaskCell(task, index) => {
-                    return unsafe { read_task_cell_untracked(turbo_tasks, task, index) }
+                    return read_task_cell_untracked(turbo_tasks, task, index)
                         .await?
                         .cast::<T>();
                 }
