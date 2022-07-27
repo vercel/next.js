@@ -303,17 +303,7 @@ impl DevServerVc {
         });
         let server = Server::bind(&this.addr).serve(make_svc);
 
-        {
-            let index_uri = if this.addr.ip().is_loopback() {
-                format!("http://localhost:{}", this.addr.port())
-            } else {
-                format!("http://{}", this.addr)
-            };
-            println!("server listening on: {uri}", uri = index_uri);
-            let _ = webbrowser::open(&index_uri);
-        }
-
-        Ok(DevServerListening::new(async move {
+        Ok(DevServerListening::new(this.addr, async move {
             server.await?;
             Ok(())
         }))
@@ -351,12 +341,15 @@ impl DevServerVc {
 #[derive(TraceRawVcs)]
 pub struct DevServerListening {
     #[trace_ignore]
+    pub addr: SocketAddr,
+    #[trace_ignore]
     pub future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
 }
 
 impl DevServerListening {
-    fn new(future: impl Future<Output = Result<()>> + Send + 'static) -> Self {
+    fn new(addr: SocketAddr, future: impl Future<Output = Result<()>> + Send + 'static) -> Self {
         Self {
+            addr,
             future: Box::pin(future),
         }
     }

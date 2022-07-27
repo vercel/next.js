@@ -23,7 +23,6 @@ tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-core = { path = "../turbopack-core" }
-webbrowser = "0.7.1"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
