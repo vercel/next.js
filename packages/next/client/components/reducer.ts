@@ -7,6 +7,9 @@ import type {
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
 
+/**
+ * Fill cache with subTreeData based on flightDataPath
+ */
 function fillCacheWithNewSubTreeData(
   newCache: CacheNode,
   existingCache: CacheNode,
@@ -73,6 +76,9 @@ function fillCacheWithNewSubTreeData(
   )
 }
 
+/**
+ * Kick off fetch based on the common layout between two routes. Fill cache with data property holding the in-progress fetch.
+ */
 function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
@@ -148,6 +154,10 @@ function fillCacheWithDataProperty(
   )
 }
 
+/**
+ * Decide if the segments can be optimistically rendered, kicking off the fetch in layout-router.
+ * - When somewhere in the path to the segment there is a loading.js this becomes true
+ */
 function canOptimisticallyRender(
   segments: string[],
   flightRouterState: FlightRouterState
@@ -186,6 +196,10 @@ function canOptimisticallyRender(
   )
 }
 
+/**
+ * Create optimistic version of router state based on the existing router state and segments.
+ * This is used to allow rendering layout-routers up till the point where data is missing.
+ */
 function createOptimisticTree(
   segments: string[],
   flightRouterState: FlightRouterState | null,
@@ -246,7 +260,10 @@ function createOptimisticTree(
   return result
 }
 
-function walkTreeWithFlightDataPath(
+/**
+ * Apply the router state from the Flight response. Creates a new router state tree.
+ */
+function applyRouterStatePatchToTree(
   flightSegmentPath: FlightData[0],
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
@@ -279,7 +296,7 @@ function walkTreeWithFlightDataPath(
       ...parallelRoutes,
       [parallelRouteKey]: lastSegment
         ? treePatch
-        : walkTreeWithFlightDataPath(
+        : applyRouterStatePatchToTree(
             flightSegmentPath.slice(2),
             parallelRoutes[parallelRouteKey],
             treePatch
@@ -299,30 +316,11 @@ function walkTreeWithFlightDataPath(
   return tree
 }
 
-type PushRef = {
-  /**
-   * If the app-router should push a new history entry in app-router's useEffect()
-   */
-  pendingPush: boolean
-  /**
-   * Multi-page navigation through location.href.
-   */
-  mpaNavigation: boolean
-}
-
 export type FocusAndScrollRef = {
   /**
    * If focus and scroll should be set in the layout-router's useEffect()
    */
   apply: boolean
-}
-
-type AppRouterState = {
-  tree: FlightRouterState
-  cache: CacheNode
-  pushRef: PushRef
-  focusAndScrollRef: FocusAndScrollRef
-  canonicalUrl: string
 }
 
 export const ACTION_RELOAD = 'reload'
@@ -405,6 +403,47 @@ interface ServerPatchAction {
   flightData: FlightData
   previousTree: FlightRouterState
   cache: CacheNode
+}
+
+interface PushRef {
+  /**
+   * If the app-router should push a new history entry in app-router's useEffect()
+   */
+  pendingPush: boolean
+  /**
+   * Multi-page navigation through location.href.
+   */
+  mpaNavigation: boolean
+}
+
+/**
+ * Handles keeping the state of app-router.
+ */
+type AppRouterState = {
+  /**
+   * The router state, this is written into the history state in app-router using replaceState/pushState.
+   * - Has to be serializable as it is written into the history state.
+   * - Holds which segments are shown on the screen.
+   * - Holds where loading states (loading.js) exists.
+   */
+  tree: FlightRouterState
+  /**
+   * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments and prefetched segments.
+   * It also holds in-progress data requests.
+   */
+  cache: CacheNode
+  /**
+   * Decides if the update should create a new history entry and if the navigation can't be handled by app-router.
+   */
+  pushRef: PushRef
+  /**
+   * Decides if the update should apply scroll and focus management.
+   */
+  focusAndScrollRef: FocusAndScrollRef
+  /**
+   * The canonical url that is pushed/replaced
+   */
+  canonicalUrl: string
 }
 
 /**
@@ -575,7 +614,7 @@ export function reducer(
         const flightSegmentPath = flightDataPath.slice(0, -3)
 
         // Create new tree based on the flightSegmentPath and router state patch
-        const newTree = walkTreeWithFlightDataPath(
+        const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           ['', ...flightSegmentPath],
           state.tree,
@@ -641,7 +680,7 @@ export function reducer(
       const treePath = flightDataPath.slice(0, -3)
       const [treePatch] = flightDataPath.slice(-2)
 
-      const newTree = walkTreeWithFlightDataPath(
+      const newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
         ['', ...treePath],
         state.tree,
@@ -726,7 +765,7 @@ export function reducer(
 
       // Given the path can only have two items the items are only the router state and subTreeData for the root.
       const [treePatch, subTreeData] = flightDataPath
-      const newTree = walkTreeWithFlightDataPath(
+      const newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
         [''],
         state.tree,
