@@ -157,6 +157,17 @@ async fn main() {
         })
         .await
         .unwrap();
+
+    {
+        let index_uri = if server.addr.ip().is_loopback() {
+            format!("http://localhost:{}", server.addr.port())
+        } else {
+            format!("http://{}", server.addr)
+        };
+        println!("server listening on: {uri}", uri = index_uri);
+        let _ = webbrowser::open(&index_uri);
+    }
+
     join! {
         async move {
             let (elapsed, count) = tt_clone.get_or_wait_update_info(Duration::ZERO).await;
