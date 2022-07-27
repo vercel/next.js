@@ -287,15 +287,18 @@ function handleLoading(
         }
         if (img.parentElement) {
           const { position } = window.getComputedStyle(img.parentElement)
-          if (position !== 'relative') {
+          const valid = ['absolute', 'fixed', 'relative']
+          if (!valid.includes(position)) {
             warnOnce(
-              `Fill mode image with src "${src}" has a parent element without CSS position: "relative". This is required for the "fill" property to function correctly.`
+              `Image with src "${src}" has "fill" and parent element with invalid "position". Provided "${position}" should be one of ${valid
+                .map(String)
+                .join(',')}.`
             )
           }
         }
         if (img.height === 0) {
           warnOnce(
-            `Fill mode image with src "${src}" has a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.`
+            `Image with src "${src}" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.`
           )
         }
       }
