@@ -1,10 +1,11 @@
+import type { NextPageWithLayout } from './_app'
 import Layout from '../components/layout'
 import Sidebar from '../components/sidebar'
 
-export default function Index() {
+const Contact: NextPageWithLayout = () => {
   return (
     <section>
-      <h2>Layout Example (Index)</h2>
+      <h2>Layout Example (Contact)</h2>
       <p>
         This example adds a property <code>getLayout</code> to your page,
         allowing you to return a React component for the layout. This allows you
@@ -13,7 +14,7 @@ export default function Index() {
       </p>
       <p>
         When navigating between pages, we want to persist page state (input
-        values, scroll position, etc) for a Single-Page Application (SPA)
+        values, scroll position, etc.) for a Single-Page Application (SPA)
         experience.
       </p>
       <p>
@@ -32,7 +33,9 @@ export default function Index() {
   )
 }
 
-Index.getLayout = function getLayout(page) {
+export default Contact
+
+Contact.getLayout = function getLayout(page: React.ReactElement) {
   return (
     <Layout>
       <Sidebar />
