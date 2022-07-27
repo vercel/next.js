@@ -1,14 +1,26 @@
 import React from 'react'
-import type { FocusRef } from '../../client/components/reducer'
+import type { FocusAndScrollRef } from '../../client/components/reducer'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
+/**
+ * Cache node used in app-router / layout-router.
+ */
 export type CacheNode = {
+  /**
+   * In-flight request for this node.
+   */
   data: ReturnType<
     typeof import('../../client/components/app-router.client').fetchServerResponse
   > | null
-  subTreeData: null | React.ReactNode
+  /**
+   * React Component for this node.
+   */
+  subTreeData: React.ReactNode | null
+  /**
+   * Child parallel routes.
+   */
   parallelRoutes: Map<string, ChildSegmentMap>
 }
 
@@ -46,7 +58,7 @@ export type AppRouterInstance = {
 export const AppRouterContext = React.createContext<AppRouterInstance>(
   null as any
 )
-export const AppTreeContext = React.createContext<{
+export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
@@ -58,11 +70,11 @@ export const GlobalLayoutRouterContext = React.createContext<{
     previousTree: FlightRouterState,
     flightData: FlightData
   ) => void
-  focusRef: FocusRef
+  focusAndScrollRef: FocusAndScrollRef
 }>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
-  AppTreeContext.displayName = 'AppTreeContext'
+  LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
 }
