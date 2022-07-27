@@ -23,6 +23,9 @@ export default async function handler(
   res.setPreviewData({})
 
   // Redirect to the slug
-  res.writeHead(307, { Location: req.query.slug })
+  if (!('slug' in validationResp)) {
+    throw new Error('invariant missing slug in validation response')
+  }
+  res.writeHead(307, { Location: validationResp.slug })
   res.end()
 }
