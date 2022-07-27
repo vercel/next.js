@@ -1712,6 +1712,7 @@ export default class Router implements BaseRouter {
       }
 
       let cachedRouteInfo =
+        !hasMiddleware &&
         existingInfo &&
         !('initial' in existingInfo) &&
         process.env.NODE_ENV !== 'development'
@@ -2395,11 +2396,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
             as = parsedRewriteTarget.pathname
             Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
           }
-        }
-        const resolvedPathname = resolveDynamicRoute(fsPathname, pages)
+        } else if (!pages.includes(fsPathname)) {
+          const resolvedPathname = resolveDynamicRoute(fsPathname, pages)
 
-        if (resolvedPathname !== fsPathname) {
-          fsPathname = resolvedPathname
+          if (resolvedPathname !== fsPathname) {
+            fsPathname = resolvedPathname
+          }
         }
 
         const resolvedHref = !pages.includes(fsPathname)
