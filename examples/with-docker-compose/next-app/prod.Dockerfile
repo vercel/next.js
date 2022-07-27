@@ -7,10 +7,11 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 # Omit --production flag for TypeScript devDependencies
 RUN \
-  [ -f yarn.lock ] && yarn install --frozen-lockfile || \
-  [ -f package-lock.json ] && npm ci || \
-  [ -f pnpm-lock.yaml ] && yarn global add pnpm && pnpm fetch && pnpm i -r --offline || \
-  (echo "Lockfile not found." && exit 1)
+  if [ -f yarn.lock ] then yarn install --frozen-lockfile; \
+  elif [ -f package-lock.json ] then npm ci; \
+  elif [ -f pnpm-lock.yaml ] then yarn global add pnpm && pnpm i; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
 
 
 COPY src ./src
