@@ -1347,7 +1347,10 @@ export default class Router implements BaseRouter {
       if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
         route = pathname
-        query = Object.assign({}, routeInfo.query || {}, query)
+
+        if (!routeProps.shallow) {
+          query = Object.assign({}, routeInfo.query || {}, query)
+        }
 
         if (routeMatch && pathname !== parsed.pathname) {
           Object.keys(routeMatch).forEach((key) => {
@@ -1359,8 +1362,15 @@ export default class Router implements BaseRouter {
 
         if (isDynamicRoute(pathname)) {
           const prefixedAs =
-            routeInfo.resolvedAs ||
-            addBasePath(addLocale(as, nextState.locale), true)
+            !routeProps.shallow && routeInfo.resolvedAs
+              ? routeInfo.resolvedAs
+              : addBasePath(
+                  addLocale(
+                    new URL(as, location.href).pathname,
+                    nextState.locale
+                  ),
+                  true
+                )
 
           let rewriteAs = prefixedAs
 
@@ -2346,7 +2356,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
         parseData: true,
       })
 
-      const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
+      let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
       return Promise.all([
         options.router.pageLoader.getPageList(),
         getClientBuildManifest(),
@@ -2385,6 +2395,11 @@ function getMiddlewareData<T extends FetchDataOutput>(
             as = parsedRewriteTarget.pathname
             Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
           }
+        }
+        const resolvedPathname = resolveDynamicRoute(fsPathname, pages)
+
+        if (resolvedPathname !== fsPathname) {
+          fsPathname = resolvedPathname
         }
 
         const resolvedHref = !pages.includes(fsPathname)
