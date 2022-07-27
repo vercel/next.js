@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import styles from '../styles.module.css'
-
-const Code = (p) => <code className={styles.inlineCode} {...p} />
+import Code from '../components/Code'
 
 export default function About() {
   return (
@@ -18,9 +17,7 @@ export default function About() {
           inside your browser inspector.
         </p>
 
-        <Link href="/">
-          <a> &larr; Back home</a>
-        </Link>
+        <Link href="/">&larr; Back home</Link>
       </div>
     </div>
   )

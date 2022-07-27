@@ -1,10 +1,9 @@
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import styles from '../../styles.module.css'
+import Code from '../../components/Code'
 
-const Code = (p) => <code className={styles.inlineCode} {...p} />
-
-const News = ({ props }) => {
+export default function News() {
   const { asPath } = useRouter()
 
   return (
@@ -20,12 +19,8 @@ const News = ({ props }) => {
           To check the response headers of this page, open the Network tab
           inside your browser inspector.
         </p>
-        <Link href="/">
-          <a> &larr; Back home</a>
-        </Link>
+        <Link href="/">&larr; Back home</Link>
       </div>
     </div>
   )
 }
-
-export default News
