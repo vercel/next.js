@@ -65,7 +65,7 @@ async fn main() {
     let dir = args
         .dir
         .map(|dir| dir.canonicalize())
-        .unwrap_or_else(|| current_dir())
+        .unwrap_or_else(current_dir)
         .unwrap()
         .to_str()
         .ok_or_else(|| anyhow!("current directory contains invalid characters"))
