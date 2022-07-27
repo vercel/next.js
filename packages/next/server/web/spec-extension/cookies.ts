@@ -1,5 +1,6 @@
+import type { CookieSerializeOptions } from '../types'
+
 import cookie from 'next/dist/compiled/cookie'
-import { CookieSerializeOptions } from '../types'
 
 type GetWithOptionsOutput = {
   value: string | undefined

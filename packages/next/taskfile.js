@@ -97,6 +97,8 @@ const externals = {
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
+
+  // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
@@ -296,6 +298,15 @@ export async function ncc_edge_runtime(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('edge-runtime')))
     .ncc({ packageName: 'edge-runtime', externals })
     .target('compiled/edge-runtime')
+
+  const outputFile = join(__dirname, 'compiled/edge-runtime/index.js')
+
+  await fs.writeFile(
+    outputFile,
+    (
+      await fs.readFile(outputFile, 'utf8')
+    ).replace(/eval\("require"\)/g, 'require')
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -1462,15 +1473,22 @@ export async function copy_react_server_dom_webpack(task, opts) {
 // eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
 export async function ncc_sass_loader(task, opts) {
+  const sassLoaderPath = require.resolve('sass-loader')
+  const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
+  const originalContent = await fs.readFile(utilsPath, 'utf8')
+
+  await fs.writeFile(
+    utilsPath,
+    originalContent.replace(
+      /require\.resolve\(["'](sass|node-sass)["']\)/g,
+      'eval("require").resolve("$1")'
+    )
+  )
+
   await task
-    .source(opts.src || relative(__dirname, require.resolve('sass-loader')))
+    .source(opts.src || relative(__dirname, sassLoaderPath))
     .ncc({
       packageName: 'sass-loader',
-      customEmit(path, isRequire) {
-        if (isRequire && path === 'sass') return false
-        if (path.indexOf('node-sass') !== -1)
-          return `eval("require.resolve('node-sass')")`
-      },
       externals: {
         ...externals,
         'schema-utils': externals['schema-utils3'],
@@ -1843,7 +1861,6 @@ export async function ncc(task, opts) {
         'ncc_postcss_modules_values',
         'ncc_postcss_value_parser',
         'ncc_icss_utils',
-        'ncc_sass_loader',
         'ncc_schema_utils2',
         'ncc_schema_utils3',
         'ncc_semver',
@@ -1877,6 +1894,7 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_react_server_dom_webpack',
       'copy_react_is',
+      'ncc_sass_loader',
       'ncc_jest_worker',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime',
