@@ -275,10 +275,9 @@ When you add an example to the [examples](examples) directory, please follow the
 - Omit the `name` and `version` fields from your `package.json`
 - Use `export default function` for page components and API Routes instead of `const`/`let` (The exception is if the page has `getInitialProps`, in which case [`NextPage`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props#typescript) could be useful)
 - TypeScript examples should not use `prop-types`
-- Type definition files should be inside the `interfaces` directory. `.d.ts` modules should be in the root directory
 - CMS example directories should be prefixed with `cms-`
 - Example directories should not be prefixed with `with-`
-- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image) and [`next/link`](https://nextjs.org/docs/api-reference/next/link)
+- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image), and [`next/link`](https://nextjs.org/docs/api-reference/next/link), and [`next/script`](https://nextjs.org/docs/api-reference/next/script)
 - Make sure linting passes (you can run `pnpm lint-fix`)
 
 Also don’t forget to add a `README.md` file with the following format:
@@ -315,14 +314,22 @@ pnpm create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 ````
 
-## Deprecating examples
+## Removing examples
 
-Replace the app with a `README.md` file. For example:
+When an example is deprecated or moved, the app should be replaced with a `README.md` file. For example:
 
 ```markdown
 ## Deprecated
 
-The main [blog-starter](/examples/blog-starter) example has been refactored to use TypeScript, so this example is deprecated.
+The main [<technology>](/examples/<technology>) example has been refactored to use TypeScript, so this example is deprecated.
+```
+
+```markdown
+## Moved
+
+The official example is maintained by the library authors outside of the Next.js repository:
+
+- [<Technology Example>](some-url)
 ```
 
 ## Publishing
