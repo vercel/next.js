@@ -20,6 +20,14 @@ export function normalizePosts(postsFromAgility) {
       excerpt: p.fields.excerpt,
       date: p.fields.date,
       content: p.fields.content,
+      author: p.fields.author
+        ? {
+            name: p.fields.author.fields.name,
+            picture: {
+              url: `${p.fields.author.fields.picture.url}?w=100&h=100`,
+            },
+          }
+        : null,
       ogImage: {
         url: `${p.fields.coverImage.url}?w=2000&h=1000&q=70`,
       },
@@ -38,15 +46,6 @@ export function normalizePosts(postsFromAgility) {
           bgColor: null,
         },
       },
-    }
-
-    if (p.fields.author) {
-      normalizedPost.author = {
-        name: p.fields.author.fields.name,
-        picture: {
-          url: `${p.fields.author.fields.picture.url}?w=100&h=100`,
-        },
-      }
     }
 
     return normalizedPost
