@@ -3200,9 +3200,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_prefixer"
-version = "0.113.1"
+version = "0.113.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15e3f0d12a4b844b863ff64e5c894758dc79d8199c760ebfdc7716f0fa4c549e"
+checksum = "d36aab27a91fd7da889a77f2d85c5cee4aeacde70ddc6f7a42e932de1a436ace"
 dependencies = [
  "once_cell",
  "preset_env_base",
