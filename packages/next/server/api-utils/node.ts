@@ -316,6 +316,7 @@ async function revalidate(
   try {
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
+        method: 'HEAD',
         headers: {
           ...revalidateHeaders,
           cookie: req.headers.cookie || '',

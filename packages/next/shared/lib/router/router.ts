@@ -2158,7 +2158,9 @@ export default class Router implements BaseRouter {
               persistCache: !this.isPreview,
               isPrefetch: true,
               unstable_skipClientCache:
-                options.unstable_skipClientCache || options.priority,
+                options.unstable_skipClientCache ||
+                (options.priority &&
+                  !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
             }).then(() => false)
           : false
       }),

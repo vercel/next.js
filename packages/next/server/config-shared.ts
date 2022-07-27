@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
@@ -517,6 +518,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
