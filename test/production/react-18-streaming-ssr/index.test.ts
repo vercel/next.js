@@ -22,7 +22,7 @@ describe('react 18 streaming SSR in minimal mode', () => {
 
     next = await createNext({
       files: {
-        'pages/index.server.js': `
+        'pages/index.js': `
           export default function Page() {
             return <p>streaming</p>
           }
@@ -33,7 +33,6 @@ describe('react 18 streaming SSR in minimal mode', () => {
       },
       nextConfig: {
         experimental: {
-          serverComponents: true,
           runtime: 'nodejs',
         },
         webpack(config, { nextRuntime }) {
