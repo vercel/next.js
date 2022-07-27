@@ -275,7 +275,6 @@ When you add an example to the [examples](examples) directory, please follow the
 - Omit the `name` and `version` fields from your `package.json`
 - Use `export default function` for page components and API Routes instead of `const`/`let` (The exception is if the page has `getInitialProps`, in which case [`NextPage`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props#typescript) could be useful)
 - TypeScript examples should not use `prop-types`
-- TypeScript `strict` mode should be set to `false` in `tsconfig.json`
 - Type definition files should be inside the `interfaces` directory. `.d.ts` modules should be in the root directory
 - CMS example directories should be prefixed with `cms-`
 - Example directories should not be prefixed with `with-`
