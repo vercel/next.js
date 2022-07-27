@@ -31,7 +31,7 @@ use crate::{
     asset::{AssetVc, AssetsVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
-        options::{ConditionValue, ResolvedMapVc},
+        options::{ConditionValue, ResolveOptions, ResolvedMapVc},
         pattern::{read_matches, Pattern, PatternMatch, PatternVc},
     },
     source_asset::SourceAssetVc,
@@ -665,7 +665,7 @@ pub async fn resolve(
         Ok(ResolveResult::unresolveable().into())
     }
 
-    let options_value = options.await?;
+    let options_value: &ResolveOptions = &*options.await?;
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {

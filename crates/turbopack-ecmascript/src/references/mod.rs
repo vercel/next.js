@@ -304,7 +304,6 @@ pub(crate) async fn analyze_ecmascript_module(
 
                     // TODO migrate to effects
                     let mut visitor = AssetReferencesVisitor::new(
-                        context,
                         eval_context,
                         &import_references,
                         &mut analysis,
@@ -1431,7 +1430,6 @@ impl StaticAnalyser {
 }
 
 struct AssetReferencesVisitor<'a> {
-    context: AssetContextVc,
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
     import_references: &'a HashMap<String, EsmAssetReferenceVc>,
@@ -1444,13 +1442,11 @@ struct AssetReferencesVisitor<'a> {
 }
 impl<'a> AssetReferencesVisitor<'a> {
     fn new(
-        context: AssetContextVc,
         eval_context: &'a EvalContext,
         import_references: &'a HashMap<String, EsmAssetReferenceVc>,
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     ) -> Self {
         Self {
-            context,
             eval_context,
             old_analyser: StaticAnalyser::default(),
             import_references,

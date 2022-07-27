@@ -1,15 +1,15 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use swc_common::DUMMY_SP;
-use swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, Lit, Str};
+use swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     util::try_join_all,
 };
 use turbopack_core::{
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ModuleId},
+    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
+    resolve::{parse::RequestVc, ResolveResultVc},
 };
 
 use super::pattern_mapping::PatternMappingVc;
@@ -18,8 +18,7 @@ use crate::{
     create_visitor,
     references::{pattern_mapping::PatternMapping, AstPathVc},
     resolve::cjs_resolve,
-    utils::module_id_to_lit,
-    EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc,
+    EcmascriptChunkContextVc,
 };
 
 #[turbo_tasks::value(AssetReference, ChunkableAssetReference)]

@@ -1,25 +1,17 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use swc_common::DUMMY_SP;
-use swc_ecma_ast::{Callee, Expr, ExprOrSpread, Ident, Lit, Str};
+use swc_ecma_ast::Expr;
 use swc_ecma_quote::quote;
-use turbo_tasks::primitives::{BoolVc, StringVc};
 use turbopack_core::{
-    asset::AssetVc,
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ModuleId},
+    chunk::ModuleId,
     context::AssetContextVc,
-    reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
+    resolve::{parse::RequestVc, ResolveResult},
 };
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
-    create_visitor,
-    references::AstPathVc,
-    resolve::cjs_resolve,
-    utils::module_id_to_lit,
-    EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc,
+    resolve::cjs_resolve, utils::module_id_to_lit, EcmascriptChunkContextVc,
+    EcmascriptChunkPlaceableVc,
 };
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
