@@ -605,7 +605,8 @@ export function reducer(
       }
 
       // This case should never be hit as `cacheType` is required and both cases are implemented.
-      return state
+      // Short error to save bundle space.
+      throw new Error('Invalid navigate')
     }
     case ACTION_SERVER_PATCH: {
       const { flightData, previousTree, cache } = action
