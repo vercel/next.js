@@ -281,7 +281,7 @@ function handleLoading(
             img.getBoundingClientRect().width / window.innerWidth
           if (widthViewportRatio < 0.6) {
             warnOnce(
-              `Image with src "${src}" has no sizes prop, but doesn't take up the full width of the screen. Use the sizes prop (https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/sizes) to improve page performance.`
+              `Image with src "${src}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/future/image#sizes`
             )
           }
         }
