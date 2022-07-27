@@ -435,7 +435,7 @@ export function reducer(
       const { url, cacheType, navigateType, cache, mutable } = action
       const { pathname, search, hash } = url
       const href = pathname + search + hash
-      const pendingPush = navigateType === 'push' ? true : false
+      const pendingPush = navigateType === 'push'
 
       const segments = pathname.split('/')
       // TODO-APP: figure out something better for index pages
@@ -541,7 +541,7 @@ export function reducer(
 
         // Below is the not-optimistic case.
 
-        // If no in-flight fetch at the top start it.
+        // If no in-flight fetch at the top, start it.
         if (!cache.data) {
           cache.data = fetchServerResponse(url, state.tree)
         }

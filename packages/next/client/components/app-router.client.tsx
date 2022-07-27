@@ -300,7 +300,7 @@ export default function AppRouter({
           value={{
             changeByServerResponse,
             tree,
-            focusAndScrollRef: focusAndScrollRef,
+            focusAndScrollRef,
           }}
         >
           <AppRouterContext.Provider value={appRouter}>
