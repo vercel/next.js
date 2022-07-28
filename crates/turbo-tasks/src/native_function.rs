@@ -57,9 +57,11 @@ impl NativeFunction {
         match (self.bind_fn)(inputs) {
             Ok(native_fn) => Box::new(move || {
                 let r = native_fn();
-                let count = self.executed_count.fetch_add(1, Ordering::Relaxed);
-                if count > 0 && count % 100000 == 0 {
-                    println!("{} was executed {}k times", self.name, count / 1000);
+                if cfg!(feature = "log_function_stats") {
+                    let count = self.executed_count.fetch_add(1, Ordering::Relaxed);
+                    if count > 0 && count % 100000 == 0 {
+                        println!("{} was executed {}k times", self.name, count / 1000);
+                    }
                 }
                 r
             }),
