@@ -970,24 +970,30 @@ export class NextScript extends Component<OriginProps> {
     const { __NEXT_DATA__, largePageDataBytes } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
-      const bytes =
-        process.env.NEXT_RUNTIME === 'edge'
-          ? new TextEncoder().encode(data).buffer.byteLength
-          : Buffer.from(data).byteLength
-      const prettyBytes = require('../lib/pretty-bytes').default
 
-      if (largePageDataBytes && bytes > largePageDataBytes) {
-        console.warn(
-          `Warning: data for page "${__NEXT_DATA__.page}"${
-            __NEXT_DATA__.page === context.dangerousAsPath
-              ? ''
-              : ` (path "${context.dangerousAsPath}")`
-          } is ${prettyBytes(
-            bytes
-          )} which exceeds the threshold of ${prettyBytes(
-            largePageDataBytes
-          )}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`
-        )
+      if (
+        process.env.NODE_ENV === 'development' ||
+        !(__NEXT_DATA__.gssp || __NEXT_DATA__.gip)
+      ) {
+        const bytes =
+          process.env.NEXT_RUNTIME === 'edge'
+            ? new TextEncoder().encode(data).buffer.byteLength
+            : Buffer.from(data).byteLength
+        const prettyBytes = require('../lib/pretty-bytes').default
+
+        if (largePageDataBytes && bytes > largePageDataBytes) {
+          console.warn(
+            `Warning: data for page "${__NEXT_DATA__.page}"${
+              __NEXT_DATA__.page === context.dangerousAsPath
+                ? ''
+                : ` (path "${context.dangerousAsPath}")`
+            } is ${prettyBytes(
+              bytes
+            )} which exceeds the threshold of ${prettyBytes(
+              largePageDataBytes
+            )}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`
+          )
+        }
       }
 
       return htmlEscapeJsonString(data)
