@@ -1,64 +1,42 @@
 // Copied from "middleware-responses" test
-import Link from 'next/link'
+import a from 'next/a'
 
 export default function Home({ message }) {
   return (
     <div>
       <p className="title">Hello {message}</p>
-      <Link href="/stream-a-response">
-        <a>Stream a response</a>
-      </Link>
+      <a href="/api/stream-a-response">Stream a response</a>
       <div />
-      <Link href="/stream-long">
-        <a>Stream a long response</a>
-      </Link>
-      <Link href="/stream-end-stream">
-        <a>Test streaming after response ends</a>
-      </Link>
+      <a href="/api/stream-long">Stream a long response</a>
+      <a href="/api/stream-end-stream">Test streaming after response ends</a>
       <div />
-      <Link href="/stream-header-end">
-        <a>Attempt to add a header after stream ends</a>
-      </Link>
+      <a href="/api/stream-header-end">
+        Attempt to add a header after stream ends
+      </a>
       <div />
-      <Link href="/redirect-stream">
-        <a>Redirect to Google and attempt to stream after</a>
-      </Link>
+      <a href="/api/redirect-stream">
+        Redirect to Google and attempt to stream after
+      </a>
       <div />
-      <Link href="/header">
-        <a>Respond with a header</a>
-      </Link>
+      <a href="/api/header">Respond with a header</a>
       <div />
-      <Link href="/header?nested-header=true">
-        <a>Respond with 2 headers (nested middleware effect)</a>
-      </Link>
+      <a href="/api/header?nested-header=true">
+        Respond with 2 headers (nested middleware effect)
+      </a>
       <div />
-      <Link href="/body-end-header">
-        <a>Respond with body, end, set a header</a>
-      </Link>
+      <a href="/api/body-end-header">Respond with body, end, set a header</a>
       <div />
-      <Link href="/body-end-body">
-        <a>Respond with body, end, send another body</a>
-      </Link>
+      <a href="/api/body-end-body">Respond with body, end, send another body</a>
       <div />
-      <Link href="/send-response">
-        <a>Respond with body</a>
-      </Link>
+      <a href="/api/send-response">Respond with body</a>
       <div />
-      <Link href="/redirect-body">
-        <a>Redirect and then send a body</a>
-      </Link>
+      <a href="/api/redirect-body">Redirect and then send a body</a>
       <div />
-      <Link href="/react">
-        <a>Send React component as a body</a>
-      </Link>
+      <a href="/api/react">Send React component as a body</a>
       <div />
-      <Link href="/react-stream">
-        <a>Stream React component</a>
-      </Link>
+      <a href="/api/react-stream">Stream React component</a>
       <div />
-      <Link href="/bad-status">
-        <a>404</a>
-      </Link>
+      <a href="/api/bad-status">404</a>
       <div />
     </div>
   )
