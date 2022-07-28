@@ -50,7 +50,6 @@ export class FlightClientEntryPlugin {
       }
     )
 
-    // Only for webpack 5
     compiler.hooks.finishMake.tapAsync(
       PLUGIN_NAME,
       async (compilation: any, callback: any) => {
