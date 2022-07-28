@@ -225,7 +225,7 @@ export async function printTreeView(
             : pageInfo.size >= 0
             ? prettyBytes(pageInfo.size)
             : ''
-          : '', // FIXME: (wyattjoh) replace with size calculation for page size
+          : '',
         pageInfo
           ? ampFirst
             ? chalk.cyan('AMP')
