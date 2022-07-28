@@ -7,9 +7,7 @@ export default function About() {
       <div className={styles.card}>
         <h1>About Page</h1>
         <hr className={styles.hr} />
-        <Link href="/">
-          <a> &larr; Back home</a>
-        </Link>
+        <Link href="/">&larr; Back home</Link>
       </div>
     </div>
   )

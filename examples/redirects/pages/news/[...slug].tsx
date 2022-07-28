@@ -1,10 +1,9 @@
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import styles from '../../styles.module.css'
+import Code from '../../components/Code'
 
-const Code = (p) => <code className={styles.inlineCode} {...p} />
-
-const News = ({ props }) => {
+export default function News() {
   const { asPath, route, query } = useRouter()
 
   return (
@@ -19,12 +18,8 @@ const News = ({ props }) => {
           The query <Code>slug</Code> for this page is:{' '}
           <Code>{JSON.stringify(query.slug)}</Code>
         </p>
-        <Link href="/">
-          <a> &larr; Back home</a>
-        </Link>
+        <Link href="/">&larr; Back home</Link>
       </div>
     </div>
   )
 }
-
-export default News
