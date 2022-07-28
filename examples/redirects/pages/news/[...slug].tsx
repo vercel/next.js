@@ -12,7 +12,7 @@ export default function News() {
         <h1>Path: {asPath}</h1>
         <hr className={styles.hr} />
         <p>
-          This page was rendered by <Code>{`pages${route}.js`}</Code>.
+          This page was rendered by <Code>{`pages${route}.tsx`}</Code>.
         </p>
         <p>
           The query <Code>slug</Code> for this page is:{' '}
