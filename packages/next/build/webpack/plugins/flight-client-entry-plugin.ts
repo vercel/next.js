@@ -58,7 +58,7 @@ export class FlightClientEntryPlugin {
 
   async createClientEndpoints(compilation: any) {
     const context = (this as any).context
-    const promises: any = []
+    const promises: Array<Promise<void>> = []
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
