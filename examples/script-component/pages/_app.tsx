@@ -1,18 +1,15 @@
+import { AppProps } from 'next/app'
 import Link from 'next/link'
 
 import '../styles/global.css'
 
-const MyApp = ({ Component, pageProps, router }) => {
+const MyApp = ({ Component, pageProps, router }: AppProps) => {
   const pathname = router.pathname
 
   return (
     <>
       <Component {...pageProps} />
-      {pathname !== '/' && (
-        <Link href="/">
-          <a>See all examples</a>
-        </Link>
-      )}
+      {pathname !== '/' && <Link href="/">See all examples</Link>}
     </>
   )
 }

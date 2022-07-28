@@ -1,10 +1,11 @@
+import type { RefObject } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 
 import s from '../styles/polyfill.module.css'
 
 export default function Polyfill() {
-  const ref = useRef()
+  const ref = useRef<HTMLSpanElement>(null)
   const [lastIntersection, setIntersection] = useState(new Date())
 
   useEffect(() => {
@@ -21,7 +22,9 @@ export default function Polyfill() {
       }
     )
 
-    observer.observe(ref.current)
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
 
     return () => observer.disconnect()
   }, [])

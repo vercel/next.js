@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import Script from 'next/script'
 
 export default function Onload() {
-  const [stripe, setStripe] = useState(null)
+  const [stripe, setStripe] = useState<{ stripe: typeof window.Stripe } | null>(
+    null
+  )
   const methods = useMemo(
     () =>
       stripe

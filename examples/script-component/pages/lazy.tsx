@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import Script from 'next/script'
 
 export default function Lazyload() {
-  const [log, setLog] = useState([])
+  const [log, setLog] = useState<{ time: Date; text: string }[]>([])
 
   const addLog = useCallback(
-    (text) => {
+    (text: string) => {
       setLog((log) => log.concat({ time: new Date(), text }))
     },
     [setLog]
