@@ -20,7 +20,7 @@ description: Optimize loading of third-party scripts with the built-in Script co
 
 | Version   | Changes                   |
 | --------- | ------------------------- |
-| `v12.2.3` | `onReady` prop added.     |
+| `v12.2.4` | `onReady` prop added.     |
 | `v11.0.0` | `next/script` introduced. |
 
 </details>
