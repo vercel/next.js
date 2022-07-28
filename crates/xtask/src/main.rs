@@ -7,11 +7,12 @@ use std::{
 
 use clap::{arg, Command};
 
+mod command;
 mod nft_bench;
 mod publish;
 
 use nft_bench::show_result;
-use publish::run_publish;
+use publish::{publish_workspace, run_bump, run_publish};
 
 fn cli() -> Command<'static> {
     Command::new("xtask")
@@ -27,6 +28,13 @@ fn cli() -> Command<'static> {
                 .arg_required_else_help(true),
         )
         .subcommand(
+            Command::new("workspace")
+                .arg(arg!(--publish "publish npm packages in yarn workspace"))
+                .arg(arg!(--bump "bump new version for npm package in yarn workspace"))
+                .arg(arg!([NAME] "the package to bump"))
+                .about("Manage packages in yarn workspaces"),
+        )
+        .subcommand(
             Command::new("nft-bench-result")
                 .about("Print node-file-trace benchmark result against @vercel/nft"),
         )
@@ -40,8 +48,24 @@ fn main() {
     let matches = cli().get_matches();
     match matches.subcommand() {
         Some(("npm", sub_matches)) => {
-            let name = sub_matches.get_one::<String>("NAME").expect("required");
-            run_publish(name);
+            let name = sub_matches
+                .get_one::<String>("NAME")
+                .expect("NAME is required");
+            run_publish(&name);
+        }
+        Some(("workspace", sub_matches)) => {
+            let is_bump = sub_matches.is_present("bump");
+            let is_publish = sub_matches.is_present("publish");
+            if is_bump {
+                let names = sub_matches
+                    .get_many::<String>("NAME")
+                    .map(|names| names.cloned().collect::<HashSet<_>>())
+                    .unwrap_or(Default::default());
+                run_bump(names);
+            }
+            if is_publish {
+                publish_workspace();
+            }
         }
         Some(("nft-bench-result", _)) => {
             show_result();

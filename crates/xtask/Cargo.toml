@@ -13,6 +13,7 @@ bench = false
 [dependencies]
 cargo-lock = "8.0.2"
 clap = { version = "3.2.1", features = ["derive"] }
+inquire = { version = "0.3.0-alpha.2" }
 owo-colors = "3"
 semver = "1"
 serde = { version = "1.0", features = ["derive"] }
