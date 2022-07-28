@@ -46,6 +46,7 @@ import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
+import { compareRouterStates } from './utils/compare-states'
 
 declare global {
   interface Window {
@@ -990,6 +991,7 @@ export default class Router implements BaseRouter {
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
     // or a navigation has occurred
+    const readyStateChange = this.isReady !== true
     this.isReady = true
     const isSsr = this.isSsr
 
@@ -1127,7 +1129,7 @@ export default class Router implements BaseRouter {
     )
     this._inFlightRoute = as
 
-    let localeChange = prevLocale !== nextState.locale
+    const localeChange = prevLocale !== nextState.locale
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
@@ -1345,7 +1347,10 @@ export default class Router implements BaseRouter {
       if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
         route = pathname
-        query = Object.assign({}, routeInfo.query || {}, query)
+
+        if (!routeProps.shallow) {
+          query = Object.assign({}, routeInfo.query || {}, query)
+        }
 
         if (routeMatch && pathname !== parsed.pathname) {
           Object.keys(routeMatch).forEach((key) => {
@@ -1357,8 +1362,15 @@ export default class Router implements BaseRouter {
 
         if (isDynamicRoute(pathname)) {
           const prefixedAs =
-            routeInfo.resolvedAs ||
-            addBasePath(addLocale(as, nextState.locale), true)
+            !routeProps.shallow && routeInfo.resolvedAs
+              ? routeInfo.resolvedAs
+              : addBasePath(
+                  addLocale(
+                    new URL(as, location.href).pathname,
+                    nextState.locale
+                  ),
+                  true
+                )
 
           let rewriteAs = prefixedAs
 
@@ -1481,46 +1493,63 @@ export default class Router implements BaseRouter {
       const isValidShallowRoute =
         options.shallow && nextState.route === (routeInfo.route ?? route)
 
-      const shouldScroll = options.scroll ?? !isValidShallowRoute
+      const shouldScroll =
+        options.scroll ?? (!(options as any)._h && !isValidShallowRoute)
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
 
-      await this.set(
-        {
-          ...nextState,
-          route,
-          pathname,
-          query,
-          asPath: cleanedAs,
-          isFallback: false,
-        },
-        routeInfo,
-        forcedScroll ?? resetScroll
-      ).catch((e) => {
-        if (e.cancelled) error = error || e
-        else throw e
-      })
+      // the new state that the router gonna set
+      const upcomingRouterState = {
+        ...nextState,
+        route,
+        pathname,
+        query,
+        asPath: cleanedAs,
+        isFallback: false,
+      }
+      const upcomingScrollState = forcedScroll ?? resetScroll
 
-      if (error) {
+      // for query updates we can skip it if the state is unchanged and we don't
+      // need to scroll
+      // https://github.com/vercel/next.js/issues/37139
+      const canSkipUpdating =
+        (options as any)._h &&
+        !upcomingScrollState &&
+        !readyStateChange &&
+        !localeChange &&
+        compareRouterStates(upcomingRouterState, this.state)
+
+      if (!canSkipUpdating) {
+        await this.set(
+          upcomingRouterState,
+          routeInfo,
+          upcomingScrollState
+        ).catch((e) => {
+          if (e.cancelled) error = error || e
+          else throw e
+        })
+
+        if (error) {
+          if (!isQueryUpdating) {
+            Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+          }
+          throw error
+        }
+
+        if (process.env.__NEXT_I18N_SUPPORT) {
+          if (nextState.locale) {
+            document.documentElement.lang = nextState.locale
+          }
+        }
+
         if (!isQueryUpdating) {
-          Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+          Router.events.emit('routeChangeComplete', as, routeProps)
         }
-        throw error
-      }
 
-      if (process.env.__NEXT_I18N_SUPPORT) {
-        if (nextState.locale) {
-          document.documentElement.lang = nextState.locale
+        // A hash mark # is the optional last part of a URL
+        const hashRegex = /#.+$/
+        if (shouldScroll && hashRegex.test(as)) {
+          this.scrollToHash(as)
         }
-      }
-
-      if (!isQueryUpdating) {
-        Router.events.emit('routeChangeComplete', as, routeProps)
-      }
-
-      // A hash mark # is the optional last part of a URL
-      const hashRegex = /#.+$/
-      if (shouldScroll && hashRegex.test(as)) {
-        this.scrollToHash(as)
       }
 
       return true
@@ -1682,6 +1711,10 @@ export default class Router implements BaseRouter {
         return existingInfo
       }
 
+      if (hasMiddleware) {
+        existingInfo = undefined
+      }
+
       let cachedRouteInfo =
         existingInfo &&
         !('initial' in existingInfo) &&
@@ -1740,13 +1773,6 @@ export default class Router implements BaseRouter {
           this.components[requestedRoute] = { ...existingInfo, route }
           return { ...existingInfo, route }
         }
-
-        cachedRouteInfo =
-          existingInfo &&
-          !('initial' in existingInfo) &&
-          process.env.NODE_ENV !== 'development'
-            ? existingInfo
-            : undefined
       }
 
       if (route === '/api' || route.startsWith('/api/')) {
@@ -2139,7 +2165,9 @@ export default class Router implements BaseRouter {
               persistCache: !this.isPreview,
               isPrefetch: true,
               unstable_skipClientCache:
-                options.unstable_skipClientCache || options.priority,
+                options.unstable_skipClientCache ||
+                (options.priority &&
+                  !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
             }).then(() => false)
           : false
       }),
@@ -2325,7 +2353,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
         parseData: true,
       })
 
-      const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
+      let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
       return Promise.all([
         options.router.pageLoader.getPageList(),
         getClientBuildManifest(),
@@ -2363,6 +2391,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
             parsedRewriteTarget.pathname = result.parsedAs.pathname
             as = parsedRewriteTarget.pathname
             Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
+          }
+        } else if (!pages.includes(fsPathname)) {
+          const resolvedPathname = resolveDynamicRoute(fsPathname, pages)
+
+          if (resolvedPathname !== fsPathname) {
+            fsPathname = resolvedPathname
           }
         }
 

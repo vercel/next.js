@@ -24,7 +24,6 @@ const configSchema = {
       type: 'string',
     },
     basePath: {
-      minLength: 1,
       type: 'string',
     },
     cleanDistDir: {
@@ -77,22 +76,6 @@ const configSchema = {
           ] as any,
         },
         relay: {
-          additionalProperties: false,
-          properties: {
-            artifactDirectory: {
-              minLength: 1,
-              type: 'string',
-            },
-            language: {
-              // automatic typing doesn't like enum
-              enum: ['flow', 'typescript'] as any,
-              type: 'string',
-            },
-            src: {
-              minLength: 1,
-              type: 'string',
-            },
-          },
           type: 'object',
         },
         removeConsole: {
@@ -344,6 +327,9 @@ const configSchema = {
               type: 'object',
             },
           ] as any,
+        },
+        optimisticClientCache: {
+          type: 'boolean',
         },
         outputFileTracingRoot: {
           minLength: 1,

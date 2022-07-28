@@ -47,10 +47,12 @@ export default async function edgeSSRLoader(this: any) {
     : null
 
   const transformed = `
-    import { adapter } from 'next/dist/server/web/adapter'
+    import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
     import { getRender } from 'next/dist/build/webpack/loaders/next-edge-ssr-loader/render'
 
     import Document from ${stringifiedDocumentPath}
+
+    enhanceGlobals()
 
     const appMod = require(${stringifiedAppPath})
     const pageMod = require(${stringifiedPagePath})

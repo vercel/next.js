@@ -1,13 +1,21 @@
 import React, { useCallback, useState } from 'react'
 import { useInView } from 'react-intersection-observer'
 
+type State = {
+  lazyLoad: boolean
+  isSsr: boolean
+  isIntersectionObserverAvailable: boolean
+  inView?: boolean
+  loaded: boolean
+}
+
 const imageAddStrategy = ({
   lazyLoad,
   isSsr,
   isIntersectionObserverAvailable,
   inView,
   loaded,
-}) => {
+}: State) => {
   if (!lazyLoad) {
     return true
   }
@@ -28,7 +36,7 @@ const imageShowStrategy = ({
   isSsr,
   isIntersectionObserverAvailable,
   loaded,
-}) => {
+}: State) => {
   if (!lazyLoad) {
     return true
   }
@@ -44,6 +52,34 @@ const imageShowStrategy = ({
   return true
 }
 
+type ImageData = {
+  aspectRatio: number
+  base64?: string
+  height?: number
+  width: number
+  sizes?: string
+  src?: string
+  srcSet?: string
+  webpSrcSet?: string
+  bgColor?: string
+  alt?: string
+  title?: string
+}
+
+type ImageProps = {
+  data: ImageData
+  className?: string
+  pictureClassName?: string
+  fadeInDuration?: number
+  intersectionTreshold?: number
+  intersectionThreshold?: number
+  intersectionMargin?: string
+  lazyLoad?: boolean
+  style?: React.CSSProperties
+  pictureStyle?: React.CSSProperties
+  explicitWidth?: boolean
+}
+
 const Image = function ({
   className,
   fadeInDuration,
@@ -55,7 +91,7 @@ const Image = function ({
   pictureStyle,
   explicitWidth,
   data,
-}) {
+}: ImageProps) {
   const [loaded, setLoaded] = useState(false)
 
   const handleLoad = useCallback(() => {
@@ -74,7 +110,7 @@ const Image = function ({
     ? false
     : !!window.IntersectionObserver
 
-  const absolutePositioning = {
+  const absolutePositioning: React.CSSProperties = {
     position: 'absolute',
     left: 0,
     top: 0,
