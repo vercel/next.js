@@ -93,6 +93,7 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
     const parsedUrl = new URL(fullUrl)
     const parsedPathQuery = new URL(url, fullUrl)
 
+    parsedUrl.hash = parsedPathQuery.hash
     parsedUrl.search = parsedPathQuery.search
     parsedUrl.pathname = parsedPathQuery.pathname
 

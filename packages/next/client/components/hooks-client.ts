@@ -2,26 +2,35 @@
 
 import { useContext } from 'react'
 import {
-  QueryContext,
+  SearchParamsContext,
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 import {
   AppRouterContext,
-  AppTreeContext,
+  LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 
+/**
+ * Get the current search params. For example useSearchParams() would return {"foo": "bar"} when ?foo=bar
+ */
 export function useSearchParams() {
-  return useContext(QueryContext)
+  return useContext(SearchParamsContext)
 }
 
+/**
+ * Get an individual search param. For example useSearchParam("foo") would return "bar" when ?foo=bar
+ */
 export function useSearchParam(key: string): string | string[] {
-  const params = useContext(QueryContext)
+  const params = useContext(SearchParamsContext)
   return params[key]
 }
 
 // TODO-APP: Move the other router context over to this one
+/**
+ * Get the router methods. For example router.push('/dashboard')
+ */
 export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
   return useContext(AppRouterContext)
 }
@@ -31,6 +40,9 @@ export function useRouter(): import('../../shared/lib/app-router-context').AppRo
 //   return useContext(ParamsContext)
 // }
 
+/**
+ * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
+ */
 export function usePathname(): string {
   return useContext(PathnameContext)
 }
@@ -40,10 +52,14 @@ export function usePathname(): string {
 //   return useContext(LayoutSegmentsContext)
 // }
 
+// TODO-APP: Expand description when the docs are written for it.
+/**
+ * Get the current segment one level down from the layout.
+ */
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string {
-  const { tree } = useContext(AppTreeContext)
+  const { tree } = useContext(LayoutRouterContext)
 
   const segment = tree[1][parallelRouteKey][0]
 

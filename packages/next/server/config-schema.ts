@@ -16,12 +16,14 @@ const configSchema = {
       },
       type: 'object',
     },
+    analyticsId: {
+      type: 'string',
+    },
     assetPrefix: {
       minLength: 1,
       type: 'string',
     },
     basePath: {
-      minLength: 1,
       type: 'string',
     },
     cleanDistDir: {
@@ -74,22 +76,6 @@ const configSchema = {
           ] as any,
         },
         relay: {
-          additionalProperties: false,
-          properties: {
-            artifactDirectory: {
-              minLength: 1,
-              type: 'string',
-            },
-            language: {
-              // automatic typing doesn't like enum
-              enum: ['flow', 'typescript'] as any,
-              type: 'string',
-            },
-            src: {
-              minLength: 1,
-              type: 'string',
-            },
-          },
           type: 'object',
         },
         removeConsole: {
@@ -333,6 +319,16 @@ const configSchema = {
           type: 'boolean',
         },
         optimizeCss: {
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              type: 'object',
+            },
+          ] as any,
+        },
+        optimisticClientCache: {
           type: 'boolean',
         },
         outputFileTracingRoot: {
@@ -404,8 +400,8 @@ const configSchema = {
       isFunction: true,
     } as any,
     generateEtags: {
-      isFunction: true,
-    } as any,
+      type: 'boolean',
+    },
     headers: {
       isFunction: true,
     } as any,

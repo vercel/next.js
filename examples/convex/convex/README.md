@@ -1,45 +1,29 @@
-# Welcome to your functions directory
+# Welcome to your Convex functions directory!
 
-Write your convex functions in this directory.
+Write your Convex functions here.
 
-A query function (how you read data) looks like this:
+A query function looks like:
 
 ```typescript
-// getCounter.ts
+// myQueryFunction.ts
 import { query } from './_generated/server'
 
-export default query(async ({ db }): Promise<number> => {
-  const counterDoc = await db.table('counter_table').first()
-  console.log('Got stuff')
-  if (counterDoc === null) {
-    return 0
-  }
-  return counterDoc.counter
+export default query(async ({ db }) => {
+  // Load data with `db` here!
 })
 ```
 
-A mutation function (how you write data) looks like this:
+A mutation function looks like:
 
 ```typescript
-// incrementCounter.ts
+// myMutationFunction.ts
 import { mutation } from './_generated/server'
 
-export default mutation(async ({ db }, increment: number) => {
-  let counterDoc = await db.table('counter_table').first()
-  if (counterDoc === null) {
-    counterDoc = {
-      counter: increment,
-    }
-    db.insert('counter_table', counterDoc)
-  } else {
-    counterDoc.counter += increment
-    db.replace(counterDoc._id, counterDoc)
-  }
-  // Like console.log but relays log messages from the server to client.
-  console.log(`Value of counter is now ${counterDoc.counter}`)
+export default mutation(async ({ db }) => {
+  // Edit data with `db` here!
 })
 ```
 
-The convex cli is your friend. See everything it can do by running
+The Convex CLI is your friend. See everything it can do by running
 `npx convex -h` in your project root directory. To learn more, launch the docs
 with `npx convex docs`.
