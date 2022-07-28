@@ -59,7 +59,7 @@ pub fn transform_css(
         }
     };
     // ? Do we need to support optionally prefixing?
-    ss.visit_mut_with(&mut prefixer());
+    ss.visit_mut_with(&mut prefixer(Default::default()));
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -343,7 +343,7 @@ impl Namespacer {
                 SubclassSelector::Class(ClassSelector {
                     span: DUMMY_SP,
                     text: Ident {
-                        raw: subclass_selector.into(),
+                        raw: Some(subclass_selector.into()),
                         value: subclass_selector.into(),
                         span: DUMMY_SP,
                     },
