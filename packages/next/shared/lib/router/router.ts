@@ -1711,8 +1711,11 @@ export default class Router implements BaseRouter {
         return existingInfo
       }
 
+      if (hasMiddleware) {
+        existingInfo = undefined
+      }
+
       let cachedRouteInfo =
-        !hasMiddleware &&
         existingInfo &&
         !('initial' in existingInfo) &&
         process.env.NODE_ENV !== 'development'
@@ -1770,13 +1773,6 @@ export default class Router implements BaseRouter {
           this.components[requestedRoute] = { ...existingInfo, route }
           return { ...existingInfo, route }
         }
-
-        cachedRouteInfo =
-          existingInfo &&
-          !('initial' in existingInfo) &&
-          process.env.NODE_ENV !== 'development'
-            ? existingInfo
-            : undefined
       }
 
       if (route === '/api' || route.startsWith('/api/')) {

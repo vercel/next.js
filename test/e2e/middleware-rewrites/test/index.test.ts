@@ -482,10 +482,15 @@ describe('Middleware Rewrite', () => {
         '/fallback-true-blog/second'
       )
       expect(await browser.eval('location.search')).toBe('')
-      expect(requests).toEqual([
-        `/_next/data/BUILD_ID/en/fallback-true-blog/rewritten.json`,
-        `/_next/data/BUILD_ID/en/fallback-true-blog/second.json`,
-      ])
+      expect(
+        requests.filter(
+          (req) =>
+            ![
+              `/_next/data/BUILD_ID/en/fallback-true-blog/rewritten.json`,
+              `/_next/data/BUILD_ID/en/fallback-true-blog/second.json`,
+            ].includes(req)
+        )
+      ).toEqual([])
     })
   }
 
