@@ -3,14 +3,20 @@ import styles from '../styles/Home.module.css'
 
 export default function PageWithJSbasedForm() {
   // Handle the submit event on form submit.
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: React.SyntheticEvent) => {
     // Stop the form from submitting and refreshing the page.
     event.preventDefault()
 
+    // Typecheck custom named inputs
+    const target = event.target as typeof event.target & {
+      first: { value: string }
+      last: { value: string }
+    }
+
     // Get data from the form.
     const data = {
-      first: event.target.first.value,
-      last: event.target.last.value,
+      first: target.first.value,
+      last: target.last.value,
     }
 
     const JSONdata = JSON.stringify(data)
@@ -36,11 +42,7 @@ export default function PageWithJSbasedForm() {
   return (
     <div className="container">
       <h1 className={styles.title}>
-        Form{' '}
-        <Link href="/">
-          <a>with</a>
-        </Link>{' '}
-        JavaScript.
+        Form <Link href="/">with</Link> JavaScript.
       </h1>
 
       <p className={styles.description}>
