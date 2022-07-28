@@ -6,19 +6,13 @@ export default function Home() {
       Hello World.{' '}
       <ul>
         <li>
-          <Link href="/about">
-            <a>About</a>
-          </Link>
+          <Link href="/about">About</Link>
         </li>
         <li>
-          <Link href="/ssr">
-            <a>SSR</a>
-          </Link>
+          <Link href="/ssr">SSR</Link>
         </li>
         <li>
-          <Link href="/ssg">
-            <a>SSG</a>
-          </Link>
+          <Link href="/ssg">SSG</Link>
         </li>
       </ul>
     </div>
