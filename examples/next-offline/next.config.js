@@ -1,6 +1,10 @@
+// @ts-check
 const withOffline = require('next-offline')
 
-module.exports = withOffline({
+/**
+ * @type {import('next').NextConfig}
+ **/
+const nextConfig = {
   workboxOpts: {
     swDest: process.env.NEXT_EXPORT
       ? 'service-worker.js'
@@ -26,4 +30,6 @@ module.exports = withOffline({
       },
     ]
   },
-})
+}
+
+module.exports = withOffline(nextConfig)
