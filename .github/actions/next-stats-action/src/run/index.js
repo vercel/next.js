@@ -1,5 +1,6 @@
 const path = require('path')
 const fs = require('fs-extra')
+const getPort = require('get-port')
 const glob = require('../util/glob')
 const exec = require('../util/exec')
 const logger = require('../util/logger')
@@ -78,9 +79,9 @@ async function runConfigs(
       }
 
       const collectedStats = await collectStats(config, statsConfig)
-      curStats = {
-        ...curStats,
-        ...collectedStats,
+
+      for (const key of Object.keys(collectedStats)) {
+        curStats[key] = Object.assign({}, curStats[key], collectedStats[key])
       }
 
       const applyRenames = (renames, stats) => {
@@ -156,6 +157,55 @@ async function runConfigs(
         env: yarnEnvValues,
       })
       curStats.General.buildDurationCached = Date.now() - secondBuildStart
+
+      if (statsConfig.appDevCommand) {
+        const port = await getPort()
+        const startTime = Date.now()
+        const child = exec.spawn(statsConfig.appDevCommand, {
+          cwd: statsAppDir,
+          env: {
+            PORT: port,
+          },
+          stdio: 'pipe',
+        })
+
+        let serverReadyResolve
+        let serverReadyResolved = false
+        const serverReadyPromise = new Promise((resolve) => {
+          serverReadyResolve = resolve
+        })
+
+        child.stdout.on('data', (data) => {
+          if (
+            data.toString().includes('started server') &&
+            !serverReadyResolved
+          ) {
+            serverReadyResolved = true
+            serverReadyResolve()
+          }
+          process.stdout.write(data)
+        })
+        child.stderr.on('data', (data) => process.stderr.write(data))
+
+        child.on('exit', (code) => {
+          if (!serverReadyResolved) {
+            serverReadyResolve()
+            serverReadyResolved = true
+          }
+          exitCode = code
+        })
+
+        setTimeout(() => {
+          if (!serverReadyResolved) {
+            child.kill()
+          }
+        }, 3 * 1000)
+
+        await serverReadyPromise
+        child.kill()
+
+        curStats['General']['nextDevReadyDuration'] = Date.now() - startTime
+      }
     }
 
     logger(`Finished running: ${config.title}`)

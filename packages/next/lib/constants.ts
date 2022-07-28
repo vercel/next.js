@@ -1,18 +1,11 @@
+import type { ServerRuntime } from '../server/config-shared'
 import { join } from '../shared/lib/isomorphic/path'
 
 export const NEXT_PROJECT_ROOT = join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = join(NEXT_PROJECT_ROOT, 'dist')
-export const NEXT_PROJECT_ROOT_NODE_MODULES = join(
-  NEXT_PROJECT_ROOT,
-  'node_modules'
-)
 export const NEXT_PROJECT_ROOT_DIST_CLIENT = join(
   NEXT_PROJECT_ROOT_DIST,
   'client'
-)
-export const NEXT_PROJECT_ROOT_DIST_SERVER = join(
-  NEXT_PROJECT_ROOT_DIST,
-  'server'
 )
 
 // Regex for API routes
@@ -56,14 +49,7 @@ export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" va
 
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
 
-export const ESLINT_DEFAULT_DIRS = [
-  'pages',
-  'components',
-  'lib',
-  'src/pages',
-  'src/components',
-  'src/lib',
-]
+export const ESLINT_DEFAULT_DIRS = ['pages', 'components', 'lib', 'src']
 
 export const ESLINT_PROMPT_VALUES = [
   {
@@ -84,3 +70,8 @@ export const ESLINT_PROMPT_VALUES = [
     config: null,
   },
 ]
+
+export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
+  edge: 'experimental-edge',
+  nodejs: 'nodejs',
+}

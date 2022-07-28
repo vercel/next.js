@@ -45,7 +45,7 @@ describe('pnpm support', () => {
     expect(html).toContain('Hello World')
   })
 
-  it('should execute client-side JS on each page in outputStandalone', async () => {
+  it('should execute client-side JS on each page in output: "standalone"', async () => {
     next = await createNext({
       files: {
         pages: new FileRef(path.join(__dirname, '..', 'app-multi-page/pages')),

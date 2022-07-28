@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
-import React from 'react'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { shouldUseReactRoot } from '../server/utils'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -107,7 +107,6 @@ if (process.env.NODE_ENV) {
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-const shouldUseReactRoot = parseInt(React.version) >= 18
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }

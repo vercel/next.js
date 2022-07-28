@@ -302,6 +302,8 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 - Ignoring `.next` from test resolving
 - Loading `next.config.js` for flags that enable SWC transforms
 
+> **Note**: To test environment variables directly, load them manually in a separate setup script or in your `jest.config.js` file. For more information, please see [Test Environment Variables](https://nextjs.org/docs/basic-features/environment-variables#test-environment-variables).
+
 ### Setting up Jest (with Babel)
 
 If you opt-out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
@@ -491,7 +493,6 @@ For further reading, you may find these resources helpful:
 
 The Next.js community has created packages and articles you may find helpful:
 
-- [next-page-tester](https://github.com/toomuchdesign/next-page-tester) for DOM Integration Testing.
 - [next-router-mock](https://github.com/scottrippey/next-router-mock) for Storybook.
 - [Test Preview Vercel Deploys with Cypress](https://glebbahmutov.com/blog/develop-preview-test/) by Gleb Bahmutov.
 

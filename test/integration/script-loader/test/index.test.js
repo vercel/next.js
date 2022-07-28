@@ -159,7 +159,7 @@ describe('Next.js Script - Primary Strategies', () => {
       let documentBIScripts = await browser.elementsByCss(
         '[src$="scriptBeforeInteractive"]'
       )
-      expect(documentBIScripts.length).toBe(1)
+      expect(documentBIScripts.length).toBe(2)
 
       await browser.waitForElementByCss('[href="/page1"]')
       await browser.click('[href="/page1"]')
@@ -170,7 +170,7 @@ describe('Next.js Script - Primary Strategies', () => {
       documentBIScripts = await browser.elementsByCss(
         '[src$="scriptBeforeInteractive"]'
       )
-      expect(documentBIScripts.length).toBe(1)
+      expect(documentBIScripts.length).toBe(2)
     } finally {
       if (browser) await browser.close()
     }

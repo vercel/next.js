@@ -15,9 +15,9 @@ describe('Middleware can set the matcher in its config', () => {
   })
   afterAll(() => next.destroy())
 
-  it('does not add the header for root request', async () => {
+  it('does add the header for root request', async () => {
     const response = await fetchViaHTTP(next.url, '/')
-    expect(response.headers.get('X-From-Middleware')).toBeNull()
+    expect(response.headers.get('X-From-Middleware')).toBe('true')
     expect(await response.text()).toContain('root page')
   })
 
@@ -65,7 +65,7 @@ describe('Middleware can set the matcher in its config', () => {
     expect(response.headers.get('X-From-Middleware')).toBe('true')
   })
 
-  it('does not add the header for root data request', async () => {
+  it('does add the header for root data request', async () => {
     const response = await fetchViaHTTP(
       next.url,
       `/_next/data/${next.buildId}/index.json`,
@@ -77,7 +77,7 @@ describe('Middleware can set the matcher in its config', () => {
         message: 'Hello, world.',
       },
     })
-    expect(response.headers.get('X-From-Middleware')).toBeNull()
+    expect(response.headers.get('X-From-Middleware')).toBe('true')
   })
 
   it('should load matches in client manifest correctly', async () => {
@@ -172,6 +172,21 @@ describe('using a single matcher', () => {
     })
   })
   afterAll(() => next.destroy())
+
+  it('does not add the header for root request', async () => {
+    const response = await fetchViaHTTP(next.url, '/')
+    expect(response.headers.get('X-From-Middleware')).toBeFalsy()
+  })
+
+  it('does not add the header for root data request', async () => {
+    const response = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/index.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
+    )
+    expect(response.headers.get('X-From-Middleware')).toBeFalsy()
+  })
 
   it('adds the header for a matched path', async () => {
     const response = await fetchViaHTTP(next.url, '/middleware/works')

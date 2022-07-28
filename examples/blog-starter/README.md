@@ -1,4 +1,6 @@
-# A statically generated blog example using Next.js and Markdown
+# A statically generated blog example using Next.js, Markdown, and TypeScript
+
+This is the existing [blog-starter](https://github.com/vercel/next.js/tree/canary/examples/blog-starter) plus TypeScript.
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using Markdown files as the data source.
 
@@ -41,9 +43,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example blog-starter blog-starter-app
-# or
+```
+
+```bash
 yarn create next-app --example blog-starter blog-starter-app
-# or
+```
+
+```bash
 pnpm create next-app --example blog-starter blog-starter-app
 ```
 
@@ -51,6 +57,6 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-## Notes
+# Notes
 
-This blog-starter uses [Tailwind CSS](https://tailwindcss.com) [(v3.0)](https://tailwindcss.com/blog/tailwindcss-v3).
+`blog-starter` uses [Tailwind CSS](https://tailwindcss.com) [(v3.0)](https://tailwindcss.com/blog/tailwindcss-v3).

@@ -8,14 +8,50 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 /// <reference types="react-dom/experimental" />
 
-export const version = process.env.__NEXT_VERSION
+// Override chunk URL mapping in the webpack runtime
+// https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
 
-// History replace has to happen on bootup to ensure `state` is always populated in popstate event
-window.history.replaceState(
-  { url: window.location.toString() },
-  '',
-  window.location.toString()
-)
+declare global {
+  const __webpack_require__: any
+}
+
+// eslint-disable-next-line no-undef
+const getChunkScriptFilename = __webpack_require__.u
+const chunkFilenameMap: any = {}
+
+// eslint-disable-next-line no-undef
+__webpack_require__.u = (chunkId: any) => {
+  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
+}
+
+// Ignore the module ID transform in client.
+// eslint-disable-next-line no-undef
+// @ts-expect-error TODO: fix type
+self.__next_require__ = __webpack_require__
+
+// eslint-disable-next-line no-undef
+;(self as any).__next_chunk_load__ = (chunk: string) => {
+  if (!chunk) return Promise.resolve()
+  if (chunk.endsWith('.css')) {
+    const chunkPath = `/_next/${chunk}`
+    const existingTag = document.querySelector(`link[href="${chunkPath}"]`)
+    if (!existingTag) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = chunkPath
+      document.head.appendChild(link)
+    }
+    return Promise.resolve()
+  }
+  const [chunkId, chunkFileName] = chunk.split(':')
+  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
+
+  // @ts-ignore
+  // eslint-disable-next-line no-undef
+  return __webpack_chunk_load__(chunkId)
+}
+
+export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
 
@@ -120,13 +156,14 @@ function useInitialServerResponse(cacheKey: string) {
       nextServerDataRegisterWriter(controller)
     },
   })
+
   const newResponse = createFromReadableStream(readable)
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
 }
 
-const ServerRoot = ({ cacheKey }: { cacheKey: string }) => {
+function ServerRoot({ cacheKey }: { cacheKey: string }) {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
@@ -150,9 +187,9 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-const RSCComponent = () => {
+function RSCComponent(props: any) {
   const cacheKey = getCacheKey()
-  return <ServerRoot cacheKey={cacheKey} />
+  return <ServerRoot {...props} cacheKey={cacheKey} />
 }
 
 export function hydrate() {

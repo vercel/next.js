@@ -99,6 +99,8 @@ export default function Document() {
 }
 ```
 
+> **Note**: Scripts with `beforeInteractive` will always be injected inside the `head` of the HTML document regardless of where it's placed in `_document.js`.
+
 Examples of scripts that should be loaded as soon as possible with this strategy include:
 
 - Bot detectors

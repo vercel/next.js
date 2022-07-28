@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@ably-labs/react-hooks": "^2.0.4",
+    "ably": "^1.2.22",
+    "next": "latest",
+    "react": "18.1.0",
+    "react-dom": "18.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.12",
+    "eslint-config-next": "12.1.6",
+    "typescript": "^4.7.3"
+  }
+}

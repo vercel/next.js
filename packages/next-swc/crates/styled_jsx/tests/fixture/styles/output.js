@@ -18,16 +18,16 @@ const b = {
     styles: <_JSXStyle id={"ef44b0e76b4e59a2"}>{`div.jsx-ef44b0e76b4e59a2{color:${colors.green.light}}a.jsx-ef44b0e76b4e59a2{color:red}`}</_JSXStyle>,
     className: "jsx-ef44b0e76b4e59a2"
 };
-const dynamic = (colors1)=>{
+const dynamic = (colors)=>{
     const b = {
         styles: <_JSXStyle id={"d1249fb76dde6727"} dynamic={[
-            colors1.green.light
-        ]}>{`div.__jsx-style-dynamic-selector{color:${colors1.green.light}}a.__jsx-style-dynamic-selector{color:red}`}</_JSXStyle>,
+            colors.green.light
+        ]}>{`div.__jsx-style-dynamic-selector{color:${colors.green.light}}a.__jsx-style-dynamic-selector{color:red}`}</_JSXStyle>,
         className: _JSXStyle.dynamic([
             [
                 "d1249fb76dde6727",
                 [
-                    colors1.green.light
+                    colors.green.light
                 ]
             ]
         ])

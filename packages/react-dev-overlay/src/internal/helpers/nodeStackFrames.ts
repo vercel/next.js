@@ -37,7 +37,7 @@ export function getServerError(error: Error, type: ErrorType): Error {
 
   n.name = error.name
   try {
-    n.stack = parse(error.stack!)
+    n.stack = `${n.toString()}\n${parse(error.stack!)
       .map(getFilesystemFrame)
       .map((f) => {
         let str = `    at ${f.methodName}`
@@ -53,7 +53,7 @@ export function getServerError(error: Error, type: ErrorType): Error {
         }
         return str
       })
-      .join('\n')
+      .join('\n')}`
   } catch {
     n.stack = error.stack
   }

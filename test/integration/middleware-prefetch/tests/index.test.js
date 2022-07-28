@@ -75,7 +75,6 @@ describe('Middleware Production Prefetch', () => {
         '/index.json',
         '/made-up.json',
         '/ssg-page-2.json',
-        '/ssg-page.json',
       ])
       return 'yes'
     }, 'yes')

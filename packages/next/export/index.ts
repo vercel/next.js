@@ -388,7 +388,6 @@ export default async function exportApp(
       optimizeCss: nextConfig.experimental.optimizeCss,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
-      reactRoot: nextConfig.experimental.reactRoot || false,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     }
 

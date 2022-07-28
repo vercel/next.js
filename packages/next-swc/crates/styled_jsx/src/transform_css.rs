@@ -10,7 +10,6 @@ use swc_css::codegen::{
     writer::basic::{BasicCssWriter, BasicCssWriterConfig},
     CodeGenerator, CodegenConfig, Emit,
 };
-use swc_css::parser::parser::input::ParserInput;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_css_prefixer::prefixer;
@@ -502,21 +501,15 @@ where
     }
 
     let span = node.span();
-    let mut lexer = swc_css::parser::lexer::Lexer::new(
+    let lexer = swc_css::parser::lexer::Lexer::new(
         StringInput::new(&s, span.lo, span.hi),
         ParserConfig {
             allow_wrong_line_comments: true,
         },
     );
 
-    let mut tokens = vec![];
-
-    while let Ok(t) = lexer.next() {
-        tokens.push(t);
-    }
-
     Tokens {
         span: Span::new(span.lo, span.hi, Default::default()),
-        tokens,
+        tokens: lexer.collect(),
     }
 }

@@ -1,5 +1,4 @@
-import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
-import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
   getServerError,
@@ -9,12 +8,14 @@ import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
+import { fetchInlineAsset } from './fetch-inline-assets'
+import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
 
 interface ModuleContext {
-  runtime: EdgeRuntime<Primitives>
+  runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
 }
@@ -48,7 +49,8 @@ interface ModuleContextOptions {
   onWarning: (warn: Error) => void
   useCache: boolean
   env: string[]
-  wasm: WasmBinding[]
+  distDir: string
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
@@ -68,7 +70,12 @@ function getModuleContextShared(options: ModuleContextOptions) {
  * with a function that allows to run some code from a given
  * filepath within the context.
  */
-export async function getModuleContext(options: ModuleContextOptions) {
+export async function getModuleContext(options: ModuleContextOptions): Promise<{
+  evaluateInContext: (filepath: string) => void
+  runtime: EdgeRuntime
+  paths: Map<string, string>
+  warnedEvals: Set<string>
+}> {
   let moduleContext = options.useCache
     ? moduleContexts.get(options.moduleName)
     : await getModuleContextShared(options)
@@ -103,11 +110,11 @@ export async function getModuleContext(options: ModuleContextOptions) {
 async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
-  const wasm = await loadWasm(options.wasm)
+  const wasm = await loadWasm(options.edgeFunctionEntry.wasm ?? [])
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
-        ? { strings: true, wasm: false }
+        ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
       context.process = createProcessPolyfill(options)
@@ -115,13 +122,16 @@ async function createModuleContext(options: ModuleContextOptions) {
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
         if (!warnedEvals.has(key)) {
-          const warning = new Error(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+          const warning = getServerError(
+            new Error(
+              `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+            ),
+            'edge-server'
           )
           warning.name = 'DynamicCodeEvaluationWarning'
           Error.captureStackTrace(warning, __next_eval__)
           warnedEvals.add(key)
-          options.onWarning(getServerError(warning, 'edge-server'))
+          options.onWarning(warning)
         }
         return fn()
       }
@@ -131,10 +141,8 @@ async function createModuleContext(options: ModuleContextOptions) {
           const key = fn.toString()
           if (!warnedWasmCodegens.has(key)) {
             const warning = getServerError(
-              new Error(
-                "Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.\n" +
-                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
-              ),
+              new Error(`Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
               'edge-server'
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
@@ -160,10 +168,8 @@ async function createModuleContext(options: ModuleContextOptions) {
           const key = fn.toString()
           if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
             const warning = getServerError(
-              new Error(
-                "Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.\n" +
-                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
-              ),
+              new Error(`Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
               'edge-server'
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
@@ -175,7 +181,17 @@ async function createModuleContext(options: ModuleContextOptions) {
         }
 
       const __fetch = context.fetch
-      context.fetch = (input: RequestInfo, init: RequestInit = {}) => {
+      context.fetch = async (input, init = {}) => {
+        const assetResponse = await fetchInlineAsset({
+          input,
+          assets: options.edgeFunctionEntry.assets,
+          distDir: options.distDir,
+          context,
+        })
+        if (assetResponse) {
+          return assetResponse
+        }
+
         init.headers = new Headers(init.headers ?? {})
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
@@ -214,10 +230,13 @@ async function createModuleContext(options: ModuleContextOptions) {
 
       const __Request = context.Request
       context.Request = class extends __Request {
-        constructor(input: RequestInfo, init?: RequestInit | undefined) {
-          const url = typeof input === 'string' ? input : input.url
+        constructor(input: URL | RequestInfo, init?: RequestInit | undefined) {
+          const url =
+            typeof input !== 'string' && 'url' in input
+              ? input.url
+              : String(input)
           validateURL(url)
-          super(input, init)
+          super(url, init)
         }
       }
 
@@ -228,7 +247,7 @@ async function createModuleContext(options: ModuleContextOptions) {
       }
 
       for (const name of EDGE_UNSUPPORTED_NODE_APIS) {
-        addStub(context, name, options)
+        addStub(context, name)
       }
 
       Object.assign(context, wasm)
@@ -237,6 +256,7 @@ async function createModuleContext(options: ModuleContextOptions) {
     },
   })
 
+  const decorateUnhandledError = getDecorateUnhandledError(runtime)
   runtime.context.addEventListener('unhandledrejection', decorateUnhandledError)
   runtime.context.addEventListener('error', decorateUnhandledError)
 
@@ -248,7 +268,7 @@ async function createModuleContext(options: ModuleContextOptions) {
 }
 
 async function loadWasm(
-  wasm: WasmBinding[]
+  wasm: AssetBinding[]
 ): Promise<Record<string, WebAssembly.Module>> {
   const modules: Record<string, WebAssembly.Module> = {}
 
@@ -273,9 +293,7 @@ function buildEnvironmentVariablesFrom(
   return env
 }
 
-function createProcessPolyfill(
-  options: Pick<ModuleContextOptions, 'env' | 'onWarning'>
-) {
+function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
   const env = buildEnvironmentVariablesFrom(options.env)
 
   const processPolyfill = { env }
@@ -284,8 +302,13 @@ function createProcessPolyfill(
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        emitWarning(`process.${key}`, options)
-        return overridenValue[key]
+        if (overridenValue[key]) {
+          return overridenValue[key]
+        }
+        if (typeof (process as any)[key] === 'function') {
+          return () => throwUnsupportedAPIError(`process.${key}`)
+        }
+        return undefined
       },
       set(value) {
         overridenValue[key] = value
@@ -296,39 +319,30 @@ function createProcessPolyfill(
   return processPolyfill
 }
 
-const warnedAlready = new Set<string>()
-
-function addStub(
-  context: Primitives,
-  name: string,
-  contextOptions: Pick<ModuleContextOptions, 'onWarning'>
-) {
+function addStub(context: EdgeRuntime['context'], name: string) {
   Object.defineProperty(context, name, {
     get() {
-      emitWarning(name, contextOptions)
-      return undefined
+      return function () {
+        throwUnsupportedAPIError(name)
+      }
     },
     enumerable: false,
   })
 }
 
-function emitWarning(
-  name: string,
-  contextOptions: Pick<ModuleContextOptions, 'onWarning'>
-) {
-  if (!warnedAlready.has(name)) {
-    const warning =
-      new Error(`You're using a Node.js API (${name}) which is not supported in the Edge Runtime that Middleware uses.
+function throwUnsupportedAPIError(name: string) {
+  const error =
+    new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-    warning.name = 'NodejsRuntimeApiInMiddlewareWarning'
-    contextOptions.onWarning(warning)
-    console.warn(warning.message)
-    warnedAlready.add(name)
-  }
+  decorateServerError(error, 'edge-server')
+  throw error
 }
 
-function decorateUnhandledError(error: any) {
-  if (error instanceof Error) {
-    decorateServerError(error, 'edge-server')
+function getDecorateUnhandledError(runtime: EdgeRuntime) {
+  const EdgeRuntimeError = runtime.evaluate(`Error`)
+  return (error: any) => {
+    if (error instanceof EdgeRuntimeError) {
+      decorateServerError(error, 'edge-server')
+    }
   }
 }

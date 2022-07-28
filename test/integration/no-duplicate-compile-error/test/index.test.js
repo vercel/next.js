@@ -1,7 +1,6 @@
 /* eslint-env jest */
 import {
   check,
-  clickReloadOnFullRefreshWarning,
   File,
   findPort,
   hasRedbox,
@@ -43,8 +42,6 @@ describe('no duplicate compile error output', () => {
     } finally {
       f.restore()
     }
-
-    await clickReloadOnFullRefreshWarning(browser)
 
     // Wait for compile error to disappear:
     await check(
