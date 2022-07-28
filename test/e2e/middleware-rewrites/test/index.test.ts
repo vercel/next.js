@@ -27,7 +27,7 @@ describe('Middleware Rewrite', () => {
   testsWithLocale('/fr')
 
   function tests() {
-    it.only('should hard navigate on 404 for data request', async () => {
+    it('should hard navigate on 404 for data request', async () => {
       const browser = await webdriver(next.url, '/')
       await browser.eval('window.beforeNav = 1')
       await browser.eval(`next.router.push("/to/some/404/path")`)
