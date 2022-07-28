@@ -1,5 +1,6 @@
 import { stringify } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   EDGE_RUNTIME_WEBPACK,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
@@ -35,10 +36,10 @@ export class FlightClientEntryPlugin {
     this.isEdgeServer = options.isEdgeServer
   }
 
-  apply(compiler: any) {
+  apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
-      (compilation: any, { normalModuleFactory }: any) => {
+      (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
           (webpack as any).dependencies.ModuleDependency,
           normalModuleFactory
@@ -50,15 +51,12 @@ export class FlightClientEntryPlugin {
       }
     )
 
-    compiler.hooks.finishMake.tapAsync(
-      PLUGIN_NAME,
-      async (compilation: any, callback: any) => {
-        this.createClientEndpoints(compilation, callback)
-      }
-    )
+    compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
+      return this.createClientEndpoints(compilation)
+    })
   }
 
-  async createClientEndpoints(compilation: any, callback: () => void) {
+  async createClientEndpoints(compilation: any) {
     const context = (this as any).context
     const promises: any = []
 
@@ -208,8 +206,6 @@ export class FlightClientEntryPlugin {
       }
     }
 
-    Promise.all(promises)
-      .then(() => callback())
-      .catch(callback)
+    await Promise.all(promises)
   }
 }
