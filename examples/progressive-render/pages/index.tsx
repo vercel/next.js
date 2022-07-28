@@ -3,12 +3,15 @@ import Loading from '../components/Loading'
 
 function useMounted() {
   const [mounted, setMounted] = useState(false)
+
   useEffect(() => setMounted(true), [])
+
   return mounted
 }
 
 export default function HomePage() {
   const isMounted = useMounted()
+
   return (
     <main>
       <section>
