@@ -109,7 +109,7 @@ export async function handleWebpackExternalForEdgeRuntime({
   contextInfo: any
 }) {
   if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
-    return `root  __import_unsupported('${request}')`
+    return `root  globalThis.__import_unsupported('${request}')`
   }
 }
 
@@ -380,7 +380,10 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         }
       }
     })
-    registerUnsupportedApiHooks(parser, compilation)
+    if (!dev) {
+      // do not issue compilation warning on dev: invoking code will provide details
+      registerUnsupportedApiHooks(parser, compilation)
+    }
   }
 }
 
@@ -445,7 +448,7 @@ function getExtractMetadata(params: {
 
           compilation.errors.push(
             buildWebpackError({
-              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
+              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
                 typeof buildInfo.usingIndirectEval !== 'boolean'
                   ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
                       ', '

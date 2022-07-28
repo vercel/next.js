@@ -88,6 +88,42 @@ describe('Production Usage', () => {
     await browser.waitForElementByCss('.about-page')
   })
 
+  if (process.env.BROWSER_NAME !== 'safari') {
+    it.each([
+      { hash: '#hello?' },
+      { hash: '#?' },
+      { hash: '##' },
+      { hash: '##?' },
+      { hash: '##hello?' },
+      { hash: '##hello' },
+      { hash: '#hello?world' },
+      { search: '?hello=world', hash: '#a', query: { hello: 'world' } },
+      { search: '?hello', hash: '#a', query: { hello: '' } },
+      { search: '?hello=', hash: '#a', query: { hello: '' } },
+    ])(
+      'should handle query/hash correctly during query updating $hash $search',
+      async ({ hash, search, query }) => {
+        const browser = await webdriver(
+          appPort,
+          `/${search || ''}${hash || ''}`
+        )
+
+        await check(
+          () =>
+            browser.eval('window.next.router.isReady ? "ready" : "not ready"'),
+          'ready'
+        )
+        expect(await browser.eval('window.location.pathname')).toBe('/')
+        expect(await browser.eval('window.location.hash')).toBe(hash || '')
+        expect(await browser.eval('window.location.search')).toBe(search || '')
+        expect(await browser.eval('next.router.pathname')).toBe('/')
+        expect(
+          JSON.parse(await browser.eval('JSON.stringify(next.router.query)'))
+        ).toEqual(query || {})
+      }
+    )
+  }
+
   it('should not show target deprecation warning', () => {
     expect(output).not.toContain(
       'The `target` config is deprecated and will be removed in a future version'
@@ -714,7 +750,7 @@ describe('Production Usage', () => {
         .elementByCss('a')
         .click()
         .waitForElementByCss('.about-page')
-        .elementByCss('div')
+        .elementByCss('.about-page')
         .text()
 
       expect(text).toBe('About Page')

@@ -119,44 +119,20 @@ export class FlightManifestPlugin {
 
         if (isCSSModule) {
           if (!manifest[resource]) {
-            if (dev) {
-              const chunkIdNameMapping = (chunk.ids || []).map((chunkId) => {
-                return (
-                  chunkId +
-                  ':' +
-                  (chunk.name || chunk.id) +
-                  (dev ? '' : '-' + chunk.hash)
-                )
-              })
-              manifest[resource] = {
-                default: {
-                  id,
-                  name: 'default',
-                  chunks: chunkIdNameMapping,
-                },
-              }
-              moduleIdMapping[id]['default'] = {
-                id: ssrNamedModuleId,
-                name: 'default',
-                chunks: chunkIdNameMapping,
-              }
-              manifest.__ssr_module_mapping__ = moduleIdMapping
-            } else {
-              const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
-              manifest[resource] = {
-                default: {
-                  id,
-                  name: 'default',
-                  chunks,
-                },
-              }
-              moduleIdMapping[id]['default'] = {
-                id: ssrNamedModuleId,
+            const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
+            manifest[resource] = {
+              default: {
+                id,
                 name: 'default',
                 chunks,
-              }
-              manifest.__ssr_module_mapping__ = moduleIdMapping
+              },
             }
+            moduleIdMapping[id]['default'] = {
+              id: ssrNamedModuleId,
+              name: 'default',
+              chunks,
+            }
+            manifest.__ssr_module_mapping__ = moduleIdMapping
           }
           return
         }
