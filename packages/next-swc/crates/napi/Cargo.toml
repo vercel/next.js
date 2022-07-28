@@ -33,8 +33,8 @@ next-swc = {version = "0.0.0", path = "../core"}
 once_cell = "1.13.0"
 serde = "1"
 serde_json = "1"
-swc = "0.212.0"
-swc_atoms = "0.3.0"
+swc = "0.212.1"
+swc_atoms = "0.3.1"
 swc_bundler = { version = "0.175.0", features = ["concurrent"] }
 swc_common = { version = "0.26.0", features = ["concurrent", "sourcemap"] }
 swc_ecma_loader = { version = "0.38.0", features = ["node", "lru"] }

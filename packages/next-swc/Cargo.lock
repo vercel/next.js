@@ -2957,9 +2957,9 @@ dependencies = [
 
 [[package]]
 name = "swc"
-version = "0.212.0"
+version = "0.212.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9256adc9510c3b887377fe817f36f66524850863220c9fe20dfe55c35337ffb9"
+checksum = "6860819497adc7ffbda33061e0d6a36672212c6e623257927a088aa74116490a"
 dependencies = [
  "ahash",
  "anyhow",
@@ -3007,9 +3007,9 @@ dependencies = [
 
 [[package]]
 name = "swc_atoms"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7c7709078e8f8f34a2f277d9d5f6e95ea5f18752ee9a9986d0eff3dcafea3f3"
+checksum = "66e252fe697709a0fc8710b5b9dee2d72fd9852d3f5fd1a057ce808b6987ccba"
 dependencies = [
  "bytecheck",
  "once_cell",
@@ -3200,9 +3200,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_prefixer"
-version = "0.113.2"
+version = "0.113.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d36aab27a91fd7da889a77f2d85c5cee4aeacde70ddc6f7a42e932de1a436ace"
+checksum = "3393413633e283959aad05d8943c896729cc0d9cf31a37b213460748d1eff4c4"
 dependencies = [
  "once_cell",
  "preset_env_base",
