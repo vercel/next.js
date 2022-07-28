@@ -27,6 +27,18 @@ describe('Middleware Rewrite', () => {
   testsWithLocale('/fr')
 
   function tests() {
+    it('should hard navigate on 404 for data request', async () => {
+      const browser = await webdriver(next.url, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval(`next.router.push("/to/some/404/path")`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /custom 404 page/
+      )
+      expect(await browser.eval('location.pathname')).toBe('/to/some/404/path')
+      expect(await browser.eval('window.beforeNav')).not.toBe(1)
+    })
+
     // TODO: middleware effect headers aren't available here
     it.skip('includes the locale in rewrites by default', async () => {
       const res = await fetchViaHTTP(next.url, `/rewrite-me-to-about`)
