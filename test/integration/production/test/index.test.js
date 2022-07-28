@@ -750,7 +750,7 @@ describe('Production Usage', () => {
         .elementByCss('a')
         .click()
         .waitForElementByCss('.about-page')
-        .elementByCss('div')
+        .elementByCss('.about-page')
         .text()
 
       expect(text).toBe('About Page')

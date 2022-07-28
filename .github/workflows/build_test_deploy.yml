@@ -816,13 +816,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
     env:
-      BROWSERSTACK: true
       BROWSER_NAME: 'safari'
-      NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_MODE: 'start'
-      SKIP_LOCAL_SELENIUM_SERVER: true
-      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
-      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -851,18 +847,19 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      # TODO: use macos runner so that we can use playwright to test against
-      # PRs instead of only running on canary?
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
+      - run: npx playwright install-deps && npx playwright install webkit
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts'
+      - run: node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - run: DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   testSafariOld:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
-    needs: [build, testSafari, build-native-test]
+    needs: [build, build-native-test]
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true

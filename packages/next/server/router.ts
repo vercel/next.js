@@ -5,12 +5,12 @@ import type {
   RouteMatch,
   Params,
 } from '../shared/lib/router/utils/route-matcher'
+import type { RouteHas } from '../lib/load-custom-routes'
 
 import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { getRequestMeta } from './request-meta'
