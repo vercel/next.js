@@ -1,8 +1,7 @@
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import styles from '../../styles.module.css'
-
-const Code = (p) => <code className={styles.inlineCode} {...p} />
+import Code from '../../components/Code'
 
 export default function News() {
   const { asPath, route, query } = useRouter()
@@ -19,16 +18,14 @@ export default function News() {
           The query <Code>slug</Code> for this page is:{' '}
           <Code>{JSON.stringify(query.slug)}</Code>
         </p>
-        <Link href="/">
-          <a> &larr; Back home</a>
-        </Link>
+        <Link href="/">&larr; Back home</Link>
       </div>
     </div>
   )
 }
 
 // Use SSR for this page as currently rewrites don't work with dynamic pages without SSR
-export async function getServerSideProps(context) {
+export async function getServerSideProps() {
   return {
     props: {},
   }
