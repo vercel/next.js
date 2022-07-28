@@ -13,6 +13,11 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (url.pathname.includes('/fallback-true-blog/rewritten')) {
+    request.nextUrl.pathname = '/about'
+    return NextResponse.rewrite(request.nextUrl)
+  }
+
   if (url.pathname.startsWith('/about') && url.searchParams.has('override')) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(

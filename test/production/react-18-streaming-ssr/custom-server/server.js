@@ -34,7 +34,6 @@ server.listen(currentPort, (err) => {
       distDir: '.next',
       experimental: {
         ...defaultNextConfig.experimental,
-        serverComponents: true,
       },
     },
   })
