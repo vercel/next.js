@@ -9551,22 +9551,6 @@ function SubtleCrypto3() {
   throw TypeError("Illegal constructor");
 }
 __name(SubtleCrypto3, "SubtleCrypto");
-function SubtleCryptoToString() {
-  return "function SubtleCrypto() { [native code] }";
-}
-__name(SubtleCryptoToString, "SubtleCryptoToString");
-Object.defineProperty(SubtleCryptoToString, "name", {
-  configurable: true,
-  enumerable: false,
-  value: "toString() { [native code] }",
-  writable: true
-});
-Object.defineProperty(SubtleCrypto3, "toString", {
-  configurable: true,
-  enumerable: false,
-  value: SubtleCryptoToString,
-  writable: true
-});
 var crypto2 = new Crypto3();
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

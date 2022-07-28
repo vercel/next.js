@@ -2,8 +2,7 @@ import type { NextConfig } from '../../../../server/config-shared'
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
-
-import { NextRequest } from '../../../../server/web/spec-extension/request'
+import type { NextRequest } from '../../../../server/web/spec-extension/request'
 
 import WebServer from '../../../../server/web-server'
 import {

@@ -6,6 +6,7 @@ import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
+import escapeStringRegexp from 'escape-string-regexp'
 
 describe('Middleware Rewrite', () => {
   let next: NextInstance
@@ -310,6 +311,186 @@ describe('Middleware Rewrite', () => {
       expect(await browser.eval('window.location.pathname')).toBe(
         `/rewrite-to-afterfiles-rewrite`
       )
+    })
+
+    it('should handle shallow navigation correctly (non-dynamic page)', async () => {
+      const browser = await webdriver(next.url, '/about')
+      const requests = []
+
+      browser.on('request', (req) => {
+        const url = req.url()
+        if (url.includes('_next/data')) requests.push(url)
+      })
+
+      await browser.eval(
+        `next.router.push('/about?hello=world', undefined, { shallow: true })`
+      )
+      await check(() => browser.eval(`next.router.query.hello`), 'world')
+
+      expect(await browser.eval(`next.router.pathname`)).toBe('/about')
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({ hello: 'world' })
+      expect(await browser.eval('location.pathname')).toBe('/about')
+      expect(await browser.eval('location.search')).toBe('?hello=world')
+      expect(requests).toEqual([])
+
+      await browser.eval(
+        `next.router.push('/about', undefined, { shallow: true })`
+      )
+      await check(
+        () => browser.eval(`next.router.query.hello || 'empty'`),
+        'empty'
+      )
+
+      expect(await browser.eval(`next.router.pathname`)).toBe('/about')
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({})
+      expect(await browser.eval('location.pathname')).toBe('/about')
+      expect(await browser.eval('location.search')).toBe('')
+      expect(requests).toEqual([])
+    })
+
+    it('should handle shallow navigation correctly (dynamic page)', async () => {
+      const browser = await webdriver(next.url, '/fallback-true-blog/first', {
+        waitHydration: false,
+      })
+      let requests = []
+
+      browser.on('request', (req) => {
+        const url = req.url()
+        if (url.includes('_next/data')) requests.push(url)
+      })
+
+      // wait for initial query update request
+      await check(() => {
+        if (requests.length > 0) {
+          requests = []
+          return 'yup'
+        }
+      }, 'yup')
+
+      await browser.eval(
+        `next.router.push('/fallback-true-blog/first?hello=world', undefined, { shallow: true })`
+      )
+      await check(() => browser.eval(`next.router.query.hello`), 'world')
+
+      expect(await browser.eval(`next.router.pathname`)).toBe(
+        '/fallback-true-blog/[slug]'
+      )
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({ hello: 'world', slug: 'first' })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/first'
+      )
+      expect(await browser.eval('location.search')).toBe('?hello=world')
+      expect(requests).toEqual([])
+
+      await browser.eval(
+        `next.router.push('/fallback-true-blog/second', undefined, { shallow: true })`
+      )
+      await check(() => browser.eval(`next.router.query.slug`), 'second')
+
+      expect(await browser.eval(`next.router.pathname`)).toBe(
+        '/fallback-true-blog/[slug]'
+      )
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({
+        slug: 'second',
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/second'
+      )
+      expect(await browser.eval('location.search')).toBe('')
+      expect(requests).toEqual([])
+    })
+
+    it('should resolve dynamic route after rewrite correctly', async () => {
+      const browser = await webdriver(next.url, '/fallback-true-blog/first', {
+        waitHydration: false,
+      })
+      let requests = []
+
+      browser.on('request', (req) => {
+        const url = new URL(
+          req
+            .url()
+            .replace(new RegExp(escapeStringRegexp(next.buildId)), 'BUILD_ID')
+        ).pathname
+
+        if (url.includes('_next/data')) requests.push(url)
+      })
+
+      // wait for initial query update request
+      await check(() => {
+        if (requests.length > 0) {
+          requests = []
+          return 'yup'
+        }
+      }, 'yup')
+
+      expect(await browser.eval(`next.router.pathname`)).toBe(
+        '/fallback-true-blog/[slug]'
+      )
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({
+        slug: 'first',
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/first'
+      )
+      expect(await browser.eval('location.search')).toBe('')
+      expect(requests).toEqual([])
+
+      await browser.eval(`next.router.push('/fallback-true-blog/rewritten')`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /About Page/
+      )
+
+      expect(await browser.eval(`next.router.pathname`)).toBe('/about')
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({})
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/rewritten'
+      )
+      expect(await browser.eval('location.search')).toBe('')
+      expect(requests).toEqual([
+        `/_next/data/BUILD_ID/en/fallback-true-blog/rewritten.json`,
+      ])
+
+      await browser.eval(`next.router.push('/fallback-true-blog/second')`)
+      await check(
+        () => browser.eval(`next.router.pathname`),
+        '/fallback-true-blog/[slug]'
+      )
+
+      expect(await browser.eval(`next.router.pathname`)).toBe(
+        '/fallback-true-blog/[slug]'
+      )
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({
+        slug: 'second',
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/second'
+      )
+      expect(await browser.eval('location.search')).toBe('')
+      expect(
+        requests.filter(
+          (req) =>
+            ![
+              `/_next/data/BUILD_ID/en/fallback-true-blog/rewritten.json`,
+              `/_next/data/BUILD_ID/en/fallback-true-blog/second.json`,
+            ].includes(req)
+        )
+      ).toEqual([])
     })
   }
 

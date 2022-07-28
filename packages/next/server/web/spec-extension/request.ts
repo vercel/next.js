@@ -31,6 +31,30 @@ export class NextRequest extends Request {
     }
   }
 
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return {
+      cookies: this.cookies,
+      geo: this.geo,
+      ip: this.ip,
+      nextUrl: this.nextUrl,
+      url: this.url,
+      // rest of props come from Request
+      bodyUsed: this.bodyUsed,
+      cache: this.cache,
+      credentials: this.credentials,
+      destination: this.destination,
+      headers: Object.fromEntries(this.headers),
+      integrity: this.integrity,
+      keepalive: this.keepalive,
+      method: this.method,
+      mode: this.mode,
+      redirect: this.redirect,
+      referrer: this.referrer,
+      referrerPolicy: this.referrerPolicy,
+      signal: this.signal,
+    }
+  }
+
   public get cookies() {
     return this[INTERNALS].cookies
   }

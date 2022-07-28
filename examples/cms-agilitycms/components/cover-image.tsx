@@ -2,7 +2,7 @@ import Image from '../lib/components/image'
 import cn from 'classnames'
 import Link from 'next/link'
 
-export default function CoverImage({ title, responsiveImage, slug }) {
+export default function CoverImage({ title, responsiveImage, slug = null }) {
   const image = (
     <Image
       data={{

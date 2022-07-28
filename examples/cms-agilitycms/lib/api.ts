@@ -23,6 +23,9 @@ export const getClient = (preview = false) =>
 
 // This client is used by nested components to fetch additional data within `getStaticProps`
 export class APIClient {
+  public preview: any
+  public client: any
+
   constructor({ preview = false }) {
     this.preview = preview
     this.client = getClient(preview)
