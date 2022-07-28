@@ -1,9 +1,9 @@
 /* eslint-env jest */
-
 import cheerio from 'cheerio'
 import 'flat-map-polyfill'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
+  check,
   File,
   findPort,
   killApp,
@@ -15,41 +15,10 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { quote as shellQuote } from 'shell-quote'
 
-const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
+const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
-describe('SCSS Support', () => {
-  describe('Friendly Webpack Error', () => {
-    const appDir = join(fixturesDir, 'webpack-error')
-
-    const mockFile = join(appDir, 'mock.js')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should be a friendly error successfully', async () => {
-      const { code, stderr } = await nextBuild(appDir, [], {
-        env: { NODE_OPTIONS: shellQuote([`--require`, mockFile]) },
-        stderr: true,
-      })
-      let cleanScssErrMsg =
-        '\n\n' +
-        './styles/global.scss\n' +
-        "To use Next.js' built-in Sass support, you first need to install `sass`.\n" +
-        'Run `npm i sass` or `yarn add sass` inside your workspace.\n' +
-        '\n' +
-        'Learn more: https://nextjs.org/docs/messages/install-sass\n'
-
-      expect(code).toBe(1)
-      expect(stderr).toContain('Failed to compile.')
-      expect(stderr).toContain(cleanScssErrMsg)
-      expect(stderr).not.toContain('css-loader')
-      expect(stderr).not.toContain('sass-loader')
-    })
-  })
-
+describe('CSS Support', () => {
   describe('Basic Global Support', () => {
     const appDir = join(fixturesDir, 'single-global')
 
@@ -78,36 +47,8 @@ describe('SCSS Support', () => {
     })
   })
 
-  describe('Basic Module Include Paths Support', () => {
-    const appDir = join(fixturesDir, 'basic-module-include-paths')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it(`should've emitted a single CSS file`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-      expect(cssFiles.length).toBe(1)
-      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-        'color:red'
-      )
-    })
-  })
-
-  describe('Basic Module Prepend Data Support', () => {
-    const appDir = join(fixturesDir, 'basic-module-prepend-data')
+  describe('Basic Global Support with special characters in path', () => {
+    const appDir = join(fixturesDir, 'single-global-special-characters', 'a+b')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
@@ -248,7 +189,7 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
       )
 
       // Contains a source map
@@ -269,17 +210,28 @@ describe('SCSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AACA,4BAEI,SAHK,CACT,gCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
+          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
           "sourcesContent": Array [
-            "$var: red;
-        .redText {
+            "@media (480px <= width < 768px) {
           ::placeholder {
-            color: $var;
+            color: green;
           }
         }
 
         .flex-parsing {
           flex: 0 0 calc(50% - var(--vertical-gutter));
+        }
+
+        .transform-parsing {
+          transform: translate3d(0px, 0px);
+        }
+
+        .css-grid-shorthand {
+          grid-column: span 2;
+        }
+
+        .g-docs-sidenav .filter::-webkit-input-placeholder {
+          opacity: 80%;
         }
         ",
           ],
@@ -319,6 +271,82 @@ describe('SCSS Support', () => {
     })
   })
 
+  describe('React Lifecyce Order (dev)', () => {
+    const appDir = join(fixturesDir, 'transition-react')
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have the correct color on mount after navigation', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        // Navigate to other:
+        await browser.waitForElementByCss('#link-other').click()
+        const text = await browser.waitForElementByCss('#red-title').text()
+        expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('React Lifecyce Order (production)', () => {
+    const appDir = join(fixturesDir, 'transition-react')
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    let code
+    let stdout
+    beforeAll(async () => {
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the correct color on mount after navigation', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        // Navigate to other:
+        await browser.waitForElementByCss('#link-other').click()
+        const text = await browser.waitForElementByCss('#red-title').text()
+        expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   describe('Invalid CSS in _document', () => {
     const appDir = join(fixturesDir, 'invalid-module-document')
 
@@ -332,7 +360,7 @@ describe('SCSS Support', () => {
       })
       expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain('styles.module.scss')
+      expect(stderr).toContain('styles.module.css')
       expect(stderr).toMatch(
         /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
       )
@@ -353,11 +381,40 @@ describe('SCSS Support', () => {
       })
       expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain('styles/global.scss')
+      expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
         /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+    })
+  })
+
+  describe('Valid Global CSS from npm', () => {
+    const appDir = join(fixturesDir, 'import-global-from-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".red-text{color:\\"red\\"}"`)
     })
   })
 
@@ -374,7 +431,7 @@ describe('SCSS Support', () => {
       })
       expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain('styles/global.scss')
+      expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
         /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
@@ -395,7 +452,7 @@ describe('SCSS Support', () => {
       })
       expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain('styles/global.scss')
+      expect(stderr).toContain('styles/global.css')
       expect(stderr).toContain('Please move all first-party global CSS imports')
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -434,15 +491,17 @@ describe('SCSS Support', () => {
         )
         expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
 
-        const cssFile = new File(join(appDir, 'styles/global1.scss'))
+        const cssFile = new File(join(appDir, 'styles/global1.css'))
         try {
-          cssFile.replace('$var: red', '$var: purple')
-          await waitFor(2000) // wait for HMR
+          cssFile.replace('color: red', 'color: purple')
 
-          const refreshedColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('.red-text')).color`
+          await check(
+            () =>
+              browser.eval(
+                `window.getComputedStyle(document.querySelector('.red-text')).color`
+              ),
+            'rgb(128, 0, 128)'
           )
-          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(128, 0, 128)"`)
 
           // ensure text remained
           expect(await browser.elementById('text-input').getValue()).toBe(
@@ -661,54 +720,6 @@ describe('SCSS Support', () => {
     })
   })
 
-  describe('CSS URL via file-loader sass partial', () => {
-    const appDir = join(fixturesDir, 'url-global-partial')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it(`should've emitted expected files`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-      const mediaFolder = join(appDir, '.next/static/media')
-
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-      expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(
-        '".red-text{color:red;background-image:url(/_next/static/media/darka.6b01655b.svg),url(/_next/static/media/darkb.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}"'
-      )
-
-      const mediaFiles = await readdir(mediaFolder)
-      expect(mediaFiles.length).toBe(3)
-      expect(
-        mediaFiles
-          .map((fileName) =>
-            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
-          )
-          .sort()
-      ).toMatchInlineSnapshot(`
-        Array [
-          "darka.svg",
-          "darkb.svg",
-          "light.svg",
-        ]
-      `)
-    })
-  })
-
   describe('CSS URL via `file-loader` and asset prefix (1)', () => {
     const appDir = join(fixturesDir, 'url-global-asset-prefix-1')
 
@@ -801,64 +812,6 @@ describe('SCSS Support', () => {
     })
   })
 
-  describe('Data Urls', () => {
-    const appDir = join(fixturesDir, 'data-url')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it(`should've emitted expected files`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-      expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\("data:[^"]+"\)\}$/
-      )
-    })
-  })
-
-  describe('External imports', () => {
-    const appDir = join(fixturesDir, 'external-url')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it(`should've emitted expected files`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-      expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^@import url\("https:\/\/fonts\.googleapis\.com\/css2\?family=Poppins:wght@400&display=swap"\);\.red-text\{color:red;font-family:Poppins;font-style:normal;font-weight:400\}$/
-      )
-    })
-  })
-
   describe('Good CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import')
 
@@ -912,178 +865,6 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
-    })
-  })
-
-  describe('CSS Import from node_modules', () => {
-    const appDir = join(fixturesDir, 'npm-import-bad')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should fail the build', async () => {
-      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
-
-      expect(code).toBe(0)
-      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).not.toMatch(/Build error occurred/)
-    })
-  })
-
-  describe('Preprocessor loader order', () => {
-    const appDir = join(fixturesDir, 'loader-order')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-  })
-
-  describe('Ordering with styled-jsx (dev)', () => {
-    const appDir = join(fixturesDir, 'with-styled-jsx')
-
-    let appPort
-    let app
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    it('should have the correct color (css ordering)', async () => {
-      const browser = await webdriver(appPort, '/')
-
-      const currentColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('.my-text')).color`
-      )
-      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
-    })
-  })
-
-  describe('Ordering with styled-jsx (prod)', () => {
-    const appDir = join(fixturesDir, 'with-styled-jsx')
-
-    let appPort
-    let app
-    let stdout
-    let code
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-      ;({ code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      }))
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    it('should have compiled successfully', () => {
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it('should have the correct color (css ordering)', async () => {
-      const browser = await webdriver(appPort, '/')
-
-      const currentColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('.my-text')).color`
-      )
-      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
-    })
-  })
-
-  describe('Basic Tailwind CSS', () => {
-    const appDir = join(fixturesDir, 'with-tailwindcss')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it(`should've compiled and prefixed`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-      expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-
-      expect(cssContent).toMatch(/object-right-bottom/) // look for tailwind's CSS
-      expect(cssContent).not.toMatch(/tailwind/) // ensure @tailwind was removed
-
-      // Contains a source map
-      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
-    })
-
-    it(`should've emitted a source map`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
-
-      expect(cssMapFiles.length).toBe(1)
-    })
-  })
-
-  describe('Tailwind and Purge CSS', () => {
-    const appDir = join(fixturesDir, 'with-tailwindcss-and-purgecss')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it(`should've compiled and prefixed`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-      expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-
-      expect(cssContent).not.toMatch(/object-right-bottom/) // this was unused and should be gone
-      expect(cssContent).toMatch(/text-blue-500/) // this was used
-      expect(cssContent).not.toMatch(/tailwind/) // ensure @tailwind was removed
-
-      // Contains a source map
-      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
-    })
-
-    it(`should've emitted a source map`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
-
-      const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
-
-      expect(cssMapFiles.length).toBe(1)
     })
   })
 })
