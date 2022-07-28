@@ -131,7 +131,8 @@ export class FlightManifestPlugin {
 
         const resource =
           mod.type === 'css/mini-extract'
-            ? mod.identifier().slice(mod.identifier().lastIndexOf('!') + 1)
+            ? // @ts-expect-error TODO: use `identifier()` instead.
+              mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
             : mod.resource
 
         if (!resource) return
