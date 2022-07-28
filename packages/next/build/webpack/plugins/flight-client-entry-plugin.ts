@@ -24,7 +24,7 @@ const PLUGIN_NAME = 'ClientEntryPlugin'
 export const injectedClientEntries = new Map()
 const regexCSS = /\.css$/
 
-export class ClientEntryPlugin {
+export class FlightClientEntryPlugin {
   dev: boolean = false
   isEdgeServer: boolean
 
