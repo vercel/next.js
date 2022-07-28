@@ -9,8 +9,14 @@ export default function Header() {
   )
 }
 
-const Link = ({ children, href }) => {
+type LinkProps = {
+  children: React.ReactNode
+  href: string
+}
+
+function Link({ children, href }: LinkProps) {
   const router = useRouter()
+
   return (
     <a
       href="#"
