@@ -246,6 +246,9 @@ type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
 // d = dynamic
 export type DynamicParamTypesShort = 'c' | 'oc' | 'd'
 
+/**
+ * Shorten the dynamic param in order to make it smaller when transmitted to the browser.
+ */
 function getShortDynamicParamType(
   type: DynamicParamTypes
 ): DynamicParamTypesShort {
@@ -261,10 +264,16 @@ function getShortDynamicParamType(
   }
 }
 
+/**
+ * Segment in the router state.
+ */
 export type Segment =
   | string
   | [param: string, value: string, type: DynamicParamTypesShort]
 
+/**
+ * LoaderTree is generated in next-app-loader.
+ */
 type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
@@ -275,6 +284,9 @@ type LoaderTree = [
   }
 ]
 
+/**
+ * Router state
+ */
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
@@ -283,7 +295,11 @@ export type FlightRouterState = [
   loading?: 'loading'
 ]
 
+/**
+ * Individual Flight response path
+ */
 export type FlightSegmentPath =
+  // Uses `any` as repeating pattern can't be typed.
   | any[]
   // Looks somewhat like this
   | [
@@ -296,21 +312,25 @@ export type FlightSegmentPath =
     ]
 
 export type FlightDataPath =
+  // Uses `any` as repeating pattern can't be typed.
   | any[]
   // Looks somewhat like this
   | [
-      segment: Segment,
-      parallelRoute: string,
-      segment: Segment,
-      parallelRoute: string,
-      segment: Segment,
-      parallelRoute: string,
-      currentSegment: Segment,
-      tree: FlightRouterState,
-      subTreeData: React.ReactNode
+      // Holds full path to the segment.
+      ...FlightSegmentPath,
+      /* segment of the rendered slice: */ Segment,
+      /* treePatch */ FlightRouterState,
+      /* subTreeData: */ React.ReactNode
     ]
 
+/**
+ * The Flight response data
+ */
 export type FlightData = Array<FlightDataPath> | string
+
+/**
+ * Property holding the current subTreeData.
+ */
 export type ChildProp = {
   current: React.ReactNode
   segment: Segment

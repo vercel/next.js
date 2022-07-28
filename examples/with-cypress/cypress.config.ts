@@ -1,10 +1,7 @@
-const { defineConfig } = require('cypress')
+import { defineConfig } from 'cypress'
 
-module.exports = defineConfig({
+export default defineConfig({
   e2e: {
     baseUrl: 'http://localhost:3000',
   },
 })
-
-// Prevent TypeScript from reading file as legacy script
-export {}
