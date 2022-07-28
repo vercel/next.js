@@ -1347,7 +1347,10 @@ export default class Router implements BaseRouter {
       if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
         route = pathname
-        query = Object.assign({}, routeInfo.query || {}, query)
+
+        if (!routeProps.shallow) {
+          query = Object.assign({}, routeInfo.query || {}, query)
+        }
 
         if (routeMatch && pathname !== parsed.pathname) {
           Object.keys(routeMatch).forEach((key) => {
@@ -1359,8 +1362,15 @@ export default class Router implements BaseRouter {
 
         if (isDynamicRoute(pathname)) {
           const prefixedAs =
-            routeInfo.resolvedAs ||
-            addBasePath(addLocale(as, nextState.locale), true)
+            !routeProps.shallow && routeInfo.resolvedAs
+              ? routeInfo.resolvedAs
+              : addBasePath(
+                  addLocale(
+                    new URL(as, location.href).pathname,
+                    nextState.locale
+                  ),
+                  true
+                )
 
           let rewriteAs = prefixedAs
 
@@ -1701,6 +1711,10 @@ export default class Router implements BaseRouter {
         return existingInfo
       }
 
+      if (hasMiddleware) {
+        existingInfo = undefined
+      }
+
       let cachedRouteInfo =
         existingInfo &&
         !('initial' in existingInfo) &&
@@ -1759,13 +1773,6 @@ export default class Router implements BaseRouter {
           this.components[requestedRoute] = { ...existingInfo, route }
           return { ...existingInfo, route }
         }
-
-        cachedRouteInfo =
-          existingInfo &&
-          !('initial' in existingInfo) &&
-          process.env.NODE_ENV !== 'development'
-            ? existingInfo
-            : undefined
       }
 
       if (route === '/api' || route.startsWith('/api/')) {
@@ -2346,7 +2353,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
         parseData: true,
       })
 
-      const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
+      let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
       return Promise.all([
         options.router.pageLoader.getPageList(),
         getClientBuildManifest(),
@@ -2384,6 +2391,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
             parsedRewriteTarget.pathname = result.parsedAs.pathname
             as = parsedRewriteTarget.pathname
             Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
+          }
+        } else if (!pages.includes(fsPathname)) {
+          const resolvedPathname = resolveDynamicRoute(fsPathname, pages)
+
+          if (resolvedPathname !== fsPathname) {
+            fsPathname = resolvedPathname
           }
         }
 
