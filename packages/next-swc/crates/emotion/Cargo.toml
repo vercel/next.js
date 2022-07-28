@@ -5,7 +5,7 @@ description = "AST Transforms for emotion"
 license = "Apache-2.0"
 name = "swc_emotion"
 repository = "https://github.com/vercel/next.js.git"
-version = "0.12.0"
+version = "0.16.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,12 +18,13 @@ radix_fmt = "1"
 regex = "1.5"
 serde = "1"
 sourcemap = "6.0.1"
-swc_atoms = "0.2.13"
-swc_common = { version = "0.23.0", features = ["concurrent", "sourcemap"] }
-swc_ecmascript = { version = "0.180.0", features = ["codegen", "utils", "visit"] }
+swc_atoms = "0.3.1"
+swc_common = { version = "0.26.0", features = ["concurrent", "sourcemap"] }
+swc_ecmascript = { version = "0.186.0", features = ["codegen", "utils", "visit"] }
 swc_trace_macro = "0.1.1"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.99.0"
-testing = "0.25.0"
+swc_ecma_transforms_testing = "0.104.0"
+testing = "0.28.0"
+serde_json = "1"

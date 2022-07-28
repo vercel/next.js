@@ -680,6 +680,11 @@ describe('Middleware Rewrite', () => {
         logs.every((log) => log.source === 'log' || log.source === 'info')
       ).toEqual(true)
     })
+
+    it('should not have unexpected errors', async () => {
+      expect(next.cliOutput).not.toContain('unhandledRejection')
+      expect(next.cliOutput).not.toContain('ECONNRESET')
+    })
   }
 
   function getCookieFromResponse(res, cookieName) {
