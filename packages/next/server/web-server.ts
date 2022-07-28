@@ -21,13 +21,13 @@ interface WebServerOptions extends Options {
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
     pagesRenderToHTML?: typeof import('./render').renderToHTML
-    appRenderToHTML?: typeof import('./app-render').renderToHTML
+    appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
   }
 }
 
 export default class NextWebServer extends BaseServer<WebServerOptions> {
   private pagesRenderToHTML?: typeof import('./render').renderToHTML
-  private appRenderToHTML?: typeof import('./app-render').renderToHTML
+  private appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
 
   constructor(options: WebServerOptions) {
     super(options)

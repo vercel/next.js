@@ -67,7 +67,7 @@ export default async function edgeSSRLoader(this: any) {
     ${
       isAppDir
         ? `
-      const appRenderToHTML = require('next/dist/server/app-render').renderToHTML
+      const appRenderToHTML = require('next/dist/server/app-render').renderToHTMLOrFlight
       const pagesRenderToHTML = null
       const pageMod = require("${appDirLoader}${stringifiedPagePath.substring(
             1,
