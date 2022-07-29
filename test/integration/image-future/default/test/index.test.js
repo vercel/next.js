@@ -691,7 +691,7 @@ function runTests(mode) {
 
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        `Image with src "/wide.png" has a style attribute which modifies the CSS 'position' attribute`
+        `Image with src "/wide.png" has both \"fill\" and \"style.position\" properties. Images with \"fill\" always use position absolute - it cannot be modified.`
       )
     })
 
@@ -1002,13 +1002,13 @@ function runTests(mode) {
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toMatch(
-          /Image with src "\/wide.png" has no sizes prop, but doesn't take up the full width of the screen.(.*)/gm
+          /Image with src "\/wide.png" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative./gm
         )
         expect(warnings).toMatch(
-          /Fill mode image with src "\/wide.png" has a parent element without CSS position: "relative".(.*)/gm
+          /Fill mode image with src "\/wide.png" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height./gm
         )
         expect(warnings).toMatch(
-          /Fill mode image with src "\/wide.png" has a height value of 0.(.*)/gm
+          /Fill mode image with src "\/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: /gm
         )
       })
     }
