@@ -8,6 +8,9 @@ export const NEXT_PROJECT_ROOT_DIST_CLIENT = join(
   'client'
 )
 
+// Regex for API routes
+export const API_ROUTE = /^\/api(?:\/|$)/
+
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
