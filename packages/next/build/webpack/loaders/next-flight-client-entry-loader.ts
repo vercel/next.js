@@ -1,7 +1,7 @@
 import { SERVER_RUNTIME } from '../../../lib/constants'
 
 export default async function transformSource(this: any): Promise<string> {
-  let { modules, runtime, ssr, server } = this.getOptions()
+  let { modules, runtime, css, ssr, server } = this.getOptions()
   if (!Array.isArray(modules)) {
     modules = modules ? [modules] : []
   }
@@ -13,9 +13,7 @@ export default async function transformSource(this: any): Promise<string> {
       .map((request) => `import(/* webpackMode: "eager" */ '${request}')`)
       .join(';\n') +
     `
-    export const __next_rsc_css__ = ${JSON.stringify(
-      requests.filter((request) => request.endsWith('.css'))
-    )};
+    export const __next_rsc_css__ = ${server ? css : 'null'};
     export const __next_rsc__ = {
       server: false,
       __webpack_require__

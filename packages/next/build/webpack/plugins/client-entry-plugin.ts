@@ -12,7 +12,7 @@ import {
   entries,
 } from '../../../server/dev/on-demand-entry-handler'
 import { getPageStaticInfo } from '../../analysis/get-page-static-info'
-import { SERVER_RUNTIME } from '../../../lib/constants'
+import { APP_DIR_ALIAS, SERVER_RUNTIME } from '../../../lib/constants'
 
 type Options = {
   dev: boolean
@@ -73,8 +73,9 @@ export class ClientEntryPlugin {
       if (request && entry.options?.layer === 'sc_server') {
         const visited = new Set()
         const clientComponentImports: string[] = []
+        const serverCSSImports: Record<string, string[]> = {}
 
-        function filterClientComponents(dependency: any) {
+        function filterClientComponents(dependency: any, layoutOrPage: string) {
           const mod = compilation.moduleGraph.getResolvedModule(dependency)
           if (!mod) return
 
@@ -85,29 +86,42 @@ export class ClientEntryPlugin {
           const modRequest =
             !rawRequest.endsWith('.css') &&
             !rawRequest.startsWith('.') &&
-            !rawRequest.startsWith('/')
+            !rawRequest.startsWith('/') &&
+            !rawRequest.startsWith(APP_DIR_ALIAS)
               ? rawRequest
               : mod.resourceResolveData?.path
 
           if (!modRequest || visited.has(modRequest)) return
           visited.add(modRequest)
 
-          if (
-            clientComponentRegex.test(modRequest) ||
-            regexCSS.test(modRequest)
-          ) {
+          const isLayoutOrPage =
+            /\/(layout|page)(\.server|\.client)?\.(js|ts)x?$/.test(modRequest)
+          const isCSS = regexCSS.test(modRequest)
+          const isClientComponent = clientComponentRegex.test(modRequest)
+
+          if (isCSS) {
+            serverCSSImports[layoutOrPage] =
+              serverCSSImports[layoutOrPage] || []
+            serverCSSImports[layoutOrPage].push(modRequest)
+          }
+
+          if (isClientComponent || isCSS) {
             clientComponentImports.push(modRequest)
+            return
           }
 
           compilation.moduleGraph
             .getOutgoingConnections(mod)
             .forEach((connection: any) => {
-              filterClientComponents(connection.dependency)
+              filterClientComponents(
+                connection.dependency,
+                isLayoutOrPage ? modRequest : layoutOrPage
+              )
             })
         }
 
         // Traverse the module graph to find all client components.
-        filterClientComponents(entryDependency)
+        filterClientComponents(entryDependency, '')
 
         const entryModule =
           compilation.moduleGraph.getResolvedModule(entryDependency)
@@ -127,6 +141,7 @@ export class ClientEntryPlugin {
 
         const loaderOptions = {
           modules: clientComponentImports,
+          css: JSON.stringify(serverCSSImports),
           runtime: this.isEdgeServer
             ? SERVER_RUNTIME.edge
             : SERVER_RUNTIME.nodejs,
