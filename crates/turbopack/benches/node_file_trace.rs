@@ -22,11 +22,10 @@ pub fn benchmark(c: &mut Criterion) {
     let tests_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
     let tests_dir = tests_root.join("node-file-trace/integration");
 
-    let results = fs::read_dir(tests_dir).unwrap();
-
     let mut group = c.benchmark_group("node-file-trace");
-    group.sample_size(50);
+    group.sample_size(10);
 
+    let results = fs::read_dir(tests_dir).unwrap();
     for result in results {
         let entry = result.unwrap();
         if entry.file_type().unwrap().is_file() {
@@ -35,7 +34,7 @@ pub fn benchmark(c: &mut Criterion) {
                 continue;
             }
 
-            let input = format!("integration/{name}");
+            let input = format!("node-file-trace/integration/{name}");
             let tests_root = tests_root.to_string_lossy().to_string();
 
             let bench_input = BenchInput { tests_root, input };
