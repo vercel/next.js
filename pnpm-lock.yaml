@@ -362,7 +362,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.4-canary.6
+      '@next/eslint-plugin-next': 12.2.4-canary.7
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -418,12 +418,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.4-canary.6
-      '@next/polyfill-module': 12.2.4-canary.6
-      '@next/polyfill-nomodule': 12.2.4-canary.6
-      '@next/react-dev-overlay': 12.2.4-canary.6
-      '@next/react-refresh-utils': 12.2.4-canary.6
-      '@next/swc': 12.2.4-canary.6
+      '@next/env': 12.2.4-canary.7
+      '@next/polyfill-module': 12.2.4-canary.7
+      '@next/polyfill-nomodule': 12.2.4-canary.7
+      '@next/react-dev-overlay': 12.2.4-canary.7
+      '@next/react-refresh-utils': 12.2.4-canary.7
+      '@next/swc': 12.2.4-canary.7
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -6583,12 +6583,6 @@ packages:
     resolution: {integrity: sha512-U1riIR+lBSNi3IbxtaHOIKdH8sLFv3NYfNv8sg7ZsNhcfl4HF2++BfqqrNAxoCLQW1iiylOj76ecnaUxz+z9yw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
-
-  /acorn/8.7.1:
-    resolution: {integrity: sha512-Xx54uLJQZ19lKygFXOWsscKUbsBZW0CPykPhVQdhIeIwrbPmJzqeASDInc8nKBnp/JT6igTs82qPXz069H8I/A==}
-    engines: {node: '>=0.4.0'}
-    hasBin: true
-    dev: true
 
   /acorn/8.8.0:
     resolution: {integrity: sha512-QOxyigPVrpZ2GXT+PFyZTl6TtOFc5egxHIP9IlQ+RbupQuX4RkT/Bee4/kQuC02Xkzg84JcT7oLYtDIQxp+v7w==}
@@ -20897,7 +20891,7 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
     dependencies:
-      acorn: 8.7.1
+      acorn: 8.8.0
       commander: 2.20.3
       source-map: 0.7.3
       source-map-support: 0.5.20
