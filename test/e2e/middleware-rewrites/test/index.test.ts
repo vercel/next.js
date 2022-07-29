@@ -27,6 +27,28 @@ describe('Middleware Rewrite', () => {
   testsWithLocale('/fr')
 
   function tests() {
+    it('should not mix component cache when navigating between dynamic routes', async () => {
+      const browser = await webdriver(next.url, '/param-1')
+
+      expect(await browser.eval('next.router.pathname')).toBe('/[param]')
+      expect(await browser.eval('next.router.query.param')).toBe('param-1')
+
+      await browser.eval(`next.router.push("/fallback-true-blog/first")`)
+      await check(
+        () => browser.eval('next.router.pathname'),
+        '/fallback-true-blog/[slug]'
+      )
+      expect(await browser.eval('next.router.query.slug')).toBe('first')
+      expect(await browser.eval('next.router.asPath')).toBe(
+        '/fallback-true-blog/first'
+      )
+
+      await browser.back()
+      await check(() => browser.eval('next.router.pathname'), '/[param]')
+      expect(await browser.eval('next.router.query.param')).toBe('param-1')
+      expect(await browser.eval('next.router.asPath')).toBe('/param-1')
+    })
+
     it('should have props for afterFiles rewrite to SSG page', async () => {
       let browser = await webdriver(next.url, '/')
       await browser.eval(`next.router.push("/afterfiles-rewrite-ssg")`)
