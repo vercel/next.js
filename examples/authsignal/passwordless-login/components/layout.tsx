@@ -1,8 +1,8 @@
-import Head from "next/head";
+import Head from 'next/head'
 
 type Props = {
-  children: React.ReactNode;
-};
+  children: React.ReactNode
+}
 
 export const Layout = (props: Props) => (
   <>
@@ -13,4 +13,4 @@ export const Layout = (props: Props) => (
 
     {props.children}
   </>
-);
+)

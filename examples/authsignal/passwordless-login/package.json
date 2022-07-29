@@ -3,8 +3,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
     "@authsignal/node": "^0.0.29",
@@ -19,8 +18,6 @@
     "@types/node": "18.0.3",
     "@types/react": "18.0.15",
     "@types/react-dom": "18.0.6",
-    "eslint": "8.19.0",
-    "eslint-config-next": "latest",
     "typescript": "4.7.4"
   }
 }
