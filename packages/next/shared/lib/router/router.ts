@@ -1763,7 +1763,6 @@ export default class Router implements BaseRouter {
           // If we have a match with the current route due to rewrite,
           // we can copy the existing information to the rewritten one.
           // Then, we return the information along with the matched route.
-          this.components[requestedRoute] = { ...existingInfo, route }
           return { ...existingInfo, route }
         }
       }
@@ -1908,11 +1907,6 @@ export default class Router implements BaseRouter {
       routeInfo.resolvedAs = resolvedAs
       this.components[route] = routeInfo
 
-      // If the route was rewritten in the process of fetching data,
-      // we update the cache to allow hitting the same data for shallow requests.
-      if (route !== requestedRoute) {
-        this.components[requestedRoute] = { ...routeInfo, route }
-      }
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
