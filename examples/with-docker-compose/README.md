@@ -2,7 +2,7 @@
 
 This example contains everything needed to get a Next.js development and production environment up and running with Docker Compose.
 
-## Benfits of Docker Compose
+## Benefits of Docker Compose
 
 - Develop locally without Node.js or TypeScript installed ✨
 - Easy to run, consistent development environment across Mac, Windows, and Linux teams
