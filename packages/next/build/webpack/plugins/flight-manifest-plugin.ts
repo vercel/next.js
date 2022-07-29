@@ -24,6 +24,9 @@ interface Options {
   pageExtensions: string[]
 }
 
+/**
+ * Webpack module id
+ */
 type ModuleId = string | number
 
 type ManifestChunks = Array<`${string}:${string}` | string>
