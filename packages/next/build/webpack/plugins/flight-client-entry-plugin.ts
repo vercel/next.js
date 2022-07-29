@@ -13,9 +13,11 @@ import {
   entries,
 } from '../../../server/dev/on-demand-entry-handler'
 import type {
+  CssImports,
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
+import { APP_DIR_ALIAS } from '../../../lib/constants'
 
 interface Options {
   dev: boolean
@@ -66,10 +68,8 @@ export class FlightClientEntryPlugin {
       // Check if the page entry is a server component or not.
       const entryDependency = entry.dependencies?.[0]
 
-      const clientComponentImports = this.collectClientComponentsForDependency(
-        compilation,
-        entryDependency
-      )
+      const [clientComponentImports, cssImports] =
+        this.collectClientComponentsForDependency(compilation, entryDependency)
 
       if (entryDependency?.request && entry.options?.layer === 'sc_server') {
         promises.push(
@@ -77,7 +77,8 @@ export class FlightClientEntryPlugin {
             compilation,
             name,
             entryDependency,
-            clientComponentImports
+            clientComponentImports,
+            cssImports
           )
         )
       }
@@ -89,14 +90,18 @@ export class FlightClientEntryPlugin {
   collectClientComponentsForDependency(
     compilation: any,
     entryDependency: any
-  ): ClientComponentImports {
+  ): [ClientComponentImports, CssImports] {
     /**
      * Keep track of checked modules to avoid infinite loops with recursive imports.
      */
     const visited: Set<string> = new Set()
     const clientComponentImports: ClientComponentImports = []
+    const serverCSSImports: CssImports = {}
 
-    const filterClientComponents = (dependency: any): void => {
+    const filterClientComponents = (
+      dependency: any,
+      layoutOrPage: string
+    ): void => {
       const mod: webpack5.NormalModule =
         compilation.moduleGraph.getResolvedModule(dependency)
       if (!mod) return
@@ -112,7 +117,9 @@ export class FlightClientEntryPlugin {
       const modRequest: string | undefined =
         !rawRequest.endsWith('.css') &&
         !rawRequest.startsWith('.') &&
-        !rawRequest.startsWith('/')
+        !rawRequest.startsWith('/') &&
+        !rawRequest.startsWith('/') &&
+        !rawRequest.startsWith(APP_DIR_ALIAS)
           ? rawRequest
           : mod.resourceResolveData?.path
 
@@ -120,29 +127,44 @@ export class FlightClientEntryPlugin {
       if (!modRequest || visited.has(modRequest)) return
       visited.add(modRequest)
 
+      const isLayoutOrPage =
+        /\/(layout|page)(\.server|\.client)?\.(js|ts)x?$/.test(modRequest)
+      const isCSS = regexCSS.test(modRequest)
+      const isClientComponent = clientComponentRegex.test(modRequest)
+
+      if (isCSS) {
+        serverCSSImports[layoutOrPage] = serverCSSImports[layoutOrPage] || []
+        serverCSSImports[layoutOrPage].push(modRequest)
+      }
+
       // Check if request is for css file.
-      if (clientComponentRegex.test(modRequest) || regexCSS.test(modRequest)) {
+      if (isClientComponent || isCSS) {
         clientComponentImports.push(modRequest)
+        return
       }
 
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
-          filterClientComponents(connection.dependency)
+          filterClientComponents(
+            connection.dependency,
+            isLayoutOrPage ? modRequest : layoutOrPage
+          )
         })
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(entryDependency)
+    filterClientComponents(entryDependency, '')
 
-    return clientComponentImports
+    return [clientComponentImports, serverCSSImports]
   }
 
   async injectClientEntry(
     compilation: any,
     entryName: string,
     entryDependency: any,
-    clientComponentImports: ClientComponentImports
+    clientComponentImports: ClientComponentImports,
+    serverCSSImports: CssImports
   ) {
     const entryModule =
       compilation.moduleGraph.getResolvedModule(entryDependency)
@@ -153,6 +175,7 @@ export class FlightClientEntryPlugin {
 
     return new Promise<void>((res, rej) => {
       const loaderOptions: NextFlightClientEntryLoaderOptions = {
+        css: JSON.stringify(serverCSSImports),
         modules: clientComponentImports,
         server: false,
       }

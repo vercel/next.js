@@ -374,20 +374,20 @@ function getCssInlinedLinkTags(
   ComponentMod: any,
   serverComponentManifest: any
 ) {
-  const importedServerCSSFiles: string[] =
-    ComponentMod.__client__?.__next_rsc_css__ || []
+  const importedServerCSS: { [key: string]: string[] } =
+    ComponentMod.__client__?.__next_rsc_css__ || {}
 
-  return Array.from(
-    new Set(
-      importedServerCSSFiles
-        .map((css) =>
-          css.endsWith('.css')
-            ? serverComponentManifest[css].default.chunks
-            : []
-        )
-        .flat()
-    )
-  )
+  const uniqueChunks = new Set<string>()
+
+  for (const layoutOrPage in importedServerCSS) {
+    for (const css of importedServerCSS[layoutOrPage]) {
+      for (const chunk of serverComponentManifest[css].default.chunks) {
+        uniqueChunks.add(chunk)
+      }
+    }
+  }
+
+  return Array.from(uniqueChunks)
 }
 
 export async function renderToHTMLOrFlight(
