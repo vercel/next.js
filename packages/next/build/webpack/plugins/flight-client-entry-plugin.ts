@@ -12,8 +12,10 @@ import {
   getInvalidator,
   entries,
 } from '../../../server/dev/on-demand-entry-handler'
-import { getPageStaticInfo } from '../../analysis/get-page-static-info'
-import { SERVER_RUNTIME } from '../../../lib/constants'
+import type {
+  ClientComponentImports,
+  NextFlightClientEntryLoaderOptions,
+} from '../loaders/next-flight-client-entry-loader'
 
 interface Options {
   dev: boolean
@@ -25,8 +27,6 @@ const PLUGIN_NAME = 'ClientEntryPlugin'
 export const injectedClientEntries = new Map()
 // TODO-APP: ensure .scss / .sass also works.
 const regexCSS = /\.css$/
-
-type ClientComponentImports = string[]
 
 export class FlightClientEntryPlugin {
   dev: boolean
@@ -86,7 +86,10 @@ export class FlightClientEntryPlugin {
     await Promise.all(promises)
   }
 
-  collectClientComponentsForDependency(compilation: any, entryDependency: any) {
+  collectClientComponentsForDependency(
+    compilation: any,
+    entryDependency: any
+  ): ClientComponentImports {
     /**
      * Keep track of checked modules to avoid infinite loops with recursive imports.
      */
@@ -148,24 +151,10 @@ export class FlightClientEntryPlugin {
       absolutePagePath: entryModule.resource,
     }
 
-    // Parse gSSP and gSP exports from the page source.
-    const pageStaticInfo = this.isEdgeServer
-      ? {}
-      : await getPageStaticInfo({
-          pageFilePath: routeInfo.absolutePagePath,
-          nextConfig: {},
-          isDev: this.dev,
-        })
-
     return new Promise<void>((res, rej) => {
-      const loaderOptions = {
+      const loaderOptions: NextFlightClientEntryLoaderOptions = {
         modules: clientComponentImports,
-        runtime: this.isEdgeServer
-          ? SERVER_RUNTIME.edge
-          : SERVER_RUNTIME.nodejs,
-        ssr: pageStaticInfo.ssr,
-        // Adding name here to make the entry key unique.
-        name,
+        server: false,
       }
       const clientLoader = `next-flight-client-entry-loader?${stringify(
         loaderOptions

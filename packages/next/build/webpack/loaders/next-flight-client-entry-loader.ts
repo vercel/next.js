@@ -1,7 +1,16 @@
-import { SERVER_RUNTIME } from '../../../lib/constants'
+export type ClientComponentImports = string[]
+
+export type NextFlightClientEntryLoaderOptions = {
+  modules: ClientComponentImports
+  /** This is transmitted as a string to `getOptions` */
+  server: boolean | 'true' | 'false'
+}
 
 export default async function transformSource(this: any): Promise<string> {
-  let { modules, runtime, ssr, server } = this.getOptions()
+  let { modules, server }: NextFlightClientEntryLoaderOptions =
+    this.getOptions()
+  const isServer = server === 'true'
+
   if (!Array.isArray(modules)) {
     modules = modules ? [modules] : []
   }
@@ -9,7 +18,8 @@ export default async function transformSource(this: any): Promise<string> {
   const requests = modules as string[]
   const code =
     requests
-      .filter((request) => (server ? !request.endsWith('.css') : true))
+      // Filter out css files on the server
+      .filter((request) => (isServer ? !request.endsWith('.css') : true))
       .map((request) => `import(/* webpackMode: "eager" */ '${request}')`)
       .join(';\n') +
     `
@@ -21,13 +31,7 @@ export default async function transformSource(this: any): Promise<string> {
       __webpack_require__
     };
     export default function RSC() {};
-    ` +
-    // Currently for the Edge runtime, we treat all RSC pages as SSR pages.
-    (runtime === SERVER_RUNTIME.edge
-      ? 'export const __N_SSP = true;'
-      : ssr
-      ? `export const __N_SSP = true;`
-      : `export const __N_SSG = true;`)
+    `
 
   return code
 }
