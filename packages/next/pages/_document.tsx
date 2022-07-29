@@ -945,6 +945,8 @@ export function Main() {
   return <next-js-internal-body-render-target />
 }
 
+const largePageDataWarnings = new Map<string, boolean>()
+
 export class NextScript extends Component<OriginProps> {
   static contextType = HtmlContext
 
@@ -971,10 +973,7 @@ export class NextScript extends Component<OriginProps> {
     try {
       const data = JSON.stringify(__NEXT_DATA__)
 
-      if (
-        process.env.NODE_ENV === 'development' ||
-        !(__NEXT_DATA__.gssp || __NEXT_DATA__.gip)
-      ) {
+      if (!largePageDataWarnings.get(__NEXT_DATA__.page)) {
         const bytes =
           process.env.NEXT_RUNTIME === 'edge'
             ? new TextEncoder().encode(data).buffer.byteLength
@@ -982,6 +981,9 @@ export class NextScript extends Component<OriginProps> {
         const prettyBytes = require('../lib/pretty-bytes').default
 
         if (largePageDataBytes && bytes > largePageDataBytes) {
+          if (process.env.NODE_ENV === 'production') {
+            largePageDataWarnings.set(__NEXT_DATA__.page, true)
+          }
           console.warn(
             `Warning: data for page "${__NEXT_DATA__.page}"${
               __NEXT_DATA__.page === context.dangerousAsPath
