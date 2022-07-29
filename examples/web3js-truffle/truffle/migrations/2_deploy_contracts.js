@@ -1,5 +1,5 @@
-const StorageContract = artifacts.require("Storage");
+const StorageContract = artifacts.require('Storage')
 
 module.exports = async function (deployer, network, accounts) {
-  await deployer.deploy(StorageContract);
-};
+  await deployer.deploy(StorageContract)
+}

@@ -1,35 +1,35 @@
-import Head from "next/head";
-import styles from "../styles/Home.module.css";
-import { useState } from "react";
-import Web3Injector from "../components/Web3Injector";
+import Head from 'next/head'
+import styles from '../styles/Home.module.css'
+import { useState } from 'react'
+import Web3Injector from '../components/Web3Injector'
 
 const Home = ({ web3, accounts, contract }) => {
-  const [inpState, setInpState] = useState("");
-  const [contractData, setContractData] = useState("");
+  const [inpState, setInpState] = useState('')
+  const [contractData, setContractData] = useState('')
 
   // retrieving data from the contract
   const retrieveData = async () => {
-    const data = await contract.methods.retrieve().call({ from: accounts[0] });
-    setContractData(data);
-  };
+    const data = await contract.methods.retrieve().call({ from: accounts[0] })
+    setContractData(data)
+  }
 
   // storing data on the contract
   const storeData = async () => {
     try {
       const receipt = await contract.methods
         .store(inpState)
-        .send({ from: accounts[0] });
-      const eventData = receipt.events.Stored.returnValues[0];
-      setInpState("");
-      alert(`Value has been set to ${eventData}, click on GET`);
+        .send({ from: accounts[0] })
+      const eventData = receipt.events.Stored.returnValues[0]
+      setInpState('')
+      alert(`Value has been set to ${eventData}, click on GET`)
     } catch (error) {
-      console.log(error);
+      console.log(error)
     }
-  };
+  }
 
   const handleChange = (e) => {
-    setInpState(e.target.value);
-  };
+    setInpState(e.target.value)
+  }
 
   return (
     <>
@@ -71,7 +71,7 @@ const Home = ({ web3, accounts, contract }) => {
         </div>
       </div>
     </>
-  );
-};
+  )
+}
 
-export default () => <Web3Injector Component={Home} />;
+export default () => <Web3Injector Component={Home} />

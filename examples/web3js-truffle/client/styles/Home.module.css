@@ -12,8 +12,6 @@
   align-items: center;
 }
 
-
-
 .title {
   margin: 0;
   line-height: 1.15;
@@ -80,9 +78,8 @@
   font-size: 1.25rem;
   line-height: 1.5;
   color: #0070f3;
-  
 }
-.card button:hover{
+.card button:hover {
   text-decoration: underline;
 }
 

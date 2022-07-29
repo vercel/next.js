@@ -1,24 +1,24 @@
-import Web3 from "web3";
-import { useEffect, useState } from "react";
-import Loader from "./Loader";
+import Web3 from 'web3'
+import { useEffect, useState } from 'react'
+import Loader from './Loader'
 
 const Web3Injector = ({ Component }) => {
-  const [web3State, setWeb3State] = useState({});
+  const [web3State, setWeb3State] = useState({})
 
   useEffect(() => {
     const setUp = async () => {
-      const { web3, accounts, contract } = await establishConnection();
+      const { web3, accounts, contract } = await establishConnection()
       setWeb3State((prevSrate) => {
         return {
           ...prevSrate,
           web3,
           accounts,
-          contract
-        };
-      });
-    };
-    setUp();
-  }, []);
+          contract,
+        }
+      })
+    }
+    setUp()
+  }, [])
   return (
     <>
       {web3State.web3 && web3State.accounts && web3State.contract ? (
@@ -27,8 +27,8 @@ const Web3Injector = ({ Component }) => {
         <Loader />
       )}
     </>
-  );
-};
+  )
+}
 
 /**
  *
@@ -42,26 +42,26 @@ const Web3Injector = ({ Component }) => {
 const establishConnection = async () => {
   // establishing connection to testRPC
   const web3Provider = new Web3.providers.WebsocketProvider(
-    "ws://localhost:8545"
-  );
-  const artifact = require("../../truffle/build/contracts/Storage.json");
+    'ws://localhost:8545'
+  )
+  const artifact = require('../../truffle/build/contracts/Storage.json')
 
-  let web3, accounts, contract;
+  let web3, accounts, contract
   try {
-    web3 = new Web3(web3Provider);
-    accounts = await web3.eth.getAccounts();
-    const networkID = await web3.eth.net.getId();
-    const address = artifact.networks[networkID].address;
-    contract = new web3.eth.Contract(artifact.abi, address);
+    web3 = new Web3(web3Provider)
+    accounts = await web3.eth.getAccounts()
+    const networkID = await web3.eth.net.getId()
+    const address = artifact.networks[networkID].address
+    contract = new web3.eth.Contract(artifact.abi, address)
   } catch (err) {
-    console.error(err);
+    console.error(err)
   }
 
   return {
     web3,
     accounts,
-    contract
-  };
-};
+    contract,
+  }
+}
 
-export default Web3Injector;
+export default Web3Injector
