@@ -104,13 +104,7 @@ export default class DevServer extends Server {
   private pagesDir: string
   private appDir?: string
   private actualMiddlewareFile?: string
-
-  /**
-   * Since the dev server is stateful and middleware routes can be added and
-   * removed over time, we need to keep a list of all of the middleware
-   * routing items to be returned in `getMiddleware()`
-   */
-  private middleware?: RoutingItem[]
+  private middleware?: RoutingItem
   private edgeFunctions?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
@@ -381,7 +375,6 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = []
         this.edgeFunctions = []
         getSortedRoutes(routedMiddleware).forEach((page) => {
           const isRootMiddleware = page === '/' && !!middlewareMatcher
@@ -397,8 +390,9 @@ export default class DevServer extends Server {
             ssr: !isRootMiddleware,
           }
 
-          this.middleware!.push(routeItem)
-          if (!isRootMiddleware) {
+          if (isRootMiddleware) {
+            this.middleware = routeItem
+          } else {
             this.edgeFunctions!.push(routeItem)
           }
         })
@@ -906,7 +900,7 @@ export default class DevServer extends Server {
   }
 
   protected getMiddleware() {
-    return this.middleware ?? []
+    return this.middleware
   }
 
   protected getEdgeFunctions() {
@@ -977,14 +971,17 @@ export default class DevServer extends Server {
       type: 'route',
       name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
       fn: async (_req, res) => {
+        const edgeRoutes = this.getEdgeFunctions().concat(
+          this.middleware ? [this.middleware] : []
+        )
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
         res
           .body(
             JSON.stringify(
-              this.getMiddleware().map((middleware) => [
-                middleware.re!.source,
-                !!middleware.ssr,
+              edgeRoutes.map((edgeRoute) => [
+                edgeRoute.re!.source,
+                !!edgeRoute.ssr,
               ])
             )
           )
