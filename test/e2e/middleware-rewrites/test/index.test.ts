@@ -27,6 +27,64 @@ describe('Middleware Rewrite', () => {
   testsWithLocale('/fr')
 
   function tests() {
+    it('should not mix component cache when navigating between dynamic routes', async () => {
+      const browser = await webdriver(next.url, '/param-1')
+
+      expect(await browser.eval('next.router.pathname')).toBe('/[param]')
+      expect(await browser.eval('next.router.query.param')).toBe('param-1')
+
+      await browser.eval(`next.router.push("/fallback-true-blog/first")`)
+      await check(
+        () => browser.eval('next.router.pathname'),
+        '/fallback-true-blog/[slug]'
+      )
+      expect(await browser.eval('next.router.query.slug')).toBe('first')
+      expect(await browser.eval('next.router.asPath')).toBe(
+        '/fallback-true-blog/first'
+      )
+
+      await browser.back()
+      await check(() => browser.eval('next.router.pathname'), '/[param]')
+      expect(await browser.eval('next.router.query.param')).toBe('param-1')
+      expect(await browser.eval('next.router.asPath')).toBe('/param-1')
+    })
+
+    it('should have props for afterFiles rewrite to SSG page', async () => {
+      let browser = await webdriver(next.url, '/')
+      await browser.eval(`next.router.push("/afterfiles-rewrite-ssg")`)
+
+      await check(
+        () => browser.eval('next.router.isReady ? "yup": "nope"'),
+        'yup'
+      )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"slug":"first"/
+      )
+
+      browser = await webdriver(next.url, '/afterfiles-rewrite-ssg')
+      await check(
+        () => browser.eval('next.router.isReady ? "yup": "nope"'),
+        'yup'
+      )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"slug":"first"/
+      )
+    })
+
+    it('should hard navigate on 404 for data request', async () => {
+      const browser = await webdriver(next.url, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval(`next.router.push("/to/some/404/path")`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /custom 404 page/
+      )
+      expect(await browser.eval('location.pathname')).toBe('/to/some/404/path')
+      expect(await browser.eval('window.beforeNav')).not.toBe(1)
+    })
+
     // TODO: middleware effect headers aren't available here
     it.skip('includes the locale in rewrites by default', async () => {
       const res = await fetchViaHTTP(next.url, `/rewrite-me-to-about`)

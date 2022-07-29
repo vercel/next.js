@@ -148,11 +148,26 @@ export interface ExperimentalConfig {
   largePageDataBytes?: number
 }
 
+export type ExportPathMap = {
+  [path: string]: { page: string; query?: Record<string, string | string[]> }
+}
+
 /**
  * Next configuration object
  * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
+  exportPathMap?: (
+    defaultMap: ExportPathMap,
+    ctx: {
+      dev: boolean
+      dir: string
+      outDir: string | null
+      distDir: string
+      buildId: string
+    }
+  ) => Promise<ExportPathMap> | ExportPathMap
+
   /**
    * Internationalization configuration
    *
