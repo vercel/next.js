@@ -416,7 +416,7 @@ pub fn publish_workspace() {
                 ""
             }
         };
-        let npm_publish = format!("npm publish --dry-run {}", tag);
+        let npm_publish = format!("npm publish {}", tag);
         Command::program("yarn")
             .args(&["workspace", pkg_name.as_str(), "exec", &npm_publish])
             .error_message("Publish failed")
