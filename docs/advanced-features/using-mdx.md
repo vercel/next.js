@@ -64,6 +64,8 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
      - package.json
    ```
 
+> **Note**: When installing `MDX` packages, you might get a warning message that requires webpack to be installed as a peer dependency. This can be ignored since Next.js already comes with webpack bundled in.
+
 ## Using Components, Layouts and Custom Elements
 
 You can now import a React component directly inside your MDX page:
