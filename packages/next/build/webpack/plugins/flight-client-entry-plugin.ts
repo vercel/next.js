@@ -140,14 +140,14 @@ export class FlightClientEntryPlugin {
 
   async injectClientEntry(
     compilation: any,
-    name: string,
+    entryName: string,
     entryDependency: any,
     clientComponentImports: ClientComponentImports
   ) {
     const entryModule =
       compilation.moduleGraph.getResolvedModule(entryDependency)
     const routeInfo = entryModule.buildInfo.route || {
-      page: denormalizePagePath(name.replace(/^pages/, '')),
+      page: denormalizePagePath(entryName.replace(/^pages/, '')),
       absolutePagePath: entryModule.resource,
     }
 
@@ -197,7 +197,7 @@ export class FlightClientEntryPlugin {
       const clientComponentEntryDep = (
         webpack as any
       ).EntryPlugin.createDependency(clientSSRLoader, {
-        name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+        name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
       })
 
       compilation.addEntry(
@@ -206,7 +206,7 @@ export class FlightClientEntryPlugin {
         clientComponentEntryDep,
         this.isEdgeServer
           ? {
-              name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+              name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
               library: {
                 name: ['self._CLIENT_ENTRY'],
                 type: 'assign',
@@ -215,7 +215,7 @@ export class FlightClientEntryPlugin {
               asyncChunks: false,
             }
           : {
-              name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+              name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
               runtime: 'webpack-runtime',
             },
         (err: Error) => {
