@@ -70,8 +70,8 @@ describe('app dir', () => {
     // should load chunks generated via async import correctly with React.lazy
     expect(html).toContain('hello from lazy')
     // should support `dynamic` in both server and client components
-    expect(html).toContain('hello from modern the dynamic on server')
-    expect(html).toContain('hello from modern the dynamic on client')
+    expect(html).toContain('hello from dynamic on server')
+    expect(html).toContain('hello from dynamic on client')
   })
 
   // TODO-APP: handle css modules fouc in dev
