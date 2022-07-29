@@ -49,8 +49,7 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
-import { ParsedUrlQuery, stringify } from 'querystring'
-import resolveRewrites from '../../shared/lib/router/utils/resolve-rewrites'
+import { stringify } from 'querystring'
 
 const wsServer = new ws.Server({ noServer: true })
 
