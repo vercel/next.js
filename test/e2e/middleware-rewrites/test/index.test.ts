@@ -27,6 +27,30 @@ describe('Middleware Rewrite', () => {
   testsWithLocale('/fr')
 
   function tests() {
+    it('should have props for afterFiles rewrite to SSG page', async () => {
+      let browser = await webdriver(next.url, '/')
+      await browser.eval(`next.router.push("/afterfiles-rewrite-ssg")`)
+
+      await check(
+        () => browser.eval('next.router.isReady ? "yup": "nope"'),
+        'yup'
+      )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"slug":"first"/
+      )
+
+      browser = await webdriver(next.url, '/afterfiles-rewrite-ssg')
+      await check(
+        () => browser.eval('next.router.isReady ? "yup": "nope"'),
+        'yup'
+      )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"slug":"first"/
+      )
+    })
+
     it('should hard navigate on 404 for data request', async () => {
       const browser = await webdriver(next.url, '/')
       await browser.eval('window.beforeNav = 1')

@@ -1747,7 +1747,10 @@ export default class Router implements BaseRouter {
         route = removeTrailingSlash(data.effect.resolvedHref)
         pathname = data.effect.resolvedHref
         query = { ...query, ...data.effect.parsedAs.query }
-        resolvedAs = data.effect.parsedAs.pathname
+        resolvedAs = removeBasePath(
+          normalizeLocalePath(data.effect.parsedAs.pathname, this.locales)
+            .pathname
+        )
 
         // Check again the cache with the new destination.
         existingInfo = this.components[route]
@@ -1806,20 +1809,24 @@ export default class Router implements BaseRouter {
       const { props } = await this._getData(async () => {
         if (shouldFetchData && !useStreamedFlightData) {
           const { json } =
-            data ||
-            (await fetchNextData({
-              dataHref: this.pageLoader.getDataHref({
-                href: formatWithValidation({ pathname, query }),
-                asPath: resolvedAs,
-                locale,
-              }),
-              isServerRender: this.isSsr,
-              parseJSON: true,
-              inflightCache: this.sdc,
-              persistCache: !isPreview,
-              isPrefetch: false,
-              unstable_skipClientCache,
-            }))
+            data?.json &&
+            data?.response.headers
+              .get('content-type')
+              ?.includes('application/json')
+              ? data
+              : await fetchNextData({
+                  dataHref: this.pageLoader.getDataHref({
+                    href: formatWithValidation({ pathname, query }),
+                    asPath: resolvedAs,
+                    locale,
+                  }),
+                  isServerRender: this.isSsr,
+                  parseJSON: true,
+                  inflightCache: this.sdc,
+                  persistCache: !isPreview,
+                  isPrefetch: false,
+                  unstable_skipClientCache,
+                })
 
           return {
             props: json,
