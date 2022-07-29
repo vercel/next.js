@@ -78,29 +78,9 @@ export async function renderScriptError(
   res.end('500 - Internal Error')
 }
 
-function isApiRouteAfterRewrites(
-  parsedUrl: UrlObject,
-  rewrites: HotReloader['rewrites']
-): boolean {
-  const rewrittenRoute = resolveRewrites(
-    parsedUrl.pathname as string,
-    [],
-    rewrites,
-    parsedUrl.query as ParsedUrlQuery,
-    (s) => s
-  ).resolvedHref
-  if (!rewrittenRoute)
-    return Boolean((parsedUrl.pathname || '').match(API_ROUTE))
-  return Boolean(rewrittenRoute.match(API_ROUTE))
-}
-
-function addCorsSupport(
-  req: IncomingMessage,
-  res: ServerResponse,
-  isApiRoute: boolean
-) {
-  // API routes handle their own CORS headers
-  if (isApiRoute) {
+function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
+  // Only rewrite CORS handling when URL matches a hot-reloader middleware
+  if (!req.url!.startsWith('/__next')) {
     return { preflight: false }
   }
 
@@ -254,11 +234,7 @@ export default class HotReloader {
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
     // That's when the CORS support is needed.
-    const { preflight } = addCorsSupport(
-      req,
-      res,
-      isApiRouteAfterRewrites(parsedUrl, this.rewrites)
-    )
+    const { preflight } = addCorsSupport(req, res)
     if (preflight) {
       return {}
     }
