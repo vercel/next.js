@@ -67,8 +67,11 @@ describe('app dir', () => {
   it('should serve /index as separate page', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/index')
     expect(html).toContain('hello from app/dashboard/index')
-    // should load chunks generated via async import correctly
+    // should load chunks generated via async import correctly with React.lazy
     expect(html).toContain('hello from lazy')
+    // should support `dynamic` in both server and client components
+    expect(html).toContain('hello from dynamic on server')
+    expect(html).toContain('hello from dynamic on client')
   })
 
   // TODO-APP: handle css modules fouc in dev
@@ -77,7 +80,7 @@ describe('app dir', () => {
 
     expect(
       await browser.eval(
-        `window.getComputedStyle(document.querySelector('#css-text-dynamic')).color`
+        `window.getComputedStyle(document.querySelector('#css-text-dynamic-server')).color`
       )
     ).toBe('rgb(0, 0, 255)')
     expect(
