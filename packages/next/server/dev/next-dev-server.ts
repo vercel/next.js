@@ -387,7 +387,6 @@ export default class DevServer extends Server {
             match: getRouteMatcher(middlewareRegex),
             page,
             re: middlewareRegex.re,
-            ssr: !isRootMiddleware,
           }
 
           if (isRootMiddleware) {
@@ -911,17 +910,16 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected async hasMiddleware(
-    pathname: string,
-    isSSR?: boolean
-  ): Promise<boolean> {
-    return this.hasPage(isSSR ? pathname : this.actualMiddlewareFile!)
+  protected async hasMiddleware(): Promise<boolean> {
+    return this.hasPage(this.actualMiddlewareFile!)
   }
 
-  protected async ensureMiddleware(pathname: string, isSSR?: boolean) {
-    return this.hotReloader!.ensurePage(
-      isSSR ? pathname : this.actualMiddlewareFile!
-    )
+  protected async ensureMiddleware() {
+    return this.hotReloader!.ensurePage(this.actualMiddlewareFile!)
+  }
+
+  protected async ensureEdgeFunction(pathname: string) {
+    return this.hotReloader!.ensurePage(pathname)
   }
 
   generateRoutes() {
@@ -979,10 +977,7 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify(
-              edgeRoutes.map((edgeRoute) => [
-                edgeRoute.re!.source,
-                !!edgeRoute.ssr,
-              ])
+              edgeRoutes.map((edgeRoute) => [edgeRoute.re!.source])
             )
           )
           .send()

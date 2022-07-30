@@ -87,7 +87,6 @@ export type FindComponentsResult = {
 export interface RoutingItem {
   page: string
   match: RouteMatch
-  ssr?: boolean
   re?: RegExp
 }
 
