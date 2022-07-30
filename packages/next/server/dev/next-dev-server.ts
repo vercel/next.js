@@ -387,7 +387,6 @@ export default class DevServer extends Server {
             match: getRouteMatcher(middlewareRegex),
             page,
             re: middlewareRegex.re,
-            ssr: !isRootMiddleware,
           }
 
           if (isRootMiddleware) {
@@ -978,10 +977,7 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify(
-              edgeRoutes.map((edgeRoute) => [
-                edgeRoute.re!.source,
-                !!edgeRoute.ssr,
-              ])
+              edgeRoutes.map((edgeRoute) => [edgeRoute.re!.source])
             )
           )
           .send()
