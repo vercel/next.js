@@ -88,7 +88,6 @@ const externals = {
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
-  'node-sass': 'node-sass',
   sass: 'sass',
   fibers: 'fibers',
 
@@ -1480,7 +1479,7 @@ export async function ncc_sass_loader(task, opts) {
   await fs.writeFile(
     utilsPath,
     originalContent.replace(
-      /require\.resolve\(["'](sass|node-sass)["']\)/g,
+      /require\.resolve\(["'](sass)["']\)/g,
       'eval("require").resolve("$1")'
     )
   )
