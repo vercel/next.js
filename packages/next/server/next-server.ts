@@ -1222,7 +1222,7 @@ export default class NextNodeServer extends BaseServer {
       await this.ensureMiddleware()
       const middlewareInfo = this.getEdgeFunctionInfo({
         page: middleware.page,
-        middleware: !middleware.ssr,
+        middleware: true,
       })
 
       if (!middlewareInfo) {
