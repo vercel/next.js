@@ -13,6 +13,7 @@ import {
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   SERVER_RUNTIME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -1307,14 +1308,14 @@ export default async function getBaseWebpackConfig(
                 // RSC server compilation loaders
                 {
                   ...serverComponentCodeCondition,
-                  issuerLayer: 'sc_server',
+                  issuerLayer: WEBPACK_LAYERS.server,
                   use: {
                     loader: 'next-flight-server-loader',
                   },
                 },
                 {
                   test: clientComponentRegex,
-                  issuerLayer: 'sc_server',
+                  issuerLayer: WEBPACK_LAYERS.server,
                   use: {
                     loader: 'next-flight-client-loader',
                   },
@@ -1322,7 +1323,7 @@ export default async function getBaseWebpackConfig(
                 // _app should be treated as a client component as well as all its dependencies.
                 {
                   test: new RegExp(`_app\\.(${rawPageExtensions.join('|')})$`),
-                  layer: 'sc_client',
+                  layer: WEBPACK_LAYERS.client,
                 },
               ]
             : []
@@ -1333,13 +1334,13 @@ export default async function getBaseWebpackConfig(
               // same layer.
               {
                 test: rscSharedRegex,
-                layer: 'rsc_shared_deps',
+                layer: WEBPACK_LAYERS.rscShared,
               },
             ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
-          issuerLayer: 'api',
+          issuerLayer: WEBPACK_LAYERS.api,
           parser: {
             // Switch back to normal URL handling
             url: true,
@@ -1349,7 +1350,7 @@ export default async function getBaseWebpackConfig(
           oneOf: [
             {
               ...codeCondition,
-              issuerLayer: 'api',
+              issuerLayer: WEBPACK_LAYERS.api,
               parser: {
                 // Switch back to normal URL handling
                 url: true,
@@ -1358,7 +1359,7 @@ export default async function getBaseWebpackConfig(
             },
             {
               ...codeCondition,
-              issuerLayer: 'middleware',
+              issuerLayer: WEBPACK_LAYERS.middleware,
               use: getBabelOrSwcLoader(),
             },
             {
@@ -1396,7 +1397,7 @@ export default async function getBaseWebpackConfig(
               {
                 oneOf: [
                   {
-                    issuerLayer: 'middleware',
+                    issuerLayer: WEBPACK_LAYERS.middleware,
                     resolve: {
                       fallback: {
                         process: require.resolve('./polyfills/process'),
@@ -1778,10 +1779,10 @@ export default async function getBaseWebpackConfig(
       dependency: 'url',
       loader: 'next-middleware-asset-loader',
       type: 'javascript/auto',
-      layer: 'edge-asset',
+      layer: WEBPACK_LAYERS.edgeAsset,
     })
     webpack5Config.module?.rules?.unshift({
-      issuerLayer: 'edge-asset',
+      issuerLayer: WEBPACK_LAYERS.edgeAsset,
       type: 'asset/source',
     })
   }

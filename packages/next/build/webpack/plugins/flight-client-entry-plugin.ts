@@ -17,7 +17,7 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
 
 interface Options {
   dev: boolean
@@ -55,11 +55,11 @@ export class FlightClientEntryPlugin {
     )
 
     compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
-      return this.createClientEndpoints(compilation)
+      return this.createClientEndpoints(compiler, compilation)
     })
   }
 
-  async createClientEndpoints(compilation: any) {
+  async createClientEndpoints(compiler: any, compilation: any) {
     const promises: Array<Promise<void>> = []
 
     // For each SC server compilation entry, we need to create its corresponding
@@ -69,11 +69,18 @@ export class FlightClientEntryPlugin {
       const entryDependency = entry.dependencies?.[0]
 
       const [clientComponentImports, cssImports] =
-        this.collectClientComponentsForDependency(compilation, entryDependency)
+        this.collectClientComponentsAndCSSForDependency(
+          compilation,
+          entryDependency
+        )
 
-      if (entryDependency?.request && entry.options?.layer === 'sc_server') {
+      if (
+        entryDependency?.request &&
+        entry.options?.layer === WEBPACK_LAYERS.server
+      ) {
         promises.push(
           this.injectClientEntry(
+            compiler,
             compilation,
             name,
             entryDependency,
@@ -87,7 +94,7 @@ export class FlightClientEntryPlugin {
     await Promise.all(promises)
   }
 
-  collectClientComponentsForDependency(
+  collectClientComponentsAndCSSForDependency(
     compilation: any,
     entryDependency: any
   ): [ClientComponentImports, CssImports] {
@@ -160,6 +167,7 @@ export class FlightClientEntryPlugin {
   }
 
   async injectClientEntry(
+    compiler: any,
     compilation: any,
     entryName: string,
     entryDependency: any,
@@ -189,6 +197,7 @@ export class FlightClientEntryPlugin {
 
       const bundlePath = 'app' + normalizePagePath(routeInfo.page)
 
+      // Add for the client compilation
       // Inject the entry to the client compiler.
       if (this.dev) {
         const pageKey = 'client' + routeInfo.page
@@ -223,9 +232,10 @@ export class FlightClientEntryPlugin {
         name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
       })
 
+      // Only adds to the server compilation here.
       compilation.addEntry(
         // Reuse compilation context.
-        compilation.options.context,
+        compiler.context,
         clientComponentEntryDep,
         this.isEdgeServer
           ? {

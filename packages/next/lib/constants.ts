@@ -75,3 +75,12 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   edge: 'experimental-edge',
   nodejs: 'nodejs',
 }
+
+export const WEBPACK_LAYERS = {
+  server: 'sc_server',
+  client: 'sc_client',
+  api: 'api',
+  rscShared: 'rsc_shared_deps',
+  middleware: 'middleware',
+  edgeAsset: 'edge-asset',
+}

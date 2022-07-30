@@ -16,6 +16,7 @@ import {
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   SERVER_RUNTIME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -203,7 +204,7 @@ export function getEdgeServerEntry(opts: {
 
   return {
     import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
-    layer: opts.isServerComponent ? 'sc_server' : undefined,
+    layer: opts.isServerComponent ? WEBPACK_LAYERS.server : undefined,
   }
 }
 
@@ -215,7 +216,7 @@ export function getAppEntry(opts: {
 }) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
-    layer: 'sc_server',
+    layer: WEBPACK_LAYERS.server,
   }
 }
 
@@ -393,7 +394,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             server[serverBundlePath] = isServerComponent
               ? {
                   import: mappings[page],
-                  layer: 'sc_server',
+                  layer: WEBPACK_LAYERS.server,
                 }
               : [mappings[page]]
           }
@@ -487,14 +488,21 @@ export function finalizeEntrypoint({
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-      layer: isApi ? 'api' : isServerComponent ? 'sc_server' : undefined,
+      layer: isApi
+        ? WEBPACK_LAYERS.api
+        : isServerComponent
+        ? WEBPACK_LAYERS.server
+        : undefined,
       ...entry,
     }
   }
 
   if (compilerType === 'edge-server') {
     return {
-      layer: isMiddlewareFilename(name) || isApi ? 'middleware' : undefined,
+      layer:
+        isMiddlewareFilename(name) || isApi
+          ? WEBPACK_LAYERS.middleware
+          : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,
