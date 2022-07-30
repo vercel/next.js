@@ -1052,16 +1052,16 @@ export default class NextNodeServer extends BaseServer {
    * overridden by the development server in order to use a different source
    * to get the list.
    */
-  protected getMiddleware(): RoutingItem[] {
+  protected getMiddleware(): RoutingItem | undefined {
     const manifest = this.getMiddlewareManifest()
     if (!manifest) {
-      return []
+      return
     }
 
     return manifest.sortedMiddleware.map((page) => ({
       match: getMiddlewareMatcher(manifest.middleware[page]),
       page,
-    }))
+    }))[0]
   }
 
   protected getEdgeFunctions(): RoutingItem[] {
@@ -1074,6 +1074,13 @@ export default class NextNodeServer extends BaseServer {
       match: getMiddlewareMatcher(manifest.functions[page]),
       page,
     }))
+  }
+
+  protected getEdgeRoutes(): RoutingItem[] {
+    const edgeFunctions = this.getEdgeFunctions()
+    const middleware = this.getMiddleware()
+
+    return edgeFunctions.concat(middleware ? [middleware] : [])
   }
 
   /**
@@ -1203,8 +1210,8 @@ export default class NextNodeServer extends BaseServer {
     let result: FetchEventResult | null = null
     const method = (params.request.method || 'GET').toUpperCase()
 
-    const middlewareList = this.getMiddleware()
-    for (const middleware of middlewareList) {
+    const edgeRoutesList = this.getEdgeRoutes()
+    for (const middleware of edgeRoutesList) {
       if (middleware.match(normalizedPathname)) {
         if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
@@ -1329,7 +1336,7 @@ export default class NextNodeServer extends BaseServer {
       name: 'middleware catchall',
       fn: async (req, res, _params, parsed) => {
         const middleware = this.getMiddleware()
-        if (!middleware.length) {
+        if (!middleware) {
           return { finished: false }
         }
 
@@ -1341,11 +1348,13 @@ export default class NextNodeServer extends BaseServer {
 
         parsedUrl.pathname = pathnameInfo.pathname
         const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
-        if (!middleware.some((m) => m.match(normalizedPathname))) {
+        if (!middleware.match(normalizedPathname)) {
           return { finished: false }
         }
 
-        let result: Awaited<ReturnType<typeof this.runMiddleware>>
+        let result: Awaited<
+          ReturnType<typeof NextNodeServer.prototype.runMiddleware>
+        >
 
         try {
           result = await this.runMiddleware({
@@ -1492,7 +1501,7 @@ export default class NextNodeServer extends BaseServer {
 
     const routes = []
     if (!this.renderOpts.dev || devReady) {
-      if (this.getMiddleware().length) routes[0] = middlewareCatchAllRoute
+      if (this.getMiddleware()) routes[0] = middlewareCatchAllRoute
       if (this.getEdgeFunctions().length) routes[1] = edgeCatchAllRoute
     }
 
