@@ -13,7 +13,7 @@
                 Object,
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('keys' type=inline),
                 ),
             ),
@@ -38,7 +38,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('keys' type=inline),
                 ),
             ),

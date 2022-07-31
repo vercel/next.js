@@ -60,7 +60,6 @@ fn program_iife(program: &Program) -> Option<&Vec<Stmt>> {
                 return iife(stmt);
             }
         }
-        _ => unimplemented!(),
     }
     None
 }

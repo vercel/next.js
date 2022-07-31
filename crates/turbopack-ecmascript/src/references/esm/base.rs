@@ -129,9 +129,10 @@ fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
                     ..
                 })) = item
                 {
-                    return &*s.value == *ESM_HOISTING_LOCATION;
+                    &*s.value == *ESM_HOISTING_LOCATION
+                } else {
+                    false
                 }
-                return false;
             });
             if let Some(pos) = pos {
                 body.insert(pos, ModuleItem::Stmt(stmt));
@@ -153,9 +154,10 @@ fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
                     ..
                 }) = item
                 {
-                    return &*s.value == *ESM_HOISTING_LOCATION;
+                    &*s.value == *ESM_HOISTING_LOCATION
+                } else {
+                    false
                 }
-                return false;
             });
             if let Some(pos) = pos {
                 body.insert(pos, stmt);
@@ -170,6 +172,5 @@ fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
                 body.insert(0, stmt);
             }
         }
-        _ => unimplemented!(),
     }
 }

@@ -224,11 +224,8 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
     let mut iter = results_final.into_iter();
     let first = iter.next().unwrap();
 
-    let is_already_absolute = first.as_str().map_or(false, |s| s.is_empty())
-        || match &first {
-            JsValue::Constant(ConstantValue::Str(s)) => s.starts_with('/'),
-            _ => false,
-        };
+    let is_already_absolute =
+        first.as_str().map_or(false, |s| s.is_empty()) || first.starts_with("/");
 
     let mut last_was_str = first.as_str().is_some();
 
@@ -255,15 +252,16 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     if let Some(arg) = args.iter_mut().next() {
         if let Some(str) = arg.as_str() {
             if let Some(i) = str.rfind('/') {
-                return JsValue::Constant(ConstantValue::Str(str[..i].to_string().into()));
+                return JsValue::Constant(ConstantValue::StrWord(str[..i].to_string().into()));
             } else {
-                return JsValue::Constant(ConstantValue::Str("".into()));
+                return JsValue::Constant(ConstantValue::StrWord("".into()));
             }
         } else if let JsValue::Concat(_, items) = arg {
             if let Some(last) = items.last_mut() {
                 if let Some(str) = last.as_str() {
                     if let Some(i) = str.rfind('/') {
-                        *last = JsValue::Constant(ConstantValue::Str(str[..i].to_string().into()));
+                        *last =
+                            JsValue::Constant(ConstantValue::StrWord(str[..i].to_string().into()));
                         return take(arg);
                     }
                 }
@@ -281,15 +279,16 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
 
 pub fn require(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
-        match &args[0] {
-            JsValue::Constant(ConstantValue::Str(s)) => JsValue::Module(s.clone()),
-            _ => JsValue::Unknown(
+        if let Some(s) = args[0].as_str() {
+            JsValue::Module(s.into())
+        } else {
+            JsValue::Unknown(
                 Some(Arc::new(JsValue::call(
                     box JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                     args,
                 ))),
                 "only constant argument is supported",
-            ),
+            )
         }
     } else {
         JsValue::Unknown(
@@ -304,8 +303,8 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
 
 pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
-        match &args[0] {
-            JsValue::Constant(ConstantValue::Str(path)) => Url::from_file_path(&**path)
+        if let Some(path) = args[0].as_str() {
+            Url::from_file_path(path)
                 .map(JsValue::Url)
                 .unwrap_or_else(|_err| {
                     JsValue::Unknown(
@@ -316,14 +315,15 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
                         // TODO include err in message
                         "url not parseable",
                     )
-                }),
-            _ => JsValue::Unknown(
+                })
+        } else {
+            JsValue::Unknown(
                 Some(Arc::new(JsValue::call(
                     box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                     args,
                 ))),
                 "only constant argument is supported",
-            ),
+            )
         }
     } else {
         JsValue::Unknown(
@@ -419,12 +419,12 @@ pub fn path_module_member(prop: JsValue) -> JsValue {
 }
 
 pub fn fs_module_member(prop: JsValue) -> JsValue {
-    if let Some(word) = prop.as_word() {
-        match &**word {
+    if let Some(word) = prop.as_str() {
+        match word {
             "realpath" | "realpathSync" | "stat" | "statSync" | "existsSync"
             | "createReadStream" | "exists" | "open" | "openSync" | "readFile" | "readFileSync" => {
                 return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
-                    word.clone(),
+                    word.into(),
                 ));
             }
             "promises" => return JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
@@ -454,10 +454,11 @@ pub fn url_module_member(prop: JsValue) -> JsValue {
 }
 
 pub fn child_process_module_member(prop: JsValue) -> JsValue {
-    match prop.as_str() {
+    let prop_str = prop.as_str();
+    match prop_str {
         Some("spawn") | Some("spawnSync") | Some("execFile") | Some("execFileSync") => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(
-                prop.as_word().unwrap().clone(),
+                prop_str.unwrap().into(),
             ))
         }
         Some("fork") => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork),

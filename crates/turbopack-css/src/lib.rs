@@ -119,7 +119,7 @@ impl CssChunkItem for ModuleChunkItem {
         for reference in references.iter() {
             if let Some(import) = ImportAssetReferenceVc::resolve_from(reference).await? {
                 for asset in &*import.resolve_reference().primary_assets().await? {
-                    if let Some(_) = CssChunkPlaceableVc::resolve_from(asset).await? {
+                    if CssChunkPlaceableVc::resolve_from(asset).await?.is_some() {
                         imports.push((import, asset.path().to_string()));
                     }
                 }

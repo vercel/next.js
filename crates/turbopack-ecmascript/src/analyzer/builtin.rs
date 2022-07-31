@@ -75,7 +75,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             }
                         }
                         JsValue::Constant(c) => {
-                            if let ConstantValue::Str(s) = c {
+                            if let Some(s) = c.as_str() {
                                 if ARRAY_METHODS.iter().any(|method| *method == s) {
                                     return false;
                                 }
@@ -253,8 +253,8 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
             match obj {
                 JsValue::Array(_, items) => {
-                    if let JsValue::Constant(ConstantValue::Str(str)) = prop {
-                        match &**str {
+                    if let Some(str) = prop.as_str() {
+                        match str {
                             "concat" => {
                                 if args.iter().all(|arg| {
                                     matches!(

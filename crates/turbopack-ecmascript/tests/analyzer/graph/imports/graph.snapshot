@@ -7,7 +7,7 @@
                 Atom('x2' type=inline),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('a' type=inline),
                 ),
             ),
@@ -21,7 +21,7 @@
                 Atom('x1' type=inline),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('default' type=static),
                 ),
             ),

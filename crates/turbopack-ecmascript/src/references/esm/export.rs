@@ -15,7 +15,7 @@ use turbo_tasks::{primitives::StringsVc, trace::TraceRawVcs, ValueToString};
 use turbopack_core::chunk::ChunkingContextVc;
 
 use super::{
-    esm::{get_ident, ReferencedAsset},
+    base::{get_ident, ReferencedAsset},
     EsmAssetReferenceVc,
 };
 use crate::{
@@ -110,10 +110,10 @@ impl CodeGenerateable for EsmExports {
             if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
                 let export_names = expand_star_exports(*asset).await?;
                 for export in export_names.iter() {
-                    if !all_exports.contains_key(&Cow::<str>::Borrowed(&export)) {
+                    if !all_exports.contains_key(&Cow::<str>::Borrowed(export)) {
                         all_exports.insert(
                             Cow::Owned(export.clone()),
-                            Cow::Owned(EsmExport::ImportedBinding(*esm_ref, export.clone())),
+                            Cow::Owned(EsmExport::ImportedBinding(*esm_ref, export.to_string())),
                         );
                     }
                 }
@@ -189,7 +189,6 @@ impl CodeGenerateable for EsmExports {
                 Program::Script(Script { body, .. }) => {
                     body.insert(0, stmt);
                 }
-                _ => unimplemented!()
             }
         }));
 

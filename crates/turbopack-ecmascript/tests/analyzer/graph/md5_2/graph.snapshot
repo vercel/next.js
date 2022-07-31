@@ -12,7 +12,7 @@
                     ),
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('endian' type=inline),
                     ),
                 ),
@@ -156,7 +156,7 @@
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('bytesToString' type=dynamic),
                             ),
                         ),
@@ -178,7 +178,7 @@
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('bytesToHex' type=dynamic),
                             ),
                         ),
@@ -206,7 +206,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('_ff' type=inline),
                 ),
             ),
@@ -223,7 +223,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('_gg' type=inline),
                 ),
             ),
@@ -240,7 +240,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('_hh' type=inline),
                 ),
             ),
@@ -257,7 +257,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('_ii' type=inline),
                 ),
             ),
@@ -2737,14 +2737,14 @@
                 ),
                 [
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charenc' type=inline),
                         ),
                     ),
                 ],
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('bin' type=inline),
                 ),
             ),
@@ -3990,7 +3990,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('crypt' type=inline),
                     ),
                 ),
@@ -5240,7 +5240,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('wordsToBytes' type=dynamic),
                 ),
             ),
@@ -5290,7 +5290,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('is-buffer' type=dynamic),
                     ),
                 ),
@@ -5315,7 +5315,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('bytesToWords' type=dynamic),
                 ),
             ),
@@ -5355,7 +5355,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('stringToBytes' type=dynamic),
                         ),
                     ),
@@ -5377,7 +5377,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('stringToBytes' type=dynamic),
                         ),
                     ),
@@ -5402,19 +5402,19 @@
                                 ),
                             ),
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('prototype' type=dynamic),
                                 ),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('slice' type=inline),
                             ),
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('call' type=static),
                         ),
                     ),
@@ -5443,7 +5443,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('toString' type=static),
                         ),
                     ),
@@ -5641,14 +5641,14 @@
                 ),
                 [
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charenc' type=inline),
                         ),
                     ),
                 ],
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('utf8' type=inline),
                 ),
             ),

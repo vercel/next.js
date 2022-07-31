@@ -57,12 +57,12 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('1' type=inline),
                     ),
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('2' type=inline),
                     ),
                 ),

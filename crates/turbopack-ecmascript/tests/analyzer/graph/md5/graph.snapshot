@@ -5016,7 +5016,7 @@
                                         ),
                                     ),
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('charAt' type=inline),
                                         ),
                                     ),
@@ -5036,7 +5036,7 @@
                                         ),
                                     ),
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('charAt' type=inline),
                                         ),
                                     ),
@@ -5064,7 +5064,7 @@
     (
         "hexTab",
         Constant(
-            Str(
+            StrWord(
                 Atom('0123456789abcdef' type=dynamic),
             ),
         ),

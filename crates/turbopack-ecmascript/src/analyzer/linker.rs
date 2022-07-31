@@ -11,15 +11,14 @@ use swc_ecma_ast::Id;
 
 use super::{graph::VarGraph, JsValue};
 
+type LinkCacheValue = (
+    Option<JsValue>,
+    Vec<Vec<(HashSet<Id>, Vec<(HashSet<Id>, JsValue)>)>>,
+);
+
 #[derive(Default)]
 pub struct LinkCache {
-    data: HashMap<
-        Id,
-        (
-            Option<JsValue>,
-            Vec<Vec<(HashSet<Id>, Vec<(HashSet<Id>, JsValue)>)>>,
-        ),
-    >,
+    data: HashMap<Id, LinkCacheValue>,
 }
 
 const LIMIT_CACHE_COMBINATIONS: usize = 100;

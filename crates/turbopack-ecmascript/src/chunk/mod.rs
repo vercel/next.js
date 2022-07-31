@@ -356,6 +356,7 @@ pub struct EcmascriptChunkItemContent {
 pub struct EcmascriptChunkItemOptions {
     pub module: bool,
     pub exports: bool,
+    pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value_trait]

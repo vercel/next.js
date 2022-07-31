@@ -10,7 +10,7 @@ use std::{
 
 use indexmap::IndexSet;
 use num_bigint::BigInt;
-use swc_atoms::{js_word, JsWord};
+use swc_atoms::{Atom, JsWord};
 use swc_common::Mark;
 use swc_ecma_ast::{Id, Ident, Lit};
 use url::Url;
@@ -69,13 +69,24 @@ impl Eq for ConstantNumber {}
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ConstantValue {
     Undefined,
-    Str(JsWord),
+    StrWord(JsWord),
+    StrAtom(Atom),
     Num(ConstantNumber),
     True,
     False,
     Null,
     BigInt(BigInt),
-    Regex(JsWord, JsWord),
+    Regex(Atom, Atom),
+}
+
+impl ConstantValue {
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::StrWord(s) => Some(s),
+            Self::StrAtom(s) => Some(s),
+            _ => None,
+        }
+    }
 }
 
 impl Default for ConstantValue {
@@ -87,7 +98,7 @@ impl Default for ConstantValue {
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(v.value),
+            Lit::Str(v) => ConstantValue::StrWord(v.value),
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -99,7 +110,7 @@ impl From<Lit> for ConstantValue {
             Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
             Lit::BigInt(v) => ConstantValue::BigInt(v.value),
             Lit::Regex(v) => ConstantValue::Regex(v.exp, v.flags),
-            Lit::JSXText(v) => ConstantValue::Str(v.value),
+            Lit::JSXText(v) => ConstantValue::StrAtom(v.value),
         }
     }
 }
@@ -108,7 +119,8 @@ impl Display for ConstantValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ConstantValue::Undefined => write!(f, "undefined"),
-            ConstantValue::Str(str) => write!(f, "\"{str}\""),
+            ConstantValue::StrWord(str) => write!(f, "\"{str}\""),
+            ConstantValue::StrAtom(str) => write!(f, "\"{str}\""),
             ConstantValue::True => write!(f, "true"),
             ConstantValue::False => write!(f, "false"),
             ConstantValue::Null => write!(f, "null"),
@@ -177,13 +189,19 @@ pub enum JsValue {
 
 impl From<&'_ str> for JsValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(v.into()).into()
+        ConstantValue::StrWord(v.into()).into()
     }
 }
 
 impl From<JsWord> for JsValue {
     fn from(v: JsWord) -> Self {
-        ConstantValue::Str(v).into()
+        ConstantValue::StrWord(v).into()
+    }
+}
+
+impl From<Atom> for JsValue {
+    fn from(v: Atom) -> Self {
+        ConstantValue::StrAtom(v).into()
     }
 }
 
@@ -201,13 +219,13 @@ impl From<f64> for JsValue {
 
 impl From<String> for JsValue {
     fn from(v: String) -> Self {
-        ConstantValue::Str(v.into()).into()
+        ConstantValue::StrWord(v.into()).into()
     }
 }
 
 impl From<swc_ecma_ast::Str> for JsValue {
     fn from(v: swc_ecma_ast::Str) -> Self {
-        ConstantValue::Str(v.value).into()
+        ConstantValue::StrWord(v.value).into()
     }
 }
 
@@ -269,10 +287,9 @@ impl Display for JsValue {
                 f,
                 "`{}`",
                 list.iter()
-                    .map(|v| match v {
-                        JsValue::Constant(ConstantValue::Str(str)) => str.to_string(),
-                        _ => format!("${{{}}}", v),
-                    })
+                    .map(|v| v
+                        .as_str()
+                        .map_or_else(|| format!("${{{}}}", v), |str| str.to_string()))
                     .collect::<Vec<_>>()
                     .join("")
             ),
@@ -361,6 +378,13 @@ fn total_nodes(vec: &[JsValue]) -> usize {
 }
 
 impl JsValue {
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            JsValue::Constant(c) => c.as_str(),
+            _ => None,
+        }
+    }
+
     pub fn alternatives(list: Vec<JsValue>) -> Self {
         Self::Alternatives(1 + total_nodes(&list), list)
     }
@@ -680,13 +704,13 @@ impl JsValue {
             JsValue::Concat(_, list) => format!(
                 "`{}`",
                 list.iter()
-                    .map(|v| match v {
-                        JsValue::Constant(ConstantValue::Str(str)) => str.to_string(),
-                        _ => format!(
+                    .map(|v| v.as_str().map_or_else(
+                        || format!(
                             "${{{}}}",
                             v.explain_internal_inner(hints, indent_depth + 1, depth, unknown_depth)
                         ),
-                    })
+                        |str| str.to_string()
+                    ))
                     .collect::<Vec<_>>()
                     .join("")
             ),
@@ -949,22 +973,6 @@ impl JsValue {
                     "(...) => ...".to_string()
                 }
             }
-        }
-    }
-
-    pub fn as_str(&self) -> Option<&str> {
-        if let JsValue::Constant(ConstantValue::Str(str)) = self {
-            Some(&**str)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_word(&self) -> Option<&JsWord> {
-        if let JsValue::Constant(ConstantValue::Str(str)) = self {
-            Some(str)
-        } else {
-            None
         }
     }
 
@@ -1397,7 +1405,9 @@ impl JsValue {
 
     pub fn is_string(&self) -> bool {
         match self {
-            JsValue::Constant(ConstantValue::Str(..)) | JsValue::Concat(..) => true,
+            JsValue::Constant(ConstantValue::StrWord(..))
+            | JsValue::Constant(ConstantValue::StrAtom(..))
+            | JsValue::Concat(..) => true,
 
             JsValue::Constant(..)
             | JsValue::Array(..)
@@ -1433,14 +1443,10 @@ impl JsValue {
     }
 
     pub fn starts_with(&self, str: &str) -> bool {
+        if let Some(s) = self.as_str() {
+            return s.starts_with(str);
+        }
         match self {
-            JsValue::Constant(ConstantValue::Str(_)) => {
-                if let Some(s) = self.as_str() {
-                    s.starts_with(str)
-                } else {
-                    false
-                }
-            }
             JsValue::Alternatives(_, alts) => alts.iter().all(|alt| alt.starts_with(str)),
             JsValue::Concat(_, list) => {
                 if let Some(item) = list.iter().next() {
@@ -1460,14 +1466,10 @@ impl JsValue {
     }
 
     pub fn starts_not_with(&self, str: &str) -> bool {
+        if let Some(s) = self.as_str() {
+            return !s.starts_with(str);
+        }
         match self {
-            JsValue::Constant(ConstantValue::Str(_)) => {
-                if let Some(s) = self.as_str() {
-                    !s.starts_with(str)
-                } else {
-                    false
-                }
-            }
             JsValue::Alternatives(_, alts) => alts.iter().all(|alt| alt.starts_not_with(str)),
             JsValue::Concat(_, list) => {
                 if let Some(item) = list.iter().next() {
@@ -1487,14 +1489,10 @@ impl JsValue {
     }
 
     pub fn ends_with(&self, str: &str) -> bool {
+        if let Some(s) = self.as_str() {
+            return s.ends_with(str);
+        }
         match self {
-            JsValue::Constant(ConstantValue::Str(_)) => {
-                if let Some(s) = self.as_str() {
-                    s.ends_with(str)
-                } else {
-                    false
-                }
-            }
             JsValue::Alternatives(_, alts) => alts.iter().all(|alt| alt.ends_with(str)),
             JsValue::Concat(_, list) => {
                 if let Some(item) = list.last() {
@@ -1514,14 +1512,10 @@ impl JsValue {
     }
 
     pub fn ends_not_with(&self, str: &str) -> bool {
+        if let Some(s) = self.as_str() {
+            return !s.ends_with(str);
+        }
         match self {
-            JsValue::Constant(ConstantValue::Str(_)) => {
-                if let Some(s) = self.as_str() {
-                    !s.ends_with(str)
-                } else {
-                    false
-                }
-            }
             JsValue::Alternatives(_, alts) => alts.iter().all(|alt| alt.ends_not_with(str)),
             JsValue::Concat(_, list) => {
                 if let Some(item) = list.last() {
@@ -1581,23 +1575,25 @@ impl JsValue {
             }
             JsValue::Concat(_, v) => {
                 // Remove empty strings
-                v.retain(|v| !matches!(v, JsValue::Constant(ConstantValue::Str(js_word!("")))));
+                v.retain(|v| v.as_str() != Some(""));
 
                 // TODO(kdy1): Remove duplicate
-                let mut new = vec![];
+                let mut new: Vec<JsValue> = vec![];
                 for v in take(v) {
-                    match v {
-                        JsValue::Concat(_, v) => new.extend(v),
-                        JsValue::Constant(ConstantValue::Str(ref str)) => {
-                            if let Some(JsValue::Constant(ConstantValue::Str(last))) =
-                                new.last_mut()
-                            {
-                                *last = [&**last, &**str].concat().into();
+                    if let Some(str) = v.as_str() {
+                        if let Some(last) = new.last_mut() {
+                            if let Some(last_str) = last.as_str() {
+                                *last = [last_str, str].concat().into();
                             } else {
                                 new.push(v);
                             }
+                        } else {
+                            new.push(v);
                         }
-                        v => new.push(v),
+                    } else if let JsValue::Concat(_, v) = v {
+                        new.extend(v);
+                    } else {
+                        new.push(v);
                     }
                 }
                 if new.len() == 1 {

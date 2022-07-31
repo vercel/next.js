@@ -70,7 +70,7 @@
     (
         "d",
         Constant(
-            Str(
+            StrWord(
                 Atom('hello' type=inline),
             ),
         ),

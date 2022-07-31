@@ -2,23 +2,23 @@
     (
         "a",
         Constant(
-            Str(
-                Atom('' type=static),
+            StrAtom(
+                "",
             ),
         ),
     ),
     (
         "b",
         Constant(
-            Str(
-                Atom('hello' type=inline),
+            StrAtom(
+                "hello",
             ),
         ),
     ),
     (
         "c",
         Constant(
-            Str(
+            StrWord(
                 Atom('--service=0.14.12' type=dynamic),
             ),
         ),
@@ -26,7 +26,7 @@
     (
         "d",
         Constant(
-            Str(
+            StrWord(
                 Atom('--service=0.14.12' type=dynamic),
             ),
         ),

@@ -81,7 +81,7 @@ fn main() {
             let swc_packages = lock
                 .packages
                 .iter()
-                .filter(|p| p.name.as_str().starts_with("swc_"))
+                .filter(|p| p.name.as_str().starts_with("swc_") || p.name.as_str() == "testing")
                 .collect::<Vec<_>>();
             let only_swc_set = swc_packages
                 .iter()

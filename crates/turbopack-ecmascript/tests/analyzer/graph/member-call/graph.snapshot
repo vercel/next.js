@@ -99,7 +99,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('concat' type=static),
                 ),
             ),
@@ -155,8 +155,8 @@
                     3,
                     [
                         Constant(
-                            Str(
-                                Atom('hello ' type=inline),
+                            StrAtom(
+                                "hello ",
                             ),
                         ),
                         Variable(
@@ -181,7 +181,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('concat' type=static),
                 ),
             ),
@@ -299,7 +299,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('concat' type=static),
                 ),
             ),
@@ -384,7 +384,7 @@
                 ),
             ),
             Constant(
-                Str(
+                StrWord(
                     Atom('concat' type=static),
                 ),
             ),

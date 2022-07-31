@@ -12,7 +12,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::{
-        esm::esm::{get_ident, ReferencedAsset},
+        esm::base::{get_ident, ReferencedAsset},
         AstPathVc,
     },
 };

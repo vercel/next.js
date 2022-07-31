@@ -4,7 +4,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('OR' type=inline),
                 ),
             ),
@@ -15,7 +15,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('NOT' type=inline),
                 ),
             ),
@@ -30,19 +30,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('identifier' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('name' type=inline),
                             ),
                         ),
@@ -79,13 +79,13 @@
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('join' type=inline),
                             ),
                         ),
                         [
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('' type=static),
                                 ),
                             ),
@@ -104,19 +104,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('parameter_name' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('name' type=inline),
                             ),
                         ),
@@ -168,7 +168,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('' type=inline),
                 ),
             ),
@@ -179,7 +179,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('' type=inline),
                 ),
             ),
@@ -190,7 +190,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('
                     ' type=inline),
                 ),
@@ -202,7 +202,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('' type=inline),
                 ),
             ),
@@ -213,7 +213,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('	' type=inline),
                 ),
             ),
@@ -247,7 +247,7 @@
                     ),
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('fromCharCode' type=dynamic),
                     ),
                 ),
@@ -284,7 +284,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('any character' type=dynamic),
                 ),
             ),
@@ -311,7 +311,7 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('property' type=dynamic),
                             ),
                         ),
@@ -324,7 +324,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('alias' type=inline),
                             ),
                         ),
@@ -360,19 +360,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('array_subquery_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expression' type=dynamic),
                             ),
                         ),
@@ -396,19 +396,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('exists_subquery_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expression' type=dynamic),
                             ),
                         ),
@@ -432,19 +432,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_subquery_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expression' type=dynamic),
                             ),
                         ),
@@ -464,7 +464,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('end of input' type=dynamic),
                 ),
             ),
@@ -479,7 +479,7 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('property' type=dynamic),
                             ),
                         ),
@@ -492,7 +492,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('computed' type=dynamic),
                             ),
                         ),
@@ -513,7 +513,7 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('property' type=dynamic),
                             ),
                         ),
@@ -526,7 +526,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('computed' type=dynamic),
                             ),
                         ),
@@ -551,7 +551,7 @@
                     ),
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('reduce' type=inline),
                     ),
                 ),
@@ -581,19 +581,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_unary_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('operator' type=dynamic),
                             ),
                         ),
@@ -606,7 +606,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('argument' type=dynamic),
                             ),
                         ),
@@ -634,7 +634,7 @@
                     ),
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('description' type=dynamic),
                     ),
                 ),
@@ -650,19 +650,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_conditional_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('test' type=inline),
                             ),
                         ),
@@ -675,7 +675,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('consequent' type=dynamic),
                             ),
                         ),
@@ -688,7 +688,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('alternate' type=dynamic),
                             ),
                         ),
@@ -741,19 +741,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_in_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -766,7 +766,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('list' type=inline),
                             ),
                         ),
@@ -790,19 +790,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_between_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -815,7 +815,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('begin' type=inline),
                             ),
                         ),
@@ -828,7 +828,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('end' type=inline),
                             ),
                         ),
@@ -852,7 +852,7 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('key' type=static),
                             ),
                         ),
@@ -865,7 +865,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -889,19 +889,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('collection_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expression' type=dynamic),
                             ),
                         ),
@@ -929,7 +929,7 @@
                     ),
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('reduce' type=inline),
                     ),
                 ),
@@ -959,19 +959,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('collection_subquery_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expression' type=dynamic),
                             ),
                         ),
@@ -995,19 +995,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('top_specification' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -1031,19 +1031,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('number_constant' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -1111,7 +1111,7 @@
                 5,
                 [
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('\x0' type=inline),
                         ),
                     ),
@@ -1144,7 +1144,7 @@
                 5,
                 [
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('\x' type=inline),
                         ),
                     ),
@@ -1177,7 +1177,7 @@
                 5,
                 [
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('\x0' type=inline),
                         ),
                     ),
@@ -1210,7 +1210,7 @@
                 5,
                 [
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('\x' type=inline),
                         ),
                     ),
@@ -1244,19 +1244,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('sql' type=inline),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('body' type=inline),
                             ),
                         ),
@@ -1328,19 +1328,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('select_query' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('top' type=inline),
                             ),
                         ),
@@ -1353,7 +1353,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('select' type=inline),
                             ),
                         ),
@@ -1366,7 +1366,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('from' type=static),
                             ),
                         ),
@@ -1379,7 +1379,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('where' type=inline),
                             ),
                         ),
@@ -1392,7 +1392,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('orderBy' type=inline),
                             ),
                         ),
@@ -1416,19 +1416,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('select_specification' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('*' type=inline),
                             ),
                         ),
@@ -1449,19 +1449,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('select_specification' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('properties' type=dynamic),
                             ),
                         ),
@@ -1485,19 +1485,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('select_specification' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -1533,19 +1533,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('object_property_list' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('properties' type=dynamic),
                             ),
                         ),
@@ -1579,19 +1579,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('from_specification' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('source' type=inline),
                             ),
                         ),
@@ -1604,7 +1604,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('joins' type=inline),
                             ),
                         ),
@@ -1628,19 +1628,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('from_source' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expression' type=dynamic),
                             ),
                         ),
@@ -1653,7 +1653,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('alias' type=inline),
                             ),
                         ),
@@ -1666,7 +1666,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('iteration' type=dynamic),
                             ),
                         ),
@@ -1699,19 +1699,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('from_source' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expression' type=dynamic),
                             ),
                         ),
@@ -1724,7 +1724,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('alias' type=inline),
                             ),
                         ),
@@ -1748,19 +1748,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('filter_condition' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('condition' type=dynamic),
                             ),
                         ),
@@ -1784,19 +1784,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('sort_specification' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expressions' type=dynamic),
                             ),
                         ),
@@ -1818,19 +1818,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('sort_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('expression' type=dynamic),
                             ),
                         ),
@@ -1843,7 +1843,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('order' type=inline),
                             ),
                         ),
@@ -1877,19 +1877,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_function_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('name' type=inline),
                             ),
                         ),
@@ -1902,7 +1902,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('arguments' type=static),
                             ),
                         ),
@@ -1915,7 +1915,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('udf' type=inline),
                             ),
                         ),
@@ -1936,19 +1936,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_function_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('name' type=inline),
                             ),
                         ),
@@ -1961,7 +1961,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('arguments' type=static),
                             ),
                         ),
@@ -1985,19 +1985,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_object_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('properties' type=dynamic),
                             ),
                         ),
@@ -2027,7 +2027,7 @@
                 8,
                 [
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('"' type=inline),
                         ),
                     ),
@@ -2049,7 +2049,7 @@
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('text' type=inline),
                                     ),
                                 ),
@@ -2057,7 +2057,7 @@
                         ],
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('"' type=inline),
                         ),
                     ),
@@ -2074,19 +2074,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('scalar_array_expression' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('elements' type=dynamic),
                             ),
                         ),
@@ -2110,12 +2110,12 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('undefined_constant' type=dynamic),
                             ),
                         ),
@@ -2133,12 +2133,12 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('null_constant' type=dynamic),
                             ),
                         ),
@@ -2156,19 +2156,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('boolean_constant' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -2189,19 +2189,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('boolean_constant' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -2222,19 +2222,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('number_constant' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -2303,7 +2303,7 @@
                 5,
                 [
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('[' type=inline),
                         ),
                     ),
@@ -2318,7 +2318,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom(']' type=inline),
                         ),
                     ),
@@ -2335,19 +2335,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('string_constant' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('value' type=inline),
                             ),
                         ),
@@ -2360,13 +2360,13 @@
                                 ),
                             ),
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('join' type=inline),
                                 ),
                             ),
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('' type=static),
                                     ),
                                 ),
@@ -2386,19 +2386,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('array_constant' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('elements' type=dynamic),
                             ),
                         ),
@@ -2420,19 +2420,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('object_constant' type=dynamic),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('properties' type=dynamic),
                             ),
                         ),
@@ -2450,7 +2450,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('ASC' type=inline),
                 ),
             ),
@@ -2461,7 +2461,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('DESC' type=inline),
                 ),
             ),
@@ -2472,7 +2472,7 @@
         Function(
             2,
             Constant(
-                Str(
+                StrWord(
                     Atom('AND' type=inline),
                 ),
             ),
@@ -2515,7 +2515,7 @@
             [
                 KeyValue(
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('literal' type=inline),
                         ),
                     ),
@@ -2528,7 +2528,7 @@
                 ),
                 KeyValue(
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('class' type=static),
                         ),
                     ),
@@ -2541,7 +2541,7 @@
                 ),
                 KeyValue(
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('any' type=static),
                         ),
                     ),
@@ -2554,7 +2554,7 @@
                 ),
                 KeyValue(
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('end' type=inline),
                         ),
                     ),
@@ -2567,7 +2567,7 @@
                 ),
                 KeyValue(
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('other' type=inline),
                         ),
                     ),
@@ -2648,7 +2648,7 @@
                     ),
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('reduce' type=inline),
                     ),
                 ),
@@ -2742,167 +2742,167 @@
                                                         ),
                                                     ),
                                                     Constant(
-                                                        Str(
+                                                        StrWord(
                                                             Atom('replace' type=inline),
                                                         ),
                                                     ),
                                                     [
                                                         Constant(
                                                             Regex(
-                                                                Atom('\\' type=inline),
-                                                                Atom('g' type=inline),
+                                                                "\\\\",
+                                                                "g",
                                                             ),
                                                         ),
                                                         Constant(
-                                                            Str(
+                                                            StrWord(
                                                                 Atom('\\' type=inline),
                                                             ),
                                                         ),
                                                     ],
                                                 ),
                                                 Constant(
-                                                    Str(
+                                                    StrWord(
                                                         Atom('replace' type=inline),
                                                     ),
                                                 ),
                                                 [
                                                     Constant(
                                                         Regex(
-                                                            Atom('\]' type=inline),
-                                                            Atom('g' type=inline),
+                                                            "\\]",
+                                                            "g",
                                                         ),
                                                     ),
                                                     Constant(
-                                                        Str(
+                                                        StrWord(
                                                             Atom('\]' type=inline),
                                                         ),
                                                     ),
                                                 ],
                                             ),
                                             Constant(
-                                                Str(
+                                                StrWord(
                                                     Atom('replace' type=inline),
                                                 ),
                                             ),
                                             [
                                                 Constant(
                                                     Regex(
-                                                        Atom('\^' type=inline),
-                                                        Atom('g' type=inline),
+                                                        "\\^",
+                                                        "g",
                                                     ),
                                                 ),
                                                 Constant(
-                                                    Str(
+                                                    StrWord(
                                                         Atom('\^' type=inline),
                                                     ),
                                                 ),
                                             ],
                                         ),
                                         Constant(
-                                            Str(
+                                            StrWord(
                                                 Atom('replace' type=inline),
                                             ),
                                         ),
                                         [
                                             Constant(
                                                 Regex(
-                                                    Atom('-' type=inline),
-                                                    Atom('g' type=inline),
+                                                    "-",
+                                                    "g",
                                                 ),
                                             ),
                                             Constant(
-                                                Str(
+                                                StrWord(
                                                     Atom('\-' type=inline),
                                                 ),
                                             ),
                                         ],
                                     ),
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('replace' type=inline),
                                         ),
                                     ),
                                     [
                                         Constant(
                                             Regex(
-                                                Atom('\0' type=inline),
-                                                Atom('g' type=inline),
+                                                "\\0",
+                                                "g",
                                             ),
                                         ),
                                         Constant(
-                                            Str(
+                                            StrWord(
                                                 Atom('\0' type=inline),
                                             ),
                                         ),
                                     ],
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('replace' type=inline),
                                     ),
                                 ),
                                 [
                                     Constant(
                                         Regex(
-                                            Atom('\t' type=inline),
-                                            Atom('g' type=inline),
+                                            "\\t",
+                                            "g",
                                         ),
                                     ),
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('\t' type=inline),
                                         ),
                                     ),
                                 ],
                             ),
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('replace' type=inline),
                                 ),
                             ),
                             [
                                 Constant(
                                     Regex(
-                                        Atom('\n' type=inline),
-                                        Atom('g' type=inline),
+                                        "\\n",
+                                        "g",
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('\n' type=inline),
                                     ),
                                 ),
                             ],
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('replace' type=inline),
                             ),
                         ),
                         [
                             Constant(
                                 Regex(
-                                    Atom('\r' type=inline),
-                                    Atom('g' type=inline),
+                                    "\\r",
+                                    "g",
                                 ),
                             ),
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('\r' type=inline),
                                 ),
                             ),
                         ],
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('replace' type=inline),
                         ),
                     ),
                     [
                         Constant(
                             Regex(
-                                Atom('[\x00-\x0F]' type=dynamic),
-                                Atom('g' type=inline),
+                                "[\\x00-\\x0F]",
+                                "g",
                             ),
                         ),
                         Variable(
@@ -2914,15 +2914,15 @@
                     ],
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('replace' type=inline),
                     ),
                 ),
                 [
                     Constant(
                         Regex(
-                            Atom('[\x10-\x1F\x7F-\x9F]' type=dynamic),
-                            Atom('g' type=inline),
+                            "[\\x10-\\x1F\\x7F-\\x9F]",
+                            "g",
                         ),
                     ),
                     Variable(
@@ -2979,7 +2979,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('type' type=static),
                         ),
                     ),
@@ -3038,7 +3038,7 @@
                                 ),
                             ),
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom(' or ' type=inline),
                                 ),
                             ),
@@ -3079,7 +3079,7 @@
                         6,
                         [
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('"' type=inline),
                                 ),
                             ),
@@ -3101,14 +3101,14 @@
                                 ],
                             ),
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('"' type=inline),
                                 ),
                             ),
                         ],
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('end of input' type=dynamic),
                         ),
                     ),
@@ -3175,7 +3175,7 @@
                     [
                         KeyValue(
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('line' type=inline),
                                 ),
                             ),
@@ -3188,7 +3188,7 @@
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('line' type=inline),
                                     ),
                                 ),
@@ -3196,7 +3196,7 @@
                         ),
                         KeyValue(
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('column' type=inline),
                                 ),
                             ),
@@ -3209,7 +3209,7 @@
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('column' type=inline),
                                     ),
                                 ),
@@ -3278,7 +3278,7 @@
     (
         "escapedParts",
         Constant(
-            Str(
+            StrWord(
                 Atom('' type=static),
             ),
         ),
@@ -3569,7 +3569,7 @@
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('charCodeAt' type=dynamic),
                             ),
                         ),
@@ -3584,7 +3584,7 @@
                         ],
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('toString' type=static),
                         ),
                     ),
@@ -3599,7 +3599,7 @@
                     ],
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('toUpperCase' type=dynamic),
                     ),
                 ),
@@ -3775,129 +3775,129 @@
                                                 ),
                                             ),
                                             Constant(
-                                                Str(
+                                                StrWord(
                                                     Atom('replace' type=inline),
                                                 ),
                                             ),
                                             [
                                                 Constant(
                                                     Regex(
-                                                        Atom('\\' type=inline),
-                                                        Atom('g' type=inline),
+                                                        "\\\\",
+                                                        "g",
                                                     ),
                                                 ),
                                                 Constant(
-                                                    Str(
+                                                    StrWord(
                                                         Atom('\\' type=inline),
                                                     ),
                                                 ),
                                             ],
                                         ),
                                         Constant(
-                                            Str(
+                                            StrWord(
                                                 Atom('replace' type=inline),
                                             ),
                                         ),
                                         [
                                             Constant(
                                                 Regex(
-                                                    Atom('"' type=inline),
-                                                    Atom('g' type=inline),
+                                                    "\"",
+                                                    "g",
                                                 ),
                                             ),
                                             Constant(
-                                                Str(
+                                                StrWord(
                                                     Atom('\"' type=inline),
                                                 ),
                                             ),
                                         ],
                                     ),
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('replace' type=inline),
                                         ),
                                     ),
                                     [
                                         Constant(
                                             Regex(
-                                                Atom('\0' type=inline),
-                                                Atom('g' type=inline),
+                                                "\\0",
+                                                "g",
                                             ),
                                         ),
                                         Constant(
-                                            Str(
+                                            StrWord(
                                                 Atom('\0' type=inline),
                                             ),
                                         ),
                                     ],
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('replace' type=inline),
                                     ),
                                 ),
                                 [
                                     Constant(
                                         Regex(
-                                            Atom('\t' type=inline),
-                                            Atom('g' type=inline),
+                                            "\\t",
+                                            "g",
                                         ),
                                     ),
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('\t' type=inline),
                                         ),
                                     ),
                                 ],
                             ),
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('replace' type=inline),
                                 ),
                             ),
                             [
                                 Constant(
                                     Regex(
-                                        Atom('\n' type=inline),
-                                        Atom('g' type=inline),
+                                        "\\n",
+                                        "g",
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('\n' type=inline),
                                     ),
                                 ),
                             ],
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('replace' type=inline),
                             ),
                         ),
                         [
                             Constant(
                                 Regex(
-                                    Atom('\r' type=inline),
-                                    Atom('g' type=inline),
+                                    "\\r",
+                                    "g",
                                 ),
                             ),
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('\r' type=inline),
                                 ),
                             ),
                         ],
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('replace' type=inline),
                         ),
                     ),
                     [
                         Constant(
                             Regex(
-                                Atom('[\x00-\x0F]' type=dynamic),
-                                Atom('g' type=inline),
+                                "[\\x00-\\x0F]",
+                                "g",
                             ),
                         ),
                         Variable(
@@ -3909,15 +3909,15 @@
                     ],
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('replace' type=inline),
                     ),
                 ),
                 [
                     Constant(
                         Regex(
-                            Atom('[\x10-\x1F\x7F-\x9F]' type=dynamic),
-                            Atom('g' type=inline),
+                            "[\\x10-\\x1F\\x7F-\\x9F]",
+                            "g",
                         ),
                     ),
                     Variable(
@@ -4236,12 +4236,12 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('any' type=static),
                             ),
                         ),
@@ -4309,7 +4309,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('NOT' type=inline),
                     ),
                 ),
@@ -4331,7 +4331,7 @@
     (
         "peg$c102",
         Constant(
-            Str(
+            StrWord(
                 Atom('between' type=inline),
             ),
         ),
@@ -4348,7 +4348,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('BETWEEN' type=inline),
                     ),
                 ),
@@ -4361,7 +4361,7 @@
     (
         "peg$c104",
         Constant(
-            Str(
+            StrWord(
                 Atom('exists' type=inline),
             ),
         ),
@@ -4378,7 +4378,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('EXISTS' type=inline),
                     ),
                 ),
@@ -4391,7 +4391,7 @@
     (
         "peg$c106",
         Constant(
-            Str(
+            StrWord(
                 Atom('array' type=inline),
             ),
         ),
@@ -4408,7 +4408,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('ARRAY' type=inline),
                     ),
                 ),
@@ -4421,7 +4421,7 @@
     (
         "peg$c108",
         Constant(
-            Str(
+            StrWord(
                 Atom('null' type=static),
             ),
         ),
@@ -4438,7 +4438,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('null' type=static),
                     ),
                 ),
@@ -4451,7 +4451,7 @@
     (
         "peg$c11",
         Constant(
-            Str(
+            StrWord(
                 Atom(',' type=inline),
             ),
         ),
@@ -4459,7 +4459,7 @@
     (
         "peg$c110",
         Constant(
-            Str(
+            StrWord(
                 Atom('true' type=static),
             ),
         ),
@@ -4476,7 +4476,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('true' type=static),
                     ),
                 ),
@@ -4489,7 +4489,7 @@
     (
         "peg$c112",
         Constant(
-            Str(
+            StrWord(
                 Atom('false' type=static),
             ),
         ),
@@ -4506,7 +4506,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('false' type=static),
                     ),
                 ),
@@ -4519,7 +4519,7 @@
     (
         "peg$c114",
         Constant(
-            Str(
+            StrWord(
                 Atom('udf' type=inline),
             ),
         ),
@@ -4536,7 +4536,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('udf' type=inline),
                     ),
                 ),
@@ -4559,8 +4559,8 @@
         "peg$c117",
         Constant(
             Regex(
-                Atom('^[a-zA-Z_]' type=dynamic),
-                Atom('' type=static),
+                "^[a-zA-Z_]",
+                "",
             ),
         ),
     ),
@@ -4582,12 +4582,12 @@
                             3,
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('a' type=inline),
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('z' type=inline),
                                     ),
                                 ),
@@ -4597,19 +4597,19 @@
                             3,
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('A' type=inline),
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('Z' type=inline),
                                     ),
                                 ),
                             ],
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('_' type=inline),
                             ),
                         ),
@@ -4628,8 +4628,8 @@
         "peg$c119",
         Constant(
             Regex(
-                Atom('^[a-zA-Z0-9_]' type=dynamic),
-                Atom('' type=static),
+                "^[a-zA-Z0-9_]",
+                "",
             ),
         ),
     ),
@@ -4645,7 +4645,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom(',' type=inline),
                     ),
                 ),
@@ -4673,12 +4673,12 @@
                             3,
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('a' type=inline),
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('z' type=inline),
                                     ),
                                 ),
@@ -4688,12 +4688,12 @@
                             3,
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('A' type=inline),
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('Z' type=inline),
                                     ),
                                 ),
@@ -4703,19 +4703,19 @@
                             3,
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('0' type=inline),
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('9' type=inline),
                                     ),
                                 ),
                             ],
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('_' type=inline),
                             ),
                         ),
@@ -4742,7 +4742,7 @@
     (
         "peg$c122",
         Constant(
-            Str(
+            StrWord(
                 Atom('@' type=inline),
             ),
         ),
@@ -4759,7 +4759,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('@' type=inline),
                     ),
                 ),
@@ -4781,7 +4781,7 @@
     (
         "peg$c125",
         Constant(
-            Str(
+            StrWord(
                 Atom('+' type=inline),
             ),
         ),
@@ -4798,7 +4798,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('+' type=inline),
                     ),
                 ),
@@ -4811,7 +4811,7 @@
     (
         "peg$c127",
         Constant(
-            Str(
+            StrWord(
                 Atom('~' type=inline),
             ),
         ),
@@ -4828,7 +4828,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('~' type=inline),
                     ),
                 ),
@@ -4841,7 +4841,7 @@
     (
         "peg$c129",
         Constant(
-            Str(
+            StrWord(
                 Atom('\' type=inline),
             ),
         ),
@@ -4867,7 +4867,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('\' type=inline),
                     ),
                 ),
@@ -4911,7 +4911,7 @@
     (
         "peg$c134",
         Constant(
-            Str(
+            StrWord(
                 Atom('b' type=inline),
             ),
         ),
@@ -4928,7 +4928,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('b' type=inline),
                     ),
                 ),
@@ -4950,7 +4950,7 @@
     (
         "peg$c137",
         Constant(
-            Str(
+            StrWord(
                 Atom('f' type=inline),
             ),
         ),
@@ -4967,7 +4967,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('f' type=inline),
                     ),
                 ),
@@ -4998,7 +4998,7 @@
     (
         "peg$c140",
         Constant(
-            Str(
+            StrWord(
                 Atom('n' type=inline),
             ),
         ),
@@ -5015,7 +5015,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('n' type=inline),
                     ),
                 ),
@@ -5037,7 +5037,7 @@
     (
         "peg$c143",
         Constant(
-            Str(
+            StrWord(
                 Atom('r' type=inline),
             ),
         ),
@@ -5054,7 +5054,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('r' type=inline),
                     ),
                 ),
@@ -5076,7 +5076,7 @@
     (
         "peg$c146",
         Constant(
-            Str(
+            StrWord(
                 Atom('t' type=inline),
             ),
         ),
@@ -5093,7 +5093,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('t' type=inline),
                     ),
                 ),
@@ -5133,7 +5133,7 @@
     (
         "peg$c150",
         Constant(
-            Str(
+            StrWord(
                 Atom('u' type=inline),
             ),
         ),
@@ -5150,7 +5150,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('u' type=inline),
                     ),
                 ),
@@ -5173,8 +5173,8 @@
         "peg$c153",
         Constant(
             Regex(
-                Atom('^[0-9a-f]' type=dynamic),
-                Atom('i' type=inline),
+                "^[0-9a-f]",
+                "i",
             ),
         ),
     ),
@@ -5196,12 +5196,12 @@
                             3,
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('0' type=inline),
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('9' type=inline),
                                     ),
                                 ),
@@ -5211,12 +5211,12 @@
                             3,
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('a' type=inline),
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('f' type=inline),
                                     ),
                                 ),
@@ -5335,7 +5335,7 @@
     (
         "peg$c165",
         Constant(
-            Str(
+            StrWord(
                 Atom('?' type=inline),
             ),
         ),
@@ -5352,7 +5352,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('?' type=inline),
                     ),
                 ),
@@ -5365,7 +5365,7 @@
     (
         "peg$c167",
         Constant(
-            Str(
+            StrWord(
                 Atom(':' type=inline),
             ),
         ),
@@ -5382,7 +5382,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom(':' type=inline),
                     ),
                 ),
@@ -5413,7 +5413,7 @@
     (
         "peg$c170",
         Constant(
-            Str(
+            StrWord(
                 Atom('??' type=inline),
             ),
         ),
@@ -5430,7 +5430,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('??' type=inline),
                     ),
                 ),
@@ -5452,7 +5452,7 @@
     (
         "peg$c173",
         Constant(
-            Str(
+            StrWord(
                 Atom('=' type=inline),
             ),
         ),
@@ -5469,7 +5469,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('=' type=inline),
                     ),
                 ),
@@ -5482,7 +5482,7 @@
     (
         "peg$c175",
         Constant(
-            Str(
+            StrWord(
                 Atom('!=' type=inline),
             ),
         ),
@@ -5499,7 +5499,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('!=' type=inline),
                     ),
                 ),
@@ -5512,7 +5512,7 @@
     (
         "peg$c177",
         Constant(
-            Str(
+            StrWord(
                 Atom('<>' type=inline),
             ),
         ),
@@ -5529,7 +5529,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('<>' type=inline),
                     ),
                 ),
@@ -5542,7 +5542,7 @@
     (
         "peg$c179",
         Constant(
-            Str(
+            StrWord(
                 Atom('<=' type=inline),
             ),
         ),
@@ -5568,7 +5568,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('<=' type=inline),
                     ),
                 ),
@@ -5581,7 +5581,7 @@
     (
         "peg$c181",
         Constant(
-            Str(
+            StrWord(
                 Atom('>=' type=inline),
             ),
         ),
@@ -5598,7 +5598,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('>=' type=inline),
                     ),
                 ),
@@ -5611,7 +5611,7 @@
     (
         "peg$c183",
         Constant(
-            Str(
+            StrWord(
                 Atom('<' type=inline),
             ),
         ),
@@ -5628,7 +5628,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('<' type=inline),
                     ),
                 ),
@@ -5641,7 +5641,7 @@
     (
         "peg$c185",
         Constant(
-            Str(
+            StrWord(
                 Atom('>' type=inline),
             ),
         ),
@@ -5658,7 +5658,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('>' type=inline),
                     ),
                 ),
@@ -5689,7 +5689,7 @@
     (
         "peg$c189",
         Constant(
-            Str(
+            StrWord(
                 Atom('|' type=inline),
             ),
         ),
@@ -5715,7 +5715,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('|' type=inline),
                     ),
                 ),
@@ -5728,7 +5728,7 @@
     (
         "peg$c191",
         Constant(
-            Str(
+            StrWord(
                 Atom('^' type=inline),
             ),
         ),
@@ -5745,7 +5745,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('^' type=inline),
                     ),
                 ),
@@ -5758,7 +5758,7 @@
     (
         "peg$c193",
         Constant(
-            Str(
+            StrWord(
                 Atom('&' type=inline),
             ),
         ),
@@ -5775,7 +5775,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('&' type=inline),
                     ),
                 ),
@@ -5788,7 +5788,7 @@
     (
         "peg$c195",
         Constant(
-            Str(
+            StrWord(
                 Atom('<<' type=inline),
             ),
         ),
@@ -5805,7 +5805,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('<<' type=inline),
                     ),
                 ),
@@ -5818,7 +5818,7 @@
     (
         "peg$c197",
         Constant(
-            Str(
+            StrWord(
                 Atom('>>>' type=inline),
             ),
         ),
@@ -5835,7 +5835,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('>>>' type=inline),
                     ),
                 ),
@@ -5848,7 +5848,7 @@
     (
         "peg$c199",
         Constant(
-            Str(
+            StrWord(
                 Atom('>>' type=inline),
             ),
         ),
@@ -5883,7 +5883,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('>>' type=inline),
                     ),
                 ),
@@ -5896,7 +5896,7 @@
     (
         "peg$c201",
         Constant(
-            Str(
+            StrWord(
                 Atom('||' type=inline),
             ),
         ),
@@ -5913,7 +5913,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('||' type=inline),
                     ),
                 ),
@@ -5926,7 +5926,7 @@
     (
         "peg$c203",
         Constant(
-            Str(
+            StrWord(
                 Atom('/' type=inline),
             ),
         ),
@@ -5943,7 +5943,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('/' type=inline),
                     ),
                 ),
@@ -5956,7 +5956,7 @@
     (
         "peg$c205",
         Constant(
-            Str(
+            StrWord(
                 Atom('%' type=inline),
             ),
         ),
@@ -5973,7 +5973,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('%' type=inline),
                     ),
                 ),
@@ -6076,7 +6076,7 @@
     (
         "peg$c23",
         Constant(
-            Str(
+            StrWord(
                 Atom('.' type=inline),
             ),
         ),
@@ -6093,7 +6093,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('.' type=inline),
                     ),
                 ),
@@ -6106,7 +6106,7 @@
     (
         "peg$c25",
         Constant(
-            Str(
+            StrWord(
                 Atom('(' type=inline),
             ),
         ),
@@ -6123,7 +6123,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('(' type=inline),
                     ),
                 ),
@@ -6136,7 +6136,7 @@
     (
         "peg$c27",
         Constant(
-            Str(
+            StrWord(
                 Atom(')' type=inline),
             ),
         ),
@@ -6153,7 +6153,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom(')' type=inline),
                     ),
                 ),
@@ -6193,7 +6193,7 @@
     (
         "peg$c31",
         Constant(
-            Str(
+            StrWord(
                 Atom('{' type=inline),
             ),
         ),
@@ -6210,7 +6210,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('{' type=inline),
                     ),
                 ),
@@ -6223,7 +6223,7 @@
     (
         "peg$c33",
         Constant(
-            Str(
+            StrWord(
                 Atom('}' type=inline),
             ),
         ),
@@ -6240,7 +6240,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('}' type=inline),
                     ),
                 ),
@@ -6262,7 +6262,7 @@
     (
         "peg$c36",
         Constant(
-            Str(
+            StrWord(
                 Atom('[' type=inline),
             ),
         ),
@@ -6279,7 +6279,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('[' type=inline),
                     ),
                 ),
@@ -6292,7 +6292,7 @@
     (
         "peg$c38",
         Constant(
-            Str(
+            StrWord(
                 Atom(']' type=inline),
             ),
         ),
@@ -6309,7 +6309,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom(']' type=inline),
                     ),
                 ),
@@ -6340,7 +6340,7 @@
     (
         "peg$c41",
         Constant(
-            Str(
+            StrWord(
                 Atom('undefined' type=static),
             ),
         ),
@@ -6357,7 +6357,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('undefined' type=static),
                     ),
                 ),
@@ -6406,7 +6406,7 @@
     (
         "peg$c47",
         Constant(
-            Str(
+            StrWord(
                 Atom('-' type=inline),
             ),
         ),
@@ -6423,7 +6423,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('-' type=inline),
                     ),
                 ),
@@ -6436,7 +6436,7 @@
     (
         "peg$c49",
         Constant(
-            Str(
+            StrWord(
                 Atom('0x' type=inline),
             ),
         ),
@@ -6462,7 +6462,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('0x' type=inline),
                     ),
                 ),
@@ -6476,8 +6476,8 @@
         "peg$c51",
         Constant(
             Regex(
-                Atom('^[0-9]' type=inline),
-                Atom('' type=static),
+                "^[0-9]",
+                "",
             ),
         ),
     ),
@@ -6499,12 +6499,12 @@
                             3,
                             [
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('0' type=inline),
                                     ),
                                 ),
                                 Constant(
-                                    Str(
+                                    StrWord(
                                         Atom('9' type=inline),
                                     ),
                                 ),
@@ -6533,7 +6533,7 @@
     (
         "peg$c54",
         Constant(
-            Str(
+            StrWord(
                 Atom('"' type=inline),
             ),
         ),
@@ -6550,7 +6550,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('"' type=inline),
                     ),
                 ),
@@ -6572,7 +6572,7 @@
     (
         "peg$c57",
         Constant(
-            Str(
+            StrWord(
                 Atom(''' type=inline),
             ),
         ),
@@ -6589,7 +6589,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom(''' type=inline),
                     ),
                 ),
@@ -6611,7 +6611,7 @@
     (
         "peg$c6",
         Constant(
-            Str(
+            StrWord(
                 Atom('*' type=inline),
             ),
         ),
@@ -6629,8 +6629,8 @@
         "peg$c61",
         Constant(
             Regex(
-                Atom('^[ \t\n\r]' type=dynamic),
-                Atom('' type=static),
+                "^[ \\t\\n\\r]",
+                "",
             ),
         ),
     ),
@@ -6649,23 +6649,23 @@
                     5,
                     [
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom(' ' type=inline),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('	' type=inline),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('
                                 ' type=inline),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('' type=inline),
                             ),
                         ),
@@ -6683,7 +6683,7 @@
     (
         "peg$c63",
         Constant(
-            Str(
+            StrWord(
                 Atom('--' type=inline),
             ),
         ),
@@ -6700,7 +6700,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('--' type=inline),
                     ),
                 ),
@@ -6714,8 +6714,8 @@
         "peg$c65",
         Constant(
             Regex(
-                Atom('^[\n\r]' type=inline),
-                Atom('' type=static),
+                "^[\\n\\r]",
+                "",
             ),
         ),
     ),
@@ -6734,13 +6734,13 @@
                     3,
                     [
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('
                                 ' type=inline),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('' type=inline),
                             ),
                         ),
@@ -6758,7 +6758,7 @@
     (
         "peg$c67",
         Constant(
-            Str(
+            StrWord(
                 Atom('select' type=inline),
             ),
         ),
@@ -6775,7 +6775,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('SELECT' type=inline),
                     ),
                 ),
@@ -6788,7 +6788,7 @@
     (
         "peg$c69",
         Constant(
-            Str(
+            StrWord(
                 Atom('top' type=inline),
             ),
         ),
@@ -6805,7 +6805,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('*' type=inline),
                     ),
                 ),
@@ -6827,7 +6827,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('TOP' type=inline),
                     ),
                 ),
@@ -6840,7 +6840,7 @@
     (
         "peg$c71",
         Constant(
-            Str(
+            StrWord(
                 Atom('from' type=static),
             ),
         ),
@@ -6857,7 +6857,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('FROM' type=inline),
                     ),
                 ),
@@ -6870,7 +6870,7 @@
     (
         "peg$c73",
         Constant(
-            Str(
+            StrWord(
                 Atom('where' type=inline),
             ),
         ),
@@ -6887,7 +6887,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('WHERE' type=inline),
                     ),
                 ),
@@ -6900,7 +6900,7 @@
     (
         "peg$c75",
         Constant(
-            Str(
+            StrWord(
                 Atom('order' type=inline),
             ),
         ),
@@ -6917,7 +6917,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('ORDER' type=inline),
                     ),
                 ),
@@ -6930,7 +6930,7 @@
     (
         "peg$c77",
         Constant(
-            Str(
+            StrWord(
                 Atom('by' type=inline),
             ),
         ),
@@ -6947,7 +6947,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('BY' type=inline),
                     ),
                 ),
@@ -6960,7 +6960,7 @@
     (
         "peg$c79",
         Constant(
-            Str(
+            StrWord(
                 Atom('as' type=static),
             ),
         ),
@@ -6986,7 +6986,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('AS' type=inline),
                     ),
                 ),
@@ -6999,7 +6999,7 @@
     (
         "peg$c81",
         Constant(
-            Str(
+            StrWord(
                 Atom('join' type=inline),
             ),
         ),
@@ -7016,7 +7016,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('JOIN' type=inline),
                     ),
                 ),
@@ -7029,7 +7029,7 @@
     (
         "peg$c83",
         Constant(
-            Str(
+            StrWord(
                 Atom('in' type=static),
             ),
         ),
@@ -7046,7 +7046,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('IN' type=inline),
                     ),
                 ),
@@ -7059,7 +7059,7 @@
     (
         "peg$c85",
         Constant(
-            Str(
+            StrWord(
                 Atom('value' type=inline),
             ),
         ),
@@ -7076,7 +7076,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('VALUE' type=inline),
                     ),
                 ),
@@ -7089,7 +7089,7 @@
     (
         "peg$c87",
         Constant(
-            Str(
+            StrWord(
                 Atom('asc' type=inline),
             ),
         ),
@@ -7106,7 +7106,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('ASC' type=inline),
                     ),
                 ),
@@ -7137,7 +7137,7 @@
     (
         "peg$c90",
         Constant(
-            Str(
+            StrWord(
                 Atom('desc' type=inline),
             ),
         ),
@@ -7154,7 +7154,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('DESC' type=inline),
                     ),
                 ),
@@ -7176,7 +7176,7 @@
     (
         "peg$c93",
         Constant(
-            Str(
+            StrWord(
                 Atom('and' type=static),
             ),
         ),
@@ -7193,7 +7193,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('AND' type=inline),
                     ),
                 ),
@@ -7215,7 +7215,7 @@
     (
         "peg$c96",
         Constant(
-            Str(
+            StrWord(
                 Atom('or' type=static),
             ),
         ),
@@ -7232,7 +7232,7 @@
             ),
             [
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('OR' type=inline),
                     ),
                 ),
@@ -7254,7 +7254,7 @@
     (
         "peg$c99",
         Constant(
-            Str(
+            StrWord(
                 Atom('not' type=static),
             ),
         ),
@@ -7268,19 +7268,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('class' type=static),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('parts' type=inline),
                             ),
                         ),
@@ -7293,7 +7293,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('inverted' type=dynamic),
                             ),
                         ),
@@ -7306,7 +7306,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('ignoreCase' type=dynamic),
                             ),
                         ),
@@ -7330,7 +7330,7 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('start' type=inline),
                             ),
                         ),
@@ -7339,7 +7339,7 @@
                             [
                                 KeyValue(
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('offset' type=inline),
                                         ),
                                     ),
@@ -7352,7 +7352,7 @@
                                 ),
                                 KeyValue(
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('line' type=inline),
                                         ),
                                     ),
@@ -7365,7 +7365,7 @@
                                             ),
                                         ),
                                         Constant(
-                                            Str(
+                                            StrWord(
                                                 Atom('line' type=inline),
                                             ),
                                         ),
@@ -7373,7 +7373,7 @@
                                 ),
                                 KeyValue(
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('column' type=inline),
                                         ),
                                     ),
@@ -7386,7 +7386,7 @@
                                             ),
                                         ),
                                         Constant(
-                                            Str(
+                                            StrWord(
                                                 Atom('column' type=inline),
                                             ),
                                         ),
@@ -7397,7 +7397,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('end' type=inline),
                             ),
                         ),
@@ -7406,7 +7406,7 @@
                             [
                                 KeyValue(
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('offset' type=inline),
                                         ),
                                     ),
@@ -7419,7 +7419,7 @@
                                 ),
                                 KeyValue(
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('line' type=inline),
                                         ),
                                     ),
@@ -7432,7 +7432,7 @@
                                             ),
                                         ),
                                         Constant(
-                                            Str(
+                                            StrWord(
                                                 Atom('line' type=inline),
                                             ),
                                         ),
@@ -7440,7 +7440,7 @@
                                 ),
                                 KeyValue(
                                     Constant(
-                                        Str(
+                                        StrWord(
                                             Atom('column' type=inline),
                                         ),
                                     ),
@@ -7453,7 +7453,7 @@
                                             ),
                                         ),
                                         Constant(
-                                            Str(
+                                            StrWord(
                                                 Atom('column' type=inline),
                                             ),
                                         ),
@@ -8264,12 +8264,12 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('end' type=inline),
                             ),
                         ),
@@ -8298,19 +8298,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('literal' type=inline),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('text' type=inline),
                             ),
                         ),
@@ -8323,7 +8323,7 @@
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('ignoreCase' type=dynamic),
                             ),
                         ),
@@ -8375,19 +8375,19 @@
                 [
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('type' type=static),
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('other' type=inline),
                             ),
                         ),
                     ),
                     KeyValue(
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('description' type=dynamic),
                             ),
                         ),
@@ -9528,7 +9528,7 @@
                     [
                         KeyValue(
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('line' type=inline),
                                 ),
                             ),
@@ -9542,7 +9542,7 @@
                         ),
                         KeyValue(
                             Constant(
-                                Str(
+                                StrWord(
                                     Atom('column' type=inline),
                                 ),
                             ),
@@ -10103,7 +10103,7 @@
                             ),
                         ),
                         Constant(
-                            Str(
+                            StrWord(
                                 Atom('startRule' type=dynamic),
                             ),
                         ),
@@ -10119,7 +10119,7 @@
             [
                 KeyValue(
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('sql' type=inline),
                         ),
                     ),
@@ -10464,7 +10464,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -11638,7 +11638,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -11886,7 +11886,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -12181,7 +12181,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -14435,7 +14435,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -14506,7 +14506,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -14577,7 +14577,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -14648,7 +14648,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -14719,7 +14719,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -14790,7 +14790,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -14861,7 +14861,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -14932,7 +14932,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15003,7 +15003,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15074,7 +15074,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15145,7 +15145,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15209,7 +15209,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15273,7 +15273,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15337,7 +15337,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15401,7 +15401,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15465,7 +15465,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15536,7 +15536,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -15607,7 +15607,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substr' type=inline),
                         ),
                     ),
@@ -20171,7 +20171,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('substring' type=dynamic),
                         ),
                     ),
@@ -20807,7 +20807,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -22058,7 +22058,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -23414,7 +23414,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -25183,7 +25183,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -27171,7 +27171,7 @@
                         ),
                     ),
                     Constant(
-                        Str(
+                        StrWord(
                             Atom('charAt' type=inline),
                         ),
                     ),
@@ -28810,7 +28810,7 @@
                     ),
                 ),
                 Constant(
-                    Str(
+                    StrWord(
                         Atom('substring' type=dynamic),
                     ),
                 ),
