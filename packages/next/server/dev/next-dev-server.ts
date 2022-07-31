@@ -282,12 +282,12 @@ export default class DevServer extends Server {
       wp.watch(files, directories, 0)
 
       wp.on('aggregated', async () => {
-        const routedMiddleware: string[] = []
+        const routedEdgeRoutes: string[] = []
         let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
-        const ssrMiddleware = new Set<string>()
+        const allEdgeRoutesSet = new Set<string>()
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -319,7 +319,7 @@ export default class DevServer extends Server {
             this.actualMiddlewareFile = rootFile
             middlewareMatcher =
               staticInfo.middleware?.pathMatcher || new RegExp('.*')
-            routedMiddleware.push('/')
+            routedEdgeRoutes.push('/')
             continue
           }
 
@@ -358,9 +358,9 @@ export default class DevServer extends Server {
             onServer: () => {},
             onEdgeServer: () => {
               if (!pageName.startsWith('/api/')) {
-                routedMiddleware.push(pageName)
+                routedEdgeRoutes.push(pageName)
               }
-              ssrMiddleware.add(pageName)
+              allEdgeRoutesSet.add(pageName)
             },
           })
           routedPages.push(pageName)
@@ -376,13 +376,12 @@ export default class DevServer extends Server {
 
         this.appPathRoutes = appPaths
         this.edgeFunctions = []
-        getSortedRoutes(routedMiddleware).forEach((page) => {
+        const allEdgeRoutes = Array.from(allEdgeRoutesSet)
+        getSortedRoutes(allEdgeRoutes).forEach((page) => {
           const isRootMiddleware = page === '/' && !!middlewareMatcher
           const middlewareRegex = isRootMiddleware
             ? { re: middlewareMatcher!, groups: {} }
-            : getMiddlewareRegex(page, {
-                catchAll: !ssrMiddleware.has(page),
-              })
+            : getMiddlewareRegex(page, { catchAll: true })
           const routeItem = {
             match: getRouteMatcher(middlewareRegex),
             page,
