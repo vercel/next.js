@@ -381,7 +381,7 @@ export default class DevServer extends Server {
           const isRootMiddleware = page === '/' && !!middlewareMatcher
           const middlewareRegex = isRootMiddleware
             ? { re: middlewareMatcher!, groups: {} }
-            : getMiddlewareRegex(page, { catchAll: true })
+            : getMiddlewareRegex(page, { catchAll: false })
           const routeItem = {
             match: getRouteMatcher(middlewareRegex),
             page,
