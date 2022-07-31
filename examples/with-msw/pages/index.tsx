@@ -1,10 +1,15 @@
 import { useState } from 'react'
+import { Book, Review } from '../mocks/types'
 
-export default function Home({ book }) {
-  const [reviews, setReviews] = useState(null)
+type Props = {
+  book: Book
+}
+
+export default function Home({ book }: Props) {
+  const [reviews, setReviews] = useState<Review[] | null>(null)
 
   const handleGetReviews = () => {
-    // Client-side request are mocked by `mocks/browser.js`.
+    // Client-side request are mocked by `mocks/browser.ts`.
     fetch('/reviews')
       .then((res) => res.json())
       .then(setReviews)
@@ -31,7 +36,7 @@ export default function Home({ book }) {
 }
 
 export async function getServerSideProps() {
-  // Server-side requests are mocked by `mocks/server.js`.
+  // Server-side requests are mocked by `mocks/server.ts`.
   const res = await fetch('https://my.backend/book')
   const book = await res.json()
 
