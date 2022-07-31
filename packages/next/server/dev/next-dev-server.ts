@@ -320,6 +320,7 @@ export default class DevServer extends Server {
             middlewareMatcher =
               staticInfo.middleware?.pathMatcher || new RegExp('.*')
             routedEdgeRoutes.push('/')
+            allEdgeRoutesSet.add('/')
             continue
           }
 
