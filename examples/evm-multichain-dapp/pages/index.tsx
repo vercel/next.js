@@ -139,6 +139,7 @@ const Home: NextPage = () => {
           <h1>Supported Blockchains</h1>
           <div className="flex flex-wrap">
             {supportedChainIds?.map((chain, idx) =>
+              // @ts-ignore TYPE NEEDS FIXING
               Number(chain) && NETWORK_ICON[Number(chain)] ? (
                 <div
                   key={Number(chain)}
