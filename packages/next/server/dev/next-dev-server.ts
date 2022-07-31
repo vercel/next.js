@@ -282,12 +282,11 @@ export default class DevServer extends Server {
       wp.watch(files, directories, 0)
 
       wp.on('aggregated', async () => {
-        const routedEdgeRoutes: string[] = []
         let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
-        const allEdgeRoutesSet = new Set<string>()
+        const edgeRoutesSet = new Set<string>()
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -319,8 +318,7 @@ export default class DevServer extends Server {
             this.actualMiddlewareFile = rootFile
             middlewareMatcher =
               staticInfo.middleware?.pathMatcher || new RegExp('.*')
-            routedEdgeRoutes.push('/')
-            allEdgeRoutesSet.add('/')
+            edgeRoutesSet.add('/')
             continue
           }
 
@@ -358,10 +356,7 @@ export default class DevServer extends Server {
             onClient: () => {},
             onServer: () => {},
             onEdgeServer: () => {
-              if (!pageName.startsWith('/api/')) {
-                routedEdgeRoutes.push(pageName)
-              }
-              allEdgeRoutesSet.add(pageName)
+              edgeRoutesSet.add(pageName)
             },
           })
           routedPages.push(pageName)
@@ -377,8 +372,8 @@ export default class DevServer extends Server {
 
         this.appPathRoutes = appPaths
         this.edgeFunctions = []
-        const allEdgeRoutes = Array.from(allEdgeRoutesSet)
-        getSortedRoutes(allEdgeRoutes).forEach((page) => {
+        const edgeRoutes = Array.from(edgeRoutesSet)
+        getSortedRoutes(edgeRoutes).forEach((page) => {
           const isRootMiddleware = page === '/' && !!middlewareMatcher
           const middlewareRegex = isRootMiddleware
             ? { re: middlewareMatcher!, groups: {} }
