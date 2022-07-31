@@ -1,10 +1,7 @@
 import { stringify } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import {
-  EDGE_RUNTIME_WEBPACK,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-} from '../../../shared/lib/constants'
+import { NEXT_CLIENT_SSR_ENTRY_SUFFIX } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
@@ -181,82 +178,97 @@ export class FlightClientEntryPlugin {
       absolutePagePath: entryModule.resource,
     }
 
-    return new Promise<void>((res, rej) => {
-      const loaderOptions: NextFlightClientEntryLoaderOptions = {
-        css: JSON.stringify(serverCSSImports),
-        modules: clientComponentImports,
-        server: false,
-      }
-      const clientLoader = `next-flight-client-entry-loader?${stringify(
-        loaderOptions
-      )}!`
-      const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
-        ...loaderOptions,
-        server: true,
-      })}!`
+    const loaderOptions: NextFlightClientEntryLoaderOptions = {
+      css: JSON.stringify(serverCSSImports),
+      modules: clientComponentImports,
+      server: false,
+    }
+    const clientLoader = `next-flight-client-entry-loader?${stringify(
+      loaderOptions
+    )}!`
+    const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
+      ...loaderOptions,
+      server: true,
+    })}!`
 
-      const bundlePath = 'app' + normalizePagePath(routeInfo.page)
+    const bundlePath = 'app' + normalizePagePath(routeInfo.page)
 
-      // Add for the client compilation
-      // Inject the entry to the client compiler.
-      if (this.dev) {
-        const pageKey = 'client' + routeInfo.page
-        if (!entries[pageKey]) {
-          entries[pageKey] = {
-            bundlePath,
-            absolutePagePath: routeInfo.absolutePagePath,
-            clientLoader,
-            dispose: false,
-            lastActiveTime: Date.now(),
-          } as any
-          const invalidator = getInvalidator()
-          if (invalidator) {
-            invalidator.invalidate()
-          }
-        }
-      } else {
-        injectedClientEntries.set(
+    // Add for the client compilation
+    // Inject the entry to the client compiler.
+    if (this.dev) {
+      const pageKey = 'client' + routeInfo.page
+      if (!entries[pageKey]) {
+        entries[pageKey] = {
           bundlePath,
-          `next-client-pages-loader?${stringify({
-            isServerComponent: true,
-            page: denormalizePagePath(bundlePath.replace(/^pages/, '')),
-            absolutePagePath: clientLoader,
-          })}!` + clientLoader
-        )
+          absolutePagePath: routeInfo.absolutePagePath,
+          clientLoader,
+          dispose: false,
+          lastActiveTime: Date.now(),
+        } as any
+        const invalidator = getInvalidator()
+        if (invalidator) {
+          invalidator.invalidate()
+        }
       }
+    } else {
+      injectedClientEntries.set(
+        bundlePath,
+        `next-client-pages-loader?${stringify({
+          isServerComponent: true,
+          page: denormalizePagePath(bundlePath.replace(/^pages/, '')),
+          absolutePagePath: clientLoader,
+        })}!` + clientLoader
+      )
+    }
 
-      // Inject the entry to the server compiler (__sc_client__).
-      const clientComponentEntryDep = (
-        webpack as any
-      ).EntryPlugin.createDependency(clientSSRLoader, {
-        name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-      })
+    // Inject the entry to the server compiler (__sc_client__).
+    const clientComponentEntryDep = (
+      webpack as any
+    ).EntryPlugin.createDependency(clientSSRLoader, {
+      name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+    })
 
-      // Only adds to the server compilation here.
-      compilation.addEntry(
-        // Reuse compilation context.
-        compiler.context,
-        clientComponentEntryDep,
-        this.isEdgeServer
-          ? {
-              name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-              library: {
-                name: ['self._CLIENT_ENTRY'],
-                type: 'assign',
-              },
-              runtime: EDGE_RUNTIME_WEBPACK,
-              asyncChunks: false,
-            }
-          : {
-              name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-              runtime: 'webpack-runtime',
-            },
-        (err: Error) => {
+    // Only adds to the server compilation here.
+    await this.addEntry(
+      compilation,
+      // Reuse compilation context.
+      compiler.context,
+      clientComponentEntryDep,
+      {
+        // By using the same entry name
+        name: entryName,
+        // Layer should be undefined for the SSR modules
+        // This ensures the client components are
+        layer: undefined,
+      }
+    )
+  }
+
+  addEntry(
+    compilation: any,
+    context: string,
+    entry: any /* Dependency */,
+    options: {
+      name: string
+      layer: string | undefined
+    } /* EntryOptions */
+  ): Promise<any> /* Promise<module> */ {
+    return new Promise((resolve, reject) => {
+      compilation.entries.get(options.name).includeDependencies.push(entry)
+      compilation.hooks.addEntry.call(entry, options)
+      compilation.addModuleTree(
+        {
+          context,
+          dependency: entry,
+          contextInfo: { issuerLayer: options.layer },
+        },
+        (err: Error | undefined, module: any) => {
           if (err) {
-            rej(err)
-          } else {
-            res()
+            compilation.hooks.failedEntry.call(entry, options, err)
+            return reject(err)
           }
+          compilation.hooks.succeedEntry.call(entry, options, module)
+          return resolve(module)
         }
       )
     })
