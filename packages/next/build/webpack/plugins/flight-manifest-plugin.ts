@@ -29,7 +29,7 @@ interface Options {
  */
 type ModuleId = string | number
 
-type ManifestChunks = Array<`${string}:${string}` | string>
+export type ManifestChunks = Array<`${string}:${string}` | string>
 
 interface ManifestNode {
   [moduleExport: string]: {
@@ -48,7 +48,7 @@ interface ManifestNode {
   }
 }
 
-type FlightManifest = {
+export type FlightManifest = {
   __ssr_module_mapping__: {
     [moduleId: string]: ManifestNode
   }

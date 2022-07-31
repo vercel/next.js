@@ -23,6 +23,10 @@ import { htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
+import {
+  FlightManifest,
+  ManifestChunks,
+} from '../build/webpack/plugins/flight-manifest-plugin'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -372,8 +376,8 @@ function getSegmentParam(segment: string): {
  */
 function getCssInlinedLinkTags(
   ComponentMod: any,
-  serverComponentManifest: any
-) {
+  serverComponentManifest: FlightManifest
+): ManifestChunks {
   const importedServerCSS: { [key: string]: string[] } =
     ComponentMod.__client__?.__next_rsc_css__ || {}
 
