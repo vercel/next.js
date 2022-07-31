@@ -10,10 +10,12 @@ In this example we integrate Mock Service Worker with Next by following the next
 
 Mocking is enabled using the `NEXT_PUBLIC_API_MOCKING` environment variable. By default, mocking is enabled for both development and production. This allows you to have working preview deployments before implementing an actual API. To disable MSW for a specific environment, change the environment variable value in the file corresponding to the environment from `enabled` to `disabled`.
 
-The service worker file will automatically be generated in `public/mockServiceWorker.js` after installing `node_modules`. If the file is not generated, you can explicitly generate it with the following command: 
+The service worker file will automatically be generated in `public/mockServiceWorker.js` after installing `node_modules`. If the file is not generated, you can explicitly generate it with the following command:
+
 ```bash
 npx msw init public/
-``` 
+```
+
 More information on this setup step can be found in the MSW documentation [here](https://mswjs.io/docs/getting-started/integrate/browser#setup).
 
 ## Deploy your own

@@ -10,4 +10,4 @@ async function initMocks() {
 
 initMocks()
 
-export {};
+export {}
