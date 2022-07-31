@@ -227,7 +227,7 @@ export class FlightClientEntryPlugin {
       name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
     })
 
-    // Only adds to the server compilation here.
+    // Add the dependency to the server compiler.
     await this.addEntry(
       compilation,
       // Reuse compilation context.
