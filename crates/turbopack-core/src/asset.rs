@@ -31,8 +31,4 @@ pub trait Asset {
 
     /// Other things (most likely [Asset]s) referenced from this [Asset].
     fn references(&self) -> AssetReferencesVc;
-
-    async fn default_to_path(&self) -> Result<FileSystemPathVc> {
-        Ok(self.path())
-    }
 }
