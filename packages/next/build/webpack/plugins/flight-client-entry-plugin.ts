@@ -122,7 +122,6 @@ export class FlightClientEntryPlugin {
         !rawRequest.endsWith('.css') &&
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
-        !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
           ? rawRequest
           : mod.resourceResolveData?.path
