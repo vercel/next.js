@@ -9,3 +9,5 @@ async function initMocks() {
 }
 
 initMocks()
+
+export {}
