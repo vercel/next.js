@@ -6,6 +6,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Literal, Span, TokenStream as TokenStream2};
+use proc_macro_error::{abort, proc_macro_error};
 use quote::quote;
 use syn::{
     parenthesized,
@@ -95,6 +96,26 @@ fn get_function_ident(ident: &Ident) -> Ident {
 fn get_function_id_ident(ident: &Ident) -> Ident {
     Ident::new(
         &(ident.to_string().to_uppercase() + "_FUNCTION_ID"),
+        ident.span(),
+    )
+}
+
+fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
+    Ident::new(
+        &(trait_ident.to_string().to_uppercase()
+            + "_DEFAULT_IMPL_"
+            + &ident.to_string().to_uppercase()
+            + "_FUNCTION"),
+        ident.span(),
+    )
+}
+
+fn get_trait_default_impl_function_id_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
+    Ident::new(
+        &(trait_ident.to_string().to_uppercase()
+            + "_DEFAULT_IMPL_"
+            + &ident.to_string().to_uppercase()
+            + "_FUNCTION_ID"),
         ident.span(),
     )
 }
@@ -276,6 +297,7 @@ impl Parse for ValueArguments {
 ///
 /// TODO: add more documentation: presets, traits
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
@@ -758,9 +780,10 @@ fn is_attribute(attr: &Attribute, name: &str) -> bool {
 }
 
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(input as ItemTrait);
+    let mut item = parse_macro_input!(input as ItemTrait);
 
     let ItemTrait {
         vis,
@@ -771,7 +794,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         trait_token,
         colon_token,
         ..
-    } = &item;
+    } = &mut item;
 
     let supertraits = supertraits.into_iter().collect::<Vec<_>>();
 
@@ -811,20 +834,20 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
     let trait_type_ident = get_trait_type_ident(ident);
     let trait_type_id_ident = get_trait_type_id_ident(ident);
     let mut trait_fns = Vec::new();
+    let mut default_method_registers: Vec<TokenStream2> = Vec::new();
+    let mut native_functions = Vec::new();
 
-    for item in items.iter() {
-        if let TraitItem::Method(TraitItemMethod {
-            sig:
-                Signature {
-                    ident: method_ident,
-                    inputs,
-                    output,
-                    ..
-                },
-            ..
-        }) = item
-        {
+    for item in items.iter_mut() {
+        if let TraitItem::Method(TraitItemMethod { sig, default, .. }) = item {
+            let Signature {
+                ident: method_ident,
+                inputs,
+                output,
+                ..
+            } = &*sig;
+
             let output_type = get_return_type(output);
+            let (raw_output_type, _) = unwrap_result_type(&output_type);
             let args = inputs.iter().filter_map(|arg| match arg {
                 FnArg::Receiver(_) => None,
                 FnArg::Typed(PatType { pat, .. }) => Some(quote! {
@@ -838,12 +861,79 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                 quote! { std::convert::From::<turbo_tasks::RawVc>::from(result) }
             };
             trait_fns.push(quote! {
-                fn #method_ident(#(#method_args),*) -> #output_type {
+                fn #method_ident(#(#method_args),*) -> #raw_output_type {
                     // TODO use const string
                     let result = turbo_tasks::trait_call(*#trait_type_id_ident, std::borrow::Cow::Borrowed(stringify!(#method_ident)), vec![self.into(), #(#args),*]);
                     #convert_result_code
                 }
             });
+
+            if let Some(block) = default.take() {
+                let function_ident = get_trait_default_impl_function_ident(ident, method_ident);
+                let function_id_ident =
+                    get_trait_default_impl_function_id_ident(ident, method_ident);
+                let inline_ident = get_internal_function_ident(method_ident);
+
+                let mut inline_sig = sig.clone();
+                inline_sig.ident = inline_ident.clone();
+
+                let (native_function_code, mut input_raw_vc_arguments) = gen_native_function_code(
+                    // TODO use const string
+                    quote! { format!(concat!("{}::", stringify!(#method_ident)), std::any::type_name::<#ref_ident>()) },
+                    quote! { #ref_ident::#inline_ident },
+                    &function_ident,
+                    &function_id_ident,
+                    sig.asyncness.is_some(),
+                    inputs,
+                    &output_type,
+                    Some((&ref_ident, SelfType::ValueTrait)),
+                );
+
+                default_method_registers.push(quote! {
+                    trait_type.register_default_trait_method(stringify!(#method_ident).to_string(), *#function_id_ident);
+                });
+                native_functions.push(quote! {
+                    impl #ref_ident {
+                        #(#attrs)*
+                        #vis #inline_sig #block
+                    }
+
+                    #native_function_code
+                });
+
+                let mut new_sig = sig.clone();
+                new_sig.asyncness = None;
+
+                if is_empty_type(raw_output_type) {
+                    new_sig.output = ReturnType::Default;
+                } else {
+                    new_sig.output = ReturnType::Type(
+                        Token![->](raw_output_type.span()),
+                        Box::new(raw_output_type.clone()),
+                    );
+                };
+                let custom_self_type = if let Some(FnArg::Typed(PatType {
+                    pat: box Pat::Ident(PatIdent { ident, .. }),
+                    ..
+                })) = sig.inputs.first()
+                {
+                    ident == "self_vc"
+                } else {
+                    false
+                };
+                if custom_self_type {
+                    let external_self = new_sig.inputs.first_mut().unwrap();
+                    *external_self = FnArg::Receiver(Receiver {
+                        attrs: Vec::new(),
+                        reference: Some((Token![&](Span::call_site()), None)),
+                        mutability: None,
+                        self_token: Token![self](Span::call_site()),
+                    });
+                    input_raw_vc_arguments[0] = quote! { self.into() };
+                }
+
+                *sig = new_sig;
+            }
         }
     }
 
@@ -853,8 +943,14 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             #(#items)*
         }
 
+        #(#native_functions)*
+
         turbo_tasks::lazy_static! {
-            pub(crate) static ref #trait_type_ident: turbo_tasks::TraitType = turbo_tasks::TraitType::new(std::any::type_name::<#ref_ident>().to_string());
+            pub(crate) static ref #trait_type_ident: turbo_tasks::TraitType = {
+                let mut trait_type = turbo_tasks::TraitType::new(std::any::type_name::<#ref_ident>().to_string());;
+                #(#default_method_registers)*
+                trait_type
+            };
             pub(crate) static ref #trait_type_id_ident: turbo_tasks::TraitTypeId = turbo_tasks::registry::get_trait_type_id(&#trait_type_ident);
         }
 
@@ -955,6 +1051,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
     fn generate_for_vc_impl(vc_ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
@@ -1005,8 +1102,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     sig.asyncness.is_some(),
                     &sig.inputs,
                     &output_type,
-                    Some(vc_ident),
-                    true,
+                    Some((vc_ident, SelfType::Ref)),
                 );
 
                 let (raw_output_type, _) = unwrap_result_type(&output_type);
@@ -1107,8 +1203,8 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 let internal_function_ident =
                     get_internal_trait_impl_function_ident(trait_ident, ident);
                 trait_registers.push(quote! {
-                        value_type.register_trait_method(#trait_ref_ident::__type(), stringify!(#ident).to_string(), *#function_id_ident);
-                    });
+                    value_type.register_trait_method(#trait_ref_ident::__type(), stringify!(#ident).to_string(), *#function_id_ident);
+                });
                 let name = Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
                 let (native_function_code, mut input_raw_vc_arguments) = gen_native_function_code(
                     quote! { #name },
@@ -1118,8 +1214,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     asyncness.is_some(),
                     inputs,
                     &output_type,
-                    Some(&ref_ident),
-                    false,
+                    Some((&ref_ident, SelfType::Value)),
                 );
                 let mut new_sig = sig.clone();
                 new_sig.ident = internal_function_ident;
@@ -1270,6 +1365,7 @@ fn get_return_type(output: &ReturnType) -> Type {
 }
 
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as ItemFn);
@@ -1300,7 +1396,6 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
         &sig.inputs,
         &output_type,
         None,
-        false,
     );
 
     let (raw_output_type, _) = unwrap_result_type(&output_type);
@@ -1360,6 +1455,13 @@ fn is_empty_type(ty: &Type) -> bool {
     false
 }
 
+/// The underlying type of the `self` identifier.
+enum SelfType {
+    Value,
+    Ref,
+    ValueTrait,
+}
+
 fn gen_native_function_code(
     name_code: TokenStream2,
     original_function: TokenStream2,
@@ -1368,8 +1470,7 @@ fn gen_native_function_code(
     async_function: bool,
     inputs: &Punctuated<FnArg, Token![,]>,
     output_type: &Type,
-    self_ref_type: Option<&Ident>,
-    self_is_ref_type: bool,
+    self_ref_type: Option<(&Ident, SelfType)>,
 ) -> (TokenStream2, Vec<TokenStream2>) {
     let mut input_extraction = Vec::new();
     let mut input_convert = Vec::new();
@@ -1393,30 +1494,43 @@ fn gen_native_function_code(
                         )
                         .emit();
                 }
-                let self_ref_type = self_ref_type.unwrap();
+
+                let (self_ref_ident, self_type) = match self_ref_type.as_ref() {
+                    Some(self_ref_type) => self_ref_type,
+                    None => {
+                        abort!(input.span(), "unexpected receiver argument");
+                    }
+                };
                 input_extraction.push(quote! {
                     let __self = __iter
                         .next()
                         .ok_or_else(|| anyhow::anyhow!("{}() self argument missing", #name_code))?;
                 });
                 input_convert.push(quote! {
-                    let __self: #self_ref_type = turbo_tasks::FromTaskInput::try_from(__self)?;
+                    let __self: #self_ref_ident = turbo_tasks::FromTaskInput::try_from(__self)?;
                 });
                 input_clone.push(quote! {
                     let __self = std::clone::Clone::clone(&__self);
                 });
-                if self_is_ref_type {
-                    input_final.push(quote! {});
-                    input_arguments.push(quote! {
-                        __self
-                    });
-                } else {
-                    input_final.push(quote! {
-                        let __self = __self.await?;
-                    });
-                    input_arguments.push(quote! {
-                        &*__self
-                    });
+                match self_type {
+                    SelfType::Value => {
+                        input_final.push(quote! {
+                            let __self = __self.await?;
+                        });
+                        input_arguments.push(quote! {
+                            &*__self
+                        });
+                    }
+                    SelfType::Ref => {
+                        input_arguments.push(quote! {
+                            __self
+                        });
+                    }
+                    SelfType::ValueTrait => {
+                        input_arguments.push(quote! {
+                            &__self
+                        });
+                    }
                 }
                 input_raw_vc_arguments.push(quote! {
                     self.into()

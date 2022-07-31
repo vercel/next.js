@@ -193,6 +193,7 @@ impl ValueType {
 #[derive(Debug)]
 pub struct TraitType {
     pub name: String,
+    pub(crate) default_trait_methods: HashMap<String, FunctionId>,
 }
 
 impl Hash for TraitType {
@@ -229,7 +230,14 @@ impl Ord for TraitType {
 
 impl TraitType {
     pub fn new(name: String) -> Self {
-        Self { name }
+        Self {
+            name,
+            default_trait_methods: HashMap::new(),
+        }
+    }
+
+    pub fn register_default_trait_method(&mut self, name: String, native_fn: FunctionId) {
+        self.default_trait_methods.insert(name, native_fn);
     }
 
     pub fn register(&'static self, global_name: &str) {

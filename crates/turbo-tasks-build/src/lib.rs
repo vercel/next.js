@@ -6,7 +6,9 @@ use std::{
 };
 
 use anyhow::Context;
-use syn::{Attribute, Item, Path, PathArguments, PathSegment, Type, TypePath};
+use syn::{
+    Attribute, Item, Path, PathArguments, PathSegment, TraitItem, TraitItemMethod, Type, TypePath,
+};
 
 pub fn generate_register() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -190,6 +192,27 @@ pub fn generate_register() {
                                     .any(|a| is_attribute(a, "value_trait"))
                                 {
                                     let name = trait_item.ident.to_string();
+
+                                    for item in &trait_item.items {
+                                        if let TraitItem::Method(TraitItemMethod {
+                                            default: Some(_),
+                                            sig,
+                                            ..
+                                        }) = item
+                                        {
+                                            let method_name = sig.ident.to_string();
+                                            writeln!(
+                                                traits_code,
+                                                "crate{mod_path}::{}_DEFAULT_IMPL_{}_FUNCTION.\
+                                                 register({});",
+                                                name.to_uppercase(),
+                                                method_name.to_uppercase(),
+                                                format_args!("r##\"{prefix}{mod_path}::{name}::{method_name}\"##"),
+                                            )
+                                            .unwrap();
+                                        }
+                                    }
+
                                     writeln!(
                                         traits_code,
                                         "crate{mod_path}::{}_TRAIT_TYPE.register({});",

@@ -411,6 +411,11 @@ impl TaskInput {
                     let key = (trait_type, name.into_owned());
                     if let Some(func) = registry::get_value_type(ty).trait_methods.get(&key) {
                         Ok(*func)
+                    } else if let Some(func) = registry::get_trait(trait_type)
+                        .default_trait_methods
+                        .get(&key.1)
+                    {
+                        Ok(*func)
                     } else {
                         Err(Cow::Owned(key.1))
                     }
