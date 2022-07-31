@@ -76,22 +76,6 @@ const configSchema = {
           ] as any,
         },
         relay: {
-          additionalProperties: false,
-          properties: {
-            artifactDirectory: {
-              minLength: 1,
-              type: 'string',
-            },
-            language: {
-              // automatic typing doesn't like enum
-              enum: ['flow', 'typescript'] as any,
-              type: 'string',
-            },
-            src: {
-              minLength: 1,
-              type: 'string',
-            },
-          },
           type: 'object',
         },
         removeConsole: {
@@ -344,6 +328,9 @@ const configSchema = {
             },
           ] as any,
         },
+        optimisticClientCache: {
+          type: 'boolean',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -404,6 +391,9 @@ const configSchema = {
       },
       type: 'object',
     },
+    exportPathMap: {
+      isFunction: true,
+    } as any,
     future: {
       additionalProperties: false,
       properties: {},

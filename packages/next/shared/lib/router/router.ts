@@ -481,7 +481,7 @@ function fetchNextData({
               return { dataHref, response, text, json: {} }
             }
 
-            if (response.status === 404) {
+            if (!hasMiddleware && response.status === 404) {
               if (tryToParseAsJSON(text)?.notFound) {
                 return {
                   dataHref,
@@ -489,16 +489,6 @@ function fetchNextData({
                   response,
                   text,
                 }
-              }
-
-              /**
-               * If there is a 404 that is not for SSG we used to fail but if
-               * there is a middleware we must respond with an empty object.
-               * For now we will return the data when there is a middleware.
-               * TODO: Update the server to success on these requests.
-               */
-              if (hasMiddleware) {
-                return { dataHref, response, text, json: {} }
               }
             }
 
@@ -1347,7 +1337,10 @@ export default class Router implements BaseRouter {
       if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
         route = pathname
-        query = Object.assign({}, routeInfo.query || {}, query)
+
+        if (!routeProps.shallow) {
+          query = Object.assign({}, routeInfo.query || {}, query)
+        }
 
         if (routeMatch && pathname !== parsed.pathname) {
           Object.keys(routeMatch).forEach((key) => {
@@ -1359,8 +1352,15 @@ export default class Router implements BaseRouter {
 
         if (isDynamicRoute(pathname)) {
           const prefixedAs =
-            routeInfo.resolvedAs ||
-            addBasePath(addLocale(as, nextState.locale), true)
+            !routeProps.shallow && routeInfo.resolvedAs
+              ? routeInfo.resolvedAs
+              : addBasePath(
+                  addLocale(
+                    new URL(as, location.href).pathname,
+                    nextState.locale
+                  ),
+                  true
+                )
 
           let rewriteAs = prefixedAs
 
@@ -1701,6 +1701,10 @@ export default class Router implements BaseRouter {
         return existingInfo
       }
 
+      if (hasMiddleware) {
+        existingInfo = undefined
+      }
+
       let cachedRouteInfo =
         existingInfo &&
         !('initial' in existingInfo) &&
@@ -1743,7 +1747,10 @@ export default class Router implements BaseRouter {
         route = removeTrailingSlash(data.effect.resolvedHref)
         pathname = data.effect.resolvedHref
         query = { ...query, ...data.effect.parsedAs.query }
-        resolvedAs = data.effect.parsedAs.pathname
+        resolvedAs = removeBasePath(
+          normalizeLocalePath(data.effect.parsedAs.pathname, this.locales)
+            .pathname
+        )
 
         // Check again the cache with the new destination.
         existingInfo = this.components[route]
@@ -1756,16 +1763,8 @@ export default class Router implements BaseRouter {
           // If we have a match with the current route due to rewrite,
           // we can copy the existing information to the rewritten one.
           // Then, we return the information along with the matched route.
-          this.components[requestedRoute] = { ...existingInfo, route }
           return { ...existingInfo, route }
         }
-
-        cachedRouteInfo =
-          existingInfo &&
-          !('initial' in existingInfo) &&
-          process.env.NODE_ENV !== 'development'
-            ? existingInfo
-            : undefined
       }
 
       if (route === '/api' || route.startsWith('/api/')) {
@@ -1809,20 +1808,24 @@ export default class Router implements BaseRouter {
       const { props } = await this._getData(async () => {
         if (shouldFetchData && !useStreamedFlightData) {
           const { json } =
-            data ||
-            (await fetchNextData({
-              dataHref: this.pageLoader.getDataHref({
-                href: formatWithValidation({ pathname, query }),
-                asPath: resolvedAs,
-                locale,
-              }),
-              isServerRender: this.isSsr,
-              parseJSON: true,
-              inflightCache: this.sdc,
-              persistCache: !isPreview,
-              isPrefetch: false,
-              unstable_skipClientCache,
-            }))
+            data?.json &&
+            data?.response.headers
+              .get('content-type')
+              ?.includes('application/json')
+              ? data
+              : await fetchNextData({
+                  dataHref: this.pageLoader.getDataHref({
+                    href: formatWithValidation({ pathname, query }),
+                    asPath: resolvedAs,
+                    locale,
+                  }),
+                  isServerRender: this.isSsr,
+                  parseJSON: true,
+                  inflightCache: this.sdc,
+                  persistCache: !isPreview,
+                  isPrefetch: false,
+                  unstable_skipClientCache,
+                })
 
           return {
             props: json,
@@ -1904,11 +1907,6 @@ export default class Router implements BaseRouter {
       routeInfo.resolvedAs = resolvedAs
       this.components[route] = routeInfo
 
-      // If the route was rewritten in the process of fetching data,
-      // we update the cache to allow hitting the same data for shallow requests.
-      if (route !== requestedRoute) {
-        this.components[requestedRoute] = { ...routeInfo, route }
-      }
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
@@ -2158,7 +2156,9 @@ export default class Router implements BaseRouter {
               persistCache: !this.isPreview,
               isPrefetch: true,
               unstable_skipClientCache:
-                options.unstable_skipClientCache || options.priority,
+                options.unstable_skipClientCache ||
+                (options.priority &&
+                  !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
             }).then(() => false)
           : false
       }),
@@ -2332,7 +2332,14 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
   const matchedPath = response.headers.get('x-matched-path')
 
-  if (!rewriteTarget && !matchedPath?.includes('__next_data_catchall')) {
+  if (
+    matchedPath &&
+    !rewriteTarget &&
+    !matchedPath.includes('__next_data_catchall') &&
+    !matchedPath.includes('/_error') &&
+    !matchedPath.includes('/404')
+  ) {
+    // leverage x-matched-path to detect next.config.js rewrites
     rewriteTarget = matchedPath
   }
 
@@ -2344,7 +2351,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
         parseData: true,
       })
 
-      const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
+      let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
       return Promise.all([
         options.router.pageLoader.getPageList(),
         getClientBuildManifest(),
@@ -2382,6 +2389,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
             parsedRewriteTarget.pathname = result.parsedAs.pathname
             as = parsedRewriteTarget.pathname
             Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
+          }
+        } else if (!pages.includes(fsPathname)) {
+          const resolvedPathname = resolveDynamicRoute(fsPathname, pages)
+
+          if (resolvedPathname !== fsPathname) {
+            fsPathname = resolvedPathname
           }
         }
 

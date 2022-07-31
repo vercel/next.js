@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
@@ -147,11 +148,26 @@ export interface ExperimentalConfig {
   largePageDataBytes?: number
 }
 
+export type ExportPathMap = {
+  [path: string]: { page: string; query?: Record<string, string | string[]> }
+}
+
 /**
  * Next configuration object
  * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
+  exportPathMap?: (
+    defaultMap: ExportPathMap,
+    ctx: {
+      dev: boolean
+      dir: string
+      outDir: string | null
+      distDir: string
+      buildId: string
+    }
+  ) => Promise<ExportPathMap> | ExportPathMap
+
   /**
    * Internationalization configuration
    *
@@ -517,6 +533,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
