@@ -19,10 +19,7 @@ import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
-import {
-  BLOCKED_PAGES,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-} from '../../shared/lib/constants'
+import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
@@ -699,8 +696,7 @@ export default class HotReloader {
           stats.entrypoints.forEach((entry, key) => {
             if (
               key.startsWith('pages/') ||
-              (key.startsWith('app/') &&
-                !key.endsWith(NEXT_CLIENT_SSR_ENTRY_SUFFIX)) ||
+              key.startsWith('app/') ||
               isMiddlewareFilename(key)
             ) {
               // TODO this doesn't handle on demand loaded chunks

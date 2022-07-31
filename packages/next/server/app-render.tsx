@@ -375,11 +375,9 @@ function getSegmentParam(segment: string): {
  * Get inline <link> tags based on __next_rsc_css__ manifest. Only used when rendering to HTML.
  */
 function getCssInlinedLinkTags(
-  ComponentMod: any,
   serverComponentManifest: FlightManifest
 ): ManifestChunks {
-  const importedServerCSS: { [key: string]: string[] } =
-    ComponentMod.__client__?.__next_rsc_css__ || {}
+  const importedServerCSS: { [key: string]: string[] } = {}
 
   const uniqueChunks = new Set<string>()
 
@@ -952,7 +950,6 @@ export async function renderToHTMLOrFlight(
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
   const initialStylesheets: string[] = getCssInlinedLinkTags(
-    ComponentMod,
     serverComponentManifest
   )
 
