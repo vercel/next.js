@@ -216,7 +216,7 @@ struct PackageJson {
     alias: Option<String>,
 }
 
-pub fn run_bump(names: HashSet<String>) {
+pub fn run_bump(names: HashSet<String>, dry_run: bool) {
     let workspaces_list_text = Command::program("yarn")
         .args(&["workspaces", "list", "--json"])
         .error_message("List workspaces failed")
@@ -249,24 +249,22 @@ pub fn run_bump(names: HashSet<String>) {
         .filter(|p| names.contains(&p.name))
         .collect::<Vec<_>>();
     if workspaces_to_bump.is_empty() {
+        fn name_to_title(package: &PackageJson) -> String {
+            format!(
+                "{}, current version is {}",
+                package.name.bright_cyan(),
+                package.version.bright_green()
+            )
+        }
         let selector = inquire::MultiSelect::new(
             "Select a package to bump",
-            workspaces
-                .iter()
-                .map(|w| {
-                    format!(
-                        "{}, current version is {}",
-                        w.name.bright_cyan(),
-                        w.version.bright_green()
-                    )
-                })
-                .collect(),
+            workspaces.iter().map(name_to_title).collect(),
         );
         workspaces_to_bump = selector
             .prompt()
             .expect("Failed to prompt packages")
             .iter()
-            .filter_map(|p| workspaces.iter().find(|w| w.name == *p))
+            .filter_map(|p| workspaces.iter().find(|w| name_to_title(w) == *p))
             .cloned()
             .collect();
     }
@@ -339,6 +337,7 @@ pub fn run_bump(names: HashSet<String>) {
         ];
         Command::program("yarn")
             .args(version_command_args)
+            .dry_run(dry_run)
             .error_message("Bump version failed")
             .execute();
         tags_to_apply.push(format!(
@@ -349,10 +348,12 @@ pub fn run_bump(names: HashSet<String>) {
     });
     Command::program("yarn")
         .args(&["version", "apply", "--all"])
+        .dry_run(dry_run)
         .error_message("Apply version failed")
         .execute();
     Command::program("git")
         .args(&["add", "."])
+        .dry_run(dry_run)
         .error_message("Stash git changes failed")
         .execute();
     let tags_message = tags_to_apply
@@ -368,17 +369,19 @@ pub fn run_bump(names: HashSet<String>) {
             "-m",
             tags_message.as_str(),
         ])
+        .dry_run(dry_run)
         .error_message("Stash git changes failed")
         .execute();
     for tag in tags_to_apply {
         Command::program("git")
+            .dry_run(dry_run)
             .args(&["tag", "-s", &tag, "-m", &tag])
             .error_message("Tag failed")
             .execute();
     }
 }
 
-pub fn publish_workspace() {
+pub fn publish_workspace(dry_run: bool) {
     let commit_message = Command::program("git")
         .args(&["log", "-1", "--pretty=%B"])
         .error_message("Get commit hash failed")
@@ -416,7 +419,11 @@ pub fn publish_workspace() {
                 ""
             }
         };
-        let npm_publish = format!("npm publish {}", tag);
+        let npm_publish = format!(
+            "npm publish {} {}",
+            tag,
+            if dry_run { "--dry-run" } else { "" }
+        );
         Command::program("yarn")
             .args(&["workspace", pkg_name.as_str(), "exec", &npm_publish])
             .error_message("Publish failed")

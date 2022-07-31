@@ -31,6 +31,7 @@ fn cli() -> Command<'static> {
             Command::new("workspace")
                 .arg(arg!(--publish "publish npm packages in yarn workspace"))
                 .arg(arg!(--bump "bump new version for npm package in yarn workspace"))
+                .arg(arg!(--"dry-run" "dry run all operations"))
                 .arg(arg!([NAME] "the package to bump"))
                 .about("Manage packages in yarn workspaces"),
         )
@@ -56,15 +57,16 @@ fn main() {
         Some(("workspace", sub_matches)) => {
             let is_bump = sub_matches.is_present("bump");
             let is_publish = sub_matches.is_present("publish");
+            let dry_run = sub_matches.is_present("dry-run");
             if is_bump {
                 let names = sub_matches
                     .get_many::<String>("NAME")
                     .map(|names| names.cloned().collect::<HashSet<_>>())
                     .unwrap_or(Default::default());
-                run_bump(names);
+                run_bump(names, dry_run);
             }
             if is_publish {
-                publish_workspace();
+                publish_workspace(dry_run);
             }
         }
         Some(("nft-bench-result", _)) => {

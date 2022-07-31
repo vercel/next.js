@@ -33,9 +33,8 @@ impl Command {
         self
     }
 
-    #[allow(unused)]
-    pub fn dry_run(mut self) -> Self {
-        self.dry_run = true;
+    pub fn dry_run(mut self, dry_run: bool) -> Self {
+        self.dry_run = dry_run;
         self
     }
 
