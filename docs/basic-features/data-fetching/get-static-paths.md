@@ -68,7 +68,7 @@ In development (`next dev`), `getStaticPaths` will be called on every request.
 
 ## Generating paths on-demand
 
-`getStaticProps` allows you to control which pages are generated during the build instead of on-demand with [`fallback`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-blocking). Generating more pages during a build will cause slower builds.
+`getStaticPaths` allows you to control which pages are generated during the build instead of on-demand with [`fallback`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-blocking). Generating more pages during a build will cause slower builds.
 
 You can defer generating all pages on-demand by returning an empty array for `paths`. This can be especially helpful when deploying your Next.js application to multiple environments. For example, you can have faster builds by generating all pages on-demand for previews (but not production builds). This is helpful for sites with hundreds/thousands of static pages.
 

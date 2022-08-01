@@ -964,15 +964,16 @@ export default class DevServer extends Server {
       type: 'route',
       name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
       fn: async (_req, res) => {
-        const edgeRoutes = this.getEdgeFunctions().concat(
-          this.middleware ? [this.middleware] : []
-        )
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
         res
           .body(
             JSON.stringify(
-              edgeRoutes.map((edgeRoute) => [edgeRoute.re!.source])
+              this.middleware
+                ? {
+                    location: this.middleware.re!.source,
+                  }
+                : {}
             )
           )
           .send()
