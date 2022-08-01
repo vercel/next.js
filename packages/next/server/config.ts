@@ -141,6 +141,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (!!value && value.constructor === Object) {
         currentConfig[key] = {
+          // @ts-ignore
           ...defaultConfig[key],
           ...Object.keys(value).reduce<any>((c, k) => {
             const v = value[k]
