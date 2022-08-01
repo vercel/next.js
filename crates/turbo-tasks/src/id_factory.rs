@@ -29,7 +29,9 @@ impl<T: From<usize> + Deref<Target = usize>> IdFactory<T> {
         self.next_id.fetch_add(1, Ordering::Relaxed).into()
     }
 
-    /// SAFETY: It must be ensured that the id is no longer used
+    /// # Safety
+    ///
+    /// It must be ensured that the id is no longer used
     pub unsafe fn reuse(&self, _id: T) {
         // TODO
     }

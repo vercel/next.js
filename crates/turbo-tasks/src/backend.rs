@@ -84,6 +84,14 @@ impl PersistentTaskType {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        match self {
+            PersistentTaskType::Native(_, v)
+            | PersistentTaskType::ResolveNative(_, v)
+            | PersistentTaskType::ResolveTrait(_, _, v) => v.is_empty(),
+        }
+    }
+
     pub fn partial(&self, len: usize) -> Self {
         match self {
             PersistentTaskType::Native(f, v) => PersistentTaskType::Native(*f, v[..len].to_vec()),

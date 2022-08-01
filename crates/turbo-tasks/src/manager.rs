@@ -104,6 +104,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
 pub trait TaskIdProvider {
     fn get_fresh_task_id(&self) -> TaskId;
+    /// # Safety
+    ///
+    /// It must be ensured that the id is no longer used
     unsafe fn reuse_task_id(&self, id: TaskId);
 }
 
