@@ -128,11 +128,11 @@ interface Entry extends EntryType {
 interface ChildEntry extends EntryType {
   type: EntryTypes.CHILD_ENTRY
   /**
-   * Which parent entries use this childEntry
+   * Which parent entries use this childEntry.
    */
   parentEntries: Set<string>
   /**
-   * Client entry loader and query parameters when RSC is enabled.
+   * Webpack request to create a dependency for.
    */
   request: string
 }
