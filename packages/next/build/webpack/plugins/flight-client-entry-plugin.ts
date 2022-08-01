@@ -237,7 +237,7 @@ export class FlightClientEntryPlugin {
           parentEntries: new Set([entryName]),
           bundlePath,
           // absolutePagePath: routeInfo.absolutePagePath,
-          clientLoader,
+          request: clientLoader,
           dispose: false,
           lastActiveTime: Date.now(),
         }

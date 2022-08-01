@@ -134,7 +134,7 @@ interface ChildEntry extends EntryType {
   /**
    * Client entry loader and query parameters when RSC is enabled.
    */
-  clientLoader: string
+  request: string
 }
 
 export const entries: {

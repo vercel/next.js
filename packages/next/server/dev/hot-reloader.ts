@@ -616,7 +616,7 @@ export default class HotReloader {
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
                     compilerType: 'client',
-                    value: entryData.clientLoader,
+                    value: entryData.request,
                     appDir: this.config.experimental.appDir,
                   })
                 } else {
