@@ -391,6 +391,9 @@ const configSchema = {
       },
       type: 'object',
     },
+    exportPathMap: {
+      isFunction: true,
+    } as any,
     future: {
       additionalProperties: false,
       properties: {},

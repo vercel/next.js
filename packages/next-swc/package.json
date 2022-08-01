@@ -24,5 +24,8 @@
         "aarch64-pc-windows-msvc"
       ]
     }
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "2.7.0"
   }
 }
