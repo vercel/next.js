@@ -7,7 +7,7 @@ import {
   RemotePattern,
 } from '../shared/lib/image-config'
 
-import { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import type { BuildPhase } from '../shared/lib/constants'
 
 export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
