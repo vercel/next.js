@@ -1824,7 +1824,7 @@ export default class Router implements BaseRouter {
               })
 
           return {
-            props: json,
+            props: json || {},
           }
         }
 
