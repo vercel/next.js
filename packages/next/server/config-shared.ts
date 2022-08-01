@@ -534,9 +534,6 @@ export const defaultConfig: NextConfigObject = {
     maxInactiveAge: 15 * 1000,
     pagesBufferLength: 2,
   },
-  amp: {
-    canonicalBase: undefined,
-  },
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
