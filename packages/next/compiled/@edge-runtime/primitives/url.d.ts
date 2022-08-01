@@ -49,6 +49,4 @@ declare const URLPatternConstructor: typeof URLPattern
 declare const URLConstructor: typeof URL
 declare const URLSearchParamsConstructor: typeof URLSearchParams
 
-export { URLPatternConstructor as URLPattern }
-export { URLConstructor as URL }
-export { URLSearchParamsConstructor as URLSearchParams }
+export { URLConstructor as URL, URLPatternConstructor as URLPattern, URLSearchParamsConstructor as URLSearchParams };

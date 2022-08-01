@@ -13,4 +13,6 @@ interface IConsole {
   warn: Console['warn']
 }
 
-export const console: IConsole
+declare const console: IConsole
+
+export { console };
