@@ -23,8 +23,8 @@ describe('defaultConfig conforms to config schema', () => {
 
   it('should work', async () => {
     await renderViaHTTP(next.url, '/')
-    expect(next.cliOutput).not.toContain(
-      /Invalid next.config.js options detected:/
+    expect(next.cliOutput).not.toMatch(
+      'Invalid next.config.js options detected:'
     )
   })
 })
