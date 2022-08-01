@@ -286,12 +286,15 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
         match version_type {
             "major" => {
                 semver_version.major += 1;
+                semver_version.pre = Prerelease::EMPTY;
             }
             "minor" => {
                 semver_version.minor += 1;
+                semver_version.pre = Prerelease::EMPTY;
             }
             "patch" => {
                 semver_version.patch += 1;
+                semver_version.pre = Prerelease::EMPTY;
             }
             "alpha" | "beta" | "canary" => {
                 if semver_version.pre.is_empty() {
