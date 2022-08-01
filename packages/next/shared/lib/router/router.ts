@@ -1159,7 +1159,7 @@ export default class Router implements BaseRouter {
       ;[pages, { __rewrites: rewrites }] = await Promise.all([
         this.pageLoader.getPageList(),
         getClientBuildManifest(),
-        this.pageLoader.getMiddlewareList(),
+        this.pageLoader.getMiddleware(),
       ])
     } catch (err) {
       // If we fail to resolve the page list or client-build manifest, we must
@@ -2267,18 +2267,17 @@ interface MiddlewareEffectParams<T extends FetchDataOutput> {
 function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
-  return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
-    (items) => {
+  return Promise.resolve(options.router.pageLoader.getMiddleware()).then(
+    (middleware) => {
       const { pathname: asPathname } = parsePath(options.asPath)
       const cleanedAs = hasBasePath(asPathname)
         ? removeBasePath(asPathname)
         : asPathname
 
-      return !!items?.some(([regex, ssr]) => {
-        return (
-          !ssr && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
-        )
-      })
+      const regex = middleware?.location
+      return (
+        !!regex && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+      )
     }
   )
 }
