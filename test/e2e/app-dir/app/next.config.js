@@ -6,6 +6,7 @@ module.exports = {
     legacyBrowsers: false,
     browsersListForSwc: true,
   },
+  // assetPrefix: '/assets',
   rewrites: async () => {
     return [
       {
