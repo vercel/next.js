@@ -52,7 +52,7 @@ fn main() {
             let name = sub_matches
                 .get_one::<String>("NAME")
                 .expect("NAME is required");
-            run_publish(&name);
+            run_publish(name);
         }
         Some(("workspace", sub_matches)) => {
             let is_bump = sub_matches.is_present("bump");
@@ -62,7 +62,7 @@ fn main() {
                 let names = sub_matches
                     .get_many::<String>("NAME")
                     .map(|names| names.cloned().collect::<HashSet<_>>())
-                    .unwrap_or(Default::default());
+                    .unwrap_or_default();
                 run_bump(names, dry_run);
             }
             if is_publish {

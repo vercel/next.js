@@ -134,7 +134,8 @@ pub fn run_publish(name: &str) {
             });
             let dir_name = format!("{}-{}-{}", pkg.crate_name, platform.os, platform.arch);
             let target_dir = package_dir.join("npm").join(dir_name);
-            fs::create_dir(&target_dir).expect(&format!("Unable to create dir: {:?}", &target_dir));
+            fs::create_dir(&target_dir)
+                .unwrap_or_else(|e| panic!("Unable to create dir: {:?}\n{e}", &target_dir));
             fs::write(
                 target_dir.join("package.json"),
                 serde_json::to_string_pretty(&pkg_json).unwrap(),
@@ -145,10 +146,12 @@ pub fn run_publish(name: &str) {
                 .join(format!("node-file-trace-{}", platform.rust_target))
                 .join(&bin_file_name);
             let dist_path = target_dir.join(&bin_file_name);
-            fs::copy(&artifact_path, &dist_path).expect(&format!(
-                "Copy file from [{:?}] to [{:?}] failed",
-                artifact_path, dist_path
-            ));
+            fs::copy(&artifact_path, &dist_path).unwrap_or_else(|e| {
+                panic!(
+                    "Copy file from [{:?}] to [{:?}] failed: {e}",
+                    artifact_path, dist_path
+                )
+            });
             Command::program("npm")
                 .args(&["publish", "--access", "restricted", "--tag", tag])
                 .error_message("Publish npm package failed")
@@ -156,10 +159,12 @@ pub fn run_publish(name: &str) {
                 .execute();
         }
         let target_pkg_dir = temp_dir.join(pkg.name);
-        fs::create_dir_all(&target_pkg_dir).expect(&format!(
-            "Unable to create target npm directory [{:?}]",
-            target_pkg_dir
-        ));
+        fs::create_dir_all(&target_pkg_dir).unwrap_or_else(|e| {
+            panic!(
+                "Unable to create target npm directory [{:?}]: {e}",
+                target_pkg_dir
+            )
+        });
         let optional_dependencies_with_version = optional_dependencies
             .into_iter()
             .map(|name| (name, version.clone()))
@@ -173,10 +178,12 @@ pub fn run_publish(name: &str) {
             target_pkg_dir.join("package.json"),
             serde_json::to_string_pretty(&pkg_json).unwrap(),
         )
-        .expect(&format!(
-            "Write [{:?}] failed",
-            target_pkg_dir.join("package.json")
-        ));
+        .unwrap_or_else(|e| {
+            panic!(
+                "Write [{:?}] failed: {e}",
+                target_pkg_dir.join("package.json")
+            )
+        });
         Command::program("npm")
             .args(&["publish", "--access", "restricted", "--tag", tag])
             .error_message("Publish npm package failed")
@@ -198,7 +205,7 @@ fn parse_maybe_null<'de, D>(d: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
 {
-    Deserialize::deserialize(d).map(|x: Option<_>| x.unwrap_or(String::new()))
+    Deserialize::deserialize(d).map(|x: Option<_>| x.unwrap_or_default())
 }
 
 fn default_empty_string() -> String {
@@ -223,7 +230,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
         .output_string();
     let workspaces = workspaces_list_text
         .trim()
-        .split("\n")
+        .split('\n')
         .filter_map(|s| {
             let workspace: WorkspaceProjectMeta =
                 serde_json::from_str(s).expect("Parse workspaces list failed");
@@ -273,10 +280,9 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
         let title = format!("Version for {}", &p.name);
         let selector = inquire::Select::new(title.as_str(), VERSION_TYPE.to_owned());
         let version_type = selector.prompt().expect("Get version type failed");
-        let mut semver_version = Version::parse(&p.version).expect(&format!(
-            "Failed to parse {} in {} as semver",
-            p.version, p.name
-        ));
+        let mut semver_version = Version::parse(&p.version).unwrap_or_else(|e| {
+            panic!("Failed to parse {} in {} as semver: {e}", p.version, p.name)
+        });
         match version_type {
             "major" => {
                 semver_version.major += 1;
@@ -293,7 +299,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
                     semver_version.pre =
                         Prerelease::new(format!("{}.0", version_type).as_str()).unwrap();
                 } else {
-                    let mut prerelease_version = semver_version.pre.split(".");
+                    let mut prerelease_version = semver_version.pre.split('.');
                     let prerelease_type = prerelease_version
                         .next()
                         .expect("prerelease type should exist");
@@ -388,15 +394,15 @@ pub fn publish_workspace(dry_run: bool) {
         .output_string();
     for (pkg_name_without_scope, version) in commit_message
         .trim()
-        .split("\n")
+        .split('\n')
         // Skip commit title
         .skip(1)
-        .map(|s| s.trim().trim_start_matches("-").trim())
+        .map(|s| s.trim().trim_start_matches('-').trim())
         // Only publish tags match `@vercel/xxx@x.y.z-alpha.n`
         .filter(|m| m.starts_with("@vercel/"))
         .map(|m| {
             let m = m.trim_start_matches("@vercel/");
-            let mut full_tag = m.split("@");
+            let mut full_tag = m.split('@');
             let pkg_name_without_scope = full_tag.next().unwrap().to_string();
             let version = full_tag.next().unwrap().to_string();
             (pkg_name_without_scope, version)
@@ -404,7 +410,7 @@ pub fn publish_workspace(dry_run: bool) {
     {
         let pkg_name = format!("@vercel/{pkg_name_without_scope}");
         let semver_version = Version::from_str(version.as_str())
-            .expect(&format!("Parse semver version failed {version}"));
+            .unwrap_or_else(|e| panic!("Parse semver version failed {version} {e}"));
         let is_alpha = semver_version.pre.contains("alpha");
         let is_beta = semver_version.pre.contains("beta");
         let is_canary = semver_version.pre.contains("canary");

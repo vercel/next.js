@@ -1,12 +1,14 @@
 #![feature(future_join)]
 #![feature(future_poll_fn)]
+#![feature(min_specialization)]
+
+mod turbo_tasks_viz;
 
 use std::{
     env::current_dir,
     future::join,
     net::IpAddr,
     path::PathBuf,
-    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -14,7 +16,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use turbo_tasks::{util::FormatDuration, TransientValue, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
-use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
+use turbo_tasks_memory::MemoryBackend;
 use turbopack::{ecmascript::ModuleAssetVc as EcmascriptModuleAssetVc, ModuleAssetContextVc};
 use turbopack_core::{
     chunk::{
@@ -26,7 +28,14 @@ use turbopack_core::{
     lazy::LazyAssetVc,
     source_asset::SourceAssetVc,
 };
-use turbopack_dev_server::{fs::DevServerFileSystemVc, html::DevHtmlAsset, DevServerVc};
+use turbopack_dev_server::{
+    fs::DevServerFileSystemVc,
+    html::DevHtmlAsset,
+    source::{asset_graph::AssetGraphContentSource, router::RouterContentSource},
+    DevServerVc,
+};
+
+use self::turbo_tasks_viz::TurboTasksSource;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -133,33 +142,24 @@ async fn main() {
                 served_asset = LazyAssetVc::new(served_asset).into();
             }
 
+            let graph = AssetGraphContentSource {
+                root_asset: served_asset,
+                root_path: FileSystemPathVc::new(dev_server_fs, ""),
+            }
+            .into();
+            let viz = TurboTasksSource {
+                turbo_tasks: tt.clone(),
+            }
+            .into();
+            let source = RouterContentSource {
+                routes: vec![("__turbo_tasks__/".to_string(), viz)],
+                fallback: graph,
+            }
+            .into();
+
             let server = DevServerVc::new(
-                FileSystemPathVc::new(dev_server_fs, ""),
-                served_asset,
+                source,
                 TransientValue::new((args.hostname, args.port).into()),
-                TransientValue::new(Arc::new(move |path| {
-                    if path == "/__turbo_tasks_graph__" {
-                        let mut stats = Stats::new();
-                        let b = tt.backend();
-                        b.with_all_cached_tasks(|task| {
-                            stats.add_id(b, task);
-                        });
-                        let tree = stats.treeify();
-                        let graph = viz::graph::visualize_stats_tree(tree);
-                        return Some(viz::graph::wrap_html(&graph));
-                    }
-                    if path == "/__turbo_tasks_table__" {
-                        let mut stats = Stats::new();
-                        let b = tt.backend();
-                        b.with_all_cached_tasks(|task| {
-                            stats.add_id(b, task);
-                        });
-                        let tree = stats.treeify();
-                        let table = viz::table::create_table(tree);
-                        return Some(viz::table::wrap_html(&table));
-                    }
-                    None
-                })),
             );
             disk_fs.await?.start_watching()?;
             server.listen().await

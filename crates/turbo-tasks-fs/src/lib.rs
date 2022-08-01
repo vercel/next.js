@@ -29,6 +29,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
+use mime::Mime;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
@@ -796,7 +797,7 @@ impl FileSystemPathVc {
             }
             .into());
         }
-        let segments = this.path.split("/");
+        let segments = this.path.split('/');
         let mut current = self.root();
         let mut symlinks = Vec::new();
         for segment in segments {
@@ -933,6 +934,15 @@ impl File {
             content: str.into_bytes(),
         }
     }
+
+    pub fn content_type(&self) -> Option<&Mime> {
+        self.meta.content_type.as_ref()
+    }
+
+    pub fn with_content_type(mut self, content_type: Mime) -> Self {
+        self.meta.content_type = Some(content_type);
+        self
+    }
 }
 
 impl File {
@@ -955,10 +965,61 @@ impl AsRef<[u8]> for File {
     }
 }
 
+mod mime_option_serde {
+    use std::{fmt, str::FromStr};
+
+    use mime::Mime;
+    use serde::{de, Deserializer, Serializer};
+
+    pub fn serialize<S>(mime: &Option<Mime>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Some(mime) = mime {
+            serializer.serialize_str(mime.as_ref())
+        } else {
+            serializer.serialize_str("")
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Mime>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = Option<Mime>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a valid MIME type or empty string")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Option<Mime>, E>
+            where
+                E: de::Error,
+            {
+                if value.is_empty() {
+                    Ok(None)
+                } else {
+                    Mime::from_str(value)
+                        .map(Some)
+                        .map_err(|e| E::custom(format!("{}", e)))
+                }
+            }
+        }
+
+        deserializer.deserialize_str(Visitor)
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Default, Debug, Clone)]
 pub struct FileMeta {
     permissions: Permissions,
+    #[serde(with = "mime_option_serde")]
+    #[trace_ignore]
+    content_type: Option<Mime>,
 }
 
 #[cfg(target_family = "unix")]
@@ -975,7 +1036,10 @@ impl From<fs::Metadata> for FileMeta {
                 .then(|| Permissions::Executable)
                 .unwrap_or(Permissions::Writable)
         };
-        Self { permissions: perm }
+        Self {
+            permissions: perm,
+            content_type: None,
+        }
     }
 }
 
