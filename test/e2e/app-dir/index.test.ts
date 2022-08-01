@@ -35,15 +35,19 @@ describe('app dir', () => {
           react: 'experimental',
           'react-dom': 'experimental',
         },
+        skipStart: true,
       })
 
       if (assetPrefix) {
         const content = await next.readFile('next.config.js')
         await next.patchFile(
           'next.config.js',
-          content.replace('// assetPrefix', 'assetPrefix')
+          content
+            .replace('// assetPrefix', 'assetPrefix')
+            .replace('// beforeFiles', 'beforeFiles')
         )
       }
+      await next.start()
     })
     afterAll(() => next.destroy())
 
