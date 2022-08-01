@@ -95,6 +95,15 @@ describe('Middleware Runtime', () => {
           await browser.close()
         }
       })
+
+      it('should only contain middleware route in dev middleware manifest', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
+        )
+        const { location } = await res.json()
+        expect(location).toBe('.*')
+      })
     }
 
     if ((global as any).isNextStart) {

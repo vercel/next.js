@@ -13,7 +13,7 @@ declare global {
   interface Window {
     __BUILD_MANIFEST?: Record<string, string[]>
     __BUILD_MANIFEST_CB?: Function
-    __MIDDLEWARE_MANIFEST?: [location: string, isSSR: boolean][]
+    __MIDDLEWARE_MANIFEST?: { location: string }
     __MIDDLEWARE_MANIFEST_CB?: Function
   }
 }

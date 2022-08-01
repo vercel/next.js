@@ -416,7 +416,7 @@ importers:
       '@babel/types': 7.18.0
       '@edge-runtime/primitives': 1.1.0-beta.23
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.4.4
+      '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
       '@next/env': 12.2.4-canary.8
       '@next/polyfill-module': 12.2.4-canary.8
@@ -609,7 +609,7 @@ importers:
       '@babel/types': 7.18.0
       '@edge-runtime/primitives': 1.1.0-beta.23
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.4.4
+      '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
       '@next/polyfill-module': link:../next-polyfill-module
       '@next/polyfill-nomodule': link:../next-polyfill-nomodule
@@ -832,7 +832,10 @@ importers:
       whatwg-fetch: 3.0.0
 
   packages/next-swc:
-    specifiers: {}
+    specifiers:
+      '@napi-rs/cli': 2.7.0
+    devDependencies:
+      '@napi-rs/cli': 2.7.0
 
   packages/react-dev-overlay:
     specifiers:
@@ -4644,8 +4647,8 @@ packages:
       glob-to-regexp: 0.3.0
     dev: true
 
-  /@napi-rs/cli/2.4.4:
-    resolution: {integrity: sha512-f+tvwCv1ka24dBqI2DgBhR7Oxl3DKHOp4onxLXwyBFt6iCADnr3YZIr1/2Iq5r3uqxFgaf01bfPsRQZPkEp0kQ==}
+  /@napi-rs/cli/2.7.0:
+    resolution: {integrity: sha512-bQb+r9/xW8LFRbpEN7A/4fX8LnEWbI0JzyOzXGDpO+cI8dXRxX7OPySOpzT2nBgP1brA2Ydkw/t9lyxLN9TlxQ==}
     engines: {node: '>= 10'}
     hasBin: true
     dev: true
