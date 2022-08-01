@@ -102,6 +102,12 @@ interface EntryType {
    * Page build status.
    */
   status?: typeof ADDED | typeof BUILDING | typeof BUILT
+
+  /**
+   * Path to the page file relative to the dist folder with no extension.
+   * For example: `pages/about/index`
+   */
+  bundlePath: string
 }
 
 // Shadowing check in ESLint does not account for enum
@@ -117,11 +123,6 @@ interface Entry extends EntryType {
    * `/Users/Rick/project/pages/about/index.js`
    */
   absolutePagePath: string
-  /**
-   * Path to the page file relative to the dist folder with no extension.
-   * For example: `pages/about/index`
-   */
-  bundlePath: string
 }
 
 interface ChildEntry extends EntryType {
@@ -130,11 +131,6 @@ interface ChildEntry extends EntryType {
    * Which parent entries use this childEntry
    */
   parentEntries: Set<string>
-  /**
-   * Path to the page file relative to the dist folder with no extension.
-   * For example: `pages/about/index`
-   */
-  bundlePath: string
   /**
    * Client entry loader and query parameters when RSC is enabled.
    */
