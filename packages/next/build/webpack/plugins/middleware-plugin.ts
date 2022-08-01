@@ -760,5 +760,8 @@ function isProcessEnvMemberExpression(memberExpression: any): boolean {
 }
 
 function isNodeJsModule(moduleName: string) {
-  return require('module').builtinModules.includes(moduleName)
+  return (
+    moduleName !== 'buffer' &&
+    require('module').builtinModules.includes(moduleName)
+  )
 }
