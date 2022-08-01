@@ -182,29 +182,27 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         experimental: {
           nextScriptWorkers: true,
         },
-        dependencies: {
-          react: '17',
-          'react-dom': '17',
-        },
       },
       files: {
         'pages/index.js': `
-          import Script from 'next/script'
-
-          export default function Page() {
-            return (
-              <>
-                <Script
+        import Script from 'next/script'
+        
+        export default function Page() {
+          return (
+            <>
+            <Script
                   src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"
                   strategy="worker"
                 />
               </>
-            )
+              )
           }
-        `,
+          `,
       },
       dependencies: {
         '@builder.io/partytown': '0.4.2',
+        react: '17',
+        'react-dom': '17',
       },
     })
   })
@@ -261,26 +259,24 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         experimental: {
           nextScriptWorkers: true,
         },
-        dependencies: {
-          react: '17',
-          'react-dom': '17',
-        },
       },
       files: {
         'pages/index.js': `
         import Script from 'next/script'
-      
+        
         export default function Page() {
           return (
             <>
-              ${script}
-              <div id="text" />
+            ${script}
+            <div id="text" />
             </>
-          )
-        }
-      `,
+            )
+          }
+          `,
       },
       dependencies: {
+        react: '17',
+        'react-dom': '17',
         '@builder.io/partytown': '0.4.2',
       },
     })
