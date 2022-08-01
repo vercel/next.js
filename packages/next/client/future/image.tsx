@@ -364,6 +364,7 @@ export default function Image({
     // Remove property so it's not spread on <img>
     delete rest.loader
   }
+
   let staticSrc = ''
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src

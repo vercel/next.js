@@ -985,15 +985,7 @@ function runTests(mode) {
         const warnings = (await browser.log('browser'))
           .map((log) => log.message)
           .join('\n')
-        expect(warnings).not.toMatch(
-          /Image with src "\/wide.png" has no sizes prop, but doesn't take up the full width of the screen.(.*)/gm
-        )
-        expect(warnings).not.toMatch(
-          /Fill mode image with src "\/wide.png" has a parent element without CSS position: "relative".(.*)/gm
-        )
-        expect(warnings).not.toMatch(
-          /Fill mode image with src "\/wide.png" has a height value of 0.(.*)/gm
-        )
+        expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
       })
       it('should log warnings when using fill mode incorrectly', async () => {
         browser = await webdriver(appPort, '/fill-warnings')
@@ -1001,14 +993,14 @@ function runTests(mode) {
         const warnings = (await browser.log('browser'))
           .map((log) => log.message)
           .join('\n')
-        expect(warnings).toMatch(
-          /Image with src "\/wide.png" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative./gm
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative.'
         )
-        expect(warnings).toMatch(
-          /Fill mode image with src "\/wide.png" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height./gm
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.'
         )
-        expect(warnings).toMatch(
-          /Fill mode image with src "\/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: /gm
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
         )
       })
     }
