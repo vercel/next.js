@@ -506,65 +506,65 @@ export default function Image({
           Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
         )
       }
-      if ('ref' in rest) {
+    }
+    if ('ref' in rest) {
+      warnOnce(
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+      )
+    }
+
+    if (!unoptimized && loader !== defaultLoader) {
+      const urlStr = loader({
+        config,
+        src,
+        width: widthInt || 400,
+        quality: qualityInt || 75,
+      })
+      let url: URL | undefined
+      try {
+        url = new URL(urlStr)
+      } catch (err) {}
+      if (urlStr === src || (url && url.pathname === src && !url.search)) {
         warnOnce(
-          `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+          `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
         )
       }
+    }
 
-      if (!unoptimized && loader !== defaultLoader) {
-        const urlStr = loader({
-          config,
-          src,
-          width: widthInt || 400,
-          quality: qualityInt || 75,
-        })
-        let url: URL | undefined
-        try {
-          url = new URL(urlStr)
-        } catch (err) {}
-        if (urlStr === src || (url && url.pathname === src && !url.search)) {
-          warnOnce(
-            `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-              `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
-          )
-        }
-      }
-
-      if (
-        typeof window !== 'undefined' &&
-        !perfObserver &&
-        window.PerformanceObserver
-      ) {
-        perfObserver = new PerformanceObserver((entryList) => {
-          for (const entry of entryList.getEntries()) {
-            // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
-            const imgSrc = entry?.element?.src || ''
-            const lcpImage = allImgs.get(imgSrc)
-            if (
-              lcpImage &&
-              !lcpImage.priority &&
-              lcpImage.placeholder !== 'blur' &&
-              !lcpImage.src.startsWith('data:') &&
-              !lcpImage.src.startsWith('blob:')
-            ) {
-              // https://web.dev/lcp/#measure-lcp-in-javascript
-              warnOnce(
-                `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
-                  `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
-              )
-            }
+    if (
+      typeof window !== 'undefined' &&
+      !perfObserver &&
+      window.PerformanceObserver
+    ) {
+      perfObserver = new PerformanceObserver((entryList) => {
+        for (const entry of entryList.getEntries()) {
+          // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
+          const imgSrc = entry?.element?.src || ''
+          const lcpImage = allImgs.get(imgSrc)
+          if (
+            lcpImage &&
+            !lcpImage.priority &&
+            lcpImage.placeholder !== 'blur' &&
+            !lcpImage.src.startsWith('data:') &&
+            !lcpImage.src.startsWith('blob:')
+          ) {
+            // https://web.dev/lcp/#measure-lcp-in-javascript
+            warnOnce(
+              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
+                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+            )
           }
-        })
-        try {
-          perfObserver.observe({
-            type: 'largest-contentful-paint',
-            buffered: true,
-          })
-        } catch (err) {
-          // Log error but don't crash the app
-          console.error(err)
         }
+      })
+      try {
+        perfObserver.observe({
+          type: 'largest-contentful-paint',
+          buffered: true,
+        })
+      } catch (err) {
+        // Log error but don't crash the app
+        console.error(err)
       }
     }
   }
