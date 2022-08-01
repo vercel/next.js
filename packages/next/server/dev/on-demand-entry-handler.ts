@@ -89,39 +89,64 @@ export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
 export const BUILT = Symbol('built')
 
+interface EntryType {
+  /**
+   * Tells if a page is scheduled to be disposed.
+   */
+  dispose?: boolean
+  /**
+   * Timestamp with the last time the page was active.
+   */
+  lastActiveTime?: number
+  /**
+   * Page build status.
+   */
+  status?: typeof ADDED | typeof BUILDING | typeof BUILT
+}
+
+// Shadowing check in ESLint does not account for enum
+// eslint-disable-next-line no-shadow
+export const enum EntryTypes {
+  ENTRY,
+  CHILD_ENTRY,
+}
+interface Entry extends EntryType {
+  type: EntryTypes.ENTRY
+  /**
+   * The absolute page to the page file. For example:
+   * `/Users/Rick/project/pages/about/index.js`
+   */
+  absolutePagePath: string
+  /**
+   * Path to the page file relative to the dist folder with no extension.
+   * For example: `pages/about/index`
+   */
+  bundlePath: string
+}
+
+interface ChildEntry extends EntryType {
+  type: EntryTypes.CHILD_ENTRY
+  /**
+   * Which parent entries use this childEntry
+   */
+  parentEntries: Set<string>
+  /**
+   * Path to the page file relative to the dist folder with no extension.
+   * For example: `pages/about/index`
+   */
+  bundlePath: string
+  /**
+   * Client entry loader and query parameters when RSC is enabled.
+   */
+  clientLoader: string
+}
+
 export const entries: {
   /**
    * The key composed of the compiler name and the page. For example:
    * `edge-server/about`
    */
-  [page: string]: {
-    /**
-     * The absolute page to the page file. For example:
-     * `/Users/Rick/project/pages/about/index.js`
-     */
-    absolutePagePath: string
-    /**
-     * Path to the page file relative to the dist folder with no extension.
-     * For example: `pages/about/index`
-     */
-    bundlePath: string
-    /**
-     * Client entry loader and query parameters when RSC is enabled.
-     */
-    clientLoader?: string
-    /**
-     * Tells if a page is scheduled to be disposed.
-     */
-    dispose?: boolean
-    /**
-     * Timestamp with the last time the page was active.
-     */
-    lastActiveTime?: number
-    /**
-     * Page build status.
-     */
-    status?: typeof ADDED | typeof BUILDING | typeof BUILT
-  }
+  [entryName: string]: Entry | ChildEntry
 } = {}
 
 let invalidator: Invalidator
@@ -331,6 +356,7 @@ export function onDemandEntryHandler({
             } else {
               entryAdded = true
               entries[pageKey] = {
+                type: EntryTypes.ENTRY,
                 absolutePagePath: pagePathData.absolutePagePath,
                 bundlePath: pagePathData.bundlePath,
                 dispose: false,
@@ -402,17 +428,18 @@ function disposeInactiveEntries(
   lastServerAccessPagesForAppDir: string[],
   maxInactiveAge: number
 ) {
-  Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status, dispose, bundlePath } = entries[page]
+  Object.keys(entries).forEach((entryKey) => {
+    const entryData = entries[entryKey]
+    const { lastActiveTime, status, dispose } = entryData
 
-    const isClientComponentsEntry =
-      bundlePath.startsWith('app/') && page.startsWith('client/')
+    // TODO-APP: implement disposing of CHILD_ENTRY
+    if (entryData.type === EntryTypes.CHILD_ENTRY) {
+      return
+    }
 
-    // Disposing client component entry is handled when disposing server component entry
-    if (isClientComponentsEntry) return
-
-    // Skip pages already scheduled for disposing
-    if (dispose) return
+    if (dispose)
+      // Skip pages already scheduled for disposing
+      return
 
     // This means this entry is currently building or just added
     // We don't need to dispose those entries.
@@ -422,20 +449,13 @@ function disposeInactiveEntries(
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
     if (
-      lastClientAccessPages.includes(page) ||
-      lastServerAccessPagesForAppDir.includes(page)
+      lastClientAccessPages.includes(entryKey) ||
+      lastServerAccessPagesForAppDir.includes(entryKey)
     )
       return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
-      const isServerComponentsEntry =
-        bundlePath.startsWith('app/') && page.startsWith('server/')
-
-      // Dispose client component entrypoint when server component entrypoint is disposed.
-      if (isServerComponentsEntry) {
-        entries[page.replace('server/', 'client/')].dispose = true
-      }
-      entries[page].dispose = true
+      entries[entryKey].dispose = true
     }
   })
 }

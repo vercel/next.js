@@ -26,6 +26,7 @@ import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
   entries,
+  EntryTypes,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
@@ -46,7 +47,6 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
-import { stringify } from 'querystring'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -552,44 +552,52 @@ export default class HotReloader {
         const isEdgeServerCompilation = config.name === 'edge-server'
 
         await Promise.all(
-          Object.keys(entries).map(async (pageKey) => {
-            const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+          Object.keys(entries).map(async (entryKey) => {
+            const entryData = entries[entryKey]
+            const { bundlePath, dispose } = entryData
 
-            // @FIXME
-            const { clientLoader } = entries[pageKey] as any
-
-            const result = /^(client|server|edge-server)(.*)/g.exec(pageKey)
+            const result = /^(client|server|edge-server)(.*)/g.exec(entryKey)
             const [, key, page] = result! // this match should always happen
             if (key === 'client' && !isClientCompilation) return
             if (key === 'server' && !isNodeServerCompilation) return
             if (key === 'edge-server' && !isEdgeServerCompilation) return
 
+            const isEntry = entryData.type === EntryTypes.ENTRY
+            const isChildEntry = entryData.type === EntryTypes.CHILD_ENTRY
+
             // Check if the page was removed or disposed and remove it
-            const pageExists = !dispose && (await fileExists(absolutePagePath))
-            if (!pageExists) {
-              delete entries[pageKey]
-              return
+            if (isEntry) {
+              const pageExists =
+                !dispose && (await fileExists(entryData.absolutePagePath))
+              if (!pageExists) {
+                delete entries[entryKey]
+                return
+              }
             }
 
-            const isServerComponent =
-              serverComponentRegex.test(absolutePagePath)
+            const isServerComponent = isEntry
+              ? serverComponentRegex.test(entryData.absolutePagePath)
+              : false
 
-            const staticInfo = await getPageStaticInfo({
-              pageFilePath: absolutePagePath,
-              nextConfig: this.config,
-            })
+            const staticInfo = isEntry
+              ? await getPageStaticInfo({
+                  pageFilePath: entryData.absolutePagePath,
+                  nextConfig: this.config,
+                })
+              : {}
 
             runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
               onEdgeServer: () => {
-                if (!isEdgeServerCompilation) return
-                entries[pageKey].status = BUILDING
+                // TODO-APP: verify if child entry should support.
+                if (!isEdgeServerCompilation || !isEntry) return
+                entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: 'edge-server',
                   name: bundlePath,
                   value: getEdgeServerEntry({
-                    absolutePagePath,
+                    absolutePagePath: entryData.absolutePagePath,
                     buildId: this.buildId,
                     bundlePath,
                     config: this.config,
@@ -603,21 +611,21 @@ export default class HotReloader {
               },
               onClient: () => {
                 if (!isClientCompilation) return
-                if (clientLoader) {
-                  entries[pageKey].status = BUILDING
+                if (isChildEntry) {
+                  entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
                     compilerType: 'client',
-                    value: clientLoader,
+                    value: entryData.clientLoader,
                     appDir: this.config.experimental.appDir,
                   })
                 } else {
-                  entries[pageKey].status = BUILDING
+                  entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
                     compilerType: 'client',
                     value: getClientEntry({
-                      absolutePagePath,
+                      absolutePagePath: entryData.absolutePagePath,
                       page,
                     }),
                     appDir: this.config.experimental.appDir,
@@ -625,9 +633,13 @@ export default class HotReloader {
                 }
               },
               onServer: () => {
-                if (!isNodeServerCompilation) return
-                entries[pageKey].status = BUILDING
-                let request = relative(config.context!, absolutePagePath)
+                // TODO-APP: verify if child entry should support.
+                if (!isNodeServerCompilation || !isEntry) return
+                entries[entryKey].status = BUILDING
+                let request = relative(
+                  config.context!,
+                  entryData.absolutePagePath
+                )
                 if (!isAbsolute(request) && !request.startsWith('../')) {
                   request = `./${request}`
                 }
@@ -642,7 +654,7 @@ export default class HotReloader {
                           name: bundlePath,
                           pagePath: join(
                             APP_DIR_ALIAS,
-                            relative(this.appDir!, absolutePagePath)
+                            relative(this.appDir!, entryData.absolutePagePath)
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,

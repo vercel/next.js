@@ -1,20 +1,20 @@
 import { stringify } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { NEXT_CLIENT_SSR_ENTRY_SUFFIX } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import {
   getInvalidator,
   entries,
+  EntryTypes,
 } from '../../../server/dev/on-demand-entry-handler'
 import type {
   CssImports,
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
+import { APP_DIR_ALIAS } from '../../../lib/constants'
 
 interface Options {
   dev: boolean
@@ -62,30 +62,65 @@ export class FlightClientEntryPlugin {
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
     for (const [name, entry] of compilation.entries.entries()) {
+      // If the request is not for `app` directory entry skip it.
+      // if (!entry.request || !entry.request.startsWith('next-app-loader')) {
+      //   continue
+      // }
+
       // Check if the page entry is a server component or not.
       const entryDependency = entry.dependencies?.[0]
+      // Ensure only next-app-loader entries are handled.
+      if (
+        !entryDependency ||
+        !entryDependency.request ||
+        !entryDependency.request.startsWith('next-app-loader?')
+      ) {
+        continue
+      }
 
+      // TODO-APP: create client-side entrypoint per layout/page.
+      // const entryModule: webpack5.NormalModule =
+      //   compilation.moduleGraph.getResolvedModule(entryDependency)
+
+      // for (const connection of compilation.moduleGraph.getOutgoingConnections(
+      //   entryModule
+      // )) {
+      //   const layoutOrPageDependency = connection.dependency
+      //   // const layoutOrPageRequest = connection.dependency.request
+
+      //   const [clientComponentImports, cssImports] =
+      //     this.collectClientComponentsAndCSSForDependency(
+      //       compilation,
+      //       layoutOrPageDependency
+      //     )
+
+      //   promises.push(
+      //     this.injectClientEntryAndSSRModules(
+      //       compiler,
+      //       compilation,
+      //       name,
+      //       entryDependency,
+      //       clientComponentImports,
+      //       cssImports
+      //     )
+      //   )
+      // }
       const [clientComponentImports, cssImports] =
         this.collectClientComponentsAndCSSForDependency(
           compilation,
           entryDependency
         )
 
-      if (
-        entryDependency?.request &&
-        entry.options?.layer === WEBPACK_LAYERS.server
-      ) {
-        promises.push(
-          this.injectClientEntry(
-            compiler,
-            compilation,
-            name,
-            entryDependency,
-            clientComponentImports,
-            cssImports
-          )
+      promises.push(
+        this.injectClientEntryAndSSRModules(
+          compiler,
+          compilation,
+          name,
+          entryDependency,
+          clientComponentImports,
+          cssImports
         )
-      }
+      )
     }
 
     await Promise.all(promises)
@@ -93,7 +128,7 @@ export class FlightClientEntryPlugin {
 
   collectClientComponentsAndCSSForDependency(
     compilation: any,
-    entryDependency: any
+    dependency: any /* Dependency */
   ): [ClientComponentImports, CssImports] {
     /**
      * Keep track of checked modules to avoid infinite loops with recursive imports.
@@ -103,11 +138,11 @@ export class FlightClientEntryPlugin {
     const serverCSSImports: CssImports = {}
 
     const filterClientComponents = (
-      dependency: any,
+      dependencyToFilter: any,
       layoutOrPage: string
     ): void => {
       const mod: webpack5.NormalModule =
-        compilation.moduleGraph.getResolvedModule(dependency)
+        compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 
       // Keep client imports as simple
@@ -157,12 +192,12 @@ export class FlightClientEntryPlugin {
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(entryDependency, '')
+    filterClientComponents(dependency, '')
 
     return [clientComponentImports, serverCSSImports]
   }
 
-  async injectClientEntry(
+  async injectClientEntryAndSSRModules(
     compiler: any,
     compilation: any,
     entryName: string,
@@ -198,15 +233,22 @@ export class FlightClientEntryPlugin {
       const pageKey = 'client' + routeInfo.page
       if (!entries[pageKey]) {
         entries[pageKey] = {
+          type: EntryTypes.CHILD_ENTRY,
+          parentEntries: new Set([entryName]),
           bundlePath,
-          absolutePagePath: routeInfo.absolutePagePath,
+          // absolutePagePath: routeInfo.absolutePagePath,
           clientLoader,
           dispose: false,
           lastActiveTime: Date.now(),
-        } as any
+        }
         const invalidator = getInvalidator()
         if (invalidator) {
           invalidator.invalidate()
+        }
+      } else {
+        const entryData = entries[pageKey]
+        if (entryData.type === EntryTypes.CHILD_ENTRY) {
+          entryData.parentEntries.add(entryName)
         }
       }
     } else {
@@ -224,7 +266,7 @@ export class FlightClientEntryPlugin {
     const clientComponentEntryDep = (
       webpack as any
     ).EntryPlugin.createDependency(clientSSRLoader, {
-      name: entryName + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+      name: bundlePath,
     })
 
     // Add the dependency to the server compiler.
