@@ -636,12 +636,15 @@ export default class HotReloader {
                 // TODO-APP: verify if child entry should support.
                 if (!isNodeServerCompilation || !isEntry) return
                 entries[entryKey].status = BUILDING
-                let request = relative(
+                let relativeRequest = relative(
                   config.context!,
                   entryData.absolutePagePath
                 )
-                if (!isAbsolute(request) && !request.startsWith('../')) {
-                  request = `./${request}`
+                if (
+                  !isAbsolute(relativeRequest) &&
+                  !relativeRequest.startsWith('../')
+                ) {
+                  relativeRequest = `./${relativeRequest}`
                 }
 
                 entrypoints[bundlePath] = finalizeEntrypoint({
@@ -659,7 +662,7 @@ export default class HotReloader {
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
                         })
-                      : request,
+                      : relativeRequest,
                   appDir: this.config.experimental.appDir,
                 })
               },
