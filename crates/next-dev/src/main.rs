@@ -25,13 +25,12 @@ use turbopack_core::{
     },
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
-    lazy::LazyAssetVc,
     source_asset::SourceAssetVc,
 };
 use turbopack_dev_server::{
     fs::DevServerFileSystemVc,
     html::DevHtmlAsset,
-    source::{asset_graph::AssetGraphContentSource, router::RouterContentSource},
+    source::{asset_graph::AssetGraphContentSourceVc, router::RouterContentSource},
     DevServerVc,
 };
 
@@ -137,14 +136,11 @@ async fn main() {
                     ));
                 };
 
-            let mut served_asset = entry_asset;
-            if !args.eager_compile {
-                served_asset = LazyAssetVc::new(served_asset).into();
-            }
-
-            let graph = AssetGraphContentSource {
-                root_asset: served_asset,
-                root_path: FileSystemPathVc::new(dev_server_fs, ""),
+            let root_path = FileSystemPathVc::new(dev_server_fs, "");
+            let graph = if args.eager_compile {
+                AssetGraphContentSourceVc::new_eager(root_path, entry_asset)
+            } else {
+                AssetGraphContentSourceVc::new_lazy(root_path, entry_asset)
             }
             .into();
             let viz = TurboTasksSource {
