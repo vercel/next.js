@@ -252,14 +252,7 @@ export class FlightClientEntryPlugin {
         }
       }
     } else {
-      injectedClientEntries.set(
-        bundlePath,
-        `next-client-pages-loader?${stringify({
-          isServerComponent: true,
-          page: denormalizePagePath(bundlePath.replace(/^pages/, '')),
-          absolutePagePath: clientLoader,
-        })}!` + clientLoader
-      )
+      injectedClientEntries.set(bundlePath, clientLoader)
     }
 
     // Inject the entry to the server compiler (__sc_client__).
