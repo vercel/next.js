@@ -3,6 +3,7 @@ import { check } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
+import type { NextConfig } from 'next'
 
 describe('should set-up next', () => {
   let next: NextInstance
@@ -13,7 +14,9 @@ describe('should set-up next', () => {
         pages: new FileRef(join(__dirname, 'app/pages')),
         public: new FileRef(join(__dirname, 'app/public')),
       },
-      nextConfig: new FileRef(join(__dirname, 'app/next.config.js')),
+      nextConfig: new FileRef(
+        join(__dirname, 'app/next.config.js')
+      ) as NextConfig,
     })
   })
   afterAll(() => next.destroy())
