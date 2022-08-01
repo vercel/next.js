@@ -344,3 +344,5 @@ If the bug is verified, it will receive the `kind: bug` label and will be tracke
 Confirmed issues never become stale or be closed before resolution.
 
 All **closed** PRs and Issues will be locked after 30 days of inactivity (eg.: comment, referencing from elsewhere).
+
+Blah blah blah
