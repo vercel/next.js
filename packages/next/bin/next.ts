@@ -108,8 +108,8 @@ if (process.env.NODE_ENV) {
 
 // In node.js runtime, react has to be required after NODE_ENV is set,
 // so that the correct dev/prod bundle could be loaded into require.cache.
-const React = require('react')
-if (parseInt(React.version) >= 18) {
+const { shouldUseReactRoot } = require('../server/utils')
+if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
 
