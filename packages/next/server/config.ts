@@ -13,6 +13,7 @@ import {
   ExperimentalConfig,
   NextConfigComplete,
   validateConfig,
+  defaultInternalConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import {
@@ -23,7 +24,11 @@ import {
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
 
-export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
+export {
+  DomainLocale,
+  NextConfigObject as NextConfig,
+  normalizeConfig,
+} from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
@@ -136,6 +141,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (!!value && value.constructor === Object) {
         currentConfig[key] = {
+          // @ts-expect-error
           ...defaultConfig[key],
           ...Object.keys(value).reduce<any>((c, k) => {
             const v = value[k]
@@ -154,7 +160,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     {}
   )
 
-  const result = { ...defaultConfig, ...config }
+  const result = { ...defaultInternalConfig, ...defaultConfig, ...config }
 
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
@@ -803,13 +809,13 @@ export default async function loadConfig(
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
       userConfig.amp.canonicalBase =
-        (canonicalBase.endsWith('/')
+        (canonicalBase?.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
     }
 
     if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
-      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
+      userConfig.target = (process.env.NEXT_PRIVATE_TARGET || 'server') as any
     }
 
     return assignDefaults({

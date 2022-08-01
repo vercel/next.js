@@ -1,5 +1,8 @@
-import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
-import type { NextConfig } from '../../server/config-shared'
+import { isServerRuntime } from '../../server/config-shared'
+import type {
+  ServerRuntime,
+  NextConfigObject as NextConfig,
+} from '../../server/config-shared'
 import {
   extractExportedConstValue,
   UnsupportedValueError,

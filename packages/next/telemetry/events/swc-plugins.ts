@@ -1,7 +1,7 @@
 import findUp from 'next/dist/compiled/find-up'
 import path from 'path'
 import { fileExists } from '../../lib/file-exists'
-import type { NextConfig } from '../../server/config-shared'
+import type { NextConfigObject as NextConfig } from '../../server/config-shared'
 
 const EVENT_SWC_PLUGIN_PRESENT = 'NEXT_SWC_PLUGIN_DETECTED'
 type SwcPluginsEvent = {

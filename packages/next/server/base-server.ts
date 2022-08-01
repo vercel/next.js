@@ -7,7 +7,7 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type {
-  NextConfig,
+  NextConfigObject as NextConfig,
   NextConfigComplete,
   ServerRuntime,
 } from './config-shared'

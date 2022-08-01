@@ -1,5 +1,4 @@
 import os from 'os'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -8,14 +7,21 @@ import {
   RemotePattern,
 } from '../shared/lib/image-config'
 
+import { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { BuildPhase } from '../shared/lib/constants'
+
 export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
-export type NextConfigComplete = Required<NextConfig> & {
+export type NextConfigComplete = Required<NextConfigObject> & {
   images: Required<ImageConfigComplete>
   typescript: Required<TypeScriptConfig>
   configOrigin?: string
   configFile?: string
   configFileName: string
+  webpackDevMiddleware?: any
+  initialPageRevalidationMap: Record<string, number>
+  ssgNotFoundPaths: string[]
+  pageDurationMap: Record<string, any>
 }
 
 export interface I18NConfig {
@@ -156,7 +162,7 @@ export type ExportPathMap = {
  * Next configuration object
  * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
-export interface NextConfig extends Record<string, any> {
+export interface NextConfigObject {
   exportPathMap?: (
     defaultMap: ExportPathMap,
     ctx: {
@@ -231,6 +237,9 @@ export interface NextConfig extends Record<string, any> {
    * @see [Custom Webpack Config documentation](https://nextjs.org/docs/api-reference/next.config.js/custom-webpack-config)
    */
   webpack?: NextJsWebpackConfig | null
+
+  /** @deprecated */
+  target?: 'server' | 'serverless' | 'experimental-serverless-trace'
 
   /**
    * By default Next.js will redirect urls with trailing slashes to their counterpart without a trailing slash.
@@ -479,10 +488,27 @@ export interface NextConfig extends Record<string, any> {
   experimental?: ExperimentalConfig
 }
 
-export const defaultConfig: NextConfig = {
-  env: {},
+export type NextConfig =
+  | NextConfigObject
+  | ((
+      phase: BuildPhase,
+      config: { defaultConfig: NextConfigObject }
+    ) => NextConfigObject)
+
+export const defaultInternalConfig: Partial<NextConfigComplete> = {
+  amp: { canonicalBase: '' },
+  assetPrefix: '',
+  configOrigin: 'default',
+  experimental: { outputFileTracingRoot: '' },
+  i18n: null,
+  target: 'server',
   webpack: null,
+  webpack5: undefined,
   webpackDevMiddleware: null,
+}
+
+export const defaultConfig: NextConfigObject = {
+  env: {},
   eslint: {
     ignoreDuringBuilds: false,
   },
@@ -492,13 +518,10 @@ export const defaultConfig: NextConfig = {
   },
   distDir: '.next',
   cleanDistDir: true,
-  assetPrefix: '',
-  configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
   poweredByHeader: true,
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
@@ -512,15 +535,13 @@ export const defaultConfig: NextConfig = {
     pagesBufferLength: 2,
   },
   amp: {
-    canonicalBase: '',
+    canonicalBase: undefined,
   },
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
-  i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -566,7 +587,7 @@ export const defaultConfig: NextConfig = {
     incrementalCacheHandlerPath: undefined,
     serverComponents: false,
     fullySpecified: false,
-    outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+    outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT,
     images: {
       remotePatterns: [],
     },
@@ -582,7 +603,10 @@ export const defaultConfig: NextConfig = {
   },
 }
 
-export async function normalizeConfig(phase: string, config: any) {
+export async function normalizeConfig(
+  phase: string,
+  config: Partial<NextConfig>
+): Promise<NextConfigObject> {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
   }

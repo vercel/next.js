@@ -35,7 +35,7 @@ export async function build(
     productionBrowserSourceMaps: boolean
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
-    disableStaticImages: NextConfigComplete['disableStaticImages']
+    disableStaticImages: NextConfigComplete['images']['disableStaticImages']
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {

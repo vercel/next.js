@@ -3,6 +3,12 @@ export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
+export type BuildPhase =
+  | typeof PHASE_EXPORT
+  | typeof PHASE_PRODUCTION_BUILD
+  | typeof PHASE_PRODUCTION_SERVER
+  | typeof PHASE_DEVELOPMENT_SERVER
+  | typeof PHASE_TEST
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
