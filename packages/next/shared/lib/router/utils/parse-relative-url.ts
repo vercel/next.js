@@ -1,5 +1,14 @@
+import type { ParsedUrlQuery } from 'querystring'
 import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
+
+export interface ParsedRelativeUrl {
+  hash: string
+  href: string
+  pathname: string
+  query: ParsedUrlQuery
+  search: string
+}
 
 /**
  * Parses path-relative urls (e.g. `/hello/world?foo=bar`). If url isn't path-relative
@@ -7,7 +16,10 @@ import { searchParamsToUrlQuery } from './querystring'
  * Absolute urls are rejected with one exception, in the browser, absolute urls that are on
  * the current origin will be parsed as relative
  */
-export function parseRelativeUrl(url: string, base?: string) {
+export function parseRelativeUrl(
+  url: string,
+  base?: string
+): ParsedRelativeUrl {
   const globalBase = new URL(
     typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
   )

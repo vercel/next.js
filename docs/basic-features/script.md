@@ -21,6 +21,7 @@ description: Next.js helps you optimize loading third-party scripts with the bui
 
 | Version   | Changes                   |
 | --------- | ------------------------- |
+| `v12.2.4` | `onReady` prop added.     |
 | `v11.0.0` | `next/script` introduced. |
 
 </details>
@@ -98,6 +99,8 @@ export default function Document() {
   )
 }
 ```
+
+> **Note**: Scripts with `beforeInteractive` will always be injected inside the `head` of the HTML document regardless of where it's placed in `_document.js`.
 
 Examples of scripts that should be loaded as soon as possible with this strategy include:
 
@@ -247,9 +250,9 @@ The `id` property is required for **inline scripts** in order for Next.js to tra
 
 ### Executing Code After Loading (`onLoad`)
 
-> **Note: `onLoad` and `onError` cannot be used with the `beforeInteractive` loading strategy.**
+> **Note: `onLoad` cannot be used with the `beforeInteractive` loading strategy. Consider using `onReady` instead.**
 
-Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `afterInteractive` or `lazyOnload` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
+Some third-party scripts require users to run JavaScript code once after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `afterInteractive` or `lazyOnload` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
 
 ```jsx
 import { useState } from 'react'
@@ -271,6 +274,35 @@ export default function Home() {
   )
 }
 ```
+
+### Executing Code After Mounting (`onReady`)
+
+Some third-party scripts require users to run JavaScript code after the script has finished loading and every time the component is mounted (after a route navigation for example). You can execute code after the script's `load` event when it first loads and then after every subsequent component re-mount using the `onReady` property:
+
+```jsx
+import Script from 'next/script'
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        id="google-maps"
+        src="https://maps.googleapis.com/maps/api/js"
+        onReady={() => {
+          new google.maps.Map(ref.current, {
+            center: { lat: -34.397, lng: 150.644 },
+            zoom: 8,
+          })
+        }}
+      />
+    </>
+  )
+}
+```
+
+### Handling errors (`onError`)
+
+> **Note: `onError` cannot be used with the `beforeInteractive` loading strategy.**
 
 Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the `onError` property:
 

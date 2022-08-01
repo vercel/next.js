@@ -82,8 +82,8 @@ const nextDev: cliCommand = (argv) => {
   // we allow the server to use a random port while testing
   // instead of attempting to find a random port and then hope
   // it doesn't become occupied before we leverage it
-  if (process.env.__NEXT_RAND_PORT) {
-    port = 0
+  if (process.env.__NEXT_FORCED_PORT) {
+    port = parseInt(process.env.__NEXT_FORCED_PORT, 10) || 0
   }
 
   // We do not set a default host value here to prevent breaking

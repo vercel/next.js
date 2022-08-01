@@ -28,6 +28,12 @@ To add an image to your application, import the [`next/image`](/docs/api-referen
 import Image from 'next/image'
 ```
 
+Alternatively, you can import [`next/future/image`](/docs/api-reference/next/future/image.md) if you need a component much closer to the native `<img>` element:
+
+```jsx
+import Image from 'next/future/image'
+```
+
 Now, you can define the `src` for your image (either local or remote).
 
 ### Local Images
@@ -166,6 +172,8 @@ Because `next/image` is designed to guarantee good performance results, it canno
 If none of the suggested methods works for sizing your images, the `next/image` component is designed to work well on a page alongside standard `<img>` elements.
 
 ## Styling
+
+> Note: Many of the styling issues listed below can be solved with [`next/future/image`](/docs/api-reference/next/future/image.md)
 
 Styling the Image component is not that different from styling a normal `<img>` element, but there are a few guidelines to keep in mind:
 

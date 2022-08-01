@@ -49,16 +49,21 @@ struct DisplayNameAndId {
 
 impl DisplayNameAndId {
     fn get_block_name(&self, p: &Path) -> String {
-        let file_stem = p.file_stem();
-        if let Some(file_stem) = file_stem {
-            if file_stem == "index" {
-            } else {
-                return file_stem.to_string_lossy().to_string();
+        match p.file_stem().map(|s| s.to_string_lossy()) {
+            Some(file_stem)
+                if !self
+                    .config
+                    .meaningless_file_names
+                    .iter()
+                    .any(|meaningless| file_stem.as_ref() == meaningless) =>
+            {
+                file_stem.into()
             }
-        } else {
+            _ => self.get_block_name(
+                p.parent()
+                    .expect("path only contains meaningless filenames (e.g. /index/index)?"),
+            ),
         }
-
-        self.get_block_name(p.parent().expect("/index/index/index?"))
     }
 
     fn get_display_name(&mut self, _: &Expr) -> JsWord {
@@ -338,20 +343,13 @@ impl VisitMut for DisplayNameAndId {
             None
         };
 
-        let display_name = if self.config.display_name {
-            Some(self.get_display_name(expr))
-        } else {
-            None
-        };
-
+        let display_name = self
+            .config
+            .display_name
+            .then(|| self.get_display_name(expr));
         trace!("display_name: {:?}", display_name);
 
-        let component_id = if self.config.ssr {
-            Some(self.get_component_id().into())
-        } else {
-            None
-        };
-
+        let component_id = self.config.ssr.then(|| self.get_component_id().into());
         trace!("component_id: {:?}", display_name);
 
         self.add_config(

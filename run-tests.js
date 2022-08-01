@@ -269,15 +269,15 @@ async function main() {
           },
         }
       )
-      const handleOutput = (chunk) => {
+      const handleOutput = (type) => (chunk) => {
         if (hideOutput) {
-          outputChunks.push(chunk)
+          outputChunks.push({ type, chunk })
         } else {
           process.stderr.write(chunk)
         }
       }
-      child.stdout.on('data', handleOutput)
-      child.stderr.on('data', handleOutput)
+      child.stdout.on('data', handleOutput('stdout'))
+      child.stderr.on('data', handleOutput('stderr'))
 
       children.add(child)
 
@@ -287,22 +287,13 @@ async function main() {
           if (isFinalRun && hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            let trimmedOutputSize = 0
-            const trimmedOutputLimit = 64 * 1024
-            const trimmedOutput = []
-
-            for (let i = outputChunks.length; i >= 0; i--) {
-              const chunk = outputChunks[i]
-              if (!chunk) continue
-
-              trimmedOutputSize += chunk.byteLength || chunk.length
-              trimmedOutput.unshift(chunk)
-
-              if (trimmedOutputSize > trimmedOutputLimit) {
-                break
+            outputChunks.forEach(({ type, chunk }) => {
+              if (type === 'stdout') {
+                process.stdout.write(chunk)
+              } else {
+                process.stderr.write(chunk)
               }
-            }
-            trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
+            })
           }
           return reject(
             new Error(

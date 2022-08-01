@@ -4,7 +4,7 @@ import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 
-describe('views dir rendering', () => {
+describe('app dir rendering', () => {
   if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
     it('should skip for react v17', () => {})
     return
@@ -15,7 +15,7 @@ describe('views dir rendering', () => {
     return
   }
 
-  const isDev = (global as any).isDev
+  const isDev = (global as any).isNextDev
   let next: NextInstance
 
   beforeAll(async () => {
@@ -27,9 +27,18 @@ describe('views dir rendering', () => {
           path.join(__dirname, 'app-rendering/next.config.js')
         ),
       },
+      dependencies: {
+        react: 'experimental',
+        'react-dom': 'experimental',
+      },
     })
   })
   afterAll(() => next.destroy())
+
+  it('should serve app/page.server.js at /', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toContain('app/page.server.js')
+  })
 
   describe('getServerSideProps only', () => {
     it('should run getServerSideProps in layout and page', async () => {

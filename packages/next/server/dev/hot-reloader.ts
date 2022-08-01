@@ -15,14 +15,14 @@ import {
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
+import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import {
-  API_ROUTE,
-  MIDDLEWARE_FILENAME,
-  APP_DIR_ALIAS,
-} from '../../lib/constants'
+import { APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
-import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import {
+  BLOCKED_PAGES,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+} from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
@@ -35,7 +35,11 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { difference } from '../../build/utils'
+import {
+  difference,
+  withoutRSCExtensions,
+  isMiddlewareFilename,
+} from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
@@ -74,9 +78,8 @@ export async function renderScriptError(
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
-  const isApiRoute = req.url!.match(API_ROUTE)
-  // API routes handle their own CORS headers
-  if (isApiRoute) {
+  // Only rewrite CORS handling when URL matches a hot-reloader middleware
+  if (!req.url!.startsWith('/__next')) {
     return { preflight: false }
   }
 
@@ -351,6 +354,15 @@ export default class HotReloader {
               }
               break
             }
+            case 'client-full-reload': {
+              Log.warn(
+                'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+              )
+              if (payload.stackTrace) {
+                console.warn(payload.stackTrace)
+              }
+              break
+            }
             default: {
               break
             }
@@ -382,17 +394,17 @@ export default class HotReloader {
   private async getWebpackConfig(span: Span) {
     const webpackConfigSpan = span.traceChild('get-webpack-config')
 
+    const rawPageExtensions = this.hasServerComponents
+      ? withoutRSCExtensions(this.config.pageExtensions)
+      : this.config.pageExtensions
+
     return webpackConfigSpan.traceAsyncFn(async () => {
       const pagePaths = await webpackConfigSpan
         .traceChild('get-page-paths')
         .traceAsyncFn(() =>
           Promise.all([
-            findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
-            findPageFile(
-              this.pagesDir,
-              '/_document',
-              this.config.pageExtensions
-            ),
+            findPageFile(this.pagesDir, '/_app', rawPageExtensions),
+            findPageFile(this.pagesDir, '/_document', rawPageExtensions),
           ])
         )
 
@@ -563,6 +575,8 @@ export default class HotReloader {
 
             const isServerComponent =
               serverComponentRegex.test(absolutePagePath)
+            const isInsideAppDir =
+              this.appDir && absolutePagePath.startsWith(this.appDir)
 
             const staticInfo = await getPageStaticInfo({
               pageFilePath: absolutePagePath,
@@ -593,7 +607,7 @@ export default class HotReloader {
               },
               onClient: () => {
                 if (!isClientCompilation) return
-                if (isServerComponent) {
+                if (isServerComponent || isInsideAppDir) {
                   entries[pageKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
@@ -682,7 +696,12 @@ export default class HotReloader {
       (stats: webpack5.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
-            if (key.startsWith('pages/') || key === MIDDLEWARE_FILENAME) {
+            if (
+              key.startsWith('pages/') ||
+              (key.startsWith('app/') &&
+                !key.endsWith(NEXT_CLIENT_SSR_ENTRY_SUFFIX)) ||
+              isMiddlewareFilename(key)
+            ) {
               // TODO this doesn't handle on demand loaded chunks
               entry.chunks.forEach((chunk) => {
                 if (chunk.id === key) {
@@ -800,8 +819,14 @@ export default class HotReloader {
         changedServerPages,
         changedClientPages
       )
+      const serverComponentChanges = serverOnlyChanges.filter((key) =>
+        key.startsWith('app/')
+      )
+      const pageChanges = serverOnlyChanges.filter((key) =>
+        key.startsWith('pages/')
+      )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
-        (name) => name === MIDDLEWARE_FILENAME
+        (name) => isMiddlewareFilename(name)
       )
       changedClientPages.clear()
       changedServerPages.clear()
@@ -812,12 +837,21 @@ export default class HotReloader {
           event: 'middlewareChanges',
         })
       }
-      if (serverOnlyChanges.length > 0) {
+
+      if (pageChanges.length > 0) {
         this.send({
           event: 'serverOnlyChanges',
           pages: serverOnlyChanges.map((pg) =>
             denormalizePagePath(pg.slice('pages'.length))
           ),
+        })
+      }
+
+      if (serverComponentChanges.length > 0) {
+        this.send({
+          action: 'serverComponentChanges',
+          // TODO: granular reloading of changes
+          // entrypoints: serverComponentChanges,
         })
       }
     })
@@ -889,7 +923,6 @@ export default class HotReloader {
 
     this.onDemandEntries = onDemandEntryHandler({
       multiCompiler,
-      watcher: this.watcher,
       pagesDir: this.pagesDir,
       appDir: this.appDir,
       rootDir: this.dir,
@@ -905,6 +938,7 @@ export default class HotReloader {
         rootDirectory: this.dir,
         stats: () => this.clientStats,
         serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
       }),
     ]
   }

@@ -232,28 +232,6 @@ export function getClientBuildManifest() {
   )
 }
 
-export function getMiddlewareManifest() {
-  if (self.__MIDDLEWARE_MANIFEST) {
-    return Promise.resolve(self.__MIDDLEWARE_MANIFEST)
-  }
-
-  const onMiddlewareManifest = new Promise<
-    [location: string, isSSR: boolean][]
-  >((resolve) => {
-    const cb = self.__MIDDLEWARE_MANIFEST_CB
-    self.__MIDDLEWARE_MANIFEST_CB = () => {
-      resolve(self.__MIDDLEWARE_MANIFEST!)
-      cb && cb()
-    }
-  })
-
-  return resolvePromiseWithTimeout(
-    onMiddlewareManifest,
-    MS_MAX_IDLE_DELAY,
-    markAssetError(new Error('Failed to load client middleware manifest'))
-  )
-}
-
 interface RouteFiles {
   scripts: (TrustedScriptURL | string)[]
   css: string[]

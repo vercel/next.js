@@ -1,7 +1,7 @@
 export default function HelloPage(props) {
   return (
     <>
-      <p>hello from root/dashboard/rootonly/hello</p>
+      <p>hello from app/dashboard/rootonly/hello</p>
     </>
   )
 }

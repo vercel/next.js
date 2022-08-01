@@ -583,4 +583,25 @@ describe('i18n Support', () => {
       'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
     )
   })
+
+  it('should show proper error for duplicate locales', async () => {
+    nextConfig.write(`
+      module.exports = {
+        i18n: {
+          locales: ['en', 'fr', 'nl', 'eN', 'fr'],
+          defaultLocale: 'en',
+        }
+      }
+    `)
+
+    const { code, stderr } = await nextBuild(appDir, undefined, {
+      stderr: true,
+    })
+    nextConfig.restore()
+    expect(code).toBe(1)
+    expect(stderr).toContain(
+      'Specified i18n.locales contains the following duplicate locales:'
+    )
+    expect(stderr).toContain(`eN, fr`)
+  })
 })

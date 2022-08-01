@@ -9,6 +9,7 @@ export function Base() {
           --size-gap-half: 4px;
           --size-gap: 8px;
           --size-gap-double: 16px;
+          --size-gap-triple: 24px;
           --size-gap-quad: 32px;
 
           --size-font-small: 14px;

@@ -68,6 +68,12 @@ describe('Client Navigation', () => {
       )
     })
 
+    it('should not throw error when one number type child is provided', async () => {
+      const browser = await webdriver(context.appPort, '/link-number-child')
+      expect(await hasRedbox(browser)).toBe(false)
+      if (browser) await browser.close()
+    })
+
     it('should navigate back after reload', async () => {
       const browser = await webdriver(context.appPort, '/nav')
       await browser.elementByCss('#about-link').click()
@@ -1615,6 +1621,22 @@ describe('Client Navigation', () => {
           .click()
           .waitForElementByCss('#head-1', 3000)
         expect(await browser.eval('document.title')).toBe('this is head-1')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should update head when unmounting component', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head-dynamic')
+        expect(await browser.eval('document.title')).toBe('B')
+        await browser.elementByCss('button').click()
+        expect(await browser.eval('document.title')).toBe('A')
+        await browser.elementByCss('button').click()
+        expect(await browser.eval('document.title')).toBe('B')
       } finally {
         if (browser) {
           await browser.close()

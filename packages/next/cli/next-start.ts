@@ -14,6 +14,7 @@ const nextStart: cliCommand = (argv) => {
     '--help': Boolean,
     '--port': Number,
     '--hostname': String,
+    '--keepAliveTimeout': Number,
 
     // Aliases
     '-h': '--help',
@@ -44,6 +45,7 @@ const nextStart: cliCommand = (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --keepAliveTimeout  Max milliseconds to wait before closing inactive connections
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -54,14 +56,32 @@ const nextStart: cliCommand = (argv) => {
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
 
-  if (process.env.__NEXT_RAND_PORT) {
-    port = 0
+  if (process.env.__NEXT_FORCED_PORT) {
+    port = parseInt(process.env.__NEXT_FORCED_PORT, 10) || 0
   }
+
+  const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
+  if (
+    typeof keepAliveTimeoutArg !== 'undefined' &&
+    (Number.isNaN(keepAliveTimeoutArg) ||
+      !Number.isFinite(keepAliveTimeoutArg) ||
+      keepAliveTimeoutArg < 0)
+  ) {
+    printAndExit(
+      `Invalid --keepAliveTimeout, expected a non negative number but received "${keepAliveTimeoutArg}"`,
+      1
+    )
+  }
+
+  const keepAliveTimeout = keepAliveTimeoutArg
+    ? Math.ceil(keepAliveTimeoutArg)
+    : undefined
 
   startServer({
     dir,
     hostname: host,
     port,
+    keepAliveTimeout,
   })
     .then(async (app) => {
       const appUrl = `http://${app.hostname}:${app.port}`

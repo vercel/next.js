@@ -1,11 +1,8 @@
 import type { I18NConfig } from '../../config-shared'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
-import { isBot } from '../../utils'
 import { toNodeHeaders, validateURL } from '../utils'
-import parseua from 'next/dist/compiled/ua-parser-js'
-import { DeprecationPageError } from '../error'
-
+import { RemovedUAError, RemovedPageError } from '../error'
 import { NextCookies } from './cookies'
 
 export const INTERNALS = Symbol('internal request')
@@ -15,14 +12,14 @@ export class NextRequest extends Request {
     cookies: NextCookies
     geo: RequestData['geo']
     ip?: string
-    ua?: UserAgent | null
     url: NextURL
   }
 
-  constructor(input: Request | string, init: RequestInit = {}) {
-    const url = typeof input === 'string' ? input : input.url
+  constructor(input: URL | RequestInfo, init: RequestInit = {}) {
+    const url =
+      typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
-    super(input, init)
+    super(url, init)
     this[INTERNALS] = {
       cookies: new NextCookies(this),
       geo: init.geo || {},
@@ -31,6 +28,30 @@ export class NextRequest extends Request {
         headers: toNodeHeaders(this.headers),
         nextConfig: init.nextConfig,
       }),
+    }
+  }
+
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return {
+      cookies: this.cookies,
+      geo: this.geo,
+      ip: this.ip,
+      nextUrl: this.nextUrl,
+      url: this.url,
+      // rest of props come from Request
+      bodyUsed: this.bodyUsed,
+      cache: this.cache,
+      credentials: this.credentials,
+      destination: this.destination,
+      headers: Object.fromEntries(this.headers),
+      integrity: this.integrity,
+      keepalive: this.keepalive,
+      method: this.method,
+      mode: this.mode,
+      redirect: this.redirect,
+      referrer: this.referrer,
+      referrerPolicy: this.referrerPolicy,
+      signal: this.signal,
     }
   }
 
@@ -46,35 +67,16 @@ export class NextRequest extends Request {
     return this[INTERNALS].ip
   }
 
-  public get preflight() {
-    return this.headers.get('x-middleware-preflight')
-  }
-
   public get nextUrl() {
     return this[INTERNALS].url
   }
 
   public get page() {
-    throw new DeprecationPageError()
+    throw new RemovedPageError()
   }
 
   public get ua() {
-    if (typeof this[INTERNALS].ua !== 'undefined') {
-      return this[INTERNALS].ua || undefined
-    }
-
-    const uaString = this.headers.get('user-agent')
-    if (!uaString) {
-      this[INTERNALS].ua = null
-      return this[INTERNALS].ua || undefined
-    }
-
-    this[INTERNALS].ua = {
-      ...parseua(uaString),
-      isBot: isBot(uaString),
-    }
-
-    return this[INTERNALS].ua
+    throw new RemovedUAError()
   }
 
   public get url() {
@@ -93,30 +95,5 @@ export interface RequestInit extends globalThis.RequestInit {
     basePath?: string
     i18n?: I18NConfig | null
     trailingSlash?: boolean
-  }
-}
-
-interface UserAgent {
-  isBot: boolean
-  ua: string
-  browser: {
-    name?: string
-    version?: string
-  }
-  device: {
-    model?: string
-    type?: string
-    vendor?: string
-  }
-  engine: {
-    name?: string
-    version?: string
-  }
-  os: {
-    name?: string
-    version?: string
-  }
-  cpu: {
-    architecture?: string
   }
 }
