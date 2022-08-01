@@ -61,21 +61,13 @@ describe('Switchable runtime', () => {
 
   if ((global as any).isNextDev) {
     describe('Switchable runtime (dev)', () => {
-      it('should include edge api routes and edge ssr routes into dev middleware manifest', async () => {
+      it('should not include edge api routes and edge ssr routes into dev middleware manifest', async () => {
         const res = await fetchViaHTTP(
           next.url,
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
-        const routesMatchers = await res.json()
-
-        expect(
-          routesMatchers.some((matcher) =>
-            matcher[0].startsWith('^\\/api\\/edge')
-          )
-        ).toBe(true)
-        expect(
-          routesMatchers.some((matcher) => matcher[0].startsWith('^\\/edge'))
-        ).toBe(true)
+        const devMiddlewareManifest = await res.json()
+        expect(devMiddlewareManifest).toEqual({})
       })
 
       it.skip('should support client side navigation to ssr rsc pages', async () => {
