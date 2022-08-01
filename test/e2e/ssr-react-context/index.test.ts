@@ -28,7 +28,7 @@ describe('React Context', () => {
 
   if ((globalThis as any).isNextDev) {
     it('should render with context after change', async () => {
-      const aboutAppPagePath = 'app/pages/_app.js'
+      const aboutAppPagePath = 'pages/_app.js'
       const originalContent = await next.readFile(aboutAppPagePath)
       await next.patchFile(
         aboutAppPagePath,
