@@ -13,16 +13,19 @@ process.env.__NEXT_TEST_MODE = 'jest'
 describe('config', () => {
   it('Should get the configuration', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig)
+    // @ts-expect-error
     expect(config.customConfig).toBe(true)
   })
 
   it('Should pass the phase correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+    // @ts-expect-error
     expect(config.phase).toBe(PHASE_DEVELOPMENT_SERVER)
   })
 
   it('Should pass the defaultConfig correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+    // @ts-expect-error
     expect(config.defaultConfig).toBeDefined()
   })
 
@@ -36,6 +39,7 @@ describe('config', () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
       customConfig: true,
     })
+    // @ts-expect-error
     expect(config.customConfig).toBe(true)
   })
 
@@ -49,6 +53,7 @@ describe('config', () => {
       customConfig: true,
       onDemandEntries: { custom: true },
     })
+    // @ts-expect-error
     expect(config.customConfig).toBe(true)
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
@@ -57,7 +62,9 @@ describe('config', () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
       bogusSetting: { custom: true },
     })
+    // @ts-expect-error
     expect(config.bogusSetting).toBeDefined()
+    // @ts-expect-error
     expect(config.bogusSetting.custom).toBe(true)
   })
 
@@ -102,6 +109,7 @@ describe('config', () => {
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'js-ts-config')
     )
+    // @ts-expect-error
     expect(config.__test__ext).toBe('js')
   })
 
