@@ -691,7 +691,7 @@ function runTests(mode) {
 
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        `Image with src "/wide.png" has both \"fill\" and \"style.position\" properties. Images with \"fill\" always use position absolute - it cannot be modified.`
+        `Image with src "/wide.png" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
       )
     })
 
