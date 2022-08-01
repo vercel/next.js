@@ -9,6 +9,7 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 | Version   | Changes                                      |
 | --------- | -------------------------------------------- |
+| `v12.2.4` | Support for `fill` property added.           |
 | `v12.2.0` | Experimental `next/future/image` introduced. |
 
 </details>
@@ -36,7 +37,6 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
 - Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
 - Removes `loader` config in favor of [`loader`](#loader) prop
-- Note: there is no `fill` mode so `width` & `height` props are required
 - Note: the [`onError`](#onerror) prop might behave differently
 
 The default layout for `next/image` was `intrinsic`, which would shrink the `width` if the image was larger than it's container. Since no styles are automatically applied to `next/future/image`, you'll need to add the following CSS to achieve the same behavior:
@@ -64,13 +64,13 @@ When using an external URL, you must add it to [domains](#domains) in `next.conf
 
 The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ### height
 
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ## Optional Props
 
@@ -107,6 +107,22 @@ const MyImage = (props) => {
   )
 }
 ```
+
+### fill
+
+A boolean that causes the image to fill the parent element instead of setting [`width`](#width) and [`height`](#height).
+
+The parent element _must_ assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style.
+
+By default, the img element will automatically assign `object-fit: "contain"` and `position: "absolute"` styles.
+
+Optionally, `object-fit` can be assigned any other value such as `object-fit: "cover"`. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
+
+See also:
+
+- [position](https://developer.mozilla.org/en-US/docs/Web/CSS/position)
+- [object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit)
+- [object-position](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
 
 ### sizes
 
