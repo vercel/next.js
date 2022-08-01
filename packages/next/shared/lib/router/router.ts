@@ -508,7 +508,7 @@ function fetchNextData({
 
           return {
             dataHref,
-            json: tryToParseAsJSON(text),
+            json: parseJSON ? tryToParseAsJSON(text) : null,
             response,
             text,
           }
