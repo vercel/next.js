@@ -143,22 +143,19 @@ async function loadWasm(importPath = '') {
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
-          return Promise.resolve(
-            bindings.transformSync(src.toString(), options)
-          )
+          return bindings.transform(src, options)
         },
         transformSync(src, options) {
           return bindings.transformSync(src.toString(), options)
         },
         minify(src, options) {
-          return Promise.resolve(bindings.minifySync(src.toString(), options))
+          return bindings.minify(src.toString(), options)
         },
         minifySync(src, options) {
           return bindings.minifySync(src.toString(), options)
         },
         parse(src, options) {
-          const astStr = bindings.parseSync(src.toString(), options)
-          return Promise.resolve(astStr)
+          return bindings.parse(src.toString(), options)
         },
         parseSync(src, options) {
           const astStr = bindings.parseSync(src.toString(), options)
