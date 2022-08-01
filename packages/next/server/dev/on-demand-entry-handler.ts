@@ -108,6 +108,11 @@ interface EntryType {
    * For example: `pages/about/index`
    */
   bundlePath: string
+
+  /**
+   * Webpack request to create a dependency for.
+   */
+  request: string
 }
 
 // Shadowing check in ESLint does not account for enum
@@ -119,7 +124,7 @@ export const enum EntryTypes {
 interface Entry extends EntryType {
   type: EntryTypes.ENTRY
   /**
-   * The absolute page to the page file. For example:
+   * The absolute page to the page file. Used for detecting if the file was removed. For example:
    * `/Users/Rick/project/pages/about/index.js`
    */
   absolutePagePath: string
@@ -131,10 +136,6 @@ interface ChildEntry extends EntryType {
    * Which parent entries use this childEntry.
    */
   parentEntries: Set<string>
-  /**
-   * Webpack request to create a dependency for.
-   */
-  request: string
 }
 
 export const entries: {
@@ -359,6 +360,7 @@ export function onDemandEntryHandler({
               entries[pageKey] = {
                 type: EntryTypes.ENTRY,
                 absolutePagePath: pagePathData.absolutePagePath,
+                request: pagePathData.absolutePagePath,
                 bundlePath: pagePathData.bundlePath,
                 dispose: false,
                 lastActiveTime: Date.now(),
