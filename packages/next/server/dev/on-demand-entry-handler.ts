@@ -333,7 +333,9 @@ export function onDemandEntryHandler({
 
       let entryAdded = false
 
-      const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
+      const addPageEntry = (
+        compilerType: 'client' | 'server' | 'edge-server'
+      ) => {
         return new Promise<void>((resolve, reject) => {
           const isServerComponent = serverComponentRegex.test(
             pagePathData.absolutePagePath
@@ -341,7 +343,7 @@ export function onDemandEntryHandler({
           const isInsideAppDir =
             appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-          const pageKey = `${type}${pagePathData.page}`
+          const pageKey = `${compilerType}${pagePathData.page}`
 
           if (entries[pageKey]) {
             entries[pageKey].dispose = false
@@ -351,7 +353,10 @@ export function onDemandEntryHandler({
               return
             }
           } else {
-            if (type === 'client' && (isServerComponent || isInsideAppDir)) {
+            if (
+              compilerType === 'client' &&
+              (isServerComponent || isInsideAppDir)
+            ) {
               // Skip adding the client entry here.
             } else {
               entryAdded = true
