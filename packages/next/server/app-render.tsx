@@ -37,6 +37,7 @@ export type RenderOptsPartial = {
   supportsDynamicHTML?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  assetPrefix?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -962,7 +963,11 @@ export async function renderToHTMLOrFlight(
 
       return (
         <AppRouter
-          hotReloader={HotReloader && <HotReloader assetPrefix="" />}
+          hotReloader={
+            HotReloader && (
+              <HotReloader assetPrefix={renderOpts.assetPrefix || ''} />
+            )
+          }
           initialCanonicalUrl={initialCanonicalUrl}
           initialTree={initialTree}
           initialStylesheets={initialStylesheets}
@@ -1021,7 +1026,7 @@ export async function renderToHTMLOrFlight(
       streamOptions: {
         // Include hydration scripts in the HTML
         bootstrapScripts: buildManifest.rootMainFiles.map(
-          (src) => '/_next/' + src
+          (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
         ),
       },
     })
