@@ -254,11 +254,16 @@ export async function ncc_edge_runtime_primitives() {
     const dest2 = `compiled/@edge-runtime/primitives/${file}`
     await fs.outputJson(join(dest2, 'package.json'), {
       main: `../${file}.js`,
+      types: `../${file}.d.ts`,
     })
 
     await fs.copy(
       require.resolve(`@edge-runtime/primitives/${file}`),
       join(dest, `${file}.js`)
+    )
+    await fs.copy(
+      require.resolve(`@edge-runtime/primitives/types/${file}.d.ts`),
+      join(dest, `${file}.d.ts`)
     )
   }
 
