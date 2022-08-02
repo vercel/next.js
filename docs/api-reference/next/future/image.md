@@ -30,6 +30,8 @@ module.exports = {
 }
 ```
 
+## Comparison
+
 Compared to `next/image`, the new `next/future/image` component has the following changes:
 
 - Renders a single `<img>` without `<div>` or `<span>` wrappers
@@ -39,12 +41,133 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Removes `loader` config in favor of [`loader`](#loader) prop
 - Note: the [`onError`](#onerror) prop might behave differently
 
-The default layout for `next/image` was `intrinsic`, which would shrink the `width` if the image was larger than it's container. Since no styles are automatically applied to `next/future/image`, you'll need to add the following CSS to achieve the same behavior:
+## Migration
 
-```css
-max-width: 100%;
-height: auto;
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
+
+<table>
+<thead>
+  <tr>
+    <th>next/image</th>
+    <th>next/future/image</th>
+  </tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
 ```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { maxWidth: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} style={css} />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="responsive" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { width: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} sizes="100vw" style={css} />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fill" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} sizes="100vw" fill />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fixed" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+</td>
+</tr>
+
+</tbody>
+</table>
+
+You can also use `className` instead of `style`.
 
 ## Required Props
 
