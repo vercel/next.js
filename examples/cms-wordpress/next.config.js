@@ -9,6 +9,7 @@ module.exports = {
   images: {
     domains: [
       process.env.WORDPRESS_API_URL.match(/(http(?:s)?:\/\/)(.*)/)[2], // Valid WP Image domain.
+      '1.gravatar.com',
       '2.gravatar.com',
       'secure.gravatar.com',
     ],
