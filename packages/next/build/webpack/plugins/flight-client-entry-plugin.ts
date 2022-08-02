@@ -1,5 +1,5 @@
 import { stringify } from 'querystring'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { clientComponentRegex } from '../loaders/utils'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -58,6 +58,7 @@ export class FlightClientEntryPlugin {
 
   async createClientEndpoints(compiler: any, compilation: any) {
     const promises: Array<Promise<void>> = []
+    const serverCSSManifest = {}
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
@@ -111,6 +112,8 @@ export class FlightClientEntryPlugin {
           entryDependency
         )
 
+      Object.assign(serverCSSManifest, cssImports)
+
       promises.push(
         this.injectClientEntryAndSSRModules(
           compiler,
@@ -122,6 +125,21 @@ export class FlightClientEntryPlugin {
         )
       )
     }
+
+    compilation.hooks.processAssets.tap(
+      {
+        name: PLUGIN_NAME,
+        // Have to be in the optimize stage to run after updating the CSS
+        // asset hash via extract mini css plugin.
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
+      },
+      (assets: webpack5.Compilation['assets']) => {
+        assets['flight-server-css-manifest.json'] = new sources.RawSource(
+          JSON.stringify(serverCSSManifest)
+        ) as unknown as webpack5.sources.RawSource
+      }
+    )
 
     await Promise.all(promises)
   }
