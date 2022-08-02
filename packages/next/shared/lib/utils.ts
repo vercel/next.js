@@ -45,6 +45,7 @@ export type NextWebVitalsMetric = {
   id: string
   startTime: number
   value: number
+  attribution?: { [key: string]: unknown }
 } & (
   | {
       label: 'web-vital'

@@ -26,7 +26,9 @@ import {
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
-import measureWebVitals from './performance-relayer'
+import measureWebVitals, {
+  setPerformanceRelayerConfig,
+} from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
@@ -765,6 +767,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
     if (mod && mod.reportWebVitals) {
+      if (mod.reportWebVitals.config) {
+        setPerformanceRelayerConfig(mod.reportWebVitals.config)
+      }
       onPerfEntry = ({
         id,
         name,
@@ -773,6 +778,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
         duration,
         entryType,
         entries,
+        attribution,
       }: any): void => {
         // Combines timestamp with random number for unique ID
         const uniqueID: string = `${Date.now()}-${
@@ -793,6 +799,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
             entryType === 'mark' || entryType === 'measure'
               ? 'custom'
               : 'web-vital',
+        }
+        if (attribution) {
+          webVitals.attribution = attribution
         }
         mod.reportWebVitals(webVitals)
       }

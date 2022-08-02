@@ -1,18 +1,15 @@
 /* global location */
-import {
-  onCLS,
-  onFCP,
-  onFID,
-  onINP,
-  onLCP,
-  onTTFB,
-  Metric,
-  ReportCallback,
-} from 'next/dist/compiled/web-vitals'
+import { Metric, ReportCallback } from 'next/dist/compiled/web-vitals'
 
+interface PerformanceRelayerConfig {
+  attributions: Array<typeof WEB_VITALS[number]>
+}
+
+const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'] as const
 const initialHref = location.href
 let isRegistered = false
 let userReportHandler: ReportCallback | undefined
+let config: PerformanceRelayerConfig | undefined
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
@@ -82,10 +79,21 @@ export default (onPerfEntry?: ReportCallback): void => {
   }
   isRegistered = true
 
-  onCLS(onReport)
-  onFID(onReport)
-  onFCP(onReport)
-  onLCP(onReport)
-  onTTFB(onReport)
-  onINP(onReport)
+  for (const webVital of WEB_VITALS) {
+    const m = config?.attributions.includes(webVital)
+      ? require('next/dist/compiled/web-vitals-attribution')
+      : require('next/dist/compiled/web-vitals')
+    m[`on${webVital}`](onReport)
+  }
+}
+
+export function setPerformanceRelayerConfig(
+  input: PerformanceRelayerConfig
+): void {
+  const attributions = Array.isArray(input.attributions)
+    ? input.attributions
+    : []
+  config = {
+    attributions: attributions.filter((attr) => WEB_VITALS.includes(attr)),
+  }
 }
