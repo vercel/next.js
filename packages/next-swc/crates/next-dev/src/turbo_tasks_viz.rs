@@ -9,6 +9,7 @@ use turbopack_dev_server::source::{ContentSource, ContentSourceVc};
 
 #[turbo_tasks::value(ContentSource, serialization: none, eq: manual, cell: new, into: new)]
 pub struct TurboTasksSource {
+    #[debug_ignore]
     #[trace_ignore]
     pub turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
 }
