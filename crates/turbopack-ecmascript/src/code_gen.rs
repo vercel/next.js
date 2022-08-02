@@ -8,6 +8,7 @@ use crate::chunk::EcmascriptChunkContextVc;
 #[turbo_tasks::value(shared, serialization: none, eq: manual, into: new, cell: new)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
+    #[debug_ignore]
     #[trace_ignore]
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
 }

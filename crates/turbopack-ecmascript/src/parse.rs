@@ -48,10 +48,13 @@ pub enum ParseResult {
         leading_comments: SingleThreadedCommentsMapInner,
         #[trace_ignore]
         trailing_comments: SingleThreadedCommentsMapInner,
+        #[debug_ignore]
         #[trace_ignore]
         eval_context: EvalContext,
+        #[debug_ignore]
         #[trace_ignore]
         globals: Globals,
+        #[debug_ignore]
         #[trace_ignore]
         source_map: Arc<SourceMap>,
     },

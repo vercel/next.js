@@ -24,10 +24,12 @@ pub struct NativeFunction {
     pub name: String,
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
+    #[debug_ignore]
     #[trace_ignore]
     pub bind_fn: Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
     // TODO move to Task
     /// A counter that tracks total executions of that function
+    #[debug_ignore]
     #[trace_ignore]
     pub executed_count: AtomicUsize,
 }

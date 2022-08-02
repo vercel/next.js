@@ -9,6 +9,7 @@
 
 pub mod backend;
 mod completion;
+pub mod debug;
 mod display;
 mod id;
 mod id_factory;

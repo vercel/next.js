@@ -5,6 +5,7 @@ use syn::{
     parse_macro_input, ItemTrait, Path, PathSegment, Signature, TraitBound, TraitItem,
     TraitItemMethod, TypeParamBound,
 };
+use turbo_tasks_macros_shared::ValueTraitArguments;
 
 use crate::{
     func::{gen_native_function_code, split_signature, SelfType},
@@ -46,7 +47,9 @@ fn get_trait_default_impl_function_id_ident(trait_ident: &Ident, ident: &Ident) 
     )
 }
 
-pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
+    let ValueTraitArguments { no_debug } = parse_macro_input!(args as ValueTraitArguments);
+
     let mut item = parse_macro_input!(input as ItemTrait);
 
     let ItemTrait {
@@ -109,10 +112,14 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                 ..
             } = &*sig;
 
-            let (external_sig, inline_sig, output_type, convert_result_code) = split_signature(sig);
+            let (external_sig, _inline_sig, output_type, convert_result_code) =
+                split_signature(sig);
             let function_ident = get_trait_default_impl_function_ident(ident, method_ident);
             let function_id_ident = get_trait_default_impl_function_id_ident(ident, method_ident);
-            let inline_ident = &inline_sig.ident;
+            let inline_ident = get_internal_function_ident(method_ident);
+
+            let mut inline_sig = sig.clone();
+            inline_sig.ident = inline_ident.clone();
 
             let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
                 quote! { format!(concat!("{}::", stringify!(#method_ident)), std::any::type_name::<#ref_ident>()) },
@@ -149,6 +156,39 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
     }
+
+    let value_debug_impl = if no_debug {
+        quote! {}
+    } else {
+        quote! {
+            #[turbo_tasks::value_impl]
+            impl #ref_ident {
+                #[turbo_tasks::function]
+                pub async fn dbg(self) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+                    use turbo_tasks::debug::internal::ValueDebugFormat;
+                    self.value_debug_format().try_to_value_debug_string().await
+                }
+            }
+        }
+    };
+
+    let value_debug_format_impl = quote! {
+        impl turbo_tasks::debug::internal::ValueDebugFormat for #ref_ident {
+            fn value_debug_format(&self) -> turbo_tasks::debug::internal::ValueDebugFormatString {
+                turbo_tasks::debug::internal::ValueDebugFormatString::Async(Box::pin(async move {
+                    Ok(if let Some(value_debug) = turbo_tasks::debug::ValueDebugVc::resolve_from(self).await? {
+                        format!(concat!(stringify!(#ident), "({})"), value_debug.dbg().await?.as_str())
+                    } else {
+                        // This case means the `Vc` pointed to by this `Vc` does not implement `ValueDebug`.
+                        // This could happen if we provide a way to opt-out of the default `ValueDebug` derive,
+                        // or if we make the derive opt-in. However, we can still print useful information
+                        // like the resolved type.
+                        "<unimplemented>".to_string()
+                    })
+                }))
+            }
+        }
+    };
 
     let expanded = quote! {
         #(#attrs)*
@@ -259,6 +299,8 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
+        #value_debug_impl
+        #value_debug_format_impl
     };
     expanded.into()
 }

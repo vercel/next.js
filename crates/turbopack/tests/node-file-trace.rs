@@ -1,3 +1,5 @@
+#![feature(min_specialization)]
+
 /// Explicit extern crate to use allocator.
 extern crate turbo_malloc;
 #[cfg(feature = "bench_against_node_nft")]

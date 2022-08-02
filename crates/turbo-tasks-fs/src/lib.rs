@@ -89,10 +89,13 @@ mod watcher_ser {
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
+    #[debug_ignore]
     #[trace_ignore]
     invalidators: Arc<InvalidatorMap>,
+    #[debug_ignore]
     #[trace_ignore]
     dir_invalidators: Arc<InvalidatorMap>,
+    #[debug_ignore]
     #[trace_ignore]
     #[serde(with = "watcher_ser")]
     watcher: Mutex<Option<RecommendedWatcher>>,
@@ -887,7 +890,7 @@ impl From<Permissions> for fs::Permissions {
 
 #[turbo_tasks::value(shared)]
 pub enum FileContent {
-    Content(File),
+    Content(#[debug_ignore] File),
     NotFound,
 }
 

@@ -9,8 +9,8 @@ use syn::{
 use crate::util::*;
 
 /// The underlying type of the `self` identifier.
-pub enum SelfType {
-    Value,
+pub enum SelfType<'a> {
+    Value(&'a Ident),
     Ref,
     ValueTrait,
 }
@@ -23,7 +23,7 @@ pub fn gen_native_function_code(
     async_function: bool,
     inputs: &Punctuated<FnArg, Token![,]>,
     output_type: &Type,
-    self_ref_type: Option<(&Ident, SelfType)>,
+    self_ref_type: Option<(&Ident, SelfType<'_>)>,
 ) -> (TokenStream2, Vec<TokenStream2>) {
     let mut input_extraction = Vec::new();
     let mut input_convert = Vec::new();
@@ -66,9 +66,12 @@ pub fn gen_native_function_code(
                     let __self = std::clone::Clone::clone(&__self);
                 });
                 match self_type {
-                    SelfType::Value => {
+                    SelfType::Value(self_ident) => {
+                        // We can't use `IntoFuture` directly here because we want to retain
+                        // transparent wrapper types. Otherwise calling trait methods on transparent
+                        // types would fail.
                         input_final.push(quote! {
-                            let __self = __self.await?;
+                            let __self = __self.node.into_read::<#self_ident>().await?;
                         });
                         input_arguments.push(quote! {
                             &*__self

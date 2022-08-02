@@ -111,7 +111,7 @@ pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }
 
-#[derive(TraceRawVcs, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Debug, Serialize, Deserialize)]
 pub struct ModuleRule {
     condition: ModuleRuleCondition,
     effects: HashMap<ModuleRuleEffectKey, ModuleRuleEffect>,
@@ -134,7 +134,7 @@ impl ModuleRule {
     }
 }
 
-#[derive(TraceRawVcs, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Debug, Serialize, Deserialize)]
 pub enum ModuleRuleCondition {
     All(Vec<ModuleRuleCondition>),
     Any(Vec<ModuleRuleCondition>),
@@ -181,7 +181,7 @@ impl ModuleRuleCondition {
     }
 }
 
-#[derive(TraceRawVcs, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Debug, Serialize, Deserialize)]
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
     Custom,
@@ -210,7 +210,7 @@ impl ModuleRuleEffect {
     }
 }
 
-#[derive(TraceRawVcs, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(TraceRawVcs, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ModuleRuleEffectKey {
     ModuleType,
     Custom,

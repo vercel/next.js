@@ -16,6 +16,7 @@ pub enum ParseResult {
     Ok {
         #[trace_ignore]
         stylesheet: Stylesheet,
+        #[debug_ignore]
         #[trace_ignore]
         source_map: Arc<SourceMap>,
     },

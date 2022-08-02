@@ -22,6 +22,7 @@ struct AssetsMap(HashMap<String, AssetVc>);
 pub struct AssetGraphContentSource {
     root_path: FileSystemPathVc,
     root_asset: AssetVc,
+    #[debug_ignore]
     #[trace_ignore]
     state: Option<Arc<Mutex<State>>>,
 }

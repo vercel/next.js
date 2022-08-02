@@ -50,3 +50,11 @@ pub fn get_ref_ident(ident: &Ident) -> Ident {
 pub fn get_internal_function_ident(ident: &Ident) -> Ident {
     Ident::new(&(ident.to_string() + "_inline"), ident.span())
 }
+
+pub fn get_ref_path(path: &Path) -> Path {
+    let mut path = path.clone();
+    if let Some(last_segment) = path.segments.last_mut() {
+        last_segment.ident = get_ref_ident(&last_segment.ident);
+    }
+    path
+}

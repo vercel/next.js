@@ -2,10 +2,10 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::{
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseStream, Parser},
     parse_macro_input,
     spanned::Spanned,
-    Error, Fields, FieldsUnnamed, Item, ItemEnum, ItemStruct, Result, Token,
+    Error, Fields, FieldsUnnamed, Item, ItemEnum, ItemStruct, Path, Result, Token,
 };
 
 use crate::util::*;
@@ -51,6 +51,10 @@ pub fn get_as_super_ident(ident: &Ident) -> Ident {
         &format!("as_{}", ident.to_string().to_case(Case::Snake)),
         ident.span(),
     )
+}
+
+fn get_last_ident(path: &Path) -> Option<&Ident> {
+    path.segments.last().map(|s| &s.ident)
 }
 
 enum IntoMode {
@@ -107,7 +111,7 @@ impl Parse for SerializationMode {
 }
 
 struct ValueArguments {
-    traits: Vec<Ident>,
+    traits: Vec<Path>,
     serialization_mode: SerializationMode,
     into_mode: IntoMode,
     cell_mode: IntoMode,
@@ -129,25 +133,25 @@ impl Parse for ValueArguments {
             return Ok(result);
         }
         loop {
-            let ident = input.parse::<Ident>()?;
-            match ident.to_string().as_str() {
-                "shared" => {
+            let path = input.parse::<Path>()?;
+            match path.get_ident().map(|ident| ident.to_string()).as_deref() {
+                Some("shared") => {
                     result.into_mode = IntoMode::Shared;
                     result.cell_mode = IntoMode::Shared;
                 }
-                "into" => {
+                Some("into") => {
                     input.parse::<Token![:]>()?;
                     result.into_mode = input.parse::<IntoMode>()?;
                 }
-                "serialization" => {
+                Some("serialization") => {
                     input.parse::<Token![:]>()?;
                     result.serialization_mode = input.parse::<SerializationMode>()?;
                 }
-                "cell" => {
+                Some("cell") => {
                     input.parse::<Token![:]>()?;
                     result.cell_mode = input.parse::<IntoMode>()?;
                 }
-                "eq" => {
+                Some("eq") => {
                     input.parse::<Token![:]>()?;
                     let ident = input.parse::<Ident>()?;
 
@@ -160,15 +164,15 @@ impl Parse for ValueArguments {
                         ));
                     };
                 }
-                "transparent" => {
+                Some("transparent") => {
                     result.transparent = true;
                 }
                 _ => {
-                    result.traits.push(ident);
+                    result.traits.push(path);
                     while input.peek(Token![+]) {
                         input.parse::<Token![+]>()?;
-                        let ident = input.parse::<Ident>()?;
-                        result.traits.push(ident);
+                        let path = input.parse::<Path>()?;
+                        result.traits.push(path);
                     }
                 }
             }
@@ -186,13 +190,21 @@ impl Parse for ValueArguments {
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
     let ValueArguments {
-        traits,
+        mut traits,
         serialization_mode,
         into_mode,
         cell_mode,
         manual_eq,
         transparent,
     } = parse_macro_input!(args as ValueArguments);
+
+    let additional_impl_traits = vec![quote! { turbo_tasks::debug::ValueDebug }];
+    for trait_path in &additional_impl_traits {
+        let trait_path = Path::parse
+            .parse(trait_path.clone().into())
+            .expect("failed to parse trait path");
+        traits.push(trait_path);
+    }
 
     let (vis, ident) = match &item {
         Item::Enum(ItemEnum { vis, ident, .. }) => (vis, ident),
@@ -210,10 +222,15 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let ref_ident = get_ref_ident(ident);
     let value_type_ident = get_value_type_ident(ident);
     let value_type_id_ident = get_value_type_id_ident(ident);
-    let trait_refs: Vec<_> = traits.iter().map(get_ref_ident).collect();
-    let as_trait_methods: Vec<_> = traits.iter().map(get_as_super_ident).collect();
+    let trait_refs: Vec<_> = traits.iter().map(get_ref_path).collect();
+    let as_trait_methods: Vec<_> = traits
+        .iter()
+        .filter_map(get_last_ident)
+        .map(get_as_super_ident)
+        .collect();
     let check_from_impl_methods: Vec<_> = traits
         .iter()
+        .filter_map(get_last_ident)
         .map(|t| get_check_trait_method_ident(t, ident))
         .collect();
 
@@ -317,6 +334,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let trait_registrations: Vec<_> = traits
         .iter()
+        .filter_map(get_last_ident)
         .map(|trait_ident| {
             let register = get_register_trait_methods_ident(trait_ident, ident);
             quote! {
@@ -334,6 +352,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         SerializationMode::Auto | SerializationMode::AutoForInput => quote! {
             #[derive(turbo_tasks::trace::TraceRawVcs, serde::Serialize, serde::Deserialize)]
         },
+    };
+    let debug_derive = if transparent {
+        // Transparent structs have their own manual `ValueDebug` implementation.
+        quote!()
+    } else {
+        quote! {
+            #[derive(turbo_tasks::debug::internal::ValueDebug)]
+        }
     };
     let eq_derive = if manual_eq {
         quote!()
@@ -422,9 +448,45 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
+    let value_debug_impl = if transparent {
+        // For transparent values, we defer directly to the inner type's `ValueDebug`
+        // implementation.
+        quote! {
+            #[turbo_tasks::value_impl]
+            impl turbo_tasks::debug::ValueDebug for #ident {
+                #[turbo_tasks::function]
+                async fn dbg(&self) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+                    use turbo_tasks::debug::internal::ValueDebugFormat;
+                    (&self.0).value_debug_format().try_to_value_debug_string().await
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let value_debug_format_impl = quote! {
+        impl turbo_tasks::debug::internal::ValueDebugFormat for #ref_ident {
+            fn value_debug_format(&self) -> turbo_tasks::debug::internal::ValueDebugFormatString {
+                turbo_tasks::debug::internal::ValueDebugFormatString::Async(Box::pin(async move {
+                    Ok(if let Some(value_debug) = turbo_tasks::debug::ValueDebugVc::resolve_from(self).await? {
+                        value_debug.dbg().await?.to_string()
+                    } else {
+                        // This case means `SelfVc` does not implement `ValueDebugVc`, which is not possible
+                        // if this implementation exists.
+                        "<unreachable>".to_string()
+                    })
+                }))
+            }
+        }
+    };
+
+    let doc_msg_refer_to_ident = format!(" Vc for [`{ident}`]\n\n", ident = ident);
+
     let expanded = quote! {
         #derive
         #eq_derive
+        #debug_derive
         #item
 
         turbo_tasks::lazy_static! {
@@ -445,15 +507,16 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
         #for_input_marker
 
+        #[doc = #doc_msg_refer_to_ident]
         /// A reference to a value created by a turbo-tasks function.
-        /// The type can either point to a cell in a [turbo_tasks::Task] or to the output of
-        /// a [turbo_tasks::Task], which then transitively points to a cell again, or
+        /// The type can either point to a cell in a [`turbo_tasks::Task`] or to the output of
+        /// a [`turbo_tasks::Task`], which then transitively points to a cell again, or
         /// to an fatal execution error.
         ///
-        /// `.resolve().await?` can be used to resolve it until it points to a cell.
+        /// [`Self::resolve`]`().await?` can be used to resolve it until it points to a cell.
         /// This is useful when storing the reference somewhere or when comparing it with other references.
         ///
-        /// A reference is equal to another reference with it points to the same thing. No resolving is applied on comparision.
+        /// A reference is equal to another reference when it points to the same thing. No resolving is applied on comparison.
         #[derive(Clone, Copy, Debug, std::cmp::PartialOrd, std::cmp::Ord, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
         #vis struct #ref_ident {
             node: turbo_tasks::RawVc,
@@ -545,6 +608,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.node, context);
             }
         }
+
+        #value_debug_format_impl
+        #value_debug_impl
     };
 
     expanded.into()

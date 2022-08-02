@@ -15,6 +15,7 @@ pmutil = "0.5.3"
 quote = "1.0"
 serde = "1.0.136"
 toml = "0.5"
+turbo-tasks-macros-shared = { path = "../turbo-tasks-macros-shared" }
 
 [dependencies.syn]
 features = ["full"]

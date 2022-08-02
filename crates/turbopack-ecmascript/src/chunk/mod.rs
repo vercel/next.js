@@ -352,7 +352,7 @@ pub struct EcmascriptChunkItemContent {
     pub options: EcmascriptChunkItemOptions,
 }
 
-#[derive(PartialEq, Eq, Default, Clone, Serialize, Deserialize, TraceRawVcs)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
 pub struct EcmascriptChunkItemOptions {
     pub module: bool,
     pub exports: bool,

@@ -9,6 +9,7 @@ use anyhow::Context;
 use syn::{
     Attribute, Item, Path, PathArguments, PathSegment, TraitItem, TraitItemMethod, Type, TypePath,
 };
+use turbo_tasks_macros_shared::ValueTraitArguments;
 
 pub fn generate_register() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -99,6 +100,14 @@ pub fn generate_register() {
                                         format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
                                     )
                                     .unwrap();
+
+                                    write_debug_value_impl(
+                                        &mut functions_code,
+                                        &prefix,
+                                        &mod_path,
+                                        &name,
+                                    )
+                                    .unwrap();
                                 }
                             }
                             Item::Fn(fn_item) => {
@@ -146,9 +155,9 @@ pub fn generate_register() {
                                                             struct_name.to_uppercase(),
                                                             name.to_uppercase(),
                                                             format_args!(
-                                                        "r##\"{prefix}{mod_path}::{struct_name}::\
-                                                         {name}\"##"
-                                                    ),
+                                                                "r##\"{prefix}{mod_path}::{struct_name}::\
+                                                                {name}\"##"
+                                                            ),
                                                         )
                                                         .unwrap();
                                                     }
@@ -183,13 +192,21 @@ pub fn generate_register() {
                                         format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
                                     )
                                     .unwrap();
+
+                                    write_debug_value_impl(
+                                        &mut functions_code,
+                                        &prefix,
+                                        &mod_path,
+                                        &name,
+                                    )
+                                    .unwrap();
                                 }
                             }
                             Item::Trait(trait_item) => {
-                                if trait_item
+                                if let Some(attr) = trait_item
                                     .attrs
                                     .iter()
-                                    .any(|a| is_attribute(a, "value_trait"))
+                                    .find(|a| is_attribute(a, "value_trait"))
                                 {
                                     let name = trait_item.ident.to_string();
 
@@ -220,6 +237,24 @@ pub fn generate_register() {
                                         format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
                                     )
                                     .unwrap();
+
+                                    let no_debug = if let Some(ValueTraitArguments { no_debug }) =
+                                        parse_attr_args(attr).unwrap()
+                                    {
+                                        no_debug
+                                    } else {
+                                        false
+                                    };
+
+                                    if !no_debug {
+                                        write_debug_value_impl(
+                                            &mut functions_code,
+                                            &prefix,
+                                            &mod_path,
+                                            &format!("{}Vc", name),
+                                        )
+                                        .unwrap();
+                                    }
                                 }
                             }
                             _ => {}
@@ -253,4 +288,34 @@ fn is_attribute(attr: &Attribute, name: &str) -> bool {
         },
         _ => false,
     }
+}
+
+/// Declares the default derive of the `ValueDebug` trait.
+fn write_debug_value_impl(
+    functions_code: &mut String,
+    prefix: &str,
+    mod_path: &str,
+    name: &str,
+) -> std::fmt::Result {
+    writeln!(
+        functions_code,
+        "crate{mod_path}::{}_IMPL_DBG_FUNCTION.register({});",
+        name.to_uppercase(),
+        format_args!("r##\"{prefix}{mod_path}::{name}::dbg\"##"),
+    )
+}
+
+fn parse_attr_args<T>(attr: &Attribute) -> syn::Result<Option<T>>
+where
+    T: syn::parse::Parse,
+{
+    Ok(
+        if let Some(pmutil::proc_macro2::TokenTree::Group(group)) =
+            attr.tokens.clone().into_iter().next()
+        {
+            Some(syn::parse2::<T>(group.stream())?)
+        } else {
+            None
+        },
+    )
 }

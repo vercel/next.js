@@ -2,17 +2,16 @@
 
 use anyhow::{anyhow, Result};
 use turbo_tasks::{
-    primitives::StringVc, register, TurboTasks, Value, ValueToString, ValueToStringVc,
+    primitives::StringVc, trace::TraceRawVcs, TurboTasks, Value, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_memory::MemoryBackend;
+use turbo_tasks_test_utils::{register, run};
+
+register!();
 
 #[tokio::test]
-async fn all_in_one() -> Result<()> {
-    register();
-    include!(concat!(env!("OUT_DIR"), "/register_test_test.rs"));
-
-    let tt = TurboTasks::new(MemoryBackend::new());
-    tt.run_once(async {
+async fn all_in_one() {
+    run! {
         let a = MyTransparentValueVc::cell(4242);
         assert_eq!(*a.await?, 4242);
 
@@ -30,11 +29,7 @@ async fn all_in_one() -> Result<()> {
         assert_eq!(*result.my_trait_function2().await?, "42");
         assert_eq!(*result.my_trait_function3().await?, "4242");
         assert_eq!(*result.to_string().await?, "42");
-
-        Ok(())
-    })
-    .await?;
-    Ok(())
+    }
 }
 
 #[turbo_tasks::value(transparent, serialization: auto_for_input)]

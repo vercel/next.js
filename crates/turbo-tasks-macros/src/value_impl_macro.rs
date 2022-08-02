@@ -3,7 +3,7 @@ use proc_macro2::{Ident, Literal, Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
     parse_macro_input, spanned::Spanned, Attribute, FnArg, ImplItem, ImplItemMethod, ItemImpl,
-    Path, PathArguments, PathSegment, Receiver, ReturnType, Signature, Token, Type, TypePath,
+    Path, Receiver, ReturnType, Signature, Token, Type, TypePath,
 };
 
 use crate::{
@@ -111,6 +111,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         }
 
                         #(#attrs)*
+                        #[doc(hidden)]
                         #vis #inline_sig #block
                     }
 
@@ -125,14 +126,15 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     fn generate_for_trait_impl(
-        trait_ident: &Ident,
+        trait_path: &Path,
         struct_ident: &Ident,
         items: &[ImplItem],
     ) -> TokenStream2 {
+        let trait_ident = &trait_path.segments.last().unwrap().ident;
         let register = get_register_trait_methods_ident(trait_ident, struct_ident);
         let check = get_check_trait_method_ident(trait_ident, struct_ident);
         let ref_ident = get_ref_ident(struct_ident);
-        let trait_ref_ident = get_ref_ident(trait_ident);
+        let trait_ref_path = get_ref_path(trait_path);
         let mut trait_registers = Vec::new();
         let mut impl_functions = Vec::new();
         let mut trait_functions = Vec::new();
@@ -169,7 +171,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 let internal_function_ident =
                     get_internal_trait_impl_function_ident(trait_ident, ident);
                 trait_registers.push(quote! {
-                    value_type.register_trait_method(#trait_ref_ident::__type(), stringify!(#ident).to_string(), *#function_id_ident);
+                    value_type.register_trait_method(#trait_ref_path::__type(), stringify!(#ident).to_string(), *#function_id_ident);
                 });
                 let name = Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
                 let (native_function_code, mut input_raw_vc_arguments) = gen_native_function_code(
@@ -180,7 +182,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     asyncness.is_some(),
                     inputs,
                     &output_type,
-                    Some((&ref_ident, SelfType::Value)),
+                    Some((&ref_ident, SelfType::Value(struct_ident))),
                 );
                 let mut new_sig = sig.clone();
                 new_sig.ident = internal_function_ident;
@@ -201,6 +203,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     impl #struct_ident {
                         #(#attrs)*
                         #[allow(non_snake_case)]
+                        #[doc(hidden)]
                         #new_sig #block
                     }
 
@@ -257,7 +260,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
             #[allow(non_snake_case)]
             fn #register(value_type: &mut turbo_tasks::ValueType) {
                 if false { #ref_ident::#check(); }
-                value_type.register_trait(#trait_ref_ident::__type());
+                value_type.register_trait(#trait_ref_path::__type());
                 #(#trait_registers)*
             }
 
@@ -267,7 +270,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 #(#trait_functions)*
             }
 
-            impl #trait_ident for #ref_ident {
+            impl #trait_path for #ref_ident {
                 #(#trait_impl_functions)*
             }
         }
@@ -275,40 +278,22 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
     let item = parse_macro_input!(input as ItemImpl);
 
-    if let Type::Path(TypePath {
-        qself: None,
-        path: Path { segments, .. },
-    }) = &*item.self_ty
-    {
-        if segments.len() == 1 {
-            if let Some(PathSegment {
-                arguments: PathArguments::None,
-                ident,
-            }) = segments.first()
-            {
-                match &item.trait_ {
-                    None => {
-                        let code = generate_for_vc_impl(ident, &item.items);
-                        return quote! {
-                            #code
-                        }
-                        .into();
+    if let Type::Path(TypePath { qself: None, path }) = &*item.self_ty {
+        if let Some(ident) = path.get_ident() {
+            match &item.trait_ {
+                None => {
+                    let code = generate_for_vc_impl(ident, &item.items);
+                    return quote! {
+                        #code
                     }
-                    Some((_, Path { segments, .. }, _)) => {
-                        if segments.len() == 1 {
-                            if let Some(PathSegment {
-                                arguments: PathArguments::None,
-                                ident: trait_ident,
-                            }) = segments.first()
-                            {
-                                let code = generate_for_trait_impl(trait_ident, ident, &item.items);
-                                return quote! {
-                                    #code
-                                }
-                                .into();
-                            }
-                        }
+                    .into();
+                }
+                Some((_, trait_path, _)) => {
+                    let code = generate_for_trait_impl(trait_path, ident, &item.items);
+                    return quote! {
+                        #code
                     }
+                    .into();
                 }
             }
         }
