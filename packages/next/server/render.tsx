@@ -228,6 +228,7 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   serverComponentManifest?: any
+  serverCSSManifest?: any
   distDir?: string
   locale?: string
   locales?: string[]

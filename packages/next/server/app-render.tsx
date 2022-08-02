@@ -24,6 +24,7 @@ import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
 import {
+  FlightCSSManifest,
   FlightManifest,
   ManifestChunks,
 } from '../build/webpack/plugins/flight-manifest-plugin'
@@ -375,14 +376,13 @@ function getSegmentParam(segment: string): {
  * Get inline <link> tags based on __next_rsc_css__ manifest. Only used when rendering to HTML.
  */
 function getCssInlinedLinkTags(
-  serverComponentManifest: FlightManifest
+  serverComponentManifest: FlightManifest,
+  serverCSSManifest: FlightCSSManifest
 ): ManifestChunks {
-  const importedServerCSS: { [key: string]: string[] } = {}
-
   const uniqueChunks = new Set<string>()
 
-  for (const layoutOrPage in importedServerCSS) {
-    for (const css of importedServerCSS[layoutOrPage]) {
+  for (const layoutOrPage in serverCSSManifest) {
+    for (const css of serverCSSManifest[layoutOrPage]) {
       for (const chunk of serverComponentManifest[css].default.chunks) {
         uniqueChunks.add(chunk)
       }
@@ -413,6 +413,7 @@ export async function renderToHTMLOrFlight(
   const {
     buildManifest,
     serverComponentManifest,
+    serverCSSManifest,
     supportsDynamicHTML,
     runtime,
     ComponentMod,
@@ -950,7 +951,8 @@ export async function renderToHTMLOrFlight(
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
   const initialStylesheets: string[] = getCssInlinedLinkTags(
-    serverComponentManifest
+    serverComponentManifest,
+    serverCSSManifest
   )
 
   /**

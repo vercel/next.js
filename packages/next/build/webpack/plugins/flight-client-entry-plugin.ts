@@ -15,6 +15,7 @@ import type {
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { FLIGHT_SERVER_CSS_MANIFEST } from '../../../shared/lib/constants'
 
 interface Options {
   dev: boolean
@@ -135,7 +136,7 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack5.Compilation['assets']) => {
-        assets['flight-server-css-manifest.json'] = new sources.RawSource(
+        assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           JSON.stringify(serverCSSManifest)
         ) as unknown as webpack5.sources.RawSource
       }

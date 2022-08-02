@@ -917,6 +917,10 @@ export default class DevServer extends Server {
     return undefined
   }
 
+  protected getServerCSSManifest() {
+    return undefined
+  }
+
   protected async hasMiddleware(
     pathname: string,
     isSSR?: boolean
@@ -1126,6 +1130,7 @@ export default class DevServer extends Server {
       // manifest.
       if (serverComponents) {
         this.serverComponentManifest = super.getServerComponentManifest()
+        this.serverCSSManifest = super.getServerCSSManifest()
       }
 
       return super.findPageComponents(pathname, query, params, isAppDir)

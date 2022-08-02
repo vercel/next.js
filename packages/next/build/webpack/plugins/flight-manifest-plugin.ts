@@ -56,6 +56,10 @@ export type FlightManifest = {
   [modulePath: string]: ManifestNode
 }
 
+export type FlightCSSManifest = {
+  [modulePath: string]: string[]
+}
+
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {

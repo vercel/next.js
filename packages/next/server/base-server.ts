@@ -192,6 +192,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected appPathRoutes?: Record<string, string>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
+  protected serverCSSManifest?: any
   public readonly hostname?: string
   public readonly port?: number
 
@@ -226,6 +227,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
+  protected abstract getServerCSSManifest(): any
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
     parsedUrl: NextUrlWithParsedQuery
@@ -308,6 +310,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const serverComponents = this.nextConfig.experimental.serverComponents
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
+      : undefined
+    this.serverCSSManifest = serverComponents
+      ? this.getServerCSSManifest()
       : undefined
 
     this.renderOpts = {
