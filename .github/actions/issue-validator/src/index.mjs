@@ -1,6 +1,7 @@
 // @ts-check
 import * as github from '@actions/github'
 import * as core from '@actions/core'
+import { gte as semverGte } from 'semver'
 
 const verifyCanaryLabel = 'please verify canary'
 const bugReportLabel = 'template: bug'
@@ -162,7 +163,7 @@ async function getLastVersion() {
     const string = new TextDecoder().decode(value?.slice(0, 100))
     const re = /"latest":"(?<latest>.*)","canary":"(?<canary>.*)","/
     const { latest, canary } = string.match(re)?.groups ?? {}
-    return latest >= canary.split('-canary')[0] ? latest : canary
+    return semverGte(latest, canary) ? canary : latest
   } catch (error) {
     core.error(error)
     return ''
