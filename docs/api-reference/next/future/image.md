@@ -58,35 +58,19 @@ Although `layout` is not available, you can migrate `next/image` to `next/future
 <td>
 
 ```jsx
-<ImageLegacy src={src} />
+import Image from 'next/image'
+import img from '../img.png'
+;<Image src={img} />
 ```
 
 </td>
 <td>
 
 ```jsx
-<ImageFuture src={src} style={{ maxWidth: '100%', height: 'auto' }} />
-```
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-```jsx
-<ImageLegacy src={src} layout="responsive" />
-```
-
-</td>
-<td>
-
-```jsx
-<ImageFuture
-  src={src}
-  sizes="100vw"
-  style={{ width: '100%', height: 'auto' }}
-/>
+import Image from 'next/future/image'
+import img from '../img.png'
+const css = { maxWidth: '100%', height: 'auto' }
+;<Image src={img} style={css} />
 ```
 
 </td>
@@ -96,14 +80,19 @@ Although `layout` is not available, you can migrate `next/image` to `next/future
 <td>
 
 ```jsx
-<ImageLegacy src={src} layout="fill" />
+import Image from 'next/image'
+import img from '../img.png'
+;<Image src={img} layout="responsive" />
 ```
 
 </td>
 <td>
 
 ```jsx
-<ImageFuture src={src} sizes="100vw" fill />
+import Image from 'next/future/image'
+import img from '../img.png'
+const css = { width: '100%', height: 'auto' }
+;<Image src={img} sizes="100vw" style={css} />
 ```
 
 </td>
@@ -113,14 +102,39 @@ Although `layout` is not available, you can migrate `next/image` to `next/future
 <td>
 
 ```jsx
-<ImageLegacy src={src} layout="fixed" />
+import Image from 'next/image'
+import img from '../img.png'
+;<Image src={img} layout="fill" />
 ```
 
 </td>
 <td>
 
 ```jsx
-<ImageFuture src={src} />
+import Image from 'next/future/image'
+import img from '../img.png'
+;<Image src={img} sizes="100vw" fill />
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+;<Image src={img} layout="fixed" />
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+;<ImageFuture src={img} />
 ```
 
 </td>
