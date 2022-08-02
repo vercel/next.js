@@ -60,7 +60,7 @@ Although `layout` is not available, you can migrate `next/image` to `next/future
 ```jsx
 import Image from 'next/image'
 import img from '../img.png'
-;<Image src={img} />
+return <Image src={img} />
 ```
 
 </td>
@@ -70,7 +70,7 @@ import img from '../img.png'
 import Image from 'next/future/image'
 import img from '../img.png'
 const css = { maxWidth: '100%', height: 'auto' }
-;<Image src={img} style={css} />
+return <Image src={img} style={css} />
 ```
 
 </td>
@@ -82,7 +82,7 @@ const css = { maxWidth: '100%', height: 'auto' }
 ```jsx
 import Image from 'next/image'
 import img from '../img.png'
-;<Image src={img} layout="responsive" />
+return <Image src={img} layout="responsive" />
 ```
 
 </td>
@@ -92,7 +92,7 @@ import img from '../img.png'
 import Image from 'next/future/image'
 import img from '../img.png'
 const css = { width: '100%', height: 'auto' }
-;<Image src={img} sizes="100vw" style={css} />
+return <Image src={img} sizes="100vw" style={css} />
 ```
 
 </td>
@@ -104,7 +104,7 @@ const css = { width: '100%', height: 'auto' }
 ```jsx
 import Image from 'next/image'
 import img from '../img.png'
-;<Image src={img} layout="fill" />
+return <Image src={img} layout="fill" />
 ```
 
 </td>
@@ -113,7 +113,7 @@ import img from '../img.png'
 ```jsx
 import Image from 'next/future/image'
 import img from '../img.png'
-;<Image src={img} sizes="100vw" fill />
+return <Image src={img} sizes="100vw" fill />
 ```
 
 </td>
@@ -125,7 +125,7 @@ import img from '../img.png'
 ```jsx
 import Image from 'next/image'
 import img from '../img.png'
-;<Image src={img} layout="fixed" />
+return <Image src={img} layout="fixed" />
 ```
 
 </td>
@@ -134,7 +134,7 @@ import img from '../img.png'
 ```jsx
 import Image from 'next/future/image'
 import img from '../img.png'
-;<ImageFuture src={img} />
+return <Image src={img} />
 ```
 
 </td>
