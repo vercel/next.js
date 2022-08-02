@@ -45,25 +45,41 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 
 Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
 
-**intrinsic: next/image**
+<table>
+<thead>
+  <tr>
+    <th>next/image</th>
+    <th>next/future/image</th>
+  </tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
 
 ```jsx
 <ImageLegacy src={src} />
 ```
 
-**intrinsic: next/future/image**
+</td>
+<td>
 
 ```jsx
 <ImageFuture src={src} style={{ maxWidth: '100%', height: 'auto' }} />
 ```
 
-**responsive: next/image**
+</td>
+</tr>
+
+<tr>
+<td>
 
 ```jsx
 <ImageLegacy src={src} layout="responsive" />
 ```
 
-**responsive: next/future/image**
+</td>
+<td>
 
 ```jsx
 <ImageFuture
@@ -73,29 +89,45 @@ Although `layout` is not available, you can migrate `next/image` to `next/future
 />
 ```
 
-**fill: next/image**
+</td>
+</tr>
+
+<tr>
+<td>
 
 ```jsx
 <ImageLegacy src={src} layout="fill" />
 ```
 
-**fill: next/future/image**
+</td>
+<td>
 
 ```jsx
 <ImageFuture src={src} sizes="100vw" fill />
 ```
 
-**fixed: next/image**
+</td>
+</tr>
+
+<tr>
+<td>
 
 ```jsx
 <ImageLegacy src={src} layout="fixed" />
 ```
 
-**fixed: next/future/image**
+</td>
+<td>
 
 ```jsx
 <ImageFuture src={src} />
 ```
+
+</td>
+</tr>
+
+</tbody>
+</table>
 
 You can also use `className` instead of `style`.
 
