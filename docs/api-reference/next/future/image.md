@@ -30,6 +30,8 @@ module.exports = {
 }
 ```
 
+## Comparison
+
 Compared to `next/image`, the new `next/future/image` component has the following changes:
 
 - Renders a single `<img>` without `<div>` or `<span>` wrappers
@@ -39,12 +41,63 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Removes `loader` config in favor of [`loader`](#loader) prop
 - Note: the [`onError`](#onerror) prop might behave differently
 
-The default layout for `next/image` was `intrinsic`, which would shrink the `width` if the image was larger than it's container. Since no styles are automatically applied to `next/future/image`, you'll need to add the following CSS to achieve the same behavior:
+## Migration
 
-```css
-max-width: 100%;
-height: auto;
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
+
+**intrinsic: next/image**
+
+```jsx
+<ImageLegacy src={src} />
 ```
+
+**intrinsic: next/future/image**
+
+```jsx
+<ImageFuture src={src} style={{ maxWidth: '100%', height: 'auto' }} />
+```
+
+**responsive: next/image**
+
+```jsx
+<ImageLegacy src={src} layout="responsive" />
+```
+
+**responsive: next/future/image**
+
+```jsx
+<ImageFuture
+  src={src}
+  sizes="100vw"
+  style={{ width: '100%', height: 'auto' }}
+/>
+```
+
+**fill: next/image**
+
+```jsx
+<ImageLegacy src={src} layout="fill" />
+```
+
+**fill: next/future/image**
+
+```jsx
+<ImageFuture src={src} sizes="100vw" fill />
+```
+
+**fixed: next/image**
+
+```jsx
+<ImageLegacy src={src} layout="fixed" />
+```
+
+**fixed: next/future/image**
+
+```jsx
+<ImageFuture src={src} />
+```
+
+You can also use `className` instead of `style`.
 
 ## Required Props
 
