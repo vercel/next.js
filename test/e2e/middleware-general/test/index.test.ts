@@ -121,7 +121,7 @@ describe('Middleware Runtime', () => {
             files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
             name: 'middleware',
             page: '/',
-            matchers: [{ regexp: '.*' }],
+            matchers: [{ regexp: '^/.*$' }],
             wasm: [],
             assets: [],
           },
