@@ -60,7 +60,10 @@ Although `layout` is not available, you can migrate `next/image` to `next/future
 ```jsx
 import Image from 'next/image'
 import img from '../img.png'
-return <Image src={img} />
+
+function Page() {
+  return <Image src={img} />
+}
 ```
 
 </td>
@@ -69,8 +72,11 @@ return <Image src={img} />
 ```jsx
 import Image from 'next/future/image'
 import img from '../img.png'
+
 const css = { maxWidth: '100%', height: 'auto' }
-return <Image src={img} style={css} />
+function Page() {
+  return <Image src={img} style={css} />
+}
 ```
 
 </td>
@@ -82,7 +88,10 @@ return <Image src={img} style={css} />
 ```jsx
 import Image from 'next/image'
 import img from '../img.png'
-return <Image src={img} layout="responsive" />
+
+function Page() {
+  return <Image src={img} layout="responsive" />
+}
 ```
 
 </td>
@@ -91,8 +100,11 @@ return <Image src={img} layout="responsive" />
 ```jsx
 import Image from 'next/future/image'
 import img from '../img.png'
+
 const css = { width: '100%', height: 'auto' }
-return <Image src={img} sizes="100vw" style={css} />
+function Page() {
+  return <Image src={img} sizes="100vw" style={css} />
+}
 ```
 
 </td>
@@ -104,7 +116,10 @@ return <Image src={img} sizes="100vw" style={css} />
 ```jsx
 import Image from 'next/image'
 import img from '../img.png'
-return <Image src={img} layout="fill" />
+
+function Page() {
+  return <Image src={img} layout="fill" />
+}
 ```
 
 </td>
@@ -113,7 +128,10 @@ return <Image src={img} layout="fill" />
 ```jsx
 import Image from 'next/future/image'
 import img from '../img.png'
-return <Image src={img} sizes="100vw" fill />
+
+function Page() {
+  return <Image src={img} sizes="100vw" fill />
+}
 ```
 
 </td>
@@ -125,7 +143,10 @@ return <Image src={img} sizes="100vw" fill />
 ```jsx
 import Image from 'next/image'
 import img from '../img.png'
-return <Image src={img} layout="fixed" />
+
+function Page() {
+  return <Image src={img} layout="fixed" />
+}
 ```
 
 </td>
@@ -134,7 +155,10 @@ return <Image src={img} layout="fixed" />
 ```jsx
 import Image from 'next/future/image'
 import img from '../img.png'
-return <Image src={img} />
+
+function Page() {
+  return <Image src={img} />
+}
 ```
 
 </td>
