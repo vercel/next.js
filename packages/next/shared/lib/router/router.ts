@@ -427,7 +427,7 @@ const backgroundCache: Record<string, Promise<any>> = {}
 
 interface FetchDataOutput {
   dataHref: string
-  json: Record<string, any>
+  json: Record<string, any> | null
   response: Response
   text: string
 }
@@ -508,7 +508,7 @@ function fetchNextData({
 
           return {
             dataHref,
-            json: parseJSON ? tryToParseAsJSON(text) : {},
+            json: parseJSON ? tryToParseAsJSON(text) : null,
             response,
             text,
           }
@@ -552,7 +552,7 @@ function tryToParseAsJSON(text: string) {
   try {
     return JSON.parse(text)
   } catch (error) {
-    return {}
+    return null
   }
 }
 
@@ -1159,7 +1159,7 @@ export default class Router implements BaseRouter {
       ;[pages, { __rewrites: rewrites }] = await Promise.all([
         this.pageLoader.getPageList(),
         getClientBuildManifest(),
-        this.pageLoader.getMiddlewareList(),
+        this.pageLoader.getMiddleware(),
       ])
     } catch (err) {
       // If we fail to resolve the page list or client-build manifest, we must
@@ -1807,28 +1807,24 @@ export default class Router implements BaseRouter {
 
       const { props } = await this._getData(async () => {
         if (shouldFetchData && !useStreamedFlightData) {
-          const { json } =
-            data?.json &&
-            data?.response.headers
-              .get('content-type')
-              ?.includes('application/json')
-              ? data
-              : await fetchNextData({
-                  dataHref: this.pageLoader.getDataHref({
-                    href: formatWithValidation({ pathname, query }),
-                    asPath: resolvedAs,
-                    locale,
-                  }),
-                  isServerRender: this.isSsr,
-                  parseJSON: true,
-                  inflightCache: this.sdc,
-                  persistCache: !isPreview,
-                  isPrefetch: false,
-                  unstable_skipClientCache,
-                })
+          const { json } = data?.json
+            ? data
+            : await fetchNextData({
+                dataHref: this.pageLoader.getDataHref({
+                  href: formatWithValidation({ pathname, query }),
+                  asPath: resolvedAs,
+                  locale,
+                }),
+                isServerRender: this.isSsr,
+                parseJSON: true,
+                inflightCache: this.sdc,
+                persistCache: !isPreview,
+                isPrefetch: false,
+                unstable_skipClientCache,
+              })
 
           return {
-            props: json,
+            props: json || {},
           }
         }
 
@@ -2267,18 +2263,17 @@ interface MiddlewareEffectParams<T extends FetchDataOutput> {
 function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
-  return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
-    (items) => {
+  return Promise.resolve(options.router.pageLoader.getMiddleware()).then(
+    (middleware) => {
       const { pathname: asPathname } = parsePath(options.asPath)
       const cleanedAs = hasBasePath(asPathname)
         ? removeBasePath(asPathname)
         : asPathname
 
-      return !!items?.some(([regex, ssr]) => {
-        return (
-          !ssr && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
-        )
-      })
+      const regex = middleware?.location
+      return (
+        !!regex && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+      )
     }
   )
 }

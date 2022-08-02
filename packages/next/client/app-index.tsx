@@ -33,7 +33,8 @@ self.__next_require__ = __webpack_require__
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (!chunk) return Promise.resolve()
   if (chunk.endsWith('.css')) {
-    const chunkPath = `/_next/${chunk}`
+    // @ts-expect-error __webpack_public_path__ is inlined by webpack
+    const chunkPath = `${__webpack_public_path__ || ''}${chunk}`
     const existingTag = document.querySelector(`link[href="${chunkPath}"]`)
     if (!existingTag) {
       const link = document.createElement('link')
