@@ -46,6 +46,13 @@ export type Redirect = {
   permanent?: boolean
 }
 
+export type Middleware = {
+  source: string
+  basePath?: false
+  locale?: false
+  has?: RouteHas[]
+}
+
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
 const namedGroupsRegex = /\(\?<([a-zA-Z][a-zA-Z0-9]*)>/g
@@ -132,9 +139,9 @@ function checkHeader(route: Header): string[] {
 
 export type RouteType = 'rewrite' | 'redirect' | 'header'
 
-function checkCustomRoutes(
-  routes: Redirect[] | Header[] | Rewrite[],
-  type: RouteType
+export function checkCustomRoutes(
+  routes: Redirect[] | Header[] | Rewrite[] | Middleware[],
+  type: RouteType | 'middleware'
 ): void {
   if (!Array.isArray(routes)) {
     console.error(
@@ -167,9 +174,11 @@ function checkCustomRoutes(
       console.error(
         `The route ${JSON.stringify(
           route
-        )} is not a valid object with \`source\` and \`${
-          type === 'header' ? 'headers' : 'destination'
-        }\``
+        )} is not a valid object with \`source\`${
+          type !== 'middleware'
+            ? ` and \`${type === 'header' ? 'headers' : 'destination'}\``
+            : ''
+        }`
       )
       numInvalidRoutes++
       continue
@@ -258,7 +267,7 @@ function checkCustomRoutes(
 
     if (type === 'header') {
       invalidParts.push(...checkHeader(route as Header))
-    } else {
+    } else if (type === 'rewrite' || type === 'redirect') {
       let _route = route as Rewrite | Redirect
       if (!_route.destination) {
         invalidParts.push('`destination` is missing')

@@ -54,6 +54,7 @@ import type {
   SWC_TARGET_TRIPLE,
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
+import type { MiddlewareMatcher } from './analysis/get-page-static-info'
 import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
@@ -335,7 +336,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     target = 'server',
     appDir,
-    middlewareRegex,
+    middlewareMatchers,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -350,7 +351,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
     target?: string
     appDir?: string
-    middlewareRegex?: string
+    middlewareMatchers?: MiddlewareMatcher[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === 'client'
@@ -1517,8 +1518,8 @@ export default async function getBaseWebpackConfig(
             isEdgeServer ? 'edge' : 'nodejs'
           ),
         }),
-        'process.env.__NEXT_MIDDLEWARE_REGEX': JSON.stringify(
-          middlewareRegex || ''
+        'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
+          middlewareMatchers || []
         ),
         'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
           config.experimental.manualClientBasePath

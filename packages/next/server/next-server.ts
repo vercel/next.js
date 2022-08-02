@@ -20,7 +20,7 @@ import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type {
   Params,
-  RouteMatch,
+  MiddlewareRouteMatch,
 } from '../shared/lib/router/utils/route-matcher'
 
 import fs from 'fs'
@@ -62,7 +62,7 @@ import BaseServer, {
   FindComponentsResult,
   prepareServerlessUrl,
   stringifyQuery,
-  RoutingItem,
+  MiddlewareRoutingItem,
 } from './base-server'
 import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -74,7 +74,7 @@ import { toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
@@ -1052,7 +1052,7 @@ export default class NextNodeServer extends BaseServer {
    * overridden by the development server in order to use a different source
    * to get the list.
    */
-  protected getMiddleware(): RoutingItem | undefined {
+  protected getMiddleware(): MiddlewareRoutingItem | undefined {
     const manifest = this.getMiddlewareManifest()
     const rootMiddleware = manifest?.middleware?.['/']
     if (!rootMiddleware) {
@@ -1063,25 +1063,6 @@ export default class NextNodeServer extends BaseServer {
       match: getMiddlewareMatcher(rootMiddleware),
       page: '/',
     }
-  }
-
-  protected getEdgeFunctions(): RoutingItem[] {
-    const manifest = this.getMiddlewareManifest()
-    if (!manifest) {
-      return []
-    }
-
-    return Object.keys(manifest.functions).map((page) => ({
-      match: getMiddlewareMatcher(manifest.functions[page]),
-      page,
-    }))
-  }
-
-  protected getEdgeRoutes(): RoutingItem[] {
-    const edgeFunctions = this.getEdgeFunctions()
-    const middleware = this.getMiddleware()
-
-    return edgeFunctions.concat(middleware ? [middleware] : [])
   }
 
   /**
@@ -1145,6 +1126,15 @@ export default class NextNodeServer extends BaseServer {
     return Boolean(info && info.paths.length > 0)
   }
 
+  protected hasEdgeFunctions(): boolean {
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) {
+      return false
+    }
+
+    return Object.keys(manifest.functions).length > 0
+  }
+
   /**
    * A placeholder for a function to be defined in the development server.
    * It will make sure that the root middleware or an edge function has been compiled
@@ -1205,10 +1195,6 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    const allHeaders = new Headers()
-    let result: FetchEventResult | null = null
-    const method = (params.request.method || 'GET').toUpperCase()
-
     const middleware = this.getMiddleware()
     if (!middleware) {
       return { finished: false }
@@ -1218,50 +1204,52 @@ export default class NextNodeServer extends BaseServer {
       return { finished: false }
     }
 
-    if (middleware && middleware.match(normalizedPathname)) {
-      await this.ensureMiddleware()
-      const middlewareInfo = this.getEdgeFunctionInfo({
-        page: middleware.page,
-        middleware: true,
-      })
+    await this.ensureMiddleware()
+    const middlewareInfo = this.getEdgeFunctionInfo({
+      page: middleware.page,
+      middleware: true,
+    })
 
-      if (!middlewareInfo) {
-        throw new MiddlewareNotFoundError()
-      }
+    if (!middlewareInfo) {
+      throw new MiddlewareNotFoundError()
+    }
 
-      result = await run({
-        distDir: this.distDir,
-        name: middlewareInfo.name,
-        paths: middlewareInfo.paths,
-        env: middlewareInfo.env,
-        edgeFunctionEntry: middlewareInfo,
-        request: {
-          headers: params.request.headers,
-          method,
-          nextConfig: {
-            basePath: this.nextConfig.basePath,
-            i18n: this.nextConfig.i18n,
-            trailingSlash: this.nextConfig.trailingSlash,
-          },
-          url: url,
-          page: page,
-          body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+    const method = (params.request.method || 'GET').toUpperCase()
+
+    const result = await run({
+      distDir: this.distDir,
+      name: middlewareInfo.name,
+      paths: middlewareInfo.paths,
+      env: middlewareInfo.env,
+      edgeFunctionEntry: middlewareInfo,
+      request: {
+        headers: params.request.headers,
+        method,
+        nextConfig: {
+          basePath: this.nextConfig.basePath,
+          i18n: this.nextConfig.i18n,
+          trailingSlash: this.nextConfig.trailingSlash,
         },
-        useCache: !this.nextConfig.experimental.runtime,
-        onWarning: params.onWarning,
+        url: url,
+        page: page,
+        body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+      },
+      useCache: !this.nextConfig.experimental.runtime,
+      onWarning: params.onWarning,
+    })
+
+    const allHeaders = new Headers()
+
+    for (let [key, value] of result.response.headers) {
+      if (key !== 'x-middleware-next') {
+        allHeaders.append(key, value)
+      }
+    }
+
+    if (!this.renderOpts.dev) {
+      result.waitUntil.catch((error) => {
+        console.error(`Uncaught: middleware waitUntil errored`, error)
       })
-
-      for (let [key, value] of result.response.headers) {
-        if (key !== 'x-middleware-next') {
-          allHeaders.append(key, value)
-        }
-      }
-
-      if (!this.renderOpts.dev) {
-        result.waitUntil.catch((error) => {
-          console.error(`Uncaught: middleware waitUntil errored`, error)
-        })
-      }
     }
 
     if (!result) {
@@ -1284,8 +1272,7 @@ export default class NextNodeServer extends BaseServer {
       type: 'route',
       name: 'edge functions catchall',
       fn: async (req, res, _params, parsed) => {
-        const edgeFunctions = this.getEdgeFunctions()
-        if (!edgeFunctions.length) return { finished: false }
+        if (!this.hasEdgeFunctions()) return { finished: false }
 
         const { query, pathname } = parsed
         const normalizedPathname = removeTrailingSlash(pathname || '')
@@ -1344,7 +1331,7 @@ export default class NextNodeServer extends BaseServer {
 
         parsedUrl.pathname = pathnameInfo.pathname
         const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
-        if (!middleware.match(normalizedPathname)) {
+        if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
           return { finished: false }
         }
 
@@ -1498,7 +1485,7 @@ export default class NextNodeServer extends BaseServer {
     const routes = []
     if (!this.renderOpts.dev || devReady) {
       if (this.getMiddleware()) routes[0] = middlewareCatchAllRoute
-      if (this.getEdgeFunctions().length) routes[1] = edgeCatchAllRoute
+      if (this.hasEdgeFunctions()) routes[1] = edgeCatchAllRoute
     }
 
     return routes
@@ -1618,24 +1605,24 @@ export default class NextNodeServer extends BaseServer {
 
 const MiddlewareMatcherCache = new WeakMap<
   MiddlewareManifest['middleware'][string],
-  RouteMatch
+  MiddlewareRouteMatch
 >()
 
 function getMiddlewareMatcher(
   info: MiddlewareManifest['middleware'][string]
-): RouteMatch {
+): MiddlewareRouteMatch {
   const stored = MiddlewareMatcherCache.get(info)
   if (stored) {
     return stored
   }
 
-  if (typeof info.regexp !== 'string' || !info.regexp) {
+  if (!Array.isArray(info.matchers)) {
     throw new Error(
-      `Invariant: invalid regexp for middleware ${JSON.stringify(info)}`
+      `Invariant: invalid matchers for middleware ${JSON.stringify(info)}`
     )
   }
 
-  const matcher = getRouteMatcher({ re: new RegExp(info.regexp), groups: {} })
+  const matcher = getMiddlewareRouteMatcher(info.matchers)
   MiddlewareMatcherCache.set(info, matcher)
   return matcher
 }

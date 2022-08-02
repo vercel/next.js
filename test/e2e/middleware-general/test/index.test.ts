@@ -101,8 +101,8 @@ describe('Middleware Runtime', () => {
           next.url,
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
-        const { location } = await res.json()
-        expect(location).toBe('.*')
+        const matchers = await res.json()
+        expect(matchers).toBe([{ regexp: '.*' }])
       })
     }
 
@@ -121,7 +121,7 @@ describe('Middleware Runtime', () => {
             files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
             name: 'middleware',
             page: '/',
-            regexp: '^/.*$',
+            matchers: [{ regexp: '.*' }],
             wasm: [],
             assets: [],
           },

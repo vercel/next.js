@@ -9,7 +9,8 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { RoutingItem } from '../base-server'
+import type { MiddlewareRoutingItem, RoutingItem } from '../base-server'
+import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-info'
 
 import crypto from 'crypto'
 import fs from 'fs'
@@ -32,7 +33,10 @@ import {
   DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
-import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
+import {
+  getMiddlewareRouteMatcher,
+  getRouteMatcher,
+} from '../../shared/lib/router/utils/route-matcher'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router from '../router'
@@ -56,10 +60,7 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import {
-  getMiddlewareRegex,
-  getRouteRegex,
-} from '../../shared/lib/router/utils/route-regex'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
@@ -104,8 +105,8 @@ export default class DevServer extends Server {
   private pagesDir: string
   private appDir?: string
   private actualMiddlewareFile?: string
-  private middleware?: RoutingItem
-  private edgeFunctions?: RoutingItem[]
+  private middleware?: MiddlewareRoutingItem
+  private hasEdgeFunctionsFlag = false
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -282,11 +283,12 @@ export default class DevServer extends Server {
       wp.watch(files, directories, 0)
 
       wp.on('aggregated', async () => {
-        let middlewareMatcher: RegExp | undefined
+        let middlewareMatchers: MiddlewareMatcher[] | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
-        const edgeRoutesSet = new Set<string>()
+
+        this.hasEdgeFunctionsFlag = false
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -316,9 +318,9 @@ export default class DevServer extends Server {
 
           if (isMiddlewareFile(rootFile)) {
             this.actualMiddlewareFile = rootFile
-            middlewareMatcher =
-              staticInfo.middleware?.pathMatcher || new RegExp('.*')
-            edgeRoutesSet.add('/')
+            middlewareMatchers = staticInfo.middleware?.matchers || [
+              { regexp: '.*' },
+            ]
             continue
           }
 
@@ -356,7 +358,7 @@ export default class DevServer extends Server {
             onClient: () => {},
             onServer: () => {},
             onEdgeServer: () => {
-              edgeRoutesSet.add(pageName)
+              this.hasEdgeFunctionsFlag = true
             },
           })
           routedPages.push(pageName)
@@ -371,25 +373,13 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.edgeFunctions = []
-        const edgeRoutes = Array.from(edgeRoutesSet)
-        getSortedRoutes(edgeRoutes).forEach((page) => {
-          const isRootMiddleware = page === '/' && !!middlewareMatcher
-          const middlewareRegex = isRootMiddleware
-            ? { re: middlewareMatcher!, groups: {} }
-            : getMiddlewareRegex(page, { catchAll: false })
-          const routeItem = {
-            match: getRouteMatcher(middlewareRegex),
-            page,
-            re: middlewareRegex.re,
-          }
-
-          if (isRootMiddleware) {
-            this.middleware = routeItem
-          } else {
-            this.edgeFunctions!.push(routeItem)
-          }
-        })
+        this.middleware = middlewareMatchers
+          ? {
+              match: getMiddlewareRouteMatcher(middlewareMatchers),
+              page: '/',
+              matchers: middlewareMatchers,
+            }
+          : undefined
 
         try {
           // we serve a separate manifest with all pages for the client in
@@ -640,6 +630,7 @@ export default class DevServer extends Server {
     response: BaseNextResponse
     parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
+    middlewareList: MiddlewareRoutingItem[]
   }) {
     try {
       const result = await super.runMiddleware({
@@ -897,16 +888,16 @@ export default class DevServer extends Server {
     return this.middleware
   }
 
-  protected getEdgeFunctions() {
-    return this.edgeFunctions ?? []
-  }
-
   protected getServerComponentManifest() {
     return undefined
   }
 
   protected async hasMiddleware(): Promise<boolean> {
     return this.hasPage(this.actualMiddlewareFile!)
+  }
+
+  protected hasEdgeFunctions(): boolean {
+    return this.hasEdgeFunctionsFlag
   }
 
   protected async ensureMiddleware() {
@@ -966,17 +957,7 @@ export default class DevServer extends Server {
       fn: async (_req, res) => {
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res
-          .body(
-            JSON.stringify(
-              this.middleware
-                ? {
-                    location: this.middleware.re!.source,
-                  }
-                : {}
-            )
-          )
-          .send()
+        res.body(JSON.stringify(this.getMiddleware()?.matchers ?? [])).send()
         return {
           finished: true,
         }

@@ -2264,15 +2264,18 @@ function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
   return Promise.resolve(options.router.pageLoader.getMiddleware()).then(
-    (middleware) => {
+    (matchers) => {
+      if (!matchers) return false
+
       const { pathname: asPathname } = parsePath(options.asPath)
       const cleanedAs = hasBasePath(asPathname)
         ? removeBasePath(asPathname)
         : asPathname
 
-      const regex = middleware?.location
-      return (
-        !!regex && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+      // Check only path match on client. Matching "has" should be done on server
+      // where we can access more info such as headers, HttpOnly cookie, etc.
+      return matchers.some((m) =>
+        new RegExp(m.regexp).test(addLocale(cleanedAs, options.locale))
       )
     }
   )

@@ -4,7 +4,10 @@ import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
-import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type {
+  MiddlewareRouteMatch,
+  RouteMatch,
+} from '../shared/lib/router/utils/route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type {
   NextConfig,
@@ -78,6 +81,7 @@ import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -88,6 +92,12 @@ export interface RoutingItem {
   page: string
   match: RouteMatch
   re?: RegExp
+}
+
+export interface MiddlewareRoutingItem {
+  page: string
+  match: MiddlewareRouteMatch
+  matchers?: MiddlewareMatcher[]
 }
 
 export interface Options {

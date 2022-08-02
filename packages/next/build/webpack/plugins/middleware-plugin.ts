@@ -3,7 +3,7 @@ import type {
   EdgeMiddlewareMeta,
 } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
-import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
+import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
@@ -22,7 +22,7 @@ export interface EdgeFunctionDefinition {
   files: string[]
   name: string
   page: string
-  regexp: string
+  matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
 }
@@ -565,17 +565,14 @@ function getCreateAssets(params: {
         continue
       }
 
-      const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
-      })
-      const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
+      const matchers = metadata?.edgeMiddleware?.matchers ?? [{ regexp: '.*' }]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
-        regexp,
+        matchers,
         wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
           name,
           filePath,

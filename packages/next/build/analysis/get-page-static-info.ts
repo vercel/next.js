@@ -1,5 +1,6 @@
 import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
+import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
@@ -10,9 +11,17 @@ import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
+import { checkCustomRoutes } from '../../lib/load-custom-routes'
 
-interface MiddlewareConfig {
-  pathMatcher: RegExp
+export interface MiddlewareConfig {
+  matchers: MiddlewareMatcher[]
+}
+
+export interface MiddlewareMatcher {
+  regexp: string
+  basePath?: false
+  locale?: false
+  has?: RouteHas[]
 }
 
 export interface PageStaticInfo {
@@ -161,65 +170,57 @@ function getMiddlewareConfig(
   const result: Partial<MiddlewareConfig> = {}
 
   if (config.matcher) {
-    result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
-    )
-
-    if (result.pathMatcher.source.length > 4096) {
-      throw new Error(
-        `generated matcher config must be less than 4096 characters.`
-      )
-    }
+    result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
   return result
 }
 
-function getMiddlewareRegExpStrings(
+function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
   nextConfig: NextConfig
-): string[] {
+): MiddlewareMatcher[] {
+  let matchers: unknown[] = []
   if (Array.isArray(matcherOrMatchers)) {
-    return matcherOrMatchers.flatMap((matcher) =>
-      getMiddlewareRegExpStrings(matcher, nextConfig)
-    )
-  }
-
-  if (typeof matcherOrMatchers !== 'string') {
-    throw new Error(
-      '`matcher` must be a path matcher or an array of path matchers'
-    )
-  }
-
-  let matcher: string = matcherOrMatchers
-
-  if (!matcher.startsWith('/')) {
-    throw new Error('`matcher`: path matcher must start with /')
-  }
-
-  if (nextConfig.i18n?.locales) {
-    matcher = `/:nextInternalLocale(${nextConfig.i18n.locales
-      .map((locale) => escapeStringRegexp(locale))
-      .join('|')})${
-      matcher === '/' && !nextConfig.trailingSlash ? '' : matcher
-    }`
-  }
-
-  if (nextConfig.basePath) {
-    matcher = `${nextConfig.basePath}${matcher === '/' ? '' : matcher}`
-  }
-
-  const parsedPage = tryToParsePath(matcher)
-  if (parsedPage.error) {
-    throw new Error(`Invalid path matcher: ${matcher}`)
-  }
-
-  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
-  if (regexes.length < 1) {
-    throw new Error("Can't parse matcher")
+    matchers = matcherOrMatchers
   } else {
-    return regexes
+    matchers.push(matcherOrMatchers)
   }
+
+  const routes = matchers.map(
+    (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
+  )
+  checkCustomRoutes(routes, 'middleware')
+
+  return routes.map((r) => {
+    let { source, ...rest } = r
+
+    if (nextConfig.i18n?.locales) {
+      source = `/:nextInternalLocale(${nextConfig.i18n.locales
+        .map((locale) => escapeStringRegexp(locale))
+        .join('|')})${
+        source === '/' && !nextConfig.trailingSlash ? '' : source
+      }`
+    }
+
+    if (nextConfig.basePath) {
+      source = `${nextConfig.basePath}${source === '/' ? '' : source}`
+    }
+
+    const parsedPage = tryToParsePath(source)
+    if (parsedPage.error) {
+      throw new Error(`Invalid source: ${source}`)
+    }
+
+    if (!parsedPage.regexStr) {
+      throw new Error("Can't parse")
+    }
+
+    return {
+      ...rest,
+      regexp: parsedPage.regexStr,
+    }
+  })
 }
 
 function warnAboutExperimentalEdgeApiFunctions() {
