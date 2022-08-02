@@ -18,6 +18,13 @@ num_cpus = "1.13.1"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 
+[dev-dependencies]
+serde = "1.0.136"
+tokio = { version = "1.11.0", features = ["full"] }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
+
 [features]
 unsafe_once_map = []
 log_running_tasks = []
