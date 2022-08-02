@@ -4,6 +4,7 @@ import type {
 } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
+import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
@@ -565,7 +566,12 @@ function getCreateAssets(params: {
         continue
       }
 
-      const matchers = metadata?.edgeMiddleware?.matchers ?? [{ regexp: '.*' }]
+      const { namedRegex } = getNamedMiddlewareRegex(page, {
+        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
+      })
+      const matchers = metadata?.edgeMiddleware?.matchers ?? [
+        { regexp: namedRegex },
+      ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),

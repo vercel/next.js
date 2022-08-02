@@ -67,7 +67,7 @@ describe('Switchable runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const devMiddlewareManifest = await res.json()
-        expect(devMiddlewareManifest).toEqual({})
+        expect(devMiddlewareManifest).toEqual([])
       })
 
       it.skip('should support client side navigation to ssr rsc pages', async () => {
@@ -147,7 +147,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                regexp: '^/api/hello$',
+                matchers: [{ regexp: '^/api/hello$' }],
                 wasm: [],
               },
               '/api/edge': {
@@ -158,7 +158,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                regexp: '^/api/edge$',
+                matchers: [{ regexp: '^/api/edge$' }],
                 wasm: [],
               },
             },
@@ -282,7 +282,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                regexp: '^/api/hello$',
+                matchers: [{ regexp: '^/api/hello$' }],
                 wasm: [],
               },
               '/api/edge': {
@@ -293,7 +293,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                regexp: '^/api/edge$',
+                matchers: [{ regexp: '^/api/edge$' }],
                 wasm: [],
               },
             },

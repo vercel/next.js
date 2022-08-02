@@ -142,3 +142,29 @@ function buildGetSafeRouteKey() {
     return routeKey
   }
 }
+
+/**
+ * Generates a named regexp.
+ * This is intended to be using for build time only.
+ */
+export function getNamedMiddlewareRegex(
+  normalizedRoute: string,
+  options: {
+    catchAll?: boolean
+  }
+) {
+  const { parameterizedRoute } = getParametrizedRoute(normalizedRoute)
+  const { catchAll = true } = options
+  if (parameterizedRoute === '/') {
+    let catchAllRegex = catchAll ? '.*' : ''
+    return {
+      namedRegex: `^/${catchAllRegex}$`,
+    }
+  }
+
+  const { namedParameterizedRoute } = getNamedParametrizedRoute(normalizedRoute)
+  let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
+  return {
+    namedRegex: `^${namedParameterizedRoute}${catchAllGroupedRegex}$`,
+  }
+}
