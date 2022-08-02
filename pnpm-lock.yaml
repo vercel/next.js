@@ -574,7 +574,7 @@ importers:
       uuid: 8.3.2
       vm-browserify: 1.1.2
       watchpack: 2.4.0
-      web-vitals: 3.0.0-beta.2
+      web-vitals: 3.0.0-rc.0
       webpack-sources1: npm:webpack-sources@1.4.3
       webpack-sources3: npm:webpack-sources@3.2.3
       webpack4: npm:webpack@4.44.1
@@ -761,7 +761,7 @@ importers:
       uuid: 8.3.2
       vm-browserify: 1.1.2
       watchpack: 2.4.0
-      web-vitals: 3.0.0-beta.2
+      web-vitals: 3.0.0-rc.0
       webpack-sources1: /webpack-sources/1.4.3
       webpack-sources3: /webpack-sources/3.2.3
       webpack4: /webpack/4.44.1
@@ -22163,8 +22163,8 @@ packages:
     resolution: {integrity: sha512-wYxSGajtmoP4WxfejAPIr4l0fVh+jeMXZb08wNc0tMg6xsfZXj3cECqIK0G7ZAqUq0PP8WlMDtaOGVBTAWztNw==}
     dev: true
 
-  /web-vitals/3.0.0-beta.2:
-    resolution: {integrity: sha512-W9OALsWK4RkA5GWvLhsfszy+Q29WJBB27Dnucc3eYP6/0kz1XsfMgm+4au9X/KjXMIo92ZRU1fWBaSdNsaVjJg==}
+  /web-vitals/3.0.0-rc.0:
+    resolution: {integrity: sha512-GHS5aiK2r9oQ8V0xf4avZU2dzCTP3osAWa/9jBzxzrvHKPu0IxuuntNWpg1E4Ytu8HAj2lZM+7qj+SjsaL2ZHA==}
     dev: true
 
   /webidl-conversions/3.0.1:
@@ -22253,6 +22253,7 @@ packages:
       webpack-sources: 1.4.3
     transitivePeerDependencies:
       - supports-color
+      - webpack
     dev: true
 
   /webpack/5.74.0:
