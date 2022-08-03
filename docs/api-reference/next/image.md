@@ -147,7 +147,7 @@ import Image from 'next/image'
 const MyImage = (props) => {
   return (
     <Image
-      src="example.png"
+      src="/example.png"
       layout="fill"
       sizes="(min-width: 66em) 33vw,
              100vw"
