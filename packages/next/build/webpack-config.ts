@@ -685,6 +685,8 @@ export default async function getBaseWebpackConfig(
       'react-dom/server$': `${reactDomDir}/server`,
       'react-dom/server.browser$': `${reactDomDir}/server.browser`,
       'react-dom/client$': `${reactDomDir}/client`,
+      'styled-jsx/style$': require.resolve(`styled-jsx/style`),
+      'styled-jsx$': require.resolve(`styled-jsx`),
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -816,9 +818,13 @@ export default async function getBaseWebpackConfig(
       resolveRequest: string
     ) => Promise<[string | null, boolean]>
   ) {
+    // Rewrite back to internals to avoid bundled into chunks after overriding in require-hook
+    if (request === 'styled-jsx') {
+      request = 'next/dist/shared/lib/styled-jsx'
+    }
     // We need to externalize internal requests for files intended to
     // not be bundled.
-    const isLocal: boolean =
+    let isLocal: boolean =
       request.startsWith('.') ||
       // Always check for unix-style path, as webpack sometimes
       // normalizes as posix.

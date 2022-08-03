@@ -41,7 +41,6 @@ describe('app dir - react server components', () => {
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
       },
       dependencies: {
-        'styled-jsx': 'latest',
         'styled-components': '6.0.0-alpha.5',
         react: 'experimental',
         'react-dom': 'experimental',

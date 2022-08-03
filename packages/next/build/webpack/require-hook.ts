@@ -126,6 +126,8 @@ const hookPropertyMap = new Map(
       'next/dist/compiled/@babel/runtime/package.json',
     ],
     ['node-fetch', 'next/dist/compiled/node-fetch'],
+    ['styled-jsx/style', 'styled-jsx/style'],
+    ['styled-jsx', 'styled-jsx'],
   ].map(([request, replacement]) => [request, require.resolve(replacement)])
 )
 
