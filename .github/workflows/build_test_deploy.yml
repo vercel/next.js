@@ -1310,6 +1310,7 @@ jobs:
               export CC="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
               export CXX="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
               export PATH="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+              find /usr/local/lib/android/sdk/ndk
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
               /usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-strip packages/next-swc/native/next-swc.*.node
