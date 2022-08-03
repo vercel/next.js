@@ -14,7 +14,9 @@ We inject [widely used polyfills](https://github.com/vercel/next.js/blob/canary/
 - [**URL**](https://developer.mozilla.org/en-US/docs/Web/API/URL) — Replacing: the [`url` package (Node.js API)](https://nodejs.org/api/url.html).
 - [**Object.assign()**](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign) — Replacing: `object-assign`, `object.assign`, and `core-js/object/assign`.
 
-If any of your dependencies includes these polyfills, they’ll be eliminated automatically from the production build to avoid duplication. In addition, to reduce bundle size, Next.js will only load these polyfills for browsers that require them. The majority of the web traffic globally will not download these polyfills.
+If any of your dependencies includes these polyfills, they’ll be eliminated automatically from the production build to avoid duplication.
+
+In addition, to reduce bundle size, Next.js will only load these polyfills for browsers that require them. The majority of the web traffic globally will not download these polyfills.
 
 ### Custom Polyfills
 
