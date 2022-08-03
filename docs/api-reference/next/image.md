@@ -135,32 +135,29 @@ A string that provides information about how wide the image will be at different
 
 The `sizes` property serves two important purposes related to image performance:
 
-First, the value of `sizes` is used by the browser to determine which of the image urls from the [`srcset`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) to download. When the browser chooses, it does not yet know the size of the image on the page, so it assumes that the image will take up the entire width of the screen, and selects an image from the srcset that is just larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen.
+First, the value of `sizes` is used by the browser to determine which size of the image to download, from `next/image`'s automatically-generated source set. When the browser chooses, it does not yet know the size of the image on the page, so it selects an image that is just larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen. If you don't specify a `sizes` value, a default value of `100vw` (full screen width) is used.
 
-Second, the `sizes` value is parsed and used to trim the values in the automatically-created `srcset`. For images using `layout="responsive"` or `layout="fill"`, a large srcset is generated to cover all possible image sizes. If the `sizes` property value includes percentage-based sizes, such as `50vw`, then the srcset is trimmed to not include any values which are too small to ever be necessary, based on that value.
+Second, the `sizes` value is parsed and used to trim the values in the automatically-created source set. If the `sizes` property includes sizes such as `50vw`, which represent a percentage of the viewport width, then the source set is trimmed to not include any values which are too small to ever be necessary.
 
-For example, if you know your styling will cause an image to be full-width on mobile devices, but in a 3-column layout on desktop displays, you should include a sizes property such as the following:
+For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
 
 ```js
 import Image from 'next/image'
+// ...
 
-const MyImage = (props) => {
-  return (
-    <Image
-      src="/example.png"
-      layout="fill"
-      sizes="(min-width: 66em) 33vw,
-             100vw"
-    />
-  )
-}
+;<Image
+  src="/example.png"
+  layout="fill"
+  sizes="(min-width: 75em) 33vw,
+           (min-width: 48em) 50vw,
+           100vw"
+/>
 ```
 
-This will reduce the file size of images downloaded in the desktop view by a factor of 9. This can have a dramatic effect on performance metrics.
-
-If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upper bound width is constrained already.
+This example `sizes` would reduce the file size of images downloaded in the desktop view by a factor of 9. This can have a dramatic effect on performance metrics.
 
 Learn more about `srcset` and `sizes`:
+
 - [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
 - [mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
 
