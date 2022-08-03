@@ -29,7 +29,7 @@ export interface EdgeFunctionDefinition {
 }
 
 export interface MiddlewareManifest {
-  version: 1
+  version: 2
   sortedMiddleware: string[]
   middleware: { [page: string]: EdgeFunctionDefinition }
   functions: { [page: string]: EdgeFunctionDefinition }
@@ -49,7 +49,7 @@ const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
   middleware: {},
   functions: {},
-  version: 1,
+  version: 2,
 }
 
 export default class MiddlewarePlugin {
