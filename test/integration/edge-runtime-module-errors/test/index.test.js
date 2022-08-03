@@ -599,10 +599,7 @@ describe('Edge runtime code with imports', () => {
     })
 
     it('does not throw in production at runtime', async () => {
-      const { stderr } = await nextBuild(context.appDir, undefined, {
-        stderr: true,
-      })
-      expect(stderr).not.toContain(getUnsupportedModuleWarning(moduleName))
+      await nextBuild(context.appDir, undefined, { stderr: true })
       context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(200)
