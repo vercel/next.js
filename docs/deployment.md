@@ -114,8 +114,6 @@ The following services support deploying Next.js using [`next export`](/docs/adv
 - [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
 - [Firebase](https://github.com/vercel/next.js/tree/canary/examples/with-firebase-hosting)
 - [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
-- [21YunBox](https://www.21cloudbox.com/solutions/how-to-deploy-nextjs-project-in-production-server.html)
-
 
 You can also manually deploy the [`next export`](/docs/advanced-features/static-html-export.md) output to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
 
