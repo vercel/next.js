@@ -239,7 +239,7 @@ The parent element _must_ assign `position: "relative"`, `position: "fixed"`, or
 
 By default, the img element will automatically be assigned the `position: "absolute"` style.
 
-The default image fill behavior will stretch the image to fit the container. You may prefer to set the `object-fit` CSS property to a value of `"contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
+The default image fit behavior will stretch the image to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
 
 Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
 
