@@ -126,6 +126,7 @@
     "@next/react-dev-overlay": "12.2.4-canary.10",
     "@next/react-refresh-utils": "12.2.4-canary.10",
     "@next/swc": "12.2.4-canary.10",
+    "@segment/ajv-human-errors": "2.1.2",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
