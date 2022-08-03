@@ -8,15 +8,13 @@ Next.js supports **IE11 and all modern browsers** (Edge, Firefox, Chrome, Safari
 
 ## Polyfills
 
-We transparently inject polyfills required for IE11 compatibility. In addition, we also inject widely used polyfills, including:
+We inject [widely used polyfills](https://github.com/vercel/next.js/blob/canary/packages/next-polyfill-nomodule/src/index.js), including:
 
 - [**fetch()**](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) — Replacing: `whatwg-fetch` and `unfetch`.
 - [**URL**](https://developer.mozilla.org/en-US/docs/Web/API/URL) — Replacing: the [`url` package (Node.js API)](https://nodejs.org/api/url.html).
 - [**Object.assign()**](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign) — Replacing: `object-assign`, `object.assign`, and `core-js/object/assign`.
 
-If any of your dependencies includes these polyfills, they’ll be eliminated automatically from the production build to avoid duplication.
-
-In addition, to reduce bundle size, Next.js will only load these polyfills for browsers that require them. The majority of the web traffic globally will not download these polyfills.
+If any of your dependencies includes these polyfills, they’ll be eliminated automatically from the production build to avoid duplication. In addition, to reduce bundle size, Next.js will only load these polyfills for browsers that require them. The majority of the web traffic globally will not download these polyfills.
 
 ### Server-Side Polyfills
 
@@ -24,7 +22,7 @@ In addition to `fetch()` on the client-side, Next.js polyfills `fetch()` in the 
 
 ### Custom Polyfills
 
-If your own code or any external npm dependencies require features not supported by your target browsers, you need to add polyfills yourself.
+If your own code or any external npm dependencies require features not supported by your target browsers (such as IE 11), you need to add polyfills yourself.
 
 In this case, you should add a top-level import for the **specific polyfill** you need in your [Custom `<App>`](/docs/advanced-features/custom-app.md) or the individual component.
 
