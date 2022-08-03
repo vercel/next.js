@@ -149,6 +149,22 @@ export function middleware(request: NextRequest) {
   return response
 }
 ```
+## Using Redirection
+Suppose you want to `redirect` a specific incomming request on to a different url 
+```
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+ 
+  const url = request.nextUrl.clone();
+  url.pathname = '/login';
+  return NextResponse.redirect(new URL('/login', request.url));
+  }
+  
+    
+```
 
 ## Related
 
