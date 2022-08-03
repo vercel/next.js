@@ -10,9 +10,9 @@ const createEvent = (trace, ph, cat) => ({
   ts: trace.timestamp,
   // event category. We only use duration events (B/E) for now.
   ph,
-  // process id. We don't collect this for now, putting arbitary numbers.
+  // process id. We don't collect this for now, putting arbitrary numbers.
   pid: 1,
-  // thread id. We don't collect this for now, putting arbitary numebers.
+  // thread id. We don't collect this for now, putting arbitrary numebers.
   tid: 10,
   args: trace.tags,
 })
