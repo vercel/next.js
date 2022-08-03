@@ -16,7 +16,7 @@ For non-SSR pages, all Suspense boundaries will still be [statically optimized](
 
 ### next/dynamic
 
-Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libaries are only imported and included in the JavaScript bundle when they're used.
+Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libraries are only imported and included in the JavaScript bundle when they're used.
 
 Read more about how to use [`next/dynamic`](/docs/advanced-features/dynamic-import.md).
 
