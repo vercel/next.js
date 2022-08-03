@@ -15,7 +15,7 @@ use crate::references::{css_resolve, AstPathVc};
 #[turbo_tasks::value(into: new)]
 pub struct ImportAttributes {
     #[trace_ignore]
-    pub layer_name: Option<Vec<Ident>>,
+    pub layer_name: Option<LayerName>,
     #[trace_ignore]
     pub supports: Option<SupportsCondition>,
     #[trace_ignore]
@@ -25,12 +25,15 @@ pub struct ImportAttributes {
 impl ImportAttributes {
     pub fn new_from_prelude(prelude: &ImportPrelude) -> Self {
         let layer_name = prelude.layer_name.as_ref().map(|l| match l {
-            ImportPreludeLayerName::Ident(_) => Vec::new(),
+            ImportPreludeLayerName::Ident(_) => LayerName {
+                span: DUMMY_SP,
+                name: vec![],
+            },
             ImportPreludeLayerName::Function(f) => {
                 assert_eq!(f.value.len(), 1);
-                assert!(matches!(&f.value[0], ComponentValue::Ident(_)));
-                if let ComponentValue::Ident(ident) = &f.value[0] {
-                    vec![ident.clone()]
+                assert!(matches!(&f.value[0], ComponentValue::LayerName(_)));
+                if let ComponentValue::LayerName(layer_name) = &f.value[0] {
+                    layer_name.clone()
                 } else {
                     unreachable!()
                 }
@@ -111,10 +114,7 @@ impl ImportAttributes {
         if let Some(layer_name) = &self.layer_name {
             rule = at_rule(
                 "layer",
-                AtRulePrelude::LayerPrelude(LayerPrelude::Name(LayerName {
-                    span: DUMMY_SP,
-                    name: layer_name.clone(),
-                })),
+                AtRulePrelude::LayerPrelude(LayerPrelude::Name(layer_name.clone())),
                 rule,
             );
             indent += 2;
