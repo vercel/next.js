@@ -161,8 +161,8 @@ This will reduce the file size of images downloaded in the desktop view by a fac
 If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upper bound width is constrained already.
 
 Learn more about `srcset` and `sizes`:
-[web.dev](https://web.dev/learn/design/responsive-images/#sizes)
-[mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
+- [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
+- [mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
 
 ### quality
 
