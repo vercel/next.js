@@ -34,6 +34,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
+import { requestIdleCallback } from "./request-idle-callback.ts"
 
 const ReactDOM = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/client')
@@ -89,7 +90,7 @@ let CachedComponent: React.ComponentType
 
   // Ignore the module ID transform in client.
   // @ts-ignore
-;(self as any).__next_require__ = __webpack_require__
+  ; (self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -130,13 +131,13 @@ class Container extends React.Component<{
       router
         .replace(
           router.pathname +
-            '?' +
-            String(
-              assign(
-                urlQueryToSearchParams(router.query),
-                new URLSearchParams(location.search)
-              )
-            ),
+          '?' +
+          String(
+            assign(
+              urlQueryToSearchParams(router.query),
+              new URLSearchParams(location.search)
+            )
+          ),
           asPath,
           {
             // @ts-ignore
@@ -277,7 +278,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
     window.__NEXT_P.map((p) => setTimeout(() => register(p), 0))
   }
   window.__NEXT_P = []
-  ;(window.__NEXT_P as any).push = register
+    ; (window.__NEXT_P as any).push = register
 
   headManager = initHeadManager()
   headManager.getIsSsr = () => {
@@ -310,9 +311,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
         entries,
       }: any): void => {
         // Combines timestamp with random number for unique ID
-        const uniqueID: string = `${Date.now()}-${
-          Math.floor(Math.random() * (9e12 - 1)) + 1e12
-        }`
+        const uniqueID: string = `${Date.now()}-${Math.floor(Math.random() * (9e12 - 1)) + 1e12
+          }`
         let perfStartEntry: string | undefined
 
         if (entries && entries.length) {
@@ -498,9 +498,9 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
     .then(({ page: ErrorComponent, styleSheets }) => {
       return lastAppProps?.Component === ErrorComponent
         ? import('../pages/_error').then((m) => ({
-            ErrorComponent: m.default as React.ComponentType<{}>,
-            styleSheets: [],
-          }))
+          ErrorComponent: m.default as React.ComponentType<{}>,
+          styleSheets: [],
+        }))
         : { ErrorComponent, styleSheets }
     })
     .then(({ ErrorComponent, styleSheets }) => {
@@ -552,8 +552,13 @@ function renderReactElement(
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
+      const startTransition = (React as any).startTransition
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
+      requestIdleCallback(() => {
+        startTransition(() => {
+          reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
+        })
+      })
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
@@ -616,9 +621,9 @@ function markRenderComplete(): void {
   }
 
   clearMarks()
-  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
-    performance.clearMeasures(measure)
-  )
+    ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
+      performance.clearMeasures(measure)
+    )
 }
 
 function clearMarks(): void {
@@ -657,15 +662,15 @@ function renderApp(App: AppComponent, appProps: AppProps) {
 
 const wrapApp =
   (App: AppComponent) =>
-  (wrappedAppProps: Record<string, any>): JSX.Element => {
-    const appProps: AppProps = {
-      ...wrappedAppProps,
-      Component: CachedComponent,
-      err: initialData.err,
-      router,
+    (wrappedAppProps: Record<string, any>): JSX.Element => {
+      const appProps: AppProps = {
+        ...wrappedAppProps,
+        Component: CachedComponent,
+        err: initialData.err,
+        router,
+      }
+      return <AppContainer>{renderApp(App, appProps)}</AppContainer>
     }
-    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
-  }
 
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
