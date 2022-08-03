@@ -1306,9 +1306,9 @@ jobs:
           - host: ubuntu-latest
             target: aarch64-linux-android
             build: |
-              export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
-              export CC="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
-              export CXX="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
+              export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+              export CC="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+              export CXX="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang++"
               export PATH="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
               find /usr/local/lib/android/sdk/ndk
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
@@ -1317,10 +1317,11 @@ jobs:
           - host: ubuntu-latest
             target: armv7-linux-androideabi
             build: |
-              export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
-              export CC="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
-              export CXX="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++"
+              export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi29-clang"
+              export CC="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi29-clang"
+              export CXX="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi29-clang++"
               export PATH="/usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+              find /usr/local/lib/android/sdk/ndk
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
               /usr/local/lib/android/sdk/ndk/25.0.8775105/toolchains/llvm/prebuilt/linux-x86_64/bin/arm-linux-androideabi-strip packages/next-swc/native/next-swc.*.node
