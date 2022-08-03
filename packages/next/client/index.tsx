@@ -1,4 +1,4 @@
-use/* global location */
+/* global location */
 import '../build/polyfills/polyfill-module'
 import React from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
