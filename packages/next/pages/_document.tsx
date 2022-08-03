@@ -1,4 +1,4 @@
-import React, { PureComponent, ReactElement, ReactNode, useContext, PureComponent } from 'react'
+import React, { PureComponent, ReactElement, ReactNode, useContext } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
