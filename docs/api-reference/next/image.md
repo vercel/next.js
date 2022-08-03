@@ -131,15 +131,38 @@ const MyImage = (props) => {
 
 ### sizes
 
-A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
+A string that provides information about how wide the image will be at different breakpoints. Has important performance ramifications for images using `layout="responsive"` or `layout="fill"`.
 
-If you are using `layout="fill"` or `layout="responsive"` it's important to assign `sizes` for any image that takes up less than the full viewport width.
+The `sizes` property serves two important purposes related to image performance:
 
-For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+First, the value of `sizes` is used by the browser to determine which of the image urls from the [`srcset`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) to download. When the browser chooses, it does not yet know the size of the image on the page, so it assumes that the image will take up the entire width of the screen, and selects an image from the srcset that is just larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen.
+
+Second, the `sizes` value is parsed and used to trim the values in the automatically-created `srcset`. For images using `layout="responsive"` or `layout="fill"`, a large srcset is generated to cover all possible image sizes. If the `sizes` property value includes percentage-based sizes, such as `50vw`, then the srcset is trimmed to not include any values which are too small to ever be necessary, based on that value.
+
+For example, if you know your styling will cause an image to be full-width on mobile devices, but in a 3-column layout on desktop displays, you should include a sizes property such as the following:
+
+```js
+import Image from 'next/image'
+
+const MyImage = (props) => {
+  return (
+    <Image
+      src="example.png"
+      layout="fill"
+      sizes="(min-width: 66em) 33vw,
+             100vw"
+    />
+  )
+}
+```
+
+This will reduce the file size of images downloaded in the desktop view by a factor of 9. This can have a dramatic effect on performance metrics.
 
 If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upper bound width is constrained already.
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
+Learn more about `srcset` and `sizes`:
+[web.dev](https://web.dev/learn/design/responsive-images/#sizes)
+[mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
 
 ### quality
 
