@@ -86,7 +86,7 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `\`source\` does not start with / for route {\"source\":\"hello\"}`
+      `\`source\` does not start with / for route {"source":"hello"}`
     )
 
     expect(stderr).toContain(

@@ -1,8 +1,6 @@
 /* eslint-env jest */
 
-import url from 'url'
 import { join } from 'path'
-import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
   launchApp,
