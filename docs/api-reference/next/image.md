@@ -131,7 +131,7 @@ const MyImage = (props) => {
 
 ### sizes
 
-A string that provides information about how wide the image will be at different breakpoints. Has important performance ramifications for images using `layout="responsive"` or `layout="fill"`.
+A string that provides information about how wide the image will be at different breakpoints. The value of `sizes` will greatly affect performance for images using `layout="responsive"` or `layout="fill"`. It will be ignored for images using `layout="intrinsic"` or `layout="fixed"`.
 
 The `sizes` property serves two important purposes related to image performance:
 
