@@ -413,7 +413,6 @@ export async function renderToHTMLOrFlight(
     buildManifest,
     serverComponentManifest,
     supportsDynamicHTML,
-    runtime,
     ComponentMod,
   } = renderOpts
 
@@ -1046,11 +1045,9 @@ export async function renderToHTMLOrFlight(
       },
     })
 
-    const hasConcurrentFeatures = !!runtime
-
     return await continueFromInitialStream(renderStream, {
       dataStream: serverComponentsInlinedTransformStream?.readable,
-      generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+      generateStaticHTML: generateStaticHTML,
       flushEffectHandler,
       flushEffectsToHead: true,
       initialStylesheets,
