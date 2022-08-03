@@ -1,4 +1,4 @@
-import React, { Component, ReactElement, ReactNode, useContext } from 'react'
+import React, { PureComponent, ReactElement, ReactNode, useContext, PureComponent } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -219,8 +219,8 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
                 typeof scriptChildren === 'string'
                   ? scriptChildren
                   : Array.isArray(scriptChildren)
-                  ? scriptChildren.join('')
-                  : '',
+                    ? scriptChildren.join('')
+                    : '',
             }
           } else {
             throw new Error(
@@ -350,7 +350,7 @@ function getScripts(
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
-export default class Document<P = {}> extends Component<DocumentProps & P> {
+export default class Document<P = {}> extends PureComponent<DocumentProps & P> {
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
@@ -386,7 +386,7 @@ const InternalFunctionDocument: DocumentType =
       </Html>
     )
   }
-;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
+  ; (Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
 
 export function Html(
   props: React.DetailedHTMLProps<
@@ -461,7 +461,7 @@ function AmpStyles({
   )
 }
 
-export class Head extends Component<HeadProps> {
+export class Head extends PureComponent<HeadProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -633,8 +633,8 @@ export class Head extends Component<HeadProps> {
             typeof children === 'string'
               ? children
               : Array.isArray(children)
-              ? children.join('')
-              : ''
+                ? children.join('')
+                : ''
         }
 
         return (
@@ -945,7 +945,7 @@ export function Main() {
   return <next-js-internal-body-render-target />
 }
 
-export class NextScript extends Component<OriginProps> {
+export class NextScript extends PureComponent<OriginProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -978,10 +978,9 @@ export class NextScript extends Component<OriginProps> {
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
         console.warn(
-          `Warning: data for page "${__NEXT_DATA__.page}"${
-            __NEXT_DATA__.page === context.dangerousAsPath
-              ? ''
-              : ` (path "${context.dangerousAsPath}")`
+          `Warning: data for page "${__NEXT_DATA__.page}"${__NEXT_DATA__.page === context.dangerousAsPath
+            ? ''
+            : ` (path "${context.dangerousAsPath}")`
           } is ${prettyBytes(
             bytes
           )} which exceeds the threshold of ${prettyBytes(
@@ -1070,15 +1069,15 @@ export class NextScript extends Component<OriginProps> {
       <>
         {!disableRuntimeJS && buildManifest.devFiles
           ? buildManifest.devFiles.map((file: string) => (
-              <script
-                key={file}
-                src={`${assetPrefix}/_next/${encodeURI(
-                  file
-                )}${devOnlyCacheBusterQueryString}`}
-                nonce={this.props.nonce}
-                crossOrigin={this.props.crossOrigin || crossOrigin}
-              />
-            ))
+            <script
+              key={file}
+              src={`${assetPrefix}/_next/${encodeURI(
+                file
+              )}${devOnlyCacheBusterQueryString}`}
+              nonce={this.props.nonce}
+              crossOrigin={this.props.crossOrigin || crossOrigin}
+            />
+          ))
           : null}
         {disableRuntimeJS ? null : (
           <script
