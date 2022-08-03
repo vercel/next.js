@@ -2,7 +2,7 @@
 
 This example shows how to use [Middleware in Next.js](https://nextjs.org/docs/advanced-features/middleware) to run code before a request is completed.
 
-The index page ([`pages/index.tsx`](pages/index.js)) has a list of links to pages with `redirect`, `rewrite`, or normal behavior.
+The index page ([`pages/index.tsx`](pages/index.tsx)) has a list of links to pages with `redirect`, `rewrite`, or normal behavior.
 
 On the Middleware file ([`middleware.ts`](middleware.ts)) the routes are already being filtered by defining a `matcher` on the exported config. If you want the Middleware to run for every request, you can remove the `matcher`.
 
@@ -18,9 +18,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example middleware middleware-app
-# or
+```
+
+```bash
 yarn create next-app --example middleware middleware-app
-# or
+```
+
+```bash
 pnpm create next-app --example middleware middleware-app
 ```
 

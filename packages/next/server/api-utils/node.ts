@@ -12,7 +12,7 @@ import type { PreviewData } from 'next/types'
 import bytes from 'next/dist/compiled/bytes'
 import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
 import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
-import generateETag from 'next/dist/compiled/etag'
+import { generateETag } from '../lib/etag'
 import { sendEtagResponse } from '../send-payload'
 import { Stream } from 'stream'
 import { parse } from 'next/dist/compiled/content-type'
@@ -316,6 +316,7 @@ async function revalidate(
   try {
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
+        method: 'HEAD',
         headers: {
           ...revalidateHeaders,
           cookie: req.headers.cookie || '',

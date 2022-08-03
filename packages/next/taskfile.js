@@ -8,6 +8,8 @@ const glob = require('glob')
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const escapeRegex = require('escape-string-regexp')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const resolveFrom = require('resolve-from')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -95,6 +97,8 @@ const externals = {
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
+
+  // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
@@ -177,6 +181,47 @@ export async function ncc_node_fetch(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function compile_config_schema(task, opts) {
+  const { configSchema } = require('./dist/server/config-schema')
+  // eslint-disable-next-line
+  const Ajv = require('ajv')
+  // eslint-disable-next-line
+  const standaloneCode = require('ajv/dist/standalone').default
+  // eslint-disable-next-line
+  const ajv = new Ajv({ code: { source: true }, allErrors: true })
+  ajv.addKeyword({
+    keyword: 'isFunction',
+    schemaType: 'boolean',
+    compile() {
+      return (data) => data instanceof Function
+    },
+    code(ctx) {
+      const { data } = ctx
+      ctx.fail(Ajv._`!(${data} instanceof Function)`)
+    },
+    metaSchema: {
+      anyOf: [{ type: 'boolean' }],
+    },
+  })
+
+  const compiled = ajv.compile(configSchema)
+  const validateCode = standaloneCode(ajv, compiled)
+  const preNccFilename = join(__dirname, 'dist', 'next-config-validate.js')
+  await fs.writeFile(preNccFilename, validateCode)
+  await task
+    .source(opts.src || './dist/next-config-validate.js')
+    .ncc({})
+    .target('dist/next-config-validate')
+
+  await fs.unlink(preNccFilename)
+  await fs.rename(
+    join(__dirname, 'dist/next-config-validate/next-config-validate.js'),
+    join(__dirname, 'dist/next-config-validate.js')
+  )
+  await fs.rmdir(join(__dirname, 'dist/next-config-validate'))
+}
+
+// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -197,6 +242,31 @@ export async function ncc_edge_runtime_primitives() {
     require.resolve('@edge-runtime/primitives/package.json')
   )
   await fs.remove(dest)
+
+  for (const file of pkg.files) {
+    if (['dist', 'types'].includes(file)) {
+      continue
+    }
+
+    externals[
+      `@edge-runtime/primitives/${file}`
+    ] = `next/dist/compiled/@edge-runtime/primitives/${file}`
+    const dest2 = `compiled/@edge-runtime/primitives/${file}`
+    await fs.outputJson(join(dest2, 'package.json'), {
+      main: `../${file}.js`,
+      types: `../${file}.d.ts`,
+    })
+
+    await fs.copy(
+      require.resolve(`@edge-runtime/primitives/${file}`),
+      join(dest, `${file}.js`)
+    )
+    await fs.copy(
+      require.resolve(`@edge-runtime/primitives/types/${file}.d.ts`),
+      join(dest, `${file}.d.ts`)
+    )
+  }
+
   await fs.outputJson(join(dest, 'package.json'), {
     name: '@edge-runtime/primitives',
     version: pkg.version,
@@ -212,10 +282,36 @@ export async function ncc_edge_runtime_primitives() {
 // eslint-disable-next-line camelcase
 externals['edge-runtime'] = 'next/dist/compiled/edge-runtime'
 export async function ncc_edge_runtime(task, opts) {
+  const vmPath = resolveFrom(
+    dirname(require.resolve('edge-runtime')),
+    '@edge-runtime/vm/dist/edge-vm'
+  )
+
+  const content = await fs.readFile(vmPath, 'utf8')
+
+  // ensure ncc doesn't attempt to bundle dynamic requires
+  // so that they work at runtime correctly
+  await fs.writeFile(
+    vmPath,
+    content.replace(
+      /require\.resolve\('@edge-runtime\/primitives/g,
+      `__non_webpack_require__.resolve('next/dist/compiled/@edge-runtime/primitives`
+    )
+  )
+
   await task
     .source(opts.src || relative(__dirname, require.resolve('edge-runtime')))
     .ncc({ packageName: 'edge-runtime', externals })
     .target('compiled/edge-runtime')
+
+  const outputFile = join(__dirname, 'compiled/edge-runtime/index.js')
+
+  await fs.writeFile(
+    outputFile,
+    (
+      await fs.readFile(outputFile, 'utf8')
+    ).replace(/eval\("require"\)/g, 'require')
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -436,15 +532,6 @@ export async function ncc_cssnano_simple(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
     .ncc({ packageName: 'cssnano-simple', externals })
     .target('compiled/cssnano-simple')
-}
-
-// eslint-disable-next-line camelcase
-externals['etag'] = 'next/dist/compiled/etag'
-export async function ncc_etag(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('etag')))
-    .ncc({ packageName: 'etag', externals })
-    .target('compiled/etag')
 }
 
 // eslint-disable-next-line camelcase
@@ -1391,15 +1478,22 @@ export async function copy_react_server_dom_webpack(task, opts) {
 // eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
 export async function ncc_sass_loader(task, opts) {
+  const sassLoaderPath = require.resolve('sass-loader')
+  const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
+  const originalContent = await fs.readFile(utilsPath, 'utf8')
+
+  await fs.writeFile(
+    utilsPath,
+    originalContent.replace(
+      /require\.resolve\(["'](sass|node-sass)["']\)/g,
+      'eval("require").resolve("$1")'
+    )
+  )
+
   await task
-    .source(opts.src || relative(__dirname, require.resolve('sass-loader')))
+    .source(opts.src || relative(__dirname, sassLoaderPath))
     .ncc({
       packageName: 'sass-loader',
-      customEmit(path, isRequire) {
-        if (isRequire && path === 'sass') return false
-        if (path.indexOf('node-sass') !== -1)
-          return `eval("require.resolve('node-sass')")`
-      },
       externals: {
         ...externals,
         'schema-utils': externals['schema-utils3'],
@@ -1697,12 +1791,9 @@ export async function ncc(task, opts) {
         'ncc_watchpack',
         'ncc_chalk',
         'ncc_napirs_triples',
-        'ncc_etag',
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_cssnano_simple',
-        'ncc_edge_runtime_primitives',
-        'ncc_edge_runtime',
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
@@ -1775,7 +1866,6 @@ export async function ncc(task, opts) {
         'ncc_postcss_modules_values',
         'ncc_postcss_value_parser',
         'ncc_icss_utils',
-        'ncc_sass_loader',
         'ncc_schema_utils2',
         'ncc_schema_utils3',
         'ncc_semver',
@@ -1809,7 +1899,10 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_react_server_dom_webpack',
       'copy_react_is',
+      'ncc_sass_loader',
       'ncc_jest_worker',
+      'ncc_edge_runtime_primitives',
+      'ncc_edge_runtime',
     ],
     opts
   )
@@ -1953,7 +2046,7 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile'], opts)
+  await task.serial(['precompile', 'compile', 'compile_config_schema'], opts)
 }
 
 export default async function (task) {
@@ -1982,6 +2075,11 @@ export default async function (task) {
     opts
   )
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
+  await task.watch(
+    '../react-dev-overlay/dist/**/*.js',
+    'ncc_next__react_dev_overlay',
+    opts
+  )
 }
 
 export async function shared(task, opts) {

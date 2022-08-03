@@ -17,9 +17,12 @@ import {
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
+import { APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
-import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import {
+  BLOCKED_PAGES,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+} from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
@@ -75,9 +78,8 @@ export async function renderScriptError(
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
-  const isApiRoute = req.url!.match(API_ROUTE)
-  // API routes handle their own CORS headers
-  if (isApiRoute) {
+  // Only rewrite CORS handling when URL matches a hot-reloader middleware
+  if (!req.url!.startsWith('/__next')) {
     return { preflight: false }
   }
 
@@ -694,7 +696,12 @@ export default class HotReloader {
       (stats: webpack5.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
-            if (key.startsWith('pages/') || isMiddlewareFilename(key)) {
+            if (
+              key.startsWith('pages/') ||
+              (key.startsWith('app/') &&
+                !key.endsWith(NEXT_CLIENT_SSR_ENTRY_SUFFIX)) ||
+              isMiddlewareFilename(key)
+            ) {
               // TODO this doesn't handle on demand loaded chunks
               entry.chunks.forEach((chunk) => {
                 if (chunk.id === key) {
@@ -812,6 +819,12 @@ export default class HotReloader {
         changedServerPages,
         changedClientPages
       )
+      const serverComponentChanges = serverOnlyChanges.filter((key) =>
+        key.startsWith('app/')
+      )
+      const pageChanges = serverOnlyChanges.filter((key) =>
+        key.startsWith('pages/')
+      )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
         (name) => isMiddlewareFilename(name)
       )
@@ -824,12 +837,21 @@ export default class HotReloader {
           event: 'middlewareChanges',
         })
       }
-      if (serverOnlyChanges.length > 0) {
+
+      if (pageChanges.length > 0) {
         this.send({
           event: 'serverOnlyChanges',
           pages: serverOnlyChanges.map((pg) =>
             denormalizePagePath(pg.slice('pages'.length))
           ),
+        })
+      }
+
+      if (serverComponentChanges.length > 0) {
+        this.send({
+          action: 'serverComponentChanges',
+          // TODO: granular reloading of changes
+          // entrypoints: serverComponentChanges,
         })
       }
     })

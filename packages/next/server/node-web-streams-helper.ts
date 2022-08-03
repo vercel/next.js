@@ -136,6 +136,26 @@ export function createFlushEffectStream(
   })
 }
 
+export function createHeadInjectionTransformStream(
+  inject: string
+): TransformStream<Uint8Array, Uint8Array> {
+  let injected = false
+  return new TransformStream({
+    transform(chunk, controller) {
+      const content = decodeText(chunk)
+      let index
+      if (!injected && (index = content.indexOf('</head')) !== -1) {
+        injected = true
+        const injectedContent =
+          content.slice(0, index) + inject + content.slice(index)
+        controller.enqueue(encodeText(injectedContent))
+      } else {
+        controller.enqueue(chunk)
+      }
+    },
+  })
+}
+
 export function renderToInitialStream({
   ReactDOMServer,
   element,
@@ -155,11 +175,13 @@ export async function continueFromInitialStream(
     dataStream,
     generateStaticHTML,
     flushEffectHandler,
+    initialStylesheets,
   }: {
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     flushEffectHandler?: () => string
+    initialStylesheets?: string[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -172,9 +194,14 @@ export async function continueFromInitialStream(
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
     createBufferedTransformStream(),
     flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
-    suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
+    suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+    createHeadInjectionTransformStream(
+      (initialStylesheets || [])
+        .map((href) => `<link rel="stylesheet" href="/_next/${href}">`)
+        .join('')
+    ),
   ].filter(nonNullable)
 
   return transforms.reduce(
@@ -195,32 +222,35 @@ export function createSuffixStream(
   })
 }
 
-export function createPrefixStream(
-  prefix: string
+// Suffix after main body content - scripts before </body>,
+// but wait for the major chunks to be enqueued.
+export function createDeferredSuffixStream(
+  suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
-  let prefixFlushed = false
-  let prefixPrefixFlushFinished: Promise<void> | null = null
+  let suffixFlushed = false
+  let suffixFlushTask: Promise<void> | null = null
+
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
-      if (!prefixFlushed && prefix) {
-        prefixFlushed = true
-        prefixPrefixFlushFinished = new Promise((res) => {
+      if (!suffixFlushed && suffix) {
+        suffixFlushed = true
+        suffixFlushTask = new Promise((res) => {
           // NOTE: streaming flush
-          // Enqueue prefix part before the major chunks are enqueued so that
-          // prefix won't be flushed too early to interrupt the data stream
+          // Enqueue suffix part before the major chunks are enqueued so that
+          // suffix won't be flushed too early to interrupt the data stream
           setTimeout(() => {
-            controller.enqueue(encodeText(prefix))
+            controller.enqueue(encodeText(suffix))
             res()
           })
         })
       }
     },
     flush(controller) {
-      if (prefixPrefixFlushFinished) return prefixPrefixFlushFinished
-      if (!prefixFlushed && prefix) {
-        prefixFlushed = true
-        controller.enqueue(encodeText(prefix))
+      if (suffixFlushTask) return suffixFlushTask
+      if (!suffixFlushed && suffix) {
+        suffixFlushed = true
+        controller.enqueue(encodeText(suffix))
       }
     },
   })

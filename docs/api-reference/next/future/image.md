@@ -9,15 +9,16 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 | Version   | Changes                                      |
 | --------- | -------------------------------------------- |
+| `v12.2.4` | Support for `fill` property added.           |
 | `v12.2.0` | Experimental `next/future/image` introduced. |
 
 </details>
 
 The `next/future/image` component is an experiment to improve both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
 
-This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. Furthermore, it may not work in every browser due to native features that are not polyfilled.
+This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before [Chrome 79](https://chromestatus.com/feature/5695266130755584), [Firefox 69](https://bugzilla.mozilla.org/show_bug.cgi?id=1547231), and [Safari 14.2](https://bugs.webkit.org/show_bug.cgi?id=201641). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
 
-In order to try it out today, you must add the following to your `next.config.js` file, as shown below:
+To use `next/future/image`, add the following to your `next.config.js` file:
 
 ```js
 module.exports = {
@@ -29,6 +30,8 @@ module.exports = {
 }
 ```
 
+## Comparison
+
 Compared to `next/image`, the new `next/future/image` component has the following changes:
 
 - Renders a single `<img>` without `<div>` or `<span>` wrappers
@@ -36,8 +39,135 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
 - Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
 - Removes `loader` config in favor of [`loader`](#loader) prop
-- Note: there is no `fill` mode so `width` & `height` props are required
 - Note: the [`onError`](#onerror) prop might behave differently
+
+## Migration
+
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
+
+<table>
+<thead>
+  <tr>
+    <th>next/image</th>
+    <th>next/future/image</th>
+  </tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { maxWidth: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} style={css} />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="responsive" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { width: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} sizes="100vw" style={css} />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fill" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} sizes="100vw" fill />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fixed" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+</td>
+</tr>
+
+</tbody>
+</table>
+
+You can also use `className` instead of `style`.
 
 ## Required Props
 
@@ -57,13 +187,13 @@ When using an external URL, you must add it to [domains](#domains) in `next.conf
 
 The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ### height
 
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ## Optional Props
 
@@ -100,6 +230,22 @@ const MyImage = (props) => {
   )
 }
 ```
+
+### fill
+
+A boolean that causes the image to fill the parent element instead of setting [`width`](#width) and [`height`](#height).
+
+The parent element _must_ assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style.
+
+By default, the img element will automatically assign `object-fit: "contain"` and `position: "absolute"` styles.
+
+Optionally, `object-fit` can be assigned any other value such as `object-fit: "cover"`. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
+
+See also:
+
+- [position](https://developer.mozilla.org/en-US/docs/Web/CSS/position)
+- [object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit)
+- [object-position](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
 
 ### sizes
 

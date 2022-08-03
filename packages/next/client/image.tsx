@@ -429,10 +429,6 @@ export default function Image({
   }
   src = typeof src === 'string' ? src : staticSrc
 
-  const widthInt = getInt(width)
-  const heightInt = getInt(height)
-  const qualityInt = getInt(quality)
-
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
@@ -505,68 +501,73 @@ export default function Image({
     objectPosition,
   }
 
+  let widthInt = getInt(width)
+  let heightInt = getInt(height)
+  const qualityInt = getInt(quality)
+
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
-      throw new Error(
-        `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
-          { width, height, quality }
-        )}`
-      )
-    }
-    if (!VALID_LAYOUT_VALUES.includes(layout)) {
-      if ((layout as any) === 'raw') {
+      // React doesn't show the stack trace and there's
+      // no `src` to help identify which image, so we
+      // instead console.error(ref) during mount.
+      widthInt = widthInt || 1
+      heightInt = heightInt || 1
+      unoptimized = true
+    } else {
+      if (!VALID_LAYOUT_VALUES.includes(layout)) {
+        if ((layout as any) === 'raw') {
+          throw new Error(
+            `The layout="raw" experiment has been moved to a new module. Please import \`next/future/image\` instead.`
+          )
+        }
         throw new Error(
-          `The layout="raw" experiment has been moved to a new module. Please import \`next/future/image\` instead.`
+          `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
+            String
+          ).join(',')}.`
         )
       }
-      throw new Error(
-        `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
-          String
-        ).join(',')}.`
-      )
-    }
 
-    if (
-      (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
-      (typeof heightInt !== 'undefined' && isNaN(heightInt))
-    ) {
-      throw new Error(
-        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
-      )
-    }
-    if (layout === 'fill' && (width || height)) {
-      warnOnce(
-        `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
-      )
-    }
-    if (!VALID_LOADING_VALUES.includes(loading)) {
-      throw new Error(
-        `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
-          String
-        ).join(',')}.`
-      )
-    }
-    if (priority && loading === 'lazy') {
-      throw new Error(
-        `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
-      )
-    }
-    if (sizes && layout !== 'fill' && layout !== 'responsive') {
-      warnOnce(
-        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'"`
-      )
-    }
-    if (placeholder === 'blur') {
-      if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
+      if (
+        (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
+        (typeof heightInt !== 'undefined' && isNaN(heightInt))
+      ) {
+        throw new Error(
+          `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+        )
+      }
+      if (layout === 'fill' && (width || height)) {
         warnOnce(
-          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
+          `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
         )
       }
-      if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
-
+      if (!VALID_LOADING_VALUES.includes(loading)) {
         throw new Error(
-          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+          `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
+            String
+          ).join(',')}.`
+        )
+      }
+      if (priority && loading === 'lazy') {
+        throw new Error(
+          `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
+        )
+      }
+      if (sizes && layout !== 'fill' && layout !== 'responsive') {
+        warnOnce(
+          `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'"`
+        )
+      }
+      if (placeholder === 'blur') {
+        if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
+          warnOnce(
+            `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
+          )
+        }
+        if (!blurDataURL) {
+          const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
+
+          throw new Error(
+            `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
           Possible solutions:
             - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
             - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
@@ -574,80 +575,81 @@ export default function Image({
             )}
             - Remove the "placeholder" property, effectively no blur effect
           Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
-        )
-      }
-    }
-    if ('ref' in rest) {
-      warnOnce(
-        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
-      )
-    }
-
-    if (!unoptimized && loader !== defaultImageLoader) {
-      const urlStr = loader({
-        config,
-        src,
-        width: widthInt || 400,
-        quality: qualityInt || 75,
-      })
-      let url: URL | undefined
-      try {
-        url = new URL(urlStr)
-      } catch (err) {}
-      if (urlStr === src || (url && url.pathname === src && !url.search)) {
-        warnOnce(
-          `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
-        )
-      }
-    }
-
-    if (style) {
-      let overwrittenStyles = Object.keys(style).filter(
-        (key) => key in layoutStyle
-      )
-      if (overwrittenStyles.length) {
-        warnOnce(
-          `Image with src ${src} is assigned the following styles, which are overwritten by automatically-generated styles: ${overwrittenStyles.join(
-            ', '
-          )}`
-        )
-      }
-    }
-
-    if (
-      typeof window !== 'undefined' &&
-      !perfObserver &&
-      window.PerformanceObserver
-    ) {
-      perfObserver = new PerformanceObserver((entryList) => {
-        for (const entry of entryList.getEntries()) {
-          // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
-          const imgSrc = entry?.element?.src || ''
-          const lcpImage = allImgs.get(imgSrc)
-          if (
-            lcpImage &&
-            !lcpImage.priority &&
-            lcpImage.placeholder !== 'blur' &&
-            !lcpImage.src.startsWith('data:') &&
-            !lcpImage.src.startsWith('blob:')
-          ) {
-            // https://web.dev/lcp/#measure-lcp-in-javascript
-            warnOnce(
-              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
-                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
-            )
-          }
+          )
         }
-      })
-      try {
-        perfObserver.observe({
-          type: 'largest-contentful-paint',
-          buffered: true,
+      }
+      if ('ref' in rest) {
+        warnOnce(
+          `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        )
+      }
+
+      if (!unoptimized && loader !== defaultImageLoader) {
+        const urlStr = loader({
+          config,
+          src,
+          width: widthInt || 400,
+          quality: qualityInt || 75,
         })
-      } catch (err) {
-        // Log error but don't crash the app
-        console.error(err)
+        let url: URL | undefined
+        try {
+          url = new URL(urlStr)
+        } catch (err) {}
+        if (urlStr === src || (url && url.pathname === src && !url.search)) {
+          warnOnce(
+            `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+              `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+          )
+        }
+      }
+
+      if (style) {
+        let overwrittenStyles = Object.keys(style).filter(
+          (key) => key in layoutStyle
+        )
+        if (overwrittenStyles.length) {
+          warnOnce(
+            `Image with src ${src} is assigned the following styles, which are overwritten by automatically-generated styles: ${overwrittenStyles.join(
+              ', '
+            )}`
+          )
+        }
+      }
+
+      if (
+        typeof window !== 'undefined' &&
+        !perfObserver &&
+        window.PerformanceObserver
+      ) {
+        perfObserver = new PerformanceObserver((entryList) => {
+          for (const entry of entryList.getEntries()) {
+            // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
+            const imgSrc = entry?.element?.src || ''
+            const lcpImage = allImgs.get(imgSrc)
+            if (
+              lcpImage &&
+              !lcpImage.priority &&
+              lcpImage.placeholder !== 'blur' &&
+              !lcpImage.src.startsWith('data:') &&
+              !lcpImage.src.startsWith('blob:')
+            ) {
+              // https://web.dev/lcp/#measure-lcp-in-javascript
+              warnOnce(
+                `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
+                  `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+              )
+            }
+          }
+        })
+        try {
+          perfObserver.observe({
+            type: 'largest-contentful-paint',
+            buffered: true,
+          })
+        } catch (err) {
+          // Log error but don't crash the app
+          console.error(err)
+        }
       }
     }
   }
@@ -881,6 +883,11 @@ const ImageElement = ({
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
+            if (process.env.NODE_ENV !== 'production') {
+              if (img && !srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+            }
             setIntersection(img)
             if (img?.complete) {
               handleLoading(
