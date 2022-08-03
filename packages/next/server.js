@@ -7,5 +7,6 @@ module.exports = {
     .userAgentFromString,
   userAgent: require('next/dist/server/web/spec-extension/user-agent')
     .userAgent,
-  URLPattern: global.URLPattern,
+  // eslint-disable-next-line no-undef
+  URLPattern: URLPattern,
 }
