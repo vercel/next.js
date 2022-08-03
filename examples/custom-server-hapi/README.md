@@ -16,8 +16,12 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example custom-server-hapi custom-server-hapi-app
-# or
+```
+
+```bash
 yarn create next-app --example custom-server-hapi custom-server-hapi-app
-# or
+```
+
+```bash
 pnpm create next-app --example custom-server-hapi custom-server-hapi-app
 ```

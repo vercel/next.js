@@ -18,31 +18,58 @@ import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 // you might want them.
 // const clientFileName = require.resolve('../');
 
-type Options = {
+interface Options {
   dev: boolean
   appDir: boolean
   pageExtensions: string[]
 }
 
+type ModuleId = string | number
+
+type ManifestChunks = Array<`${string}:${string}` | string>
+
+interface ManifestNode {
+  [moduleExport: string]: {
+    /**
+     * Webpack module id
+     */
+    id: ModuleId
+    /**
+     * Export name
+     */
+    name: string
+    /**
+     * Chunks for the module. JS and CSS.
+     */
+    chunks: ManifestChunks
+  }
+}
+
+type FlightManifest = {
+  __ssr_module_mapping__: {
+    [moduleId: string]: ManifestNode
+  }
+} & {
+  [modulePath: string]: ManifestNode
+}
+
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
-  dev: boolean = false
-  pageExtensions: string[]
-  appDir: boolean = false
+  dev: Options['dev'] = false
+  pageExtensions: Options['pageExtensions']
+  appDir: Options['appDir'] = false
 
   constructor(options: Options) {
-    if (typeof options.dev === 'boolean') {
-      this.dev = options.dev
-    }
+    this.dev = options.dev
     this.appDir = options.appDir
     this.pageExtensions = options.pageExtensions
   }
 
-  apply(compiler: any) {
+  apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
-      (compilation: any, { normalModuleFactory }: any) => {
+      (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
           (webpack as any).dependencies.ModuleDependency,
           normalModuleFactory
@@ -54,7 +81,7 @@ export class FlightManifestPlugin {
       }
     )
 
-    compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
+    compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
@@ -63,21 +90,27 @@ export class FlightManifestPlugin {
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets: any) => this.createAsset(assets, compilation, compiler.context)
+        (assets) => this.createAsset(assets, compilation, compiler.context)
       )
     })
   }
 
-  createAsset(assets: any, compilation: webpack5.Compilation, context: string) {
-    const manifest: any = {}
+  createAsset(
+    assets: webpack5.Compilation['assets'],
+    compilation: webpack5.Compilation,
+    context: string
+  ) {
+    const manifest: FlightManifest = {
+      __ssr_module_mapping__: {},
+    }
     const appDir = this.appDir
     const dev = this.dev
 
-    compilation.chunkGroups.forEach((chunkGroup: any) => {
+    compilation.chunkGroups.forEach((chunkGroup) => {
       function recordModule(
         chunk: webpack5.Chunk,
-        id: string | number,
-        mod: any
+        id: ModuleId,
+        mod: webpack5.NormalModule
       ) {
         // if appDir is enabled we shouldn't process chunks from
         // the pages dir
@@ -89,22 +122,23 @@ export class FlightManifestPlugin {
           mod.type === 'css/mini-extract' ||
           (mod.loaders &&
             (dev
-              ? mod.loaders.some((item: any) =>
+              ? mod.loaders.some((item) =>
                   item.loader.includes('next-style-loader/index.js')
                 )
-              : mod.loaders.some((item: any) =>
+              : mod.loaders.some((item) =>
                   item.loader.includes('mini-css-extract-plugin/loader.js')
                 )))
 
         const resource =
           mod.type === 'css/mini-extract'
-            ? mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            ? // @ts-expect-error TODO: use `identifier()` instead.
+              mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
             : mod.resource
 
         if (!resource) return
 
-        const moduleExports: any = manifest[resource] || {}
-        const moduleIdMapping: any = manifest.__ssr_module_mapping__ || {}
+        const moduleExports = manifest[resource] || {}
+        const moduleIdMapping = manifest.__ssr_module_mapping__
         moduleIdMapping[id] = moduleIdMapping[id] || {}
 
         // Note that this isn't that reliable as webpack is still possible to assign
@@ -146,27 +180,26 @@ export class FlightManifestPlugin {
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const cjsExports = [
-          ...new Set(
-            [].concat(
-              mod.dependencies.map((dep: any) => {
-                // Match CommonJsSelfReferenceDependency
-                if (dep.type === 'cjs self exports reference') {
-                  // `module.exports = ...`
-                  if (dep.base === 'module.exports') {
-                    return 'default'
-                  }
-
-                  // `exports.foo = ...`, `exports.default = ...`
-                  if (dep.base === 'exports') {
-                    return dep.names.filter(
-                      (name: any) => name !== '__esModule'
-                    )
-                  }
+          ...new Set([
+            ...mod.dependencies.map((dep) => {
+              // Match CommonJsSelfReferenceDependency
+              if (dep.type === 'cjs self exports reference') {
+                // `module.exports = ...`
+                // @ts-expect-error: TODO: Fix Dependency type
+                if (dep.base === 'module.exports') {
+                  return 'default'
                 }
-                return null
-              })
-            )
-          ),
+
+                // `exports.foo = ...`, `exports.default = ...`
+                // @ts-expect-error: TODO: Fix Dependency type
+                if (dep.base === 'exports') {
+                  // @ts-expect-error: TODO: Fix Dependency type
+                  return dep.names.filter((name: any) => name !== '__esModule')
+                }
+              }
+              return null
+            }),
+          ]),
         ]
 
         const moduleExportedKeys = ['', '*']
@@ -210,7 +243,7 @@ export class FlightManifestPlugin {
         collectClientImportedCss(mod)
 
         moduleExportedKeys.forEach((name) => {
-          let requiredChunks = []
+          let requiredChunks: ManifestChunks = []
           if (!moduleExports[name]) {
             const isRelatedChunk = (c: webpack5.Chunk) =>
               // If current chunk is a page, it should require the related page chunk;
@@ -249,14 +282,17 @@ export class FlightManifestPlugin {
       }
 
       chunkGroup.chunks.forEach((chunk: webpack5.Chunk) => {
-        const chunkModules =
-          compilation.chunkGraph.getChunkModulesIterable(chunk)
+        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+          chunk
+          // TODO: Update type so that it doesn't have to be cast.
+        ) as Iterable<webpack5.NormalModule>
         for (const mod of chunkModules) {
           const modId = compilation.chunkGraph.getModuleId(mod)
 
           recordModule(chunk, modId, mod)
 
           // If this is a concatenation, register each child to the parent ID.
+          // TODO: remove any
           const anyModule = mod as any
           if (anyModule.modules) {
             anyModule.modules.forEach((concatenatedMod: any) => {
@@ -270,7 +306,15 @@ export class FlightManifestPlugin {
     const file = 'server/' + FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
 
-    assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
-    assets[file + '.json'] = new sources.RawSource(json)
+    assets[file + '.js'] = new sources.RawSource(
+      'self.__RSC_MANIFEST=' + json
+      // Work around webpack 4 type of RawSource being used
+      // TODO: use webpack 5 type by default
+    ) as unknown as webpack5.sources.RawSource
+    assets[file + '.json'] = new sources.RawSource(
+      json
+      // Work around webpack 4 type of RawSource being used
+      // TODO: use webpack 5 type by default
+    ) as unknown as webpack5.sources.RawSource
   }
 }

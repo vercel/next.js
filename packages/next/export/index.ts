@@ -30,7 +30,7 @@ import {
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
-import { NextConfigComplete } from '../server/config-shared'
+import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -122,10 +122,6 @@ const createProgress = (total: number, label: string) => {
       console.log(newText)
     }
   }
-}
-
-type ExportPathMap = {
-  [page: string]: { page: string; query?: { [key: string]: string } }
 }
 
 interface ExportOptions {
@@ -318,7 +314,7 @@ export default async function exportApp(
           `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
         )
       }
-      nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
+      nextConfig.exportPathMap = async (defaultMap) => {
         return defaultMap
       }
     }

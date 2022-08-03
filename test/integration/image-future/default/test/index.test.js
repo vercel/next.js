@@ -677,6 +677,24 @@ function runTests(mode) {
       )
     })
 
+    it('should show error when width prop on fill image', async () => {
+      const browser = await webdriver(appPort, '/invalid-fill-width')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/wide.png" has both "width" and "fill" properties.`
+      )
+    })
+
+    it('should show error when CSS position changed on fill image', async () => {
+      const browser = await webdriver(appPort, '/invalid-fill-position')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/wide.png" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
+      )
+    })
+
     it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
       const browser = await webdriver(
         appPort,
@@ -931,7 +949,62 @@ function runTests(mode) {
       await getComputedStyle(browser, 'img-blur', 'background-position')
     ).toBe('1px 2px')
   })
-
+  describe('Fill-mode tests', () => {
+    let browser
+    beforeAll(async () => {
+      browser = await webdriver(appPort, '/fill')
+    })
+    it('should include a data-attribute on fill images', async () => {
+      expect(
+        await browser.elementById('fill-image-1').getAttribute('data-nimg')
+      ).toBe('future-fill')
+    })
+    it('should add position:absolute and object-fit to fill images', async () => {
+      expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(
+        'absolute'
+      )
+      expect(
+        await getComputedStyle(browser, 'fill-image-1', 'object-fit')
+      ).toBe('contain')
+    })
+    it('should add 100% width and height to fill images', async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.height`
+        )
+      ).toBe('100%')
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.width`
+        )
+      ).toBe('100%')
+    })
+    if (mode === 'dev') {
+      it('should not log incorrect warnings', async () => {
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
+      })
+      it('should log warnings when using fill mode incorrectly', async () => {
+        browser = await webdriver(appPort, '/fill-warnings')
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative.'
+        )
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.'
+        )
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
+        )
+      })
+    }
+  })
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {

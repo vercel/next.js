@@ -17,7 +17,7 @@ import {
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
+import { APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -78,9 +78,8 @@ export async function renderScriptError(
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
-  const isApiRoute = req.url!.match(API_ROUTE)
-  // API routes handle their own CORS headers
-  if (isApiRoute) {
+  // Only rewrite CORS handling when URL matches a hot-reloader middleware
+  if (!req.url!.startsWith('/__next')) {
     return { preflight: false }
   }
 
