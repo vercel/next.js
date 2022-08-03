@@ -959,13 +959,10 @@ function runTests(mode) {
         await browser.elementById('fill-image-1').getAttribute('data-nimg')
       ).toBe('future-fill')
     })
-    it('should add position:absolute and object-fit to fill images', async () => {
+    it('should add position:absolute to fill images', async () => {
       expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(
         'absolute'
       )
-      expect(
-        await getComputedStyle(browser, 'fill-image-1', 'object-fit')
-      ).toBe('contain')
     })
     it('should add 100% width and height to fill images', async () => {
       expect(
