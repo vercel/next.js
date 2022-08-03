@@ -1269,6 +1269,7 @@ export async function renderToHTML(
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
           flushEffectHandler,
+          flushEffectsToHead: false,
         })
       }
 
