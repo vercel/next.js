@@ -572,7 +572,6 @@ export default function Image({
     fill
       ? {
           position: 'absolute',
-          objectFit: 'contain',
           height: '100%',
           width: '100%',
         }
