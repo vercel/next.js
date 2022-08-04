@@ -6,14 +6,14 @@
 export function parsePath(path: string) {
   const hashIndex = path.indexOf('#')
   const queryIndex = path.indexOf('?')
+  const hasQuery = queryIndex > -1 && (hashIndex < 0 || queryIndex < hashIndex)
 
-  if (queryIndex > -1 || hashIndex > -1) {
+  if (hasQuery || hashIndex > -1) {
     return {
-      pathname: path.substring(0, queryIndex > -1 ? queryIndex : hashIndex),
-      query:
-        queryIndex > -1
-          ? path.substring(queryIndex, hashIndex > -1 ? hashIndex : undefined)
-          : '',
+      pathname: path.substring(0, hasQuery ? queryIndex : hashIndex),
+      query: hasQuery
+        ? path.substring(queryIndex, hashIndex > -1 ? hashIndex : undefined)
+        : '',
       hash: hashIndex > -1 ? path.slice(hashIndex) : '',
     }
   }
