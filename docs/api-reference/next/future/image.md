@@ -61,7 +61,7 @@ Although `layout` is not available, you can migrate `next/image` to `next/future
 import Image from 'next/image'
 
 function Page() {
-  return <Image src="/hello-world.jpg" width="1000" height="1000" />
+  return <Image src="/example-photo.jpg" width="1000" height="1000" />
 }
 ```
 
@@ -73,7 +73,9 @@ import Image from 'next/future/image'
 
 const css = { maxWidth: '100%', height: 'auto' }
 function Page() {
-  return <Image src="/hello-world.jpg" width="1000" height="1000" style={css} />
+  return (
+    <Image src="/example-photo.jpg" width="1000" height="1000" style={css} />
+  )
 }
 ```
 
@@ -89,7 +91,7 @@ import Image from 'next/image'
 function Page() {
   return (
     <Image
-      src="/hello-world.jpg"
+      src="/example-photo.jpg"
       width="1000"
       height="1000"
       layout="responsive"
@@ -108,7 +110,7 @@ const css = { width: '100%', height: 'auto' }
 function Page() {
   return (
     <Image
-      src="/hello-world.jpg"
+      src="/example-photo.jpg"
       width="1000"
       height="1000"
       sizes="100vw"
@@ -128,7 +130,7 @@ function Page() {
 import Image from 'next/image'
 
 function Page() {
-  return <Image src="/hello-world.jpg" layout="fill" />
+  return <Image src="/example-photo.jpg" layout="fill" />
 }
 ```
 
@@ -139,7 +141,7 @@ function Page() {
 import Image from 'next/future/image'
 
 function Page() {
-  return <Image src="/hello-world.jpg" sizes="100vw" fill />
+  return <Image src="/example-photo.jpg" sizes="100vw" fill />
 }
 ```
 
@@ -154,7 +156,7 @@ import Image from 'next/image'
 
 function Page() {
   return (
-    <Image src="/hello-world.jpg" width="1000" height="1000" layout="fixed" />
+    <Image src="/example-photo.jpg" width="1000" height="1000" layout="fixed" />
   )
 }
 ```
@@ -166,7 +168,7 @@ function Page() {
 import Image from 'next/future/image'
 
 function Page() {
-  return <Image src="/hello-world.jpg" width="1000" height="1000" />
+  return <Image src="/example-photo.jpg" width="1000" height="1000" />
 }
 ```
 
