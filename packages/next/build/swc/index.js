@@ -143,7 +143,7 @@ async function loadWasm(importPath = '') {
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
-          // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published
+          // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
           return bindings?.transform
             ? bindings.transform(src.toString(), options)
             : Promise.resolve(bindings.transformSync(src.toString(), options))
