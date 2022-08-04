@@ -6,8 +6,10 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(generic_associated_types)]
 #![feature(result_flattening)]
+#![feature(box_syntax)]
 
 pub mod backend;
+mod collectibles;
 mod completion;
 pub mod debug;
 mod display;
@@ -40,7 +42,7 @@ pub use id::{
 };
 pub use lazy_static::lazy_static;
 pub use manager::{
-    dynamic_call, get_invalidator, spawn_blocking, spawn_thread, trait_call, turbo_tasks,
+    dynamic_call, emit, get_invalidator, spawn_blocking, spawn_thread, trait_call, turbo_tasks,
     Invalidator, TaskIdProvider, TurboTasks, TurboTasksApi, TurboTasksBackendApi,
     TurboTasksCallApi,
 };
@@ -53,7 +55,9 @@ pub use raw_vc::{
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait};
 pub use value::{TransientValue, Value};
-pub use value_type::{TraitMethod, TraitType, Typed, TypedForInput, ValueType};
+pub use value_type::{
+    TraitMethod, TraitType, Typed, TypedForInput, ValueTraitVc, ValueType, ValueVc,
+};
 
 pub mod macro_helpers {
     pub use super::manager::{find_cell_by_key, find_cell_by_type};

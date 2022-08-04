@@ -2,6 +2,7 @@
 
 use std::{
     borrow::Cow,
+    collections::HashSet,
     future::Future,
     mem::replace,
     sync::{Arc, Mutex, Weak},
@@ -11,7 +12,7 @@ use anyhow::{anyhow, Result};
 use event_listener::{Event, EventListener};
 use turbo_tasks::{
     backend::CellContent, registry, test_helpers::with_turbo_tasks_for_testing, RawVc, TaskId,
-    TurboTasksApi, TurboTasksCallApi,
+    TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
 enum Task {
@@ -140,6 +141,30 @@ impl TurboTasksApi for VcStorage {
         index: usize,
     ) -> Result<CellContent> {
         self.read_current_task_cell(index)
+    }
+
+    fn emit_collectible(&self, _trait_type: turbo_tasks::TraitTypeId, _collectible: RawVc) {
+        unimplemented!()
+    }
+
+    fn unemit_collectible(&self, _trait_type: turbo_tasks::TraitTypeId, _collectible: RawVc) {
+        unimplemented!()
+    }
+
+    fn unemit_collectibles(
+        &self,
+        _trait_type: turbo_tasks::TraitTypeId,
+        _collectibles: &HashSet<RawVc>,
+    ) {
+        unimplemented!()
+    }
+
+    fn try_read_task_collectibles(
+        &self,
+        _task: TaskId,
+        _trait_id: TraitTypeId,
+    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+        unimplemented!()
     }
 
     fn get_fresh_cell(&self, _task: TaskId) -> usize {

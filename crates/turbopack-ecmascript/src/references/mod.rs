@@ -61,7 +61,7 @@ use super::{
         WellKnownObjectKind,
     },
     errors,
-    parse::{parse, Buffer, EcmascriptInputTransformsVc, ParseResult},
+    parse::{parse, EcmascriptInputTransformsVc, ParseResult},
     resolve::{apply_cjs_specific_options, cjs_resolve},
     special_cases::special_cases,
     utils::js_value_to_pattern,
@@ -75,6 +75,7 @@ use crate::{
     analyzer::graph::EvalContext,
     chunk::{EcmascriptExports, EcmascriptExportsVc},
     code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
+    emitter::IssueEmitter,
     magic_identifier,
     references::{
         cjs::{
@@ -195,7 +196,6 @@ pub(crate) async fn analyze_ecmascript_module(
             program,
             globals,
             eval_context,
-            source_map,
             leading_comments,
             trailing_comments,
             ..
@@ -252,9 +252,14 @@ pub(crate) async fn analyze_ecmascript_module(
                 });
             });
 
-            let buf = Buffer::new();
-            let handler =
-                Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
+            let handler = Handler::with_emitter(
+                true,
+                false,
+                box IssueEmitter {
+                    source,
+                    title: None,
+                },
+            );
             let (
                 mut var_graph,
                 webpack_runtime,
@@ -1120,10 +1125,6 @@ pub(crate) async fn analyze_ecmascript_module(
                         }
                     }
                 }
-            }
-            if !buf.is_empty() {
-                // TODO report them in a stream
-                println!("{}", buf);
             }
         }
         ParseResult::Unparseable | ParseResult::NotFound => {}

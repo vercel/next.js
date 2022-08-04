@@ -25,7 +25,7 @@ use turbo_tasks::{
         PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
     util::{IdFactory, InfiniteVec, SharedError},
-    RawVc, TaskId, TurboTasksBackendApi,
+    RawVc, TaskId, TraitTypeId, TurboTasksBackendApi,
 };
 
 enum TaskType {
@@ -1416,6 +1416,36 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
                 mem_state.dependencies.insert(RawVc::TaskCell(task, index));
             }
         }
+    }
+
+    fn try_read_task_collectibles(
+        &self,
+        _task: TaskId,
+        _trait_id: TraitTypeId,
+        _reader: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+        todo!()
+    }
+
+    fn emit_collectible(
+        &self,
+        _trait_id: TraitTypeId,
+        _collectible: RawVc,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        todo!()
+    }
+
+    fn unemit_collectible(
+        &self,
+        _trait_id: TraitTypeId,
+        _collectible: RawVc,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        todo!()
     }
 
     fn get_fresh_cell(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {

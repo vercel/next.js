@@ -20,8 +20,11 @@ use crate::{
         read_task_cell, read_task_cell_untracked, read_task_output, read_task_output_untracked,
         TurboTasksApi,
     },
+    primitives::RawVcSetVc,
     registry::get_value_type,
-    turbo_tasks, SharedReference, TaskId, TraitTypeId, ValueTypeId,
+    turbo_tasks,
+    value_type::ValueTraitVc,
+    SharedReference, TaskId, TraitTypeId, ValueTypeId,
 };
 
 /// The result of reading a ValueVc.
@@ -263,6 +266,31 @@ impl RawVc {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => true,
         }
+    }
+
+    pub async fn peek_collectibles<T: ValueTraitVc>(&self) -> Result<Vec<T>> {
+        let tt = turbo_tasks();
+        let set: RawVcSetVc = tt
+            .native_call(
+                *crate::collectibles::READ_COLLECTIBLES_FUNCTION_ID,
+                vec![(*self).into(), (*T::get_trait_type_id()).into()],
+            )
+            .into();
+        let set = set.await?;
+        Ok(set.iter().map(|raw| (*raw).into()).collect())
+    }
+
+    pub async fn take_collectibles<T: ValueTraitVc>(&self) -> Result<Vec<T>> {
+        let tt = turbo_tasks();
+        let set: RawVcSetVc = tt
+            .native_call(
+                *crate::collectibles::READ_COLLECTIBLES_FUNCTION_ID,
+                vec![(*self).into(), (*T::get_trait_type_id()).into()],
+            )
+            .into();
+        let set = set.await?;
+        tt.unemit_collectibles(T::get_trait_type_id(), &*set);
+        Ok(set.iter().map(|raw| (*raw).into()).collect())
     }
 
     pub fn get_task_id(&self) -> TaskId {

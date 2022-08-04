@@ -12,7 +12,7 @@ macro_rules! register {
 
 #[macro_export]
 macro_rules! run {
-    ($($stmt:stmt)+) => {{
+    ($($stmt:tt)+) => {{
         use turbo_tasks::TurboTasks;
         use turbo_tasks_memory::MemoryBackend;
         *REGISTER;

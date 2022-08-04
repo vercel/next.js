@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use swc_common::{
     comments::{SingleThreadedComments, SingleThreadedCommentsMapInner},
     errors::{Handler, HANDLER},
@@ -24,7 +24,7 @@ use turbo_tasks_fs::FileContent;
 use turbopack_core::asset::AssetVc;
 
 use super::ModuleAssetType;
-use crate::analyzer::graph::EvalContext;
+use crate::{analyzer::graph::EvalContext, emitter::IssueEmitter};
 
 #[turbo_tasks::value(serialization: auto_for_input)]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -142,77 +142,74 @@ pub async fn parse(
     let transforms = transforms.await?;
     Ok(match &*content.await? {
         FileContent::NotFound => ParseResult::NotFound.into(),
-        FileContent::Content(file) => {
-            match String::from_utf8(file.content().to_vec()) {
-                Err(_err) => ParseResult::Unparseable.into(),
-                Ok(string) => {
-                    let cm: Lrc<SourceMap> = Default::default();
-                    let buf = Buffer::new();
-                    let handler =
-                        Handler::with_emitter_writer(Box::new(buf.clone()), Some(cm.clone()));
+        FileContent::Content(file) => match String::from_utf8(file.content().to_vec()) {
+            Err(_err) => ParseResult::Unparseable.into(),
+            Ok(string) => {
+                let cm: Lrc<SourceMap> = Default::default();
+                let handler = Handler::with_emitter(
+                    true,
+                    false,
+                    box IssueEmitter {
+                        source,
+                        title: Some("Parsing failed".to_string()),
+                    },
+                );
 
-                    let fm = cm.new_source_file(FileName::Custom(fs_path), string);
+                let fm = cm.new_source_file(FileName::Custom(fs_path), string);
 
-                    let comments = SingleThreadedComments::default();
-                    let lexer = Lexer::new(
-                        match ty {
-                            ModuleAssetType::Ecmascript => Syntax::Es(EsConfig {
-                                jsx: true,
-                                fn_bind: true,
-                                decorators: true,
-                                decorators_before_export: true,
-                                export_default_from: true,
-                                import_assertions: true,
-                                private_in_object: true,
-                                allow_super_outside_method: true,
-                                allow_return_outside_function: true,
-                            }),
-                            ModuleAssetType::Typescript => Syntax::Typescript(TsConfig {
-                                decorators: true,
-                                dts: false,
-                                no_early_errors: true,
-                                tsx: true,
-                            }),
-                            ModuleAssetType::TypescriptDeclaration => {
-                                Syntax::Typescript(TsConfig {
-                                    decorators: true,
-                                    dts: true,
-                                    no_early_errors: true,
-                                    tsx: true,
-                                })
-                            }
-                        },
-                        EsVersion::latest(),
-                        StringInput::from(&*fm),
-                        Some(&comments),
-                    );
+                let comments = SingleThreadedComments::default();
+                let lexer = Lexer::new(
+                    match ty {
+                        ModuleAssetType::Ecmascript => Syntax::Es(EsConfig {
+                            jsx: true,
+                            fn_bind: true,
+                            decorators: true,
+                            decorators_before_export: true,
+                            export_default_from: true,
+                            import_assertions: true,
+                            private_in_object: true,
+                            allow_super_outside_method: true,
+                            allow_return_outside_function: true,
+                        }),
+                        ModuleAssetType::Typescript => Syntax::Typescript(TsConfig {
+                            decorators: true,
+                            dts: false,
+                            no_early_errors: true,
+                            tsx: true,
+                        }),
+                        ModuleAssetType::TypescriptDeclaration => Syntax::Typescript(TsConfig {
+                            decorators: true,
+                            dts: true,
+                            no_early_errors: true,
+                            tsx: true,
+                        }),
+                    },
+                    EsVersion::latest(),
+                    StringInput::from(&*fm),
+                    Some(&comments),
+                );
 
-                    let mut parser = Parser::new_from(lexer);
+                let mut parser = Parser::new_from(lexer);
 
-                    let mut has_errors = false;
-                    for e in parser.take_errors() {
-                        // TODO report them in a stream
+                let mut has_errors = false;
+                for e in parser.take_errors() {
+                    e.into_diagnostic(&handler).emit();
+                    has_errors = true
+                }
+
+                if has_errors {
+                    return Ok(ParseResult::Unparseable.into());
+                }
+
+                match parser.parse_program() {
+                    Err(e) => {
                         e.into_diagnostic(&handler).emit();
-                        has_errors = true
-                    }
-
-                    // TODO report them in a stream
-                    if has_errors {
-                        println!("{}", buf);
                         return Ok(ParseResult::Unparseable.into());
                     }
-
-                    match parser.parse_program() {
-                        Err(e) => {
-                            // TODO report in in a stream
-                            e.into_diagnostic(&handler).emit();
-                            return Ok(ParseResult::Unparseable.into());
-                            // ParseResult::Unparseable.into()
-                        }
-                        Ok(mut parsed_program) => {
-                            drop(parser);
-                            let globals = Globals::new();
-                            let eval_context = GLOBALS.set(&globals, || {
+                    Ok(mut parsed_program) => {
+                        drop(parser);
+                        let globals = Globals::new();
+                        let eval_context = GLOBALS.set(&globals, || {
                                 let unresolved_mark = Mark::new();
                                 let top_level_mark = Mark::new();
                                 HANDLER.set(&handler, || {
@@ -264,26 +261,19 @@ pub async fn parse(
                                 EvalContext::new(&parsed_program, unresolved_mark)
                             });
 
-                            if !buf.is_empty() {
-                                // TODO report in in a stream
-                                println!("{}", buf);
-                                return Err(anyhow!("{}", buf));
-                            }
-
-                            let (mut leading, mut trailing) = comments.take_all();
-                            ParseResult::Ok {
-                                program: parsed_program,
-                                leading_comments: take(Rc::make_mut(&mut leading)).into_inner(),
-                                trailing_comments: take(Rc::make_mut(&mut trailing)).into_inner(),
-                                eval_context,
-                                globals,
-                                source_map: cm,
-                            }
-                            .into()
+                        let (mut leading, mut trailing) = comments.take_all();
+                        ParseResult::Ok {
+                            program: parsed_program,
+                            leading_comments: take(Rc::make_mut(&mut leading)).into_inner(),
+                            trailing_comments: take(Rc::make_mut(&mut trailing)).into_inner(),
+                            eval_context,
+                            globals,
+                            source_map: cm,
                         }
+                        .into()
                     }
                 }
             }
-        }
+        },
     })
 }

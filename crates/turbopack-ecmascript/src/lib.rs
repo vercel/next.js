@@ -3,11 +3,13 @@
 #![feature(min_specialization)]
 #![feature(into_future)]
 #![feature(iter_intersperse)]
+#![feature(str_split_as_str)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;
 pub mod chunk;
 pub mod code_gen;
+mod emitter;
 mod errors;
 pub mod magic_identifier;
 pub(crate) mod parse;

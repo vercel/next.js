@@ -148,7 +148,7 @@ pub async fn css_resolve(request: RequestVc, context: AssetContextVc) -> Result<
     let options = context.resolve_options();
     let result = context.resolve_asset(context_path, request, options);
 
-    handle_resolve_error(result, "css request", context_path, request).await
+    handle_resolve_error(result, "css request", context_path, request, options).await
 }
 
 // TODO enable serialization

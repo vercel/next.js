@@ -213,12 +213,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         impl #ref_ident {
-            #[doc(hidden)]
-            #[inline]
-            pub fn __type() -> turbo_tasks::TraitTypeId {
-                *#trait_type_id_ident
-            }
-
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve().await? })
             }
@@ -229,12 +223,27 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(raw_vc.map(|raw_vc| #ref_ident { node: raw_vc }))
             }
 
+            pub async fn take_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::Result<Vec<T>> {
+                self.node.take_collectibles().await
+            }
+
+            pub async fn peek_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::Result<Vec<T>> {
+                self.node.peek_collectibles().await
+            }
+
             pub fn cast_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Self {
                 let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
                 #ref_ident { node: raw_vc }
             }
 
             #(pub #trait_fns)*
+        }
+
+        impl turbo_tasks::ValueTraitVc for #ref_ident {
+            #[inline]
+            fn get_trait_type_id() -> turbo_tasks::TraitTypeId {
+                *#trait_type_id_ident
+            }
         }
 
         impl<T> #ident for T where #ref_ident: std::convert::From<T>, turbo_tasks::TaskInput: for<'a> std::convert::From<&'a T> #(, #supertrait_refs: std::convert::From<T>)* {

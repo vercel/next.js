@@ -62,5 +62,5 @@ async fn specific_resolve(
     let context_path = context.context_path();
     let result = context.resolve_asset(context_path, request, options);
 
-    handle_resolve_error(result, request_type, context_path, request).await
+    handle_resolve_error(result, request_type, context_path, request, options).await
 }

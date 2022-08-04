@@ -31,7 +31,7 @@ use crate::{
     timed_future::{self, TimedFuture},
     trace::TraceRawVcs,
     util::FormatDuration,
-    Nothing, NothingVc, TaskId, Typed, TypedForInput, ValueTypeId,
+    Nothing, NothingVc, TaskId, Typed, TypedForInput, ValueTraitVc, ValueTypeId,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -88,6 +88,16 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         task: TaskId,
         index: usize,
     ) -> Result<Result<CellContent, EventListener>>;
+
+    fn try_read_task_collectibles(
+        &self,
+        task: TaskId,
+        trait_id: TraitTypeId,
+    ) -> Result<Result<Vec<RawVc>, EventListener>>;
+
+    fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
+    fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
+    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &HashSet<RawVc>);
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -271,7 +281,6 @@ impl<B: Backend> TurboTasks<B> {
     /// Call a native function with arguments.
     /// All inputs must be resolved.
     pub(crate) fn native_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
-        debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
             PersistentTaskType::Native(func, inputs),
             current_task("turbo_function calls"),
@@ -684,6 +693,48 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
             .try_read_own_task_cell_untracked(current_task, index, self)
     }
 
+    fn try_read_task_collectibles(
+        &self,
+        task: TaskId,
+        trait_id: TraitTypeId,
+    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+        self.backend.try_read_task_collectibles(
+            task,
+            trait_id,
+            current_task("reading collectibles"),
+            self,
+        )
+    }
+
+    fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc) {
+        self.backend.emit_collectible(
+            trait_type,
+            collectible,
+            current_task("emitting collectible"),
+            self,
+        );
+    }
+
+    fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc) {
+        self.backend.unemit_collectible(
+            trait_type,
+            collectible,
+            current_task("emitting collectible"),
+            self,
+        );
+    }
+
+    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &HashSet<RawVc>) {
+        for collectible in collectibles {
+            self.backend.unemit_collectible(
+                trait_type,
+                *collectible,
+                current_task("emitting collectible"),
+                self,
+            );
+        }
+    }
+
     fn get_fresh_cell(&self, task: TaskId) -> usize {
         self.backend.get_fresh_cell(task, self)
     }
@@ -732,19 +783,26 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_cell_updated()` on all tasks.
     fn schedule_notify_tasks(&self, tasks: &[TaskId]) {
-        TASKS_TO_NOTIFY.with(|tasks_list| {
+        let result = TASKS_TO_NOTIFY.try_with(|tasks_list| {
             let mut list = tasks_list.borrow_mut();
             list.extend(tasks.iter());
         });
+        if result.is_err() {
+            self.backend.invalidate_tasks(tasks.to_vec(), self);
+        }
     }
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_cell_updated()` on all tasks.
     fn schedule_notify_tasks_set(&self, tasks: &HashSet<TaskId>) {
-        TASKS_TO_NOTIFY.with(|tasks_list| {
+        let result = TASKS_TO_NOTIFY.try_with(|tasks_list| {
             let mut list = tasks_list.borrow_mut();
             list.extend(tasks.iter());
         });
+        if result.is_err() {
+            self.backend
+                .invalidate_tasks(tasks.iter().copied().collect(), self);
+        };
     }
 
     fn schedule(&self, task: TaskId) {
@@ -885,6 +943,10 @@ pub fn get_invalidator() -> Invalidator {
     }
 }
 
+pub fn emit<T: ValueTraitVc>(collectible: T) {
+    with_turbo_tasks(|tt| tt.emit_collectible(T::get_trait_type_id(), collectible.into()))
+}
+
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
     let (r, d) = tokio::task::spawn_blocking(|| {
         let start = Instant::now();
@@ -956,6 +1018,19 @@ pub(crate) async fn read_task_cell_untracked(
 ) -> Result<CellContent> {
     loop {
         match this.try_read_task_cell_untracked(id, index)? {
+            Ok(result) => return Ok(result),
+            Err(listener) => listener.await,
+        }
+    }
+}
+
+pub(crate) async fn read_task_collectibles(
+    this: &dyn TurboTasksApi,
+    id: TaskId,
+    trait_id: TraitTypeId,
+) -> Result<Vec<RawVc>> {
+    loop {
+        match this.try_read_task_collectibles(id, trait_id)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }

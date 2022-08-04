@@ -2,12 +2,7 @@
 
 use std::sync::Mutex;
 
-use anyhow::{anyhow, Result};
-use turbo_tasks::{
-    primitives::StringVc, register, trace::TraceRawVcs, TurboTasks, Value, ValueToString,
-    ValueToStringVc,
-};
-use turbo_tasks_memory::MemoryBackend;
+use anyhow::Result;
 use turbo_tasks_test_utils::{register, run};
 
 register!();

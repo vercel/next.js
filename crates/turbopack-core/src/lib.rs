@@ -6,6 +6,7 @@ pub mod asset;
 pub mod chunk;
 pub mod context;
 pub mod environment;
+pub mod issue;
 pub mod reference;
 pub mod resolve;
 pub mod source_asset;

@@ -6,6 +6,7 @@ extern crate turbo_malloc;
 mod nft_json;
 
 use std::{
+    cmp::{self, Ordering},
     collections::BTreeSet,
     env::current_dir,
     fs,
@@ -18,10 +19,14 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
-use turbo_tasks::{backend::Backend, util::FormatDuration, NothingVc, TaskId, TurboTasks, Value};
+use owo_colors::{OwoColorize, Style};
+use turbo_tasks::{
+    backend::Backend, primitives::StringsVc, util::FormatDuration, NothingVc, TaskId,
+    TransientValue, TurboTasks, Value,
+};
 use turbo_tasks_fs::{
-    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
-    ReadGlobResultVc,
+    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileLinesContent, FileSystemPathVc,
+    FileSystemVc, ReadGlobResultVc,
 };
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbopack::{emit, rebase::RebasedAssetVc, ModuleAssetContextVc};
@@ -29,6 +34,7 @@ use turbopack_core::{
     asset::{AssetVc, AssetsVc},
     context::AssetContextVc,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    issue::{IssueSeverity, IssueVc},
     reference::all_assets,
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
@@ -230,7 +236,7 @@ async fn main() -> Result<()> {
     console_subscriber::init();
     register();
 
-    let args = Args::parse();
+    let args = Arc::new(Args::parse());
     let &CommonArgs {
         visualize_graph,
         #[cfg(feature = "persistent_cache")]
@@ -290,7 +296,7 @@ async fn main() -> Result<()> {
     }
 
     run(
-        &args,
+        args.clone(),
         || TurboTasks::new(MemoryBackend::new()),
         |tt, root_task, _| async move {
             if visualize_graph {
@@ -314,17 +320,11 @@ async fn main() -> Result<()> {
 }
 
 async fn run<B: Backend + 'static, F: Future<Output = ()>>(
-    args: &Args,
+    args: Arc<Args>,
     create_tt: impl Fn() -> Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration) -> F,
 ) -> Result<()> {
-    let &CommonArgs {
-        ref input,
-        watch,
-        exact,
-        ref context_directory,
-        ..
-    } = args.common();
+    let &CommonArgs { watch, .. } = args.common();
 
     let start = Instant::now();
     let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| async move {
@@ -361,83 +361,189 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         }
     };
 
-    match args {
-        Args::Print { common: _ } => {
-            let dir = current_dir().unwrap();
-            let context = process_context(&dir, context_directory.as_ref()).unwrap();
-            let input = process_input(&dir, &context, input).unwrap();
-            let tt = create_tt();
-            let task = tt.spawn_root_task(move || {
-                let context = context.clone();
-                let input = input.clone();
-                Box::pin(async move {
-                    let mut result = BTreeSet::new();
-                    let fs = create_fs("context directory", &context, watch).await?;
-                    let modules = input_to_modules(fs, input, exact).await?;
-                    for module in modules.iter() {
-                        let set = all_assets(*module);
-                        for asset in set.await?.iter() {
-                            let path = asset.path().await?;
-                            result.insert(path.path.to_string());
+    let dir = current_dir().unwrap();
+    let tt = create_tt();
+    let task = tt.spawn_root_task(move || {
+        let dir = dir.clone();
+        let args = args.clone();
+        Box::pin(async move {
+            let output = main_operation(TransientValue::new(dir), TransientValue::new(args));
+
+            // TODO only show max severity
+            // TODO sort issues by (context.split("/").count(), context)
+            // TODO limit number of issues per category
+            // TODO show info when hiding issues based on severity or limit
+            for issue in output.peek_collectibles::<IssueVc>().await? {
+                let context_name = issue.context().to_string().await?;
+                if let Some(source) = &*issue.source().await? {
+                    let source = &*source.await?;
+                    let source_name = source.asset.path().to_string().await?;
+                    if *source_name != *context_name {
+                        println!("{}", (&*context_name).bright_blue());
+                    }
+                    println!(
+                        "{}:{}:{}",
+                        (&*source_name).bright_blue(),
+                        source.start.line + 1,
+                        source.start.column
+                    );
+                    if let FileLinesContent::Lines(lines) = &*source.asset.content().lines().await?
+                    {
+                        let context_start = source.start.line.saturating_sub(4);
+                        let context_end = source.end.line + 4;
+                        for i in context_start..=cmp::min(context_end, lines.len() - 1) {
+                            let l: &str = &lines[i].content;
+                            let n = i + 1;
+                            fn safe_split_at(s: &str, i: usize) -> (&str, &str) {
+                                if i < s.len() {
+                                    s.split_at(i)
+                                } else {
+                                    (s, "")
+                                }
+                            }
+                            match (i.cmp(&source.start.line), i.cmp(&source.end.line)) {
+                                // outside
+                                (Ordering::Less, _) | (_, Ordering::Greater) => {
+                                    println!("{:>7}   {}", n, l.dimmed())
+                                }
+                                // start line
+                                (Ordering::Equal, Ordering::Less) => {
+                                    let (before, marked) = safe_split_at(l, source.start.column);
+                                    println!("{:>7} + {}{}", n, before.dimmed(), marked.bold())
+                                }
+                                // start and end line
+                                (Ordering::Equal, Ordering::Equal) => {
+                                    let (before, temp) = safe_split_at(l, source.start.column);
+                                    let (middle, after) = safe_split_at(temp, source.end.column);
+                                    println!(
+                                        "{:>7} > {}{}{}",
+                                        n,
+                                        before.dimmed(),
+                                        middle.bold(),
+                                        after.dimmed()
+                                    );
+                                }
+                                // end line
+                                (Ordering::Greater, Ordering::Equal) => {
+                                    let (marked, after) = safe_split_at(l, source.end.column);
+                                    println!("{:>7} + {}{}", n, marked.bold(), after.dimmed())
+                                }
+                                // middle line
+                                (Ordering::Greater, Ordering::Less) => {
+                                    println!("{:>7} | {}", n, l.bold())
+                                }
+                            }
                         }
                     }
-                    for path in result {
-                        println!("{}", path);
+                } else {
+                    println!("{}", (&*context_name).bright_blue());
+                }
+                let severity = &*issue.severity().await?;
+                let title = &*issue.title().await?;
+                let category = &*issue.category().await?;
+                fn severity_to_style(severity: &IssueSeverity) -> Style {
+                    match severity {
+                        IssueSeverity::Bug => Style::new().bright_red().underline(),
+                        IssueSeverity::Fatal => Style::new().bright_red().underline(),
+                        IssueSeverity::Error => Style::new().bright_red(),
+                        IssueSeverity::Warning => Style::new().bright_yellow(),
+                        IssueSeverity::Hint => Style::new().bold(),
+                        IssueSeverity::Note => Style::new().bold(),
+                        IssueSeverity::Suggestions => Style::new().bright_green().underline(),
+                        IssueSeverity::Info => Style::new().bright_green(),
                     }
-                    Ok(NothingVc::new().into())
-                })
-            });
-            finish(tt, task).await?;
-        }
-        Args::Annotate { common: _ } => {
-            let dir = current_dir().unwrap();
+                }
+                println!(
+                    "{} [{}] {}",
+                    severity.style(severity_to_style(severity)),
+                    category,
+                    title.bold()
+                );
+                let description = issue.description().await?;
+                if !description.is_empty() {
+                    for line in description.split('\n') {
+                        println!("| {line}");
+                    }
+                }
+                let documentation_link = issue.documentation_link().await?;
+                if !documentation_link.is_empty() {
+                    println!("documentation: {documentation_link}");
+                }
+                println!();
+            }
+
+            for line in output.await?.iter() {
+                println!("{line}");
+            }
+            Ok(NothingVc::new().into())
+        })
+    });
+    finish(tt, task).await?;
+    Ok(())
+}
+
+#[turbo_tasks::function]
+async fn main_operation(
+    current_dir: TransientValue<PathBuf>,
+    args: TransientValue<Arc<Args>>,
+) -> Result<StringsVc> {
+    let dir = current_dir.into_value();
+    let args = args.into_value();
+    let &CommonArgs {
+        ref input,
+        watch,
+        exact,
+        ref context_directory,
+        ..
+    } = args.common();
+
+    match *args {
+        Args::Print { common: _ } => {
             let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = create_tt();
-            let task = tt.spawn_root_task(move || {
-                let context = context.clone();
-                let input = input.clone();
-                Box::pin(async move {
-                    let fs = create_fs("context directory", &context, watch).await?;
-                    for module in input_to_modules(fs, input, exact).await?.iter() {
-                        let nft_asset = NftJsonAssetVc::new(*module).into();
-                        emit(nft_asset)
-                    }
-                    Ok(NothingVc::new().into())
-                })
-            });
-            finish(tt, task).await?;
+            let mut result = BTreeSet::new();
+            let fs = create_fs("context directory", &context, watch).await?;
+            let modules = input_to_modules(fs, input, exact).await?;
+            let mut issues = Vec::new();
+            for module in modules.iter() {
+                let set = all_assets(*module);
+                for asset in set.await?.iter() {
+                    let path = asset.path().await?;
+                    result.insert(path.path.to_string());
+                }
+                issues.extend(set.take_collectibles::<IssueVc>().await?);
+            }
+
+            return Ok(StringsVc::cell(result.into_iter().collect::<Vec<_>>()));
+        }
+        Args::Annotate { common: _ } => {
+            let context = process_context(&dir, context_directory.as_ref()).unwrap();
+            let input = process_input(&dir, &context, input).unwrap();
+            let fs = create_fs("context directory", &context, watch).await?;
+            for module in input_to_modules(fs, input, exact).await?.iter() {
+                let nft_asset = NftJsonAssetVc::new(*module).into();
+                emit(nft_asset)
+            }
         }
         Args::Build {
             ref output_directory,
             common: _,
         } => {
-            let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = create_tt();
-            let task = tt.spawn_root_task(move || {
-                let context = context.clone();
-                let input = input.clone();
-                let output = output.clone();
-                Box::pin(async move {
-                    let fs = create_fs("context directory", &context, watch).await?;
-                    let out_fs = create_fs("output directory", &output, watch).await?;
-                    let input_dir = FileSystemPathVc::new(fs, "");
-                    let output_dir = FileSystemPathVc::new(out_fs, "");
-                    for module in input_to_modules(fs, input, exact).await?.iter() {
-                        let rebased = RebasedAssetVc::new(*module, input_dir, output_dir).into();
-                        emit(rebased);
-                    }
-                    Ok(NothingVc::new().into())
-                })
-            });
-            finish(tt, task).await?;
+            let fs = create_fs("context directory", &context, watch).await?;
+            let out_fs = create_fs("output directory", &output, watch).await?;
+            let input_dir = FileSystemPathVc::new(fs, "");
+            let output_dir = FileSystemPathVc::new(out_fs, "");
+            for module in input_to_modules(fs, input, exact).await?.iter() {
+                let rebased = RebasedAssetVc::new(*module, input_dir, output_dir).into();
+                emit(rebased);
+            }
         }
         Args::Size { common: _ } => todo!(),
     }
-    Ok(())
+    Ok(StringsVc::cell(Vec::new()))
 }
 
 fn register() {

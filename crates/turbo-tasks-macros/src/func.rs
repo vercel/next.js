@@ -188,7 +188,7 @@ pub fn gen_native_function_code(
                         })
                     }))
                 });
-                static ref #function_id_ident: turbo_tasks::FunctionId = turbo_tasks::registry::get_function_id(&#function_ident);
+                pub(crate) static ref #function_id_ident: turbo_tasks::FunctionId = turbo_tasks::registry::get_function_id(&#function_ident);
             }
         },
         input_raw_vc_arguments,

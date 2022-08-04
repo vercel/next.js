@@ -187,7 +187,7 @@ pub async fn type_resolve(request: RequestVc, context: AssetContextVc) -> Result
         resolve(context_path, request, options)
     };
     let result = context.process_resolve_result(result);
-    handle_resolve_error(result, "type request", context_path, request).await
+    handle_resolve_error(result, "type request", context_path, request, options).await
 }
 
 #[turbo_tasks::value(AssetReference)]

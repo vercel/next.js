@@ -110,7 +110,7 @@ impl Stats {
         }
         stats.scopes += scopes;
 
-        let references = task.get_stats_references();
+        let (references, _) = task.get_stats_references();
         let set: HashSet<_> = references.into_iter().collect();
         for (ref_type, task) in set {
             backend.with_task(task, |task| {

@@ -272,6 +272,30 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi,
     );
 
+    fn try_read_task_collectibles(
+        &self,
+        task: TaskId,
+        trait_id: TraitTypeId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<Vec<RawVc>, EventListener>>;
+
+    fn emit_collectible(
+        &self,
+        trait_type: TraitTypeId,
+        collectible: RawVc,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    );
+
+    fn unemit_collectible(
+        &self,
+        trait_type: TraitTypeId,
+        collectible: RawVc,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    );
+
     fn get_fresh_cell(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize;
 
     fn update_task_cell(

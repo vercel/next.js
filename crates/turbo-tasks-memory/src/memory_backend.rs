@@ -18,13 +18,16 @@ use turbo_tasks::{
         TransientTaskType,
     },
     util::{IdFactory, NoMoveVec},
-    RawVc, TaskId, TurboTasksBackendApi,
+    RawVc, TaskId, TraitTypeId, TurboTasksBackendApi,
 };
 
 use crate::{
     output::Output,
     scope::{TaskScope, TaskScopeId},
-    task::{run_add_to_scope_queue, run_remove_from_scope_queue, Task, DEPENDENCIES_TO_TRACK},
+    task::{
+        run_add_to_scope_queue, run_remove_from_scope_queue, Task, TaskDependency,
+        DEPENDENCIES_TO_TRACK,
+    },
 };
 
 pub struct MemoryBackend {
@@ -102,10 +105,11 @@ impl MemoryBackend {
         func(self.memory_task_scopes.get(*id).unwrap())
     }
 
-    pub fn create_new_scope(&self) -> TaskScopeId {
+    pub fn create_new_scope(&self, tasks: usize) -> TaskScopeId {
         let id = self.scope_id_factory.get();
         unsafe {
-            self.memory_task_scopes.insert(*id, TaskScope::new(id));
+            self.memory_task_scopes
+                .insert(*id, TaskScope::new(id, tasks));
         }
         id
     }
@@ -218,7 +222,7 @@ impl Backend for MemoryBackend {
     }
 
     type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static> =
-        TaskLocalFuture<RefCell<HashSet<RawVc>>, T>;
+        TaskLocalFuture<RefCell<HashSet<TaskDependency>>, T>;
     fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
         &self,
         _task: TaskId,
@@ -276,7 +280,7 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
         self.try_get_output(task, strongly_consistent, turbo_tasks, |output| {
-            Task::add_dependency_to_current(RawVc::TaskOutput(task));
+            Task::add_dependency_to_current(TaskDependency::TaskOutput(task));
             output.read(reader)
         })
     }
@@ -300,7 +304,7 @@ impl Backend for MemoryBackend {
     ) {
         self.with_task(task, |t| {
             t.with_output_mut(|output| {
-                Task::add_dependency_to_current(RawVc::TaskOutput(task));
+                Task::add_dependency_to_current(TaskDependency::TaskOutput(task));
                 output.track_read(reader);
             })
         })
@@ -313,7 +317,7 @@ impl Backend for MemoryBackend {
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
-        Task::add_dependency_to_current(RawVc::TaskCell(task, index));
+        Task::add_dependency_to_current(TaskDependency::TaskCell(task, index));
         Ok(Ok(self.with_task(task, |task| {
             task.with_cell_mut(index, |cell| cell.read_content(reader))
         })))
@@ -337,9 +341,45 @@ impl Backend for MemoryBackend {
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        Task::add_dependency_to_current(RawVc::TaskCell(task, index));
+        Task::add_dependency_to_current(TaskDependency::TaskCell(task, index));
         self.with_task(task, |task| {
             task.with_cell_mut(index, |cell| cell.track_read(reader))
+        });
+    }
+
+    fn try_read_task_collectibles(
+        &self,
+        id: TaskId,
+        trait_id: TraitTypeId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<Vec<RawVc>, EventListener>> {
+        self.with_task(id, |task| {
+            task.try_read_task_collectibles(reader, trait_id, self, turbo_tasks)
+        })
+    }
+
+    fn emit_collectible(
+        &self,
+        trait_type: TraitTypeId,
+        collectible: RawVc,
+        id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.with_task(id, |task| {
+            task.emit_collectible(trait_type, collectible, self, turbo_tasks)
+        });
+    }
+
+    fn unemit_collectible(
+        &self,
+        trait_type: TraitTypeId,
+        collectible: RawVc,
+        id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.with_task(id, |task| {
+            task.unemit_collectible(trait_type, collectible, self, turbo_tasks)
         });
     }
 
@@ -398,6 +438,8 @@ impl Backend for MemoryBackend {
             let id = turbo_tasks.get_fresh_task_id();
             let task = match &task_type {
                 PersistentTaskType::Native(fn_id, inputs) => {
+                    // TODO inputs doesn't need to be cloned when are would be able to get a
+                    // reference to the task type stored inside of the task
                     Task::new_native(id, inputs.clone(), *fn_id)
                 }
                 PersistentTaskType::ResolveNative(fn_id, inputs) => {

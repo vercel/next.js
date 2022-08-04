@@ -233,6 +233,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         .filter_map(get_last_ident)
         .map(|t| get_check_trait_method_ident(t, ident))
         .collect();
+    let traits_len = traits.len();
 
     let mut inner_type = None;
     if transparent {
@@ -261,6 +262,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let into = if let Some(update_op) = into_update_op {
         quote! {
+            impl From<#ident> for turbo_tasks::RawVc {
+                fn from(content: #ident) -> Self {
+                    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*#value_type_id_ident);
+                    #update_op
+                    cell.into()
+                }
+            }
+
             impl From<#ident> for #ref_ident {
                 fn from(content: #ident) -> Self {
                     let cell = turbo_tasks::macro_helpers::find_cell_by_type(*#value_type_id_ident);
@@ -538,6 +547,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(raw_vc.map(|raw_vc| #ref_ident { node: raw_vc }))
             }
 
+            pub async fn take_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::Result<Vec<T>> {
+                self.node.take_collectibles().await
+            }
+
+            pub async fn peek_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::Result<Vec<T>> {
+                self.node.peek_collectibles().await
+            }
+
             #strongly_consistent
 
             #(
@@ -554,6 +571,22 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 fn #check_from_impl_methods() {}
             )*
         }
+
+        impl turbo_tasks::ValueVc for #ref_ident {
+            #[inline]
+            fn get_value_type_id() -> turbo_tasks::ValueTypeId {
+                *#value_type_id_ident
+            }
+
+            #[inline]
+            fn get_trait_type_ids() -> &'static [turbo_tasks::TraitTypeId] {
+                turbo_tasks::lazy_static! {
+                    static ref TRAIT_TYPES: [turbo_tasks::TraitTypeId; #traits_len] = [#(<#trait_refs as turbo_tasks::ValueTraitVc>::get_trait_type_id()),*];
+                }
+                &*TRAIT_TYPES
+            }
+        }
+
 
         #into_future
 

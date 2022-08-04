@@ -1,10 +1,7 @@
 #![feature(min_specialization)]
 
 use anyhow::{anyhow, Result};
-use turbo_tasks::{
-    primitives::StringVc, trace::TraceRawVcs, TurboTasks, Value, ValueToString, ValueToStringVc,
-};
-use turbo_tasks_memory::MemoryBackend;
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_test_utils::{register, run};
 
 register!();

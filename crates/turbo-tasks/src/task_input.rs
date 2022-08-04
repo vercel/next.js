@@ -614,6 +614,18 @@ impl<T: Into<TaskInput>> From<Vec<T>> for TaskInput {
     }
 }
 
+impl FromTaskInput<'_> for RawVc {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::TaskCell(task, index) => Ok(RawVc::TaskCell(*task, *index)),
+            TaskInput::TaskOutput(task) => Ok(RawVc::TaskOutput(*task)),
+            _ => Err(anyhow!("invalid task input type, expected RawVc")),
+        }
+    }
+}
+
 impl FromTaskInput<'_> for String {
     type Error = anyhow::Error;
 

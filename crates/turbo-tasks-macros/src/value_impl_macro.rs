@@ -171,7 +171,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 let internal_function_ident =
                     get_internal_trait_impl_function_ident(trait_ident, ident);
                 trait_registers.push(quote! {
-                    value_type.register_trait_method(#trait_ref_path::__type(), stringify!(#ident).to_string(), *#function_id_ident);
+                    value_type.register_trait_method(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id(), stringify!(#ident).to_string(), *#function_id_ident);
                 });
                 let name = Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
                 let (native_function_code, mut input_raw_vc_arguments) = gen_native_function_code(
@@ -260,7 +260,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
             #[allow(non_snake_case)]
             fn #register(value_type: &mut turbo_tasks::ValueType) {
                 if false { #ref_ident::#check(); }
-                value_type.register_trait(#trait_ref_path::__type());
+                value_type.register_trait(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id());
                 #(#trait_registers)*
             }
 

@@ -3,6 +3,7 @@
 #![feature(generic_associated_types)]
 
 mod cell;
+mod count_hash_set;
 mod memory_backend;
 mod memory_backend_with_pg;
 mod output;

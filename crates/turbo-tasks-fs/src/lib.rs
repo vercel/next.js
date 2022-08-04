@@ -1083,6 +1083,31 @@ impl FileContent {
             FileContent::NotFound => FileJsonContent::NotFound,
         }
     }
+
+    pub fn lines(&self) -> FileLinesContent {
+        match self {
+            FileContent::Content(file) => match std::str::from_utf8(&file.content) {
+                Ok(string) => {
+                    let mut bytes_offset = 0;
+                    FileLinesContent::Lines(
+                        string
+                            .split('\n')
+                            .map(|l| {
+                                let line = FileLine {
+                                    content: l.to_string(),
+                                    bytes_offset: bytes_offset,
+                                };
+                                bytes_offset += l.len() + 1;
+                                line
+                            })
+                            .collect(),
+                    )
+                }
+                Err(_) => FileLinesContent::Unparseable,
+            },
+            FileContent::NotFound => FileLinesContent::NotFound,
+        }
+    }
 }
 
 fn skip_json_comments(input: &str) -> String {
@@ -1182,11 +1207,29 @@ impl FileContentVc {
         let this = self.await?;
         Ok(this.parse_json_with_comments().into())
     }
+    #[turbo_tasks::function]
+    pub async fn lines(self) -> Result<FileLinesContentVc> {
+        let this = self.await?;
+        Ok(this.lines().into())
+    }
 }
 
 #[turbo_tasks::value(shared, serialization: none)]
 pub enum FileJsonContent {
     Content(#[trace_ignore] JsonValue),
+    Unparseable,
+    NotFound,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct FileLine {
+    pub content: String,
+    pub bytes_offset: usize,
+}
+
+#[turbo_tasks::value(shared, serialization: none)]
+pub enum FileLinesContent {
+    Lines(#[trace_ignore] Vec<FileLine>),
     Unparseable,
     NotFound,
 }
