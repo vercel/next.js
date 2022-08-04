@@ -1,4 +1,4 @@
-import React, { PureComponent, ReactElement, ReactNode, useContext } from 'react'
+import React, { PureComponent, ReactElement, ReactNode, useContext, memo } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -388,12 +388,12 @@ const InternalFunctionDocument: DocumentType =
   }
   ; (Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
 
-export function Html(
+export const Html = memo((
   props: React.DetailedHTMLProps<
     React.HtmlHTMLAttributes<HTMLHtmlElement>,
     HTMLHtmlElement
   >
-) {
+) => {
   const {
     inAmpMode,
     docComponentsRendered,
@@ -415,13 +415,13 @@ export function Html(
       }
     />
   )
-}
+})
 
-function AmpStyles({
+const AmpStyles = memo(({
   styles,
 }: {
   styles?: React.ReactElement[] | React.ReactFragment
-}) {
+}) => {
   if (!styles) return null
 
   // try to parse styles from fragment for backwards compat
@@ -459,7 +459,7 @@ function AmpStyles({
       }}
     />
   )
-}
+})
 
 export class Head extends PureComponent<HeadProps> {
   static contextType = HtmlContext
@@ -938,12 +938,12 @@ export class Head extends PureComponent<HeadProps> {
   }
 }
 
-export function Main() {
+export const Main = memo(() => {
   const { docComponentsRendered } = useContext(HtmlContext)
   docComponentsRendered.Main = true
   // @ts-ignore
   return <next-js-internal-body-render-target />
-}
+})
 
 export class NextScript extends PureComponent<OriginProps> {
   static contextType = HtmlContext
