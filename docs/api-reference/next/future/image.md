@@ -59,10 +59,9 @@ Although `layout` is not available, you can migrate `next/image` to `next/future
 
 ```jsx
 import Image from 'next/image'
-import img from '../img.png'
 
 function Page() {
-  return <Image src={img} />
+  return <Image src="/image.jpg" width="1000" height="1000" />
 }
 ```
 
@@ -71,11 +70,10 @@ function Page() {
 
 ```jsx
 import Image from 'next/future/image'
-import img from '../img.png'
 
 const css = { maxWidth: '100%', height: 'auto' }
 function Page() {
-  return <Image src={img} style={css} />
+  return <Image src="/image.jpg" width="1000" height="1000" style={css} />
 }
 ```
 
@@ -87,10 +85,11 @@ function Page() {
 
 ```jsx
 import Image from 'next/image'
-import img from '../img.png'
 
 function Page() {
-  return <Image src={img} layout="responsive" />
+  return (
+    <Image src="/image.jpg" width="1000" height="1000" layout="responsive" />
+  )
 }
 ```
 
@@ -99,11 +98,18 @@ function Page() {
 
 ```jsx
 import Image from 'next/future/image'
-import img from '../img.png'
 
 const css = { width: '100%', height: 'auto' }
 function Page() {
-  return <Image src={img} sizes="100vw" style={css} />
+  return (
+    <Image
+      src="/image.jpg"
+      width="1000"
+      height="1000"
+      sizes="100vw"
+      style={css}
+    />
+  )
 }
 ```
 
@@ -115,10 +121,9 @@ function Page() {
 
 ```jsx
 import Image from 'next/image'
-import img from '../img.png'
 
 function Page() {
-  return <Image src={img} layout="fill" />
+  return <Image src="/image.jpg" layout="fill" />
 }
 ```
 
@@ -127,10 +132,9 @@ function Page() {
 
 ```jsx
 import Image from 'next/future/image'
-import img from '../img.png'
 
 function Page() {
-  return <Image src={img} sizes="100vw" fill />
+  return <Image src="/image.jpg" sizes="100vw" fill />
 }
 ```
 
@@ -142,10 +146,9 @@ function Page() {
 
 ```jsx
 import Image from 'next/image'
-import img from '../img.png'
 
 function Page() {
-  return <Image src={img} layout="fixed" />
+  return <Image src="/image.jpg" width="1000" height="1000" layout="fixed" />
 }
 ```
 
@@ -154,10 +157,9 @@ function Page() {
 
 ```jsx
 import Image from 'next/future/image'
-import img from '../img.png'
 
 function Page() {
-  return <Image src={img} />
+  return <Image src="/image.jpg" width="1000" height="1000" />
 }
 ```
 
