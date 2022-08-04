@@ -310,6 +310,13 @@ export function onDemandEntryHandler({
 
       const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
         return new Promise<void>((resolve, reject) => {
+          if (type === 'server' && entries[`edge-server${page}`]) {
+            // Runtime switched from edge to server
+            delete entries[`edge-server${page}`]
+          } else if (type === 'edge-server' && entries[`server${page}`]) {
+            // Runtime switched from server to edge
+            delete entries[`server${page}`]
+          }
           const isServerComponent = serverComponentRegex.test(
             pagePathData.absolutePagePath
           )
@@ -461,7 +468,6 @@ class Invalidator {
     // So, it can re-build the queued pages at once.
     if (this.building) {
       this.rebuildAgain = true
-      return
     }
 
     this.building = true
