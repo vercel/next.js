@@ -1,11 +1,14 @@
 pub mod analyze;
 pub mod resolve;
 
-use std::fmt::Display;
+use std::{cmp::Ordering, fmt::Display, future::IntoFuture};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs};
+use turbo_tasks::{
+    emit, primitives::StringVc, trace::TraceRawVcs, util::try_join_all, CollectiblesSource,
+    ValueToString, ValueToStringVc,
+};
 use turbo_tasks_fs::{FileLine, FileLinesContent, FileSystemPathVc};
 
 use crate::asset::AssetVc;
@@ -67,8 +70,200 @@ pub trait Issue {
     }
 }
 
+#[turbo_tasks::value_trait]
+trait IssueProcessingPath {
+    fn shortest_path(&self, issue: IssueVc) -> OptionIssueProcessingPathItemsVc;
+}
+
+#[turbo_tasks::value(ValueToString)]
+pub struct IssueProcessingPathItem {
+    pub context: Option<FileSystemPathVc>,
+    pub description: StringVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for IssueProcessingPathItem {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        if let Some(context) = self.context {
+            Ok(StringVc::cell(format!(
+                "{} ({})",
+                context.to_string().await?,
+                self.description.await?
+            )))
+        } else {
+            Ok(self.description)
+        }
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionIssueProcessingPathItems(Option<Vec<IssueProcessingPathItemVc>>);
+
+#[turbo_tasks::value(IssueProcessingPath)]
+struct RootIssueProcessingPath(IssueVc);
+
+#[turbo_tasks::value_impl]
+impl IssueProcessingPath for RootIssueProcessingPath {
+    #[turbo_tasks::function]
+    fn shortest_path(&self, issue: IssueVc) -> OptionIssueProcessingPathItemsVc {
+        if self.0 == issue {
+            OptionIssueProcessingPathItemsVc::cell(Some(Vec::new()))
+        } else {
+            OptionIssueProcessingPathItemsVc::cell(None)
+        }
+    }
+}
+
+#[turbo_tasks::value(IssueProcessingPath)]
+struct ItemIssueProcessingPath(
+    Option<IssueProcessingPathItemVc>,
+    Vec<IssueProcessingPathVc>,
+);
+
+#[turbo_tasks::value_impl]
+impl IssueProcessingPath for ItemIssueProcessingPath {
+    #[turbo_tasks::function]
+    async fn shortest_path(&self, issue: IssueVc) -> Result<OptionIssueProcessingPathItemsVc> {
+        assert!(!self.1.is_empty());
+        let paths = self
+            .1
+            .iter()
+            .map(|child| child.shortest_path(issue))
+            .collect::<Vec<_>>();
+        let paths = try_join_all(paths.iter().map(|p| p.into_future())).await?;
+        let mut shortest: Option<&Vec<_>> = None;
+        for path in paths.iter().filter_map(|p| p.as_ref()) {
+            if let Some(old) = shortest {
+                if old.len() > path.len() {
+                    shortest = Some(path);
+                } else if old.len() == path.len() {
+                    let (mut a, mut b) = (old.iter(), path.iter());
+                    while let (Some(a), Some(b)) = (a.next(), b.next()) {
+                        let (a, b) = (a.to_string().await?, b.to_string().await?);
+                        match a.cmp(&*b) {
+                            Ordering::Less => break,
+                            Ordering::Greater => {
+                                shortest = Some(path);
+                                break;
+                            }
+                            Ordering::Equal => {}
+                        }
+                    }
+                }
+            } else {
+                shortest = Some(path);
+            }
+        }
+        Ok(OptionIssueProcessingPathItemsVc::cell(shortest.map(
+            |path| {
+                if let Some(item) = self.0 {
+                    std::iter::once(item).chain(path.iter().copied()).collect()
+                } else {
+                    path.clone()
+                }
+            },
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl IssueVc {
+    #[turbo_tasks::function]
+    pub fn emit(self) {
+        emit(self);
+        emit(
+            RootIssueProcessingPathVc::cell(RootIssueProcessingPath(self))
+                .as_issue_processing_path(),
+        )
+    }
+}
+
+impl IssueVc {
+    pub async fn attach_context<T: CollectiblesSource + Copy>(
+        context: FileSystemPathVc,
+        description: String,
+        source: T,
+    ) -> Result<T> {
+        let children = source.take_collectibles().await?;
+        if !children.is_empty() {
+            emit(
+                ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
+                    Some(IssueProcessingPathItemVc::cell(IssueProcessingPathItem {
+                        context: Some(context),
+                        description: StringVc::cell(description),
+                    })),
+                    children,
+                ))
+                .as_issue_processing_path(),
+            );
+        }
+        Ok(source)
+    }
+
+    pub async fn attach_description<T: CollectiblesSource + Copy>(
+        description: String,
+        source: T,
+    ) -> Result<T> {
+        let children = source.take_collectibles().await?;
+        if !children.is_empty() {
+            emit(
+                ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
+                    Some(IssueProcessingPathItemVc::cell(IssueProcessingPathItem {
+                        context: None,
+                        description: StringVc::cell(description),
+                    })),
+                    children,
+                ))
+                .as_issue_processing_path(),
+            );
+        }
+        Ok(source)
+    }
+
+    pub async fn peek_issues_with_path<T: CollectiblesSource + Copy>(
+        source: T,
+    ) -> Result<CapturedIssuesVc> {
+        Ok(CapturedIssuesVc::cell(CapturedIssues {
+            issues: source.peek_collectibles().await?,
+            processing_path: ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
+                None,
+                source.peek_collectibles().await?,
+            )),
+        }))
+    }
+
+    pub async fn take_issues_with_path<T: CollectiblesSource + Copy>(
+        source: T,
+    ) -> Result<CapturedIssuesVc> {
+        Ok(CapturedIssuesVc::cell(CapturedIssues {
+            issues: source.take_collectibles().await?,
+            processing_path: ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
+                None,
+                source.take_collectibles().await?,
+            )),
+        }))
+    }
+}
+
+#[turbo_tasks::value]
+pub struct CapturedIssues {
+    issues: Vec<IssueVc>,
+    processing_path: ItemIssueProcessingPathVc,
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct Issues(Vec<IssueVc>);
+
+impl CapturedIssues {
+    pub fn iter_with_shortest_path<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (IssueVc, OptionIssueProcessingPathItemsVc)> + 'a {
+        self.issues
+            .iter()
+            .map(|issue| (*issue, self.processing_path.shortest_path(*issue)))
+    }
+}
 
 #[derive(Default, Debug, PartialEq, Eq, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
 pub struct SourcePos {

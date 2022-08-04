@@ -35,6 +35,7 @@ serde = "1.0.136"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack = { path = "../turbopack" }
+turbopack-cli-utils = { path = "../turbopack-cli-utils" }
 turbopack-core = { path = "../turbopack-core" }
 
 [build-dependencies]

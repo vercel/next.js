@@ -1,7 +1,8 @@
 use std::{
     any::Any,
+    collections::HashSet,
     fmt::{Debug, Display},
-    future::Future,
+    future::{Future, IntoFuture},
     hash::Hash,
     marker::PhantomData,
     pin::Pin,
@@ -20,7 +21,7 @@ use crate::{
         read_task_cell, read_task_cell_untracked, read_task_output, read_task_output_untracked,
         TurboTasksApi,
     },
-    primitives::RawVcSetVc,
+    primitives::{RawVcSet, RawVcSetVc},
     registry::get_value_type,
     turbo_tasks,
     value_type::ValueTraitVc,
@@ -268,7 +269,7 @@ impl RawVc {
         }
     }
 
-    pub async fn peek_collectibles<T: ValueTraitVc>(&self) -> Result<Vec<T>> {
+    pub fn peek_collectibles<T: ValueTraitVc>(&self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
         let set: RawVcSetVc = tt
             .native_call(
@@ -276,11 +277,15 @@ impl RawVc {
                 vec![(*self).into(), (*T::get_trait_type_id()).into()],
             )
             .into();
-        let set = set.await?;
-        Ok(set.iter().map(|raw| (*raw).into()).collect())
+        CollectiblesFuture {
+            turbo_tasks: tt,
+            inner: set.into_future(),
+            take: false,
+            phantom: PhantomData,
+        }
     }
 
-    pub async fn take_collectibles<T: ValueTraitVc>(&self) -> Result<Vec<T>> {
+    pub fn take_collectibles<T: ValueTraitVc>(&self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
         let set: RawVcSetVc = tt
             .native_call(
@@ -288,9 +293,12 @@ impl RawVc {
                 vec![(*self).into(), (*T::get_trait_type_id()).into()],
             )
             .into();
-        let set = set.await?;
-        tt.unemit_collectibles(T::get_trait_type_id(), &*set);
-        Ok(set.iter().map(|raw| (*raw).into()).collect())
+        CollectiblesFuture {
+            turbo_tasks: tt,
+            inner: set.into_future(),
+            take: true,
+            phantom: PhantomData,
+        }
     }
 
     pub fn get_task_id(&self) -> TaskId {
@@ -416,6 +424,35 @@ impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> Future for ReadAndMapRawVcFuture<
         match inner_pin.poll(cx) {
             Poll::Ready(r) => Poll::Ready(match r {
                 Ok(r) => Ok(r.map_read_result(this.func.take().unwrap())),
+                Err(e) => Err(e),
+            }),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+pub struct CollectiblesFuture<T: ValueTraitVc> {
+    turbo_tasks: Arc<dyn TurboTasksApi>,
+    inner: ReadAndMapRawVcFuture<RawVcSet, HashSet<RawVc>, fn(&RawVcSet) -> &HashSet<RawVc>>,
+    take: bool,
+    phantom: PhantomData<fn() -> T>,
+}
+
+impl<T: ValueTraitVc> Future for CollectiblesFuture<T> {
+    type Output = Result<Vec<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let this = unsafe { self.get_unchecked_mut() };
+        let inner_pin = Pin::new(&mut this.inner);
+        match inner_pin.poll(cx) {
+            Poll::Ready(r) => Poll::Ready(match r {
+                Ok(set) => {
+                    if this.take {
+                        this.turbo_tasks
+                            .unemit_collectibles(T::get_trait_type_id(), &*set);
+                    }
+                    Ok(set.iter().map(|raw| (*raw).into()).collect())
+                }
                 Err(e) => Err(e),
             }),
             Poll::Pending => Poll::Pending,

@@ -7,6 +7,7 @@
 #![feature(generic_associated_types)]
 #![feature(result_flattening)]
 #![feature(box_syntax)]
+#![feature(into_future)]
 
 pub mod backend;
 mod collectibles;
@@ -34,6 +35,7 @@ mod value;
 mod value_type;
 
 pub use anyhow::{Error, Result};
+pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, CompletionVc};
 pub use display::{ValueToString, ValueToStringVc};
 pub use id::{
@@ -49,8 +51,8 @@ pub use manager::{
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
 pub use raw_vc::{
-    RawVc, RawVcReadAndMapResult, RawVcReadResult, ReadAndMapRawVcFuture, ReadRawVcFuture,
-    ResolveTypeError,
+    CollectiblesFuture, RawVc, RawVcReadAndMapResult, RawVcReadResult, ReadAndMapRawVcFuture,
+    ReadRawVcFuture, ResolveTypeError,
 };
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait};

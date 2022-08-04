@@ -6,7 +6,6 @@ extern crate turbo_malloc;
 mod nft_json;
 
 use std::{
-    cmp::{self, Ordering},
     collections::BTreeSet,
     env::current_dir,
     fs,
@@ -19,22 +18,22 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
-use owo_colors::{OwoColorize, Style};
 use turbo_tasks::{
     backend::Backend, primitives::StringsVc, util::FormatDuration, NothingVc, TaskId,
     TransientValue, TurboTasks, Value,
 };
 use turbo_tasks_fs::{
-    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileLinesContent, FileSystemPathVc,
-    FileSystemVc, ReadGlobResultVc,
+    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
+    ReadGlobResultVc,
 };
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbopack::{emit, rebase::RebasedAssetVc, ModuleAssetContextVc};
+use turbopack_cli_utils::issue::issue_to_styled_string;
 use turbopack_core::{
     asset::{AssetVc, AssetsVc},
     context::AssetContextVc,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    issue::{IssueSeverity, IssueVc},
+    issue::IssueVc,
     reference::all_assets,
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
@@ -373,103 +372,10 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
             // TODO sort issues by (context.split("/").count(), context)
             // TODO limit number of issues per category
             // TODO show info when hiding issues based on severity or limit
-            for issue in output.peek_collectibles::<IssueVc>().await? {
-                let context_name = issue.context().to_string().await?;
-                if let Some(source) = &*issue.source().await? {
-                    let source = &*source.await?;
-                    let source_name = source.asset.path().to_string().await?;
-                    if *source_name != *context_name {
-                        println!("{}", (&*context_name).bright_blue());
-                    }
-                    println!(
-                        "{}:{}:{}",
-                        (&*source_name).bright_blue(),
-                        source.start.line + 1,
-                        source.start.column
-                    );
-                    if let FileLinesContent::Lines(lines) = &*source.asset.content().lines().await?
-                    {
-                        let context_start = source.start.line.saturating_sub(4);
-                        let context_end = source.end.line + 4;
-                        for i in context_start..=cmp::min(context_end, lines.len() - 1) {
-                            let l: &str = &lines[i].content;
-                            let n = i + 1;
-                            fn safe_split_at(s: &str, i: usize) -> (&str, &str) {
-                                if i < s.len() {
-                                    s.split_at(i)
-                                } else {
-                                    (s, "")
-                                }
-                            }
-                            match (i.cmp(&source.start.line), i.cmp(&source.end.line)) {
-                                // outside
-                                (Ordering::Less, _) | (_, Ordering::Greater) => {
-                                    println!("{:>7}   {}", n, l.dimmed())
-                                }
-                                // start line
-                                (Ordering::Equal, Ordering::Less) => {
-                                    let (before, marked) = safe_split_at(l, source.start.column);
-                                    println!("{:>7} + {}{}", n, before.dimmed(), marked.bold())
-                                }
-                                // start and end line
-                                (Ordering::Equal, Ordering::Equal) => {
-                                    let (before, temp) = safe_split_at(l, source.start.column);
-                                    let (middle, after) = safe_split_at(temp, source.end.column);
-                                    println!(
-                                        "{:>7} > {}{}{}",
-                                        n,
-                                        before.dimmed(),
-                                        middle.bold(),
-                                        after.dimmed()
-                                    );
-                                }
-                                // end line
-                                (Ordering::Greater, Ordering::Equal) => {
-                                    let (marked, after) = safe_split_at(l, source.end.column);
-                                    println!("{:>7} + {}{}", n, marked.bold(), after.dimmed())
-                                }
-                                // middle line
-                                (Ordering::Greater, Ordering::Less) => {
-                                    println!("{:>7} | {}", n, l.bold())
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    println!("{}", (&*context_name).bright_blue());
-                }
-                let severity = &*issue.severity().await?;
-                let title = &*issue.title().await?;
-                let category = &*issue.category().await?;
-                fn severity_to_style(severity: &IssueSeverity) -> Style {
-                    match severity {
-                        IssueSeverity::Bug => Style::new().bright_red().underline(),
-                        IssueSeverity::Fatal => Style::new().bright_red().underline(),
-                        IssueSeverity::Error => Style::new().bright_red(),
-                        IssueSeverity::Warning => Style::new().bright_yellow(),
-                        IssueSeverity::Hint => Style::new().bold(),
-                        IssueSeverity::Note => Style::new().bold(),
-                        IssueSeverity::Suggestions => Style::new().bright_green().underline(),
-                        IssueSeverity::Info => Style::new().bright_green(),
-                    }
-                }
-                println!(
-                    "{} [{}] {}",
-                    severity.style(severity_to_style(severity)),
-                    category,
-                    title.bold()
-                );
-                let description = issue.description().await?;
-                if !description.is_empty() {
-                    for line in description.split('\n') {
-                        println!("| {line}");
-                    }
-                }
-                let documentation_link = issue.documentation_link().await?;
-                if !documentation_link.is_empty() {
-                    println!("documentation: {documentation_link}");
-                }
-                println!();
+            let issues = IssueVc::peek_issues_with_path(output).await?;
+
+            for (issue, path) in issues.await?.iter_with_shortest_path() {
+                println!("{}\n", &*issue_to_styled_string(issue, path).await?);
             }
 
             for line in output.await?.iter() {
@@ -504,14 +410,14 @@ async fn main_operation(
             let mut result = BTreeSet::new();
             let fs = create_fs("context directory", &context, watch).await?;
             let modules = input_to_modules(fs, input, exact).await?;
-            let mut issues = Vec::new();
             for module in modules.iter() {
                 let set = all_assets(*module);
+                IssueVc::attach_context(module.path(), "gathering list of assets".to_string(), set)
+                    .await?;
                 for asset in set.await?.iter() {
                     let path = asset.path().await?;
                     result.insert(path.path.to_string());
                 }
-                issues.extend(set.take_collectibles::<IssueVc>().await?);
             }
 
             return Ok(StringsVc::cell(result.into_iter().collect::<Vec<_>>()));
@@ -550,5 +456,6 @@ fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
     turbopack::register();
+    turbopack_cli_utils::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

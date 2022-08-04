@@ -208,20 +208,22 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(raw_vc.map(|raw_vc| #ref_ident { node: raw_vc }))
             }
 
-            pub async fn take_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::Result<Vec<T>> {
-                self.node.take_collectibles().await
-            }
-
-            pub async fn peek_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::Result<Vec<T>> {
-                self.node.peek_collectibles().await
-            }
-
             pub fn cast_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Self {
                 let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
                 #ref_ident { node: raw_vc }
             }
 
             #(pub #trait_fns)*
+        }
+
+        impl turbo_tasks::CollectiblesSource for #ref_ident {
+            fn take_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::CollectiblesFuture<T> {
+                self.node.take_collectibles()
+            }
+
+            fn peek_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::CollectiblesFuture<T> {
+                self.node.peek_collectibles()
+            }
         }
 
         impl turbo_tasks::ValueTraitVc for #ref_ident {

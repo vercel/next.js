@@ -12,19 +12,19 @@ use crate::{
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed},
     registry::{register_trait_type, register_value_type},
-    RawVc, ValueTypeId,
+    CollectiblesSource, RawVc, ValueTypeId,
 };
 
 pub trait Typed {
     fn get_value_type_id() -> ValueTypeId;
 }
 
-pub trait ValueVc: From<RawVc> + Into<RawVc> + Copy + Clone {
+pub trait ValueVc: From<RawVc> + Into<RawVc> + CollectiblesSource + Copy + Clone {
     fn get_value_type_id() -> ValueTypeId;
     fn get_trait_type_ids() -> &'static [TraitTypeId];
 }
 
-pub trait ValueTraitVc: From<RawVc> + Into<RawVc> + Copy + Clone {
+pub trait ValueTraitVc: From<RawVc> + Into<RawVc> + CollectiblesSource + Copy + Clone {
     fn get_trait_type_id() -> TraitTypeId;
 }
 

@@ -525,14 +525,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(raw_vc.map(|raw_vc| #ref_ident { node: raw_vc }))
             }
 
-            pub async fn take_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::Result<Vec<T>> {
-                self.node.take_collectibles().await
-            }
-
-            pub async fn peek_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::Result<Vec<T>> {
-                self.node.peek_collectibles().await
-            }
-
             #strongly_consistent
 
             #(
@@ -548,6 +540,16 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[inline]
                 fn #check_from_impl_methods() {}
             )*
+        }
+
+        impl turbo_tasks::CollectiblesSource for #ref_ident {
+            fn take_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::CollectiblesFuture<T> {
+                self.node.take_collectibles()
+            }
+
+            fn peek_collectibles<T: turbo_tasks::ValueTraitVc>(self) -> turbo_tasks::CollectiblesFuture<T> {
+                self.node.peek_collectibles()
+            }
         }
 
         impl turbo_tasks::ValueVc for #ref_ident {

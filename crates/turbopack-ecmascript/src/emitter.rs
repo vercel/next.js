@@ -2,12 +2,12 @@ use swc_common::{
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
     source_map::Pos,
 };
-use turbo_tasks::{emit, primitives::StringVc};
+use turbo_tasks::primitives::StringVc;
 use turbopack_core::{
     asset::AssetVc,
     issue::{
         analyze::{AnalyzeIssue, AnalyzeIssueVc},
-        IssueSeverity, IssueSourceVc, IssueVc,
+        IssueSeverity, IssueSourceVc,
     },
 };
 
@@ -67,6 +67,6 @@ impl Emitter for IssueEmitter {
             source,
         }
         .into();
-        emit::<IssueVc>(issue.into());
+        issue.as_issue().emit();
     }
 }

@@ -9,7 +9,6 @@ use anyhow::{anyhow, Result};
 use json::JsonValue;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    emit,
     primitives::{BoolVc, StringVc},
     trace::TraceRawVcs,
     util::try_join_all,
@@ -30,7 +29,7 @@ use self::{
 };
 use crate::{
     asset::{AssetVc, AssetsVc},
-    issue::{resolve::ResolvingIssue, IssueVc},
+    issue::resolve::{ResolvingIssue, ResolvingIssueVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         options::{ConditionValue, ResolveOptions, ResolvedMapVc},
@@ -881,30 +880,28 @@ pub async fn handle_resolve_error(
     Ok(match result.is_unresolveable().await {
         Ok(unresolveable) => {
             if *unresolveable {
-                emit::<IssueVc>(
-                    ResolvingIssue {
-                        context: context_path,
-                        request_type: request_type.to_string(),
-                        request,
-                        resolve_options,
-                        error_message: None,
-                    }
-                    .into(),
-                );
-            }
-            result
-        }
-        Err(err) => {
-            emit::<IssueVc>(
-                ResolvingIssue {
+                let issue: ResolvingIssueVc = ResolvingIssue {
                     context: context_path,
                     request_type: request_type.to_string(),
                     request,
                     resolve_options,
-                    error_message: Some(err.to_string()),
+                    error_message: None,
                 }
-                .into(),
-            );
+                .into();
+                issue.as_issue().emit();
+            }
+            result
+        }
+        Err(err) => {
+            let issue: ResolvingIssueVc = ResolvingIssue {
+                context: context_path,
+                request_type: request_type.to_string(),
+                request,
+                resolve_options,
+                error_message: Some(err.to_string()),
+            }
+            .into();
+            issue.as_issue().emit();
             ResolveResult::unresolveable().into()
         }
     })
