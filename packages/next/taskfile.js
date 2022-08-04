@@ -188,7 +188,15 @@ export async function compile_config_schema(task, opts) {
   // eslint-disable-next-line
   const standaloneCode = require('ajv/dist/standalone').default
   // eslint-disable-next-line
-  const ajv = new Ajv({ code: { source: true }, allErrors: true })
+  const ajv = new Ajv({
+    code: { source: true },
+    allErrors: true,
+    verbose: true,
+  })
+
+  // errorMessage keyword will be consumed by @segment/ajv-human-errors to provide a custom error message
+  ajv.addKeyword('errorMessage')
+
   ajv.addKeyword({
     keyword: 'isFunction',
     schemaType: 'boolean',
@@ -950,6 +958,19 @@ export async function ncc_async_sema(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('async-sema')))
     .ncc({ packageName: 'async-sema', externals })
     .target('compiled/async-sema')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_segment_ajv_human_errors(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@segment/ajv-human-errors/'))
+    )
+    .ncc({
+      packageName: '@segment/ajv-human-errors/',
+      externals,
+    })
+    .target('compiled/@segment/ajv-human-errors')
 }
 
 const babelCorePackages = {
@@ -1803,6 +1824,7 @@ export async function ncc(task, opts) {
         'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
+        'ncc_segment_ajv_human_errors',
         'ncc_assert',
         'ncc_browser_zlib',
         'ncc_buffer',
