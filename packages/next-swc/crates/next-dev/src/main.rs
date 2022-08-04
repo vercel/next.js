@@ -36,6 +36,10 @@ struct Cli {
     /// parent asset is requested
     #[clap(long)]
     eager_compile: bool,
+
+    /// Don't open the browser automatically when the dev server has started.
+    #[clap(long)]
+    no_open: bool,
 }
 
 #[tokio::main]
@@ -79,7 +83,9 @@ async fn main() {
             format!("http://{}", server.addr)
         };
         println!("server listening on: {uri}", uri = index_uri);
-        let _ = webbrowser::open(&index_uri);
+        if !args.no_open {
+            let _ = webbrowser::open(&index_uri);
+        }
     }
 
     join! {
