@@ -29,6 +29,7 @@ import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
   entries,
+  getInvalidator,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
@@ -587,6 +588,11 @@ export default class HotReloader {
               page,
               pageRuntime: staticInfo.runtime,
               onEdgeServer: () => {
+                if (entries[`server${page}`]) {
+                  // Runtime switched from server to edge
+                  delete entries[`server${page}`]
+                  getInvalidator()?.invalidate(['server', 'edgeServer'])
+                }
                 if (!isEdgeServerCompilation) return
                 entries[pageKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
@@ -636,6 +642,11 @@ export default class HotReloader {
                 }
               },
               onServer: () => {
+                if (entries[`edge-server${page}`]) {
+                  // Runtime switched from edge to server
+                  delete entries[`edge-server${page}`]
+                  getInvalidator()?.invalidate(['server', 'edgeServer'])
+                }
                 if (!isNodeServerCompilation) return
                 entries[pageKey].status = BUILDING
                 let request = relative(config.context!, absolutePagePath)
