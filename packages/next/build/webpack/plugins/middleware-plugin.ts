@@ -44,12 +44,6 @@ interface EntryMetadata {
 }
 
 const NAME = 'MiddlewarePlugin'
-const middlewareManifest: MiddlewareManifest = {
-  sortedMiddleware: [],
-  middleware: {},
-  functions: {},
-  version: 1,
-}
 
 export default class MiddlewarePlugin {
   dev: boolean
@@ -550,6 +544,13 @@ function getCreateAssets(params: {
 }) {
   const { compilation, metadataByEntry } = params
   return (assets: any) => {
+    const middlewareManifest: MiddlewareManifest = {
+      sortedMiddleware: [],
+      middleware: {},
+      functions: {},
+      version: 1,
+    }
+
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
         continue
