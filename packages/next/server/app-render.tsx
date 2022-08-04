@@ -39,6 +39,7 @@ export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
   serverComponentManifest?: any
+  serverCSSManifest?: any
   supportsDynamicHTML?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -373,23 +374,28 @@ function getSegmentParam(segment: string): {
 }
 
 /**
- * Get inline <link> tags based on __next_rsc_css__ manifest. Only used when rendering to HTML.
+ * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
  */
 function getCssInlinedLinkTags(
   serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest
-): ManifestChunks {
-  const uniqueChunks = new Set<string>()
+) {
+  const chunks: { [file: string]: string[] } = {}
 
   for (const layoutOrPage in serverCSSManifest) {
+    const uniqueChunks = new Set<string>()
     for (const css of serverCSSManifest[layoutOrPage]) {
       for (const chunk of serverComponentManifest[css].default.chunks) {
-        uniqueChunks.add(chunk)
+        if (!uniqueChunks.has(chunk)) {
+          uniqueChunks.add(chunk)
+          chunks[layoutOrPage] = chunks[layoutOrPage] || []
+          chunks[layoutOrPage].push(chunk)
+        }
       }
     }
   }
 
-  return Array.from(uniqueChunks)
+  return chunks
 }
 
 export async function renderToHTMLOrFlight(
@@ -586,12 +592,16 @@ export async function renderToHTMLOrFlight(
     parentParams,
     firstItem,
     rootLayoutIncluded,
+    serverCSSManifest,
+    parentSegmentPath,
   }: {
     createSegmentPath: CreateSegmentPath
     loaderTree: LoaderTree
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
+    serverCSSManifest: { [file: string]: string[] }
+    parentSegmentPath: string
   }): Promise<{ Component: React.ComponentType }> => {
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
@@ -610,6 +620,10 @@ export async function renderToHTMLOrFlight(
      */
     const rootLayoutIncludedAtThisLevelOrAbove =
       rootLayoutIncluded || rootLayoutAtThisLevel
+
+    const cssSegmentPath =
+      !parentSegmentPath && !segment ? '' : parentSegmentPath + '/' + segment
+    const stylesheets = serverCSSManifest[cssSegmentPath]
 
     /**
      * Check if the current layout/page is a client component
@@ -671,6 +685,8 @@ export async function renderToHTMLOrFlight(
             loaderTree: parallelRoutes[parallelRouteKey],
             parentParams: currentParams,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+            serverCSSManifest,
+            parentSegmentPath: cssSegmentPath,
           })
 
           const childSegment = parallelRoutes[parallelRouteKey][0]
@@ -810,16 +826,23 @@ export async function renderToHTMLOrFlight(
         }
 
         return (
-          <Component
-            {...props}
-            {...parallelRouteComponents}
-            // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
-            // Params are always the current params that apply to the layout
-            // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
-            params={currentParams}
-            // Query is only provided to page
-            {...(isPage ? { searchParams: query } : {})}
-          />
+          <>
+            {stylesheets
+              ? stylesheets.map((href) => (
+                  <link rel="stylesheet" href={`/_next/${href}`} key={href} />
+                ))
+              : null}
+            <Component
+              {...props}
+              {...parallelRouteComponents}
+              // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+              // Params are always the current params that apply to the layout
+              // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
+              params={currentParams}
+              // Query is only provided to page
+              {...(isPage ? { searchParams: query } : {})}
+            />
+          </>
         )
       },
     }
@@ -870,6 +893,7 @@ export async function renderToHTMLOrFlight(
         flightRouterState[3] === 'refetch'
 
       if (!parentRendered && renderComponentsOnThisLevel) {
+        console.log('->', { actualSegment, segment })
         return [
           actualSegment,
           // Create router state using the slice of the loaderTree
@@ -884,6 +908,8 @@ export async function renderToHTMLOrFlight(
                   loaderTree: loaderTreeToFilter,
                   parentParams: currentParams,
                   firstItem: true,
+                  serverCSSManifest,
+                  parentSegmentPath: '',
                 }
               )
             ).Component
@@ -931,12 +957,20 @@ export async function renderToHTMLOrFlight(
 
   // Below this line is handling for rendering to HTML.
 
+  // Get all the server imported styles.
+  const mappedServerCSSManifest = getCssInlinedLinkTags(
+    serverComponentManifest,
+    serverCSSManifest
+  )
+
   // Create full component tree from root to leaf.
   const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
     loaderTree: loaderTree,
     parentParams: {},
     firstItem: true,
+    serverCSSManifest: mappedServerCSSManifest,
+    parentSegmentPath: '',
   })
 
   // AppRouter is provided by next-app-loader
@@ -950,10 +984,6 @@ export async function renderToHTMLOrFlight(
 
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
-  const initialStylesheets: string[] = getCssInlinedLinkTags(
-    serverComponentManifest,
-    serverCSSManifest
-  )
 
   /**
    * A new React Component that renders the provided React Component
@@ -968,7 +998,6 @@ export async function renderToHTMLOrFlight(
           hotReloader={HotReloader && <HotReloader assetPrefix="" />}
           initialCanonicalUrl={initialCanonicalUrl}
           initialTree={initialTree}
-          initialStylesheets={initialStylesheets}
         >
           <ComponentTree />
         </AppRouter>
@@ -1040,7 +1069,6 @@ export async function renderToHTMLOrFlight(
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
-      initialStylesheets,
     })
   }
 

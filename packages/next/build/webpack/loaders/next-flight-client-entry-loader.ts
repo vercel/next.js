@@ -3,16 +3,12 @@ export type CssImports = Record<string, string[]>
 
 export type NextFlightClientEntryLoaderOptions = {
   modules: ClientComponentImports
-  /**
-   * Stringified version of CssImports
-   */
-  css: string
   /** This is transmitted as a string to `getOptions` */
   server: boolean | 'true' | 'false'
 }
 
 export default async function transformSource(this: any): Promise<string> {
-  let { modules, css, server }: NextFlightClientEntryLoaderOptions =
+  let { modules, server }: NextFlightClientEntryLoaderOptions =
     this.getOptions()
   const isServer = server === 'true'
 
@@ -28,7 +24,6 @@ export default async function transformSource(this: any): Promise<string> {
       .map((request) => `import(/* webpackMode: "eager" */ '${request}')`)
       .join(';\n') +
     `
-    export const __next_rsc_css__ = ${server ? css : 'null'};
     export const __next_rsc__ = {
       server: false,
       __webpack_require__

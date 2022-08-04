@@ -1,4 +1,5 @@
 import { stringify } from 'querystring'
+import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { clientComponentRegex } from '../loaders/utils'
@@ -103,12 +104,12 @@ export class FlightClientEntryPlugin {
       //       name,
       //       entryDependency,
       //       clientComponentImports,
-      //       cssImports
       //     )
       //   )
       // }
       const [clientComponentImports, cssImports] =
         this.collectClientComponentsAndCSSForDependency(
+          compiler.context,
           compilation,
           entryDependency
         )
@@ -121,8 +122,7 @@ export class FlightClientEntryPlugin {
           compilation,
           name,
           entryDependency,
-          clientComponentImports,
-          cssImports
+          clientComponentImports
         )
       )
     }
@@ -146,19 +146,20 @@ export class FlightClientEntryPlugin {
   }
 
   collectClientComponentsAndCSSForDependency(
+    context: string,
     compilation: any,
     dependency: any /* Dependency */
   ): [ClientComponentImports, CssImports] {
     /**
      * Keep track of checked modules to avoid infinite loops with recursive imports.
      */
-    const visited: Set<string> = new Set()
+    const visitedBySegment: { [segment: string]: Set<string> } = {}
     const clientComponentImports: ClientComponentImports = []
     const serverCSSImports: CssImports = {}
 
     const filterClientComponents = (
       dependencyToFilter: any,
-      layoutOrPage: string
+      segmentPath: string
     ): void => {
       const mod: webpack5.NormalModule =
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
@@ -181,8 +182,11 @@ export class FlightClientEntryPlugin {
           : mod.resourceResolveData?.path
 
       // Ensure module is not walked again if it's already been visited
-      if (!modRequest || visited.has(modRequest)) return
-      visited.add(modRequest)
+      if (!visitedBySegment[segmentPath]) {
+        visitedBySegment[segmentPath] = new Set()
+      }
+      if (!modRequest || visitedBySegment[segmentPath].has(modRequest)) return
+      visitedBySegment[segmentPath].add(modRequest)
 
       const isLayoutOrPage =
         /\/(layout|page)(\.server|\.client)?\.(js|ts)x?$/.test(modRequest)
@@ -190,8 +194,8 @@ export class FlightClientEntryPlugin {
       const isClientComponent = clientComponentRegex.test(modRequest)
 
       if (isCSS) {
-        serverCSSImports[layoutOrPage] = serverCSSImports[layoutOrPage] || []
-        serverCSSImports[layoutOrPage].push(modRequest)
+        serverCSSImports[segmentPath] = serverCSSImports[segmentPath] || []
+        serverCSSImports[segmentPath].push(modRequest)
       }
 
       // Check if request is for css file.
@@ -200,13 +204,25 @@ export class FlightClientEntryPlugin {
         return
       }
 
+      if (isLayoutOrPage) {
+        segmentPath = path
+          .relative(path.join(context, 'app'), path.dirname(modRequest))
+          .replace(/\\/g, '/')
+
+        if (segmentPath !== '') {
+          segmentPath = '/' + segmentPath
+        }
+
+        // If it's a page, add an extra '/' to the segments
+        if (/\/(page)(\.server|\.client)?\.(js|ts)x?$/.test(modRequest)) {
+          segmentPath += '/'
+        }
+      }
+
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
-          filterClientComponents(
-            connection.dependency,
-            isLayoutOrPage ? modRequest : layoutOrPage
-          )
+          filterClientComponents(connection.dependency, segmentPath)
         })
     }
 
@@ -221,8 +237,7 @@ export class FlightClientEntryPlugin {
     compilation: any,
     entryName: string,
     entryDependency: any,
-    clientComponentImports: ClientComponentImports,
-    serverCSSImports: CssImports
+    clientComponentImports: ClientComponentImports
   ) {
     const entryModule =
       compilation.moduleGraph.getResolvedModule(entryDependency)
@@ -232,7 +247,6 @@ export class FlightClientEntryPlugin {
     }
 
     const loaderOptions: NextFlightClientEntryLoaderOptions = {
-      css: JSON.stringify(serverCSSImports),
       modules: clientComponentImports,
       server: false,
     }
