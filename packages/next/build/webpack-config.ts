@@ -1223,6 +1223,7 @@ export default async function getBaseWebpackConfig(
     },
     watchOptions,
     output: {
+      ['compareBeforeEmit' as any]: false,
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
       publicPath: `${config.assetPrefix || ''}/_next/`,
