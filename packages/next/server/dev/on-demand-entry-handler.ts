@@ -468,6 +468,7 @@ class Invalidator {
     // So, it can re-build the queued pages at once.
     if (this.building) {
       this.rebuildAgain = true
+      return
     }
 
     this.building = true
