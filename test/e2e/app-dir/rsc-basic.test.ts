@@ -41,6 +41,8 @@ describe('app dir - react server components', () => {
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
       },
       dependencies: {
+        'styled-jsx': 'latest',
+        'styled-components': '6.0.0-alpha.5',
         react: 'experimental',
         'react-dom': 'experimental',
       },
@@ -320,11 +322,15 @@ describe('app dir - react server components', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it.skip('should SSR styled-jsx correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/styled-jsx')
-    const styledJsxClass = getNodeBySelector(html, 'h1').attr('class')
+  it('should render initial styles of css-in-js in SSR correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/css-in-js')
+    const head = getNodeBySelector(html, 'head').html()
 
-    expect(html).toContain(`h1.${styledJsxClass}{color:red}`)
+    // from styled-jsx
+    expect(head).toMatch(/{color:(\s*)purple;?}/)
+
+    // from styled-components
+    expect(head).toMatch(/{color:(\s*)blue;?}/)
   })
 
   it('should support streaming for flight response', async () => {
