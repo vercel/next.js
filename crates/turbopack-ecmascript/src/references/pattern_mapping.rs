@@ -3,17 +3,13 @@ use std::collections::HashMap;
 use anyhow::Result;
 use swc_ecma_ast::Expr;
 use swc_ecma_quote::quote;
-use turbo_tasks::ValueToString;
+use turbo_tasks::{Value, ValueToString};
 use turbopack_core::{
     chunk::ModuleId,
-    context::AssetContextVc,
-    resolve::{parse::RequestVc, ResolveResult},
+    resolve::{ResolveResult, ResolveResultVc},
 };
 
-use crate::{
-    resolve::cjs_resolve, utils::module_id_to_lit, EcmascriptChunkContextVc,
-    EcmascriptChunkPlaceableVc,
-};
+use crate::{utils::module_id_to_lit, EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc};
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
 /// to corresponding module ids. The same pattern can map to multiple module ids
@@ -36,6 +32,13 @@ pub(crate) enum PatternMapping {
     /// require(`./images/${name}.png`)
     /// ```
     Map(HashMap<String, ModuleId>),
+}
+
+#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+#[turbo_tasks::value(serialization: auto_for_input)]
+pub(crate) enum ResolveType {
+    EsmAsync,
+    Cjs,
 }
 
 impl PatternMapping {
@@ -65,13 +68,12 @@ impl PatternMappingVc {
     // impl.
     #[turbo_tasks::function]
     pub async fn resolve_request(
-        request: RequestVc,
-        context: AssetContextVc,
         chunk_context: EcmascriptChunkContextVc,
+        resolve_result: ResolveResultVc,
+        resolve_type: Value<ResolveType>,
     ) -> Result<PatternMappingVc> {
-        let resolve_result = cjs_resolve(request, context).await?;
-
-        let asset = match &*resolve_result {
+        let result = resolve_result.await?;
+        let asset = match &*result {
             ResolveResult::Alternatives(assets, _) => {
                 if let Some(asset) = assets.first() {
                     asset
@@ -85,16 +87,20 @@ impl PatternMappingVc {
                 println!(
                     "the reference resolves to a non-trivial result, which is not supported yet: \
                      {:?}",
-                    &*resolve_result
+                    &*result
                 );
                 return Ok(PatternMappingVc::cell(PatternMapping::Invalid));
             }
         };
 
         if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-            Ok(PatternMappingVc::cell(PatternMapping::Single(
-                chunk_context.id(placeable).await?.clone(),
-            )))
+            let name = if *resolve_type == ResolveType::EsmAsync {
+                chunk_context.helper_id("chunk loader", Some(*asset))
+            } else {
+                chunk_context.id(placeable)
+            }
+            .await?;
+            Ok(PatternMappingVc::cell(PatternMapping::Single(name.clone())))
         } else {
             println!(
                 "asset {} is not placeable in ESM chunks, so it doesn't have a module id",

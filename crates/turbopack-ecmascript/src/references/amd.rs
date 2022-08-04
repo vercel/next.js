@@ -4,7 +4,7 @@ use swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     util::try_join_all,
-    ValueToString,
+    Value, ValueToString,
 };
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
@@ -13,7 +13,7 @@ use turbopack_core::{
     resolve::{parse::RequestVc, ResolveResultVc},
 };
 
-use super::pattern_mapping::PatternMappingVc;
+use super::pattern_mapping::{PatternMappingVc, ResolveType::Cjs};
 use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
@@ -95,7 +95,12 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
 
         let dependencies_pms: Vec<_> =
             try_join_all(self.dependencies_requests.iter().map(|request| async move {
-                PatternMappingVc::resolve_request(*request, self.context, chunk_context).await
+                PatternMappingVc::resolve_request(
+                    chunk_context,
+                    cjs_resolve(*request, self.context),
+                    Value::new(Cjs),
+                )
+                .await
             }))
             .await?;
 

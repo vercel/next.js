@@ -111,6 +111,7 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<StringV
         "s: __turbopack_esm__",
         "v: __turbopack_export_value__",
         "c: __turbopack_cache__",
+        "l: __turbopack_load__",
         "p: process",
     ];
     if content.options.module {
@@ -198,12 +199,12 @@ impl Asset for EcmascriptChunk {
         var array = self.TURBOPACK;
         var chunks = new Set();
         var runnable = [];
-        var modules = {};
-        var cache = {};
+        var modules = { __proto__: null };
+        var cache = { __proto__: null };
+        var loading = { __proto__: null };
         let socket;
         // TODO: temporary solution
         var process = { env: { NODE_ENV: "development" } };
-        var hOP = Object.prototype.hasOwnProperty;
         function require(from, id) {
             return getModule(from, id).exports;
         }
@@ -212,9 +213,7 @@ impl Asset for EcmascriptChunk {
             Object.defineProperty(exports, "__esModule", { value: true });
             if(toStringTag) Object.defineProperty(exports, toStringTag, { value: "Module" });
             for(var key in getters) {
-                if(hOP.call(getters, key)) {
-                    Object.defineProperty(exports, key, { get: getters[key], enumerable: true, });
-                }
+                Object.defineProperty(exports, key, { get: getters[key], enumerable: true, });
             }
         }
         function exportValue(module, value) {
@@ -224,7 +223,7 @@ impl Asset for EcmascriptChunk {
             return () => obj[key];
         }
         function interopEsm(raw, ns, allowExportDefault) {
-            var getters = {};
+            var getters = { __proto__: null };
             for(var key in raw) {
                 getters[key] = createGetter(raw, key);
             }
@@ -242,9 +241,29 @@ impl Asset for EcmascriptChunk {
             interopEsm(raw, ns, allowExportDefault);
             return ns;
         }
+        function loadFile(id, path) {
+            if (chunks.has(id)) return;
+            if (loading[id]) return loading[id].promise;
+
+            var load = loading[id] = {};
+            load.promise = new Promise((resolve, reject) => {
+                load.resolve = resolve;
+                load.reject = reject;
+            }).catch(ev => {
+                delete loading[id];
+                throw ev;
+            });
+
+            var script = document.createElement('script');
+            script.src = path;
+            script.onerror = load.reject;
+            document.body.appendChild(script);
+            return load.promise;
+        }
         function getModule(from, id) {
-            if(hOP.call(cache, id)) {
-                return cache[id];
+            var cacheEntry = cache[id];
+            if(cacheEntry) {
+                return cacheEntry;
             }
             var module = { exports: {}, loaded: false, id, parents: new Set(), children: new Set(), interopNamespace: undefined };
             cache[id] = module;
@@ -252,7 +271,17 @@ impl Asset for EcmascriptChunk {
             if(typeof moduleFactory != "function") {
                 throw new Error(`Module ${id} was imported from module ${from}, but the module factory is not available`);
             }
-            moduleFactory.call(module.exports, { e: module.exports, r: require.bind(null, id), i: importModule.bind(null, id), s: esm.bind(null, module.exports), v: exportValue.bind(null, module), m: module, c: cache, p: process });
+            moduleFactory.call(module.exports, {
+                e: module.exports,
+                r: require.bind(null, id),
+                i: importModule.bind(null, id),
+                s: esm.bind(null, module.exports),
+                v: exportValue.bind(null, module),
+                m: module,
+                c: cache,
+                l: loadFile,
+                p: process
+            });
             module.loaded = true;
             if(module.interopNamespace) {
                 // in case of a circular dependency: cjs1 -> esm2 -> cjs1
@@ -263,6 +292,10 @@ impl Asset for EcmascriptChunk {
         var runtime = { chunks, modules, cache, getModule };
         function op([id, chunkModules, ...run]) {
             chunks.add(id);
+            if(loading[id]) {
+                loading[id].resolve();
+                delete loading[id];
+            }
             if(socket) socket.send(JSON.stringify(id));
             for(var m in chunkModules) {
                 if(!modules[m]) modules[m] = chunkModules[m];

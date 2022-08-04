@@ -1,7 +1,9 @@
 use anyhow::Result;
+use swc_ecma_ast::{Callee, ExprOrSpread};
+use swc_ecma_quote::quote_expr;
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
-    ValueToString,
+    Value, ValueToString,
 };
 use turbopack_core::{
     chunk::{
@@ -13,9 +15,11 @@ use turbopack_core::{
     resolve::{parse::RequestVc, ResolveResultVc},
 };
 
+use super::super::pattern_mapping::{PatternMapping, PatternMappingVc, ResolveType::EsmAsync};
 use crate::{
     chunk::EcmascriptChunkContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGenerationVc},
+    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    create_visitor,
     references::AstPathVc,
     resolve::esm_resolve,
 };
@@ -76,9 +80,65 @@ impl CodeGenerateable for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _chunk_context: EcmascriptChunkContextVc,
+        chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
-        todo!()
+        let pm = PatternMappingVc::resolve_request(
+            chunk_context,
+            esm_resolve(self.request, self.context),
+            Value::new(EsmAsync),
+        )
+        .await?;
+
+        let path = &self.path.await?;
+
+        let visitor = if let PatternMapping::Invalid = &*pm {
+            create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
+                let old_args = std::mem::take(&mut call_expr.args);
+                let message = match old_args.first() {
+                    Some(ExprOrSpread { spread: None, expr }) => {
+                        quote_expr!(
+                            "'could not resolve \"' + $arg + '\" into a module'",
+                            arg: Expr = *expr.clone(),
+                        )
+                    }
+                    // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
+                    Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
+                        quote_expr!("'spread operator is illegal in import() expressions.'")
+                    }
+                    _ => {
+                        quote_expr!("'import() expressions require at least 1 argument'")
+                    }
+                };
+                let error = quote_expr!(
+                    "new Error($message)",
+                    message: Expr = *message
+                );
+                call_expr.callee = Callee::Expr(quote_expr!("Promise.reject"));
+                call_expr.args = vec![
+                    ExprOrSpread { spread: None, expr: error, },
+                ];
+            })
+        } else {
+            create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
+                let old_args = std::mem::take(&mut call_expr.args);
+                let expr = match old_args.into_iter().next() {
+                    Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
+                    _ => pm.create(),
+                };
+                call_expr.callee = Callee::Expr(quote_expr!(
+                        "__turbopack_require__($arg)",
+                        arg: Expr = expr
+                ));
+                call_expr.args = vec![
+                    ExprOrSpread { spread: None, expr: quote_expr!("__turbopack_import__") },
+                ];
+            })
+        };
+
+        Ok(CodeGeneration {
+            visitors: vec![visitor],
+        }
+        .into())
     }
 }

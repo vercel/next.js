@@ -3,7 +3,7 @@ use swc_common::DUMMY_SP;
 use swc_ecma_ast::{Callee, Expr, ExprOrSpread, Ident};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
-    ValueToString,
+    Value, ValueToString,
 };
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
@@ -12,7 +12,7 @@ use turbopack_core::{
     resolve::{parse::RequestVc, ResolveResultVc},
 };
 
-use super::pattern_mapping::{PatternMapping, PatternMappingVc};
+use super::pattern_mapping::{PatternMapping, PatternMappingVc, ResolveType::Cjs};
 use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
@@ -112,8 +112,12 @@ impl CodeGenerateable for CjsRequireAssetReference {
         chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
-        let pm =
-            PatternMappingVc::resolve_request(self.request, self.context, chunk_context).await?;
+        let pm = PatternMappingVc::resolve_request(
+            chunk_context,
+            cjs_resolve(self.request, self.context),
+            Value::new(Cjs),
+        )
+        .await?;
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;
@@ -191,8 +195,12 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
         chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
-        let pm =
-            PatternMappingVc::resolve_request(self.request, self.context, chunk_context).await?;
+        let pm = PatternMappingVc::resolve_request(
+            chunk_context,
+            cjs_resolve(self.request, self.context),
+            Value::new(Cjs),
+        )
+        .await?;
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;

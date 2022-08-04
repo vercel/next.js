@@ -1,9 +1,9 @@
-use std::fmt::Write as _;
+use std::{collections::HashSet, fmt::Write as FmtWrite};
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::Asset,
     chunk::{ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkableAssetVc, ChunkingContextVc},
     reference::AssetReferencesVc,
 };
@@ -11,6 +11,10 @@ use turbopack_core::{
 use super::{
     EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
     EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
+};
+use crate::{
+    chunk::EcmascriptChunkPlaceableVc,
+    utils::{stringify_module_id, stringify_str},
 };
 
 #[turbo_tasks::value]
@@ -55,12 +59,49 @@ impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
     ) -> Result<EcmascriptChunkItemContentVc> {
         let chunk_group = ChunkGroupVc::from_asset(self.asset, context);
         let chunks = chunk_group.chunks().await?;
-        let mut code = "console.log(\"TODO load chunk group\");".to_string();
+        let placeable = EcmascriptChunkPlaceableVc::resolve_from(self.asset)
+            .await?
+            .unwrap();
+        let id = stringify_module_id(&*chunk_context.id(placeable).await?);
+
+        let mut chunk_ids = HashSet::new();
         for chunk in chunks.iter() {
-            let asset: AssetVc = (*chunk).into();
-            let path = asset.path().await?;
-            let _ = write!(code, "\nconsole.log(\"/{}\");", path.path);
+            // Don't ask me why the id is generated from the path...
+            let fs = chunk.path();
+            let id = fs.to_string().await?.to_string();
+            // Or why the pathname can't be found from the chunk.path().
+            let pathname = fs
+                .root()
+                .await?
+                .get_relative_path_to(&*chunk.as_asset().path().await?)
+                .unwrap();
+            chunk_ids.insert((id, pathname));
         }
+
+        let mut code = String::new();
+        code += "const chunks = [\n";
+        for (id, pathname) in chunk_ids {
+            writeln!(
+                code,
+                "    [{}, {}],",
+                stringify_str(&id),
+                stringify_str(&pathname)
+            )?;
+        }
+        code += "];\n";
+
+        // TODO: a dedent macro would be awesome.
+        write!(
+            code,
+            "
+__turbopack_export_value__((__turbopack_import__) => {{
+    const loads = chunks.map(([id, path]) => __turbopack_load__(id, path));
+    return Promise.all(loads).then(() => {{
+        return __turbopack_import__({id})
+    }});
+}});"
+        )?;
+
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
             id: chunk_context.helper_id("chunk loader", Some(self.asset.as_asset())),
