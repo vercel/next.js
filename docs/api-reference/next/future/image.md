@@ -63,7 +63,7 @@ import Image from 'next/image'
 function Page() {
   return (
     <Image
-      src="/images/examples/how-to-migrate-to-future.jpg"
+      src="/images/examples/how-to-migrate-future-image.jpg"
       width="1000"
       height="1000"
     />
@@ -81,7 +81,7 @@ const css = { maxWidth: '100%', height: 'auto' }
 function Page() {
   return (
     <Image
-      src="/images/examples/how-to-migrate-to-future.jpg"
+      src="/images/examples/how-to-migrate-future-image.jpg"
       width="1000"
       height="1000"
       style={css}
@@ -102,7 +102,7 @@ import Image from 'next/image'
 function Page() {
   return (
     <Image
-      src="/images/examples/how-to-migrate-to-future.jpg"
+      src="/images/examples/how-to-migrate-future-image.jpg"
       width="1000"
       height="1000"
       layout="responsive"
@@ -121,7 +121,7 @@ const css = { width: '100%', height: 'auto' }
 function Page() {
   return (
     <Image
-      src="/images/examples/how-to-migrate-to-future.jpg"
+      src="/images/examples/how-to-migrate-future-image.jpg"
       width="1000"
       height="1000"
       sizes="100vw"
@@ -142,7 +142,10 @@ import Image from 'next/image'
 
 function Page() {
   return (
-    <Image src="/images/examples/how-to-migrate-to-future.jpg" layout="fill" />
+    <Image
+      src="/images/examples/how-to-migrate-future-image.jpg"
+      layout="fill"
+    />
   )
 }
 ```
@@ -156,7 +159,7 @@ import Image from 'next/future/image'
 function Page() {
   return (
     <Image
-      src="/images/examples/how-to-migrate-to-future.jpg"
+      src="/images/examples/how-to-migrate-future-image.jpg"
       sizes="100vw"
       fill
     />
@@ -176,7 +179,7 @@ import Image from 'next/image'
 function Page() {
   return (
     <Image
-      src="/images/examples/how-to-migrate-to-future.jpg"
+      src="/images/examples/how-to-migrate-future-image.jpg"
       width="1000"
       height="1000"
       layout="fixed"
@@ -194,7 +197,7 @@ import Image from 'next/future/image'
 function Page() {
   return (
     <Image
-      src="/images/examples/how-to-migrate-to-future.jpg"
+      src="/images/examples/how-to-migrate-future-image.jpg"
       width="1000"
       height="1000"
     />
