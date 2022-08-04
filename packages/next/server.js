@@ -1,4 +1,4 @@
-module.exports = {
+const serverExports = {
   NextRequest: require('next/dist/server/web/spec-extension/request')
     .NextRequest,
   NextResponse: require('next/dist/server/web/spec-extension/response')
@@ -7,6 +7,11 @@ module.exports = {
     .userAgentFromString,
   userAgent: require('next/dist/server/web/spec-extension/user-agent')
     .userAgent,
-  // eslint-disable-next-line no-undef
-  URLPattern: URLPattern,
 }
+
+if (typeof URLPattern !== 'undefined') {
+  // eslint-disable-next-line no-undef
+  serverExports.URLPattern = URLPattern
+}
+
+module.exports = serverExports
