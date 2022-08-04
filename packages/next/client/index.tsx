@@ -626,9 +626,9 @@ function clearMarks(): void {
   )
 }
 
-function AppContainer({
+const AppContainer = React.memo(({
   children,
-}: React.PropsWithChildren<{}>): React.ReactElement {
+}: React.PropsWithChildren<{}>): React.ReactElement => {
   return (
     <Container
       fn={(error) =>
@@ -648,7 +648,7 @@ function AppContainer({
       </RouterContext.Provider>
     </Container>
   )
-}
+})
 
 function renderApp(App: AppComponent, appProps: AppProps) {
   return <App {...appProps} />
