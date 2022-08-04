@@ -725,7 +725,9 @@ export async function resizeImage(
   extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
-  if (sharp) {
+  if (isAnimated(content)) {
+    return content
+  } else if (sharp) {
     const transformer = sharp(content)
 
     if (extension === 'avif') {
