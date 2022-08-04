@@ -14,7 +14,7 @@ const Page = () => {
       <br />
       <Image
         id="external-image"
-        src="https://via.placeholder.com/800/000/FFF.png?text=test"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width={400}
         height={400}
       />

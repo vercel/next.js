@@ -159,7 +159,7 @@ describe('Next.js Script - Primary Strategies', () => {
       let documentBIScripts = await browser.elementsByCss(
         '[src$="scriptBeforeInteractive"]'
       )
-      expect(documentBIScripts.length).toBe(1)
+      expect(documentBIScripts.length).toBe(2)
 
       await browser.waitForElementByCss('[href="/page1"]')
       await browser.click('[href="/page1"]')
@@ -170,7 +170,7 @@ describe('Next.js Script - Primary Strategies', () => {
       documentBIScripts = await browser.elementsByCss(
         '[src$="scriptBeforeInteractive"]'
       )
-      expect(documentBIScripts.length).toBe(1)
+      expect(documentBIScripts.length).toBe(2)
     } finally {
       if (browser) await browser.close()
     }
@@ -185,6 +185,30 @@ describe('Next.js Script - Primary Strategies', () => {
       const text = await browser.elementById('text').text()
 
       expect(text).toBe('aaabbbccc')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('onReady fires after load event and then on every subsequent re-mount', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page8')
+
+      const text = await browser.elementById('text').text()
+
+      expect(text).toBe('aaa')
+
+      // Navigate to different page and back
+      await browser.waitForElementByCss('[href="/page9"]')
+      await browser.click('[href="/page9"]')
+      await browser.waitForElementByCss('[href="/page8"]')
+      await browser.click('[href="/page8"]')
+
+      await browser.waitForElementByCss('.container')
+      const sameText = await browser.elementById('text').text()
+
+      expect(sameText).toBe('aaa') // onReady should fire again
     } finally {
       if (browser) await browser.close()
     }

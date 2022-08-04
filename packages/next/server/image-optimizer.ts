@@ -125,7 +125,7 @@ export class ImageOptimizerCache {
 
     const width = parseInt(w, 10)
 
-    if (!width || isNaN(width)) {
+    if (width <= 0 || isNaN(width)) {
       return {
         errorMessage: '"w" parameter (width) must be a number greater than 0',
       }

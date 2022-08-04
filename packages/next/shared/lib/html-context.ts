@@ -1,4 +1,5 @@
 import type { BuildManifest } from '../../server/get-page-files'
+import type { ServerRuntime } from '../../server/config-shared'
 import type { NEXT_DATA } from './utils'
 
 import { createContext } from 'react'
@@ -37,7 +38,7 @@ export type HtmlProps = {
   optimizeCss?: boolean
   optimizeFonts?: boolean
   nextScriptWorkers?: boolean
-  runtime?: 'edge' | 'nodejs'
+  runtime?: ServerRuntime
   hasConcurrentFeatures?: boolean
   largePageDataBytes?: number
 }

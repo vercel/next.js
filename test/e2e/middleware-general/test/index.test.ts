@@ -95,6 +95,15 @@ describe('Middleware Runtime', () => {
           await browser.close()
         }
       })
+
+      it('should only contain middleware route in dev middleware manifest', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
+        )
+        const { location } = await res.json()
+        expect(location).toBe('.*')
+      })
     }
 
     if ((global as any).isNextStart) {
@@ -114,6 +123,7 @@ describe('Middleware Runtime', () => {
             page: '/',
             regexp: '^/.*$',
             wasm: [],
+            assets: [],
           },
         })
       })
@@ -148,6 +158,22 @@ describe('Middleware Runtime', () => {
         expect(res.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
       })
     }
+
+    it('should have init header for NextResponse.redirect', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/redirect-to-somewhere',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere'
+      )
+      expect(res.headers.get('x-redirect-header')).toBe('hi')
+    })
 
     it('should have correct query values for rewrite to ssg page', async () => {
       const browser = await webdriver(next.url, '/to-ssg')

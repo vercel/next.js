@@ -135,11 +135,6 @@ function runTests(mode) {
           imagesrcset:
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
         },
-        {
-          imagesizes: '',
-          imagesrcset:
-            '/_next/image?url=%2Ftest.webp&w=1200&q=75 1x, /_next/image?url=%2Ftest.webp&w=3840&q=75 2x',
-        },
       ])
 
       // When priority={true}, we should _not_ set loading="lazy"
@@ -155,9 +150,6 @@ function runTests(mode) {
       expect(
         await browser.elementById('responsive2').getAttribute('loading')
       ).toBe(null)
-      expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
-        null
-      )
 
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
@@ -177,11 +169,9 @@ function runTests(mode) {
     const $html = cheerio.load(html)
 
     const els = [].slice.apply($html('img'))
-    expect(els.length).toBe(2)
+    expect(els.length).toBe(1)
 
-    const [el, noscriptEl] = els
-    expect(noscriptEl.attribs.src).toBeDefined()
-    expect(noscriptEl.attribs.srcset).toBeDefined()
+    const [el] = els
 
     expect(el.attribs.src).not.toBe('/truck.jpg')
     expect(el.attribs.srcset).not.toBe(
@@ -216,98 +206,91 @@ function runTests(mode) {
   })
 
   it('should callback onLoadingComplete when image is fully loaded', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/on-loading-complete')
+    let browser = await webdriver(appPort, '/on-loading-complete')
 
-      await browser.eval(
-        `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
-      )
+    await browser.eval(
+      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+    )
 
-      await check(
-        () => browser.eval(`document.getElementById("img1").currentSrc`),
-        /test(.*)jpg/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img2").currentSrc`),
-        /test(.*).png/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img3").currentSrc`),
-        /test\.svg/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img4").currentSrc`),
-        /test(.*)ico/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg1").textContent`),
-        'loaded 1 img1 with dimensions 128x128'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg2").textContent`),
-        'loaded 1 img2 with dimensions 400x400'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg3").textContent`),
-        'loaded 1 img3 with dimensions 400x400'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg4").textContent`),
-        'loaded 1 img4 with dimensions 32x32'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg5").textContent`),
-        'loaded 1 img5 with dimensions 3x5'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg6").textContent`),
-        'loaded 1 img6 with dimensions 3x5'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg7").textContent`),
-        'loaded 1 img7 with dimensions 400x400'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg8").textContent`),
-        'loaded 1 img8 with dimensions 640x373'
-      )
-      await check(
-        () =>
-          browser.eval(
-            `document.getElementById("img8").getAttribute("data-nimg")`
-          ),
-        'future'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img8").currentSrc`),
-        /wide.png/
-      )
-      await browser.eval('document.getElementById("toggle").click()')
-      await check(
-        () => browser.eval(`document.getElementById("msg8").textContent`),
-        'loaded 2 img8 with dimensions 400x300'
-      )
-      await check(
-        () =>
-          browser.eval(
-            `document.getElementById("img8").getAttribute("data-nimg")`
-          ),
-        'future'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img8").currentSrc`),
-        /test-rect.jpg/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg9").textContent`),
-        'loaded 1 img9 with dimensions 400x400'
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    await check(
+      () => browser.eval(`document.getElementById("img1").currentSrc`),
+      /test(.*)jpg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img2").currentSrc`),
+      /test(.*).png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img3").currentSrc`),
+      /test\.svg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img4").currentSrc`),
+      /test(.*)ico/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'loaded 1 img1 with dimensions 128x128'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'loaded 1 img2 with dimensions 400x400'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg3").textContent`),
+      'loaded 1 img3 with dimensions 400x400'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg4").textContent`),
+      'loaded 1 img4 with dimensions 32x32'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg5").textContent`),
+      'loaded 1 img5 with dimensions 3x5'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg6").textContent`),
+      'loaded 1 img6 with dimensions 3x5'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg7").textContent`),
+      'loaded 1 img7 with dimensions 400x400'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg8").textContent`),
+      'loaded 1 img8 with dimensions 640x373'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        ),
+      'future'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      /wide.png/
+    )
+    await browser.eval('document.getElementById("toggle").click()')
+    await check(
+      () => browser.eval(`document.getElementById("msg8").textContent`),
+      'loaded 2 img8 with dimensions 400x300'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        ),
+      'future'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      /test-rect.jpg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg9").textContent`),
+      'loaded 1 img9 with dimensions 400x400'
+    )
   })
 
   it('should callback native onLoad in most cases', async () => {
@@ -447,10 +430,10 @@ function runTests(mode) {
     )
   })
 
-  it('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
+  it('should render no wrappers or sizers', async () => {
     let browser
     try {
-      browser = await webdriver(appPort, '/layout-raw')
+      browser = await webdriver(appPort, '/wrapper-div')
 
       const numberOfChildren = await browser.eval(
         `document.getElementById('image-container1').children.length`
@@ -461,38 +444,38 @@ function runTests(mode) {
       )
       expect(childElementType).toBe('IMG')
 
-      expect(await browser.elementById('raw1').getAttribute('style')).toBeNull()
-      expect(await browser.elementById('raw1').getAttribute('height')).toBe(
+      expect(await browser.elementById('img1').getAttribute('style')).toBeNull()
+      expect(await browser.elementById('img1').getAttribute('height')).toBe(
         '700'
       )
-      expect(await browser.elementById('raw1').getAttribute('width')).toBe(
+      expect(await browser.elementById('img1').getAttribute('width')).toBe(
         '1200'
       )
-      expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
+      expect(await browser.elementById('img1').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x`
       )
-      expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+      expect(await browser.elementById('img1').getAttribute('loading')).toBe(
         'eager'
       )
 
-      expect(await browser.elementById('raw2').getAttribute('style')).toBe(
+      expect(await browser.elementById('img2').getAttribute('style')).toBe(
         'padding-left:4rem;width:100%;object-position:30% 30%'
       )
-      expect(await browser.elementById('raw2').getAttribute('height')).toBe(
+      expect(await browser.elementById('img2').getAttribute('height')).toBe(
         '700'
       )
-      expect(await browser.elementById('raw2').getAttribute('width')).toBe(
+      expect(await browser.elementById('img2').getAttribute('width')).toBe(
         '1200'
       )
-      expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
+      expect(await browser.elementById('img2').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w`
       )
-      expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
+      expect(await browser.elementById('img2').getAttribute('loading')).toBe(
         'lazy'
       )
 
-      expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
-      expect(await browser.elementById('raw3').getAttribute('srcset')).toBe(
+      expect(await browser.elementById('img3').getAttribute('style')).toBeNull()
+      expect(await browser.elementById('img3').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x`
       )
       if (mode === 'dev') {
@@ -514,82 +497,94 @@ function runTests(mode) {
     }
   })
 
-  it('should lazy load layout=raw and placeholder=blur', async () => {
-    const browser = await webdriver(appPort, '/layout-raw-placeholder-blur')
+  it('should lazy load with placeholder=blur', async () => {
+    const browser = await webdriver(appPort, '/placeholder-blur')
 
-    // raw1
-    expect(await browser.elementById('raw1').getAttribute('src')).toBe(
+    // blur1
+    expect(await browser.elementById('blur1').getAttribute('src')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
     )
-    expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
+    expect(await browser.elementById('blur1').getAttribute('srcset')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
     )
-    expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+    expect(await browser.elementById('blur1').getAttribute('loading')).toBe(
       'lazy'
     )
-    expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
-    expect(await browser.elementById('raw1').getAttribute('style')).toMatch(
+    expect(await browser.elementById('blur1').getAttribute('sizes')).toBeNull()
+    expect(await browser.elementById('blur1').getAttribute('style')).toMatch(
       'background-size:cover;background-position:0% 0%;'
     )
-    expect(await browser.elementById('raw1').getAttribute('height')).toBe('400')
-    expect(await browser.elementById('raw1').getAttribute('width')).toBe('400')
+    expect(await browser.elementById('blur1').getAttribute('height')).toBe(
+      '400'
+    )
+    expect(await browser.elementById('blur1').getAttribute('width')).toBe('400')
     await browser.eval(
-      `document.getElementById("raw1").scrollIntoView({behavior: "smooth"})`
+      `document.getElementById("blur1").scrollIntoView({behavior: "smooth"})`
     )
     await check(
-      () => browser.eval(`document.getElementById("raw1").currentSrc`),
+      () => browser.eval(`document.getElementById("blur1").currentSrc`),
       /test(.*)jpg/
     )
-    expect(await browser.elementById('raw1').getAttribute('src')).toBe(
+    expect(await browser.elementById('blur1').getAttribute('src')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
     )
-    expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
+    expect(await browser.elementById('blur1').getAttribute('srcset')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
     )
-    expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+    expect(await browser.elementById('blur1').getAttribute('loading')).toBe(
       'lazy'
     )
-    expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
-    expect(await browser.elementById('raw1').getAttribute('style')).toMatch('')
-    expect(await browser.elementById('raw1').getAttribute('height')).toBe('400')
-    expect(await browser.elementById('raw1').getAttribute('width')).toBe('400')
+    expect(await browser.elementById('blur1').getAttribute('sizes')).toBeNull()
+    expect(await browser.elementById('blur1').getAttribute('style')).toMatch('')
+    expect(await browser.elementById('blur1').getAttribute('height')).toBe(
+      '400'
+    )
+    expect(await browser.elementById('blur1').getAttribute('width')).toBe('400')
 
-    // raw2
-    expect(await browser.elementById('raw2').getAttribute('src')).toBe(
+    // blur2
+    expect(await browser.elementById('blur2').getAttribute('src')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
     )
-    expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
+    expect(await browser.elementById('blur2').getAttribute('srcset')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
     )
-    expect(await browser.elementById('raw2').getAttribute('sizes')).toBe('50vw')
-    expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
+    expect(await browser.elementById('blur2').getAttribute('sizes')).toBe(
+      '50vw'
+    )
+    expect(await browser.elementById('blur2').getAttribute('loading')).toBe(
       'lazy'
     )
-    expect(await browser.elementById('raw2').getAttribute('style')).toMatch(
+    expect(await browser.elementById('blur2').getAttribute('style')).toMatch(
       'background-size:cover;background-position:0% 0%;'
     )
-    expect(await browser.elementById('raw2').getAttribute('height')).toBe('400')
-    expect(await browser.elementById('raw2').getAttribute('width')).toBe('400')
+    expect(await browser.elementById('blur2').getAttribute('height')).toBe(
+      '400'
+    )
+    expect(await browser.elementById('blur2').getAttribute('width')).toBe('400')
     await browser.eval(
-      `document.getElementById("raw2").scrollIntoView({behavior: "smooth"})`
+      `document.getElementById("blur2").scrollIntoView({behavior: "smooth"})`
     )
     await check(
-      () => browser.eval(`document.getElementById("raw2").currentSrc`),
+      () => browser.eval(`document.getElementById("blur2").currentSrc`),
       /test(.*)png/
     )
-    expect(await browser.elementById('raw2').getAttribute('src')).toBe(
+    expect(await browser.elementById('blur2').getAttribute('src')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
     )
-    expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
+    expect(await browser.elementById('blur2').getAttribute('srcset')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
     )
-    expect(await browser.elementById('raw2').getAttribute('sizes')).toBe('50vw')
-    expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
+    expect(await browser.elementById('blur2').getAttribute('sizes')).toBe(
+      '50vw'
+    )
+    expect(await browser.elementById('blur2').getAttribute('loading')).toBe(
       'lazy'
     )
-    expect(await browser.elementById('raw2').getAttribute('style')).toBe('')
-    expect(await browser.elementById('raw2').getAttribute('height')).toBe('400')
-    expect(await browser.elementById('raw2').getAttribute('width')).toBe('400')
+    expect(await browser.elementById('blur2').getAttribute('style')).toBe('')
+    expect(await browser.elementById('blur2').getAttribute('height')).toBe(
+      '400'
+    )
+    expect(await browser.elementById('blur2').getAttribute('width')).toBe('400')
   })
 
   it('should handle the styles prop appropriately', async () => {
@@ -599,22 +594,10 @@ function runTests(mode) {
       'border-radius:10px;padding:10px'
     )
     expect(
-      await browser
-        .elementById('with-overlapping-styles-intrinsic')
-        .getAttribute('style')
+      await browser.elementById('with-overlapping-styles').getAttribute('style')
     ).toBe('width:10px;border-radius:10px;margin:15px')
     expect(
-      await browser
-        .elementById('with-overlapping-styles-raw')
-        .getAttribute('style')
-    ).toBe('width:10px;border-radius:10px;margin:15px')
-    expect(
-      await browser
-        .elementById('without-styles-responsive')
-        .getAttribute('style')
-    ).toBeNull()
-    expect(
-      await browser.elementById('without-styles-raw').getAttribute('style')
+      await browser.elementById('without-styles').getAttribute('style')
     ).toBeNull()
   })
 
@@ -622,10 +605,13 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
 
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Image is missing required "src" property. Make sure you pass "src" in props to the `next/image` component. Received: {"width":200}'
-      )
+      expect(await hasRedbox(browser)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+      }, /Image is missing required "src" property/gm)
     })
 
     it('should show invalid src error', async () => {
@@ -655,12 +641,57 @@ function runTests(mode) {
       )
     })
 
-    it('should show error when not numeric string width or height', async () => {
-      const browser = await webdriver(appPort, '/invalid-width-or-height')
+    it('should show error when invalid width prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-width')
 
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        `Image with src "/test.jpg" has invalid "width" or "height" property. These should be numeric values.`
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
+      )
+    })
+
+    it('should show error when invalid height prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-height')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
+      )
+    })
+
+    it('should show error when missing width prop', async () => {
+      const browser = await webdriver(appPort, '/missing-width')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" is missing required "width" property.`
+      )
+    })
+
+    it('should show error when missing height prop', async () => {
+      const browser = await webdriver(appPort, '/missing-height')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" is missing required "height" property.`
+      )
+    })
+
+    it('should show error when width prop on fill image', async () => {
+      const browser = await webdriver(appPort, '/invalid-fill-width')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/wide.png" has both "width" and "fill" properties.`
+      )
+    })
+
+    it('should show error when CSS position changed on fill image', async () => {
+      const browser = await webdriver(appPort, '/invalid-fill-position')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/wide.png" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
       )
     })
 
@@ -918,7 +949,59 @@ function runTests(mode) {
       await getComputedStyle(browser, 'img-blur', 'background-position')
     ).toBe('1px 2px')
   })
-
+  describe('Fill-mode tests', () => {
+    let browser
+    beforeAll(async () => {
+      browser = await webdriver(appPort, '/fill')
+    })
+    it('should include a data-attribute on fill images', async () => {
+      expect(
+        await browser.elementById('fill-image-1').getAttribute('data-nimg')
+      ).toBe('future-fill')
+    })
+    it('should add position:absolute to fill images', async () => {
+      expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(
+        'absolute'
+      )
+    })
+    it('should add 100% width and height to fill images', async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.height`
+        )
+      ).toBe('100%')
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.width`
+        )
+      ).toBe('100%')
+    })
+    if (mode === 'dev') {
+      it('should not log incorrect warnings', async () => {
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
+      })
+      it('should log warnings when using fill mode incorrectly', async () => {
+        browser = await webdriver(appPort, '/fill-warnings')
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative.'
+        )
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.'
+        )
+        expect(warnings).toContain(
+          'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
+        )
+      })
+    }
+  })
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {
@@ -954,11 +1037,11 @@ function runTests(mode) {
     $html('noscript > img').attr('id', 'unused')
 
     expect($html('#blurry-placeholder-raw')[0].attribs.style).toContain(
-      `background-size:cover;background-position:0% 0%;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' xmlns%3Axlink='http%3A//www.w3.org/1999/xlink' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'%3E%3C/feGaussianBlur%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'%3E%3C/feFuncA%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8P4nhDwAGuAKPn6cicwAAAABJRU5ErkJggg=='%3E%3C/image%3E%3C/svg%3E")`
+      `background-size:cover;background-position:0% 0%;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8P4nhDwAGuAKPn6cicwAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
 
     expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
-      `background-size:cover;background-position:0% 0%;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' xmlns%3Axlink='http%3A//www.w3.org/1999/xlink' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'%3E%3C/feGaussianBlur%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'%3E%3C/feFuncA%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='%3E%3C/image%3E%3C/svg%3E")`
+      `background-size:cover;background-position:0% 0%;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
   })
 
@@ -989,7 +1072,7 @@ function runTests(mode) {
         'background-image'
       )
     ).toBe(
-      `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' xmlns%3Axlink='http%3A//www.w3.org/1999/xlink' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'%3E%3C/feGaussianBlur%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'%3E%3C/feFuncA%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='%3E%3C/image%3E%3C/svg%3E")`
+      `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
 
     await browser.eval('document.getElementById("spacer").remove()')

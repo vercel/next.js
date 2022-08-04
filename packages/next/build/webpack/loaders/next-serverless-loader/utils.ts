@@ -9,6 +9,7 @@ import type {
   GetStaticProps,
 } from '../../../../types'
 import type { BaseNextRequest } from '../../../../server/base-http'
+import type { __ApiPreviewProps } from '../../../../server/api-utils'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
@@ -20,7 +21,6 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../../shared/lib/router/utils/prepare-destination'
-import { __ApiPreviewProps } from '../../../../server/api-utils'
 import { acceptLanguage } from '../../../../server/accept-header'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
@@ -74,12 +74,14 @@ export function getUtils({
   basePath,
   rewrites,
   pageIsDynamic,
+  trailingSlash,
 }: {
   page: ServerlessHandlerCtx['page']
   i18n?: ServerlessHandlerCtx['i18n']
   basePath: ServerlessHandlerCtx['basePath']
   rewrites: ServerlessHandlerCtx['rewrites']
   pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
+  trailingSlash?: boolean
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
   let dynamicRouteMatcher: RouteMatch | undefined
@@ -107,10 +109,13 @@ export function getUtils({
     }
 
     const checkRewrite = (rewrite: Rewrite): boolean => {
-      const matcher = getPathMatch(rewrite.source, {
-        removeUnnamedParams: true,
-        strict: true,
-      })
+      const matcher = getPathMatch(
+        rewrite.source + (trailingSlash ? '(/)?' : ''),
+        {
+          removeUnnamedParams: true,
+          strict: true,
+        }
+      )
       let params = matcher(parsedUrl.pathname)
 
       if (rewrite.has && params) {

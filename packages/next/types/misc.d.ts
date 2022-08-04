@@ -46,11 +46,6 @@ declare module 'next/dist/compiled/cssnano-simple' {
   export = cssnanoSimple
 }
 
-declare module 'next/dist/compiled/etag' {
-  import m from 'etag'
-  export = m
-}
-
 declare module 'next/dist/compiled/p-limit' {
   import m from 'p-limit'
   export = m
@@ -331,6 +326,11 @@ declare module 'next/dist/compiled/edge-runtime' {
 
 declare module 'next/dist/compiled/@edge-runtime/primitives' {
   import * as m from '@edge-runtime/primitives'
+  export = m
+}
+
+declare module 'next/dist/compiled/@segment/ajv-human-errors' {
+  import * as m from '@segment/ajv-human-errors'
   export = m
 }
 

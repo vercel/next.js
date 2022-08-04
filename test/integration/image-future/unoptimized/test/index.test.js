@@ -27,7 +27,7 @@ function runTests() {
     ).toMatch(/test(.*)jpg/)
     expect(
       await browser.elementById('external-image').getAttribute('src')
-    ).toBe('https://via.placeholder.com/800/000/FFF.png?text=test')
+    ).toBe('https://image-optimization-test.vercel.app/test.jpg')
     expect(await browser.elementById('eager-image').getAttribute('src')).toBe(
       '/test.webp'
     )
@@ -61,7 +61,7 @@ function runTests() {
     await check(
       () =>
         browser.eval(`document.getElementById("external-image").currentSrc`),
-      /placeholder.com/
+      'https://image-optimization-test.vercel.app/test.jpg'
     )
 
     expect(
@@ -72,7 +72,7 @@ function runTests() {
     ).toMatch(/test(.*)jpg/)
     expect(
       await browser.elementById('external-image').getAttribute('src')
-    ).toBe('https://via.placeholder.com/800/000/FFF.png?text=test')
+    ).toBe('https://image-optimization-test.vercel.app/test.jpg')
     expect(await browser.elementById('eager-image').getAttribute('src')).toBe(
       '/test.webp'
     )

@@ -1,7 +1,7 @@
 name: Validate issue
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 
 jobs:
   validate:
@@ -11,3 +11,4 @@ jobs:
       - uses: ./.github/actions/issue-validator
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: 1

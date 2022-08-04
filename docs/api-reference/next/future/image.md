@@ -9,11 +9,165 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 | Version   | Changes                                      |
 | --------- | -------------------------------------------- |
+| `v12.2.4` | Support for `fill` property added.           |
 | `v12.2.0` | Experimental `next/future/image` introduced. |
 
 </details>
 
-> **Note: This is API documentation for the Image Component and Image Optimization. For a feature overview and usage information for images in Next.js, please see [Images](/docs/basic-features/image-optimization.md).**
+The `next/future/image` component is an experiment to improve both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
+
+This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before [Chrome 79](https://chromestatus.com/feature/5695266130755584), [Firefox 69](https://bugzilla.mozilla.org/show_bug.cgi?id=1547231), and [Safari 14.2](https://bugs.webkit.org/show_bug.cgi?id=201641). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
+
+To use `next/future/image`, add the following to your `next.config.js` file:
+
+```js
+module.exports = {
+  experimental: {
+    images: {
+      allowFutureImage: true,
+    },
+  },
+}
+```
+
+## Comparison
+
+Compared to `next/image`, the new `next/future/image` component has the following changes:
+
+- Renders a single `<img>` without `<div>` or `<span>` wrappers
+- Adds support for canonical `style` prop
+- Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
+- Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
+- Removes `loader` config in favor of [`loader`](#loader) prop
+- Note: the [`onError`](#onerror) prop might behave differently
+
+## Migration
+
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
+
+<table>
+<thead>
+  <tr>
+    <th>next/image</th>
+    <th>next/future/image</th>
+  </tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { maxWidth: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} style={css} />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="responsive" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { width: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} sizes="100vw" style={css} />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fill" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} sizes="100vw" fill />
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fixed" />
+}
+```
+
+</td>
+<td>
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+</td>
+</tr>
+
+</tbody>
+</table>
+
+You can also use `className` instead of `style`.
 
 ## Required Props
 
@@ -33,13 +187,13 @@ When using an external URL, you must add it to [domains](#domains) in `next.conf
 
 The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ### height
 
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ## Optional Props
 
@@ -76,6 +230,24 @@ const MyImage = (props) => {
   )
 }
 ```
+
+### fill
+
+A boolean that causes the image to fill the parent element instead of setting [`width`](#width) and [`height`](#height).
+
+The parent element _must_ assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style.
+
+By default, the img element will automatically be assigned the `position: "absolute"` style.
+
+The default image fit behavior will stretch the image to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
+
+Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
+
+See also:
+
+- [position](https://developer.mozilla.org/en-US/docs/Web/CSS/position)
+- [object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit)
+- [object-position](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
 
 ### sizes
 
@@ -181,50 +353,6 @@ Try it out:
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
-**Example pointing to a DOM element**
-
-```jsx
-import Image from 'next/future/image'
-import React from 'react'
-
-const lazyRoot = React.useRef(null)
-
-const Example = () => (
-  <div ref={lazyRoot} style={{ overflowX: 'scroll', width: '500px' }}>
-    <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
-    <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
-  </div>
-)
-```
-
-**Example pointing to a React component**
-
-```jsx
-import Image from 'next/future/image'
-import React from 'react'
-
-const Container = React.forwardRef((props, ref) => {
-  return (
-    <div ref={ref} style={{ overflowX: 'scroll', width: '500px' }}>
-      {props.children}
-    </div>
-  )
-})
-
-const Example = () => {
-  const lazyRoot = React.useRef(null)
-
-  return (
-    <Container ref={lazyRoot}>
-      <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
-      <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
-    </Container>
-  )
-}
-```
-
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
-
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
@@ -247,9 +375,7 @@ module.exports = {
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
-- `srcSet`. Use
-  [Device Sizes](#device-sizes)
-  instead.
+- `srcSet`. Use [Device Sizes](#device-sizes) instead.
 - `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 

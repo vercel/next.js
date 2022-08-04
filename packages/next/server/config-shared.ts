@@ -8,7 +8,7 @@ import {
   RemotePattern,
 } from '../shared/lib/image-config'
 
-export type PageRuntime = 'nodejs' | 'edge' | undefined
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
@@ -90,17 +91,17 @@ export interface ExperimentalConfig {
   swcFileReading?: boolean
   cpus?: number
   sharedPool?: boolean
-  plugins?: boolean
   profiling?: boolean
   isrFlushToDisk?: boolean
-  reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
-  optimizeCss?: boolean
+  // optimizeCss can be boolean or critters' option object
+  // Use Record<string, unknown> as critters doesn't export its Option type
+  // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
+  optimizeCss?: boolean | Record<string, unknown>
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  conformance?: boolean
   appDir?: boolean
   amp?: {
     optimizer?: any
@@ -112,18 +113,16 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<PageRuntime, undefined>
+  runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
-    layoutRaw: boolean
-    remotePatterns: RemotePattern[]
+    remotePatterns?: RemotePattern[]
     unoptimized?: boolean
     allowFutureImage?: boolean
   }
-  middlewareSourceMaps?: boolean
   modularizeImports?: Record<
     string,
     {
@@ -149,11 +148,26 @@ export interface ExperimentalConfig {
   largePageDataBytes?: number
 }
 
+export type ExportPathMap = {
+  [path: string]: { page: string; query?: Record<string, string | string[]> }
+}
+
 /**
  * Next configuration object
  * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
+  exportPathMap?: (
+    defaultMap: ExportPathMap,
+    ctx: {
+      dev: boolean
+      dir: string
+      outDir: string | null
+      distDir: string
+      buildId: string
+    }
+  ) => Promise<ExportPathMap> | ExportPathMap
+
   /**
    * Internationalization configuration
    *
@@ -272,6 +286,15 @@ export interface NextConfig extends Record<string, any> {
 
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
+
+  /**
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
+   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   *
+   * @default ''
+   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   */
+  analyticsId?: string
 
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
@@ -510,6 +533,8 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    optimisticClientCache: true,
+    runtime: undefined,
     manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
@@ -522,7 +547,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     sharedPool: true,
-    plugins: false,
     profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
@@ -539,15 +563,22 @@ export const defaultConfig: NextConfig = {
     appDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
+    incrementalCacheHandlerPath: undefined,
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     images: {
-      layoutRaw: false,
       remotePatterns: [],
     },
+    swcTraceProfiling: false,
     forceSwcTransforms: false,
+    swcPlugins: undefined,
+    swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
+    disablePostcssPresetEnv: undefined,
+    amp: undefined,
+    urlImports: undefined,
+    modularizeImports: undefined,
   },
 }
 
@@ -557,4 +588,20 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
+}
+
+export function isServerRuntime(value?: string): value is ServerRuntime {
+  return (
+    value === undefined || value === 'nodejs' || value === 'experimental-edge'
+  )
+}
+
+export function validateConfig(userConfig: NextConfig): {
+  errors?: Array<any> | null
+} {
+  const configValidator = require('next/dist/next-config-validate.js')
+  configValidator(userConfig)
+  return {
+    errors: configValidator.errors,
+  }
 }

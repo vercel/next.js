@@ -35,7 +35,6 @@ const Page = () => {
         height="700"
         sizes="100vw"
       />
-      <Image priority id="raw1" src="/test.webp" width="1200" height="700" />
       <p id="stubtext">This is the priority page</p>
     </div>
   )

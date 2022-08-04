@@ -14,7 +14,7 @@ const Page = () => {
         loading="eager"
       />
       <Image
-        id="with-overlapping-styles-intrinsic"
+        id="with-overlapping-styles"
         src="/test.jpg"
         width={400}
         height={400}
@@ -22,22 +22,7 @@ const Page = () => {
         loading="eager"
       />
       <Image
-        id="with-overlapping-styles-raw"
-        src="/test.webp"
-        width={400}
-        height={400}
-        style={{ width: '10px', borderRadius: '10px', margin: '15px' }}
-        loading="eager"
-      />
-      <Image
-        id="without-styles-responsive"
-        src="/test.webp"
-        width={400}
-        height={400}
-        loading="eager"
-      />
-      <Image
-        id="without-styles-raw"
+        id="without-styles"
         src="/test.webp"
         width={400}
         height={400}

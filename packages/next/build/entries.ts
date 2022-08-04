@@ -1,8 +1,8 @@
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
-import type { MiddlewareSSRLoaderQuery } from './webpack/loaders/next-middleware-ssr-loader'
+import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
-import type { PageRuntime } from '../server/config-shared'
+import type { ServerRuntime } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import type { LoadedEnvFiles } from '@next/env'
@@ -15,6 +15,7 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -175,7 +176,7 @@ export function getEdgeServerEntry(opts: {
     return `next-middleware-loader?${stringify(loaderParams)}!`
   }
 
-  if (opts.page.startsWith('/api/')) {
+  if (opts.page.startsWith('/api/') || opts.page === '/api') {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
@@ -184,7 +185,7 @@ export function getEdgeServerEntry(opts: {
     return `next-edge-function-loader?${stringify(loaderParams)}!`
   }
 
-  const loaderParams: MiddlewareSSRLoaderQuery = {
+  const loaderParams: EdgeSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
     absoluteDocumentPath: opts.pages['/_document'],
@@ -201,7 +202,7 @@ export function getEdgeServerEntry(opts: {
   }
 
   return {
-    import: `next-middleware-ssr-loader?${stringify(loaderParams)}!`,
+    import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
     layer: opts.isServerComponent ? 'sc_server' : undefined,
   }
 }
@@ -302,7 +303,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
     async (page: string) => {
       const bundleFile = normalizePagePath(page)
-      const clientBundlePath = posix.join('pages', bundleFile)
+      const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =
         pagesType === 'pages'
           ? posix.join('pages', bundleFile)
@@ -439,12 +440,12 @@ export function runDependingOnPageType<T>(params: {
   onEdgeServer: () => T
   onServer: () => T
   page: string
-  pageRuntime: PageRuntime
+  pageRuntime: ServerRuntime
 }) {
   if (isMiddlewareFile(params.page)) {
     return { edgeServer: params.onEdgeServer() }
   } else if (params.page.match(API_ROUTE)) {
-    return params.pageRuntime === 'edge'
+    return params.pageRuntime === SERVER_RUNTIME.edge
       ? { edgeServer: params.onEdgeServer() }
       : { server: params.onServer() }
   } else if (params.page === '/_document') {
@@ -457,7 +458,7 @@ export function runDependingOnPageType<T>(params: {
   ) {
     return { client: params.onClient(), server: params.onServer() }
   } else {
-    return params.pageRuntime === 'edge'
+    return params.pageRuntime === SERVER_RUNTIME.edge
       ? { client: params.onClient(), edgeServer: params.onEdgeServer() }
       : { client: params.onClient(), server: params.onServer() }
   }
@@ -481,8 +482,8 @@ export function finalizeEntrypoint({
       ? { import: value }
       : value
 
+  const isApi = name.startsWith('pages/api/')
   if (compilerType === 'server') {
-    const isApi = name.startsWith('pages/api/')
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
@@ -493,7 +494,7 @@ export function finalizeEntrypoint({
 
   if (compilerType === 'edge-server') {
     return {
-      layer: isMiddlewareFilename(name) ? 'middleware' : undefined,
+      layer: isMiddlewareFilename(name) || isApi ? 'middleware' : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,
@@ -509,7 +510,7 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
-    // TODO: this is a temporary fix. @shuding is going to change the handling of server components
+    // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
     if (appDir && entry.import.includes('flight')) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
