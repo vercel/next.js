@@ -1,1 +1,1 @@
-export * from 'styled-jsx'
+export * from 'next/dist/styled-jsx-types'
