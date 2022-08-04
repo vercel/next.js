@@ -62,7 +62,11 @@ import Image from 'next/image'
 
 function Page() {
   return (
-    <Image src="/images/examples/hello-world.jpg" width="1000" height="1000" />
+    <Image
+      src="/images/examples/how-to-migrate.jpg"
+      width="1000"
+      height="1000"
+    />
   )
 }
 ```
@@ -77,7 +81,7 @@ const css = { maxWidth: '100%', height: 'auto' }
 function Page() {
   return (
     <Image
-      src="/images/examples/hello-world.jpg"
+      src="/images/examples/how-to-migrate.jpg"
       width="1000"
       height="1000"
       style={css}
@@ -98,7 +102,7 @@ import Image from 'next/image'
 function Page() {
   return (
     <Image
-      src="/images/examples/hello-world.jpg"
+      src="/images/examples/how-to-migrate.jpg"
       width="1000"
       height="1000"
       layout="responsive"
@@ -117,7 +121,7 @@ const css = { width: '100%', height: 'auto' }
 function Page() {
   return (
     <Image
-      src="/images/examples/hello-world.jpg"
+      src="/images/examples/how-to-migrate.jpg"
       width="1000"
       height="1000"
       sizes="100vw"
@@ -137,7 +141,7 @@ function Page() {
 import Image from 'next/image'
 
 function Page() {
-  return <Image src="/images/examples/hello-world.jpg" layout="fill" />
+  return <Image src="/images/examples/how-to-migrate.jpg" layout="fill" />
 }
 ```
 
@@ -148,7 +152,7 @@ function Page() {
 import Image from 'next/future/image'
 
 function Page() {
-  return <Image src="/images/examples/hello-world.jpg" sizes="100vw" fill />
+  return <Image src="/images/examples/how-to-migrate.jpg" sizes="100vw" fill />
 }
 ```
 
@@ -164,7 +168,7 @@ import Image from 'next/image'
 function Page() {
   return (
     <Image
-      src="/images/examples/hello-world.jpg"
+      src="/images/examples/how-to-migrate.jpg"
       width="1000"
       height="1000"
       layout="fixed"
@@ -181,7 +185,11 @@ import Image from 'next/future/image'
 
 function Page() {
   return (
-    <Image src="/images/examples/hello-world.jpg" width="1000" height="1000" />
+    <Image
+      src="/images/examples/how-to-migrate.jpg"
+      width="1000"
+      height="1000"
+    />
   )
 }
 ```
