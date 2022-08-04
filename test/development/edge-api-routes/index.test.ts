@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { check, renderViaHTTP } from 'next-test-utils'
 
 describe('edge-api-routes', () => {
   let next: NextInstance
@@ -31,8 +31,7 @@ describe('edge-api-routes', () => {
       export default () => new Response('edge response')
       `
     )
-    let response = await renderViaHTTP(next.url, '/api/hello')
-    expect(response).toBe('edge response')
+    await check(() => renderViaHTTP(next.url, '/api/hello'), 'edge response')
 
     // Server
     await next.patchFile(
@@ -43,8 +42,20 @@ describe('edge-api-routes', () => {
       }
       `
     )
-    response = await renderViaHTTP(next.url, '/api/hello')
-    expect(response).toBe('server response')
+    await check(() => renderViaHTTP(next.url, '/api/hello'), 'server response')
+
+    // Edge
+    await next.patchFile(
+      'pages/api/hello.js',
+      `
+        export const config = {
+          runtime: 'experimental-edge',
+        }
+        
+        export default () => new Response('edge response')
+        `
+    )
+    await check(() => renderViaHTTP(next.url, '/api/hello'), 'edge response')
   })
 
   test('Switch between runtimes - server first', async () => {
@@ -57,8 +68,7 @@ describe('edge-api-routes', () => {
       }
       `
     )
-    let response = await renderViaHTTP(next.url, '/api/hello2')
-    expect(response).toBe('server response')
+    await check(() => renderViaHTTP(next.url, '/api/hello2'), 'server response')
 
     // Edge
     await next.patchFile(
@@ -71,8 +81,18 @@ describe('edge-api-routes', () => {
       export default () => new Response('edge response')
       `
     )
-    response = await renderViaHTTP(next.url, '/api/hello2')
-    expect(response).toBe('edge response')
+    await check(() => renderViaHTTP(next.url, '/api/hello2'), 'edge response')
+
+    // Server
+    await next.patchFile(
+      'pages/api/hello2.js',
+      `
+        export default function (req, res) {
+          res.send('server response')
+        }
+        `
+    )
+    await check(() => renderViaHTTP(next.url, '/api/hello2'), 'server response')
   })
 
   test('Recover from syntax error', async () => {
@@ -86,8 +106,7 @@ describe('edge-api-routes', () => {
     export default () => new Response('edge response')
     `
     )
-    let response = await renderViaHTTP(next.url, '/api/hello3')
-    expect(response).toBe('edge response')
+    await check(() => renderViaHTTP(next.url, '/api/hello3'), 'edge response')
 
     // Syntax error
     await next.patchFile(
@@ -100,8 +119,10 @@ describe('edge-api-routes', () => {
     export default  => new Response('edge response')
     `
     )
-    response = await renderViaHTTP(next.url, '/api/hello3')
-    expect(response).toInclude('Unexpected token')
+    await check(
+      () => renderViaHTTP(next.url, '/api/hello3'),
+      /Unexpected token/
+    )
 
     // Fix syntax error
     await next.patchFile(
@@ -114,47 +135,6 @@ describe('edge-api-routes', () => {
     export default () => new Response('edge response 2')
     `
     )
-    response = await renderViaHTTP(next.url, '/api/hello3')
-    expect(response).toBe('edge response 2')
-  })
-
-  test('Switch to new runtime and then back ', async () => {
-    // Server
-    await next.patchFile(
-      'pages/api/hello4.js',
-      `
-      export default function (req, res) {
-        res.send('server response')
-      }
-      `
-    )
-    let response = await renderViaHTTP(next.url, '/api/hello4')
-    expect(response).toBe('server response')
-
-    // Edge
-    await next.patchFile(
-      'pages/api/hello4.js',
-      `
-      export const config = {
-        runtime: 'experimental-edge',
-      }
-      
-      export default () => new Response('edge response')
-      `
-    )
-    response = await renderViaHTTP(next.url, '/api/hello4')
-    expect(response).toBe('edge response')
-
-    // Server
-    await next.patchFile(
-      'pages/api/hello4.js',
-      `
-      export default function (req, res) {
-        res.send('server response')
-      }
-      `
-    )
-    response = await renderViaHTTP(next.url, '/api/hello4')
-    expect(response).toBe('server response')
+    await check(() => renderViaHTTP(next.url, '/api/hello3'), 'edge response 2')
   })
 })
