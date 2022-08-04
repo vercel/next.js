@@ -106,7 +106,7 @@ async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> 
     )
 }
 
-#[turbo_tasks::value(AssetContext)]
+#[turbo_tasks::value]
 pub struct ModuleAssetContext {
     context_path: FileSystemPathVc,
     environment: EnvironmentVc,

@@ -12,22 +12,22 @@ use turbo_tasks_macros_shared::{
 use crate::{
     func::{gen_native_function_code, split_signature, SelfType},
     util::*,
-    value_macro::get_check_trait_method_ident,
 };
 
 fn get_internal_trait_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
-        &("__trait_call_".to_string() + &trait_ident.to_string() + "_" + &ident.to_string()),
-        ident.span(),
+        &format!("__trait_call_{trait_ident}_{ident}"),
+        trait_ident.span(),
     )
 }
 
 fn get_trait_impl_function_id_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
-        &(struct_ident.to_string().to_uppercase()
-            + "_IMPL_"
-            + &ident.to_string().to_uppercase()
-            + "_FUNCTION_ID"),
+        &format!(
+            "{}_IMPL_{}_FUNCTION_ID",
+            struct_ident.to_string().to_uppercase(),
+            ident.to_string().to_uppercase()
+        ),
         ident.span(),
     )
 }
@@ -125,13 +125,13 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
     ) -> TokenStream2 {
         let trait_ident = &trait_path.segments.last().unwrap().ident;
         let register = get_register_trait_methods_ident(trait_ident, struct_ident);
-        let check = get_check_trait_method_ident(trait_ident, struct_ident);
         let ref_ident = get_ref_ident(struct_ident);
         let trait_ref_path = get_ref_path(trait_path);
+        let as_trait_method = get_as_super_ident(trait_ident);
+
         let mut trait_registers = Vec::new();
         let mut impl_functions = Vec::new();
         let mut trait_functions = Vec::new();
-        let mut trait_impl_functions = Vec::new();
         for item in items.iter() {
             if let ImplItem::Method(ImplItemMethod {
                 sig, attrs, block, ..
@@ -164,7 +164,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 let internal_function_ident =
                     get_internal_trait_impl_function_ident(trait_ident, ident);
                 trait_registers.push(quote! {
-                    value_type.register_trait_method(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id(), stringify!(#ident).to_string(), *#function_id_ident);
+                    value.register_trait_method(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id(), stringify!(#ident).to_string(), *#function_id_ident);
                 });
                 let name = Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
                 let (native_function_code, mut input_raw_vc_arguments) = gen_native_function_code(
@@ -217,54 +217,37 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
                 trait_functions.push(quote!{
                     #(#attrs)*
-                    pub #external_sig {
+                    #external_sig {
                         let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
                         #convert_result_code
-                    }
-                });
-
-                let args = inputs
-                    .iter()
-                    .enumerate()
-                    .map(|(i, input)| match input {
-                        FnArg::Receiver(_) => {
-                            quote! { self }
-                        }
-                        FnArg::Typed(arg) => {
-                            if i == 0 {
-                                quote! { self }
-                            } else {
-                                let pat = &arg.pat;
-                                quote! { #pat }
-                            }
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                trait_impl_functions.push(quote! {
-                    #(#attrs)*
-                    #external_sig {
-                        #ref_ident::#ident(#(#args),*)
                     }
                 });
             }
         }
         quote! {
+            #[doc(hidden)]
             #[allow(non_snake_case)]
-            fn #register(value_type: &mut turbo_tasks::ValueType) {
-                if false { #ref_ident::#check(); }
-                value_type.register_trait(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id());
+            pub(crate) fn #register(value: &mut turbo_tasks::ValueType) {
+                value.register_trait(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id());
                 #(#trait_registers)*
             }
 
             #(#impl_functions)*
 
             impl #ref_ident {
-                #(#trait_functions)*
+                pub fn #as_trait_method(self) -> #trait_ref_path {
+                    self.into()
+                }
+            }
+
+            impl From<#ref_ident> for #trait_ref_path {
+                fn from(node_ref: #ref_ident) -> Self {
+                    node_ref.node.into()
+                }
             }
 
             impl #trait_path for #ref_ident {
-                #(#trait_impl_functions)*
+                #(#trait_functions)*
             }
         }
     }

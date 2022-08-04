@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     context::AssetContextVc,
@@ -10,7 +10,7 @@ use turbopack_core::{
 
 use crate::typescript::{resolve::type_resolve, TsConfigModuleAssetVc};
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct TsConfigReference {
     pub tsconfig: FileSystemPathVc,
@@ -46,7 +46,7 @@ impl AssetReference for TsConfigReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsReferencePathAssetReference {
     pub context: AssetContextVc,
@@ -87,7 +87,7 @@ impl AssetReference for TsReferencePathAssetReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsReferenceTypeAssetReference {
     pub context: AssetContextVc,

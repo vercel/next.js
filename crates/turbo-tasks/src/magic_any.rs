@@ -8,7 +8,6 @@ use std::{
     sync::Arc,
 };
 
-use mopa::mopafy;
 use serde::{de::DeserializeSeed, Deserialize, Serialize};
 
 pub trait MagicAny: mopa::Any + Send + Sync {
@@ -25,7 +24,15 @@ pub trait MagicAny: mopa::Any + Send + Sync {
     #[cfg(debug_assertions)]
     fn magic_type_name(&self) -> &'static str;
 }
-mopafy!(MagicAny);
+
+#[allow(clippy::transmute_ptr_to_ref)] // can't fix as it's in the macro
+mod clippy {
+    use mopa::mopafy;
+
+    use super::MagicAny;
+
+    mopafy!(MagicAny);
+}
 
 impl<T: Debug + Eq + Ord + Hash + Send + Sync + 'static> MagicAny for T {
     fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send> {

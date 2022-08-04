@@ -4,6 +4,7 @@ use swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     util::try_join_all,
+    ValueToString,
 };
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
@@ -21,7 +22,7 @@ use crate::{
     EcmascriptChunkContextVc,
 };
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct AmdDefineAssetReference {
     context: AssetContextVc,
@@ -60,7 +61,7 @@ impl ChunkableAssetReference for AmdDefineAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared, CodeGenerateable)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<RequestVc>,

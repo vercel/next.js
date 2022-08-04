@@ -4,7 +4,6 @@
 extern crate turbo_malloc;
 
 mod nft_json;
-
 use std::{
     collections::BTreeSet,
     env::current_dir,

@@ -22,7 +22,7 @@ use crate::{
     utils::{stringify_module_id, stringify_number, stringify_str, FormatIter},
 };
 
-#[turbo_tasks::value(Chunk, Asset, ValueToString)]
+#[turbo_tasks::value]
 pub struct EcmascriptChunk {
     context: ChunkingContextVc,
     /// must implement [EcmascriptChunkPlaceable] too

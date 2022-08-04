@@ -85,7 +85,7 @@ mod watcher_ser {
     }
 }
 
-#[turbo_tasks::value(cell: new, FileSystem, eq: manual)]
+#[turbo_tasks::value(cell: new, eq: manual)]
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
@@ -525,7 +525,7 @@ impl FileSystem for DiskFileSystem {
     }
 }
 
-#[turbo_tasks::value(ValueToString)]
+#[turbo_tasks::value]
 #[derive(Debug)]
 pub struct FileSystemPath {
     pub fs: FileSystemVc,
@@ -1095,7 +1095,7 @@ impl FileContent {
                             .map(|l| {
                                 let line = FileLine {
                                     content: l.to_string(),
-                                    bytes_offset: bytes_offset,
+                                    bytes_offset,
                                 };
                                 bytes_offset += l.len() + 1;
                                 line
@@ -1305,7 +1305,7 @@ impl DirectoryContentVc {
     }
 }
 
-#[turbo_tasks::value(shared, FileSystem)]
+#[turbo_tasks::value(shared)]
 pub struct NullFileSystem;
 
 #[turbo_tasks::value_impl]
@@ -1313,6 +1313,11 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn read(&self, _fs_path: FileSystemPathVc) -> FileContentVc {
         FileContent::NotFound.into()
+    }
+
+    #[turbo_tasks::function]
+    fn read_link(&self, _fs_path: FileSystemPathVc) -> LinkContentVc {
+        LinkContent::NotFound.into()
     }
 
     #[turbo_tasks::function]

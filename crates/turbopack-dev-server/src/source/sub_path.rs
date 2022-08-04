@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use super::{ContentSource, ContentSourceVc, FileContentVc};
 
-#[turbo_tasks::value(shared, ContentSource)]
+#[turbo_tasks::value(shared)]
 pub struct SubPathContentSource {
     pub source: ContentSourceVc,
     pub path: String,

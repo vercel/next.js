@@ -2,7 +2,10 @@ use anyhow::Result;
 use swc_common::DUMMY_SP;
 use swc_css_ast::*;
 use swc_css_codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit};
-use turbo_tasks::primitives::{BoolVc, StringVc};
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    ValueToString,
+};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
     context::AssetContextVc,
@@ -135,7 +138,7 @@ impl ImportAttributes {
     }
 }
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct ImportAssetReference {
     pub context: AssetContextVc,

@@ -1,11 +1,8 @@
-use std::{
-    cmp::{self, Ordering},
-    fmt::Write as _,
-};
+use std::{cmp::Ordering, fmt::Write as _};
 
 use anyhow::Result;
 use owo_colors::{OwoColorize as _, Style};
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileLinesContent;
 use turbopack_core::issue::{
     IssueProcessingPathItem, IssueSeverity, IssueVc, OptionIssueProcessingPathItemsVc,
@@ -34,8 +31,13 @@ pub async fn issue_to_styled_string(
         if let FileLinesContent::Lines(lines) = &*source.asset.content().lines().await? {
             let context_start = source.start.line.saturating_sub(4);
             let context_end = source.end.line + 4;
-            for i in context_start..=cmp::min(context_end, lines.len() - 1) {
-                let l: &str = &lines[i].content;
+            for (i, l) in lines
+                .iter()
+                .map(|l| &l.content)
+                .enumerate()
+                .take(context_end + 1)
+                .skip(context_start)
+            {
                 let n = i + 1;
                 fn safe_split_at(s: &str, i: usize) -> (&str, &str) {
                     if i < s.len() {

@@ -82,7 +82,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
     Ok(StringsVc::cell(set.into_iter().collect()))
 }
 
-#[turbo_tasks::value(shared, CodeGenerateable)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<String, EsmExport>,

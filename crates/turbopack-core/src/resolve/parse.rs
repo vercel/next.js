@@ -9,7 +9,7 @@ use turbo_tasks::{
 
 use super::pattern::Pattern;
 
-#[turbo_tasks::value(ValueToString)]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub enum Request {
     Raw {

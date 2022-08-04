@@ -1990,7 +1990,7 @@ mod tests {
                     .collect::<Vec<_>>();
                 named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
-                fn explain_all(values: &Vec<(String, JsValue)>) -> String {
+                fn explain_all(values: &[(String, JsValue)]) -> String {
                     values
                         .iter()
                         .map(|(id, value)| {

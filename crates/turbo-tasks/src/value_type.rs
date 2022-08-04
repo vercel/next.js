@@ -21,7 +21,7 @@ pub trait Typed {
 
 pub trait ValueVc: From<RawVc> + Into<RawVc> + CollectiblesSource + Copy + Clone {
     fn get_value_type_id() -> ValueTypeId;
-    fn get_trait_type_ids() -> &'static [TraitTypeId];
+    fn get_trait_type_ids() -> Box<dyn Iterator<Item = TraitTypeId>>;
 }
 
 pub trait ValueTraitVc: From<RawVc> + Into<RawVc> + CollectiblesSource + Copy + Clone {
@@ -50,9 +50,9 @@ pub struct ValueType {
     /// A readable name of the type
     pub name: String,
     /// List of traits available
-    pub(crate) traits: HashSet<TraitTypeId>,
+    pub traits: HashSet<TraitTypeId>,
     /// List of trait methods available
-    pub(crate) trait_methods: HashMap<(TraitTypeId, String), FunctionId>,
+    pub trait_methods: HashMap<(TraitTypeId, String), FunctionId>,
 
     /// Functors for serialization
     magic_serialization: Option<(MagicSerializationFn, MagicAnyDeserializeSeed)>,
@@ -189,9 +189,24 @@ impl ValueType {
         self.trait_methods.insert((trait_type, name), native_fn);
     }
 
+    pub fn get_trait_method(
+        &self,
+        trait_method_key: &(TraitTypeId, String),
+    ) -> Option<&FunctionId> {
+        self.trait_methods.get(trait_method_key)
+    }
+
     /// This is internally used by `#[turbo_tasks::value(Trait)]`
     pub fn register_trait(&mut self, trait_type: TraitTypeId) {
         self.traits.insert(trait_type);
+    }
+
+    pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
+        self.traits.contains(trait_type)
+    }
+
+    pub fn traits_iter(&self) -> impl Iterator<Item = TraitTypeId> + '_ {
+        self.traits.iter().copied()
     }
 
     pub fn register(&'static self, global_name: &str) {

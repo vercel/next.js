@@ -45,7 +45,15 @@ pub fn get_return_type(output: &ReturnType) -> Type {
 }
 
 pub fn get_internal_function_ident(ident: &Ident) -> Ident {
-    Ident::new(&(ident.to_string() + "_inline"), ident.span())
+    Ident::new(&format!("{ident}_inline"), ident.span())
+}
+
+pub fn get_as_super_ident(ident: &Ident) -> Ident {
+    use convert_case::{Case, Casing};
+    Ident::new(
+        &format!("as_{}", ident.to_string().to_case(Case::Snake)),
+        ident.span(),
+    )
 }
 
 pub fn get_ref_path(path: &Path) -> Path {

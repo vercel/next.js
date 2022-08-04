@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use json::JsonValue;
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -190,7 +190,7 @@ pub async fn type_resolve(request: RequestVc, context: AssetContextVc) -> Result
     handle_resolve_error(result, "type request", context_path, request, options).await
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 pub struct TypescriptTypesAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,

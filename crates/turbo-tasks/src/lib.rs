@@ -62,6 +62,8 @@ pub use value_type::{
 };
 
 pub mod macro_helpers {
+    pub use once_cell::sync::{Lazy, OnceCell};
+
     pub use super::manager::{find_cell_by_key, find_cell_by_type};
 }
 

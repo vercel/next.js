@@ -1,27 +1,16 @@
-use syn::{Ident, Path};
+use syn::Ident;
+
+pub fn get_register_value_type_ident(struct_ident: &Ident) -> Ident {
+    Ident::new(
+        &format!("__register_{struct_ident}_value_type"),
+        struct_ident.span(),
+    )
+}
 
 pub fn get_register_trait_methods_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
     Ident::new(
         &format!("__register_{struct_ident}_{trait_ident}_trait_methods"),
         trait_ident.span(),
-    )
-}
-
-pub fn get_last_ident(path: &Path) -> Option<&Ident> {
-    path.segments.last().map(|s| &s.ident)
-}
-
-pub fn get_value_type_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}_VALUE_TYPE", ident.to_string().to_uppercase()),
-        ident.span(),
-    )
-}
-
-pub fn get_value_type_id_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}_VALUE_TYPE_ID", ident.to_string().to_uppercase()),
-        ident.span(),
     )
 }
 

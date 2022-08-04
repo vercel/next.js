@@ -19,6 +19,7 @@ use turbo_tasks_memory::{
 };
 use turbopack::{emit, rebase::RebasedAssetVc, register};
 use turbopack_core::{
+    context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
     target::CompileTargetVc,

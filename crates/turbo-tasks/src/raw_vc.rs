@@ -192,7 +192,7 @@ impl RawVc {
                         .map_err(|source| ResolveTypeError::ReadError { source })?;
                     if let CellContent(Some(shared_reference)) = content {
                         if let SharedReference(Some(value_type), _) = shared_reference {
-                            if get_value_type(value_type).traits.contains(&trait_type) {
+                            if get_value_type(value_type).has_trait(&trait_type) {
                                 return Ok(Some(RawVc::TaskCell(task, index)));
                             } else {
                                 return Ok(None);

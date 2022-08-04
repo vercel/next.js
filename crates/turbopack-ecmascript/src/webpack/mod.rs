@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_ecma_ast::Lit;
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -20,7 +20,7 @@ use crate::parse::EcmascriptInputTransformsVc;
 pub mod parse;
 pub(crate) mod references;
 
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value]
 pub struct ModuleAsset {
     pub source: AssetVc,
     pub runtime: WebpackRuntimeVc,
@@ -59,7 +59,7 @@ impl Asset for ModuleAsset {
     }
 }
 
-#[turbo_tasks::value(shared, AssetReference)]
+#[turbo_tasks::value(shared)]
 pub struct WebpackChunkAssetReference {
     #[trace_ignore]
     pub chunk_id: Lit,
@@ -107,7 +107,7 @@ impl AssetReference for WebpackChunkAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared, AssetReference)]
+#[turbo_tasks::value(shared)]
 pub struct WebpackEntryAssetReference {
     pub source: AssetVc,
     pub runtime: WebpackRuntimeVc,
@@ -131,7 +131,7 @@ impl AssetReference for WebpackEntryAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared, AssetReference)]
+#[turbo_tasks::value(shared)]
 pub struct WebpackRuntimeAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,

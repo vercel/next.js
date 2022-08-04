@@ -12,7 +12,7 @@ pub trait ContentSource {
     fn get_by_id(&self, id: &str) -> FileContentVc;
 }
 
-#[turbo_tasks::value(shared, ContentSource)]
+#[turbo_tasks::value(shared)]
 pub struct NoContentSource;
 
 #[turbo_tasks::value_impl]

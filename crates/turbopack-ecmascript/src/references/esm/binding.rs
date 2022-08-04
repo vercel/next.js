@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared, CodeGenerateable)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmBinding {
     pub reference: EsmAssetReferenceVc,

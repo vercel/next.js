@@ -1,11 +1,11 @@
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{Issue, IssueVc};
 use crate::resolve::{options::ResolveOptionsVc, parse::RequestVc};
 
-#[turbo_tasks::value(shared, Issue)]
+#[turbo_tasks::value(shared)]
 pub struct ResolvingIssue {
     pub request_type: String,
     pub request: RequestVc,

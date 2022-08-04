@@ -33,7 +33,7 @@ async fn all_in_one() {
 #[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 struct MyTransparentValue(u32);
 
-#[turbo_tasks::value(shared, ValueToString, serialization: auto_for_input)]
+#[turbo_tasks::value(shared, serialization: auto_for_input)]
 #[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 enum MyEnumValue {
     Yeah(u32),
@@ -65,7 +65,7 @@ impl ValueToString for MyEnumValue {
     }
 }
 
-#[turbo_tasks::value(shared, MyTrait, ValueToString)]
+#[turbo_tasks::value(shared)]
 struct MyStructValue {
     value: u32,
     next: Option<MyStructValueVc>,

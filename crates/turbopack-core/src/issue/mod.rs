@@ -75,7 +75,7 @@ trait IssueProcessingPath {
     fn shortest_path(&self, issue: IssueVc) -> OptionIssueProcessingPathItemsVc;
 }
 
-#[turbo_tasks::value(ValueToString)]
+#[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
     pub context: Option<FileSystemPathVc>,
     pub description: StringVc,
@@ -100,7 +100,7 @@ impl ValueToString for IssueProcessingPathItem {
 #[turbo_tasks::value(transparent)]
 pub struct OptionIssueProcessingPathItems(Option<Vec<IssueProcessingPathItemVc>>);
 
-#[turbo_tasks::value(IssueProcessingPath)]
+#[turbo_tasks::value]
 struct RootIssueProcessingPath(IssueVc);
 
 #[turbo_tasks::value_impl]
@@ -115,7 +115,7 @@ impl IssueProcessingPath for RootIssueProcessingPath {
     }
 }
 
-#[turbo_tasks::value(IssueProcessingPath)]
+#[turbo_tasks::value]
 struct ItemIssueProcessingPath(
     Option<IssueProcessingPathItemVc>,
     Vec<IssueProcessingPathVc>,
@@ -256,9 +256,9 @@ pub struct CapturedIssues {
 pub struct Issues(Vec<IssueVc>);
 
 impl CapturedIssues {
-    pub fn iter_with_shortest_path<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (IssueVc, OptionIssueProcessingPathItemsVc)> + 'a {
+    pub fn iter_with_shortest_path(
+        &self,
+    ) -> impl Iterator<Item = (IssueVc, OptionIssueProcessingPathItemsVc)> + '_ {
         self.issues
             .iter()
             .map(|issue| (*issue, self.processing_path.shortest_path(*issue)))

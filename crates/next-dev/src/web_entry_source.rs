@@ -57,6 +57,7 @@ pub async fn create_web_entry_source(
                 path: FileSystemPathVc::new(dev_server_fs, "index.html"),
                 chunk_group,
             }
+            .cell()
             .into()
         } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
             let chunk = chunkable.as_chunk(chunking_context.into());
@@ -65,6 +66,7 @@ pub async fn create_web_entry_source(
                 path: FileSystemPathVc::new(dev_server_fs, "index.html"),
                 chunk_group,
             }
+            .cell()
             .into()
         } else {
             // TODO convert into a serve-able asset

@@ -1,5 +1,5 @@
 use turbo_tasks::ValueToStringVc;
-use turbopack_core::{chunk::ChunkingContextVc, reference::AssetReferencesVc};
+use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc, reference::AssetReferencesVc};
 
 #[turbo_tasks::value_trait]
 pub trait CssEmbeddable: ValueToString {
@@ -13,4 +13,5 @@ pub trait CssEmbed {
     /// TODO(alexkirsz) This should have a default impl that returns empty
     /// references.
     fn references(&self) -> AssetReferencesVc;
+    fn embeddable_asset(&self) -> AssetVc;
 }

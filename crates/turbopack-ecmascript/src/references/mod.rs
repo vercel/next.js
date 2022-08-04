@@ -332,25 +332,34 @@ pub(crate) async fn analyze_ecmascript_module(
                 match &*runtime.await? {
                     WebpackRuntime::Webpack5 { .. } => {
                         ignore_effect_span = Some(span);
-                        analysis.add_reference(WebpackRuntimeAssetReference {
-                            context,
-                            request,
-                            runtime,
-                            transforms,
-                        });
-                        if webpack_entry {
-                            analysis.add_reference(WebpackEntryAssetReference {
-                                source,
+                        analysis.add_reference(
+                            WebpackRuntimeAssetReference {
+                                context,
+                                request,
                                 runtime,
                                 transforms,
-                            });
+                            }
+                            .cell(),
+                        );
+                        if webpack_entry {
+                            analysis.add_reference(
+                                WebpackEntryAssetReference {
+                                    source,
+                                    runtime,
+                                    transforms,
+                                }
+                                .cell(),
+                            );
                         }
                         for chunk in webpack_chunks {
-                            analysis.add_reference(WebpackChunkAssetReference {
-                                chunk_id: chunk,
-                                runtime,
-                                transforms,
-                            });
+                            analysis.add_reference(
+                                WebpackChunkAssetReference {
+                                    chunk_id: chunk,
+                                    runtime,
+                                    transforms,
+                                }
+                                .cell(),
+                            );
                         }
                     }
                     WebpackRuntime::None => {}
@@ -1022,9 +1031,12 @@ pub(crate) async fn analyze_ecmascript_module(
                         JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                         JsValue::Constant(s),
                     ) if s.as_str() == Some("cache") => {
-                        analysis.add_code_gen(CjsRequireCacheAccess {
-                            path: AstPathVc::cell(ast_path.to_vec()),
-                        });
+                        analysis.add_code_gen(
+                            CjsRequireCacheAccess {
+                                path: AstPathVc::cell(ast_path.to_vec()),
+                            }
+                            .cell(),
+                        );
                     }
                     _ => {}
                 }
@@ -1117,11 +1129,14 @@ pub(crate) async fn analyze_ecmascript_module(
                         span: _,
                     } => {
                         if let Some(r) = import_references.get(&request) {
-                            analysis.add_code_gen(EsmBinding {
-                                reference: *r,
-                                export,
-                                ast_path: AstPathVc::cell(ast_path),
-                            });
+                            analysis.add_code_gen(
+                                EsmBinding {
+                                    reference: *r,
+                                    export,
+                                    ast_path: AstPathVc::cell(ast_path),
+                                }
+                                .cell(),
+                            );
                         }
                     }
                 }

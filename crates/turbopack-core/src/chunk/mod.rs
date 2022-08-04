@@ -47,7 +47,7 @@ pub trait ChunkableAsset: Asset {
     fn as_chunk(&self, context: ChunkingContextVc) -> ChunkVc;
 }
 
-#[turbo_tasks::value(ValueToString)]
+#[turbo_tasks::value]
 pub struct ChunkGroup {
     entry: ChunkVc,
 }
@@ -146,7 +146,7 @@ pub trait AsyncLoadableReference: AssetReference {
 }
 
 /// A reference to a [Chunk]. Can be loaded in parallel, see [Chunk].
-#[turbo_tasks::value(AssetReference, ParallelChunkReference)]
+#[turbo_tasks::value]
 pub struct ChunkReference {
     chunk: ChunkVc,
     parallel: bool,
@@ -196,7 +196,7 @@ impl ParallelChunkReference for ChunkReference {
 }
 
 /// A reference to multiple chunks from a [ChunkGroup]
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 pub struct ChunkGroupReference {
     chunk_group: ChunkGroupVc,
 }

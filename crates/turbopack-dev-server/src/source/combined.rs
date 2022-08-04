@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use super::{ContentSource, ContentSourceVc, FileContent, FileContentVc};
 
-#[turbo_tasks::value(shared, ContentSource)]
+#[turbo_tasks::value(shared)]
 pub struct CombinedContentSource {
     pub sources: Vec<ContentSourceVc>,
 }

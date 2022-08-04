@@ -1,7 +1,10 @@
 use anyhow::Result;
 use swc_common::DUMMY_SP;
 use swc_ecma_ast::{Callee, Expr, ExprOrSpread, Ident};
-use turbo_tasks::primitives::{BoolVc, StringVc};
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    ValueToString,
+};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
     context::AssetContextVc,
@@ -18,7 +21,7 @@ use crate::{
     EcmascriptChunkContextVc,
 };
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsAssetReference {
     pub context: AssetContextVc,
@@ -57,7 +60,7 @@ impl ChunkableAssetReference for CjsAssetReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference, CodeGenerateable)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsRequireAssetReference {
     pub context: AssetContextVc,
@@ -136,7 +139,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference, CodeGenerateable)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsRequireResolveAssetReference {
     pub context: AssetContextVc,
@@ -216,7 +219,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared, CodeGenerateable)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct CjsRequireCacheAccess {
     pub path: AstPathVc,

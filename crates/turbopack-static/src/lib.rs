@@ -21,13 +21,7 @@ use turbopack_ecmascript::{
     utils::stringify_str,
 };
 
-#[turbo_tasks::value(
-    Asset,
-    EcmascriptChunkPlaceable,
-    ChunkableAsset,
-    CssEmbeddable,
-    ValueToString
-)]
+#[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ModuleAsset {
     pub source: AssetVc,
@@ -117,7 +111,7 @@ impl ValueToString for ModuleAsset {
     }
 }
 
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value]
 struct StaticAsset {
     context: ChunkingContextVc,
     source: AssetVc,
@@ -152,7 +146,7 @@ impl Asset for StaticAsset {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 struct StaticAssetReference {
     static_asset: StaticAssetVc,
 }
@@ -173,7 +167,7 @@ impl AssetReference for StaticAssetReference {
     }
 }
 
-#[turbo_tasks::value(ChunkItem, EcmascriptChunkItem)]
+#[turbo_tasks::value]
 struct ModuleChunkItem {
     module: ModuleAssetVc,
     context: ChunkingContextVc,
@@ -213,7 +207,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     }
 }
 
-#[turbo_tasks::value(CssEmbed)]
+#[turbo_tasks::value]
 struct StaticCssEmbed {
     static_asset: StaticAssetVc,
 }
@@ -226,6 +220,11 @@ impl CssEmbed for StaticCssEmbed {
             static_asset: self.static_asset,
         })
         .into()])
+    }
+
+    #[turbo_tasks::function]
+    fn embeddable_asset(&self) -> AssetVc {
+        self.static_asset.as_asset()
     }
 }
 

@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell,
+    collections::HashMap,
     env::{self, current_dir},
     fmt::{Display, Write},
     fs::read_dir,
@@ -12,8 +12,9 @@ use syn::{
     PathArguments, PathSegment, TraitItem, TraitItemMethod, Type, TypePath,
 };
 use turbo_tasks_macros_shared::{
-    get_function_ident, get_ref_ident, get_trait_default_impl_function_ident,
-    get_trait_impl_function_ident, get_trait_type_ident, get_value_type_ident, ValueTraitArguments,
+    get_function_ident, get_ref_ident, get_register_trait_methods_ident,
+    get_register_value_type_ident, get_trait_default_impl_function_ident,
+    get_trait_impl_function_ident, get_trait_type_ident, ValueTraitArguments,
 };
 
 pub fn generate_register() {
@@ -78,9 +79,8 @@ pub fn generate_register() {
 
         let prefix = format!("{crate_name}@{hash}::");
 
-        let mut functions_code = String::new();
-        let mut traits_code = String::new();
-        let mut values_code = String::new();
+        let mut register_code = String::new();
+        let mut values = HashMap::new();
 
         let out_file = out_dir.join(filename);
 
@@ -97,11 +97,8 @@ pub fn generate_register() {
                 prefix: &prefix,
                 mod_path: &mod_path,
 
-                code: RefCell::new(Code {
-                    functions: &mut functions_code,
-                    traits: &mut traits_code,
-                    values: &mut values_code,
-                }),
+                register: &mut register_code,
+                values: &mut values,
             };
 
             match syn::parse_file(&src)
@@ -116,7 +113,29 @@ pub fn generate_register() {
             }
         }
 
-        let code = format!("{{\n{functions_code}{traits_code}{values_code}}}\n");
+        let mut values_code = String::new();
+        for ((mod_path, ident), (global_name, trait_idents)) in values {
+            writeln!(
+                values_code,
+                "crate{}::{}({}, #[allow(unused_variables)] |value| {{",
+                mod_path,
+                get_register_value_type_ident(&ident),
+                global_name
+            )
+            .unwrap();
+            for trait_ident in trait_idents {
+                writeln!(
+                    values_code,
+                    "    crate{}::{}(value);",
+                    mod_path,
+                    get_register_trait_methods_ident(&trait_ident, &ident),
+                )
+                .unwrap();
+            }
+            writeln!(values_code, "}});").unwrap();
+        }
+
+        let code = format!("{{\n{register_code}{values_code}}}\n");
         std::fs::write(&out_file, &code).unwrap();
 
         // println!("cargo:warning={}", out_file.display());
@@ -126,11 +145,10 @@ pub fn generate_register() {
     }
 }
 
-struct Code<'a> {
-    functions: &'a mut String,
-    traits: &'a mut String,
-    values: &'a mut String,
-}
+/// (mod_path, type_ident)
+type ValueKey = (String, Ident);
+/// (global_name, trait_register_fns)
+type ValueEntry = (String, Vec<Ident>);
 
 struct RegisterContext<'a> {
     queue: &'a mut Vec<(String, PathBuf)>,
@@ -139,7 +157,8 @@ struct RegisterContext<'a> {
     mod_path: &'a str,
     prefix: &'a str,
 
-    code: RefCell<Code<'a>>,
+    register: &'a mut String,
+    values: &'a mut HashMap<ValueKey, ValueEntry>,
 }
 
 impl<'a> RegisterContext<'a> {
@@ -157,16 +176,7 @@ impl<'a> RegisterContext<'a> {
 
     fn process_enum(&mut self, enum_item: ItemEnum) -> Result<()> {
         if has_attribute(&enum_item.attrs, "value") {
-            let ident = &enum_item.ident;
-            let value_name = get_value_type_ident(ident);
-
-            self.write_register(
-                self.code.borrow_mut().values,
-                &value_name,
-                self.get_global_name(ident, None),
-            )?;
-
-            self.write_debug_value_impl(ident)?;
+            self.add_value(&enum_item.ident);
         }
         Ok(())
     }
@@ -174,13 +184,9 @@ impl<'a> RegisterContext<'a> {
     fn process_fn(&mut self, fn_item: ItemFn) -> Result<()> {
         if has_attribute(&fn_item.attrs, "function") {
             let ident = &fn_item.sig.ident;
-            let value_ident = get_function_ident(ident);
+            let type_ident = get_function_ident(ident);
 
-            self.write_register(
-                self.code.borrow_mut().functions,
-                &value_ident,
-                self.get_global_name(ident, None),
-            )?;
+            self.register(type_ident, self.get_global_name(ident, None))?;
         }
         Ok(())
     }
@@ -198,18 +204,25 @@ impl<'a> RegisterContext<'a> {
                         ident: struct_ident,
                     }) = segments.first()
                     {
+                        if let Some(trait_ident) =
+                            impl_item.trait_.as_ref().and_then(|(_, trait_path, _)| {
+                                trait_path.segments.last().map(|s| &s.ident)
+                            })
+                        {
+                            self.add_value_trait(struct_ident, trait_ident);
+                        }
+
                         for item in impl_item.items {
                             if let syn::ImplItem::Method(method_item) = item {
                                 // TODO: if method_item.attrs.iter().any(|a|
                                 // is_attribute(a,
                                 // "function")) {
                                 let method_ident = &method_item.sig.ident;
-                                let func_type_name =
+                                let function_type_ident =
                                     get_trait_impl_function_ident(struct_ident, method_ident);
 
-                                self.write_register(
-                                    self.code.borrow_mut().functions,
-                                    &func_type_name,
+                                self.register(
+                                    function_type_ident,
                                     self.get_global_name(struct_ident, Some(method_ident)),
                                 )?;
                             }
@@ -242,16 +255,7 @@ impl<'a> RegisterContext<'a> {
 
     fn process_struct(&mut self, struct_item: ItemStruct) -> Result<()> {
         if has_attribute(&struct_item.attrs, "value") {
-            let ident = &struct_item.ident;
-            let value_ident = get_value_type_ident(ident);
-
-            self.write_register(
-                self.code.borrow_mut().values,
-                &value_ident,
-                self.get_global_name(ident, None),
-            )?;
-
-            self.write_debug_value_impl(ident)?;
+            self.add_value(&struct_item.ident);
         }
         Ok(())
     }
@@ -272,23 +276,18 @@ impl<'a> RegisterContext<'a> {
                 }) = item
                 {
                     let method_ident = &sig.ident;
-                    let func_value_ident =
+                    let function_type_ident =
                         get_trait_default_impl_function_ident(trait_ident, method_ident);
 
-                    self.write_register(
-                        self.code.borrow_mut().traits,
-                        &func_value_ident,
+                    self.register(
+                        function_type_ident,
                         self.get_global_name(trait_ident, Some(method_ident)),
                     )?;
                 }
             }
 
-            let trait_value_ident = get_trait_type_ident(trait_ident);
-            self.write_register(
-                self.code.borrow_mut().traits,
-                &trait_value_ident,
-                self.get_global_name(trait_ident, None),
-            )?;
+            let trait_type_ident = get_trait_type_ident(trait_ident);
+            self.register(trait_type_ident, self.get_global_name(trait_ident, None))?;
 
             let debug = matches!(
                 parse_attr_args(attr)?,
@@ -296,7 +295,7 @@ impl<'a> RegisterContext<'a> {
             );
             if debug {
                 let ref_ident = get_ref_ident(trait_ident);
-                self.write_debug_value_impl(&ref_ident)?;
+                self.register_debug_impl(&ref_ident)?;
             }
         }
         Ok(())
@@ -315,25 +314,41 @@ impl<'a> RegisterContext<'a> {
         )
     }
 
-    fn write_register(
-        &self,
-        code: &mut String,
+    fn add_value(&mut self, ident: &Ident) {
+        let key: ValueKey = (self.mod_path.to_owned(), ident.clone());
+        let value: ValueEntry = (self.get_global_name(ident, None), Vec::new());
+
+        assert!(self.values.insert(key, value).is_none());
+
+        // register default debug impl generated by proc macro
+        self.register_debug_impl(ident).unwrap();
+        self.add_value_trait(ident, &Ident::new("ValueDebug", ident.span()));
+    }
+
+    fn add_value_trait(&mut self, ident: &Ident, trait_ident: &Ident) {
+        let key: ValueKey = (self.mod_path.to_owned(), ident.clone());
+
+        let entry = self.values.get_mut(&key).unwrap();
+        entry.1.push(trait_ident.clone());
+    }
+
+    fn register(
+        &mut self,
         type_ident: impl Display,
         global_name: impl Display,
     ) -> std::fmt::Result {
         writeln!(
-            code,
+            self.register,
             "crate{}::{}.register({});",
             self.mod_path, type_ident, global_name
         )
     }
 
     /// Declares the default derive of the `ValueDebug` trait.
-    fn write_debug_value_impl(&self, ident: &Ident) -> std::fmt::Result {
+    fn register_debug_impl(&mut self, ident: &Ident) -> std::fmt::Result {
         let fn_ident = Ident::new("dbg", ident.span());
 
-        self.write_register(
-            self.code.borrow_mut().functions,
+        self.register(
             get_trait_impl_function_ident(ident, &fn_ident),
             self.get_global_name(ident, Some(&fn_ident)),
         )

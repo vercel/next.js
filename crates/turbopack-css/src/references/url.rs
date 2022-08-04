@@ -1,4 +1,4 @@
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbopack_core::{
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
@@ -7,7 +7,7 @@ use turbopack_core::{
 
 use crate::references::css_resolve;
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct UrlAssetReference {
     pub context: AssetContextVc,

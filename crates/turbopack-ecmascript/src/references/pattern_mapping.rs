@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use swc_ecma_ast::Expr;
 use swc_ecma_quote::quote;
+use turbo_tasks::ValueToString;
 use turbopack_core::{
     chunk::ModuleId,
     context::AssetContextVc,

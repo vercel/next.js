@@ -12,7 +12,7 @@ use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     trace::TraceRawVcs,
     util::try_join_all,
-    Value,
+    Value, ValueToString,
 };
 use turbo_tasks_fs::{
     util::{join_path, normalize_path, normalize_request},
@@ -841,7 +841,7 @@ pub async fn resolve(
     })
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 pub struct AffectingResolvingAssetReference {
     file: FileSystemPathVc,
 }

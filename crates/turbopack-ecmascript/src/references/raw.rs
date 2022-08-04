@@ -1,12 +1,12 @@
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{pattern::PatternVc, resolve_raw, ResolveResultVc},
 };
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct SourceAssetReference {
     pub source: AssetVc,

@@ -3,7 +3,10 @@ use lazy_static::lazy_static;
 use swc_common::DUMMY_SP;
 use swc_ecma_ast::{Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Script, Stmt};
 use swc_ecma_quote::quote;
-use turbo_tasks::primitives::{BoolVc, StringVc};
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    ValueToString,
+};
 use turbopack_core::{
     asset::Asset,
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ModuleId},
@@ -33,7 +36,7 @@ pub(super) async fn get_ident(asset: EcmascriptChunkPlaceableVc) -> Result<Strin
     )))
 }
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference, CodeGenerateable)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub context: AssetContextVc,

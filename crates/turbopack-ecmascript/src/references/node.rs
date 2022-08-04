@@ -1,7 +1,7 @@
 use std::{collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -12,8 +12,7 @@ use turbopack_core::{
     },
     source_asset::SourceAssetVc,
 };
-
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
     pub package_json: FileSystemPathVc,
@@ -43,7 +42,7 @@ impl AssetReference for PackageJsonReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct DirAssetReference {
     pub source: AssetVc,

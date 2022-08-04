@@ -4,7 +4,7 @@ use turbopack_core::{
     reference::AssetReferencesVc,
 };
 
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value]
 pub struct ModuleAsset {
     pub source: AssetVc,
 }

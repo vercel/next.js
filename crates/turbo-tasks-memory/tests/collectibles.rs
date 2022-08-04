@@ -53,7 +53,7 @@ async fn my_emitting_function() -> Result<()> {
     Ok(())
 }
 
-#[turbo_tasks::value(shared, ValueToString)]
+#[turbo_tasks::value(shared)]
 struct Thing(u32);
 
 impl ThingVc {

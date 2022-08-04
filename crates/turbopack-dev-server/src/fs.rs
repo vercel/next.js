@@ -4,7 +4,7 @@ use turbo_tasks_fs::{
     DirectoryContentVc, FileContentVc, FileSystem, FileSystemPathVc, FileSystemVc,
 };
 
-#[turbo_tasks::value(FileSystem)]
+#[turbo_tasks::value]
 pub struct DevServerFileSystem {}
 
 #[turbo_tasks::value_impl]

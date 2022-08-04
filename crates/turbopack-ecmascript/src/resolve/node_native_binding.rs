@@ -4,7 +4,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::{glob::GlobVc, DirectoryEntry, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -31,7 +31,7 @@ struct NodePreGypConfig {
     napi_versions: Vec<u8>,
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct NodePreGypConfigReference {
     pub context: FileSystemPathVc,
@@ -166,7 +166,7 @@ pub async fn resolve_node_pre_gyp_files(
     Ok(ResolveResult::unresolveable().into())
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct NodeGypBuildReference {
     pub context: FileSystemPathVc,
@@ -260,7 +260,7 @@ pub async fn resolve_node_gyp_build_files(
     ))
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct NodeBindingsReference {
     pub context: FileSystemPathVc,

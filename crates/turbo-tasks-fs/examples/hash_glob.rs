@@ -66,11 +66,8 @@ async fn hash_glob_result(result: ReadGlobResultVc) -> Result<StringVc> {
     let result = result.await?;
     let mut hashes = BTreeMap::new();
     for (name, entry) in result.results.iter() {
-        match entry {
-            DirectoryEntry::File(path) => {
-                hashes.insert(name, hash_file(*path).await?.clone());
-            }
-            _ => {}
+        if let DirectoryEntry::File(path) = entry {
+            hashes.insert(name, hash_file(*path).await?.clone());
         }
     }
     for (name, result) in result.inner.iter() {

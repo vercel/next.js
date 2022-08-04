@@ -66,7 +66,7 @@ pub enum ModuleAssetType {
     TypescriptDeclaration,
 }
 
-#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ChunkableAsset, ValueToString)]
+#[turbo_tasks::value]
 #[derive(Clone, Copy)]
 pub struct ModuleAsset {
     pub source: AssetVc,
@@ -165,7 +165,7 @@ impl ValueToString for ModuleAsset {
     }
 }
 
-#[turbo_tasks::value(ChunkItem, EcmascriptChunkItem)]
+#[turbo_tasks::value]
 struct ModuleChunkItem {
     module: ModuleAssetVc,
     context: ChunkingContextVc,

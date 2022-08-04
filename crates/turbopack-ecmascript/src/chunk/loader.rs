@@ -13,7 +13,7 @@ use super::{
     EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
 };
 
-#[turbo_tasks::value(ChunkItem, ValueToString, EcmascriptChunkItem)]
+#[turbo_tasks::value]
 pub struct ChunkGroupLoaderChunkItem {
     asset: ChunkableAssetVc,
 }

@@ -1,5 +1,8 @@
 use anyhow::Result;
-use turbo_tasks::primitives::{BoolVc, StringVc};
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    ValueToString,
+};
 use turbopack_core::{
     chunk::{
         AsyncLoadableReference, AsyncLoadableReferenceVc, ChunkableAssetReference,
@@ -16,13 +19,7 @@ use crate::{
     references::AstPathVc,
     resolve::esm_resolve,
 };
-
-#[turbo_tasks::value(
-    AssetReference,
-    ChunkableAssetReference,
-    AsyncLoadableReference,
-    CodeGenerateable
-)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAsyncAssetReference {
     pub context: AssetContextVc,

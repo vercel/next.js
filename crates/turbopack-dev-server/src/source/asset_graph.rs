@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{get_invalidator, Invalidator};
+use turbo_tasks::{get_invalidator, Invalidator, ValueToString};
 use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{asset::AssetVc, reference::all_referenced_assets};
 
@@ -18,7 +18,7 @@ struct State {
 #[turbo_tasks::value(transparent)]
 struct AssetsMap(HashMap<String, AssetVc>);
 
-#[turbo_tasks::value(ContentSource, serialization: none, eq: manual, cell: new)]
+#[turbo_tasks::value(serialization: none, eq: manual, cell: new)]
 pub struct AssetGraphContentSource {
     root_path: FileSystemPathVc,
     root_asset: AssetVc,

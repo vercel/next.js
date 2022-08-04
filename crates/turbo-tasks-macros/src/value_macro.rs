@@ -2,37 +2,32 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::{
-    parse::{Parse, ParseStream, Parser},
+    parse::{Parse, ParseStream},
     parse_macro_input,
     spanned::Spanned,
-    Error, Fields, FieldsUnnamed, Item, ItemEnum, ItemStruct, Path, Result, Token,
+    Error, Fields, FieldsUnnamed, Item, ItemEnum, ItemStruct, Result, Token,
 };
-use turbo_tasks_macros_shared::{
-    get_ref_ident, get_register_trait_methods_ident, get_value_type_id_ident, get_value_type_ident,
-};
+use turbo_tasks_macros_shared::{get_ref_ident, get_register_value_type_ident};
 
-use crate::util::*;
-
-pub fn get_check_trait_method_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
+fn get_value_type_ident(ident: &Ident) -> Ident {
     Ident::new(
-        &format!(
-            "__trait_{}_need_to_be_in_turbo_tasks_value_attr_of_{}_",
-            trait_ident, struct_ident
-        ),
-        trait_ident.span(),
-    )
-}
-
-pub fn get_as_super_ident(ident: &Ident) -> Ident {
-    use convert_case::{Case, Casing};
-    Ident::new(
-        &format!("as_{}", ident.to_string().to_case(Case::Snake)),
+        &format!("{}_VALUE_TYPE", ident.to_string().to_uppercase()),
         ident.span(),
     )
 }
 
-fn get_last_ident(path: &Path) -> Option<&Ident> {
-    path.segments.last().map(|s| &s.ident)
+fn get_value_type_id_ident(ident: &Ident) -> Ident {
+    Ident::new(
+        &format!("{}_VALUE_TYPE_ID", ident.to_string().to_uppercase()),
+        ident.span(),
+    )
+}
+
+fn get_value_type_init_ident(ident: &Ident) -> Ident {
+    Ident::new(
+        &format!("{}_VALUE_TYPE_INIT", ident.to_string().to_uppercase()),
+        ident.span(),
+    )
 }
 
 enum IntoMode {
@@ -51,9 +46,28 @@ impl Parse for IntoMode {
             _ => Err(Error::new_spanned(
                 &ident,
                 format!(
-                    "unexpected {}, expected \"none\", \"new\", \"shared\"",
+                    "unexpected {}, expected \"none\", \"new\" or \"shared\"",
                     ident
                 ),
+            )),
+        }
+    }
+}
+
+enum CellMode {
+    New,
+    Shared,
+}
+
+impl Parse for CellMode {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let ident = input.parse::<Ident>()?;
+        match ident.to_string().as_str() {
+            "new" => Ok(CellMode::New),
+            "shared" => Ok(CellMode::Shared),
+            _ => Err(Error::new_spanned(
+                &ident,
+                format!("unexpected {}, expected \"new\" or \"shared\"", ident),
             )),
         }
     }
@@ -79,8 +93,8 @@ impl Parse for SerializationMode {
             _ => Err(Error::new_spanned(
                 &ident,
                 format!(
-                    "unexpected {}, expected \"none\", \"auto\", \"auto_for_input\", \"custom\", \
-                     \"custom_for_input\"",
+                    "unexpected {}, expected \"none\", \"auto\", \"auto_for_input\", \"custom\" \
+                     or \"custom_for_input\"",
                     ident
                 ),
             )),
@@ -89,10 +103,9 @@ impl Parse for SerializationMode {
 }
 
 struct ValueArguments {
-    traits: Vec<Path>,
     serialization_mode: SerializationMode,
     into_mode: IntoMode,
-    cell_mode: IntoMode,
+    cell_mode: CellMode,
     manual_eq: bool,
     transparent: bool,
 }
@@ -100,10 +113,9 @@ struct ValueArguments {
 impl Parse for ValueArguments {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut result = ValueArguments {
-            traits: Vec::new(),
             serialization_mode: SerializationMode::Auto,
             into_mode: IntoMode::None,
-            cell_mode: IntoMode::Shared,
+            cell_mode: CellMode::Shared,
             manual_eq: false,
             transparent: false,
         };
@@ -111,25 +123,25 @@ impl Parse for ValueArguments {
             return Ok(result);
         }
         loop {
-            let path = input.parse::<Path>()?;
-            match path.get_ident().map(|ident| ident.to_string()).as_deref() {
-                Some("shared") => {
+            let ident = input.parse::<Ident>()?;
+            match ident.to_string().as_str() {
+                "shared" => {
                     result.into_mode = IntoMode::Shared;
-                    result.cell_mode = IntoMode::Shared;
+                    result.cell_mode = CellMode::Shared;
                 }
-                Some("into") => {
+                "into" => {
                     input.parse::<Token![:]>()?;
                     result.into_mode = input.parse::<IntoMode>()?;
                 }
-                Some("serialization") => {
+                "serialization" => {
                     input.parse::<Token![:]>()?;
                     result.serialization_mode = input.parse::<SerializationMode>()?;
                 }
-                Some("cell") => {
+                "cell" => {
                     input.parse::<Token![:]>()?;
-                    result.cell_mode = input.parse::<IntoMode>()?;
+                    result.cell_mode = input.parse::<CellMode>()?;
                 }
-                Some("eq") => {
+                "eq" => {
                     input.parse::<Token![:]>()?;
                     let ident = input.parse::<Ident>()?;
 
@@ -142,16 +154,18 @@ impl Parse for ValueArguments {
                         ));
                     };
                 }
-                Some("transparent") => {
+                "transparent" => {
                     result.transparent = true;
                 }
                 _ => {
-                    result.traits.push(path);
-                    while input.peek(Token![+]) {
-                        input.parse::<Token![+]>()?;
-                        let path = input.parse::<Path>()?;
-                        result.traits.push(path);
-                    }
+                    return Err(Error::new_spanned(
+                        &ident,
+                        format!(
+                            "unexpected {}, expected \"shared\", \"into\", \"serialization\", \
+                             \"cell\", \"eq\", \"transparent\"",
+                            ident
+                        ),
+                    ));
                 }
             }
             if input.is_empty() {
@@ -168,21 +182,12 @@ impl Parse for ValueArguments {
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
     let ValueArguments {
-        mut traits,
         serialization_mode,
         into_mode,
         cell_mode,
         manual_eq,
         transparent,
     } = parse_macro_input!(args as ValueArguments);
-
-    let additional_impl_traits = vec![quote! { turbo_tasks::debug::ValueDebug }];
-    for trait_path in &additional_impl_traits {
-        let trait_path = Path::parse
-            .parse(trait_path.clone().into())
-            .expect("failed to parse trait path");
-        traits.push(trait_path);
-    }
 
     let (vis, ident) = match &item {
         Item::Enum(ItemEnum { vis, ident, .. }) => (vis, ident),
@@ -198,20 +203,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let ref_ident = get_ref_ident(ident);
+    let value_type_init_ident = get_value_type_init_ident(ident);
     let value_type_ident = get_value_type_ident(ident);
     let value_type_id_ident = get_value_type_id_ident(ident);
-    let trait_refs: Vec<_> = traits.iter().map(get_ref_path).collect();
-    let as_trait_methods: Vec<_> = traits
-        .iter()
-        .filter_map(get_last_ident)
-        .map(get_as_super_ident)
-        .collect();
-    let check_from_impl_methods: Vec<_> = traits
-        .iter()
-        .filter_map(get_last_ident)
-        .map(|t| get_check_trait_method_ident(t, ident))
-        .collect();
-    let traits_len = traits.len();
+    let register_value_type_ident = get_register_value_type_ident(ident);
 
     let mut inner_type = None;
     if transparent {
@@ -255,80 +250,89 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                     Self { node: cell.into() }
                 }
             }
-
-            #(impl From<#ident> for #trait_refs {
-                fn from(content: #ident) -> Self {
-                    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*#value_type_id_ident);
-                    #update_op
-                    std::convert::From::<turbo_tasks::RawVc>::from(cell.into())
-                }
-            })*
         }
     } else {
         quote! {}
     };
 
     let cell_update_op = match cell_mode {
-        IntoMode::None => None,
-        IntoMode::New => Some(quote! {
+        CellMode::New => quote! {
             cell.update_shared(content);
-        }),
-        IntoMode::Shared => Some(quote! {
+        },
+        CellMode::Shared => quote! {
             // TODO we could offer a From<&#ident> when #ident implemented Clone
             cell.compare_and_update_shared(content);
-        }),
+        },
     };
 
-    let (cell_prefix, cell_arg_type, cell_convert_content) = if let Some(inner_type) = inner_type {
-        (
-            quote! { pub },
-            quote! { #inner_type },
-            quote! {
-                let content = #ident(content);
-            },
-        )
-    } else {
-        (quote! {}, quote! { #ident }, quote! {})
-    };
+    let (cell_prefix, cell_arg_type, cell_convert_content, cell_access_content) =
+        if let Some(inner_type) = inner_type {
+            (
+                quote! { pub },
+                quote! { #inner_type },
+                quote! {
+                    let content = #ident(content);
+                },
+                quote! {
+                    content.0
+                },
+            )
+        } else {
+            (
+                if let IntoMode::New | IntoMode::Shared = into_mode {
+                    quote! { pub }
+                } else {
+                    quote! {}
+                },
+                quote! { #ident },
+                quote! {},
+                quote! { content },
+            )
+        };
 
-    let cell = if let Some(update_op) = cell_update_op {
-        quote! {
-            /// Places a value in a cell of the current task.
-            ///
-            /// Cell is selected based on the value type and call order of `cell`.
-            #cell_prefix fn cell(content: #cell_arg_type) -> #ref_ident {
-                let cell = turbo_tasks::macro_helpers::find_cell_by_type(*#value_type_id_ident);
-                #cell_convert_content
-                #update_op
-                #ref_ident { node: cell.into() }
-            }
-
-            /// Places a value in a cell of the current task.
-            ///
-            /// Cell is selected by the provided `key`. `key` must not be used twice during the current task.
-            #cell_prefix fn keyed_cell<
-                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
-            >(key: K, content: #cell_arg_type) -> #ref_ident {
-                let cell = turbo_tasks::macro_helpers::find_cell_by_key(*#value_type_id_ident, key);
-                #cell_convert_content
-                #update_op
-                #ref_ident { node: cell.into() }
-            }
+    let cell = quote! {
+        /// Places a value in a cell of the current task.
+        ///
+        /// Cell is selected based on the value type and call order of `cell`.
+        #cell_prefix fn cell(content: #cell_arg_type) -> #ref_ident {
+            let cell = turbo_tasks::macro_helpers::find_cell_by_type(*#value_type_id_ident);
+            #cell_convert_content
+            #cell_update_op
+            #ref_ident { node: cell.into() }
         }
-    } else {
-        quote! {}
+
+        /// Places a value in a cell of the current task.
+        ///
+        /// Cell is selected by the provided `key`. `key` must not be used twice during the current task.
+        #cell_prefix fn keyed_cell<
+            K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
+        >(key: K, content: #cell_arg_type) -> #ref_ident {
+            let cell = turbo_tasks::macro_helpers::find_cell_by_key(*#value_type_id_ident, key);
+            #cell_convert_content
+            #cell_update_op
+            #ref_ident { node: cell.into() }
+        }
     };
 
-    let trait_registrations: Vec<_> = traits
-        .iter()
-        .filter_map(get_last_ident)
-        .map(|trait_ident| {
-            let register = get_register_trait_methods_ident(trait_ident, ident);
-            quote! {
-                #register(&mut value_type);
-            }
-        })
-        .collect();
+    let cell_struct = quote! {
+        /// Places a value in a cell of the current task.
+        ///
+        /// Cell is selected based on the value type and call order of `cell`.
+        #cell_prefix fn cell(self) -> #ref_ident {
+            let content = self;
+            #ref_ident::cell(#cell_access_content)
+        }
+
+        /// Places a value in a cell of the current task.
+        ///
+        /// Cell is selected by the provided `key`. `key` must not be used twice during the current task.
+        #cell_prefix fn keyed_cell<
+            K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
+        >(self, key: K) -> #ref_ident {
+            let content = self;
+            #ref_ident::keyed_cell(key, #cell_access_content)
+        }
+    };
 
     let derive = match serialization_mode {
         SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
@@ -461,7 +465,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                     } else {
                         // This case means `SelfVc` does not implement `ValueDebugVc`, which is not possible
                         // if this implementation exists.
-                        "<unreachable>".to_string()
+                        unreachable!()
                     })
                 }))
             }
@@ -476,15 +480,37 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #debug_derive
         #item
 
-        turbo_tasks::lazy_static! {
-            pub(crate) static ref #value_type_ident: turbo_tasks::ValueType = {
-                let mut value_type = #new_value_type;
-                #(#trait_registrations)*
-                value_type
-            };
-            static ref #value_type_id_ident: turbo_tasks::ValueTypeId = {
-                turbo_tasks::registry::get_value_type_id(&#value_type_ident)
-            };
+        impl #ident {
+            #cell_struct
+        }
+
+        static #value_type_init_ident: turbo_tasks::macro_helpers::OnceCell<
+            turbo_tasks::ValueType,
+        > = turbo_tasks::macro_helpers::OnceCell::new();
+        pub(crate) static #value_type_ident: turbo_tasks::macro_helpers::Lazy<&turbo_tasks::ValueType> =
+            turbo_tasks::macro_helpers::Lazy::new(|| {
+                #value_type_init_ident.get_or_init(|| {
+                    panic!(
+                        "DISKFILESYSTEM_VALUE_TYPE has not been initialized (this should happen via the \
+                         generated register function)"
+                    )
+                })
+            });
+        static #value_type_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
+            turbo_tasks::macro_helpers::Lazy::new(|| {
+                turbo_tasks::registry::get_value_type_id(*#value_type_ident)
+            });
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        pub(crate) fn #register_value_type_ident(
+            global_name: &'static str,
+            f: impl FnOnce(&mut turbo_tasks::ValueType),
+        ) {
+            #value_type_init_ident.get_or_init(|| {
+                let mut value = #new_value_type;
+                f(&mut value);
+                value
+            }).register(global_name);
         }
 
         impl turbo_tasks::Typed for #ident {
@@ -526,20 +552,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             #strongly_consistent
-
-            #(
-                pub fn #as_trait_methods(self) -> #trait_refs {
-                    std::convert::From::<turbo_tasks::RawVc>::from(self.node)
-                }
-            )*
-
-            #(
-                #[deny(unused)]
-                #[doc(hidden)]
-                #[allow(non_snake_case)]
-                #[inline]
-                fn #check_from_impl_methods() {}
-            )*
         }
 
         impl turbo_tasks::CollectiblesSource for #ref_ident {
@@ -559,14 +571,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             #[inline]
-            fn get_trait_type_ids() -> &'static [turbo_tasks::TraitTypeId] {
-                turbo_tasks::lazy_static! {
-                    static ref TRAIT_TYPES: [turbo_tasks::TraitTypeId; #traits_len] = [#(<#trait_refs as turbo_tasks::ValueTraitVc>::get_trait_type_id()),*];
-                }
-                &*TRAIT_TYPES
+            fn get_trait_type_ids() -> Box<dyn Iterator<Item = turbo_tasks::TraitTypeId>> {
+                Box::new(#value_type_ident.traits_iter())
             }
         }
-
 
         #into_future
 
@@ -607,12 +615,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 node_ref.node.clone().into()
             }
         }
-
-        #(impl From<#ref_ident> for #trait_refs {
-            fn from(node_ref: #ref_ident) -> Self {
-                std::convert::From::<turbo_tasks::RawVc>::from(node_ref.into())
-            }
-        })*
 
         #into
 

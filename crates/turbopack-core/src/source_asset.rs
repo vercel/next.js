@@ -7,7 +7,7 @@ use crate::{
 
 /// The raw [Asset]. It represents raw content from a path without any
 /// references to other [Asset]s.
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value]
 pub struct SourceAsset {
     pub path: FileSystemPathVc,
 }

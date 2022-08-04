@@ -409,7 +409,7 @@ impl TaskInput {
             | TaskInput::SharedReference(SharedReference(ty, _)) => {
                 if let Some(ty) = *ty {
                     let key = (trait_type, name.into_owned());
-                    if let Some(func) = registry::get_value_type(ty).trait_methods.get(&key) {
+                    if let Some(func) = registry::get_value_type(ty).get_trait_method(&key) {
                         Ok(*func)
                     } else if let Some(func) = registry::get_trait(trait_type)
                         .default_trait_methods
@@ -435,7 +435,7 @@ impl TaskInput {
             TaskInput::SharedValue(SharedValue(ty, _))
             | TaskInput::SharedReference(SharedReference(ty, _)) => {
                 if let Some(ty) = *ty {
-                    registry::get_value_type(ty).traits.contains(&trait_type)
+                    registry::get_value_type(ty).has_trait(&trait_type)
                 } else {
                     false
                 }
@@ -453,9 +453,8 @@ impl TaskInput {
             | TaskInput::SharedReference(SharedReference(ty, _)) => {
                 if let Some(ty) = *ty {
                     registry::get_value_type(ty)
-                        .traits
-                        .iter()
-                        .map(|t| registry::get_trait(*t))
+                        .traits_iter()
+                        .map(registry::get_trait)
                         .collect()
                 } else {
                     Vec::new()

@@ -2,6 +2,13 @@
 
 /// Explicit extern crate to use allocator.
 extern crate turbo_malloc;
+use anyhow::{anyhow, Context, Result};
+use difference::{Changeset, Difference};
+use lazy_static::lazy_static;
+use regex::Regex;
+use rstest::*;
+use rstest_reuse::{self, *};
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "bench_against_node_nft")]
 use std::time::Instant;
 use std::{
@@ -14,19 +21,14 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-
-use anyhow::{anyhow, Context, Result};
-use difference::{Changeset, Difference};
-use lazy_static::lazy_static;
-use regex::Regex;
-use rstest::*;
-use rstest_reuse::{self, *};
-use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
+use turbo_tasks::ValueToString;
 use turbo_tasks::{backend::Backend, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, rebase::RebasedAssetVc, register, ModuleAssetContextVc};
+use turbopack_core::asset::Asset;
+use turbopack_core::context::AssetContext;
 use turbopack_core::target::CompileTargetVc;
 use turbopack_core::{
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
@@ -332,7 +334,7 @@ fn node_file_trace<B: Backend + 'static>(
                 {
                     let output = exec_node(directory.clone(), output_path);
                     let output = assert_output(original_output, output);
-                    Ok(output.await?)
+                    output.await
                 }
                 #[cfg(feature = "bench_against_node_nft")]
                 {

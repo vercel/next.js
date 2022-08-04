@@ -18,7 +18,7 @@ use writer::{expand_imports, WriterWithIndent};
 
 use crate::ImportAssetReferenceVc;
 
-#[turbo_tasks::value(Chunk, Asset, ValueToString)]
+#[turbo_tasks::value]
 pub struct CssChunk {
     context: ChunkingContextVc,
     /// must implement [CssChunkPlaceable] too

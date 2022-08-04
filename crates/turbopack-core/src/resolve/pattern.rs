@@ -9,7 +9,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
-#[turbo_tasks::value(shared, serialization: auto_for_input, ValueToString)]
+#[turbo_tasks::value(shared, serialization: auto_for_input)]
 #[derive(PartialOrd, Ord, Hash, Clone, Debug)]
 pub enum Pattern {
     Constant(String),
@@ -836,6 +836,8 @@ mod tests {
                 ])
             );
         }
+
+        #[allow(clippy::redundant_clone)] // alignment
         {
             let mut p = Pattern::Concatenation(vec![
                 Pattern::Alternatives(vec![a.clone(), b.clone(), d.clone()]),
@@ -843,6 +845,7 @@ mod tests {
                 Pattern::Alternatives(vec![b.clone(), c.clone(), d.clone()]),
             ]);
             p.normalize();
+
             assert_eq!(
                 p,
                 Pattern::Alternatives(vec![

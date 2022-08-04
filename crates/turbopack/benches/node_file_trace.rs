@@ -9,6 +9,7 @@ use turbopack::{
     emit, emit_with_completion, rebase::RebasedAssetVc, register, ModuleAssetContextVc,
 };
 use turbopack_core::{
+    context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
     target::CompileTargetVc,

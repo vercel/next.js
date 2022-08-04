@@ -6,7 +6,7 @@ use turbopack_core::{
     reference::AssetReferencesVc,
 };
 
-#[turbo_tasks::value(shared, Asset)]
+#[turbo_tasks::value(shared)]
 pub struct DevHtmlAsset {
     pub path: FileSystemPathVc,
     pub chunk_group: ChunkGroupVc,

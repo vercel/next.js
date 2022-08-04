@@ -19,7 +19,7 @@ use swc_ecma_parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig};
 use swc_ecma_transforms_base::{helpers::Helpers, resolver};
 use swc_ecma_transforms_react::jsx;
 use swc_ecma_visit::VisitMutWith;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::asset::AssetVc;
 

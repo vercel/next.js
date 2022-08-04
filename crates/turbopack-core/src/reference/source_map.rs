@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPathVc};
 
 use super::{AssetReference, AssetReferenceVc};
@@ -8,7 +8,7 @@ use crate::{
     source_asset::SourceAssetVc,
 };
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 pub struct SourceMap {
     from: FileSystemPathVc,
     file: FileSystemPathVc,

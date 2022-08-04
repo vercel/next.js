@@ -101,11 +101,13 @@ impl NextDevServerBuilder {
                 let viz = turbo_tasks_viz::TurboTasksSource {
                     turbo_tasks: turbo_tasks.clone(),
                 }
+                .cell()
                 .into();
                 let source = RouterContentSource {
                     routes: vec![("__turbo_tasks__/".to_string(), viz)],
                     fallback: main_source,
                 }
+                .cell()
                 .into();
 
                 let server = DevServerVc::new(

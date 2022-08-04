@@ -4,7 +4,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{Issue, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc};
 
-#[turbo_tasks::value(shared, Issue)]
+#[turbo_tasks::value(shared)]
 pub struct AnalyzeIssue {
     pub severity: IssueSeverityVc,
     pub path: FileSystemPathVc,

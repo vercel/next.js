@@ -6,7 +6,7 @@ use turbopack_core::{
     reference::{all_assets, AssetReferencesVc},
 };
 
-#[turbo_tasks::value(shared, Asset)]
+#[turbo_tasks::value(shared)]
 pub struct NftJsonAsset {
     entry: AssetVc,
 }

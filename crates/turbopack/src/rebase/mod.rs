@@ -9,7 +9,7 @@ use turbopack_core::{
     resolve::ResolveResultVc,
 };
 
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value]
 #[derive(Hash)]
 pub struct RebasedAsset {
     source: AssetVc,
@@ -52,6 +52,7 @@ impl Asset for RebasedAsset {
                     input_dir: self.input_dir,
                     output_dir: self.output_dir,
                 }
+                .cell()
                 .into(),
             );
         }
@@ -59,7 +60,7 @@ impl Asset for RebasedAsset {
     }
 }
 
-#[turbo_tasks::value(shared, AssetReference)]
+#[turbo_tasks::value(shared)]
 struct RebasedAssetReference {
     reference: AssetReferenceVc,
     input_dir: FileSystemPathVc,
@@ -83,6 +84,7 @@ impl AssetReference for RebasedAssetReference {
                         input_dir: self.input_dir,
                         output_dir: self.output_dir,
                     }
+                    .cell()
                     .into();
                     async move { Ok(reference) }
                 },

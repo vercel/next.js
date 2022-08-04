@@ -12,22 +12,22 @@ use turbo_tasks_macros_shared::{
 use crate::{
     func::{gen_native_function_code, split_signature, SelfType},
     util::*,
-    value_macro::get_as_super_ident,
 };
 
 fn get_trait_type_id_ident(ident: &Ident) -> Ident {
     Ident::new(
-        &(ident.to_string().to_uppercase() + "_TRAIT_TYPE_ID"),
+        &format!("{}_TRAIT_TYPE_ID", ident.to_string().to_uppercase()),
         ident.span(),
     )
 }
 
 fn get_trait_default_impl_function_id_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
-        &(trait_ident.to_string().to_uppercase()
-            + "_DEFAULT_IMPL_"
-            + &ident.to_string().to_uppercase()
-            + "_FUNCTION_ID"),
+        &format!(
+            "{}_DEFAULT_IMPL_{}_FUNCTION_ID",
+            trait_ident.to_string().to_uppercase(),
+            ident.to_string().to_uppercase()
+        ),
         ident.span(),
     )
 }
@@ -240,13 +240,13 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         #(
             impl From<#ref_ident> for #supertrait_refs {
                 fn from(node_ref: #ref_ident) -> Self {
-                    std::convert::From::<turbo_tasks::RawVc>::from(node_ref.into())
+                    node_ref.node.into()
                 }
             }
 
             impl #ref_ident {
                 pub fn #as_supertrait_methods(self) -> #supertrait_refs {
-                    std::convert::From::<turbo_tasks::RawVc>::from(self.node)
+                    self.node.into()
                 }
             }
         )*

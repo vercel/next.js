@@ -68,6 +68,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                                     runtime: self.runtime,
                                     transforms: self.transforms,
                                 }
+                                .cell()
                                 .into(),
                             );
                         }

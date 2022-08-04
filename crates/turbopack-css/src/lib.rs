@@ -10,7 +10,7 @@ use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
-    reference::AssetReferencesVc,
+    reference::{AssetReference, AssetReferencesVc},
 };
 
 pub mod chunk;
@@ -27,7 +27,7 @@ use crate::{
     references::{analyze_css_stylesheet, import::ImportAssetReferenceVc},
 };
 
-#[turbo_tasks::value(Asset, CssChunkPlaceable, ChunkableAsset, ValueToString)]
+#[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ModuleAsset {
     pub source: AssetVc,
@@ -91,7 +91,7 @@ impl ValueToString for ModuleAsset {
     }
 }
 
-#[turbo_tasks::value(ChunkItem, CssChunkItem)]
+#[turbo_tasks::value]
 struct ModuleChunkItem {
     module: ModuleAssetVc,
     context: ChunkingContextVc,

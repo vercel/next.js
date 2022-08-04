@@ -1,3 +1,4 @@
+use turbo_tasks::ValueToString;
 pub mod resolve;
 
 use anyhow::Result;
@@ -15,7 +16,7 @@ use self::resolve::{read_from_tsconfigs, read_tsconfigs, type_resolve};
 use super::resolve::cjs_resolve;
 use crate::resolve::apply_cjs_specific_options;
 
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value]
 pub struct TsConfigModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
@@ -122,7 +123,7 @@ impl Asset for TsConfigModuleAsset {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CompilerReference {
     pub context: AssetContextVc,
@@ -153,7 +154,7 @@ impl AssetReference for CompilerReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsExtendsReference {
     pub config: AssetVc,
@@ -183,7 +184,7 @@ impl AssetReference for TsExtendsReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsNodeRequireReference {
     pub context: AssetContextVc,
@@ -214,7 +215,7 @@ impl AssetReference for TsNodeRequireReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsConfigTypesReference {
     pub context: AssetContextVc,
