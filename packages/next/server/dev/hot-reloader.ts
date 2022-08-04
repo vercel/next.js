@@ -29,7 +29,6 @@ import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
   entries,
-  getInvalidator,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
