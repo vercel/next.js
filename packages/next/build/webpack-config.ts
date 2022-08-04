@@ -824,7 +824,7 @@ export default async function getBaseWebpackConfig(
     }
     // We need to externalize internal requests for files intended to
     // not be bundled.
-    let isLocal: boolean =
+    const isLocal: boolean =
       request.startsWith('.') ||
       // Always check for unix-style path, as webpack sometimes
       // normalizes as posix.
