@@ -4,28 +4,19 @@
 
 use std::{net::IpAddr, sync::Arc};
 
-use anyhow::{anyhow, Context, Result};
-use turbo_tasks::{TransientValue, TurboTasks, Value};
+use anyhow::{Context, Result};
+use turbo_tasks::{TransientValue, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::MemoryBackend;
-use turbopack::{ecmascript::ModuleAssetVc as EcmascriptModuleAssetVc, ModuleAssetContextVc};
-use turbopack_core::{
-    chunk::{
-        dev::{DevChunkingContext, DevChunkingContextVc},
-        ChunkGroupVc, ChunkableAssetVc,
-    },
-    context::AssetContextVc,
-    environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
-    source_asset::SourceAssetVc,
-};
+use turbopack::ecmascript::ModuleAssetVc as EcmascriptModuleAssetVc;
 use turbopack_dev_server::{
-    fs::DevServerFileSystemVc,
-    html::DevHtmlAsset,
-    source::{asset_graph::AssetGraphContentSourceVc, router::RouterContentSource},
-    DevServerListening, DevServerVc,
+    fs::DevServerFileSystemVc, source::router::RouterContentSource, DevServerListening, DevServerVc,
 };
 
+use self::web_entry_source::create_web_entry_source;
+
 mod turbo_tasks_viz;
+mod web_entry_source;
 
 pub struct NextDevServerBuilder {
     turbo_tasks: Option<Arc<TurboTasks<MemoryBackend>>>,
@@ -95,78 +86,25 @@ impl NextDevServerBuilder {
                     self.project_dir.context("project_dir must be set")?,
                 );
                 let fs = disk_fs.into();
-                let root = FileSystemPathVc::new(fs, "");
-                let source_asset = SourceAssetVc::new(FileSystemPathVc::new(
-                    fs,
-                    &self
-                        .entry_asset_path
-                        .context("entry_asset_path must be set")?,
-                ))
-                .into();
-                let context: AssetContextVc = ModuleAssetContextVc::new(
-                    root,
-                    EnvironmentVc::new(
-                        Value::new(ExecutionEnvironment::Browser(
-                            BrowserEnvironment {
-                                dom: true,
-                                web_worker: false,
-                                service_worker: false,
-                                browser_version: 0,
-                            }
-                            .into(),
-                        )),
-                        Value::new(EnvironmentIntention::Client),
-                    ),
-                )
-                .into();
-                let module = context.process(source_asset);
                 let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
-                let chunking_context: DevChunkingContextVc = DevChunkingContext {
-                    context_path: root,
-                    chunk_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/chunks"),
-                    asset_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static"),
-                }
-                .into();
-                let entry_asset = if let Some(ecmascript) =
-                    EcmascriptModuleAssetVc::resolve_from(module).await?
-                {
-                    let chunk = ecmascript.as_evaluated_chunk(chunking_context.into());
-                    let chunk_group = ChunkGroupVc::from_chunk(chunk);
-                    DevHtmlAsset {
-                        path: FileSystemPathVc::new(dev_server_fs, "index.html"),
-                        chunk_group,
-                    }
-                    .into()
-                } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-                    let chunk = chunkable.as_chunk(chunking_context.into());
-                    let chunk_group = ChunkGroupVc::from_chunk(chunk);
-                    DevHtmlAsset {
-                        path: FileSystemPathVc::new(dev_server_fs, "index.html"),
-                        chunk_group,
-                    }
-                    .into()
-                } else {
-                    // TODO convert into a serve-able asset
-                    return Err(anyhow!(
-                        "Entry module is not chunkable, so it can't be used to bootstrap the \
-                         application"
-                    ));
-                };
-
-                let root_path = FileSystemPathVc::new(dev_server_fs, "");
-                let graph = if self.eager_compile {
-                    AssetGraphContentSourceVc::new_eager(root_path, entry_asset)
-                } else {
-                    AssetGraphContentSourceVc::new_lazy(root_path, entry_asset)
-                }
-                .into();
+                let main_source = create_web_entry_source(
+                    FileSystemPathVc::new(fs, ""),
+                    FileSystemPathVc::new(
+                        fs,
+                        &self
+                            .entry_asset_path
+                            .context("entry_asset_path must be set")?,
+                    ),
+                    dev_server_fs,
+                    self.eager_compile,
+                );
                 let viz = turbo_tasks_viz::TurboTasksSource {
                     turbo_tasks: turbo_tasks.clone(),
                 }
                 .into();
                 let source = RouterContentSource {
                     routes: vec![("__turbo_tasks__/".to_string(), viz)],
-                    fallback: graph,
+                    fallback: main_source,
                 }
                 .into();
 
