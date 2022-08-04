@@ -103,13 +103,22 @@ export default class MiddlewarePlugin {
 
 export async function handleWebpackExtenalForEdgeRuntime({
   request,
+  context,
   contextInfo,
+  getResolve,
 }: {
   request: string
+  context: string
   contextInfo: any
+  getResolve: () => any
 }) {
   if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
-    return `root  globalThis.__import_unsupported('${request}')`
+    // allows user to provide and use their polyfills, as we do with buffer.
+    try {
+      await getResolve()(context, request)
+    } catch {
+      return `root  globalThis.__import_unsupported('${request}')`
+    }
   }
 }
 
