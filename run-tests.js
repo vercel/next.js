@@ -37,7 +37,10 @@ const cleanUpAndExit = async (code) => {
     await fs.remove(process.env.NEXT_TEST_STARTER)
   }
   console.log(`exiting with code ${code}`)
-  process.exit(code)
+
+  setTimeout(() => {
+    process.exit(code)
+  }, 1)
 }
 
 async function getTestTimings() {

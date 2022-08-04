@@ -6658,6 +6658,7 @@ var import_request = __toESM(require_request());
 var import_file = __toESM(require_file());
 global.AbortController = import_abort_controller.AbortController;
 global.AbortSignal = import_abort_controller2.AbortSignal;
+define_process_default.nextTick = setImmediate;
 var SCookies = Symbol("set-cookie");
 var __append = HeadersModule.HeadersList.prototype.append;
 HeadersModule.HeadersList.prototype.append = function(name, value) {
