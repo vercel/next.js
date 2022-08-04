@@ -2,15 +2,9 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::{parse_macro_input, ItemFn};
+use turbo_tasks_macros_shared::get_function_ident;
 
 use crate::func::{gen_native_function_code, split_signature};
-
-fn get_function_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &(ident.to_string().to_uppercase() + "_FUNCTION"),
-        ident.span(),
-    )
-}
 
 fn get_function_id_ident(ident: &Ident) -> Ident {
     Ident::new(

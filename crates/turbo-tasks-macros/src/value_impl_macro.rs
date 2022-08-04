@@ -5,26 +5,19 @@ use syn::{
     parse_macro_input, spanned::Spanned, Attribute, FnArg, ImplItem, ImplItemMethod, ItemImpl,
     Path, Receiver, ReturnType, Signature, Token, Type, TypePath,
 };
+use turbo_tasks_macros_shared::{
+    get_ref_ident, get_register_trait_methods_ident, get_trait_impl_function_ident,
+};
 
 use crate::{
     func::{gen_native_function_code, split_signature, SelfType},
     util::*,
-    value_macro::{get_check_trait_method_ident, get_register_trait_methods_ident},
+    value_macro::get_check_trait_method_ident,
 };
 
 fn get_internal_trait_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
         &("__trait_call_".to_string() + &trait_ident.to_string() + "_" + &ident.to_string()),
-        ident.span(),
-    )
-}
-
-fn get_trait_impl_function_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
-    Ident::new(
-        &(struct_ident.to_string().to_uppercase()
-            + "_IMPL_"
-            + &ident.to_string().to_uppercase()
-            + "_FUNCTION"),
         ident.span(),
     )
 }

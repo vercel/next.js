@@ -5,7 +5,9 @@ use syn::{
     parse_macro_input, ItemTrait, Path, PathSegment, Signature, TraitBound, TraitItem,
     TraitItemMethod, TypeParamBound,
 };
-use turbo_tasks_macros_shared::ValueTraitArguments;
+use turbo_tasks_macros_shared::{
+    get_ref_ident, get_trait_default_impl_function_ident, get_trait_type_ident, ValueTraitArguments,
+};
 
 use crate::{
     func::{gen_native_function_code, split_signature, SelfType},
@@ -13,26 +15,9 @@ use crate::{
     value_macro::get_as_super_ident,
 };
 
-pub fn get_trait_type_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &(ident.to_string().to_uppercase() + "_TRAIT_TYPE"),
-        ident.span(),
-    )
-}
-
-pub fn get_trait_type_id_ident(ident: &Ident) -> Ident {
+fn get_trait_type_id_ident(ident: &Ident) -> Ident {
     Ident::new(
         &(ident.to_string().to_uppercase() + "_TRAIT_TYPE_ID"),
-        ident.span(),
-    )
-}
-
-fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
-    Ident::new(
-        &(trait_ident.to_string().to_uppercase()
-            + "_DEFAULT_IMPL_"
-            + &ident.to_string().to_uppercase()
-            + "_FUNCTION"),
         ident.span(),
     )
 }

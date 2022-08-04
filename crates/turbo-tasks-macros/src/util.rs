@@ -2,6 +2,7 @@ use syn::{
     punctuated::Punctuated, token::Paren, AngleBracketedGenericArguments, GenericArgument, Ident,
     Path, PathArguments, PathSegment, ReturnType, Type, TypePath, TypeTuple,
 };
+use turbo_tasks_macros_shared::get_ref_ident;
 
 pub fn unwrap_result_type(ty: &Type) -> (&Type, bool) {
     if let Type::Path(TypePath {
@@ -41,10 +42,6 @@ pub fn get_return_type(output: &ReturnType) -> Type {
         }),
         ReturnType::Type(_, ref output_type) => (**output_type).clone(),
     }
-}
-
-pub fn get_ref_ident(ident: &Ident) -> Ident {
-    Ident::new(&(ident.to_string() + "Vc"), ident.span())
 }
 
 pub fn get_internal_function_ident(ident: &Ident) -> Ident {

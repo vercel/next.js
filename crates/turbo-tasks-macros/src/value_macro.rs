@@ -7,19 +7,11 @@ use syn::{
     spanned::Spanned,
     Error, Fields, FieldsUnnamed, Item, ItemEnum, ItemStruct, Path, Result, Token,
 };
+use turbo_tasks_macros_shared::{
+    get_ref_ident, get_register_trait_methods_ident, get_value_type_id_ident, get_value_type_ident,
+};
 
 use crate::util::*;
-
-pub fn get_register_trait_methods_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
-    Ident::new(
-        &("__register_".to_string()
-            + &struct_ident.to_string()
-            + "_"
-            + &trait_ident.to_string()
-            + "_trait_methods"),
-        trait_ident.span(),
-    )
-}
 
 pub fn get_check_trait_method_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
     Ident::new(
@@ -28,20 +20,6 @@ pub fn get_check_trait_method_ident(trait_ident: &Ident, struct_ident: &Ident) -
             trait_ident, struct_ident
         ),
         trait_ident.span(),
-    )
-}
-
-fn get_value_type_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &(ident.to_string().to_uppercase() + "_VALUE_TYPE"),
-        ident.span(),
-    )
-}
-
-fn get_value_type_id_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &(ident.to_string().to_uppercase() + "_VALUE_TYPE_ID"),
-        ident.span(),
     )
 }
 
