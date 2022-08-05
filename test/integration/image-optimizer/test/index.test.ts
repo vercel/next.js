@@ -374,7 +374,7 @@ describe('Image Optimizer', () => {
   describe('Server support for minimumCacheTTL in next.config.js', () => {
     const size = 96 // defaults defined in server/config.ts
     const dangerouslyAllowSVG = true
-    const ctx = {
+    const ctx: any = {
       w: size,
       isDev: false,
       domains,

@@ -4,7 +4,6 @@ import { promises } from 'fs'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
-// @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
@@ -726,7 +725,9 @@ export async function resizeImage(
   extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
-  if (sharp) {
+  if (isAnimated(content)) {
+    return content
+  } else if (sharp) {
     const transformer = sharp(content)
 
     if (extension === 'avif') {
