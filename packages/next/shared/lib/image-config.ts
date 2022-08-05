@@ -60,7 +60,7 @@ export type ImageConfigComplete = {
    */
   domains: string[]
 
-  /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
+  /** @see [Disable static image import configuration](https://nextjs.org/docs/api-reference/next/image#disable-static-imports) */
   disableStaticImages: boolean
 
   /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
