@@ -16,7 +16,7 @@ const nextjsRouteAnnouncerStyles: React.CSSProperties = {
   wordWrap: 'normal',
 }
 
-export const RouteAnnouncer = React.memo(() => {
+export const RouteAnnouncer = () => {
   const { asPath } = useRouter()
   const [routeAnnouncement, setRouteAnnouncement] = React.useState('')
 
@@ -59,6 +59,6 @@ export const RouteAnnouncer = React.memo(() => {
       {routeAnnouncement}
     </p>
   )
-})
+}
 
 export default RouteAnnouncer
