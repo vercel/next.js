@@ -1804,10 +1804,12 @@ export default async function getBaseWebpackConfig(
       : undefined,
   }
 
-  webpack5Config.module!.parser = {
-    javascript: {
-      url: 'relative',
-    },
+  if (isEdgeServer || isNodeServer) {
+    webpack5Config.module!.parser = {
+      javascript: {
+        url: 'relative',
+      },
+    }
   }
   webpack5Config.module!.generator = {
     asset: {
