@@ -675,7 +675,7 @@ export default function Image({
     onLoadingCompleteRef,
     setBlurComplete,
     sizes,
-    ...rest,])
+    rest])
   return (
     <>
       {<ImageElement {...imgElementArgs} />}
