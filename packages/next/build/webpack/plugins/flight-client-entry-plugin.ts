@@ -17,6 +17,7 @@ import type {
 } from '../loaders/next-flight-client-entry-loader'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
 import { FLIGHT_SERVER_CSS_MANIFEST } from '../../../shared/lib/constants'
+import { FlightCSSManifest } from './flight-manifest-plugin'
 
 interface Options {
   dev: boolean
@@ -62,7 +63,7 @@ export class FlightClientEntryPlugin {
     const promises: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
-    const serverCSSManifest = {}
+    const flightCSSManifest: FlightCSSManifest = {}
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
@@ -108,7 +109,7 @@ export class FlightClientEntryPlugin {
       //       compilation,
       //       name,
       //       entryDependency,
-      //       clientComponentImports,
+      //       clientComponentImports
       //     )
       //   )
       // }
@@ -120,7 +121,7 @@ export class FlightClientEntryPlugin {
           entryDependency
         )
 
-      Object.assign(serverCSSManifest, cssImports)
+      Object.assign(flightCSSManifest, cssImports)
 
       promises.push(
         this.injectClientEntryAndSSRModules(
@@ -143,7 +144,7 @@ export class FlightClientEntryPlugin {
       },
       (assets: webpack5.Compilation['assets']) => {
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
-          JSON.stringify(serverCSSManifest)
+          JSON.stringify(flightCSSManifest)
         ) as unknown as webpack5.sources.RawSource
       }
     )
