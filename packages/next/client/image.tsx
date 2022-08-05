@@ -5,6 +5,7 @@ import React, {
   useContext,
   useMemo,
   useState,
+  memo
 } from 'react'
 import Head from '../shared/lib/head'
 import {
@@ -31,7 +32,7 @@ const emptyDataURL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 if (typeof window === 'undefined') {
-  ;(global as any).__NEXT_IMAGE_IMPORTED = true
+  ; (global as any).__NEXT_IMAGE_IMPORTED = true
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
@@ -252,8 +253,7 @@ function generateImgAttrs({
     srcSet: widths
       .map(
         (w, i) =>
-          `${loader({ config, src, quality, width: w })} ${
-            kind === 'w' ? w : i + 1
+          `${loader({ config, src, quality, width: w })} ${kind === 'w' ? w : i + 1
           }${kind}`
       )
       .join(', '),
@@ -306,7 +306,7 @@ function handleLoading(
   }
   img['data-loaded-src'] = src
   const p = 'decode' in img ? img.decode() : Promise.resolve()
-  p.catch(() => {}).then(() => {
+  p.catch(() => { }).then(() => {
     if (!img.parentNode) {
       // Exit early in case of race condition:
       // - onload() is called
@@ -452,7 +452,7 @@ export default function Image({
     })
   const isVisible = !isLazy || isIntersected
 
-  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
+  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = useMemo(() => ({
     boxSizing: 'border-box',
     display: 'block',
     overflow: 'hidden',
@@ -463,8 +463,8 @@ export default function Image({
     border: 0,
     margin: 0,
     padding: 0,
-  }
-  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
+  }), [])
+  const sizerStyle: JSX.IntrinsicElements['span']['style'] = useMemo(() => ({
     boxSizing: 'border-box',
     display: 'block',
     width: 'initial',
@@ -474,10 +474,10 @@ export default function Image({
     border: 0,
     margin: 0,
     padding: 0,
-  }
+  }), [])
   let hasSizer = false
   let sizerSvgUrl: string | undefined
-  const layoutStyle: ImgElementStyle = {
+  const layoutStyle: ImgElementStyle = useMemo(() => ({
     position: 'absolute',
     top: 0,
     left: 0,
@@ -499,7 +499,7 @@ export default function Image({
 
     objectFit,
     objectPosition,
-  }
+  }), [objectFit, objectPosition])
 
   let widthInt = getInt(width)
   let heightInt = getInt(height)
@@ -594,11 +594,11 @@ export default function Image({
         let url: URL | undefined
         try {
           url = new URL(urlStr)
-        } catch (err) {}
+        } catch (err) { }
         if (urlStr === src || (url && url.pathname === src && !url.search)) {
           warnOnce(
             `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-              `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
           )
         }
       }
@@ -636,7 +636,7 @@ export default function Image({
               // https://web.dev/lcp/#measure-lcp-in-javascript
               warnOnce(
                 `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
-                  `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
               )
             }
           }
@@ -657,11 +657,11 @@ export default function Image({
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
-          backgroundSize: objectFit || 'cover',
-          backgroundPosition: objectPosition || '0% 0%',
-          filter: 'blur(20px)',
-          backgroundImage: `url("${blurDataURL}")`,
-        }
+        backgroundSize: objectFit || 'cover',
+        backgroundPosition: objectPosition || '0% 0%',
+        filter: 'blur(20px)',
+        backgroundImage: `url("${blurDataURL}")`,
+      }
       : {}
   if (layout === 'fill') {
     // <Image src="i.png" layout="fill" />
@@ -769,7 +769,7 @@ export default function Image({
     }
   }, [resetIntersected, src])
 
-  const imgElementArgs = {
+  const imgElementArgs = useMemo(() => ({
     isLazy,
     imgAttributes,
     heightInt,
@@ -791,7 +791,39 @@ export default function Image({
     isVisible,
     noscriptSizes: sizes,
     ...rest,
-  }
+  }), [isLazy,
+    imgAttributes,
+    heightInt,
+    widthInt,
+    qualityInt,
+    layout,
+    className,
+    imgStyle,
+    blurStyle,
+    loading,
+    config,
+    unoptimized,
+    placeholder,
+    loader,
+    srcString,
+    onLoadingCompleteRef,
+    setBlurComplete,
+    setIntersection,
+    isVisible,
+    sizes,
+    rest])
+  const nextjsPlaceholderImgStyle: React.CSSProperties = useMemo(() => ({
+    display: 'block',
+    maxWidth: '100%',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }), [])
+
   return (
     <>
       {
@@ -800,17 +832,7 @@ export default function Image({
             <span style={sizerStyle}>
               {sizerSvgUrl ? (
                 <img
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    width: 'initial',
-                    height: 'initial',
-                    background: 'none',
-                    opacity: 1,
-                    border: 0,
-                    margin: 0,
-                    padding: 0,
-                  }}
+                  style={nextjsPlaceholderImgStyle}
                   alt=""
                   aria-hidden={true}
                   src={sizerSvgUrl}
@@ -846,7 +868,7 @@ export default function Image({
   )
 }
 
-const ImageElement = ({
+const ImageElement = memo(({
   imgAttributes,
   heightInt,
   widthInt,
@@ -958,7 +980,7 @@ const ImageElement = ({
       )}
     </>
   )
-}
+})
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
@@ -1008,7 +1030,7 @@ function cloudinaryLoader({
 function customLoader({ src }: ImageLoaderProps): string {
   throw new Error(
     `Image with src "${src}" is missing "loader" prop.` +
-      `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
+    `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
   )
 }
 
@@ -1061,7 +1083,7 @@ function defaultLoader({
         if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+            `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
           )
         }
       }

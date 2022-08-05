@@ -5,6 +5,7 @@ import React, {
   useContext,
   useMemo,
   useState,
+  memo
 } from 'react'
 import Head from '../../shared/lib/head'
 import {
@@ -27,7 +28,7 @@ const allImgs = new Map<
 let perfObserver: PerformanceObserver | undefined
 
 if (typeof window === 'undefined') {
-  ;(global as any).__NEXT_IMAGE_IMPORTED = true
+  ; (global as any).__NEXT_IMAGE_IMPORTED = true
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
@@ -213,8 +214,7 @@ function generateImgAttrs({
     srcSet: widths
       .map(
         (w, i) =>
-          `${loader({ config, src, quality, width: w })} ${
-            kind === 'w' ? w : i + 1
+          `${loader({ config, src, quality, width: w })} ${kind === 'w' ? w : i + 1
           }${kind}`
       )
       .join(', '),
@@ -253,7 +253,7 @@ function handleLoading(
   }
   img['data-loaded-src'] = src
   const p = 'decode' in img ? img.decode() : Promise.resolve()
-  p.catch(() => {}).then(() => {
+  p.catch(() => { }).then(() => {
     if (!img.parentNode) {
       // Exit early in case of race condition:
       // - onload() is called
@@ -500,8 +500,8 @@ export default function Image({
           Possible solutions:
             - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
             - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
-              ','
-            )}
+            ','
+          )}
             - Remove the "placeholder" property, effectively no blur effect
           Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
         )
@@ -523,11 +523,11 @@ export default function Image({
       let url: URL | undefined
       try {
         url = new URL(urlStr)
-      } catch (err) {}
+      } catch (err) { }
       if (urlStr === src || (url && url.pathname === src && !url.search)) {
         warnOnce(
           `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
         )
       }
     }
@@ -552,7 +552,7 @@ export default function Image({
             // https://web.dev/lcp/#measure-lcp-in-javascript
             warnOnce(
               `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
-                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+              `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
             )
           }
         }
@@ -571,10 +571,10 @@ export default function Image({
   const imgStyle = Object.assign(
     fill
       ? {
-          position: 'absolute',
-          height: '100%',
-          width: '100%',
-        }
+        position: 'absolute',
+        height: '100%',
+        width: '100%',
+      }
       : {},
     style
   )
@@ -582,17 +582,17 @@ export default function Image({
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
-          backgroundSize: imgStyle.objectFit || 'cover',
-          backgroundPosition: imgStyle.objectPosition || '0% 0%',
-          ...(blurDataURL?.startsWith('data:image')
-            ? {
-                backgroundImage: svgBlurPlaceholder,
-              }
-            : {
-                filter: 'blur(20px)',
-                backgroundImage: `url("${blurDataURL}")`,
-              }),
-        }
+        backgroundSize: imgStyle.objectFit || 'cover',
+        backgroundPosition: imgStyle.objectPosition || '0% 0%',
+        ...(blurDataURL?.startsWith('data:image')
+          ? {
+            backgroundImage: svgBlurPlaceholder,
+          }
+          : {
+            filter: 'blur(20px)',
+            backgroundImage: `url("${blurDataURL}")`,
+          }),
+      }
       : {}
 
   const imgAttributes = generateImgAttrs({
@@ -637,7 +637,7 @@ export default function Image({
     onLoadingCompleteRef.current = onLoadingComplete
   }, [onLoadingComplete])
 
-  const imgElementArgs: ImageElementProps = {
+  const imgElementArgs: ImageElementProps = useMemo(() => ({
     isLazy,
     imgAttributes,
     heightInt,
@@ -657,7 +657,25 @@ export default function Image({
     setBlurComplete,
     noscriptSizes: sizes,
     ...rest,
-  }
+  }), [isLazy,
+    imgAttributes,
+    heightInt,
+    widthInt,
+    qualityInt,
+    className,
+    imgStyle,
+    blurStyle,
+    loading,
+    config,
+    fill,
+    unoptimized,
+    placeholder,
+    loader,
+    srcString,
+    onLoadingCompleteRef,
+    setBlurComplete,
+    sizes,
+    ...rest,])
   return (
     <>
       {<ImageElement {...imgElementArgs} />}
@@ -686,7 +704,7 @@ export default function Image({
   )
 }
 
-const ImageElement = ({
+const ImageElement = memo(({
   imgAttributes,
   heightInt,
   widthInt,
@@ -791,7 +809,7 @@ const ImageElement = ({
       )}
     </>
   )
-}
+})
 
 function defaultLoader({
   config,
@@ -842,7 +860,7 @@ function defaultLoader({
         if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+            `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
           )
         }
       }
@@ -855,7 +873,6 @@ function defaultLoader({
     return src
   }
 
-  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || 75
-  }`
+  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75
+    }`
 }
