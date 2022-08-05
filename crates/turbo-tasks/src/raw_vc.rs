@@ -10,7 +10,7 @@ use std::{
     task::Poll,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use event_listener::EventListener;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -18,8 +18,8 @@ use thiserror::Error;
 use crate::{
     backend::CellContent,
     manager::{
-        read_task_cell, read_task_cell_untracked, read_task_output, read_task_output_untracked,
-        TurboTasksApi,
+        find_cell_by_type, read_task_cell, read_task_cell_untracked, read_task_output,
+        read_task_output_untracked, TurboTasksApi,
     },
     primitives::{RawVcSet, RawVcSetVc},
     registry::get_value_type,
@@ -244,6 +244,15 @@ impl RawVc {
         }
     }
 
+    /// Resolve the reference until it points to a cell directly.
+    ///
+    /// Resolving will wait for task execution to be finished, so that the
+    /// returned Vc points to a cell that stores a value.
+    ///
+    /// Resolving is necessary to compare identities of Vcs.
+    ///
+    /// This is async and will rethrow any fatal error that happened during task
+    /// execution.
     pub async fn resolve(self) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
@@ -266,6 +275,32 @@ impl RawVc {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => true,
+        }
+    }
+
+    /// Reads the value from the cell and stores it to a new cell in the current
+    /// task. This basically create a shallow copy of the cell content.
+    /// As comparing Vcs is based on the cell location, this creates a new
+    /// identity of the value. When used in a once task, it will create Vc
+    /// that snapshots the value of a cell that is disconnected from ongoing
+    /// recomputations in the graph (as once tasks doesn't reexecute)
+    pub async fn cell_local(self) -> Result<RawVc> {
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
+        let mut current = self;
+        loop {
+            match current {
+                RawVc::TaskOutput(task) => current = read_task_output(&*tt, task, false).await?,
+                RawVc::TaskCell(task, index) => {
+                    let content = read_task_cell(&*tt, task, index).await?;
+                    let shared_ref = content.0.ok_or_else(|| anyhow!("Cell is empty"))?;
+                    let SharedReference(ty, _) = shared_ref;
+                    let ty = ty.ok_or_else(|| anyhow!("Cell content is untyped"))?;
+                    let local_cell = find_cell_by_type(ty);
+                    local_cell.update_shared_reference(shared_ref);
+                    return Ok(local_cell.into());
+                }
+            }
         }
     }
 

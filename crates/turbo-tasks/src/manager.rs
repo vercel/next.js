@@ -843,11 +843,10 @@ impl Invalidator {
             turbo_tasks,
             handle,
         } = self;
-        handle.spawn(async move {
-            if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-                turbo_tasks.invalidate(task);
-            }
-        });
+        let _ = handle.enter();
+        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
+            turbo_tasks.invalidate(task);
+        }
     }
 }
 
@@ -1085,6 +1084,19 @@ impl CurrentCellRef {
                 Arc::new(new_content),
             ))),
         )
+    }
+
+    pub fn update_shared_reference(&self, shared_ref: SharedReference) {
+        let tt = turbo_tasks();
+        let content = tt.read_current_task_cell(self.index).ok();
+        let update = if let Some(CellContent(Some(content))) = content {
+            content != shared_ref
+        } else {
+            true
+        };
+        if update {
+            tt.update_current_task_cell(self.index, CellContent(Some(shared_ref)))
+        }
     }
 }
 

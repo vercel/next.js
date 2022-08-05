@@ -198,8 +198,14 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         impl #ref_ident {
+            /// see [turbo_tasks::RawVc::resolve]
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve().await? })
+            }
+
+            /// see [turbo_tasks::RawVc::cell_local]
+            pub async fn cell_local(self) -> turbo_tasks::Result<Self> {
+                Ok(Self { node: self.node.cell_local().await? })
             }
 
             pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTypeError> {
