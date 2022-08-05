@@ -7,10 +7,9 @@ use turbo_tasks_fs::{File, FileContent, FileContentVc};
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbopack_dev_server::source::{ContentSource, ContentSourceVc};
 
-#[turbo_tasks::value(serialization: none, eq: manual, cell: new, into: new)]
+#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
 pub struct TurboTasksSource {
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     pub turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
 }
 
