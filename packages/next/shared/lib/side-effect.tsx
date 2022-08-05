@@ -1,4 +1,4 @@
-import React, { Children, useEffect, useLayoutEffect } from 'react'
+import React, { Children, useEffect, useLayoutEffect, useCallback, memo } from 'react'
 
 type State = JSX.Element[] | undefined
 
@@ -14,20 +14,20 @@ type SideEffectProps = {
 }
 
 const isServer = typeof window === 'undefined'
-const useClientOnlyLayoutEffect = isServer ? () => {} : useLayoutEffect
-const useClientOnlyEffect = isServer ? () => {} : useEffect
+const useClientOnlyLayoutEffect = isServer ? () => { } : useLayoutEffect
+const useClientOnlyEffect = isServer ? () => { } : useEffect
 
-export default function SideEffect(props: SideEffectProps) {
+const SideEffect = memo((props: SideEffectProps) => {
   const { headManager, reduceComponentsToState } = props
 
-  function emitChange() {
+  const emitChange = useCallback(() => {
     if (headManager && headManager.mountedInstances) {
       const headElements = Children.toArray(
         Array.from(headManager.mountedInstances as Set<unknown>).filter(Boolean)
       ) as React.ReactElement[]
       headManager.updateHead(reduceComponentsToState(headElements, props))
     }
-  }
+  }, [props, headManager, reduceComponentsToState])
 
   if (isServer) {
     headManager?.mountedInstances?.add(props.children)
@@ -71,4 +71,6 @@ export default function SideEffect(props: SideEffectProps) {
   })
 
   return null
-}
+})
+
+export default SideEffect
