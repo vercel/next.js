@@ -155,7 +155,7 @@ export class FlightClientEntryPlugin {
     const invalidator = getInvalidator()
     // Check if any of the entry injections need an invalidation
     if (invalidator && res.includes(true)) {
-      invalidator.invalidate()
+      invalidator.invalidate(['client'])
     }
   }
 
