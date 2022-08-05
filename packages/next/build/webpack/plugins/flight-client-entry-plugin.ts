@@ -59,7 +59,9 @@ export class FlightClientEntryPlugin {
   }
 
   async createClientEndpoints(compiler: any, compilation: any) {
-    const promises: Array<Promise<void>> = []
+    const promises: Array<
+      ReturnType<typeof this.injectClientEntryAndSSRModules>
+    > = []
     const serverCSSManifest = {}
 
     // For each SC server compilation entry, we need to create its corresponding
@@ -93,9 +95,12 @@ export class FlightClientEntryPlugin {
 
       //   const [clientComponentImports, cssImports] =
       //     this.collectClientComponentsAndCSSForDependency(
+      //       compiler.context,
       //       compilation,
       //       layoutOrPageDependency
       //     )
+
+      //   Object.assign(serverCSSManifest, cssImports)
 
       //   promises.push(
       //     this.injectClientEntryAndSSRModules(
@@ -107,6 +112,7 @@ export class FlightClientEntryPlugin {
       //     )
       //   )
       // }
+
       const [clientComponentImports, cssImports] =
         this.collectClientComponentsAndCSSForDependency(
           compiler.context,
@@ -142,7 +148,14 @@ export class FlightClientEntryPlugin {
       }
     )
 
-    await Promise.all(promises)
+    const res = await Promise.all(promises)
+
+    // Invalidate in development to trigger recompilation
+    const invalidator = getInvalidator()
+    // Check if any of the entry injections need an invalidation
+    if (invalidator && res.includes(true)) {
+      invalidator.invalidate()
+    }
   }
 
   collectClientComponentsAndCSSForDependency(
@@ -238,7 +251,9 @@ export class FlightClientEntryPlugin {
     entryName: string,
     entryDependency: any,
     clientComponentImports: ClientComponentImports
-  ) {
+  ): Promise<boolean> {
+    let shouldInvalidate = false
+
     const entryModule =
       compilation.moduleGraph.getResolvedModule(entryDependency)
     const routeInfo = entryModule.buildInfo.route || {
@@ -274,12 +289,14 @@ export class FlightClientEntryPlugin {
           dispose: false,
           lastActiveTime: Date.now(),
         }
-        const invalidator = getInvalidator()
-        if (invalidator) {
-          invalidator.invalidate()
-        }
+        shouldInvalidate = true
       } else {
         const entryData = entries[pageKey]
+        // New version of the client loader
+        if (entryData.request !== clientLoader) {
+          entryData.request = clientLoader
+          shouldInvalidate = true
+        }
         if (entryData.type === EntryTypes.CHILD_ENTRY) {
           entryData.parentEntries.add(entryName)
         }
@@ -309,6 +326,8 @@ export class FlightClientEntryPlugin {
         layer: undefined,
       }
     )
+
+    return shouldInvalidate
   }
 
   addEntry(
