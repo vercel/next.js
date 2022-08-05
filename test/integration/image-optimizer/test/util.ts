@@ -40,11 +40,8 @@ export async function serveSlowImage() {
     res.end(await fs.readFile(join(__dirname, '../app/public/test.png')))
   })
 
-  await new Promise((resolve, reject) => {
-    server.listen(port, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
+  await new Promise((resolve) => {
+    server.listen(port, () => resolve(true))
   })
   console.log(`Started slow image server at ::${port}`)
   return {
@@ -129,7 +126,7 @@ async function fetchWithDuration(...args) {
 
 export function runTests(ctx) {
   const { isDev, minimumCacheTTL = 60 } = ctx
-  let slowImageServer
+  let slowImageServer: Awaited<ReturnType<typeof serveSlowImage>>
   beforeAll(async () => {
     slowImageServer = await serveSlowImage()
   })
@@ -1248,7 +1245,7 @@ export const setupTests = (ctx) => {
         await cleanImagesDir(ctx)
       })
       afterAll(async () => {
-        await killApp(curCtx.app)
+        if (curCtx.app) await killApp(curCtx.app)
       })
 
       runTests(curCtx)
@@ -1288,8 +1285,8 @@ export const setupTests = (ctx) => {
         })
       })
       afterAll(async () => {
-        await killApp(curCtx.app)
         nextConfig.restore()
+        if (curCtx.app) await killApp(curCtx.app)
       })
 
       runTests(curCtx)
@@ -1321,7 +1318,7 @@ export const setupTests = (ctx) => {
         })
       })
       afterAll(async () => {
-        await killApp(curCtx.app)
+        if (curCtx.app) await killApp(curCtx.app)
       })
 
       runTests(curCtx)
@@ -1362,8 +1359,8 @@ export const setupTests = (ctx) => {
       })
     })
     afterAll(async () => {
-      await killApp(curCtx.app)
       nextConfig.restore()
+      if (curCtx.app) await killApp(curCtx.app)
     })
 
     runTests(curCtx)
