@@ -1,43 +1,44 @@
 import { createNext } from 'e2e-utils'
-import execa from 'execa'
+import { NextConfig } from 'packages/next'
 import { NextInstance } from 'test/lib/next-modes/base'
 
 describe('ES Check default output', () => {
   let next: NextInstance
 
-  afterEach(() => next.destroy())
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/index.js': 'export default function Page() { return "hello" }',
+      },
+      dependencies: { 'es-check': '7.0.0' },
+      packageJson: {
+        scripts: {
+          build: 'next build && es-check es5 .next/static/**/*.js',
+        },
+      },
+      buildCommand: 'yarn build',
+    })
+  })
+  afterAll(() => next.destroy())
 
   it('should pass for ES5', async () => {
-    next = await createNext({
-      files: { 'pages/index.js': 'export default function Page() {}' },
-      dependencies: { 'es-check': '7.0.0' },
-    })
-
-    const res = await execa(
-      'pnpm',
-      ['es-check', 'es5', '.next/static/**/*.js'],
-      { cwd: next.testDir }
-    )
-
-    expect(res.stdout).toBe(
+    expect(next.cliOutput).toContain(
       'info: ES-Check: there were no ES version matching errors!  🎉'
     )
   })
 
   it('should pass for ES5 with SWC minify', async () => {
-    next = await createNext({
-      files: { 'pages/index.js': 'export default function Page() {}' },
-      dependencies: { 'es-check': '7.0.0' },
-      nextConfig: { swcMinify: true },
-    })
-
-    const res = await execa(
-      'pnpm',
-      ['es-check', 'es5', '.next/static/**/*.js'],
-      { cwd: next.testDir }
+    await next.stop()
+    await next.deleteFile('.next')
+    await next.patchFile(
+      'next.config.js',
+      `
+      module.exports = ${JSON.stringify({ swcMinify: true } as NextConfig)}
+    `
     )
+    await next.start()
 
-    expect(res.stdout).toBe(
+    expect(next.cliOutput).toContain(
       'info: ES-Check: there were no ES version matching errors!  🎉'
     )
   })
