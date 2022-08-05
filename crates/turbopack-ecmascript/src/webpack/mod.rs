@@ -21,21 +21,21 @@ pub mod parse;
 pub(crate) mod references;
 
 #[turbo_tasks::value]
-pub struct ModuleAsset {
+pub struct WebpackModuleAsset {
     pub source: AssetVc,
     pub runtime: WebpackRuntimeVc,
     pub transforms: EcmascriptInputTransformsVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAssetVc {
+impl WebpackModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(
         source: AssetVc,
         runtime: WebpackRuntimeVc,
         transforms: EcmascriptInputTransformsVc,
     ) -> Self {
-        Self::cell(ModuleAsset {
+        Self::cell(WebpackModuleAsset {
             source,
             runtime,
             transforms,
@@ -44,7 +44,7 @@ impl ModuleAssetVc {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleAsset {
+impl Asset for WebpackModuleAsset {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
@@ -87,7 +87,7 @@ impl AssetReference for WebpackChunkAssetReference {
                 let source = SourceAssetVc::new(context_path.join(&filename)).into();
 
                 ResolveResult::Single(
-                    ModuleAssetVc::new(source, self.runtime, self.transforms).into(),
+                    WebpackModuleAssetVc::new(source, self.runtime, self.transforms).into(),
                     Vec::new(),
                 )
                 .into()
@@ -119,7 +119,7 @@ impl AssetReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(
-            ModuleAssetVc::new(self.source, self.runtime, self.transforms).into(),
+            WebpackModuleAssetVc::new(self.source, self.runtime, self.transforms).into(),
             Vec::new(),
         )
         .into()
@@ -151,7 +151,7 @@ impl AssetReference for WebpackRuntimeAssetReference {
 
         if let ResolveResult::Single(source, ref refs) = *resolved.await? {
             return Ok(ResolveResult::Single(
-                ModuleAssetVc::new(source, self.runtime, self.transforms).into(),
+                WebpackModuleAssetVc::new(source, self.runtime, self.transforms).into(),
                 refs.clone(),
             )
             .into());

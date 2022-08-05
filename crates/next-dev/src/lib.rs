@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use turbo_tasks::{TransientValue, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::MemoryBackend;
-use turbopack::ecmascript::ModuleAssetVc as EcmascriptModuleAssetVc;
+use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_dev_server::{
     fs::DevServerFileSystemVc, source::router::RouterContentSource, DevServerListening, DevServerVc,
 };

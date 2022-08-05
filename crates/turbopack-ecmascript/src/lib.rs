@@ -68,7 +68,7 @@ pub enum ModuleAssetType {
 
 #[turbo_tasks::value]
 #[derive(Clone, Copy)]
-pub struct ModuleAsset {
+pub struct EcmascriptModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
     pub ty: ModuleAssetType,
@@ -77,7 +77,7 @@ pub struct ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAssetVc {
+impl EcmascriptModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(
         source: AssetVc,
@@ -86,7 +86,7 @@ impl ModuleAssetVc {
         transforms: EcmascriptInputTransformsVc,
         environment: EnvironmentVc,
     ) -> Self {
-        Self::cell(ModuleAsset {
+        Self::cell(EcmascriptModuleAsset {
             source,
             context,
             ty: ty.into_value(),
@@ -96,7 +96,10 @@ impl ModuleAssetVc {
     }
 
     #[turbo_tasks::function]
-    pub fn as_evaluated_chunk(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
+    pub fn as_evaluated_chunk(
+        self_vc: EcmascriptModuleAssetVc,
+        context: ChunkingContextVc,
+    ) -> ChunkVc {
         EcmascriptChunkVc::new_evaluate(context, self_vc.into()).into()
     }
 
@@ -114,7 +117,7 @@ impl ModuleAssetVc {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleAsset {
+impl Asset for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
@@ -124,23 +127,26 @@ impl Asset for ModuleAsset {
         self.source.content()
     }
     #[turbo_tasks::function]
-    async fn references(self_vc: ModuleAssetVc) -> Result<AssetReferencesVc> {
+    async fn references(self_vc: EcmascriptModuleAssetVc) -> Result<AssetReferencesVc> {
         Ok(self_vc.analyze().await?.references)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for ModuleAsset {
+impl ChunkableAsset for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
+    fn as_chunk(self_vc: EcmascriptModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
         EcmascriptChunkVc::new(context, self_vc.into()).into()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for ModuleAsset {
+impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> EcmascriptChunkItemVc {
+    fn as_chunk_item(
+        self_vc: EcmascriptModuleAssetVc,
+        context: ChunkingContextVc,
+    ) -> EcmascriptChunkItemVc {
         ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
@@ -149,13 +155,13 @@ impl EcmascriptChunkPlaceable for ModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn get_exports(self_vc: ModuleAssetVc) -> Result<EcmascriptExportsVc> {
+    async fn get_exports(self_vc: EcmascriptModuleAssetVc) -> Result<EcmascriptExportsVc> {
         Ok(self_vc.analyze().await?.exports)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ModuleAsset {
+impl ValueToString for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
@@ -167,7 +173,7 @@ impl ValueToString for ModuleAsset {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: ModuleAssetVc,
+    module: EcmascriptModuleAssetVc,
     context: ChunkingContextVc,
 }
 

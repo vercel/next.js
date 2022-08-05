@@ -23,21 +23,21 @@ use turbopack_ecmascript::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
-pub struct ModuleAsset {
+pub struct StaticModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAssetVc {
+impl StaticModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, context: AssetContextVc) -> Self {
-        Self::cell(ModuleAsset { source, context })
+        Self::cell(StaticModuleAsset { source, context })
     }
 
     #[turbo_tasks::function]
     async fn static_asset(
-        self_vc: ModuleAssetVc,
+        self_vc: StaticModuleAssetVc,
         context: ChunkingContextVc,
     ) -> Result<StaticAssetVc> {
         Ok(StaticAssetVc::cell(StaticAsset {
@@ -48,7 +48,7 @@ impl ModuleAssetVc {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleAsset {
+impl Asset for StaticModuleAsset {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
@@ -64,17 +64,20 @@ impl Asset for ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for ModuleAsset {
+impl ChunkableAsset for StaticModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
+    fn as_chunk(self_vc: StaticModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
         EcmascriptChunkVc::new(context, self_vc.into()).into()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for ModuleAsset {
+impl EcmascriptChunkPlaceable for StaticModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> EcmascriptChunkItemVc {
+    fn as_chunk_item(
+        self_vc: StaticModuleAssetVc,
+        context: ChunkingContextVc,
+    ) -> EcmascriptChunkItemVc {
         ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
@@ -90,9 +93,9 @@ impl EcmascriptChunkPlaceable for ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl CssEmbeddable for ModuleAsset {
+impl CssEmbeddable for StaticModuleAsset {
     #[turbo_tasks::function]
-    fn as_css_embed(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> CssEmbedVc {
+    fn as_css_embed(self_vc: StaticModuleAssetVc, context: ChunkingContextVc) -> CssEmbedVc {
         StaticCssEmbedVc::cell(StaticCssEmbed {
             static_asset: self_vc.static_asset(context),
         })
@@ -101,7 +104,7 @@ impl CssEmbeddable for ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ModuleAsset {
+impl ValueToString for StaticModuleAsset {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
@@ -169,7 +172,7 @@ impl AssetReference for StaticAssetReference {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: ModuleAssetVc,
+    module: StaticModuleAssetVc,
     context: ChunkingContextVc,
     static_asset: StaticAssetVc,
 }

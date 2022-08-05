@@ -29,21 +29,21 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
-pub struct ModuleAsset {
+pub struct CssModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAssetVc {
+impl CssModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, context: AssetContextVc) -> Self {
-        Self::cell(ModuleAsset { source, context })
+        Self::cell(CssModuleAsset { source, context })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleAsset {
+impl Asset for CssModuleAsset {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
@@ -61,17 +61,17 @@ impl Asset for ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAsset for ModuleAsset {
+impl ChunkableAsset for CssModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
+    fn as_chunk(self_vc: CssModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
         CssChunkVc::new(context, self_vc.into()).into()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl CssChunkPlaceable for ModuleAsset {
+impl CssChunkPlaceable for CssModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> CssChunkItemVc {
+    fn as_chunk_item(self_vc: CssModuleAssetVc, context: ChunkingContextVc) -> CssChunkItemVc {
         ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
@@ -81,7 +81,7 @@ impl CssChunkPlaceable for ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ModuleAsset {
+impl ValueToString for CssModuleAsset {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
@@ -93,7 +93,7 @@ impl ValueToString for ModuleAsset {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: ModuleAssetVc,
+    module: CssModuleAssetVc,
     context: ChunkingContextVc,
 }
 

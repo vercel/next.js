@@ -5,20 +5,20 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value]
-pub struct ModuleAsset {
+pub struct JsonModuleAsset {
     pub source: AssetVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAssetVc {
+impl JsonModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc) -> Self {
-        Self::cell(ModuleAsset { source })
+        Self::cell(JsonModuleAsset { source })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for ModuleAsset {
+impl Asset for JsonModuleAsset {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()

@@ -63,24 +63,28 @@ async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> 
             })
             .unwrap_or_else(|| &ModuleType::Raw)
         {
-            ModuleType::Ecmascript(transforms) => turbopack_ecmascript::ModuleAssetVc::new(
-                source,
-                ModuleAssetContextVc::new(path.parent(), environment).into(),
-                Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
-                *transforms,
-                environment,
-            )
-            .into(),
-            ModuleType::Typescript(transforms) => turbopack_ecmascript::ModuleAssetVc::new(
-                source,
-                ModuleAssetContextVc::new(path.parent(), environment.with_typescript()).into(),
-                Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
-                *transforms,
-                environment,
-            )
-            .into(),
+            ModuleType::Ecmascript(transforms) => {
+                turbopack_ecmascript::EcmascriptModuleAssetVc::new(
+                    source,
+                    ModuleAssetContextVc::new(path.parent(), environment).into(),
+                    Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
+                    *transforms,
+                    environment,
+                )
+                .into()
+            }
+            ModuleType::Typescript(transforms) => {
+                turbopack_ecmascript::EcmascriptModuleAssetVc::new(
+                    source,
+                    ModuleAssetContextVc::new(path.parent(), environment.with_typescript()).into(),
+                    Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
+                    *transforms,
+                    environment,
+                )
+                .into()
+            }
             ModuleType::TypescriptDeclaration(transforms) => {
-                turbopack_ecmascript::ModuleAssetVc::new(
+                turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
                     ModuleAssetContextVc::new(path.parent(), environment.with_typescript()).into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
@@ -89,14 +93,14 @@ async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> 
                 )
                 .into()
             }
-            ModuleType::Json => json::ModuleAssetVc::new(source).into(),
+            ModuleType::Json => json::JsonModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
-            ModuleType::Css => turbopack_css::ModuleAssetVc::new(
+            ModuleType::Css => turbopack_css::CssModuleAssetVc::new(
                 source,
                 ModuleAssetContextVc::new(path.parent(), environment).into(),
             )
             .into(),
-            ModuleType::Static => turbopack_static::ModuleAssetVc::new(
+            ModuleType::Static => turbopack_static::StaticModuleAssetVc::new(
                 source,
                 ModuleAssetContextVc::new(path.parent(), environment).into(),
             )
