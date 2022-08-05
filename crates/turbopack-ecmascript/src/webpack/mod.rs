@@ -61,7 +61,7 @@ impl Asset for WebpackModuleAsset {
 
 #[turbo_tasks::value(shared)]
 pub struct WebpackChunkAssetReference {
-    #[trace_ignore]
+    #[turbo_tasks(trace_ignore)]
     pub chunk_id: Lit,
     pub runtime: WebpackRuntimeVc,
     pub transforms: EcmascriptInputTransformsVc,

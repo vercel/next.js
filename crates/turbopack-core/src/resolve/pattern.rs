@@ -9,7 +9,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
-#[turbo_tasks::value(shared, serialization: auto_for_input)]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Clone, Debug)]
 pub enum Pattern {
     Constant(String),

@@ -58,7 +58,7 @@ use crate::{
     references::analyze_ecmascript_module,
 };
 
-#[turbo_tasks::value(serialization: auto_for_input)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum ModuleAssetType {
     Ecmascript,

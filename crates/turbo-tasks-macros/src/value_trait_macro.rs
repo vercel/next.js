@@ -33,7 +33,7 @@ fn get_trait_default_impl_function_id_ident(trait_ident: &Ident, ident: &Ident) 
 }
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
-    let ValueTraitArguments { no_debug } = parse_macro_input!(args as ValueTraitArguments);
+    let ValueTraitArguments { debug } = parse_macro_input!(args as ValueTraitArguments);
 
     let mut item = parse_macro_input!(input as ItemTrait);
 
@@ -142,9 +142,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     }
 
-    let value_debug_impl = if no_debug {
-        quote! {}
-    } else {
+    let value_debug_impl = if debug {
         quote! {
             #[turbo_tasks::value_impl]
             impl #ref_ident {
@@ -155,6 +153,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             }
         }
+    } else {
+        quote! {}
     };
 
     let value_debug_format_impl = quote! {

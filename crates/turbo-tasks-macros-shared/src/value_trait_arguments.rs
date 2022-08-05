@@ -1,38 +1,42 @@
 use syn::{
     parse::{Parse, ParseStream},
-    Ident, Token,
+    punctuated::Punctuated,
+    Meta, Token,
 };
 
 /// Arguments to the `#[turbo_tasks::value_trait]` attribute macro.
+#[derive(Debug)]
 pub struct ValueTraitArguments {
     /// Whether the macro should generate a `ValueDebug`-like `dbg()`
     /// implementation on the trait's `Vc`.
-    pub no_debug: bool,
+    pub debug: bool,
+}
+
+impl Default for ValueTraitArguments {
+    fn default() -> Self {
+        Self { debug: true }
+    }
 }
 
 impl Parse for ValueTraitArguments {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut result = ValueTraitArguments { no_debug: false };
+        let mut result = Self::default();
         if input.is_empty() {
             return Ok(result);
         }
-        loop {
-            let path = input.parse::<Ident>()?;
-            match path.to_string().as_ref() {
-                "no_debug" => {
-                    result.no_debug = true;
+
+        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        for meta in punctuated {
+            match meta.path().get_ident().map(ToString::to_string).as_deref() {
+                Some("no_debug") => {
+                    result.debug = false;
                 }
                 _ => {
-                    return Err(input.error("unknown parameter"));
+                    return Err(syn::Error::new_spanned(meta, "unknown parameter"));
                 }
             }
-            if input.is_empty() {
-                return Ok(result);
-            } else if input.peek(Token![,]) {
-                input.parse::<Token![,]>()?;
-            } else {
-                return Err(input.error("expected \",\" or end of attribute"));
-            }
         }
+
+        Ok(result)
     }
 }

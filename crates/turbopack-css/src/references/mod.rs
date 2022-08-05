@@ -152,5 +152,5 @@ pub async fn css_resolve(request: RequestVc, context: AssetContextVc) -> Result<
 }
 
 // TODO enable serialization
-#[turbo_tasks::value(transparent, serialization: none)]
-pub struct AstPath(#[trace_ignore] Vec<AstParentKind>);
+#[turbo_tasks::value(transparent, serialization = "none")]
+pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);

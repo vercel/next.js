@@ -106,7 +106,7 @@ pub async fn the_module_options() -> ModuleOptionsVc {
     })
 }
 
-#[turbo_tasks::value(cell: new, eq: manual)]
+#[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }
@@ -142,7 +142,7 @@ pub enum ModuleRuleCondition {
     ResourcePathEndsWith(String),
     ResourcePathInDirectory(String),
     ResourcePathRegex(
-        #[trace_ignore]
+        #[turbo_tasks(trace_ignore)]
         #[serde(with = "serde_regex")]
         Regex,
     ),
@@ -187,7 +187,7 @@ pub enum ModuleRuleEffect {
     Custom,
 }
 
-#[turbo_tasks::value(serialization: auto_for_input)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
     Ecmascript(EcmascriptInputTransformsVc),

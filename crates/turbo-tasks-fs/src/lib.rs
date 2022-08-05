@@ -85,18 +85,15 @@ mod watcher_ser {
     }
 }
 
-#[turbo_tasks::value(cell: new, eq: manual)]
+#[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     invalidators: Arc<InvalidatorMap>,
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     dir_invalidators: Arc<InvalidatorMap>,
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(with = "watcher_ser")]
     watcher: Mutex<Option<RecommendedWatcher>>,
 }
@@ -890,7 +887,7 @@ impl From<Permissions> for fs::Permissions {
 
 #[turbo_tasks::value(shared)]
 pub enum FileContent {
-    Content(#[debug_ignore] File),
+    Content(#[turbo_tasks(debug_ignore)] File),
     NotFound,
 }
 
@@ -1021,7 +1018,7 @@ mod mime_option_serde {
 pub struct FileMeta {
     permissions: Permissions,
     #[serde(with = "mime_option_serde")]
-    #[trace_ignore]
+    #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
 }
 
@@ -1214,9 +1211,9 @@ impl FileContentVc {
     }
 }
 
-#[turbo_tasks::value(shared, serialization: none)]
+#[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileJsonContent {
-    Content(#[trace_ignore] JsonValue),
+    Content(#[turbo_tasks(trace_ignore)] JsonValue),
     Unparseable,
     NotFound,
 }
@@ -1227,9 +1224,9 @@ pub struct FileLine {
     pub bytes_offset: usize,
 }
 
-#[turbo_tasks::value(shared, serialization: none)]
+#[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileLinesContent {
-    Lines(#[trace_ignore] Vec<FileLine>),
+    Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
     Unparseable,
     NotFound,
 }

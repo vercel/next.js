@@ -18,13 +18,13 @@ use crate::{
     ModuleAssetType,
 };
 
-#[turbo_tasks::value(shared, serialization: none)]
+#[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Debug)]
 pub enum WebpackRuntime {
     Webpack5 {
         /// There is a [JsValue]::FreeVar("chunkId") that need to be replaced
         /// before converting to string
-        #[trace_ignore]
+        #[turbo_tasks(trace_ignore)]
         chunk_request_expr: JsValue,
         context_path: FileSystemPathVc,
     },

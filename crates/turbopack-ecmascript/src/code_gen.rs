@@ -5,11 +5,16 @@ use crate::chunk::EcmascriptChunkContextVc;
 
 /// impl of code generation inferred from a AssetReference.
 /// This is rust only and can't be implemented by non-rust plugins.
-#[turbo_tasks::value(shared, serialization: none, eq: manual, into: new, cell: new)]
+#[turbo_tasks::value(
+    shared,
+    serialization = "none",
+    eq = "manual",
+    into = "new",
+    cell = "new"
+)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
 }
 

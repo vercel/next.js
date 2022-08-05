@@ -36,10 +36,10 @@ enum FindAssetResult {
     Found(AssetVc),
 }
 
-#[turbo_tasks::value(cell: new, serialization: none, eq: manual)]
+#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
 pub struct DevServer {
     source: ContentSourceVc,
-    #[trace_ignore]
+    #[turbo_tasks(trace_ignore)]
     addr: SocketAddr,
 }
 
@@ -253,9 +253,9 @@ impl DevServerVc {
 
 #[derive(TraceRawVcs)]
 pub struct DevServerListening {
-    #[trace_ignore]
+    #[turbo_tasks(trace_ignore)]
     pub addr: SocketAddr,
-    #[trace_ignore]
+    #[turbo_tasks(trace_ignore)]
     pub future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
 }
 

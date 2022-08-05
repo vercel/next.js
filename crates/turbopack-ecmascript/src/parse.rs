@@ -26,7 +26,7 @@ use turbopack_core::asset::AssetVc;
 use super::ModuleAssetType;
 use crate::{analyzer::graph::EvalContext, emitter::IssueEmitter};
 
-#[turbo_tasks::value(serialization: auto_for_input)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum EcmascriptInputTransform {
     JSX,
@@ -34,28 +34,25 @@ pub enum EcmascriptInputTransform {
     Custom,
 }
 
-#[turbo_tasks::value(transparent, serialization: auto_for_input)]
+#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Clone)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
-#[turbo_tasks::value(shared, serialization: none, eq: manual)]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     Ok {
-        #[trace_ignore]
+        #[turbo_tasks(trace_ignore)]
         program: Program,
-        #[trace_ignore]
+        #[turbo_tasks(trace_ignore)]
         leading_comments: SingleThreadedCommentsMapInner,
-        #[trace_ignore]
+        #[turbo_tasks(trace_ignore)]
         trailing_comments: SingleThreadedCommentsMapInner,
-        #[debug_ignore]
-        #[trace_ignore]
+        #[turbo_tasks(debug_ignore, trace_ignore)]
         eval_context: EvalContext,
-        #[debug_ignore]
-        #[trace_ignore]
+        #[turbo_tasks(debug_ignore, trace_ignore)]
         globals: Globals,
-        #[debug_ignore]
-        #[trace_ignore]
+        #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<SourceMap>,
     },
     Unparseable,

@@ -35,7 +35,7 @@ pub(crate) enum PatternMapping {
 }
 
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
-#[turbo_tasks::value(serialization: auto_for_input)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 pub(crate) enum ResolveType {
     EsmAsync,
     Cjs,

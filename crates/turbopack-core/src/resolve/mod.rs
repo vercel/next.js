@@ -308,11 +308,7 @@ async fn type_exists(
 
 #[turbo_tasks::value(shared)]
 enum ExportsFieldResult {
-    Some(
-        #[debug_ignore]
-        #[trace_ignore]
-        ExportsField,
-    ),
+    Some(#[turbo_tasks(debug_ignore, trace_ignore)] ExportsField),
     None,
 }
 

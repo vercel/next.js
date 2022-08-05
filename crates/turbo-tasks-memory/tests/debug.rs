@@ -117,12 +117,11 @@ struct StructWithVec {
     vec: Vec<TransparentVc>,
 }
 
-#[turbo_tasks::value(shared, eq: manual)]
+#[turbo_tasks::value(shared, eq = "manual")]
 struct StructWithIgnore {
     dont_ignore: u32,
     // We're using a `Mutex` instead of a `T: Debug` type to ensure we support `T: !Debug`.
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     ignore: Mutex<()>,
 }
 

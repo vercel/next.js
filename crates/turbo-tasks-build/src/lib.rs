@@ -289,11 +289,8 @@ impl<'a> RegisterContext<'a> {
             let trait_type_ident = get_trait_type_ident(trait_ident);
             self.register(trait_type_ident, self.get_global_name(trait_ident, None))?;
 
-            let debug = matches!(
-                parse_attr_args(attr)?,
-                Some(ValueTraitArguments { no_debug: false })
-            );
-            if debug {
+            let trait_args: ValueTraitArguments = parse_attr_args(attr)?.unwrap_or_default();
+            if trait_args.debug {
                 let ref_ident = get_ref_ident(trait_ident);
                 self.register_debug_impl(&ref_ident)?;
             }

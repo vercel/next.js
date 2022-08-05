@@ -18,19 +18,17 @@ type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
-#[turbo_tasks::value(cell: new, serialization: none, eq: manual)]
+#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub name: String,
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     pub bind_fn: Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
     // TODO move to Task
     /// A counter that tracks total executions of that function
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     pub executed_count: AtomicUsize,
 }
 

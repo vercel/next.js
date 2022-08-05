@@ -24,7 +24,7 @@ impl EnvironmentVc {
     }
 }
 
-#[turbo_tasks::value(serialization: auto_for_input)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Debug, Hash, Clone, Copy)]
 pub enum EnvironmentIntention {
     Data,
@@ -35,7 +35,7 @@ pub enum EnvironmentIntention {
     Custom(u8),
 }
 
-#[turbo_tasks::value(serialization: auto_for_input)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
     NodeJsLambda(NodeJsEnvironmentVc),

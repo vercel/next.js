@@ -15,13 +15,13 @@ use turbopack_core::{
 
 use crate::references::{css_resolve, AstPathVc};
 
-#[turbo_tasks::value(into: new)]
+#[turbo_tasks::value(into = "new")]
 pub struct ImportAttributes {
-    #[trace_ignore]
+    #[turbo_tasks(trace_ignore)]
     pub layer_name: Option<LayerName>,
-    #[trace_ignore]
+    #[turbo_tasks(trace_ignore)]
     pub supports: Option<SupportsCondition>,
-    #[trace_ignore]
+    #[turbo_tasks(trace_ignore)]
     pub media: Option<Vec<MediaQuery>>,
 }
 

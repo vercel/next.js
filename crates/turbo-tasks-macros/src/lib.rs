@@ -2,8 +2,7 @@
 #![feature(allow_internal_unstable)]
 #![feature(box_patterns)]
 
-mod derive_trace_raw_vcs_macro;
-mod derive_value_debug_macro;
+mod derive;
 mod func;
 mod function_macro;
 mod util;
@@ -16,14 +15,14 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;
 
-#[proc_macro_derive(TraceRawVcs, attributes(trace_ignore))]
+#[proc_macro_derive(TraceRawVcs, attributes(turbo_tasks))]
 pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
-    derive_trace_raw_vcs_macro::derive_trace_raw_vcs(input)
+    derive::derive_trace_raw_vcs(input)
 }
 
-#[proc_macro_derive(ValueDebug, attributes(debug_ignore))]
+#[proc_macro_derive(ValueDebug, attributes(turbo_tasks))]
 pub fn derive_value_debug_attr(input: TokenStream) -> TokenStream {
-    derive_value_debug_macro::derive_value_debug(input)
+    derive::derive_value_debug(input)
 }
 
 /// Creates a ValueVc struct for a `struct` or `enum` that represent

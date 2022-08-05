@@ -32,10 +32,9 @@ async fn cell_local() {
 #[turbo_tasks::value(transparent)]
 struct CounterValue(usize);
 
-#[turbo_tasks::value(serialization: none, cell: new, eq: manual)]
+#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 struct Counter {
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     value: Mutex<(usize, Option<Invalidator>)>,
 }
 

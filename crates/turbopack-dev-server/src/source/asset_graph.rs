@@ -18,12 +18,11 @@ struct State {
 #[turbo_tasks::value(transparent)]
 struct AssetsMap(HashMap<String, AssetVc>);
 
-#[turbo_tasks::value(serialization: none, eq: manual, cell: new)]
+#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
     root_path: FileSystemPathVc,
     root_asset: AssetVc,
-    #[debug_ignore]
-    #[trace_ignore]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
     state: Option<Arc<Mutex<State>>>,
 }
 

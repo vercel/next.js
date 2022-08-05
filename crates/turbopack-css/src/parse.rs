@@ -12,13 +12,12 @@ use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileContent;
 use turbopack_core::asset::AssetVc;
 
-#[turbo_tasks::value(shared, serialization: none, eq: manual)]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 pub enum ParseResult {
     Ok {
-        #[trace_ignore]
+        #[turbo_tasks(trace_ignore)]
         stylesheet: Stylesheet,
-        #[debug_ignore]
-        #[trace_ignore]
+        #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<SourceMap>,
     },
     Unparseable,

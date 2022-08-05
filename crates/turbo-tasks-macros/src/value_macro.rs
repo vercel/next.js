@@ -4,8 +4,10 @@ use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
+    punctuated::Punctuated,
     spanned::Spanned,
-    Error, Fields, FieldsUnnamed, Item, ItemEnum, ItemStruct, Result, Token,
+    Error, Fields, FieldsUnnamed, Item, ItemEnum, ItemStruct, Lit, LitStr, Meta, MetaNameValue,
+    Result, Token,
 };
 use turbo_tasks_macros_shared::{get_ref_ident, get_register_value_type_ident};
 
@@ -38,17 +40,22 @@ enum IntoMode {
 
 impl Parse for IntoMode {
     fn parse(input: ParseStream) -> Result<Self> {
-        let ident = input.parse::<Ident>()?;
-        match ident.to_string().as_str() {
+        let ident = input.parse::<LitStr>()?;
+        Self::try_from(ident)
+    }
+}
+
+impl TryFrom<LitStr> for IntoMode {
+    type Error = Error;
+
+    fn try_from(lit: LitStr) -> std::result::Result<Self, Self::Error> {
+        match lit.value().as_str() {
             "none" => Ok(IntoMode::None),
             "new" => Ok(IntoMode::New),
             "shared" => Ok(IntoMode::Shared),
             _ => Err(Error::new_spanned(
-                &ident,
-                format!(
-                    "unexpected {}, expected \"none\", \"new\" or \"shared\"",
-                    ident
-                ),
+                &lit,
+                "expected \"none\", \"new\" or \"shared\"",
             )),
         }
     }
@@ -61,14 +68,19 @@ enum CellMode {
 
 impl Parse for CellMode {
     fn parse(input: ParseStream) -> Result<Self> {
-        let ident = input.parse::<Ident>()?;
-        match ident.to_string().as_str() {
+        let ident = input.parse::<LitStr>()?;
+        Self::try_from(ident)
+    }
+}
+
+impl TryFrom<LitStr> for CellMode {
+    type Error = Error;
+
+    fn try_from(lit: LitStr) -> std::result::Result<Self, Self::Error> {
+        match lit.value().as_str() {
             "new" => Ok(CellMode::New),
             "shared" => Ok(CellMode::Shared),
-            _ => Err(Error::new_spanned(
-                &ident,
-                format!("unexpected {}, expected \"new\" or \"shared\"", ident),
-            )),
+            _ => Err(Error::new_spanned(&lit, "expected \"new\" or \"shared\"")),
         }
     }
 }
@@ -83,20 +95,25 @@ enum SerializationMode {
 
 impl Parse for SerializationMode {
     fn parse(input: ParseStream) -> Result<Self> {
-        let ident = input.parse::<Ident>()?;
-        match ident.to_string().as_str() {
+        let ident = input.parse::<LitStr>()?;
+        Self::try_from(ident)
+    }
+}
+
+impl TryFrom<LitStr> for SerializationMode {
+    type Error = Error;
+
+    fn try_from(lit: LitStr) -> std::result::Result<Self, Self::Error> {
+        match lit.value().as_str() {
             "none" => Ok(SerializationMode::None),
             "auto" => Ok(SerializationMode::Auto),
             "auto_for_input" => Ok(SerializationMode::AutoForInput),
             "custom" => Ok(SerializationMode::Custom),
             "custom_for_input" => Ok(SerializationMode::CustomForInput),
             _ => Err(Error::new_spanned(
-                &ident,
-                format!(
-                    "unexpected {}, expected \"none\", \"auto\", \"auto_for_input\", \"custom\" \
-                     or \"custom_for_input\"",
-                    ident
-                ),
+                &lit,
+                "expected \"none\", \"auto\", \"auto_for_input\", \"custom\" or \
+                 \"custom_for_input\"",
             )),
         }
     }
@@ -119,63 +136,73 @@ impl Parse for ValueArguments {
             manual_eq: false,
             transparent: false,
         };
-        if input.is_empty() {
-            return Ok(result);
-        }
-        loop {
-            let ident = input.parse::<Ident>()?;
-            match ident.to_string().as_str() {
-                "shared" => {
+        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        for meta in punctuated {
+            match (
+                meta.path()
+                    .get_ident()
+                    .map(ToString::to_string)
+                    .as_deref()
+                    .unwrap_or_default(),
+                meta,
+            ) {
+                ("shared", Meta::Path(_)) => {
                     result.into_mode = IntoMode::Shared;
                     result.cell_mode = CellMode::Shared;
                 }
-                "into" => {
-                    input.parse::<Token![:]>()?;
-                    result.into_mode = input.parse::<IntoMode>()?;
+                (
+                    "into",
+                    Meta::NameValue(MetaNameValue {
+                        lit: Lit::Str(str), ..
+                    }),
+                ) => {
+                    result.into_mode = IntoMode::try_from(str)?;
                 }
-                "serialization" => {
-                    input.parse::<Token![:]>()?;
-                    result.serialization_mode = input.parse::<SerializationMode>()?;
+                (
+                    "serialization",
+                    Meta::NameValue(MetaNameValue {
+                        lit: Lit::Str(str), ..
+                    }),
+                ) => {
+                    result.serialization_mode = SerializationMode::try_from(str)?;
                 }
-                "cell" => {
-                    input.parse::<Token![:]>()?;
-                    result.cell_mode = input.parse::<CellMode>()?;
+                (
+                    "cell",
+                    Meta::NameValue(MetaNameValue {
+                        lit: Lit::Str(str), ..
+                    }),
+                ) => {
+                    result.cell_mode = CellMode::try_from(str)?;
                 }
-                "eq" => {
-                    input.parse::<Token![:]>()?;
-                    let ident = input.parse::<Ident>()?;
-
-                    result.manual_eq = if ident == "manual" {
+                (
+                    "eq",
+                    Meta::NameValue(MetaNameValue {
+                        lit: Lit::Str(str), ..
+                    }),
+                ) => {
+                    result.manual_eq = if str.value() == "manual" {
                         true
                     } else {
-                        return Err(Error::new_spanned(
-                            &ident,
-                            format!("unexpected {}, expected \"manual\"", ident),
-                        ));
+                        return Err(Error::new_spanned(&str, "expected \"manual\""));
                     };
                 }
-                "transparent" => {
+                ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
-                _ => {
+                (_, meta) => {
                     return Err(Error::new_spanned(
-                        &ident,
+                        &meta,
                         format!(
-                            "unexpected {}, expected \"shared\", \"into\", \"serialization\", \
+                            "unexpected {:?}, expected \"shared\", \"into\", \"serialization\", \
                              \"cell\", \"eq\", \"transparent\"",
-                            ident
+                            meta
                         ),
-                    ));
+                    ))
                 }
             }
-            if input.is_empty() {
-                return Ok(result);
-            } else if input.peek(Token![,]) {
-                input.parse::<Token![,]>()?;
-            } else {
-                return Err(input.error("expected \",\" or end of attribute"));
-            }
         }
+
+        Ok(result)
     }
 }
 

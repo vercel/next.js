@@ -2,27 +2,23 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Literal};
 use quote::quote;
 use syn::{
-    parse_macro_input, spanned::Spanned, Field, Fields, FieldsNamed, FieldsUnnamed, Item, ItemEnum,
-    ItemStruct,
+    parse_macro_input, spanned::Spanned, Data, DataEnum, DataStruct, DeriveInput, Field, Fields,
+    FieldsNamed, FieldsUnnamed,
 };
 
+use super::FieldAttributes;
+
+fn ignore_field(field: &Field) -> bool {
+    FieldAttributes::from(field.attrs.as_slice()).trace_ignore
+}
+
 pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
-    fn ignore_field(field: &Field) -> bool {
-        field
-            .attrs
-            .iter()
-            .any(|attr| attr.path.is_ident("trace_ignore"))
-    }
+    let derive_input = parse_macro_input!(input as DeriveInput);
+    let ident = &derive_input.ident;
+    let generics = &derive_input.generics;
 
-    let item = parse_macro_input!(input as Item);
-
-    let (ident, generics, trace_items) = match &item {
-        Item::Enum(ItemEnum {
-            ident,
-            generics,
-            variants,
-            ..
-        }) => (ident, generics, {
+    let trace_items = match &derive_input.data {
+        Data::Enum(DataEnum { variants, .. }) => {
             let variants_code: Vec<_> = variants.iter().map(|variant| {
                 let variant_ident = &variant.ident;
                 match &variant.fields {
@@ -42,7 +38,7 @@ pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
                             })
                             .collect();
                         quote! {
-                            #ident::#variant_ident{ #(#ident_pats),* } => {
+                            #ident::#variant_ident{ #(#ident_pats),*, .. } => {
                                 #(
                                     turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(#idents, context);
                                 )*
@@ -79,46 +75,41 @@ pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
                     #(#variants_code)*
                 }
             }
-        }),
-        Item::Struct(ItemStruct {
-            ident,
-            generics,
-            fields,
-            ..
-        }) => (
-            ident,
-            generics,
-            match fields {
-                Fields::Named(FieldsNamed { named, .. }) => {
-                    let idents: Vec<_> = named
-                        .iter()
-                        .filter(|field| !ignore_field(field))
-                        .filter_map(|field| field.ident.clone())
-                        .collect();
-                    quote! {
-                        #(
-                            turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.#idents, context);
-                        )*
-                    }
+        }
+        Data::Struct(DataStruct { fields, .. }) => match fields {
+            Fields::Named(FieldsNamed { named, .. }) => {
+                let idents: Vec<_> = named
+                    .iter()
+                    .filter(|field| !ignore_field(field))
+                    .filter_map(|field| field.ident.clone())
+                    .collect();
+                quote! {
+                    #(
+                        turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.#idents, context);
+                    )*
                 }
-                Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
-                    let indicies: Vec<_> = unnamed
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, field)| !ignore_field(field))
-                        .map(|(i, _)| Literal::usize_unsuffixed(i))
-                        .collect();
-                    quote! {
-                        #(
-                            turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.#indicies, context);
-                        )*
-                    }
+            }
+            Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
+                let indices: Vec<_> = unnamed
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, field)| !ignore_field(field))
+                    .map(|(i, _)| Literal::usize_unsuffixed(i))
+                    .collect();
+                quote! {
+                    #(
+                        turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.#indices, context);
+                    )*
                 }
-                Fields::Unit => quote! {},
-            },
-        ),
+            }
+            Fields::Unit => quote! {},
+        },
         _ => {
-            item.span().unwrap().error("unsupported syntax").emit();
+            derive_input
+                .span()
+                .unwrap()
+                .error("unsupported syntax")
+                .emit();
 
             return quote! {}.into();
         }
