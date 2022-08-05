@@ -27,7 +27,7 @@ interface Options {
 /**
  * Webpack module id
  */
-type ModuleId = string | number
+type ModuleId = string | number | null
 
 export type ManifestChunks = Array<`${string}:${string}` | string>
 
