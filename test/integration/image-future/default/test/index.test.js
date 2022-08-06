@@ -453,7 +453,9 @@ function runTests(mode) {
       )
       expect(childElementType).toBe('IMG')
 
-      expect(await browser.elementById('img1').getAttribute('style')).toBeNull()
+      expect(await browser.elementById('img1').getAttribute('style')).toBe(
+        'color:transparent'
+      )
       expect(await browser.elementById('img1').getAttribute('height')).toBe(
         '700'
       )
@@ -468,7 +470,7 @@ function runTests(mode) {
       )
 
       expect(await browser.elementById('img2').getAttribute('style')).toBe(
-        'padding-left:4rem;width:100%;object-position:30% 30%'
+        'color:transparent;padding-left:4rem;width:100%;object-position:30% 30%'
       )
       expect(await browser.elementById('img2').getAttribute('height')).toBe(
         '700'
@@ -483,7 +485,9 @@ function runTests(mode) {
         'lazy'
       )
 
-      expect(await browser.elementById('img3').getAttribute('style')).toBeNull()
+      expect(await browser.elementById('img3').getAttribute('style')).toBe(
+        'color:transparent'
+      )
       expect(await browser.elementById('img3').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x`
       )
@@ -600,14 +604,14 @@ function runTests(mode) {
     const browser = await webdriver(appPort, '/style-prop')
 
     expect(await browser.elementById('with-styles').getAttribute('style')).toBe(
-      'border-radius:10px;padding:10px'
+      'color:transparent;border-radius:10px;padding:10px'
     )
     expect(
       await browser.elementById('with-overlapping-styles').getAttribute('style')
-    ).toBe('width:10px;border-radius:10px;margin:15px')
+    ).toBe('color:transparent;width:10px;border-radius:10px;margin:15px')
     expect(
       await browser.elementById('without-styles').getAttribute('style')
-    ).toBeNull()
+    ).toBe('color:transparent')
   })
 
   if (mode === 'dev') {
