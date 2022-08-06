@@ -214,7 +214,7 @@ function Script(props: ScriptProps): JSX.Element | null {
 
   const nextjsPriorityScriptPropsObj: { priorityType: "preload" | "prefetch", needPriority: boolean } = useMemo(() => {
     const nextjsPriorityType: 'preload' | 'prefetch' = strategy !== "lazyOnload" ? "preload" : "prefetch"
-    if (priority) {
+    if (!!(priority && src)) {
       return { needPriority: true, priorityType: nextjsPriorityType }
     } else {
       return { needPriority: false, priorityType: nextjsPriorityType }
