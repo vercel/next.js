@@ -219,9 +219,9 @@ function Script(props: ScriptProps): JSX.Element | null {
     } else {
       return { needPriority: false, priorityType: nextjsPriorityType }
     }
-  }, [priority, strategy])
+  }, [priority, strategy, src])
 
-  return <NextjsPriorityScript {...nextjsPriorityScriptPropsObj} />
+  return <NextjsPriorityScript strategy={strategy} src={src} crossOrigin={restProps?.crossOrigin} {...nextjsPriorityScriptPropsObj} />
 }
 
 const NextjsPriorityScript = memo(({ needPriority, priorityType, strategy, src, crossOrigin }: NextjsPriorityScriptProps) => {
