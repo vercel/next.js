@@ -361,7 +361,8 @@ function runTests(mode) {
       () => browser.eval(`document.getElementById("msg1").textContent`),
       'no error occured for img1'
     )
-    expect(browser.eval(`document.getElementById("img1").style.color`)).toBe(
+    await check(
+      () => browser.eval(`document.getElementById("img1").style.color`),
       'transparent'
     )
     await browser.eval(
@@ -371,7 +372,8 @@ function runTests(mode) {
       () => browser.eval(`document.getElementById("msg2").textContent`),
       'no error occured for img2'
     )
-    expect(browser.eval(`document.getElementById("img2").style.color`)).toBe(
+    await check(
+      () => browser.eval(`document.getElementById("img2").style.color`),
       'transparent'
     )
     await browser.eval(`document.getElementById("toggle").click()`)
@@ -379,9 +381,10 @@ function runTests(mode) {
       () => browser.eval(`document.getElementById("msg2").textContent`),
       'error occured while loading img2'
     )
-    expect(
-      browser.eval(`document.getElementById("img2").style.color`)
-    ).toBeFalsy()
+    await check(
+      () => browser.eval(`document.getElementById("img2").style.color`),
+      ''
+    )
   })
 
   it('should work with image with blob src', async () => {
