@@ -4,8 +4,8 @@ This example shows how you can use `@auth0/nextjs-auth` to easily add authentica
 
 - Signing in
 - Signing out
-- Loading the user on the server side and adding it as part of SSR ([`pages/advanced/ssr-profile.ts`](pages/advanced/ssr-profile.ts))
-- Loading the user on the client side and using fast/cached SSR pages ([`pages/index.ts`](pages/index.ts))
+- Loading the user on the server side and adding it as part of SSR ([`pages/advanced/ssr-profile.tsx`](pages/advanced/ssr-profile.tsx))
+- Loading the user on the client side and using fast/cached SSR pages ([`pages/index.tsx`](pages/index.tsx))
 - API Routes which can load the current user ([`pages/api/me.ts`](pages/api/me.ts))
 - Using hooks to make the user available throughout the application ([`lib/user.ts`](lib/user.ts))
 
@@ -17,9 +17,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example auth0 auth0-app
-# or
+```
+
+```bash
 yarn create next-app --example auth0 auth0-app
-# or
+```
+
+```bash
 pnpm create next-app --example auth0 auth0-app
 ```
 

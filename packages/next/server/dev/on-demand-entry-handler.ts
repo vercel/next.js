@@ -15,6 +15,75 @@ import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
+import { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+
+function treePathToEntrypoint(
+  segmentPath: string[],
+  parentPath?: string
+): string {
+  const [parallelRouteKey, segment] = segmentPath
+
+  // TODO: modify this path to cover parallelRouteKey convention
+  const path =
+    (parentPath ? parentPath + '/' : '') +
+    (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +
+    (segment === '' ? 'page' : segment)
+
+  // Last segment
+  if (segmentPath.length === 2) {
+    return path
+  }
+
+  const childSegmentPath = segmentPath.slice(2)
+  return treePathToEntrypoint(childSegmentPath, path)
+}
+
+function convertDynamicParamTypeToSyntax(
+  dynamicParamTypeShort: DynamicParamTypesShort,
+  param: string
+) {
+  switch (dynamicParamTypeShort) {
+    case 'c':
+      return `[...${param}]`
+    case 'oc':
+      return `[[...${param}]]`
+    case 'd':
+      return `[${param}]`
+    default:
+      throw new Error('Unknown dynamic param type')
+  }
+}
+
+function getEntrypointsFromTree(
+  tree: FlightRouterState,
+  isFirst: boolean,
+  parentPath: string[] = []
+) {
+  const [segment, parallelRoutes] = tree
+
+  const currentSegment = Array.isArray(segment)
+    ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
+    : segment
+
+  const currentPath = [...parentPath, currentSegment]
+
+  if (!isFirst && currentSegment === '') {
+    // TODO get rid of '' at the start of tree
+    return [treePathToEntrypoint(currentPath.slice(1))]
+  }
+
+  return Object.keys(parallelRoutes).reduce(
+    (paths: string[], key: string): string[] => {
+      const childTree = parallelRoutes[key]
+      const childPages = getEntrypointsFromTree(childTree, false, [
+        ...currentPath,
+        key,
+      ])
+      return [...paths, ...childPages]
+    },
+    []
+  )
+}
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -78,6 +147,7 @@ export function onDemandEntryHandler({
   invalidator = new Invalidator(multiCompiler)
   const doneCallbacks: EventEmitter | null = new EventEmitter()
   const lastClientAccessPages = ['']
+  const lastServerAccessPagesForAppDir = ['']
 
   const startBuilding = (_compilation: webpack.Compilation) => {
     invalidator.startBuilding()
@@ -153,8 +223,47 @@ export function onDemandEntryHandler({
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
 
   setInterval(function () {
-    disposeInactiveEntries(lastClientAccessPages, maxInactiveAge)
+    disposeInactiveEntries(
+      lastClientAccessPages,
+      lastServerAccessPagesForAppDir,
+      maxInactiveAge
+    )
   }, pingIntervalTime + 1000).unref()
+
+  function handleAppDirPing(
+    tree: FlightRouterState
+  ): { success: true } | { invalid: true } {
+    const pages = getEntrypointsFromTree(tree, true)
+
+    for (const page of pages) {
+      const pageKey = `server/${page}`
+      const entryInfo = entries[pageKey]
+
+      // If there's no entry, it may have been invalidated and needs to be re-built.
+      if (!entryInfo) {
+        // if (page !== lastEntry) client pings, but there's no entry for page
+        return { invalid: true }
+      }
+
+      // We don't need to maintain active state of anything other than BUILT entries
+      if (entryInfo.status !== BUILT) continue
+
+      // If there's an entryInfo
+      if (!lastServerAccessPagesForAppDir.includes(pageKey)) {
+        lastServerAccessPagesForAppDir.unshift(pageKey)
+
+        // Maintain the buffer max length
+        // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
+        if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
+          lastServerAccessPagesForAppDir.pop()
+        }
+      }
+      entryInfo.lastActiveTime = Date.now()
+      entryInfo.dispose = false
+    }
+
+    return { success: true }
+  }
 
   function handlePing(pg: string) {
     const page = normalizePathSep(pg)
@@ -272,11 +381,13 @@ export function onDemandEntryHandler({
           )
 
           if (parsedData.event === 'ping') {
-            const result = handlePing(parsedData.page)
+            const result = parsedData.appDirRoute
+              ? handleAppDirPing(parsedData.tree)
+              : handlePing(parsedData.page)
             client.send(
               JSON.stringify({
                 ...result,
-                event: 'pong',
+                [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
               })
             )
           }
@@ -288,10 +399,17 @@ export function onDemandEntryHandler({
 
 function disposeInactiveEntries(
   lastClientAccessPages: string[],
+  lastServerAccessPagesForAppDir: string[],
   maxInactiveAge: number
 ) {
   Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status, dispose } = entries[page]
+    const { lastActiveTime, status, dispose, bundlePath } = entries[page]
+
+    const isClientComponentsEntry =
+      bundlePath.startsWith('app/') && page.startsWith('client/')
+
+    // Disposing client component entry is handled when disposing server component entry
+    if (isClientComponentsEntry) return
 
     // Skip pages already scheduled for disposing
     if (dispose) return
@@ -303,15 +421,26 @@ function disposeInactiveEntries(
     // We should not build the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastClientAccessPages.includes(page)) return
+    if (
+      lastClientAccessPages.includes(page) ||
+      lastServerAccessPagesForAppDir.includes(page)
+    )
+      return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
+      const isServerComponentsEntry =
+        bundlePath.startsWith('app/') && page.startsWith('server/')
+
+      // Dispose client component entrypoint when server component entrypoint is disposed.
+      if (isServerComponentsEntry) {
+        entries[page.replace('server/', 'client/')].dispose = true
+      }
       entries[page].dispose = true
     }
   })
 }
 
-// Make sure only one invalidation happens at a time
+// Make sure only one invalidation happens at a time∫
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
   private multiCompiler: webpack.MultiCompiler

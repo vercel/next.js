@@ -1,5 +1,5 @@
-/* global globalThis, URLPattern */
-import { NextRequest, NextResponse } from 'next/server'
+/* global globalThis */
+import { NextRequest, NextResponse, URLPattern } from 'next/server'
 import magicValue from 'shared-package'
 
 const PATTERNS = [

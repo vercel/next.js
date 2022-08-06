@@ -8,7 +8,10 @@ import {
 } from '../shared/lib/router/router'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
-import { AppRouterContext } from '../shared/lib/app-router-context'
+import {
+  AppRouterContext,
+  AppRouterInstance,
+} from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
@@ -28,6 +31,11 @@ type InternalLinkProps = {
   href: Url
   as?: Url
   replace?: boolean
+
+  /**
+   * TODO-APP
+   */
+  soft?: boolean
   scroll?: boolean
   shallow?: boolean
   passHref?: boolean
@@ -43,10 +51,15 @@ type InternalLinkProps = {
   /**
    * requires experimental.newNextLinkBehavior
    */
+  onTouchStart?: (e: any) => void
+  // e: any because as it would otherwise overlap with existing types
+  /**
+   * requires experimental.newNextLinkBehavior
+   */
   onClick?: (e: any) => void
 }
 
-// TODO: Include the full set of Anchor props
+// TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
 export type LinkProps = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
@@ -95,10 +108,11 @@ function isModifiedEvent(event: React.MouseEvent): boolean {
 
 function linkClicked(
   e: React.MouseEvent,
-  router: NextRouter,
+  router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
   replace?: boolean,
+  soft?: boolean,
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
@@ -117,12 +131,27 @@ function linkClicked(
   e.preventDefault()
 
   const navigate = () => {
-    // replace state instead of push if prop is present
-    router[replace ? 'replace' : 'push'](href, as, {
-      shallow,
-      locale,
-      scroll,
-    })
+    // If the router is an AppRouterInstance, then it'll have `softPush` and
+    // `softReplace`.
+    if ('softPush' in router && 'softReplace' in router) {
+      // If we're doing a soft navigation, use the soft variants of
+      // replace/push.
+      const method: keyof AppRouterInstance = soft
+        ? replace
+          ? 'softReplace'
+          : 'softPush'
+        : replace
+        ? 'replace'
+        : 'push'
+
+      router[method](href)
+    } else {
+      router[replace ? 'replace' : 'push'](href, as, {
+        shallow,
+        locale,
+        scroll,
+      })
+    }
   }
 
   if (startTransition) {
@@ -183,6 +212,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       const optionalPropsGuard: Record<LinkPropsOptional, true> = {
         as: true,
         replace: true,
+        soft: true,
         scroll: true,
         shallow: true,
         passHref: true,
@@ -190,6 +220,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         locale: true,
         onClick: true,
         onMouseEnter: true,
+        onTouchStart: true,
         legacyBehavior: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
@@ -214,7 +245,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
-        } else if (key === 'onClick' || key === 'onMouseEnter') {
+        } else if (
+          key === 'onClick' ||
+          key === 'onMouseEnter' ||
+          key === 'onTouchStart'
+        ) {
           if (props[key] && valType !== 'function') {
             throw createPropError({
               key,
@@ -224,6 +259,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else if (
           key === 'replace' ||
+          key === 'soft' ||
           key === 'scroll' ||
           key === 'shallow' ||
           key === 'passHref' ||
@@ -264,11 +300,13 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       prefetch: prefetchProp,
       passHref,
       replace,
+      soft,
       shallow,
       scroll,
       locale,
       onClick,
       onMouseEnter,
+      onTouchStart,
       legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
       ...restProps
     } = props
@@ -292,7 +330,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       : []
     let router = React.useContext(RouterContext)
 
-    const appRouter = React.useContext(AppRouterContext)
+    // TODO-APP: type error. Remove `as any`
+    const appRouter = React.useContext(AppRouterContext) as any
     if (appRouter) {
       router = appRouter
     }
@@ -383,6 +422,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }, [as, href, isVisible, locale, p, router])
 
     const childProps: {
+      onTouchStart: React.TouchEventHandler
       onMouseEnter: React.MouseEventHandler
       onClick: React.MouseEventHandler
       href?: string
@@ -415,6 +455,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             href,
             as,
             replace,
+            soft,
             shallow,
             scroll,
             locale,
@@ -433,6 +474,23 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
+        if (isLocalURL(href)) {
+          prefetch(router, href, as, { priority: true })
+        }
+      },
+      onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
+        if (!legacyBehavior && typeof onTouchStart === 'function') {
+          onTouchStart(e)
+        }
+
+        if (
+          legacyBehavior &&
+          child.props &&
+          typeof child.props.onTouchStart === 'function'
+        ) {
+          child.props.onTouchStart(e)
+        }
+
         if (isLocalURL(href)) {
           prefetch(router, href, as, { priority: true })
         }

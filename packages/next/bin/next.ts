@@ -2,7 +2,6 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { shouldUseReactRoot } from '../server/utils'
 import { commands } from '../lib/commands';
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
@@ -96,6 +95,9 @@ if (process.env.NODE_ENV) {
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
+// In node.js runtime, react has to be required after NODE_ENV is set,
+// so that the correct dev/prod bundle could be loaded into require.cache.
+const { shouldUseReactRoot } = require('../server/utils')
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }

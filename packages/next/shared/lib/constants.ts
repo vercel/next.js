@@ -5,6 +5,7 @@ export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
+export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
@@ -46,7 +47,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
-export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-root`
+export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js

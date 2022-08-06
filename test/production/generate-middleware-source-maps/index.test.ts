@@ -3,68 +3,47 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import fs from 'fs-extra'
 import path from 'path'
 
-const files = {
-  'pages/index.js': `
-    export default function () { return <div>Hello, world!</div> }
-  `,
-  'middleware.js': `
-    import { NextResponse } from "next/server";
-    export default function middleware() { 
-      return NextResponse.next();
-    } 
-  `,
-}
-
-describe('experimental.middlewareSourceMaps: true', () => {
+describe('Middleware source maps', () => {
   let next: NextInstance
 
-  const nextConfig = { experimental: { middlewareSourceMaps: true } }
-
-  afterEach(() => next.destroy())
-
-  it('generates a source map', async () => {
-    next = await createNext({ nextConfig, files })
-
-    const middlewarePath = path.resolve(
-      next.testDir,
-      '.next/server/middleware.js'
-    )
-    expect(await fs.pathExists(middlewarePath)).toEqual(true)
-    expect(await fs.pathExists(`${middlewarePath}.map`)).toEqual(true)
-  })
-
-  it('generates a source map from src', async () => {
+  beforeAll(async () => {
     next = await createNext({
-      nextConfig,
-      files: Object.fromEntries(
-        Object.entries(files).map(([filename, content]) => [
-          `src/${filename}`,
-          content,
-        ])
-      ),
+      files: {
+        'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+        'pages/api/edge.js': `
+          export const config = { runtime: 'experimental-edge' };
+          export default function (req) {
+            return new Response("Hello from " + req.url);
+          }
+        `,
+        'middleware.js': `
+          import { NextResponse } from "next/server";
+          export default function middleware() { 
+            return NextResponse.next();
+          } 
+        `,
+      },
     })
-
-    const middlewarePath = path.resolve(
-      next.testDir,
-      '.next/server/src/middleware.js'
-    )
-    expect(await fs.pathExists(middlewarePath)).toEqual(true)
-    expect(await fs.pathExists(`${middlewarePath}.map`)).toEqual(true)
   })
-})
+  afterAll(() => next.destroy())
 
-describe('experimental.middlewareSourceMaps: false', () => {
-  let next: NextInstance
-
-  afterEach(() => next.destroy())
-
-  it('does not generate a source map', async () => {
-    next = await createNext({ files })
+  it('generates a source map for Middleware', async () => {
     const middlewarePath = path.resolve(
       next.testDir,
       '.next/server/middleware.js'
     )
     expect(await fs.pathExists(middlewarePath)).toEqual(true)
-    expect(await fs.pathExists(`${middlewarePath}.map`)).toEqual(false)
+    expect(await fs.pathExists(`${middlewarePath}.map`)).toEqual(true)
+  })
+
+  it('generates a source map for Edge API', async () => {
+    const edgePath = path.resolve(
+      next.testDir,
+      '.next/server/pages/api/edge.js'
+    )
+    expect(await fs.pathExists(edgePath)).toEqual(true)
+    expect(await fs.pathExists(`${edgePath}.map`)).toEqual(true)
   })
 })

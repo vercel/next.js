@@ -970,12 +970,19 @@ export class NextScript extends Component<OriginProps> {
     const { __NEXT_DATA__, largePageDataBytes } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
-      const bytes = Buffer.from(data).byteLength
+      const bytes =
+        process.env.NEXT_RUNTIME === 'edge'
+          ? new TextEncoder().encode(data).buffer.byteLength
+          : Buffer.from(data).byteLength
       const prettyBytes = require('../lib/pretty-bytes').default
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
         console.warn(
-          `Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(
+          `Warning: data for page "${__NEXT_DATA__.page}"${
+            __NEXT_DATA__.page === context.dangerousAsPath
+              ? ''
+              : ` (path "${context.dangerousAsPath}")`
+          } is ${prettyBytes(
             bytes
           )} which exceeds the threshold of ${prettyBytes(
             largePageDataBytes
