@@ -1,5 +1,6 @@
-import React, { useEffect, useContext } from 'react'
+import React, { useEffect, useContext, memo, useMemo } from 'react'
 import { ScriptHTMLAttributes } from 'react'
+import Head from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
@@ -9,11 +10,17 @@ const LoadCache = new Set()
 
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker'
-  id?: string
+  id?: string,
+  priority?: boolean,
   onLoad?: (e: any) => void
   onReady?: () => void | null
   onError?: (e: any) => void
   children?: React.ReactNode
+}
+
+interface NextjsPriorityScriptProps extends ScriptProps {
+  needPriority: boolean,
+  priorityType: "preload" | "prefetch"
 }
 
 /**
@@ -34,7 +41,7 @@ const loadScript = (props: ScriptProps): void => {
   const {
     src,
     id,
-    onLoad = () => {},
+    onLoad = () => { },
     onReady = null,
     dangerouslySetInnerHTML,
     children = '',
@@ -91,8 +98,8 @@ const loadScript = (props: ScriptProps): void => {
       typeof children === 'string'
         ? children
         : Array.isArray(children)
-        ? children.join('')
-        : ''
+          ? children.join('')
+          : ''
   } else if (src) {
     el.src = src
   }
@@ -156,10 +163,11 @@ function Script(props: ScriptProps): JSX.Element | null {
   const {
     id,
     src = '',
-    onLoad = () => {},
+    onLoad = () => { },
     onReady = null,
     strategy = 'afterInteractive',
     onError,
+    priority = false,
     ...restProps
   } = props
 
@@ -204,7 +212,29 @@ function Script(props: ScriptProps): JSX.Element | null {
     }
   }
 
-  return null
+  const nextjsPriorityScriptPropsObj: { priorityType: "preload" | "prefetch", needPriority: boolean } = useMemo(() => {
+    const nextjsPriorityType: 'preload' | 'prefetch' = strategy !== "lazyOnload" ? "preload" : "prefetch"
+    if (priority) {
+      return { needPriority: true, priorityType: nextjsPriorityType }
+    } else {
+      return { needPriority: false, priorityType: nextjsPriorityType }
+    }
+  }, [priority, strategy])
+
+  return <NextjsPriorityScript {...nextjsPriorityScriptPropsObj} />
 }
+
+const NextjsPriorityScript = memo(({ needPriority, priorityType, strategy, src, crossOrigin }: NextjsPriorityScriptProps) => {
+  return needPriority ? (
+    <Head>
+      <link
+        key={`___nscript-${src}-${strategy}`}
+        rel={priorityType}
+        as="script"
+        href={src}
+        crossOrigin={crossOrigin} />
+    </Head>
+  ) : null
+})
 
 export default Script
