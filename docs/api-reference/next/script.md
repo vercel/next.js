@@ -46,6 +46,15 @@ The loading strategy of the script.
 
 > **Note: `worker` is an experimental strategy that can only be used when enabled in `next.config.js`. See [Off-loading Scripts To A Web Worker](/docs/basic-features/script#off-loading-scripts-to-a-web-worker-experimental).**
 
+### priority
+
+A boolean value denoting if script need to be prioritized or not.
+> **Note: `priority` can't be used with the inlined scripts.**
+
+Next js will automatically determine weather script to be `preloadded` or `prefetched` using `strategy` prop.
+
+>Should only be used when the script is very important/urgent. Defaults to `false`.
+
 ### onLoad
 
 A method that returns additional JavaScript that should be executed once after the script has finished loading.
