@@ -222,7 +222,14 @@ export default class Router {
         this.catchAllMiddleware
       const allRoutes = [
         ...(middlewareCatchAllRoute
-          ? this.fsRoutes.filter((r) => r.name === '_next/data catchall')
+          ? this.fsRoutes
+              .filter((r) => r.name === '_next/data catchall')
+              .map((r) => {
+                return {
+                  ...r,
+                  check: false,
+                }
+              })
           : []),
         ...this.headers,
         ...this.redirects,
