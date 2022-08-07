@@ -31,6 +31,9 @@ export class BrowserInterface {
   elementById(selector: string): BrowserInterface {
     return this
   }
+  touchStart(): BrowserInterface {
+    return this
+  }
   click(opts?: { modifierKey?: boolean }): BrowserInterface {
     return this
   }
