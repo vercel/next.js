@@ -326,7 +326,8 @@ describe('app dir - react server components', () => {
     const head = getNodeBySelector(html, 'head').html()
 
     // from styled-jsx
-    expect(head).toMatch(/{color:(\s*)purple;?}/)
+    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
+    expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)
