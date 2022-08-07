@@ -22,7 +22,8 @@ import {
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
-import { ServerRuntime } from '../server/config-shared'
+
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'

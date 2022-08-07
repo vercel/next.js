@@ -1,5 +1,5 @@
 import type { BuildManifest } from '../../server/get-page-files'
-import type { ServerRuntime } from '../../server/config-shared'
+import type { ServerRuntime } from '../../types'
 import type { NEXT_DATA } from './utils'
 
 import { createContext } from 'react'
