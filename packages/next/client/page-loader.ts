@@ -11,7 +11,7 @@ import { createRouteLoader, getClientBuildManifest } from './route-loader'
 
 declare global {
   interface Window {
-    __DEV_MIDDLEWARE_MANIFEST?: [location: string, isSSR: boolean][]
+    __DEV_MIDDLEWARE_MANIFEST?: { location?: string }
     __DEV_PAGES_MANIFEST?: { pages: string[] }
     __SSG_MANIFEST_CB?: () => void
     __SSG_MANIFEST?: Set<string>
@@ -30,9 +30,7 @@ export default class PageLoader {
   private assetPrefix: string
   private promisedSsgManifest: Promise<Set<string>>
   private promisedDevPagesManifest?: Promise<string[]>
-  private promisedMiddlewareManifest?: Promise<
-    [location: string, isSSR: boolean][]
-  >
+  private promisedMiddlewareManifest?: Promise<{ location: string }>
 
   public routeLoader: RouteLoader
 
@@ -81,12 +79,12 @@ export default class PageLoader {
     }
   }
 
-  getMiddlewareList() {
+  getMiddleware() {
     if (process.env.NODE_ENV === 'production') {
       const middlewareRegex = process.env.__NEXT_MIDDLEWARE_REGEX
       window.__MIDDLEWARE_MANIFEST = middlewareRegex
-        ? [[middlewareRegex, false]]
-        : []
+        ? { location: middlewareRegex }
+        : undefined
       return window.__MIDDLEWARE_MANIFEST
     } else {
       if (window.__DEV_MIDDLEWARE_MANIFEST) {
@@ -99,7 +97,7 @@ export default class PageLoader {
             `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
           )
             .then((res) => res.json())
-            .then((manifest: [location: string, isSSR: boolean][]) => {
+            .then((manifest: { location?: string }) => {
               window.__DEV_MIDDLEWARE_MANIFEST = manifest
               return manifest
             })

@@ -36,7 +36,4 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-
-# cache
-.swc/
-
+next-env.d.ts
