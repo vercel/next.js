@@ -15,6 +15,9 @@ function runTest(packageManager?: string) {
         files: {
           pages: new FileRef(path.join(appDir, 'pages')),
         },
+        dependencies: {
+          'styled-jsx': '4.0.0', // add outdated invalid styled-jsx
+        },
         ...(packageManager
           ? {
               installCommand: `npx ${packageManager} install`,
