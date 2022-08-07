@@ -22,6 +22,7 @@ import {
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
+import { ServerRuntime } from '../server/config-shared'
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
@@ -81,7 +82,7 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
-  runtime?: 'nodejs' | 'experimental-edge'
+  runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   unstable_includeFiles?: string[]
