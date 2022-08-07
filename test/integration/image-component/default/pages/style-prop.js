@@ -24,25 +24,8 @@ const Page = () => {
         loading="eager"
       />
       <Image
-        layout="raw"
-        id="with-overlapping-styles-raw"
-        src="/test.webp"
-        width={400}
-        height={400}
-        style={{ width: '10px', borderRadius: '10px', margin: '15px' }}
-        loading="eager"
-      />
-      <Image
         layout="responsive"
         id="without-styles-responsive"
-        src="/test.webp"
-        width={400}
-        height={400}
-        loading="eager"
-      />
-      <Image
-        layout="raw"
-        id="without-styles-raw"
         src="/test.webp"
         width={400}
         height={400}

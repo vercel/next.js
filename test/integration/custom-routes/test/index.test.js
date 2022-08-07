@@ -39,6 +39,22 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should not rewrite for _next/data route when a match is found', async () => {
+    const initial = await fetchViaHTTP(appPort, '/overridden/first')
+    expect(initial.status).toBe(200)
+    expect(await initial.text()).toContain('this page is overridden')
+
+    const nextData = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/overridden/first.json`
+    )
+    expect(nextData.status).toBe(200)
+    expect(await nextData.json()).toEqual({
+      pageProps: { params: { slug: 'first' } },
+      __N_SSG: true,
+    })
+  })
+
   it('should handle has query encoding correctly', async () => {
     for (const expected of [
       {
@@ -1271,6 +1287,18 @@ const runTests = (isDev = false) => {
               slug: 'slug',
             },
           },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/overridden\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/overridden/(?<slug>[^/]+?)\\.json$`,
+            page: '/overridden/[slug]',
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
         ],
         redirects: [
           {
@@ -2028,6 +2056,12 @@ const runTests = (isDev = false) => {
               regex: normalizeRegEx('^\\/blog\\/about(?:\\/)?$'),
               source: '/blog/about',
             },
+            {
+              destination: '/overridden',
+              regex:
+                '^\\/overridden(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$',
+              source: '/overridden/:path*',
+            },
           ],
           fallback: [],
         },
@@ -2084,6 +2118,14 @@ const runTests = (isDev = false) => {
             namedRegex: '^/blog\\-catchall/(?<slug>.+?)(?:/)?$',
             page: '/blog-catchall/[...slug]',
             regex: normalizeRegEx('^\\/blog\\-catchall\\/(.+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            namedRegex: '^/overridden/(?<slug>[^/]+?)(?:/)?$',
+            page: '/overridden/[slug]',
+            regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
             routeKeys: {
               slug: 'slug',
             },

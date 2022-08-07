@@ -1,4 +1,4 @@
-# Deprecated page into Middleware API
+# Removed page from Middleware API
 
 #### Why This Error Occurred
 

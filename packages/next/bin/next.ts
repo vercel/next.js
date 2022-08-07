@@ -42,9 +42,6 @@ const args = arg(
   }
 )
 
-// Detect if react-dom is enabled streaming rendering mode
-const shouldUseReactRoot = !!require('react-dom/server').renderToPipeableStream
-
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
   console.log(`Next.js v${process.env.__NEXT_VERSION}`)
@@ -108,6 +105,10 @@ if (process.env.NODE_ENV) {
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+
+// In node.js runtime, react has to be required after NODE_ENV is set,
+// so that the correct dev/prod bundle could be loaded into require.cache.
+const { shouldUseReactRoot } = require('../server/utils')
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }

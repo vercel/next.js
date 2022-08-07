@@ -7,11 +7,14 @@ import { webpack5 } from 'next/dist/compiled/webpack/webpack'
 export function getModuleBuildInfo(webpackModule: webpack5.Module) {
   return webpackModule.buildInfo as {
     nextEdgeMiddleware?: EdgeMiddlewareMeta
+    nextEdgeApiFunction?: EdgeMiddlewareMeta
     nextEdgeSSR?: EdgeSSRMeta
     nextUsedEnvVars?: Set<string>
-    nextWasmMiddlewareBinding?: WasmBinding
+    nextWasmMiddlewareBinding?: AssetBinding
+    nextAssetMiddlewareBinding?: AssetBinding
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
+    importLocByPath?: Map<string, any>
   }
 }
 
@@ -30,7 +33,7 @@ export interface EdgeSSRMeta {
   page: string
 }
 
-export interface WasmBinding {
+export interface AssetBinding {
   filePath: string
   name: string
 }

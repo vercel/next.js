@@ -1,8 +1,10 @@
 # No Head Element
 
+> Prevent usage of `<head>` element.
+
 ### Why This Error Occurred
 
-An HTML `<head>` element was used to include page-level metadata, but this can cause unexpected behavior in a Next.js application. Use Next.js' built-in `<Head />` component instead.
+A `<head>` element was used to include page-level metadata, but this can cause unexpected behavior in a Next.js application. Use Next.js' built-in `next/head` component instead.
 
 ### Possible Ways to Fix It
 

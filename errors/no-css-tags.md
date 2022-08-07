@@ -1,8 +1,10 @@
 # No CSS Tags
 
+> Prevent manual stylesheet tags.
+
 ### Why This Error Occurred
 
-An HTML link element was used to link to an external stylesheet. This can negatively affect CSS resource loading on your web page.
+A `link` element was used to link to an external stylesheet. This can negatively affect CSS resource loading on your webpage.
 
 ### Possible Ways to Fix It
 

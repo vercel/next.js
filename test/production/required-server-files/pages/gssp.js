@@ -24,7 +24,9 @@ export async function getServerSideProps({ res }) {
       data,
       random: Math.random(),
       // make sure fetch if polyfilled
-      example: await fetch('https://example.com').then((res) => res.text()),
+      example: await fetch('https://example.vercel.sh').then((res) =>
+        res.text()
+      ),
     },
   }
 }

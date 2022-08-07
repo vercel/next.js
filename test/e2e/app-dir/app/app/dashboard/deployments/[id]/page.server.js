@@ -9,7 +9,7 @@ export async function getServerSideProps({ params }) {
 export default function DeploymentsPage(props) {
   return (
     <>
-      <p>hello from root/dashboard/deployments/[id]. ID is: {props.id}</p>
+      <p>hello from app/dashboard/deployments/[id]. ID is: {props.id}</p>
     </>
   )
 }

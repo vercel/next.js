@@ -3,11 +3,8 @@
 import { join } from 'path'
 import { SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next/constants'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
-import {
-  requirePage,
-  getPagePath,
-  pageNotFoundError,
-} from 'next/dist/server/require'
+import { requirePage, getPagePath } from 'next/dist/server/require'
+import { PageNotFoundError } from 'next/dist/shared/lib/utils'
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')
@@ -23,7 +20,7 @@ describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {
     expect.assertions(1)
     try {
-      throw pageNotFoundError('test')
+      throw new PageNotFoundError('test')
     } catch (err) {
       // eslint-disable-next-line jest/no-try-expect
       expect(err.code).toBe('ENOENT')
