@@ -23,7 +23,7 @@ import type {
   GetStaticProps,
   PreviewData,
   ServerRuntime,
-} from '../types'
+} from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
 

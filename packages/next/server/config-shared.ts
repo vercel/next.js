@@ -7,7 +7,7 @@ import {
   imageConfigDefault,
   RemotePattern,
 } from '../shared/lib/image-config'
-import { ServerRuntime } from '../types'
+import { ServerRuntime } from 'next/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
