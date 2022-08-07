@@ -90,11 +90,12 @@ describe('Middleware can set the matcher in its config', () => {
           : 'window.__MIDDLEWARE_MANIFEST'
       )
 
-      return Array.isArray(manifest) &&
-        manifest?.[0]?.[0].includes('with-middleware') &&
-        manifest?.[0]?.[0].includes('another-middleware')
+      const { location } = manifest
+      return location &&
+        location.includes('with-middleware') &&
+        location.includes('another-middleware')
         ? 'success'
-        : manifest
+        : 'failed'
     }, 'success')
   })
 
@@ -141,12 +142,12 @@ describe('using a single matcher', () => {
     next = await createNext({
       files: {
         'pages/[...route].js': `
-          export default function Page({ message }) { 
+          export default function Page({ message }) {
             return <div>
               <p>root page</p>
               <p>{message}</p>
             </div>
-          } 
+          }
 
           export const getServerSideProps = ({ params }) => {
             return {
@@ -222,11 +223,11 @@ describe('using a single matcher with i18n', () => {
     next = await createNext({
       files: {
         'pages/index.js': `
-          export default function Page({ message }) { 
+          export default function Page({ message }) {
             return <div>
               <p>{message}</p>
             </div>
-          } 
+          }
           export const getServerSideProps = ({ params, locale }) => ({
             props: { message: \`(\${locale}) Hello from /\` }
           })
@@ -237,7 +238,7 @@ describe('using a single matcher with i18n', () => {
               <p>catchall page</p>
               <p>{message}</p>
             </div>
-          } 
+          }
           export const getServerSideProps = ({ params, locale }) => ({
             props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
           })
@@ -311,12 +312,12 @@ describe('using a single matcher with i18n and basePath', () => {
     next = await createNext({
       files: {
         'pages/index.js': `
-          export default function Page({ message }) { 
+          export default function Page({ message }) {
             return <div>
               <p>root page</p>
               <p>{message}</p>
             </div>
-          } 
+          }
           export const getServerSideProps = ({ params, locale }) => ({
             props: { message: \`(\${locale}) Hello from /\` }
           })
@@ -327,7 +328,7 @@ describe('using a single matcher with i18n and basePath', () => {
               <p>catchall page</p>
               <p>{message}</p>
             </div>
-          } 
+          }
           export const getServerSideProps = ({ params, locale }) => ({
             props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
           })

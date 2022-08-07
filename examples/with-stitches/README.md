@@ -14,9 +14,13 @@ Execute [Create Next App](https://github.com/vercel/next.js/tree/canary/packages
 
 ```bash
 npx create-next-app --example with-stitches with-stitches-app
-# or
+```
+
+```bash
 yarn create next-app --example with-stitches with-stitches-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-stitches with-stitches-app
 ```
 

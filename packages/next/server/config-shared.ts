@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
@@ -94,7 +95,10 @@ export interface ExperimentalConfig {
   isrFlushToDisk?: boolean
   workerThreads?: boolean
   pageEnv?: boolean
-  optimizeCss?: boolean
+  // optimizeCss can be boolean or critters' option object
+  // Use Record<string, unknown> as critters doesn't export its Option type
+  // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
+  optimizeCss?: boolean | Record<string, unknown>
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
@@ -119,7 +123,6 @@ export interface ExperimentalConfig {
     unoptimized?: boolean
     allowFutureImage?: boolean
   }
-  middlewareSourceMaps?: boolean
   modularizeImports?: Record<
     string,
     {
@@ -145,11 +148,26 @@ export interface ExperimentalConfig {
   largePageDataBytes?: number
 }
 
+export type ExportPathMap = {
+  [path: string]: { page: string; query?: Record<string, string | string[]> }
+}
+
 /**
  * Next configuration object
  * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
+  exportPathMap?: (
+    defaultMap: ExportPathMap,
+    ctx: {
+      dev: boolean
+      dir: string
+      outDir: string | null
+      distDir: string
+      buildId: string
+    }
+  ) => Promise<ExportPathMap> | ExportPathMap
+
   /**
    * Internationalization configuration
    *
@@ -268,6 +286,15 @@ export interface NextConfig extends Record<string, any> {
 
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
+
+  /**
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
+   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   *
+   * @default ''
+   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   */
+  analyticsId?: string
 
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
@@ -506,6 +533,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
@@ -535,6 +563,7 @@ export const defaultConfig: NextConfig = {
     appDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
+    incrementalCacheHandlerPath: undefined,
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
@@ -549,7 +578,6 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    middlewareSourceMaps: undefined,
     modularizeImports: undefined,
   },
 }
@@ -566,4 +594,14 @@ export function isServerRuntime(value?: string): value is ServerRuntime {
   return (
     value === undefined || value === 'nodejs' || value === 'experimental-edge'
   )
+}
+
+export function validateConfig(userConfig: NextConfig): {
+  errors?: Array<any> | null
+} {
+  const configValidator = require('next/dist/next-config-validate.js')
+  configValidator(userConfig)
+  return {
+    errors: configValidator.errors,
+  }
 }

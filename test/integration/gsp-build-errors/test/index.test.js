@@ -1,15 +1,14 @@
 /* eslint-env jest */
 
 import fs from 'fs-extra'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const pagesDir = join(appDir, 'pages')
-const testPage = join(pagesDir, 'test.js')
 
-const writePage = async (content) => {
-  await fs.ensureDir(pagesDir)
+const writePage = async (content, testPage = join(pagesDir, 'test.js')) => {
+  await fs.ensureDir(dirname(testPage))
   await fs.writeFile(testPage, content)
 }
 
@@ -106,5 +105,65 @@ describe('GSP build errors', () => {
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
     expect(code).toBe(1)
     expect(stderr).toContain('a string error')
+  })
+
+  it('should handle non-serializable error in getStaticProps', async () => {
+    await writePage(`
+      export function getStaticProps() {
+        const err = new Error('my custom error')
+        err.hello = 'world'
+        err.a = [1,2,3]
+        err.original = err
+        err.b = err.a
+        
+        throw err
+        
+        return {
+          props: {}
+        }  
+      }
+      
+      export default function () {
+        return null
+      }
+    `)
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    expect(code).toBe(1)
+    expect(stderr).toContain('my custom error')
+  })
+
+  it('should handle non-serializable error in getStaticPaths', async () => {
+    await writePage(
+      `
+      export function getStaticProps() {
+        return {
+          props: {}
+        }  
+      }
+      
+      export function getStaticPaths() {
+        const err = new Error('my custom error')
+        err.hello = 'world'
+        err.a = [1,2,3]
+        err.original = err
+        err.b = err.a
+        
+        throw err
+        
+        return {
+          paths: [],
+          fallback: true
+        }
+      }
+      
+      export default function () {
+        return null
+      }
+    `,
+      join(pagesDir, '[slug].js')
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    expect(code).toBe(1)
+    expect(stderr).toContain('my custom error')
   })
 })
