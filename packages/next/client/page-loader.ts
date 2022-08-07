@@ -86,7 +86,8 @@ export default class PageLoader {
           .catch((err) => {
             console.log(`Failed to fetch devPagesManifest:`, err)
             throw new Error(
-              `Failed to fetch _devPagesManifest.json. Is something blocking that network request?`
+              `Failed to fetch _devPagesManifest.json. Is something blocking that network request?\n` +
+                'Read more: https://nextjs.org/docs/messages/failed-to-fetch-devpagesmanifest'
             )
           })
         return this.promisedDevPagesManifest

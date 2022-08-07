@@ -661,6 +661,10 @@
         {
           "title": "invalid-script",
           "path": "/errors/invalid-script.md"
+        },
+        {
+          "title": "failed-to-fetch-devpagesmanifest",
+          "path": "/errors/failed-to-fetch-devpagesmanifest.md"
         }
       ]
     }
