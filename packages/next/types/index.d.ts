@@ -81,7 +81,7 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
-  runtime?: 'nodejs' | 'edge'
+  runtime?: 'nodejs' | 'experimental-edge'
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   unstable_includeFiles?: string[]
