@@ -36,7 +36,7 @@ export const getStaticProps: GetStaticProps<PostDataProps, Params> = async (
   }
 }
 
-const Post: NextPage<PostDataProps> = ({ postData } : PostDataProps) => {
+const Post: NextPage<PostDataProps> = ({ postData }: PostDataProps) => {
   return (
     <main>
       <Head>

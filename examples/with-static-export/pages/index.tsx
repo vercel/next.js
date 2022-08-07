@@ -14,7 +14,9 @@ export const getStaticProps: GetStaticProps = async (_context) => {
   }
 }
 
-const IndexPage: NextPage<PostDataListProps> = ({ postDataList }: PostDataListProps) => {
+const IndexPage: NextPage<PostDataListProps> = ({
+  postDataList,
+}: PostDataListProps) => {
   return (
     <main>
       <Head>
