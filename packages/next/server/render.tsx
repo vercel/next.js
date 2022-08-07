@@ -18,10 +18,14 @@ import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
-import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
+import type {
+  GetServerSideProps,
+  GetStaticProps,
+  PreviewData,
+  ServerRuntime,
+} from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
-import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
