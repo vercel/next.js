@@ -818,6 +818,10 @@ export default async function getBaseWebpackConfig(
       resolveRequest: string
     ) => Promise<[string | null, boolean]>
   ) {
+    // Rewrite back to internals to avoid bundled into chunks after overriding in require-hook
+    if (request === 'styled-jsx') {
+      request = 'next/dist/shared/lib/styled-jsx'
+    }
     // We need to externalize internal requests for files intended to
     // not be bundled.
     const isLocal: boolean =
