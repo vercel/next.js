@@ -103,13 +103,22 @@ export default class MiddlewarePlugin {
 
 export async function handleWebpackExtenalForEdgeRuntime({
   request,
+  context,
   contextInfo,
+  getResolve,
 }: {
   request: string
+  context: string
   contextInfo: any
+  getResolve: () => any
 }) {
   if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
-    return `root  globalThis.__import_unsupported('${request}')`
+    // allows user to provide and use their polyfills, as we do with buffer.
+    try {
+      await getResolve()(context, request)
+    } catch {
+      return `root  globalThis.__import_unsupported('${request}')`
+    }
   }
 }
 
@@ -380,7 +389,10 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         }
       }
     })
-    registerUnsupportedApiHooks(parser, compilation)
+    if (!dev) {
+      // do not issue compilation warning on dev: invoking code will provide details
+      registerUnsupportedApiHooks(parser, compilation)
+    }
   }
 }
 
@@ -445,7 +457,7 @@ function getExtractMetadata(params: {
 
           compilation.errors.push(
             buildWebpackError({
-              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
+              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
                 typeof buildInfo.usingIndirectEval !== 'boolean'
                   ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
                       ', '

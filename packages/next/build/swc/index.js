@@ -143,22 +143,26 @@ async function loadWasm(importPath = '') {
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
-          return Promise.resolve(
-            bindings.transformSync(src.toString(), options)
-          )
+          // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
+          return bindings?.transform
+            ? bindings.transform(src.toString(), options)
+            : Promise.resolve(bindings.transformSync(src.toString(), options))
         },
         transformSync(src, options) {
           return bindings.transformSync(src.toString(), options)
         },
         minify(src, options) {
-          return Promise.resolve(bindings.minifySync(src.toString(), options))
+          return bindings?.minify
+            ? bindings.minify(src.toString(), options)
+            : Promise.resolve(bindings.minifySync(src.toString(), options))
         },
         minifySync(src, options) {
           return bindings.minifySync(src.toString(), options)
         },
         parse(src, options) {
-          const astStr = bindings.parseSync(src.toString(), options)
-          return Promise.resolve(astStr)
+          return bindings?.parse
+            ? bindings.parse(src.toString(), options)
+            : Promise.resolve(bindings.parseSync(src.toString(), options))
         },
         parseSync(src, options) {
           const astStr = bindings.parseSync(src.toString(), options)

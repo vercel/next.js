@@ -48,7 +48,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { ClientEntryPlugin } from './webpack/plugins/client-entry-plugin'
+import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import type {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -974,7 +974,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const rscSharedRegex =
-    /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context)\.js|node_modules\/styled-jsx\/)/
+    /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context|flush-effects)\.js|node_modules\/styled-jsx\/)/
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1526,6 +1526,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
           config.experimental.newNextLinkBehavior
         ),
+        'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
+          config.experimental.optimisticClientCache
+        ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(isClient),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
@@ -1568,6 +1571,7 @@ export default async function getBaseWebpackConfig(
           imageSizes: config.images.imageSizes,
           path: config.images.path,
           loader: config.images.loader,
+          dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
           experimentalUnoptimized: config?.experimental?.images?.unoptimized,
           experimentalFuture: config.experimental?.images?.allowFutureImage,
           ...(dev
@@ -1719,7 +1723,7 @@ export default async function getBaseWebpackConfig(
               appDir: !!config.experimental.appDir,
               pageExtensions: rawPageExtensions,
             })
-          : new ClientEntryPlugin({
+          : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
             })),

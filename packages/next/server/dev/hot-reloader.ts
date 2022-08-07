@@ -17,7 +17,7 @@ import {
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
+import { APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -78,9 +78,8 @@ export async function renderScriptError(
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
-  const isApiRoute = req.url!.match(API_ROUTE)
-  // API routes handle their own CORS headers
-  if (isApiRoute) {
+  // Only rewrite CORS handling when URL matches a hot-reloader middleware
+  if (!req.url!.startsWith('/__next')) {
     return { preflight: false }
   }
 
@@ -157,7 +156,7 @@ function erroredPages(compilation: webpack5.Compilation) {
 export default class HotReloader {
   private dir: string
   private buildId: string
-  private middlewares: any[]
+  private interceptors: any[]
   private pagesDir: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
@@ -202,7 +201,7 @@ export default class HotReloader {
   ) {
     this.buildId = buildId
     this.dir = dir
-    this.middlewares = []
+    this.interceptors = []
     this.pagesDir = pagesDir
     this.appDir = appDir
     this.distDir = distDir
@@ -285,7 +284,7 @@ export default class HotReloader {
 
     const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
-    for (const fn of this.middlewares) {
+    for (const fn of this.interceptors) {
       await new Promise<void>((resolve, reject) => {
         fn(req, res, (err: Error) => {
           if (err) return reject(err)
@@ -934,7 +933,7 @@ export default class HotReloader {
       }),
     })
 
-    this.middlewares = [
+    this.interceptors = [
       getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.clientStats,
