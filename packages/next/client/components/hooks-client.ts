@@ -9,8 +9,13 @@ import {
 } from './hooks-client-context'
 import {
   AppRouterContext,
-  AppTreeContext,
+  LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
+
+export {
+  FlushEffectsContext,
+  useFlushEffects,
+} from '../../shared/lib/flush-effects'
 
 /**
  * Get the current search params. For example useSearchParams() would return {"foo": "bar"} when ?foo=bar
@@ -59,7 +64,7 @@ export function usePathname(): string {
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string {
-  const { tree } = useContext(AppTreeContext)
+  const { tree } = useContext(LayoutRouterContext)
 
   const segment = tree[1][parallelRouteKey][0]
 

@@ -27,6 +27,22 @@ export class NextResponse extends Response {
     }
   }
 
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return {
+      cookies: this.cookies,
+      url: this.url,
+      // rest of props come from Response
+      body: this.body,
+      bodyUsed: this.bodyUsed,
+      headers: Object.fromEntries(this.headers),
+      ok: this.ok,
+      redirected: this.redirected,
+      status: this.status,
+      statusText: this.statusText,
+      type: this.type,
+    }
+  }
+
   public get cookies() {
     return this[INTERNALS].cookies
   }

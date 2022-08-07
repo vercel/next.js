@@ -4249,9 +4249,9 @@ var require_pool_base = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/undici@5.5.1/node_modules/undici/lib/core/request.js
-var require_request2 = __commonJS({
-  "../../node_modules/.pnpm/undici@5.5.1/node_modules/undici/lib/core/request.js"(exports, module2) {
+// src/patches/undici-core-request.js
+var require_undici_core_request = __commonJS({
+  "src/patches/undici-core-request.js"(exports, module2) {
     "use strict";
     init_define_process();
     var {
@@ -4408,7 +4408,10 @@ var require_request2 = __commonJS({
         assert(!this.aborted);
         assert(!this.completed);
         if (channels.headers.hasSubscribers) {
-          channels.headers.publish({ request: this, response: { statusCode, headers, statusText } });
+          channels.headers.publish({
+            request: this,
+            response: { statusCode, headers, statusText }
+          });
         }
         return this[kHandler].onHeaders(statusCode, headers, resume, statusText);
       }
@@ -4463,14 +4466,6 @@ var require_request2 = __commonJS({
         request.contentType = val;
         request.headers += `${key}: ${val}\r
 `;
-      } else if (key.length === 17 && key.toLowerCase() === "transfer-encoding") {
-        throw new InvalidArgumentError2("invalid transfer-encoding header");
-      } else if (key.length === 10 && key.toLowerCase() === "connection") {
-        throw new InvalidArgumentError2("invalid connection header");
-      } else if (key.length === 10 && key.toLowerCase() === "keep-alive") {
-        throw new InvalidArgumentError2("invalid keep-alive header");
-      } else if (key.length === 7 && key.toLowerCase() === "upgrade") {
-        throw new InvalidArgumentError2("invalid upgrade header");
       } else if (key.length === 6 && key.toLowerCase() === "expect") {
         throw new NotSupportedError("expect header not supported");
       } else {
@@ -5083,7 +5078,7 @@ var require_client = __commonJS({
     var assert = require("assert");
     var net = require("net");
     var util = require_util();
-    var Request2 = require_request2();
+    var Request2 = require_undici_core_request();
     var DispatcherBase = require_dispatcher_base();
     var RedirectHandler = require_redirect();
     var {
@@ -6663,6 +6658,7 @@ var import_request = __toESM(require_request());
 var import_file = __toESM(require_file());
 global.AbortController = import_abort_controller.AbortController;
 global.AbortSignal = import_abort_controller2.AbortSignal;
+define_process_default.nextTick = setImmediate;
 var SCookies = Symbol("set-cookie");
 var __append = HeadersModule.HeadersList.prototype.append;
 HeadersModule.HeadersList.prototype.append = function(name, value) {

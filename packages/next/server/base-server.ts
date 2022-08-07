@@ -87,7 +87,6 @@ export type FindComponentsResult = {
 export interface RoutingItem {
   page: string
   match: RouteMatch
-  ssr?: boolean
   re?: RegExp
 }
 
@@ -735,6 +734,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         match: getPathMatch('/_next/data/:path*'),
         type: 'route',
         name: '_next/data catchall',
+        check: true,
         fn: async (req, res, params, _parsedUrl) => {
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct
