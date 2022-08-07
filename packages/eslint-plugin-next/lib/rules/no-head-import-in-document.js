@@ -1,11 +1,13 @@
 const path = require('path')
 
+const url = 'https://nextjs.org/docs/messages/no-head-import-in-document'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Disallow importing next/head in pages/document.js',
+      description: 'Prevent usage of `next/head` in `pages/_document.js`.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-head-import-in-document',
+      url,
     },
   },
   create: function (context) {
@@ -28,7 +30,7 @@ module.exports = {
         ) {
           context.report({
             node,
-            message: `next/head should not be imported in pages${document}. Import Head from next/document instead. See: https://nextjs.org/docs/messages/no-head-import-in-document`,
+            message: `\`next/head\` should not be imported in \`pages${document}\`. Use \`<Head />\` from \`next/document\` instead. See: ${url}`,
           })
         }
       },

@@ -65,7 +65,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     _params?: any
   ) {
     let Component
-    let AppMod
+    let App
     let config
     let Document
     let Error
@@ -78,7 +78,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       getServerSideProps,
       getStaticPaths,
       Component,
-      AppMod,
+      App,
       config,
       { default: Document },
       { default: Error },
@@ -103,7 +103,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     const options = {
-      AppMod,
+      App,
       Document,
       ComponentMod: { default: Component },
       buildManifest,
@@ -253,7 +253,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       if (!fromExport && (getStaticProps || getServerSideProps)) {
         // don't include dynamic route params in query while normalizing
         // asPath
-        if (pageIsDynamic && trustQuery && defaultRouteRegex) {
+        if (pageIsDynamic && defaultRouteRegex) {
           delete (parsedUrl as any).search
 
           for (const param of Object.keys(defaultRouteRegex.groups)) {

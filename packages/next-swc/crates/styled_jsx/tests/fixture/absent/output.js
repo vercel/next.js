@@ -4,5 +4,4 @@ const a = ()=><div >
 
     <style >{'woot'}</style>
 
-  </div>
-;
+  </div>;

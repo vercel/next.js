@@ -1,25 +1,5 @@
 import type { NodeHeaders } from './types'
 
-export async function* streamToIterator<T>(
-  readable: ReadableStream<T>
-): AsyncIterableIterator<T> {
-  const reader = readable.getReader()
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    if (value) {
-      yield value
-    }
-  }
-  reader.releaseLock()
-}
-
-export function notImplemented(name: string, method: string): any {
-  throw new Error(
-    `Failed to get the '${method}' property on '${name}': the property is not implemented`
-  )
-}
-
 export function fromNodeHeaders(object: NodeHeaders): Headers {
   const headers = new Headers()
   for (let [key, value] of Object.entries(object)) {

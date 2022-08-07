@@ -22,7 +22,7 @@ module.exports = {
 }
 ```
 
-Using `runtime` also enables [Streaming SSR](/docs/advanced-features/react-18/streaming). When setting `runtime` to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
+Using `runtime` also enables [Streaming SSR](/docs/advanced-features/react-18/streaming). When setting `runtime` to `'experimental-edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
 
 Now, you can start using React Server Components in Next.js. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
 
@@ -94,15 +94,7 @@ export default function Document() {
 
 ### `next/app`
 
-If you're using `_app.js`, the usage is the same as [Custom App](/docs/advanced-features/custom-app).
-If you're using `_app.server.js` as a server component, see the example below where it only receives the `children` prop as React elements. You can wrap any other client or server components around `children` to customize the layout of your app.
-
-```js
-// pages/_app.server.js
-export default function App({ children }) {
-  return children
-}
-```
+The usage of `_app.js` is the same as [Custom App](/docs/advanced-features/custom-app). Using custom app as server component such as `_app.server.js` is not recommended, to keep align with non server components apps for client specific things like global CSS imports.
 
 ### Routing
 

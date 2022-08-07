@@ -121,6 +121,9 @@ export default class extends Component {
         <Link href="/nav/hash-changes#item-400">
           <a id="scroll-to-hash">Scroll to hash</a>
         </Link>
+        <Link href="/nav/hash-changes#中文">
+          <a id="scroll-to-cjk-hash">Scroll to CJK hash</a>
+        </Link>
       </div>
     )
   }

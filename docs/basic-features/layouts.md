@@ -11,6 +11,8 @@ description: Learn how to share components and state between Next.js pages with 
   </ul>
 </details>
 
+> **Note:** We are introducing improved layouts support in Next.js. Read the [Layouts RFC](https://nextjs.org/blog/layouts-rfc) for more details and to provide feedback.
+
 The React model allows us to deconstruct a [page](/docs/basic-features/pages.md) into a series of components. Many of these components are often reused between pages. For example, you might have the same navigation bar and footer on every page.
 
 ```jsx

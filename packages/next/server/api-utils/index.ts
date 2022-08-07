@@ -3,8 +3,8 @@ import type { BaseNextRequest } from '../base-http'
 
 import { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 
-export type NextApiRequestCookies = { [key: string]: string }
-export type NextApiRequestQuery = { [key: string]: string | string[] }
+export type NextApiRequestCookies = Partial<{ [key: string]: string }>
+export type NextApiRequestQuery = Partial<{ [key: string]: string | string[] }>
 
 export type __ApiPreviewProps = {
   previewModeId: string

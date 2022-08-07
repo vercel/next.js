@@ -21,10 +21,12 @@ describe('next/jest', () => {
             return <h1>Hello Dynamic</h1>;
           }
         `,
+        'styles/index.module.css': '.home { color: orange }',
         'pages/index.js': `
           import dynamic from "next/dynamic";
           import Image from "next/image";
           import img from "../public/vercel.svg";
+          import styles from "../styles/index.module.css";
 
           const Comp = dynamic(() => import("../components/comp"), {
             loading: () => <h1>Loading...</h1>,
@@ -35,7 +37,7 @@ describe('next/jest', () => {
               <Comp />
               <Image src={img} alt="logo" placeholder="blur"/>
               <Image src={img} alt="logo 2"/>
-              <p>hello world</p>
+              <p className={styles.home}>hello world</p>
             </>
           } 
         `,

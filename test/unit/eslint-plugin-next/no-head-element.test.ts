@@ -67,7 +67,7 @@ ruleTester.run('no-head-element', rule, {
       errors: [
         {
           message:
-            "Do not use <head>. Use Head from 'next/head' instead. See: https://nextjs.org/docs/messages/no-head-element",
+            'Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element',
           type: 'JSXOpeningElement',
         },
       ],
@@ -93,7 +93,7 @@ ruleTester.run('no-head-element', rule, {
       errors: [
         {
           message:
-            "Do not use <head>. Use Head from 'next/head' instead. See: https://nextjs.org/docs/messages/no-head-element",
+            'Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element',
           type: 'JSXOpeningElement',
         },
       ],

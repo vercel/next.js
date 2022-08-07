@@ -1,14 +1,15 @@
+const url = 'https://nextjs.org/docs/messages/no-head-element'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Prohibit usage of HTML <head> element',
+      description: 'Prevent usage of `<head>` element.',
       category: 'HTML',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-head-element',
+      url,
     },
     fixable: 'code',
   },
-
   create: function (context) {
     return {
       JSXOpeningElement(node) {
@@ -18,7 +19,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `Do not use <head>. Use Head from 'next/head' instead. See: https://nextjs.org/docs/messages/no-head-element`,
+          message: `Do not use \`<head>\` element. Use \`<Head />\` from \`next/head\` instead. See: ${url}`,
         })
       },
     }

@@ -1,7 +1,7 @@
 use chrono::Utc;
+use swc_common::errors::HANDLER;
 use swc_common::{Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::HANDLER;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {

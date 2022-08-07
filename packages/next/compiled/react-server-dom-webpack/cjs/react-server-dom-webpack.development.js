@@ -34,7 +34,11 @@ function parseModel(response, json) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function resolveModuleReference(moduleData) {
+function resolveModuleReference(bundlerConfig, moduleData) {
+  if (bundlerConfig) {
+    return bundlerConfig[moduleData.id][moduleData.name];
+  }
+
   return moduleData;
 } // The chunk cache contains all the chunks we've preloaded so far.
 // If they're still pending they're a thenable. This map also exists
@@ -52,7 +56,7 @@ function preloadModule(moduleData) {
     var entry = chunkCache.get(chunkId);
 
     if (entry === undefined) {
-      var thenable = __webpack_chunk_load__(chunkId);
+      var thenable = globalThis.__next_chunk_load__(chunkId);
 
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
       var reject = chunkCache.set.bind(chunkCache, chunkId);
@@ -78,7 +82,7 @@ function requireModule(moduleData) {
     }
   }
 
-  var moduleExports = __webpack_require__(moduleData.id);
+  var moduleExports = globalThis.__next_require__(moduleData.id);
 
   if (moduleData.name === '*') {
     // This is a placeholder value that represents that the caller imported this
@@ -365,9 +369,10 @@ function parseModelTuple(response, value) {
 
   return value;
 }
-function createResponse() {
+function createResponse(bundlerConfig) {
   var chunks = new Map();
   var response = {
+    _bundlerConfig: bundlerConfig,
     _chunks: chunks,
     readRoot: readRoot
   };
@@ -391,7 +396,7 @@ function resolveModule(response, id, model) {
   var chunks = response._chunks;
   var chunk = chunks.get(id);
   var moduleMetaData = parseModel(response, model);
-  var moduleReference = resolveModuleReference(moduleMetaData); // TODO: Add an option to encode modules that are lazy loaded.
+  var moduleReference = resolveModuleReference(response._bundlerConfig, moduleMetaData); // TODO: Add an option to encode modules that are lazy loaded.
   // For now we preload all modules as early as possible since it's likely
   // that we'll need them.
 
@@ -527,11 +532,11 @@ function createFromJSONCallback(response) {
   };
 }
 
-function createResponse$1() {
+function createResponse$1(bundlerConfig) {
   // NOTE: CHECK THE COMPILER OUTPUT EACH TIME YOU CHANGE THIS.
   // It should be inlined to one object literal but minor changes can break it.
   var stringDecoder =  createStringDecoder() ;
-  var response = createResponse();
+  var response = createResponse(bundlerConfig);
   response._partialRow = '';
 
   {
@@ -567,14 +572,14 @@ function startReadingFromStream(response, stream) {
   reader.read().then(progress, error);
 }
 
-function createFromReadableStream(stream) {
-  var response = createResponse$1();
+function createFromReadableStream(stream, options) {
+  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null);
   startReadingFromStream(response, stream);
   return response;
 }
 
-function createFromFetch(promiseForResponse) {
-  var response = createResponse$1();
+function createFromFetch(promiseForResponse, options) {
+  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null);
   promiseForResponse.then(function (r) {
     startReadingFromStream(response, r.body);
   }, function (e) {
@@ -583,8 +588,8 @@ function createFromFetch(promiseForResponse) {
   return response;
 }
 
-function createFromXHR(request) {
-  var response = createResponse$1();
+function createFromXHR(request, options) {
+  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null);
   var processedLength = 0;
 
   function progress(e) {

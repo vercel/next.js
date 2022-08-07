@@ -1,12 +1,14 @@
 const path = require('path')
 
+const url = 'https://nextjs.org/docs/messages/no-document-import-in-page'
+
 module.exports = {
   meta: {
     docs: {
       description:
-        'Disallow importing next/document outside of pages/document.js',
+        'Prevent importing `next/document` outside of `pages/_document.js`.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-document-import-in-page',
+      url,
     },
   },
   create: function (context) {
@@ -29,7 +31,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `next/document should not be imported outside of pages/_document.js. See: https://nextjs.org/docs/messages/no-document-import-in-page`,
+          message: `\`<Document />\` from \`next/document\` should not be imported outside of \`pages/_document.js\`. See: ${url}`,
         })
       },
     }

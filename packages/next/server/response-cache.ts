@@ -99,6 +99,7 @@ export default class ResponseCache {
     responseGenerator: ResponseGenerator,
     context: {
       isManualRevalidate?: boolean
+      isPrefetch?: boolean
     }
   ): Promise<ResponseCacheEntry | null> {
     // ensure manual revalidate doesn't block normal requests
@@ -175,7 +176,7 @@ export default class ResponseCache {
                   }
                 : cachedResponse.value,
           })
-          if (!cachedResponse.isStale) {
+          if (!cachedResponse.isStale || context.isPrefetch) {
             // The cached value is still valid, so we don't need
             // to update it yet.
             return

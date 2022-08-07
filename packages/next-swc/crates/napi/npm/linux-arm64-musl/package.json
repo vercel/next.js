@@ -7,6 +7,9 @@
   "cpu": [
     "arm64"
   ],
+  "libc": [
+    "musl"
+  ],
   "main": "next-swc.linux-arm64-musl.node",
   "files": [
     "next-swc.linux-arm64-musl.node"

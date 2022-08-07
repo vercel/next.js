@@ -102,7 +102,7 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
   })
 
-  it('should match hostname pattern with single asterisk', () => {
+  it('should match hostname pattern with single asterisk by itself', () => {
     const p = { hostname: 'avatars.*.example.com' } as const
     expect(m(p, new URL('https://com'))).toBe(false)
     expect(m(p, new URL('https://example.com'))).toBe(false)
@@ -113,6 +113,54 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://avatars.sfo1.example.com'))).toBe(true)
     expect(m(p, new URL('https://avatars.iad1.example.com'))).toBe(true)
     expect(m(p, new URL('https://more.avatars.iad1.example.com'))).toBe(false)
+  })
+
+  it('should match hostname pattern with single asterisk at beginning', () => {
+    const p = { hostname: 'avatars.*1.example.com' } as const
+    expect(m(p, new URL('https://com'))).toBe(false)
+    expect(m(p, new URL('https://example.com'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com'))).toBe(false)
+    expect(m(p, new URL('https://example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://avatars.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.sfo1.example.com'))).toBe(true)
+    expect(m(p, new URL('https://avatars.iad1.example.com'))).toBe(true)
+    expect(m(p, new URL('https://more.avatars.iad1.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.sfo2.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.iad2.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.1.example.com'))).toBe(true)
+  })
+
+  it('should match hostname pattern with single asterisk in middle', () => {
+    const p = { hostname: 'avatars.*a*.example.com' } as const
+    expect(m(p, new URL('https://com'))).toBe(false)
+    expect(m(p, new URL('https://example.com'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com'))).toBe(false)
+    expect(m(p, new URL('https://example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://avatars.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.sfo1.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.iad1.example.com'))).toBe(true)
+    expect(m(p, new URL('https://more.avatars.iad1.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.sfo2.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.iad2.example.com'))).toBe(true)
+    expect(m(p, new URL('https://avatars.a.example.com'))).toBe(true)
+  })
+
+  it('should match hostname pattern with single asterisk at end', () => {
+    const p = { hostname: 'avatars.ia*.example.com' } as const
+    expect(m(p, new URL('https://com'))).toBe(false)
+    expect(m(p, new URL('https://example.com'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com'))).toBe(false)
+    expect(m(p, new URL('https://example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://avatars.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.sfo1.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.iad1.example.com'))).toBe(true)
+    expect(m(p, new URL('https://more.avatars.iad1.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.sfo2.example.com'))).toBe(false)
+    expect(m(p, new URL('https://avatars.iad2.example.com'))).toBe(true)
+    expect(m(p, new URL('https://avatars.ia.example.com'))).toBe(true)
   })
 
   it('should match hostname pattern with double asterisk', () => {
@@ -129,7 +177,7 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://more.avatars.iad1.example.com'))).toBe(true)
   })
 
-  it('should match pathname pattern with single asterisk', () => {
+  it('should match pathname pattern with single asterisk by itself', () => {
     const p = {
       hostname: 'example.com',
       pathname: '/act123/*/pic.jpg',
@@ -150,13 +198,89 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
   })
 
+  it('should match pathname pattern with single asterisk at the beginning', () => {
+    const p = {
+      hostname: 'example.com',
+      pathname: '/act123/*4/pic.jpg',
+    } as const
+    expect(m(p, new URL('https://com'))).toBe(false)
+    expect(m(p, new URL('https://example.com'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com'))).toBe(false)
+    expect(m(p, new URL('https://example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/pic'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/picsjpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act456/team5/pic.jpg'))).toBe(
+      false
+    )
+    expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/4/pic.jpg'))).toBe(true)
+  })
+
+  it('should match pathname pattern with single asterisk in the middle', () => {
+    const p = {
+      hostname: 'example.com',
+      pathname: '/act123/*sr*/pic.jpg',
+    } as const
+    expect(m(p, new URL('https://com'))).toBe(false)
+    expect(m(p, new URL('https://example.com'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com'))).toBe(false)
+    expect(m(p, new URL('https://example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/pic'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/picsjpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(
+      false
+    )
+    expect(m(p, new URL('https://example.com/act123/team5/pic.jpg'))).toBe(
+      false
+    )
+    expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/sr/pic.jpg'))).toBe(true)
+  })
+
+  it('should match pathname pattern with single asterisk at the end', () => {
+    const p = {
+      hostname: 'example.com',
+      pathname: '/act123/usr*/pic.jpg',
+    } as const
+    expect(m(p, new URL('https://com'))).toBe(false)
+    expect(m(p, new URL('https://example.com'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com'))).toBe(false)
+    expect(m(p, new URL('https://example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/pic'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/picsjpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/usr4/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/usr/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(
+      false
+    )
+    expect(m(p, new URL('https://example.com/act456/team5/pic.jpg'))).toBe(
+      false
+    )
+    expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com/act123/usr6/pic.jpg'))).toBe(
+      false
+    )
+  })
+
   it('should match pathname pattern with double asterisk', () => {
     const p = { hostname: 'example.com', pathname: '/act123/**' } as const
     expect(m(p, new URL('https://com'))).toBe(false)
     expect(m(p, new URL('https://example.com'))).toBe(false)
     expect(m(p, new URL('https://sub.example.com'))).toBe(false)
     expect(m(p, new URL('https://example.com.uk'))).toBe(false)
-    expect(m(p, new URL('https://example.com/act123'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr4'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr4/pic'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr4/picsjpg'))).toBe(true)
@@ -166,6 +290,9 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/team/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com/act123/team/pic.jpg'))).toBe(
+      false
+    )
   })
 
   it('should throw when hostname is missing', () => {
@@ -173,20 +300,6 @@ describe('matchRemotePattern', () => {
     // @ts-ignore testing invalid input
     expect(() => m(p, new URL('https://example.com'))).toThrow(
       'Pattern should define hostname but found\n{"protocol":"https"}'
-    )
-  })
-
-  it('should throw when hostname has double asterisk in the middle', () => {
-    const p = { hostname: 'example.**.com' } as const
-    expect(() => m(p, new URL('https://example.com'))).toThrow(
-      'Pattern can only contain ** at start of hostname but found "example.**.com"'
-    )
-  })
-
-  it('should throw when pathname has double asterisk in the middle', () => {
-    const p = { hostname: 'example.com', pathname: '/**/img' } as const
-    expect(() => m(p, new URL('https://example.com'))).toThrow(
-      'Pattern can only contain ** at end of pathname but found "/**/img"'
     )
   })
 

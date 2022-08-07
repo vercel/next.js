@@ -1,32 +1,17 @@
 import type { ComponentType } from 'react'
 import type { RouteLoader } from './route-loader'
-import {
-  addBasePath,
-  addLocale,
-  interpolateAs,
-} from '../shared/lib/router/router'
+import { addBasePath } from './add-base-path'
+import { interpolateAs } from '../shared/lib/router/router'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
+import { addLocale } from './add-locale'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
-import { removePathTrailingSlash } from './normalize-trailing-slash'
-import {
-  createRouteLoader,
-  getClientBuildManifest,
-  getMiddlewareManifest,
-} from './route-loader'
-
-function normalizeRoute(route: string): string {
-  if (route[0] !== '/') {
-    throw new Error(`Route name should start with a "/", got "${route}"`)
-  }
-
-  if (route === '/') return route
-  return route.replace(/\/$/, '')
-}
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { createRouteLoader, getClientBuildManifest } from './route-loader'
 
 declare global {
   interface Window {
-    __DEV_MIDDLEWARE_MANIFEST?: [location: string, isSSR: boolean][]
+    __DEV_MIDDLEWARE_MANIFEST?: { location?: string }
     __DEV_PAGES_MANIFEST?: { pages: string[] }
     __SSG_MANIFEST_CB?: () => void
     __SSG_MANIFEST?: Set<string>
@@ -45,9 +30,7 @@ export default class PageLoader {
   private assetPrefix: string
   private promisedSsgManifest: Promise<Set<string>>
   private promisedDevPagesManifest?: Promise<string[]>
-  private promisedMiddlewareManifest?: Promise<
-    [location: string, isSSR: boolean][]
-  >
+  private promisedMiddlewareManifest?: Promise<{ location: string }>
 
   public routeLoader: RouteLoader
 
@@ -95,9 +78,13 @@ export default class PageLoader {
     }
   }
 
-  getMiddlewareList() {
+  getMiddleware() {
     if (process.env.NODE_ENV === 'production') {
-      return getMiddlewareManifest()
+      const middlewareRegex = process.env.__NEXT_MIDDLEWARE_REGEX
+      window.__MIDDLEWARE_MANIFEST = middlewareRegex
+        ? { location: middlewareRegex }
+        : undefined
+      return window.__MIDDLEWARE_MANIFEST
     } else {
       if (window.__DEV_MIDDLEWARE_MANIFEST) {
         return window.__DEV_MIDDLEWARE_MANIFEST
@@ -109,7 +96,7 @@ export default class PageLoader {
             `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
           )
             .then((res) => res.json())
-            .then((manifest: [location: string, isSSR: boolean][]) => {
+            .then((manifest: { location?: string }) => {
               window.__DEV_MIDDLEWARE_MANIFEST = manifest
               return manifest
             })
@@ -123,51 +110,38 @@ export default class PageLoader {
     }
   }
 
-  /**
-   * @param {string} href the route href (file-system path)
-   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
-   * @returns {string}
-   */
-  getDataHref({
-    href,
-    asPath,
-    ssg,
-    flight,
-    locale,
-  }: {
-    href: string
+  getDataHref(params: {
     asPath: string
-    ssg?: boolean
-    flight?: boolean
+    href: string
     locale?: string | false
+    skipInterpolation?: boolean
   }): string {
+    const { asPath, href, locale } = params
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
-    const route = normalizeRoute(hrefPathname)
+    const route = removeTrailingSlash(hrefPathname)
+    if (route[0] !== '/') {
+      throw new Error(`Route name should start with a "/", got "${route}"`)
+    }
 
     const getHrefForSlug = (path: string) => {
-      if (flight) {
-        return path + search + (search ? `&` : '?') + '__flight__=1'
-      }
-
       const dataRoute = getAssetPathFromRoute(
-        removePathTrailingSlash(addLocale(path, locale)),
+        removeTrailingSlash(addLocale(path, locale)),
         '.json'
       )
       return addBasePath(
-        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`,
+        `/_next/data/${this.buildId}${dataRoute}${search}`,
         true
       )
     }
 
-    const isDynamic: boolean = isDynamicRoute(route)
-    const interpolatedRoute = isDynamic
-      ? interpolateAs(hrefPathname, asPathname, query).result
-      : ''
-
-    return isDynamic
-      ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
-      : getHrefForSlug(route)
+    return getHrefForSlug(
+      params.skipInterpolation
+        ? asPathname
+        : isDynamicRoute(route)
+        ? interpolateAs(hrefPathname, asPathname, query).result
+        : route
+    )
   }
 
   /**

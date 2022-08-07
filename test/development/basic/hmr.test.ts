@@ -26,6 +26,18 @@ describe('basic HMR', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should show hydration error correctly', async () => {
+    const browser = await webdriver(next.url, '/hydration-error')
+    await check(async () => {
+      const logs = await browser.log()
+      return logs.some((log) =>
+        log.message.includes('messages/react-hydration-error')
+      )
+        ? 'success'
+        : JSON.stringify(logs, null, 2)
+    }, 'success')
+  })
+
   it('should have correct router.isReady for auto-export page', async () => {
     let browser = await webdriver(next.url, '/auto-export-is-ready')
 
@@ -697,9 +709,9 @@ describe('basic HMR', () => {
 
         await check(async () => {
           await browser.refresh()
-          const text = await browser.elementByCss('body').text()
+          await waitFor(2000)
+          const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
           return getRedboxSource(browser)
@@ -745,15 +757,12 @@ describe('basic HMR', () => {
 
         await check(async () => {
           await browser.refresh()
+          await waitFor(2000)
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
-
-          await waitFor(2000)
-          const source = await getRedboxSource(browser)
-          return source
+          return getRedboxSource(browser)
         }, /an-expected-error-in-gip/)
       } catch (err) {
         await next.patchFile(erroredPage, errorContent)
@@ -772,5 +781,41 @@ describe('basic HMR', () => {
     expect(traceData).toContain('client-hmr-latency')
     expect(traceData).toContain('client-error')
     expect(traceData).toContain('client-success')
+  })
+
+  it('should have correct compile timing after fixing error', async () => {
+    const pageName = 'pages/auto-export-is-ready.js'
+    const originalContent = await next.readFile(pageName)
+
+    try {
+      const browser = await webdriver(next.url, '/auto-export-is-ready')
+      const outputLength = next.cliOutput.length
+      await next.patchFile(
+        pageName,
+        `import hello from 'non-existent'\n` + originalContent
+      )
+      expect(await hasRedbox(browser, true)).toBe(true)
+      await waitFor(3000)
+      await next.patchFile(pageName, originalContent)
+      await check(
+        () => next.cliOutput.substring(outputLength),
+        /compiled.*?successfully/i
+      )
+      const compileTime = next.cliOutput
+        .substring(outputLength)
+        .match(/compiled.*?successfully in ([\d.]{1,})\s?(?:s|ms)/i)
+
+      let compileTimeMs = parseFloat(compileTime[1])
+      if (
+        next.cliOutput
+          .substring(outputLength)
+          .match(/compiled.*?successfully in ([\d.]{1,})\s?s/)
+      ) {
+        compileTimeMs = compileTimeMs * 1000
+      }
+      expect(compileTimeMs).toBeLessThan(3000)
+    } finally {
+      await next.patchFile(pageName, originalContent)
+    }
   })
 })

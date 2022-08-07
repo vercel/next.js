@@ -1,11 +1,13 @@
 const NodeAttributes = require('../utils/node-attributes.js')
 
+const url = 'https://nextjs.org/docs/messages/google-font-preconnect'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Ensure preconnect is used with Google Fonts',
+      description: 'Ensure `preconnect` is used with Google Fonts.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/google-font-preconnect',
+      url,
     },
   },
   create: function (context) {
@@ -33,7 +35,7 @@ module.exports = {
         ) {
           context.report({
             node,
-            message: `Preconnect is missing. See: https://nextjs.org/docs/messages/google-font-preconnect`,
+            message: `\`rel="preconnect"\` is missing from Google Font. See: ${url}`,
           })
         }
       },

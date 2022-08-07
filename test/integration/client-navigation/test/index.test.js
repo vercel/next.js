@@ -68,6 +68,12 @@ describe('Client Navigation', () => {
       )
     })
 
+    it('should not throw error when one number type child is provided', async () => {
+      const browser = await webdriver(context.appPort, '/link-number-child')
+      expect(await hasRedbox(browser)).toBe(false)
+      if (browser) await browser.close()
+    })
+
     it('should navigate back after reload', async () => {
       const browser = await webdriver(context.appPort, '/nav')
       await browser.elementByCss('#about-link').click()
@@ -626,6 +632,13 @@ describe('Client Navigation', () => {
           )
 
           expect(scrollPositionAfterTopHash).toBe(0)
+
+          // Scrolls to cjk anchor on the page
+          await browser.elementByCss('#scroll-to-cjk-anchor').click()
+
+          const scrollPositionCJKHash = await browser.eval('window.pageYOffset')
+
+          expect(scrollPositionCJKHash).toBe(17436)
         } finally {
           if (browser) {
             await browser.close()
@@ -684,6 +697,26 @@ describe('Client Navigation', () => {
 
           const scrollPosition = await browser.eval('window.pageYOffset')
           expect(scrollPosition).toBe(7258)
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
+      })
+
+      it('should scroll to the specified CJK position to a new page', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav')
+
+          // Scrolls to CJK anchor on the page
+          await browser
+            .elementByCss('#scroll-to-cjk-hash')
+            .click()
+            .waitForElementByCss('#hash-changes-page')
+
+          const scrollPosition = await browser.eval('window.pageYOffset')
+          expect(scrollPosition).toBe(17436)
         } finally {
           if (browser) {
             await browser.close()
@@ -1594,6 +1627,22 @@ describe('Client Navigation', () => {
         }
       }
     })
+
+    it('should update head when unmounting component', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head-dynamic')
+        expect(await browser.eval('document.title')).toBe('B')
+        await browser.elementByCss('button').click()
+        expect(await browser.eval('document.title')).toBe('A')
+        await browser.elementByCss('button').click()
+        expect(await browser.eval('document.title')).toBe('B')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
   })
 
   describe('foreign history manipulation', () => {
@@ -1685,6 +1734,49 @@ describe('Client Navigation', () => {
     )
 
     expect(value).toBe(false)
+  })
+
+  it('should emit routeChangeError on hash change cancel', async () => {
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.eval(`(function() {
+      window.routeErrors = []
+      
+      window.next.router.events.on('routeChangeError', function (err) {
+        window.routeErrors.push(err)
+      })
+      window.next.router.push('#first')
+      window.next.router.push('#second')
+      window.next.router.push('#third')
+    })()`)
+
+    await check(async () => {
+      const errorCount = await browser.eval('window.routeErrors.length')
+      return errorCount > 0 ? 'success' : errorCount
+    }, 'success')
+  })
+
+  it('should navigate to paths relative to the current page', async () => {
+    const browser = await webdriver(context.appPort, '/nav/relative')
+    let page
+
+    await browser.elementByCss('a').click()
+
+    browser.waitForElementByCss('#relative-1')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative 1/)
+    await browser.elementByCss('a').click()
+
+    browser.waitForElementByCss('#relative-2')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative 2/)
+
+    await browser.elementByCss('button').click()
+    browser.waitForElementByCss('#relative')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative index/)
+
+    await browser.close()
   })
 
   renderingSuite(

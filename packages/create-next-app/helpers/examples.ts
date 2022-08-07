@@ -60,12 +60,17 @@ export function hasRepo({
   return isUrlOk(contentsUrl + packagePath + `?ref=${branch}`)
 }
 
-export function hasExample(name: string): Promise<boolean> {
-  return isUrlOk(
-    `https://api.github.com/repos/vercel/next.js/contents/examples/${encodeURIComponent(
-      name
-    )}/package.json`
-  )
+export function existsInRepo(nameOrUrl: string): Promise<boolean> {
+  try {
+    const url = new URL(nameOrUrl)
+    return isUrlOk(url.href)
+  } catch {
+    return isUrlOk(
+      `https://api.github.com/repos/vercel/next.js/contents/examples/${encodeURIComponent(
+        nameOrUrl
+      )}`
+    )
+  }
 }
 
 export function downloadAndExtractRepo(
@@ -78,7 +83,7 @@ export function downloadAndExtractRepo(
     ),
     tar.extract(
       { cwd: root, strip: filePath ? filePath.split('/').length + 1 : 1 },
-      [`${name}-${branch}${filePath ? `/${filePath}` : ''}`]
+      [`${name}-${branch.replace(/\//g, '-')}${filePath ? `/${filePath}` : ''}`]
     )
   )
 }

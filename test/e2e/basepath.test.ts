@@ -38,7 +38,7 @@ describe('basePath', () => {
             },
             {
               source: '/rewrite-no-basepath',
-              destination: 'https://example.com',
+              destination: 'https://example.vercel.sh',
               basePath: false,
             },
             {
@@ -119,6 +119,40 @@ describe('basePath', () => {
       // we can investigate testing more cases below if desired
       return
     }
+
+    it.each([
+      { hash: '#hello?' },
+      { hash: '#?' },
+      { hash: '##' },
+      { hash: '##?' },
+      { hash: '##hello?' },
+      { hash: '##hello' },
+      { hash: '#hello?world' },
+      { search: '?hello=world', hash: '#a', query: { hello: 'world' } },
+      { search: '?hello', hash: '#a', query: { hello: '' } },
+      { search: '?hello=', hash: '#a', query: { hello: '' } },
+    ])(
+      'should handle query/hash correctly during query updating $hash $search',
+      async ({ hash, search, query }) => {
+        const browser = await webdriver(
+          next.url,
+          `${basePath}${search || ''}${hash || ''}`
+        )
+
+        await check(
+          () =>
+            browser.eval('window.next.router.isReady ? "ready" : "not ready"'),
+          'ready'
+        )
+        expect(await browser.eval('window.location.pathname')).toBe(basePath)
+        expect(await browser.eval('window.location.search')).toBe(search || '')
+        expect(await browser.eval('window.location.hash')).toBe(hash || '')
+        expect(await browser.eval('next.router.pathname')).toBe('/')
+        expect(
+          JSON.parse(await browser.eval('JSON.stringify(next.router.query)'))
+        ).toEqual(query || {})
+      }
+    )
 
     it('should navigate back correctly to a dynamic route', async () => {
       const browser = await webdriver(next.url, `${basePath}`)
@@ -757,7 +791,9 @@ describe('basePath', () => {
           .waitForElementByCss('#other-page-title')
 
         const eventLog = await browser.eval('window._getEventLog()')
-        expect(eventLog).toEqual([
+        expect(
+          eventLog.filter((item) => item[1]?.endsWith('/other-page'))
+        ).toEqual([
           ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
           ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
           ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],

@@ -3,16 +3,87 @@ import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { getPageStaticInfo, runDependingOnPageType } from '../../build/entries'
+import { runDependingOnPageType } from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
-import { pageNotFoundError } from '../require'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
+import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
+import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
+import { PageNotFoundError } from '../../shared/lib/utils'
+import { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+
+function treePathToEntrypoint(
+  segmentPath: string[],
+  parentPath?: string
+): string {
+  const [parallelRouteKey, segment] = segmentPath
+
+  // TODO: modify this path to cover parallelRouteKey convention
+  const path =
+    (parentPath ? parentPath + '/' : '') +
+    (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +
+    (segment === '' ? 'page' : segment)
+
+  // Last segment
+  if (segmentPath.length === 2) {
+    return path
+  }
+
+  const childSegmentPath = segmentPath.slice(2)
+  return treePathToEntrypoint(childSegmentPath, path)
+}
+
+function convertDynamicParamTypeToSyntax(
+  dynamicParamTypeShort: DynamicParamTypesShort,
+  param: string
+) {
+  switch (dynamicParamTypeShort) {
+    case 'c':
+      return `[...${param}]`
+    case 'oc':
+      return `[[...${param}]]`
+    case 'd':
+      return `[${param}]`
+    default:
+      throw new Error('Unknown dynamic param type')
+  }
+}
+
+function getEntrypointsFromTree(
+  tree: FlightRouterState,
+  isFirst: boolean,
+  parentPath: string[] = []
+) {
+  const [segment, parallelRoutes] = tree
+
+  const currentSegment = Array.isArray(segment)
+    ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
+    : segment
+
+  const currentPath = [...parentPath, currentSegment]
+
+  if (!isFirst && currentSegment === '') {
+    // TODO get rid of '' at the start of tree
+    return [treePathToEntrypoint(currentPath.slice(1))]
+  }
+
+  return Object.keys(parallelRoutes).reduce(
+    (paths: string[], key: string): string[] => {
+      const childTree = parallelRoutes[key]
+      const childPages = getEntrypointsFromTree(childTree, false, [
+        ...currentPath,
+        key,
+      ])
+      return [...paths, ...childPages]
+    },
+    []
+  )
+}
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -62,20 +133,21 @@ export function onDemandEntryHandler({
   nextConfig,
   pagesBufferLength,
   pagesDir,
-  viewsDir,
-  watcher,
+  rootDir,
+  appDir,
 }: {
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
   pagesBufferLength: number
   pagesDir: string
-  viewsDir?: string
-  watcher: any
+  rootDir: string
+  appDir?: string
 }) {
-  invalidator = new Invalidator(watcher)
+  invalidator = new Invalidator(multiCompiler)
   const doneCallbacks: EventEmitter | null = new EventEmitter()
   const lastClientAccessPages = ['']
+  const lastServerAccessPagesForAppDir = ['']
 
   const startBuilding = (_compilation: webpack.Compilation) => {
     invalidator.startBuilding()
@@ -94,7 +166,10 @@ export function onDemandEntryHandler({
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
         pagePaths.push(`${type}${page}`)
-      } else if (root && entrypoint.name === 'root') {
+      } else if (
+        (root && entrypoint.name === 'root') ||
+        isMiddlewareFilename(entrypoint.name)
+      ) {
         pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
@@ -107,7 +182,7 @@ export function onDemandEntryHandler({
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
-    const root = !!viewsDir
+    const root = !!appDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -148,8 +223,47 @@ export function onDemandEntryHandler({
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
 
   setInterval(function () {
-    disposeInactiveEntries(lastClientAccessPages, maxInactiveAge)
+    disposeInactiveEntries(
+      lastClientAccessPages,
+      lastServerAccessPagesForAppDir,
+      maxInactiveAge
+    )
   }, pingIntervalTime + 1000).unref()
+
+  function handleAppDirPing(
+    tree: FlightRouterState
+  ): { success: true } | { invalid: true } {
+    const pages = getEntrypointsFromTree(tree, true)
+
+    for (const page of pages) {
+      const pageKey = `server/${page}`
+      const entryInfo = entries[pageKey]
+
+      // If there's no entry, it may have been invalidated and needs to be re-built.
+      if (!entryInfo) {
+        // if (page !== lastEntry) client pings, but there's no entry for page
+        return { invalid: true }
+      }
+
+      // We don't need to maintain active state of anything other than BUILT entries
+      if (entryInfo.status !== BUILT) continue
+
+      // If there's an entryInfo
+      if (!lastServerAccessPagesForAppDir.includes(pageKey)) {
+        lastServerAccessPagesForAppDir.unshift(pageKey)
+
+        // Maintain the buffer max length
+        // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
+        if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
+          lastServerAccessPagesForAppDir.pop()
+        }
+      }
+      entryInfo.lastActiveTime = Date.now()
+      entryInfo.dispose = false
+    }
+
+    return { success: true }
+  }
 
   function handlePing(pg: string) {
     const page = normalizePathSep(pg)
@@ -185,10 +299,11 @@ export function onDemandEntryHandler({
   return {
     async ensurePage(page: string, clientOnly: boolean) {
       const pagePathData = await findPagePathData(
+        rootDir,
         pagesDir,
         page,
         nextConfig.pageExtensions,
-        viewsDir
+        appDir
       )
 
       let entryAdded = false
@@ -198,6 +313,8 @@ export function onDemandEntryHandler({
           const isServerComponent = serverComponentRegex.test(
             pagePathData.absolutePagePath
           )
+          const isInsideAppDir =
+            appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
           const pageKey = `${type}${pagePathData.page}`
 
@@ -209,7 +326,7 @@ export function onDemandEntryHandler({
               return
             }
           } else {
-            if (type === 'client' && isServerComponent) {
+            if (type === 'client' && (isServerComponent || isInsideAppDir)) {
               // Skip adding the client entry here.
             } else {
               entryAdded = true
@@ -230,23 +347,27 @@ export function onDemandEntryHandler({
         })
       }
 
-      const promises = runDependingOnPageType({
+      const staticInfo = await getPageStaticInfo({
+        pageFilePath: pagePathData.absolutePagePath,
+        nextConfig,
+      })
+
+      const result = runDependingOnPageType({
         page: pagePathData.page,
-        pageRuntime: (
-          await getPageStaticInfo(pagePathData.absolutePagePath, nextConfig)
-        ).runtime,
+        pageRuntime: staticInfo.runtime,
         onClient: () => addPageEntry('client'),
         onServer: () => addPageEntry('server'),
         onEdgeServer: () => addPageEntry('edge-server'),
       })
 
+      const promises = Object.values(result)
       if (entryAdded) {
         reportTrigger(
           !clientOnly && promises.length > 1
             ? `${pagePathData.page} (client and server)`
             : pagePathData.page
         )
-        invalidator.invalidate()
+        invalidator.invalidate(Object.keys(result))
       }
 
       return Promise.all(promises)
@@ -260,11 +381,13 @@ export function onDemandEntryHandler({
           )
 
           if (parsedData.event === 'ping') {
-            const result = handlePing(parsedData.page)
+            const result = parsedData.appDirRoute
+              ? handleAppDirPing(parsedData.tree)
+              : handlePing(parsedData.page)
             client.send(
               JSON.stringify({
                 ...result,
-                event: 'pong',
+                [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
               })
             )
           }
@@ -276,10 +399,17 @@ export function onDemandEntryHandler({
 
 function disposeInactiveEntries(
   lastClientAccessPages: string[],
+  lastServerAccessPagesForAppDir: string[],
   maxInactiveAge: number
 ) {
   Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status, dispose } = entries[page]
+    const { lastActiveTime, status, dispose, bundlePath } = entries[page]
+
+    const isClientComponentsEntry =
+      bundlePath.startsWith('app/') && page.startsWith('client/')
+
+    // Disposing client component entry is handled when disposing server component entry
+    if (isClientComponentsEntry) return
 
     // Skip pages already scheduled for disposing
     if (dispose) return
@@ -291,29 +421,40 @@ function disposeInactiveEntries(
     // We should not build the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastClientAccessPages.includes(page)) return
+    if (
+      lastClientAccessPages.includes(page) ||
+      lastServerAccessPagesForAppDir.includes(page)
+    )
+      return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
+      const isServerComponentsEntry =
+        bundlePath.startsWith('app/') && page.startsWith('server/')
+
+      // Dispose client component entrypoint when server component entrypoint is disposed.
+      if (isServerComponentsEntry) {
+        entries[page.replace('server/', 'client/')].dispose = true
+      }
       entries[page].dispose = true
     }
   })
 }
 
-// Make sure only one invalidation happens at a time
+// Make sure only one invalidation happens at a time∫
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
-  private watcher: any
+  private multiCompiler: webpack.MultiCompiler
   private building: boolean
   public rebuildAgain: boolean
 
-  constructor(watcher: any) {
-    this.watcher = watcher
+  constructor(multiCompiler: webpack.MultiCompiler) {
+    this.multiCompiler = multiCompiler
     // contains an array of types of compilers currently building
     this.building = false
     this.rebuildAgain = false
   }
 
-  invalidate() {
+  invalidate(keys: string[] = []) {
     // If there's a current build is processing, we won't abort it by invalidating.
     // (If aborted, it'll cause a client side hard reload)
     // But let it to invalidate just after the completion.
@@ -324,7 +465,23 @@ class Invalidator {
     }
 
     this.building = true
-    this.watcher.invalidate()
+
+    if (!keys || keys.length === 0) {
+      this.multiCompiler.compilers[0].watching.invalidate()
+      this.multiCompiler.compilers[1].watching.invalidate()
+      this.multiCompiler.compilers[2].watching.invalidate()
+      return
+    }
+
+    for (const key of keys) {
+      if (key === 'client') {
+        this.multiCompiler.compilers[0].watching.invalidate()
+      } else if (key === 'server') {
+        this.multiCompiler.compilers[1].watching.invalidate()
+      } else if (key === 'edgeServer') {
+        this.multiCompiler.compilers[2].watching.invalidate()
+      }
+    }
   }
 
   startBuilding() {
@@ -346,26 +503,57 @@ class Invalidator {
  * a page and allowed extensions. If the page can't be found it will throw an
  * error. It defaults the `/_error` page to Next.js internal error page.
  *
+ * @param rootDir Absolute path to the project root.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param normalizedPagePath The page normalized (it will be denormalized).
  * @param pageExtensions Array of page extensions.
  */
 async function findPagePathData(
+  rootDir: string,
   pagesDir: string,
   page: string,
   extensions: string[],
-  viewsDir?: string
+  appDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
-  let isView = false
 
-  // check viewsDir first
-  if (viewsDir) {
-    pagePath = await findPageFile(viewsDir, normalizedPagePath, extensions)
+  if (isMiddlewareFile(normalizedPagePath)) {
+    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
 
+    if (!pagePath) {
+      throw new PageNotFoundError(normalizedPagePath)
+    }
+
+    const pageUrl = ensureLeadingSlash(
+      removePagePathTail(normalizePathSep(pagePath), {
+        extensions,
+      })
+    )
+
+    return {
+      absolutePagePath: join(rootDir, pagePath),
+      bundlePath: normalizedPagePath.slice(1),
+      page: posix.normalize(pageUrl),
+    }
+  }
+
+  // Check appDir first falling back to pagesDir
+  if (appDir) {
+    pagePath = await findPageFile(appDir, normalizedPagePath, extensions)
     if (pagePath) {
-      isView = true
+      const pageUrl = ensureLeadingSlash(
+        removePagePathTail(normalizePathSep(pagePath), {
+          keepIndex: true,
+          extensions,
+        })
+      )
+
+      return {
+        absolutePagePath: join(appDir, pagePath),
+        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
+        page: posix.normalize(pageUrl),
+      }
     }
   }
 
@@ -375,15 +563,14 @@ async function findPagePathData(
 
   if (pagePath !== null) {
     const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), extensions, !isView)
+      removePagePathTail(normalizePathSep(pagePath), {
+        extensions,
+      })
     )
-    const bundleFile = normalizePagePath(pageUrl)
-    const bundlePath = posix.join(isView ? 'views' : 'pages', bundleFile)
-    const absolutePagePath = join(isView ? viewsDir! : pagesDir, pagePath)
 
     return {
-      absolutePagePath,
-      bundlePath,
+      absolutePagePath: join(pagesDir, pagePath),
+      bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
       page: posix.normalize(pageUrl),
     }
   }
@@ -395,7 +582,7 @@ async function findPagePathData(
       page: normalizePathSep(page),
     }
   } else {
-    throw pageNotFoundError(normalizedPagePath)
+    throw new PageNotFoundError(normalizedPagePath)
   }
 }
 
@@ -404,6 +591,6 @@ function tryToNormalizePagePath(page: string) {
     return normalizePagePath(page)
   } catch (err) {
     console.error(err)
-    throw pageNotFoundError(page)
+    throw new PageNotFoundError(page)
   }
 }

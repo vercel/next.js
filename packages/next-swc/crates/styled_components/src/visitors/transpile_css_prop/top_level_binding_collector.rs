@@ -1,10 +1,9 @@
 use swc_common::collections::AHashSet;
 use swc_ecmascript::{
     ast::{
-        ArrowExpr, ClassDecl, FnDecl, Function, ImportDefaultSpecifier, ImportNamedSpecifier,
+        ArrowExpr, ClassDecl, FnDecl, Function, Id, ImportDefaultSpecifier, ImportNamedSpecifier,
         ImportStarAsSpecifier, ObjectPatProp, Pat, VarDeclarator,
     },
-    utils::{ident::IdentLike, Id},
     visit::{noop_visit_type, Visit, VisitWith},
 };
 

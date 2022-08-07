@@ -1,15 +1,17 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
-import type { NextParsedUrlQuery } from './request-meta'
-import type { Params } from './router'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 import type { Options } from './base-server'
 
 import BaseServer from './base-server'
 import { renderToHTML } from './render'
-import { byteLength, generateETag } from './api-utils/web'
+import { byteLength } from './api-utils/web'
+import { generateETag } from './lib/etag'
+import { addRequestMeta } from './request-meta'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -71,9 +73,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getHasStaticDir() {
     return false
   }
-  protected async hasMiddleware() {
-    return false
-  }
   protected generateImageRoutes() {
     return []
   }
@@ -86,16 +85,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected generatePublicRoutes() {
     return []
   }
-  protected getMiddleware() {
+  protected generateCatchAllMiddlewareRoute() {
     return []
   }
-  protected generateCatchAllMiddlewareRoute() {
-    return undefined
-  }
   protected getFontManifest() {
-    return undefined
-  }
-  protected getMiddlewareManifest() {
     return undefined
   }
   protected getPagesManifest() {
@@ -103,13 +96,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       [this.serverOptions.webServerConfig.page]: '',
     }
   }
-  protected getViewPathsManifest() {
+  protected getAppPathsManifest() {
     return {
       [this.serverOptions.webServerConfig.page]: '',
     }
   }
   protected getFilesystemPaths() {
     return new Set<string>()
+  }
+  protected attachRequestMeta(
+    req: WebNextRequest,
+    parsedUrl: NextUrlWithParsedQuery
+  ) {
+    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
   }
   protected getPrerenderManifest() {
     return {
@@ -147,7 +146,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       {
         ...renderOpts,
         disableOptimizedLoading: true,
-        runtime: 'edge',
+        runtime: 'experimental-edge',
       }
     )
   }
@@ -192,7 +191,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       const payload = await options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))
       if (options.generateEtags) {
-        res.setHeader('ETag', await generateETag(payload))
+        res.setHeader('ETag', generateETag(payload))
       }
       res.body(payload)
     }
