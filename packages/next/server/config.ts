@@ -3,6 +3,7 @@ import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
 import findUp from 'next/dist/compiled/find-up'
+import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
@@ -14,7 +15,7 @@ import {
   NextConfigComplete,
   validateConfig,
 } from './config-shared'
-import { loadWebpackHook } from './config-utils'
+import { createLoadRequireHook } from './config-utils'
 import {
   ImageConfig,
   imageConfigDefault,
@@ -718,6 +719,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   return result
+}
+
+function loadWebpackHook() {
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  const initializeWebpackRequireHook = createLoadRequireHook(initWebpack)
+  initializeWebpackRequireHook()
 }
 
 export default async function loadConfig(

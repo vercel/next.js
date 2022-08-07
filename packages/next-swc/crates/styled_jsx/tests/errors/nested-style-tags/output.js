@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx/style";
+import _JSXStyle from "next/dist/shared/lib/styled-jsx";
 const Component = ()=><>
     <header >
       <Comp >
