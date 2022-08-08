@@ -213,7 +213,7 @@ export default async function exportPage({
       if (
         buildExport &&
         renderOpts.domainLocales &&
-        renderOpts.domainLocales.length > 0
+        renderOpts.domainLocales.some((dl => dl.locales?.includes(locale)))
       ) {
         addRequestMeta(req, '__nextIsLocaleDomain', true)
       }
