@@ -1,27 +1,19 @@
+import type { ServerRuntime } from '../types'
 import { join } from '../shared/lib/isomorphic/path'
 
 export const NEXT_PROJECT_ROOT = join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = join(NEXT_PROJECT_ROOT, 'dist')
-export const NEXT_PROJECT_ROOT_NODE_MODULES = join(
-  NEXT_PROJECT_ROOT,
-  'node_modules'
-)
 export const NEXT_PROJECT_ROOT_DIST_CLIENT = join(
   NEXT_PROJECT_ROOT_DIST,
   'client'
-)
-export const NEXT_PROJECT_ROOT_DIST_SERVER = join(
-  NEXT_PROJECT_ROOT_DIST,
-  'server'
 )
 
 // Regex for API routes
 export const API_ROUTE = /^\/api(?:\/|$)/
 
-// Regex for middleware
-export const MIDDLEWARE_ROUTE = /middleware$/
+// Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
-export const MIDDLEWARE_FILE = `/${MIDDLEWARE_FILENAME}`
+export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
@@ -57,14 +49,7 @@ export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" va
 
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
 
-export const ESLINT_DEFAULT_DIRS = [
-  'pages',
-  'components',
-  'lib',
-  'src/pages',
-  'src/components',
-  'src/lib',
-]
+export const ESLINT_DEFAULT_DIRS = ['pages', 'components', 'lib', 'src']
 
 export const ESLINT_PROMPT_VALUES = [
   {
@@ -85,3 +70,8 @@ export const ESLINT_PROMPT_VALUES = [
     config: null,
   },
 ]
+
+export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
+  edge: 'experimental-edge',
+  nodejs: 'nodejs',
+}

@@ -107,9 +107,13 @@ export async function downloadWasmSwc(
   const cacheFiles = await fs.promises.readdir(cacheDirectory)
 
   if (cacheFiles.length > MAX_VERSIONS_TO_CACHE) {
-    cacheFiles.sort()
+    cacheFiles.sort((a, b) => {
+      if (a.length < b.length) return -1
+      return a.localeCompare(b)
+    })
 
-    for (let i = MAX_VERSIONS_TO_CACHE - 1; i++; i < cacheFiles.length) {
+    // prune oldest versions in cache
+    for (let i = 0; i++; i < cacheFiles.length - MAX_VERSIONS_TO_CACHE) {
       await fs.promises
         .unlink(path.join(cacheDirectory, cacheFiles[i]))
         .catch(() => {})

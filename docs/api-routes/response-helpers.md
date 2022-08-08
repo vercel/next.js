@@ -12,7 +12,7 @@ The included helpers are:
 - `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization)
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Temporary redirect".
-- `res.unstable_revalidate(urlPath)` - [Revalidate a page on demand](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) using `getStaticProps`. `urlPath` must be a `string`.
+- `res.revalidate(urlPath)` - [Revalidate a page on demand](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation) using `getStaticProps`. `urlPath` must be a `string`.
 
 ## Setting the status code of a response
 

@@ -116,22 +116,13 @@ function unique() {
 
 /**
  *
- * @param headElements List of multiple <Head> instances
+ * @param headChildrenElements List of children of <Head>
  */
 function reduceComponents(
-  headElements: Array<React.ReactElement<any>>,
+  headChildrenElements: Array<React.ReactElement<any>>,
   props: WithInAmpMode
 ) {
-  return headElements
-    .reduce(
-      (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
-        const headElementChildren = React.Children.toArray(
-          headElement.props.children
-        )
-        return list.concat(headElementChildren)
-      },
-      []
-    )
+  return headChildrenElements
     .reduce(onlyReactElement, [])
     .reverse()
     .concat(defaultHead(props.inAmpMode).reverse())

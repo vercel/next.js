@@ -5,7 +5,6 @@ import * as Log from './output/log'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import { readFileSync } from 'fs'
 import isError from '../lib/is-error'
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 
 let TSCONFIG_WARNED = false
 
@@ -22,6 +21,7 @@ function parseJsonFile(filePath: string) {
     return JSON5.parse(contents)
   } catch (err) {
     if (!isError(err)) throw err
+    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
     const codeFrame = codeFrameColumns(
       String(contents),
       {

@@ -4,6 +4,10 @@ description: Learn how to upgrade Next.js.
 
 # Upgrade Guide
 
+## Upgrading to 12.2
+
+If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide) for more information.
+
 ## Upgrading from 11 to 12
 
 ### Minimum Node.js version

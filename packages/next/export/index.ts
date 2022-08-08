@@ -30,7 +30,7 @@ import {
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
-import { NextConfigComplete } from '../server/config-shared'
+import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -122,10 +122,6 @@ const createProgress = (total: number, label: string) => {
       console.log(newText)
     }
   }
-}
-
-type ExportPathMap = {
-  [page: string]: { page: string; query?: { [key: string]: string } }
 }
 
 interface ExportOptions {
@@ -318,7 +314,7 @@ export default async function exportApp(
           `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
         )
       }
-      nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
+      nextConfig.exportPathMap = async (defaultMap) => {
         return defaultMap
       }
     }
@@ -326,6 +322,7 @@ export default async function exportApp(
     const {
       i18n,
       images: { loader = 'default' },
+      experimental,
     } = nextConfig
 
     if (i18n && !options.buildExport) {
@@ -344,14 +341,17 @@ export default async function exportApp(
             .catch(() => ({}))
         )
 
-      if (isNextImageImported && loader === 'default' && !hasNextSupport) {
+      if (
+        isNextImageImported &&
+        loader === 'default' &&
+        !experimental?.images?.unoptimized &&
+        !hasNextSupport
+      ) {
         throw new Error(
           `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
   Possible solutions:
     - Use \`next start\` to run a server, which includes the Image Optimization API.
-    - Use any provider which supports Image Optimization (like Vercel).
-    - Configure a third-party loader in \`next.config.js\`.
-    - Use the \`loader\` prop for \`next/image\`.
+    - Configure \`images.unoptimized = true\` in \`next.config.js\` to disable the Image Optimization API.
   Read more: https://nextjs.org/docs/messages/export-image-api`
         )
       }
@@ -384,7 +384,6 @@ export default async function exportApp(
       optimizeCss: nextConfig.experimental.optimizeCss,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
-      reactRoot: nextConfig.experimental.reactRoot || false,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     }
 

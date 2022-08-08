@@ -13,7 +13,7 @@ declare global {
   interface Window {
     __BUILD_MANIFEST?: Record<string, string[]>
     __BUILD_MANIFEST_CB?: Function
-    __MIDDLEWARE_MANIFEST?: [location: string, isSSR: boolean][]
+    __MIDDLEWARE_MANIFEST?: { location: string }
     __MIDDLEWARE_MANIFEST_CB?: Function
   }
 }
@@ -229,28 +229,6 @@ export function getClientBuildManifest() {
     onBuildManifest,
     MS_MAX_IDLE_DELAY,
     markAssetError(new Error('Failed to load client build manifest'))
-  )
-}
-
-export function getMiddlewareManifest() {
-  if (self.__MIDDLEWARE_MANIFEST) {
-    return Promise.resolve(self.__MIDDLEWARE_MANIFEST)
-  }
-
-  const onMiddlewareManifest = new Promise<
-    [location: string, isSSR: boolean][]
-  >((resolve) => {
-    const cb = self.__MIDDLEWARE_MANIFEST_CB
-    self.__MIDDLEWARE_MANIFEST_CB = () => {
-      resolve(self.__MIDDLEWARE_MANIFEST!)
-      cb && cb()
-    }
-  })
-
-  return resolvePromiseWithTimeout(
-    onMiddlewareManifest,
-    MS_MAX_IDLE_DELAY,
-    markAssetError(new Error('Failed to load client middleware manifest'))
   )
 }
 

@@ -42,7 +42,7 @@ ruleTester.run('google-font-preconnect', rule, {
       errors: [
         {
           message:
-            'Preconnect is missing. See: https://nextjs.org/docs/messages/google-font-preconnect',
+            '`rel="preconnect"` is missing from Google Font. See: https://nextjs.org/docs/messages/google-font-preconnect',
           type: 'JSXOpeningElement',
         },
       ],
@@ -58,7 +58,7 @@ ruleTester.run('google-font-preconnect', rule, {
       errors: [
         {
           message:
-            'Preconnect is missing. See: https://nextjs.org/docs/messages/google-font-preconnect',
+            '`rel="preconnect"` is missing from Google Font. See: https://nextjs.org/docs/messages/google-font-preconnect',
           type: 'JSXOpeningElement',
         },
       ],
