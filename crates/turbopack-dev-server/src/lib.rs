@@ -26,7 +26,8 @@ use hyper_tungstenite::tungstenite::Message;
 use tokio::select;
 use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, RawVcReadResult, TransientValue};
 use turbo_tasks_fs::FileContent;
-use turbopack_core::asset::AssetVc;
+use turbopack_cli_utils::issue::issue_to_styled_string;
+use turbopack_core::{asset::AssetVc, issue::IssueVc};
 
 use self::source::ContentSourceVc;
 
@@ -156,8 +157,9 @@ impl DevServerVc {
                             if asset_path.is_empty() || asset_path.ends_with('/') {
                                 asset_path += "index.html";
                             }
+                            let file_content = source.get(&asset_path);
                             if let FileContent::Content(content) =
-                                &*source.get(&asset_path).strongly_consistent().await?
+                                &*file_content.strongly_consistent().await?
                             {
                                 let content_type = content.content_type().map_or_else(
                                     || {
@@ -176,11 +178,27 @@ impl DevServerVc {
                                         .body(Body::from(bytes))?,
                                 )
                                 .map_err(|_| anyhow!("receiver dropped"))?;
-                                // println!(
-                                //     "[200] {} ({})",
-                                //     path,
-                                //     FormatDuration(start.elapsed())
-                                // );
+                                let elapsed = start.elapsed();
+
+                                // Just print issues to console for now...
+                                let issues = IssueVc::peek_issues_with_path(file_content).await?;
+                                let issues = issues.await?;
+                                if !issues.is_empty() {
+                                    println!(
+                                        "[200] {} ({}) has some issues:\n",
+                                        path,
+                                        FormatDuration(elapsed)
+                                    );
+                                    for (issue, path) in issues.iter_with_shortest_path() {
+                                        println!(
+                                            "{}\n",
+                                            &*issue_to_styled_string(issue, path)
+                                                .strongly_consistent()
+                                                .await?
+                                        );
+                                    }
+                                }
+
                                 return Ok(());
                             }
                             tx.send(Response::builder().status(404).body(Body::empty())?)
@@ -188,15 +206,15 @@ impl DevServerVc {
                             println!("[404] {} ({})", path, FormatDuration(start.elapsed()));
                             Ok(())
                         }));
-                        loop {
-                            // INVALIDATION: this is just for a single http response, we don't care
-                            // about invalidation.
-                            match tt.try_read_task_output_untracked(task_id, false)? {
-                                Ok(_) => break,
-                                Err(listener) => listener.await,
+                        match rx.await {
+                            Ok(r) => Ok::<_, anyhow::Error>(r),
+                            Err(_) => {
+                                // INVALIDATION: this is just for a single http response, we don't
+                                // care about invalidation.
+                                let _ = tt.try_read_task_output_untracked(task_id, false)?;
+                                Err(anyhow!("Task didn't send a reponse"))
                             }
                         }
-                        Ok::<_, anyhow::Error>(rx.await?)
                     };
                     async move {
                         match future.await {
@@ -272,5 +290,6 @@ pub fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
     turbopack_core::register();
+    turbopack_cli_utils::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

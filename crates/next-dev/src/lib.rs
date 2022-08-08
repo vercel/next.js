@@ -4,11 +4,13 @@
 
 use std::{net::IpAddr, sync::Arc};
 
-use anyhow::{Context, Result};
-use turbo_tasks::{TransientValue, TurboTasks};
+use anyhow::{anyhow, Context, Result};
+use turbo_tasks::{CollectiblesSource, TransientValue, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
+use turbopack_cli_utils::issue::issue_to_styled_string;
+use turbopack_core::issue::{IssueSeverity, IssueVc};
 use turbopack_dev_server::{
     fs::DevServerFileSystemVc, source::router::RouterContentSource, DevServerListening, DevServerVc,
 };
@@ -78,6 +80,24 @@ impl NextDevServerBuilder {
     pub async fn build(self) -> Result<DevServerListening> {
         let turbo_tasks = self.turbo_tasks.context("turbo_tasks must be set")?;
 
+        async fn handle_issues<T: CollectiblesSource + Copy>(source: T) -> Result<()> {
+            let issues = IssueVc::peek_issues_with_path(source).await?;
+            let issues = issues.await?;
+            let mut fatal = false;
+            for (issue, path) in issues.iter_with_shortest_path() {
+                println!("{}\n", &*issue_to_styled_string(issue, path).await?);
+                if *issue.severity().await? >= IssueSeverity::Fatal {
+                    fatal = true;
+                }
+            }
+
+            if fatal {
+                Err(anyhow!("Fatal issue(s) occurred"))
+            } else {
+                Ok(())
+            }
+        }
+
         turbo_tasks
             .clone()
             .run_once(async move {
@@ -120,6 +140,12 @@ impl NextDevServerBuilder {
                             .into(),
                     ),
                 );
+
+                handle_issues(disk_fs).await?;
+                handle_issues(dev_server_fs).await?;
+                handle_issues(main_source).await?;
+                handle_issues(server).await?;
+
                 disk_fs.await?.start_watching()?;
                 server.listen().await
             })

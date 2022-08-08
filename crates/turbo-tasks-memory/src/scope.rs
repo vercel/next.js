@@ -1,8 +1,5 @@
 use std::{
-    collections::{
-        hash_map::{Entry, Keys},
-        HashMap, HashSet,
-    },
+    collections::{HashMap, HashSet},
     fmt::{Debug, Display},
     hash::{BuildHasher, Hash, Hasher},
     mem::take,
@@ -17,7 +14,7 @@ use event_listener::{Event, EventListener};
 use turbo_tasks::{RawVc, TaskId, TraitTypeId};
 
 use crate::{
-    count_hash_set::CountHashSet,
+    count_hash_set::{CountHashSet, CountHashSetIter},
     task::{Task, TaskDependency},
     MemoryBackend,
 };
@@ -90,12 +87,12 @@ impl Hasher for RawHasher {
 #[derive(Clone, Debug)]
 pub enum TaskScopes {
     Root(TaskScopeId),
-    Inner(TaskScopeList),
+    Inner(CountHashSet<TaskScopeId>),
 }
 
 impl Default for TaskScopes {
     fn default() -> Self {
-        TaskScopes::Inner(TaskScopeList::default())
+        TaskScopes::Inner(CountHashSet::default())
     }
 }
 
@@ -103,7 +100,7 @@ impl TaskScopes {
     pub fn iter(&self) -> TaskScopesIterator {
         match self {
             TaskScopes::Root(r) => TaskScopesIterator::Root(*r),
-            TaskScopes::Inner(list) => TaskScopesIterator::Inner(list.map.keys()),
+            TaskScopes::Inner(set) => TaskScopesIterator::Inner(set.iter()),
         }
     }
 
@@ -115,7 +112,7 @@ impl TaskScopes {
 pub enum TaskScopesIterator<'a> {
     Done,
     Root(TaskScopeId),
-    Inner(Keys<'a, TaskScopeId, usize>),
+    Inner(CountHashSetIter<'a, TaskScopeId>),
 }
 
 impl<'a> Iterator for TaskScopesIterator<'a> {
@@ -130,67 +127,6 @@ impl<'a> Iterator for TaskScopesIterator<'a> {
             }
             TaskScopesIterator::Inner(it) => it.next().copied(),
         }
-    }
-}
-
-#[derive(Clone, Default)]
-pub struct TaskScopeList {
-    map: HashMap<TaskScopeId, usize, BuildRawHasher>,
-}
-
-impl Debug for TaskScopeList {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_list().entries(self.map.keys()).finish()
-    }
-}
-
-pub enum RemoveResult {
-    NoEntry,
-    Decreased,
-    Removed,
-}
-
-impl TaskScopeList {
-    pub fn len(&self) -> usize {
-        self.map.len()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.map.is_empty()
-    }
-    pub fn add(&mut self, id: TaskScopeId) -> bool {
-        match self.map.entry(id) {
-            Entry::Occupied(mut e) => {
-                *e.get_mut() += 1;
-                false
-            }
-            Entry::Vacant(e) => {
-                e.insert(1);
-                true
-            }
-        }
-    }
-    pub fn remove(&mut self, id: TaskScopeId) -> RemoveResult {
-        match self.map.entry(id) {
-            Entry::Occupied(mut e) => {
-                let value = e.get_mut();
-                *value -= 1;
-                if *value == 0 {
-                    e.remove();
-                    RemoveResult::Removed
-                } else {
-                    RemoveResult::Decreased
-                }
-            }
-            Entry::Vacant(_) => RemoveResult::NoEntry,
-        }
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = TaskScopeId> + '_ {
-        self.map.keys().copied()
-    }
-
-    pub fn into_scopes(self) -> impl Iterator<Item = (TaskScopeId, usize)> {
-        self.map.into_iter()
     }
 }
 
@@ -518,7 +454,18 @@ impl TaskScopeState {
     /// it's active counter decreased.
     #[must_use]
     pub fn remove_child(&mut self, child: TaskScopeId) -> Option<ScopeChildChangeEffect> {
-        if self.children.remove(child) {
+        self.remove_child_count(child, 1)
+    }
+
+    /// Removes a child scope. Returns true, when the child scope need to have
+    /// it's active counter decreased.
+    #[must_use]
+    pub fn remove_child_count(
+        &mut self,
+        child: TaskScopeId,
+        count: usize,
+    ) -> Option<ScopeChildChangeEffect> {
+        if self.children.remove_count(child, count) {
             if cfg!(feature = "print_scope_updates") {
                 println!("remove_child {} -> {}", *self.id, *child);
             }

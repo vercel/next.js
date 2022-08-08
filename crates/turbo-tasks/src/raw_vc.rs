@@ -466,6 +466,12 @@ impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> Future for ReadAndMapRawVcFuture<
     }
 }
 
+#[derive(Error, Debug)]
+#[error("Unable to read collectibles")]
+pub struct ReadCollectiblesError {
+    source: anyhow::Error,
+}
+
 pub struct CollectiblesFuture<T: ValueTraitVc> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
     inner: ReadAndMapRawVcFuture<RawVcSet, HashSet<RawVc>, fn(&RawVcSet) -> &HashSet<RawVc>>,
@@ -488,7 +494,7 @@ impl<T: ValueTraitVc> Future for CollectiblesFuture<T> {
                     }
                     Ok(set.iter().map(|raw| (*raw).into()).collect())
                 }
-                Err(e) => Err(e),
+                Err(e) => Err(ReadCollectiblesError { source: e }.into()),
             }),
             Poll::Pending => Poll::Pending,
         }

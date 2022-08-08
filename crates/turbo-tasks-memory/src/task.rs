@@ -206,9 +206,7 @@ use crate::{
     cell::Cell,
     memory_backend::Job,
     output::Output,
-    scope::{
-        RemoveResult, ScopeChildChangeEffect, ScopeCollectibleChangeEffect, TaskScopeId, TaskScopes,
-    },
+    scope::{ScopeChildChangeEffect, ScopeCollectibleChangeEffect, TaskScopeId, TaskScopes},
     stats, MemoryBackend,
 };
 
@@ -411,7 +409,7 @@ impl Task {
                             turbo_tasks.schedule_backend_background_job(
                                 backend.create_backend_job(Job::RemoveFromScopes(
                                     set,
-                                    scopes.iter().collect(),
+                                    scopes.iter().copied().collect(),
                                     false,
                                 )),
                             );
@@ -795,25 +793,14 @@ impl Task {
                     }
                 }
             }
-            TaskScopes::Inner(ref mut list) => {
-                match list.remove(id) {
-                    RemoveResult::NoEntry => {
-                        panic!(
-                            "Tried to remove from scope it's not part of {} {id}",
-                            self.id
-                        )
-                    }
-                    RemoveResult::Decreased => {
-                        // nothing to do, we can stop propagating
-                    }
-                    RemoveResult::Removed => {
-                        self.remove_self_from_scope(&mut state, id, backend, turbo_tasks);
-                        let children = state.children.iter().copied().collect::<Vec<_>>();
-                        drop(state);
+            TaskScopes::Inner(ref mut set) => {
+                if set.remove(id) {
+                    self.remove_self_from_scope(&mut state, id, backend, turbo_tasks);
+                    let children = state.children.iter().copied().collect::<Vec<_>>();
+                    drop(state);
 
-                        if !children.is_empty() {
-                            return Some((children, will_be_optimized));
-                        }
+                    if !children.is_empty() {
+                        return Some((children, will_be_optimized));
                     }
                 }
             }
@@ -911,8 +898,8 @@ impl Task {
         }
         let root_scope = backend.create_new_scope(0);
         // Set the root scope of the current task
-        if let TaskScopes::Inner(list) = replace(&mut state.scopes, TaskScopes::Root(root_scope)) {
-            let scopes = list.into_scopes().collect::<Vec<_>>();
+        if let TaskScopes::Inner(set) = replace(&mut state.scopes, TaskScopes::Root(root_scope)) {
+            let scopes = set.into_counts().collect::<Vec<_>>();
             #[cfg(feature = "print_scope_updates")]
             println!(
                 "new {root_scope} for {:?} as internal root scope (replacing {scopes:?})",
@@ -923,11 +910,12 @@ impl Task {
                 scopes.iter().filter_map(|(scope, count)| {
                     backend.with_scope(*scope, |scope| {
                         // add the new root scope as child of old scopes
-                        scope
-                            .state
-                            .lock()
-                            .unwrap()
-                            .add_child_count(root_scope, *count)
+                        let mut state = scope.state.lock().unwrap();
+                        if *count > 0 {
+                            state.add_child_count(root_scope, *count as usize)
+                        } else {
+                            state.remove_child_count(root_scope, (-*count) as usize)
+                        }
                     })
                 })
             {
@@ -973,7 +961,7 @@ impl Task {
                     turbo_tasks.schedule(self.id);
                 }
 
-                // Remove children from old scopes in background
+                // Remove children from old scopes
                 turbo_tasks.schedule_backend_foreground_job(backend.create_backend_job(
                     Job::RemoveFromScopes(
                         children,

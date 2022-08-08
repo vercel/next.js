@@ -23,6 +23,8 @@ tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-core = { path = "../turbopack-core" }
+# TODO remove this dependency
+turbopack-cli-utils = { path = "../turbopack-cli-utils" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

@@ -256,6 +256,14 @@ pub struct CapturedIssues {
 pub struct Issues(Vec<IssueVc>);
 
 impl CapturedIssues {
+    pub fn is_empty(&self) -> bool {
+        self.issues.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.issues.len()
+    }
+
     pub fn iter_with_shortest_path(
         &self,
     ) -> impl Iterator<Item = (IssueVc, OptionIssueProcessingPathItemsVc)> + '_ {
