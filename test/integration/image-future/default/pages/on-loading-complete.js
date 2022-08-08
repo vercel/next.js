@@ -57,6 +57,8 @@ const Page = () => {
       <ImageWithMessage
         id="6"
         src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAFCAYAAACAcVaiAAAAE0lEQVR42mNk+P+/ngEKGMngAADDdwx3Uz/3AAAAAABJRU5ErkJggg=="
+        width={128}
+        height={128}
         idToCount={idToCount}
         setIdToCount={setIdToCount}
       />
@@ -108,9 +110,9 @@ function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
             count++
             idToCount[id] = count
             setIdToCount(idToCount)
-            const msg = `loaded ${count} img${id} with dimensions ${naturalWidth}x${naturalHeight}`
-            setMsg(msg)
-            console.log(msg)
+            setMsg(
+              `loaded ${count} img${id} with dimensions ${naturalWidth}x${naturalHeight}`
+            )
           }}
           {...props}
         />

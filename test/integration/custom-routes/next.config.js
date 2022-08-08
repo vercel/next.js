@@ -204,6 +204,10 @@ module.exports = {
           source: '/blog/about',
           destination: '/hello',
         },
+        {
+          source: '/overridden/:path*',
+          destination: '/overridden',
+        },
       ],
       beforeFiles: [
         {

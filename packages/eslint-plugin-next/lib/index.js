@@ -4,6 +4,7 @@ module.exports = {
     'google-font-preconnect': require('./rules/google-font-preconnect'),
     'inline-script-id': require('./rules/inline-script-id'),
     'next-script-for-ga': require('./rules/next-script-for-ga'),
+    'no-assign-module-variable': require('./rules/no-assign-module-variable'),
     'no-before-interactive-script-outside-document': require('./rules/no-before-interactive-script-outside-document'),
     'no-css-tags': require('./rules/no-css-tags'),
     'no-document-import-in-page': require('./rules/no-document-import-in-page'),
@@ -41,6 +42,7 @@ module.exports = {
         '@next/next/no-unwanted-polyfillio': 'warn',
         // errors
         '@next/next/inline-script-id': 'error',
+        '@next/next/no-assign-module-variable': 'error',
         '@next/next/no-document-import-in-page': 'error',
         '@next/next/no-duplicate-head': 'error',
         '@next/next/no-head-import-in-document': 'error',

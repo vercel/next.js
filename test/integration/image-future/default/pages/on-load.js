@@ -29,6 +29,8 @@ const Page = () => {
         id="2"
         src={clicked ? require('../public/test.png') : red}
         placeholder={clicked ? 'blur' : 'empty'}
+        width="256"
+        height="256"
       />
 
       <ImageWithMessage

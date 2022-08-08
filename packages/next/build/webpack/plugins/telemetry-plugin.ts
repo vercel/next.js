@@ -23,6 +23,7 @@ export type SWC_TARGET_TRIPLE =
 
 export type Feature =
   | 'next/image'
+  | 'next/future/image'
   | 'next/script'
   | 'next/dynamic'
   | 'swcLoader'
@@ -59,6 +60,7 @@ interface Connection {
 // Map of a feature module to the file it belongs in the next package.
 const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
   ['next/image', '/next/image.js'],
+  ['next/future/image', '/next/future/image.js'],
   ['next/script', '/next/script.js'],
   ['next/dynamic', '/next/dynamic.js'],
 ])

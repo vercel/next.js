@@ -554,6 +554,7 @@ describe('CLI Usage', () => {
       pnpm: .*
     Relevant packages:
       next: .*
+      eslint-config-next: .*
       react: .*
       react-dom: .*
 `)

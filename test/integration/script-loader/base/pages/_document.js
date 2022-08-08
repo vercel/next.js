@@ -27,6 +27,10 @@ export default function Document() {
       <body>
         <Main />
         <NextScript />
+        <Script
+          src="https://www.google-analytics.com/analytics.js?a=scriptBeforeInteractive"
+          strategy="beforeInteractive"
+        ></Script>
         <div id="text" />
       </body>
     </Html>

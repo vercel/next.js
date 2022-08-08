@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig } from 'next/types'
 import {
+  checkIsManualRevalidate,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   __ApiPreviewProps,
 } from '.'
@@ -12,7 +13,7 @@ import type { PreviewData } from 'next/types'
 import bytes from 'next/dist/compiled/bytes'
 import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
 import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
-import generateETag from 'next/dist/compiled/etag'
+import { generateETag } from '../lib/etag'
 import { sendEtagResponse } from '../send-payload'
 import { Stream } from 'stream'
 import { parse } from 'next/dist/compiled/content-type'
@@ -41,6 +42,12 @@ export function tryGetPreviewData(
   res: ServerResponse | BaseNextResponse,
   options: __ApiPreviewProps
 ): PreviewData {
+  // if an On-Demand revalidation is being done preview mode
+  // is disabled
+  if (options && checkIsManualRevalidate(req, options).isManualRevalidate) {
+    return false
+  }
+
   // Read cached preview data if present
   if (SYMBOL_PREVIEW_DATA in req) {
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
@@ -243,6 +250,13 @@ export async function apiResolver(
       }
     ) => revalidate(urlPath, opts || {}, req, apiContext)
 
+    // TODO: remove in next minor (current v12.2)
+    apiRes.unstable_revalidate = () => {
+      throw new Error(
+        `"unstable_revalidate" has been renamed to "revalidate" see more info here: https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration#on-demand-revalidation`
+      )
+    }
+
     const resolver = interopDefault(resolverModule)
     let wasPiped = false
 
@@ -309,6 +323,7 @@ async function revalidate(
   try {
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
+        method: 'HEAD',
         headers: {
           ...revalidateHeaders,
           cookie: req.headers.cookie || '',
@@ -454,6 +469,7 @@ function setPreviewData<T>(
   data: object | string, // TODO: strict runtime type checking
   options: {
     maxAge?: number
+    path?: string
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
   if (isNotValidData(options.previewModeId)) {
@@ -507,6 +523,9 @@ function setPreviewData<T>(
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
         : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
@@ -515,6 +534,9 @@ function setPreviewData<T>(
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
         : undefined),
     }),
   ])

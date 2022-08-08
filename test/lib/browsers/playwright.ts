@@ -8,6 +8,7 @@ import {
   BrowserContext,
   Page,
   ElementHandle,
+  devices,
 } from 'playwright-chromium'
 import path from 'path'
 
@@ -49,6 +50,17 @@ class Playwright extends BrowserInterface {
   async setup(browserName: string, locale?: string) {
     if (browser) return
     const headless = !!process.env.HEADLESS
+    let device
+
+    if (process.env.DEVICE_NAME) {
+      device = devices[process.env.DEVICE_NAME]
+
+      if (!device) {
+        throw new Error(
+          `Invalid playwright device name ${process.env.DEVICE_NAME}`
+        )
+      }
+    }
 
     if (browserName === 'safari') {
       browser = await webkit.launch({ headless })
@@ -57,7 +69,7 @@ class Playwright extends BrowserInterface {
     } else {
       browser = await chromium.launch({ headless, devtools: !headless })
     }
-    context = await browser.newContext({ locale })
+    context = await browser.newContext({ locale, ...device })
   }
 
   async get(url: string): Promise<void> {
@@ -281,6 +293,12 @@ class Playwright extends BrowserInterface {
   click() {
     return this.chain((el) => {
       return el.click().then(() => el)
+    })
+  }
+
+  touchStart() {
+    return this.chain((el: ElementHandle) => {
+      return el.dispatchEvent('touchstart').then(() => el)
     })
   }
 
