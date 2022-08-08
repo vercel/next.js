@@ -148,6 +148,26 @@ export function renderToInitialStream({
   return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
+export function createHeadInjectionTransformStream(
+  inject: string
+): TransformStream<Uint8Array, Uint8Array> {
+  let injected = false
+  return new TransformStream({
+    transform(chunk, controller) {
+      const content = decodeText(chunk)
+      let index
+      if (!injected && (index = content.indexOf('</head')) !== -1) {
+        injected = true
+        const injectedContent =
+          content.slice(0, index) + inject + content.slice(index)
+        controller.enqueue(encodeText(injectedContent))
+      } else {
+        controller.enqueue(chunk)
+      }
+    },
+  })
+}
+
 export async function continueFromInitialStream(
   renderStream: ReactReadableStream,
   {
@@ -155,11 +175,13 @@ export async function continueFromInitialStream(
     dataStream,
     generateStaticHTML,
     flushEffectHandler,
+    allStylesheets,
   }: {
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     flushEffectHandler?: () => string
+    allStylesheets: string[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -175,6 +197,11 @@ export async function continueFromInitialStream(
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+    createHeadInjectionTransformStream(
+      (allStylesheets || [])
+        .map((href) => `<link rel="stylesheet" href="/_next/${href}">`)
+        .join('')
+    ),
   ].filter(nonNullable)
 
   return transforms.reduce(

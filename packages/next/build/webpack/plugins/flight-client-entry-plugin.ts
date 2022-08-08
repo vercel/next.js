@@ -30,8 +30,12 @@ interface Options {
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export const injectedClientEntries = new Map()
+
 // TODO-APP: ensure .scss / .sass also works.
 const regexCSS = /\.css$/
+
+// TODO-APP: move CSS manifest generation to the flight manifest plugin.
+const flightCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
@@ -66,7 +70,6 @@ export class FlightClientEntryPlugin {
     const promises: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
-    const flightCSSManifest: FlightCSSManifest = {}
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.

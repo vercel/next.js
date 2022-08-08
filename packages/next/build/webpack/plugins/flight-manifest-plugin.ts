@@ -147,7 +147,6 @@ export class FlightManifestPlugin {
 
         const moduleExports = manifest[resource] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
-        moduleIdMapping[id] = moduleIdMapping[id] || {}
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
@@ -169,6 +168,7 @@ export class FlightManifestPlugin {
                 chunks,
               },
             }
+            moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id]['default'] = {
               id: ssrNamedModuleId,
               name: 'default',
@@ -277,6 +277,8 @@ export class FlightManifestPlugin {
               chunks: requiredChunks.concat([...cssChunks]),
             }
           }
+
+          moduleIdMapping[id] = moduleIdMapping[id] || {}
           if (!moduleIdMapping[id][name]) {
             moduleIdMapping[id][name] = {
               ...moduleExports[name],

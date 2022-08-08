@@ -382,6 +382,9 @@ function getCssInlinedLinkTags(
 ) {
   const chunks: { [file: string]: string[] } = {}
 
+  // APP-TODO: Remove this once we have CSS injections at each level.
+  const allChunks = new Set<string>()
+
   for (const layoutOrPage in serverCSSManifest) {
     const uniqueChunks = new Set<string>()
     for (const css of serverCSSManifest[layoutOrPage]) {
@@ -391,11 +394,12 @@ function getCssInlinedLinkTags(
           chunks[layoutOrPage] = chunks[layoutOrPage] || []
           chunks[layoutOrPage].push(chunk)
         }
+        allChunks.add(chunk)
       }
     }
   }
 
-  return chunks
+  return [chunks, [...allChunks]] as [{ [file: string]: string[] }, string[]]
 }
 
 export async function renderToHTMLOrFlight(
@@ -593,15 +597,15 @@ export async function renderToHTMLOrFlight(
     firstItem,
     rootLayoutIncluded,
     serverCSSManifest,
-    parentSegmentPath,
-  }: {
+  }: // parentSegmentPath,
+  {
     createSegmentPath: CreateSegmentPath
     loaderTree: LoaderTree
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
     serverCSSManifest: { [file: string]: string[] }
-    parentSegmentPath: string
+    // parentSegmentPath: string
   }): Promise<{ Component: React.ComponentType }> => {
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
@@ -621,9 +625,9 @@ export async function renderToHTMLOrFlight(
     const rootLayoutIncludedAtThisLevelOrAbove =
       rootLayoutIncluded || rootLayoutAtThisLevel
 
-    const cssSegmentPath =
-      !parentSegmentPath && !segment ? '' : parentSegmentPath + '/' + segment
-    const stylesheets = serverCSSManifest[cssSegmentPath]
+    // const cssSegmentPath =
+    //   !parentSegmentPath && !segment ? '' : parentSegmentPath + '/' + segment
+    // const stylesheets = serverCSSManifest[cssSegmentPath]
 
     /**
      * Check if the current layout/page is a client component
@@ -686,7 +690,7 @@ export async function renderToHTMLOrFlight(
             parentParams: currentParams,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
             serverCSSManifest,
-            parentSegmentPath: cssSegmentPath,
+            // parentSegmentPath: cssSegmentPath,
           })
 
           const childSegment = parallelRoutes[parallelRouteKey][0]
@@ -827,11 +831,11 @@ export async function renderToHTMLOrFlight(
 
         return (
           <>
-            {stylesheets
+            {/* {stylesheets
               ? stylesheets.map((href) => (
                   <link rel="stylesheet" href={`/_next/${href}`} key={href} />
                 ))
-              : null}
+              : null} */}
             <Component
               {...props}
               {...parallelRouteComponents}
@@ -893,7 +897,6 @@ export async function renderToHTMLOrFlight(
         flightRouterState[3] === 'refetch'
 
       if (!parentRendered && renderComponentsOnThisLevel) {
-        console.log('->', { actualSegment, segment })
         return [
           actualSegment,
           // Create router state using the slice of the loaderTree
@@ -909,7 +912,7 @@ export async function renderToHTMLOrFlight(
                   parentParams: currentParams,
                   firstItem: true,
                   serverCSSManifest,
-                  parentSegmentPath: '',
+                  // parentSegmentPath: '',
                 }
               )
             ).Component
@@ -958,7 +961,7 @@ export async function renderToHTMLOrFlight(
   // Below this line is handling for rendering to HTML.
 
   // Get all the server imported styles.
-  const mappedServerCSSManifest = getCssInlinedLinkTags(
+  const [mappedServerCSSManifest, allStylesheets] = getCssInlinedLinkTags(
     serverComponentManifest,
     serverCSSManifest
   )
@@ -970,7 +973,7 @@ export async function renderToHTMLOrFlight(
     parentParams: {},
     firstItem: true,
     serverCSSManifest: mappedServerCSSManifest,
-    parentSegmentPath: '',
+    // parentSegmentPath: '',
   })
 
   // AppRouter is provided by next-app-loader
@@ -1069,6 +1072,7 @@ export async function renderToHTMLOrFlight(
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
+      allStylesheets,
     })
   }
 
