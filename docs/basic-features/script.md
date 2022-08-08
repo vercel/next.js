@@ -240,6 +240,7 @@ Or by using the `dangerouslySetInnerHTML` property:
 ```jsx
 <Script
   id="show-banner"
+  strategy="lazyOnload"
   dangerouslySetInnerHTML={{
     __html: `document.getElementById('banner').classList.remove('hidden')`,
   }}
