@@ -281,11 +281,11 @@ export default function Home() {
 Some third-party scripts require users to run JavaScript code after the script has finished loading and every time the component is mounted (after a route navigation for example). You can execute code after the script's `load` event when it first loads and then after every subsequent component re-mount using the `onReady` property:
 
 ```jsx
-import { useRef } from "react";
-import Script from 'next/script';
+import { useRef } from 'react'
+import Script from 'next/script'
 
 export default function Home() {
-  const mapRef = useRef();
+  const mapRef = useRef()
   return (
     <>
       <div ref={mapRef}></div>
