@@ -18,9 +18,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-apivideo-upload with-apivideo-upload-app
-# or
+```
+
+```bash
 yarn create next-app --example with-apivideo-upload with-apivideo-upload-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-apivideo-upload with-apivideo-upload-app
 ```
 
