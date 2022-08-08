@@ -8,7 +8,6 @@ import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc } from '../../lib/download-wasm-swc'
 import { version as nextVersion } from 'next/package.json'
-import { Telemetry } from '../../telemetry/storage'
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -138,23 +137,32 @@ async function loadWasm(importPath = '') {
         bindings = await bindings.default()
       }
       Log.info('Using experimental wasm build of next-swc')
+
+      // Note wasm binary does not support async intefaces yet, all async
+      // interface coereces to sync interfaces.
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
-          return bindings.transformSync(src.toString(), options)
+          // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
+          return bindings?.transform
+            ? bindings.transform(src.toString(), options)
+            : Promise.resolve(bindings.transformSync(src.toString(), options))
         },
         transformSync(src, options) {
           return bindings.transformSync(src.toString(), options)
         },
         minify(src, options) {
-          return bindings.minifySync(src.toString(), options)
+          return bindings?.minify
+            ? bindings.minify(src.toString(), options)
+            : Promise.resolve(bindings.minifySync(src.toString(), options))
         },
         minifySync(src, options) {
           return bindings.minifySync(src.toString(), options)
         },
         parse(src, options) {
-          const astStr = bindings.parseSync(src.toString(), options)
-          return astStr
+          return bindings?.parse
+            ? bindings.parse(src.toString(), options)
+            : Promise.resolve(bindings.parseSync(src.toString(), options))
         },
         parseSync(src, options) {
           const astStr = bindings.parseSync(src.toString(), options)
@@ -222,10 +230,11 @@ function loadNative() {
     // we can't rely on explicit manual initialization as similar to trace reporter.
     if (!swcCrashReporterFlushGuard) {
       // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
+      /* TODO: temporarily disable initialization while confirming logistics.
       let telemetry = new Telemetry({ distDir: process.cwd() })
       if (telemetry.isEnabled) {
         swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
-      }
+      }*/
     }
 
     nativeBindings = {

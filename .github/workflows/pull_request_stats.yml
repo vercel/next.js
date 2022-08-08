@@ -6,7 +6,7 @@ name: Generate Pull Request Stats
 
 env:
   NAPI_CLI_VERSION: 2.7.0
-  TURBO_VERSION: 1.3.1
+  TURBO_VERSION: 1.3.2-canary.1
   RUST_TOOLCHAIN: nightly-2022-02-23
   PNPM_VERSION: 7.2.1
 
@@ -23,33 +23,34 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+      - name: Check non-docs only change
+        run: echo ::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')
         id: docs-change
 
       - name: Setup node
         uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           node-version: 16
           check-latest: true
 
       - name: Install
         uses: actions-rs/toolchain@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           profile: minimal
           toolchain: nightly-2021-11-15
 
       - name: Cache cargo registry
         uses: actions/cache@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
           key: stable-ubuntu-18.04-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
         uses: actions/cache@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
           key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
@@ -61,7 +62,7 @@ jobs:
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
@@ -87,7 +88,7 @@ jobs:
       - run: npm i -g turbo@${TURBO_VERSION} pnpm@${PNPM_VERSION}
 
       - name: Build
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         run: turbo run build-native --cache-dir=".turbo"
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
@@ -102,7 +103,7 @@ jobs:
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
 
       - name: Clear the cargo caches
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
@@ -116,17 +117,18 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+      - name: Check non-docs only change
+        run: echo ::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')
         id: docs-change
 
       - uses: actions/download-artifact@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           name: next-swc-dev-binary
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - uses: ./.github/actions/next-stats-action
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
