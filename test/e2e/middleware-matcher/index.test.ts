@@ -217,6 +217,49 @@ describe('using a single matcher', () => {
   })
 })
 
+describe('using root matcher', () => {
+  let next: NextInstance
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/index.js': `
+          export default function Home({ message }) {
+            return <div>Hi there!</div>
+          }
+        `,
+        'middleware.js': `
+          import { NextResponse } from 'next/server'
+          export default (req) => {
+            const res = NextResponse.next();
+            res.headers.set('X-From-Middleware', 'true');
+            return res;
+          }
+
+          export const config = { matcher: '/' };
+        `,
+      },
+      dependencies: {},
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('adds the header to the /', async () => {
+    const response = await fetchViaHTTP(next.url, '/')
+    expect(response.status).toBe(200)
+    expect(Object.fromEntries(response.headers)).toMatchObject({
+      'x-from-middleware': 'true',
+    })
+  })
+
+  it('adds the header to the /index', async () => {
+    const response = await fetchViaHTTP(next.url, '/index')
+    expect(response.status).toBe(404)
+    expect(Object.fromEntries(response.headers)).toMatchObject({
+      'x-from-middleware': 'true',
+    })
+  })
+})
+
 describe('using a single matcher with i18n', () => {
   let next: NextInstance
   beforeAll(async () => {
@@ -272,6 +315,15 @@ describe('using a single matcher with i18n', () => {
     expect(await res1.text()).toContain(`(en) Hello from /`)
     expect(res1.headers.get('X-From-Middleware')).toBe('true')
     const res2 = await fetchViaHTTP(next.url, `/es`)
+    expect(await res2.text()).toContain(`(es) Hello from /`)
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it('adds the header for a mathed root path with /index', async () => {
+    const res1 = await fetchViaHTTP(next.url, `/index`)
+    expect(await res1.text()).toContain(`(en) Hello from /`)
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(next.url, `/es/index`)
     expect(await res2.text()).toContain(`(es) Hello from /`)
     expect(res2.headers.get('X-From-Middleware')).toBe('true')
   })
@@ -363,6 +415,15 @@ describe('using a single matcher with i18n and basePath', () => {
     expect(await res1.text()).toContain(`(en) Hello from /`)
     expect(res1.headers.get('X-From-Middleware')).toBe('true')
     const res2 = await fetchViaHTTP(next.url, `/root/es`)
+    expect(await res2.text()).toContain(`(es) Hello from /`)
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it('adds the header for a mathed root path with /index', async () => {
+    const res1 = await fetchViaHTTP(next.url, `/root/index`)
+    expect(await res1.text()).toContain(`(en) Hello from /`)
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(next.url, `/root/es/index`)
     expect(await res2.text()).toContain(`(es) Hello from /`)
     expect(res2.headers.get('X-From-Middleware')).toBe('true')
   })

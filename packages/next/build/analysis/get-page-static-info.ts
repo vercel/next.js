@@ -178,11 +178,12 @@ function getMiddlewareConfig(
 
 function getMiddlewareRegExpStrings(
   matcherOrMatchers: unknown,
-  nextConfig: NextConfig
+  nextConfig: NextConfig,
+  { doNotRecurseOnRoot }: { doNotRecurseOnRoot?: boolean } = {}
 ): string[] {
   if (Array.isArray(matcherOrMatchers)) {
     return matcherOrMatchers.flatMap((matcher) =>
-      getMiddlewareRegExpStrings(matcher, nextConfig)
+      getMiddlewareRegExpStrings(matcher, nextConfig, { doNotRecurseOnRoot })
     )
   }
 
@@ -196,6 +197,12 @@ function getMiddlewareRegExpStrings(
 
   if (!matcher.startsWith('/')) {
     throw new Error('`matcher`: path matcher must start with /')
+  }
+
+  if (matcher === '/' && !doNotRecurseOnRoot) {
+    return getMiddlewareRegExpStrings(['/', '/index'], nextConfig, {
+      doNotRecurseOnRoot: true,
+    })
   }
 
   if (nextConfig.i18n?.locales) {
