@@ -111,7 +111,7 @@ import {
   teardownTraceSubscriber,
   teardownCrashReporter,
 } from './swc'
-import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
+import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'

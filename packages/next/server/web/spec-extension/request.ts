@@ -15,10 +15,11 @@ export class NextRequest extends Request {
     url: NextURL
   }
 
-  constructor(input: Request | string, init: RequestInit = {}) {
-    const url = typeof input === 'string' ? input : input.url
+  constructor(input: URL | RequestInfo, init: RequestInit = {}) {
+    const url =
+      typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
-    super(input, init)
+    super(url, init)
     this[INTERNALS] = {
       cookies: new NextCookies(this),
       geo: init.geo || {},
@@ -27,6 +28,30 @@ export class NextRequest extends Request {
         headers: toNodeHeaders(this.headers),
         nextConfig: init.nextConfig,
       }),
+    }
+  }
+
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return {
+      cookies: this.cookies,
+      geo: this.geo,
+      ip: this.ip,
+      nextUrl: this.nextUrl,
+      url: this.url,
+      // rest of props come from Request
+      bodyUsed: this.bodyUsed,
+      cache: this.cache,
+      credentials: this.credentials,
+      destination: this.destination,
+      headers: Object.fromEntries(this.headers),
+      integrity: this.integrity,
+      keepalive: this.keepalive,
+      method: this.method,
+      mode: this.mode,
+      redirect: this.redirect,
+      referrer: this.referrer,
+      referrerPolicy: this.referrerPolicy,
+      signal: this.signal,
     }
   }
 

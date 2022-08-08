@@ -2,27 +2,41 @@
 
 import { useContext } from 'react'
 import {
-  QueryContext,
+  SearchParamsContext,
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 import {
   AppRouterContext,
-  AppTreeContext,
+  LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 
+export {
+  FlushEffectsContext,
+  useFlushEffects,
+} from '../../shared/lib/flush-effects'
+
+/**
+ * Get the current search params. For example useSearchParams() would return {"foo": "bar"} when ?foo=bar
+ */
 export function useSearchParams() {
-  return useContext(QueryContext)
+  return useContext(SearchParamsContext)
 }
 
-export function useSearchParam(key: string) {
-  const params = useContext(QueryContext)
+/**
+ * Get an individual search param. For example useSearchParam("foo") would return "bar" when ?foo=bar
+ */
+export function useSearchParam(key: string): string | string[] {
+  const params = useContext(SearchParamsContext)
   return params[key]
 }
 
 // TODO-APP: Move the other router context over to this one
-export function useRouter() {
+/**
+ * Get the router methods. For example router.push('/dashboard')
+ */
+export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
   return useContext(AppRouterContext)
 }
 
@@ -31,7 +45,10 @@ export function useRouter() {
 //   return useContext(ParamsContext)
 // }
 
-export function usePathname() {
+/**
+ * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
+ */
+export function usePathname(): string {
   return useContext(PathnameContext)
 }
 
@@ -40,10 +57,16 @@ export function usePathname() {
 //   return useContext(LayoutSegmentsContext)
 // }
 
+// TODO-APP: Expand description when the docs are written for it.
+/**
+ * Get the current segment one level down from the layout.
+ */
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
-) {
-  const { tree } = useContext(AppTreeContext)
+): string {
+  const { tree } = useContext(LayoutRouterContext)
 
-  return tree[1][parallelRouteKey][0]
+  const segment = tree[1][parallelRouteKey][0]
+
+  return Array.isArray(segment) ? segment[1] : segment
 }

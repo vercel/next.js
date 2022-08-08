@@ -15,7 +15,7 @@ Please file feedback and issues over on the [Supabase GitHub org](https://github
 ## More Supabase examples
 
 - [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Next.js Slack Clone](https://github.com/supabase/supabase/tree/master/examples/nextjs-slack-clone)
-- [Next.js Todo List](https://github.com/supabase/supabase/tree/master/examples/nextjs-todo-list)
-- [Next.js Live Tracker Map](https://github.com/supabase/supabase/tree/master/examples/nextjs-live-tracker-map)
+- [Next.js Slack Clone](https://github.com/supabase/supabase/tree/master/examples/slack-clone/nextjs-slack-clone)
+- [Next.js Todo List](https://github.com/supabase/supabase/tree/master/examples/todo-list)
+- [Next.js Live Tracker Map](https://github.com/supabase/supabase/tree/master/examples/with-leaflet)
 - [And many more...](https://github.com/supabase/supabase/tree/master/examples)

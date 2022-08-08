@@ -6,17 +6,12 @@ import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
-import type {
-  NextConfig,
-  NextConfigComplete,
-  ServerRuntime,
-} from './config-shared'
+import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
-import type { TLSSocket } from 'tls'
 import {
   CacheFs,
   NormalizeError,
@@ -24,10 +19,9 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import type { PreviewData } from 'next/types'
+import type { PreviewData, ServerRuntime } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { NodeNextRequest } from './base-http/node'
 import type { PayloadOptions } from './send-payload'
 
 import { join, resolve } from '../shared/lib/isomorphic/path'
@@ -89,7 +83,6 @@ export type FindComponentsResult = {
 export interface RoutingItem {
   page: string
   match: RouteMatch
-  ssr?: boolean
   re?: RegExp
 }
 
@@ -229,6 +222,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
+  protected abstract attachRequestMeta(
+    req: BaseNextRequest,
+    parsedUrl: NextUrlWithParsedQuery
+  ): void
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -418,21 +415,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
 
-      const protocol = (
-        (req as NodeNextRequest).originalRequest?.socket as TLSSocket
-      )?.encrypted
-        ? 'https'
-        : 'http'
-
-      // When there are hostname and port we build an absolute URL
-      const initUrl =
-        this.hostname && this.port
-          ? `${protocol}://${this.hostname}:${this.port}${req.url}`
-          : req.url
-
-      addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
-      addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
-      addRequestMeta(req, '_protocol', protocol)
+      this.attachRequestMeta(req, parsedUrl)
 
       const domainLocale = detectDomainLocale(
         this.nextConfig.i18n?.domains,
@@ -747,6 +730,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         match: getPathMatch('/_next/data/:path*'),
         type: 'route',
         name: '_next/data catchall',
+        check: true,
         fn: async (req, res, params, _parsedUrl) => {
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct

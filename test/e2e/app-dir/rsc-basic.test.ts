@@ -41,6 +41,8 @@ describe('app dir - react server components', () => {
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
       },
       dependencies: {
+        'styled-jsx': 'latest',
+        'styled-components': '6.0.0-alpha.5',
         react: 'experimental',
         'react-dom': 'experimental',
       },
@@ -193,10 +195,7 @@ describe('app dir - react server components', () => {
 
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(next.url, '/next-api/link')
-    const linkText = getNodeBySelector(
-      linkHTML,
-      'body > div > a[href="/root"]'
-    ).text()
+    const linkText = getNodeBySelector(linkHTML, 'body a[href="/root"]').text()
 
     expect(linkText).toContain('home')
 
@@ -259,9 +258,9 @@ describe('app dir - react server components', () => {
     expect(manipulated).toBe(undefined)
   })
 
-  it.skip('should suspense next/image in server components', async () => {
+  it('should suspense next/image in server components', async () => {
     const imageHTML = await renderViaHTTP(next.url, '/next-api/image')
-    const imageTag = getNodeBySelector(imageHTML, 'body > span > span > img')
+    const imageTag = getNodeBySelector(imageHTML, '#myimg')
 
     expect(imageTag.attr('src')).toContain('data:image')
   })
@@ -323,11 +322,15 @@ describe('app dir - react server components', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it.skip('should SSR styled-jsx correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/styled-jsx')
-    const styledJsxClass = getNodeBySelector(html, 'h1').attr('class')
+  it('should render initial styles of css-in-js in SSR correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/css-in-js')
+    const head = getNodeBySelector(html, 'head').html()
 
-    expect(html).toContain(`h1.${styledJsxClass}{color:red}`)
+    // from styled-jsx
+    expect(head).toMatch(/{color:(\s*)purple;?}/)
+
+    // from styled-components
+    expect(head).toMatch(/{color:(\s*)blue;?}/)
   })
 
   it('should support streaming for flight response', async () => {
@@ -363,7 +366,8 @@ describe('app dir - react server components', () => {
     )
   })
 
-  it('should support partial hydration with inlined server data in browser', async () => {
+  // disable this flaky test
+  it.skip('should support partial hydration with inlined server data in browser', async () => {
     // Should end up with "next_streaming_data".
     const browser = await webdriver(next.url, '/partial-hydration', {
       waitHydration: false,

@@ -102,6 +102,7 @@ export type ImageProps = Omit<
   src: string | StaticImport
   width?: number | string
   height?: number | string
+  fill?: boolean
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
@@ -121,6 +122,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
   isLazy: boolean
+  fill?: boolean
   loading: LoadingValue
   config: ImageConfig
   unoptimized: boolean
@@ -128,6 +130,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   placeholder: PlaceholderValue
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
+  setShowAltText: (b: boolean) => void
   noscriptSizes: string | undefined
 }
 
@@ -270,6 +273,37 @@ function handleLoading(
       onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
     }
     if (process.env.NODE_ENV !== 'production') {
+      if (img.getAttribute('data-nimg') === 'future-fill') {
+        if (
+          !img.getAttribute('sizes') ||
+          img.getAttribute('sizes') === '100vw'
+        ) {
+          let widthViewportRatio =
+            img.getBoundingClientRect().width / window.innerWidth
+          if (widthViewportRatio < 0.6) {
+            warnOnce(
+              `Image with src "${src}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/future/image#sizes`
+            )
+          }
+        }
+        if (img.parentElement) {
+          const { position } = window.getComputedStyle(img.parentElement)
+          const valid = ['absolute', 'fixed', 'relative']
+          if (!valid.includes(position)) {
+            warnOnce(
+              `Image with src "${src}" has "fill" and parent element with invalid "position". Provided "${position}" should be one of ${valid
+                .map(String)
+                .join(',')}.`
+            )
+          }
+        }
+        if (img.height === 0) {
+          warnOnce(
+            `Image with src "${src}" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.`
+          )
+        }
+      }
+
       const heightModified =
         img.height.toString() !== img.getAttribute('height')
       const widthModified = img.width.toString() !== img.getAttribute('width')
@@ -295,6 +329,7 @@ export default function Image({
   quality,
   width,
   height,
+  fill,
   style,
   onLoadingComplete,
   placeholder = 'empty',
@@ -357,10 +392,6 @@ export default function Image({
   }
   src = typeof src === 'string' ? src : staticSrc
 
-  const widthInt = getInt(width)
-  const heightInt = getInt(height)
-  const qualityInt = getInt(quality)
-
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
@@ -373,32 +404,64 @@ export default function Image({
   }
 
   const [blurComplete, setBlurComplete] = useState(false)
+  const [showAltText, setShowAltText] = useState(false)
+  let widthInt = getInt(width)
+  let heightInt = getInt(height)
+  const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
-      throw new Error(
-        `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
-          { width, height, quality }
-        )}`
-      )
-    }
-    if (typeof widthInt === 'undefined') {
-      throw new Error(
-        `Image with src "${src}" is missing required "width" property.`
-      )
-    } else if (isNaN(widthInt)) {
-      throw new Error(
-        `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
-      )
-    }
-    if (typeof heightInt === 'undefined') {
-      throw new Error(
-        `Image with src "${src}" is missing required "height" property.`
-      )
-    } else if (isNaN(heightInt)) {
-      throw new Error(
-        `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
-      )
+      // React doesn't show the stack trace and there's
+      // no `src` to help identify which image, so we
+      // instead console.error(ref) during mount.
+      unoptimized = true
+    } else {
+      if (fill) {
+        if (width) {
+          throw new Error(
+            `Image with src "${src}" has both "width" and "fill" properties. Only one should be used.`
+          )
+        }
+        if (height) {
+          throw new Error(
+            `Image with src "${src}" has both "height" and "fill" properties. Only one should be used.`
+          )
+        }
+        if (style?.position && style.position !== 'absolute') {
+          throw new Error(
+            `Image with src "${src}" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
+          )
+        }
+        if (style?.width && style.width !== '100%') {
+          throw new Error(
+            `Image with src "${src}" has both "fill" and "style.width" properties. Images with "fill" always use width 100% - it cannot be modified.`
+          )
+        }
+        if (style?.height && style.height !== '100%') {
+          throw new Error(
+            `Image with src "${src}" has both "fill" and "style.height" properties. Images with "fill" always use height 100% - it cannot be modified.`
+          )
+        }
+      } else {
+        if (typeof widthInt === 'undefined') {
+          throw new Error(
+            `Image with src "${src}" is missing required "width" property.`
+          )
+        } else if (isNaN(widthInt)) {
+          throw new Error(
+            `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
+          )
+        }
+        if (typeof heightInt === 'undefined') {
+          throw new Error(
+            `Image with src "${src}" is missing required "height" property.`
+          )
+        } else if (isNaN(heightInt)) {
+          throw new Error(
+            `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
+          )
+        }
+      }
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
@@ -415,12 +478,12 @@ export default function Image({
 
     if ('objectFit' in rest) {
       throw new Error(
-        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" attribute.`
+        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" property.`
       )
     }
     if ('objectPosition' in rest) {
       throw new Error(
-        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" attribute.`
+        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" property.`
       )
     }
 
@@ -430,6 +493,7 @@ export default function Image({
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
       }
+
       if (!blurDataURL) {
         const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
@@ -506,7 +570,17 @@ export default function Image({
       }
     }
   }
-  const imgStyle = Object.assign({}, style)
+  const imgStyle = Object.assign(
+    fill
+      ? {
+          position: 'absolute',
+          height: '100%',
+          width: '100%',
+        }
+      : {},
+    showAltText || placeholder === 'blur' ? {} : { color: 'transparent' },
+    style
+  )
   const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
   const blurStyle =
     placeholder === 'blur' && !blurComplete
@@ -577,12 +651,14 @@ export default function Image({
     blurStyle,
     loading,
     config,
+    fill,
     unoptimized,
     placeholder,
     loader,
     srcString,
     onLoadingCompleteRef,
     setBlurComplete,
+    setShowAltText,
     noscriptSizes: sizes,
     ...rest,
   }
@@ -623,6 +699,7 @@ const ImageElement = ({
   imgStyle,
   blurStyle,
   isLazy,
+  fill,
   placeholder,
   loading,
   srcString,
@@ -631,6 +708,7 @@ const ImageElement = ({
   loader,
   onLoadingCompleteRef,
   setBlurComplete,
+  setShowAltText,
   onLoad,
   onError,
   noscriptSizes,
@@ -645,13 +723,18 @@ const ImageElement = ({
         width={widthInt}
         height={heightInt}
         decoding="async"
-        data-nimg="future"
+        data-nimg={`future${fill ? '-fill' : ''}`}
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
         loading={loading}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
+            if (process.env.NODE_ENV !== 'production') {
+              if (img && !srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+            }
             if (img?.complete) {
               handleLoading(
                 img,
@@ -678,6 +761,8 @@ const ImageElement = ({
           }
         }}
         onError={(event) => {
+          // if the real image fails to load, this will ensure "alt" is visible
+          setShowAltText(true)
           if (placeholder === 'blur') {
             // If the real image fails to load, this will still remove the placeholder.
             setBlurComplete(true)
@@ -703,7 +788,7 @@ const ImageElement = ({
             width={widthInt}
             height={heightInt}
             decoding="async"
-            data-nimg="future"
+            data-nimg={`future${fill ? '-fill' : ''}`}
             style={imgStyle}
             className={className}
             // @ts-ignore - TODO: upgrade to `@types/react@17`
