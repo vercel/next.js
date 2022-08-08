@@ -17,6 +17,7 @@ function runTest(packageManager?: string) {
           node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
           pages: new FileRef(path.join(appDir, 'pages')),
           'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
+          '.npmrc': new FileRef(path.join(appDir, '.npmrc')),
         },
         packageJson: {
           scripts: {
