@@ -5,16 +5,35 @@ declare module 'next/dist/compiled/react-server-dom-webpack'
 declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 declare module 'next/dist/compiled/browserslist'
 
-declare module 'next/dist/compiled/@next/react-dev-overlay/client' {
-  export * from '@next/react-dev-overlay/lib/client'
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
+  export * from '@next/react-dev-overlay/dist/client'
 }
 
-declare module 'next/dist/compiled/@next/react-dev-overlay/middleware' {
-  export * from '@next/react-dev-overlay/lib/middleware'
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
+  export * from '@next/react-dev-overlay/dist/middleware'
+}
+
+declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
+  import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+  export = m
 }
 
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
+}
+
+declare module 'next/dist/compiled/node-fetch' {
+  import m from 'node-fetch'
+  export default m
+  export * from 'node-fetch'
+}
+
+declare module 'next/dist/compiled/jest-worker' {
+  export * from 'jest-worker'
+}
+
+declare module 'next/dist/compiled/react-is' {
+  export * from 'react-is'
 }
 
 declare module 'next/dist/compiled/chalk' {
@@ -25,11 +44,6 @@ declare module 'next/dist/compiled/chalk' {
 declare module 'next/dist/compiled/cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
-}
-
-declare module 'next/dist/compiled/etag' {
-  import m from 'etag'
-  export = m
 }
 
 declare module 'next/dist/compiled/p-limit' {
@@ -124,6 +138,10 @@ declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
 declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
 
+declare module 'next/dist/compiled/bytes' {
+  import m from 'bytes'
+  export = m
+}
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
@@ -236,30 +254,8 @@ declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
 }
-declare module 'next/dist/compiled/web-streams-polyfill' {
-  import m from 'web-streams-polyfill/ponyfill'
-  export = m
-}
-declare module 'next/dist/compiled/abort-controller' {
-  type BaseAbortController = typeof AbortController
-  type BaseAbortSignal = typeof AbortSignal
-  export { BaseAbortController as AbortController }
-  export { BaseAbortSignal as AbortSignal }
-}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
-  export = m
-}
-declare module 'next/dist/compiled/formdata-node' {
-  import m from 'formdata-node'
-  export = m
-}
-declare module 'next/dist/compiled/@peculiar/webcrypto' {
-  import m from '@peculiar/webcrypto'
-  export = m
-}
-declare module 'next/dist/compiled/uuid' {
-  import m from 'uuid'
   export = m
 }
 declare module 'next/dist/compiled/strip-ansi' {
@@ -270,6 +266,12 @@ declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
 }
+
+declare module 'next/dist/compiled/tar' {
+  import m from 'tar'
+  export = m
+}
+
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
@@ -312,6 +314,26 @@ declare module 'next/dist/compiled/comment-json' {
   export = m
 }
 
+declare module 'next/dist/compiled/process' {
+  import m from 'process'
+  export = m
+}
+
+declare module 'next/dist/compiled/edge-runtime' {
+  import m from 'edge-runtime'
+  export = m
+}
+
+declare module 'next/dist/compiled/@edge-runtime/primitives' {
+  import * as m from '@edge-runtime/primitives'
+  export = m
+}
+
+declare module 'next/dist/compiled/@segment/ajv-human-errors' {
+  import * as m from '@segment/ajv-human-errors'
+  export = m
+}
+
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack4'
 
@@ -344,4 +366,8 @@ declare module 'next/dist/compiled/watchpack' {
   }
 
   export default Watchpack
+}
+
+declare module 'next/dist/compiled/is-animated' {
+  export default function isAnimated(buffer: Buffer): boolean
 }

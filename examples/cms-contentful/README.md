@@ -29,15 +29,22 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [Ghost](/examples/cms-ghost)
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-contentful cms-contentful-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-contentful cms-contentful-app
+```
+
+```bash
+pnpm create next-app --example cms-contentful cms-contentful-app
 ```
 
 ## Configuration

@@ -8,7 +8,7 @@
   "dependencies": {
     "@vercel/fetch": "6.1.0",
     "next": "latest",
-    "node-fetch": "2.6.1",
+    "node-fetch": "2.6.7",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "unfetch": "4.2.0"

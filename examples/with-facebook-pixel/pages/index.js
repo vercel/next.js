@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import * as fbq from '../lib/fpixel'
 
 export default function Home() {
@@ -14,6 +15,13 @@ export default function Home() {
       <button type="button" onClick={handleClick}>
         Buy $10
       </button>
+      <p>
+        Click the link below to navigate to another page.
+        <br />
+        <Link href="/navigation">
+          <a>Navigation page</a>
+        </Link>
+      </p>
     </div>
   )
 }

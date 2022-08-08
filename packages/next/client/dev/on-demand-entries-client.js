@@ -11,7 +11,17 @@ export default async (page) => {
   } else {
     Router.ready(() => {
       setInterval(() => {
-        sendMessage(JSON.stringify({ event: 'ping', page: Router.pathname }))
+        // when notFound: true is returned we should use the notFoundPage
+        // as the Router.pathname will point to the 404 page but we want
+        // to ping the source page that returned notFound: true instead
+        const notFoundSrcPage = self.__NEXT_DATA__.notFoundSrcPage
+        const pathname =
+          (Router.pathname === '/404' || Router.pathname === '/_error') &&
+          notFoundSrcPage
+            ? notFoundSrcPage
+            : Router.pathname
+
+        sendMessage(JSON.stringify({ event: 'ping', page: pathname }))
       }, 2500)
     })
   }

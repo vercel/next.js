@@ -1,0 +1,9 @@
+
+  x Expected one child under JSX style tag, but got 2.
+  | Read more: https://nextjs.org/docs/messages/invalid-styled-jsx-children
+   ,-[input.js:3:5]
+ 3 | ,-> <style jsx>
+ 4 | |         {`.p {}`}
+ 5 | |         {`.p {}`}
+ 6 | `->     </style>
+   `----

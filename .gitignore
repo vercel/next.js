@@ -2,6 +2,7 @@
 dist
 .next
 target
+packages/next/wasm/@next
 
 # dependencies
 node_modules
@@ -29,6 +30,7 @@ test/tmp/**
 # Editors
 **/.idea
 **/.#*
+.nvmrc
 
 # examples
 examples/**/out
@@ -43,3 +45,4 @@ test-timings.json
 
 # Cache
 *.tsbuildinfo
+.swc/

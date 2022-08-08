@@ -24,7 +24,7 @@ export default function Home() {
         1. <b>no `getInitialProps`</b> to ensure every page is static
         <br />
         2. <b>`useUser` hook</b> together with `
-        <a href="https://swr.now.sh/">swr`</a> for data fetching
+        <a href="https://swr.vercel.app/">swr`</a> for data fetching
       </p>
 
       <h2>Features</h2>

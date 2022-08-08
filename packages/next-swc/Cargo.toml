@@ -6,5 +6,8 @@ members = [
   "crates/wasm"
 ]
 
+[profile.dev.package.swc_css_prefixer]
+opt-level = 2
+
 [profile.release]
 lto = true

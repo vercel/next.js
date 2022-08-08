@@ -9,7 +9,7 @@
             hasValue: false
         }
 Inclusion of hasValue is in case an eslint rule cares about boolean values
-explicitely assigned to attribute vs the attribute being used as a flag
+explicitly assigned to attribute vs the attribute being used as a flag
 */
 class NodeAttributes {
   constructor(ASTnode) {

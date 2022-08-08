@@ -20,6 +20,7 @@ description: Optimize loading of third-party scripts with the built-in Script co
 
 | Version   | Changes                   |
 | --------- | ------------------------- |
+| `v12.2.4` | `onReady` prop added.     |
 | `v11.0.0` | `next/script` introduced. |
 
 </details>
@@ -41,10 +42,15 @@ The loading strategy of the script.
 | `beforeInteractive` | Load script before the page becomes interactive            |
 | `afterInteractive`  | Load script immediately after the page becomes interactive |
 | `lazyOnload`        | Load script during browser idle time                       |
+| `worker`            | Load script in a web worker                                |
+
+> **Note: `worker` is an experimental strategy that can only be used when enabled in `next.config.js`. See [Off-loading Scripts To A Web Worker](/docs/basic-features/script#off-loading-scripts-to-a-web-worker-experimental).**
 
 ### onLoad
 
-A method that returns additional JavaScript that should be executed after the script has finished loading.
+A method that returns additional JavaScript that should be executed once after the script has finished loading.
+
+> **Note: `onLoad` can't be used with the `beforeInteractive` loading strategy. Consider using `onReady` instead.**
 
 The following is an example of how to use the `onLoad` property:
 
@@ -62,6 +68,60 @@ export default function Home() {
         src="https://js.stripe.com/v3/"
         onLoad={() => {
           setStripe({ stripe: window.Stripe('pk_test_12345') })
+        }}
+      />
+    </>
+  )
+}
+```
+
+### onReady
+
+A method that returns additional JavaScript that should be executed after the script has finished loading and every time the component is mounted.
+
+The following is an example of how to use the `onReady` property:
+
+```jsx
+import { useState } from 'react'
+import Script from 'next/script'
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        id="google-maps"
+        src="https://maps.googleapis.com/maps/api/js"
+        onReady={() => {
+          new google.maps.Map(ref.current, {
+            center: { lat: -34.397, lng: 150.644 },
+            zoom: 8,
+          })
+        }}
+      />
+    </>
+  )
+}
+```
+
+### onError
+
+A method that executes if the script fails to load.
+
+> **Note: `onError` can't be used with the `beforeInteractive` loading strategy.**
+
+The following is an example of how to use the `onError` property:
+
+```jsx
+import Script from 'next/script'
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        id="will-fail"
+        src="https://example.com/non-existant-script.js"
+        onError={(e) => {
+          console.error('Script failed to load', e)
         }}
       />
     </>

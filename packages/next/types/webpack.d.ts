@@ -35,6 +35,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
   export let sources: typeof webpackSources
+  export let StringXor: any
   // TODO change this to webpack5
   export { webpack4 as webpack, loader, webpack4, webpack5 }
 }

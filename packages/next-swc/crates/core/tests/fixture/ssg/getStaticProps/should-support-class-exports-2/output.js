@@ -1,7 +1,7 @@
 class Test extends React.Component {
-  render() {
-    return __jsx('div', null)
-  }
+    render() {
+        return __jsx("div", null);
+    }
 }
-export var __N_SSG = true
-export default Test
+export var __N_SSG = true;
+export default Test;

@@ -5,6 +5,7 @@ import { Span } from '../trace'
 export type CompilerResult = {
   errors: webpack5.StatsError[]
   warnings: webpack5.StatsError[]
+  stats: webpack5.Stats | undefined
 }
 
 function generateStats(
@@ -54,6 +55,7 @@ export function runCompiler(
               return resolve({
                 errors: [{ message: reason, details: (err as any).details }],
                 warnings: [],
+                stats,
               })
             }
             return reject(err)
@@ -61,7 +63,9 @@ export function runCompiler(
 
           const result = webpackCloseSpan
             .traceChild('webpack-generate-error-stats')
-            .traceFn(() => generateStats({ errors: [], warnings: [] }, stats))
+            .traceFn(() =>
+              generateStats({ errors: [], warnings: [], stats }, stats)
+            )
           return resolve(result)
         })
     })

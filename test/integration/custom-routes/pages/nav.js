@@ -40,6 +40,19 @@ const Page = () => (
       <a id="to-old-blog">to /old-blog/post-1</a>
     </Link>
     <br />
+    <Link href="/overridden">
+      <a id="to-before-files-overridden">to /overridden</a>
+    </Link>
+    <br />
+    <Link href="/nfl">
+      <a id="to-before-files-dynamic">to /nfl</a>
+    </Link>
+    <br />
+    <Link href="/nfl/test">
+      <a id="to-before-files-dynamic-again">to /nfl/test</a>
+    </Link>
+    <br />
   </>
 )
+
 export default Page

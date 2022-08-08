@@ -1,1 +1,1 @@
-export { default, getStaticProps, getStaticPaths } from "./other-page";
+export { default, getStaticProps, getStaticPaths } from './other-page';
