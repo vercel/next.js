@@ -8,7 +8,8 @@ module.exports = {
       recommended: true,
       url,
     },
-    fixable: 'code',
+    type: 'problem',
+    schema: [],
   },
 
   create: function (context) {
@@ -19,6 +20,16 @@ module.exports = {
         }
 
         if (node.attributes.length === 0) {
+          return
+        }
+
+        if (
+          node.parent &&
+          node.parent.openingElement &&
+          node.parent.parent.openingElement &&
+          node.parent.parent.openingElement.name &&
+          node.parent.parent.openingElement.name.name === 'picture'
+        ) {
           return
         }
 

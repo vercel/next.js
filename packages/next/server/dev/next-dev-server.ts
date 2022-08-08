@@ -1,6 +1,5 @@
 import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
-import type { FetchEventResult } from '../web/types'
 import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
@@ -14,7 +13,6 @@ import type { RoutingItem } from '../base-server'
 
 import crypto from 'crypto'
 import fs from 'fs'
-import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
@@ -49,9 +47,10 @@ import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-components'
-import { DecodeError } from '../../shared/lib/utils'
+import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import {
   createOriginalStackFrame,
+  getErrorSource,
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
@@ -105,13 +104,8 @@ export default class DevServer extends Server {
   private pagesDir: string
   private appDir?: string
   private actualMiddlewareFile?: string
-
-  /**
-   * Since the dev server is stateful and middleware routes can be added and
-   * removed over time, we need to keep a list of all of the middleware
-   * routing items to be returned in `getMiddleware()`
-   */
-  private middleware?: RoutingItem[]
+  private middleware?: RoutingItem
+  private edgeFunctions?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -288,12 +282,11 @@ export default class DevServer extends Server {
       wp.watch(files, directories, 0)
 
       wp.on('aggregated', async () => {
-        const routedMiddleware: string[] = []
         let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
-        const ssrMiddleware = new Set<string>()
+        const edgeRoutesSet = new Set<string>()
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -325,7 +318,7 @@ export default class DevServer extends Server {
             this.actualMiddlewareFile = rootFile
             middlewareMatcher =
               staticInfo.middleware?.pathMatcher || new RegExp('.*')
-            routedMiddleware.push('/')
+            edgeRoutesSet.add('/')
             continue
           }
 
@@ -336,9 +329,8 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
-            // TODO: should only routes ending in /index.js be route-able?
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName)
+            pageName = normalizeAppPath(pageName) || '/'
             appPaths[pageName] = originalPageName
 
             if (routedPages.includes(pageName)) {
@@ -364,10 +356,7 @@ export default class DevServer extends Server {
             onClient: () => {},
             onServer: () => {},
             onEdgeServer: () => {
-              if (!pageName.startsWith('/api/')) {
-                routedMiddleware.push(pageName)
-              }
-              ssrMiddleware.add(pageName)
+              edgeRoutesSet.add(pageName)
             },
           })
           routedPages.push(pageName)
@@ -382,18 +371,23 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
-          return {
-            match: getRouteMatcher(
-              page === '/' && middlewareMatcher
-                ? { re: middlewareMatcher, groups: {} }
-                : getMiddlewareRegex(page, {
-                    catchAll: !ssrMiddleware.has(page),
-                  })
-            ),
+        this.edgeFunctions = []
+        const edgeRoutes = Array.from(edgeRoutesSet)
+        getSortedRoutes(edgeRoutes).forEach((page) => {
+          const isRootMiddleware = page === '/' && !!middlewareMatcher
+          const middlewareRegex = isRootMiddleware
+            ? { re: middlewareMatcher!, groups: {} }
+            : getMiddlewareRegex(page, { catchAll: false })
+          const routeItem = {
+            match: getRouteMatcher(middlewareRegex),
             page,
-            re: middlewareMatcher,
-            ssr: ssrMiddleware.has(page),
+            re: middlewareRegex.re,
+          }
+
+          if (isRootMiddleware) {
+            this.middleware = routeItem
+          } else {
+            this.edgeFunctions!.push(routeItem)
           }
         })
 
@@ -646,33 +640,82 @@ export default class DevServer extends Server {
     response: BaseNextResponse
     parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
-  }): Promise<FetchEventResult | null> {
+  }) {
     try {
       const result = await super.runMiddleware({
         ...params,
         onWarning: (warn) => {
-          this.logErrorWithOriginalStack(warn, 'warning', 'edge-server')
+          this.logErrorWithOriginalStack(warn, 'warning')
         },
       })
 
-      result?.waitUntil.catch((error) =>
-        this.logErrorWithOriginalStack(
-          error,
-          'unhandledRejection',
-          'edge-server'
-        )
-      )
+      if ('finished' in result) {
+        return result
+      }
+
+      result.waitUntil.catch((error) => {
+        this.logErrorWithOriginalStack(error, 'unhandledRejection')
+      })
       return result
     } catch (error) {
       if (error instanceof DecodeError) {
         throw error
       }
-      this.logErrorWithOriginalStack(error, undefined, 'edge-server')
+
+      /**
+       * We only log the error when it is not a MiddlewareNotFound error as
+       * in that case we should be already displaying a compilation error
+       * which is what makes the module not found.
+       */
+      if (!(error instanceof MiddlewareNotFoundError)) {
+        this.logErrorWithOriginalStack(error)
+      }
+
       const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params
+
+      /**
+       * When there is a failure for an internal Next.js request from
+       * middleware we bypass the error without finishing the request
+       * so we can serve the required chunks to render the error.
+       */
+      if (
+        request.url.includes('/_next/static') ||
+        request.url.includes('/__nextjs_original-stack-frame')
+      ) {
+        return { finished: false }
+      }
+
       response.statusCode = 500
       this.renderError(err, request, response, parsedUrl.pathname)
+      return { finished: true }
+    }
+  }
+
+  async runEdgeFunction(params: {
+    req: BaseNextRequest
+    res: BaseNextResponse
+    query: ParsedUrlQuery
+    params: Params | undefined
+    page: string
+  }) {
+    try {
+      return super.runEdgeFunction({
+        ...params,
+        onWarning: (warn) => {
+          this.logErrorWithOriginalStack(warn, 'warning')
+        },
+      })
+    } catch (error) {
+      if (error instanceof DecodeError) {
+        throw error
+      }
+      this.logErrorWithOriginalStack(error, 'warning')
+      const err = getProperError(error)
+      const { req, res, page } = params
+      res.statusCode = 500
+      this.renderError(err, req, res, page)
       return null
     }
   }
@@ -737,26 +780,32 @@ export default class DevServer extends Server {
 
   private async logErrorWithOriginalStack(
     err?: unknown,
-    type?: 'unhandledRejection' | 'uncaughtException' | 'warning',
-    stats: 'server' | 'edge-server' = 'server'
+    type?: 'unhandledRejection' | 'uncaughtException' | 'warning'
   ) {
     let usedOriginalStack = false
 
     if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
-        const frame = frames[0]
+        const frame = frames.find(
+          ({ file }) =>
+            !file?.startsWith('eval') &&
+            !file?.includes('web/adapter') &&
+            !file?.includes('sandbox/context')
+        )!
 
         if (frame.lineNumber && frame?.file) {
-          const compilation =
-            stats === 'server'
-              ? this.hotReloader?.serverStats?.compilation
-              : this.hotReloader?.edgeServerStats?.compilation
-
           const moduleId = frame.file!.replace(
             /^(webpack-internal:\/\/\/|file:\/\/)/,
             ''
           )
+
+          const src = getErrorSource(err as Error)
+          const compilation = (
+            src === 'edge-server'
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : this.hotReloader?.serverStats?.compilation
+          )!
 
           const source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
@@ -771,23 +820,28 @@ export default class DevServer extends Server {
             frame,
             modulePath: moduleId,
             rootDirectory: this.dir,
+            errorMessage: err.message,
+            compilation,
           })
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame
             const { file, lineNumber, column, methodName } = originalStackFrame
 
-            console.error(
-              (type === 'warning' ? chalk.yellow('warn') : chalk.red('error')) +
-                ' - ' +
-                `${file} (${lineNumber}:${column}) @ ${methodName}`
+            Log[type === 'warning' ? 'warn' : 'error'](
+              `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            console.error(
-              `${(type === 'warning' ? chalk.yellow : chalk.red)(err.name)}: ${
-                err.message
-              }`
-            )
-            console.error(originalCodeFrame)
+            if (src === 'edge-server') {
+              err = err.message
+            }
+            if (type === 'warning') {
+              Log.warn(err)
+            } else if (type) {
+              Log.error(`${type}:`, err)
+            } else {
+              Log.error(err)
+            }
+            console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
         }
@@ -840,24 +894,27 @@ export default class DevServer extends Server {
   }
 
   protected getMiddleware() {
-    return this.middleware ?? []
+    return this.middleware
+  }
+
+  protected getEdgeFunctions() {
+    return this.edgeFunctions ?? []
   }
 
   protected getServerComponentManifest() {
     return undefined
   }
 
-  protected async hasMiddleware(
-    pathname: string,
-    isSSR?: boolean
-  ): Promise<boolean> {
-    return this.hasPage(isSSR ? pathname : this.actualMiddlewareFile!)
+  protected async hasMiddleware(): Promise<boolean> {
+    return this.hasPage(this.actualMiddlewareFile!)
   }
 
-  protected async ensureMiddleware(pathname: string, isSSR?: boolean) {
-    return this.hotReloader!.ensurePage(
-      isSSR ? pathname : this.actualMiddlewareFile!
-    )
+  protected async ensureMiddleware() {
+    return this.hotReloader!.ensurePage(this.actualMiddlewareFile!)
+  }
+
+  protected async ensureEdgeFunction(pathname: string) {
+    return this.hotReloader!.ensurePage(pathname)
   }
 
   generateRoutes() {
@@ -912,10 +969,11 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify(
-              this.getMiddleware().map((middleware) => [
-                (middleware as any).re.source,
-                !!middleware.ssr,
-              ])
+              this.middleware
+                ? {
+                    location: this.middleware.re!.source,
+                  }
+                : {}
             )
           )
           .send()
@@ -928,7 +986,6 @@ export default class DevServer extends Server {
     fsRoutes.push({
       match: getPathMatch('/:path*'),
       type: 'route',
-      requireBasePath: false,
       name: 'catchall public directory route',
       fn: async (req, res, params, parsedUrl) => {
         const { pathname } = parsedUrl
@@ -1039,7 +1096,8 @@ export default class DevServer extends Server {
   protected async findPageComponents(
     pathname: string,
     query: ParsedUrlQuery = {},
-    params: Params | null = null
+    params: Params | null = null,
+    isAppDir: boolean = false
   ): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
@@ -1058,7 +1116,7 @@ export default class DevServer extends Server {
         this.serverComponentManifest = super.getServerComponentManifest()
       }
 
-      return super.findPageComponents(pathname, query, params)
+      return super.findPageComponents(pathname, query, params, isAppDir)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw err

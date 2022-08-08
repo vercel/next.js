@@ -10,7 +10,6 @@ use swc_css::codegen::{
     writer::basic::{BasicCssWriter, BasicCssWriterConfig},
     CodeGenerator, CodegenConfig, Emit,
 };
-use swc_css::parser::parser::input::ParserInput;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_css_prefixer::prefixer;
@@ -60,7 +59,7 @@ pub fn transform_css(
         }
     };
     // ? Do we need to support optionally prefixing?
-    ss.visit_mut_with(&mut prefixer());
+    ss.visit_mut_with(&mut prefixer(Default::default()));
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -344,7 +343,7 @@ impl Namespacer {
                 SubclassSelector::Class(ClassSelector {
                     span: DUMMY_SP,
                     text: Ident {
-                        raw: subclass_selector.into(),
+                        raw: Some(subclass_selector.into()),
                         value: subclass_selector.into(),
                         span: DUMMY_SP,
                     },
@@ -502,21 +501,15 @@ where
     }
 
     let span = node.span();
-    let mut lexer = swc_css::parser::lexer::Lexer::new(
+    let lexer = swc_css::parser::lexer::Lexer::new(
         StringInput::new(&s, span.lo, span.hi),
         ParserConfig {
             allow_wrong_line_comments: true,
         },
     );
 
-    let mut tokens = vec![];
-
-    while let Ok(t) = lexer.next() {
-        tokens.push(t);
-    }
-
     Tokens {
         span: Span::new(span.lo, span.hi, Default::default()),
-        tokens,
+        tokens: lexer.collect(),
     }
 }

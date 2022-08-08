@@ -1,8 +1,11 @@
-export default function DashboardLayout({ children }) {
+import './style.css'
+import './global.css'
+
+export default function DashboardLayout(props) {
   return (
-    <>
-      <h1>Dashboard</h1>
-      {children}
-    </>
+    <div className="dangerous-text">
+      <h1 className="green">Dashboard</h1>
+      {props.children}
+    </div>
   )
 }

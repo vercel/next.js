@@ -7,7 +7,7 @@ module.exports = {
     return [
       {
         source: '/redirect-1',
-        destination: '/somewhere-else',
+        destination: '/somewhere/else',
         permanent: false,
       },
     ]
@@ -16,11 +16,19 @@ module.exports = {
     return [
       {
         source: '/rewrite-1',
-        destination: '/ssr-page',
+        destination: '/ssr-page?from=config',
       },
       {
         source: '/rewrite-2',
-        destination: '/about/a',
+        destination: '/about/a?from=next-config',
+      },
+      {
+        source: '/sha',
+        destination: '/shallow',
+      },
+      {
+        source: '/rewrite-3',
+        destination: '/blog/middleware-rewrite?hello=config',
       },
     ]
   },

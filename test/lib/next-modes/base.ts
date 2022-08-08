@@ -37,6 +37,7 @@ export class NextInstance {
   protected packageLockPath?: string
   protected basePath?: string
   protected env?: Record<string, string>
+  public forcedPort?: string
 
   constructor({
     files,

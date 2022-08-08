@@ -54,6 +54,7 @@ experience of a web page. The following web vitals are all included:
 - [Largest Contentful Paint](https://web.dev/lcp/) (LCP)
 - [First Input Delay](https://web.dev/fid/) (FID)
 - [Cumulative Layout Shift](https://web.dev/cls/) (CLS)
+- [Interaction to Next Paint](https://web.dev/inp/) (INP) _(experimental)_
 
 You can handle all the results of these metrics using the `web-vital` label:
 
@@ -84,6 +85,9 @@ export function reportWebVitals(metric) {
       break
     case 'TTFB':
       // handle TTFB results
+      break
+    case 'INP':
+      // handle INP results (note: INP is still an experimental metric)
       break
     default:
       break

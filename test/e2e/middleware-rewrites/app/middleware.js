@@ -13,6 +13,17 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (url.pathname.includes('/to/some/404/path')) {
+    return NextResponse.next({
+      'x-matched-path': '/404',
+    })
+  }
+
+  if (url.pathname.includes('/fallback-true-blog/rewritten')) {
+    request.nextUrl.pathname = '/about'
+    return NextResponse.rewrite(request.nextUrl)
+  }
+
   if (url.pathname.startsWith('/about') && url.searchParams.has('override')) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(
@@ -20,6 +31,16 @@ export async function middleware(request) {
         ? 'https://example.vercel.sh'
         : new URL('/ab-test/a', request.url)
     )
+  }
+
+  if (url.pathname === '/rewrite-to-beforefiles-rewrite') {
+    url.pathname = '/beforefiles-rewrite'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrite-to-afterfiles-rewrite') {
+    url.pathname = '/afterfiles-rewrite'
+    return NextResponse.rewrite(url)
   }
 
   if (url.pathname.startsWith('/to-blog')) {
@@ -44,7 +65,9 @@ export async function middleware(request) {
 
   if (url.pathname === '/rewrite-me-to-about') {
     url.pathname = '/about'
-    return NextResponse.rewrite(url)
+    return NextResponse.rewrite(url, {
+      headers: { 'x-rewrite-target': String(url) },
+    })
   }
 
   if (url.pathname === '/rewrite-me-with-a-colon') {
@@ -80,9 +103,9 @@ export async function middleware(request) {
       ? '/about-bypass'
       : '/about'
 
-    const response = NextResponse.rewrite(url)
-    response.headers.set('x-middleware-cache', 'no-cache')
-    return response
+    return NextResponse.rewrite(url, {
+      headers: { 'x-middleware-cache': 'no-cache' },
+    })
   }
 
   if (url.pathname.endsWith('/dynamic-replace')) {
@@ -107,4 +130,6 @@ export async function middleware(request) {
     url.searchParams.set('locale', url.locale)
     return NextResponse.rewrite(url)
   }
+
+  return NextResponse.rewrite(request.nextUrl)
 }

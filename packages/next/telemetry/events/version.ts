@@ -17,6 +17,7 @@ type EventCliSessionStarted = {
   basePathEnabled: boolean
   i18nEnabled: boolean
   imageEnabled: boolean
+  imageFutureEnabled: boolean
   locales: string | null
   localeDomainsCount: number | null
   localeDetectionEnabled: boolean | null
@@ -62,6 +63,7 @@ export function eventCliSession(
     | 'basePathEnabled'
     | 'i18nEnabled'
     | 'imageEnabled'
+    | 'imageFutureEnabled'
     | 'locales'
     | 'localeDomainsCount'
     | 'localeDetectionEnabled'
@@ -93,6 +95,7 @@ export function eventCliSession(
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
     imageEnabled: !!images,
+    imageFutureEnabled: !!experimental.images?.allowFutureImage,
     basePathEnabled: !!nextConfig?.basePath,
     i18nEnabled: !!i18n,
     locales: i18n?.locales ? i18n.locales.join(',') : null,

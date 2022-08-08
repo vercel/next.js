@@ -1,5 +1,1 @@
-module.exports = {
-  experimental: {
-    serverComponents: true,
-  },
-}
+module.exports = {}

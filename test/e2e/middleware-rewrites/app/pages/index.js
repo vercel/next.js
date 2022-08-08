@@ -15,6 +15,18 @@ export default function Home() {
         <a id="rewrite-me-to-about">Rewrite me to about</a>
       </Link>
       <div />
+      <Link href="/rewrite-to-beforefiles-rewrite">
+        <a id="rewrite-to-beforefiles-rewrite">
+          Rewrite me to beforeFiles Rewrite
+        </a>
+      </Link>
+      <div />
+      <Link href="/rewrite-to-afterfiles-rewrite">
+        <a id="rewrite-to-afterfiles-rewrite">
+          Rewrite me to afterFiles Rewrite
+        </a>
+      </Link>
+      <div />
       <Link href="/rewrite-me-to-vercel">
         <a>Rewrite me to Vercel</a>
       </Link>
@@ -51,4 +63,12 @@ export default function Home() {
       </a>
     </div>
   )
+}
+
+export function getServerSideProps() {
+  return {
+    props: {
+      now: Date.now(),
+    },
+  }
 }

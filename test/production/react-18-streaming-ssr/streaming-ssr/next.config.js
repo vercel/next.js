@@ -1,6 +1,6 @@
 module.exports = {
   trailingSlash: true,
   experimental: {
-    runtime: 'edge',
+    runtime: 'experimental-edge',
   },
 }

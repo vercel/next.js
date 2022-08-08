@@ -90,6 +90,11 @@ initialize({ webpackHMR })
                 router.asPath,
                 { scroll: false }
               )
+              .catch(() => {
+                // trigger hard reload when failing to refresh data
+                // to show error overlay properly
+                location.reload()
+              })
               .finally(clearIndicator)
           }
         }
