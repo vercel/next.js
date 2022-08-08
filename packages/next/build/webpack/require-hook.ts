@@ -4,9 +4,12 @@
 
 export default function loadRequireHook(aliases: [string, string][] = []) {
   const hookPropertyMap = new Map(
-    [...aliases, ['styled-jsx', 'next/dist/styled-jsx']].map(
-      ([request, replacement]) => [request, require.resolve(replacement)]
-    )
+    [
+      ...aliases,
+      // Use `require.resolve` explicitly to make them statically analyzable
+      ['styled-jsx', require.resolve('next/dist/styled-jsx')],
+      ['styled-jsx/style', require.resolve('next/dist/styled-jsx/style')],
+    ].map(([request, replacement]) => [request, replacement])
   )
 
   const mod = require('module')

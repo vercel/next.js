@@ -72,5 +72,5 @@ function runTest(packageManager?: string) {
   })
 }
 
-// runTest()
+runTest()
 runTest('pnpm')
