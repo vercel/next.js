@@ -9,6 +9,7 @@ import type {
   GetStaticProps,
 } from '../../../../types'
 import type { BaseNextRequest } from '../../../../server/base-http'
+import type { __ApiPreviewProps } from '../../../../server/api-utils'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
@@ -20,7 +21,6 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../../shared/lib/router/utils/prepare-destination'
-import { __ApiPreviewProps } from '../../../../server/api-utils'
 import { acceptLanguage } from '../../../../server/accept-header'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'

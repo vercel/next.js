@@ -93,6 +93,7 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
     const parsedUrl = new URL(fullUrl)
     const parsedPathQuery = new URL(url, fullUrl)
 
+    parsedUrl.hash = parsedPathQuery.hash
     parsedUrl.search = parsedPathQuery.search
     parsedUrl.pathname = parsedPathQuery.pathname
 
@@ -768,6 +769,7 @@ function runSuite(suiteName, context, options) {
           stderr: true,
           stdout: true,
           env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
         context.stdout = stdout
         context.stderr = stderr
@@ -776,6 +778,7 @@ function runSuite(suiteName, context, options) {
           onStderr,
           onStdout,
           env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
       } else if (env === 'dev') {
         context.appPort = await findPort()
@@ -783,6 +786,7 @@ function runSuite(suiteName, context, options) {
           onStderr,
           onStdout,
           env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
       }
     })

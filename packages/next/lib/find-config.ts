@@ -30,13 +30,14 @@ export async function findConfig<T>(
       `${key}.config.json`,
       `.${key}rc.js`,
       `${key}.config.js`,
+      `${key}.config.cjs`,
     ],
     {
       cwd: directory,
     }
   )
   if (filePath) {
-    if (filePath.endsWith('.js')) {
+    if (filePath.endsWith('.js') || filePath.endsWith('.cjs')) {
       return require(filePath)
     }
 
