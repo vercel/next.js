@@ -91,7 +91,7 @@ async function main() {
   let totalUncompressedSize = 0
 
   for (const file of result.fileList) {
-    if (result.reasons[file].type === 'initial') {
+    if (result.reasons.get(file).type === 'initial') {
       continue
     }
     tracedDeps.add(file.replace(/\\/g, '/'))

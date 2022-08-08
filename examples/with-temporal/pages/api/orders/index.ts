@@ -6,7 +6,7 @@ export type Data = {
   result: string
 }
 
-function getUserId(token: string): string {
+function getUserId(token?: string): string {
   // TODO if the token is a JWT, decode & verify it. If it's a session ID,
   // look up the user's ID in the session store.
   return 'user-id-123'

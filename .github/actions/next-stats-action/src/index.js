@@ -45,6 +45,10 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       await checkoutRef(actionInfo.prRef, diffRepoDir)
     }
 
+    if (actionInfo.isRelease) {
+      process.env.STATS_IS_RELEASE = 'true'
+    }
+
     // load stats config from allowed locations
     const { statsConfig, relativeStatsAppDir } = loadStatsConfig()
 
@@ -101,9 +105,12 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     for (const dir of repoDirs) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
+        const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
         let buildCommand = `cd ${dir}${
           !statsConfig.skipInitialInstall
-            ? ' && yarn install --network-timeout 1000000'
+            ? usePnpm
+              ? ' && pnpm install && pnpm run build'
+              : ' && yarn install --network-timeout 1000000'
             : ''
         }`
 
@@ -114,6 +121,13 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         // in case of noisy environment slowing down initial repo build
         await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
+
+      await fs
+        .copy(
+          path.join(__dirname, '../native'),
+          path.join(dir, 'packages/next-swc/native')
+        )
+        .catch(console.error)
 
       logger(`Linking packages in ${dir}`)
       const pkgPaths = await linkPackages(dir)

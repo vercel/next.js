@@ -9,8 +9,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 5)
-
 describe('Production Custom Build Directory', () => {
   describe('With basic usage', () => {
     it('should render the page', async () => {

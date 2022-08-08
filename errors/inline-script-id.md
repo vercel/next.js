@@ -1,4 +1,6 @@
-# next/script components with inline content require an `id` attribute
+# Inline script id
+
+> Enforce `id` attribute on `next/script` components with inline content.
 
 ## Why This Error Occurred
 

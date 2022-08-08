@@ -10,7 +10,7 @@ Rewriting to these pages are not yet supported since rewrites are not available 
 
 For fallback SSG pages you can add the page to the list of [prerendered paths](https://nextjs.org/docs/basic-features/data-fetching#the-paths-key-required).
 
-For static dynamic routes, you will currently need to either rewrite to non-dynamic route or opt the page out of the static optimization with [`getServerSideProps`](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering)
+For static dynamic routes, you will currently need to either rewrite to non-dynamic route or opt the page out of the static optimization with [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md)
 
 ### Useful Links
 

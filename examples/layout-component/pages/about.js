@@ -13,7 +13,7 @@ export default function About() {
       </p>
       <p>
         When navigating between pages, we want to persist page state (input
-        values, scroll position, etc) for a Single-Page Application (SPA)
+        values, scroll position, etc.) for a Single-Page Application (SPA)
         experience.
       </p>
       <p>

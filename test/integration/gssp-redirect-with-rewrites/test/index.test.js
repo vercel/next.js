@@ -13,7 +13,6 @@ import webdriver from 'next-webdriver'
 // test suites
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('getServerSideProps redirects', () => {
   beforeAll(async () => {

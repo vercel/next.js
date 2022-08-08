@@ -5,8 +5,6 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { killApp, findPort, launchApp, check } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const appPage = join(appDir, 'pages/_app.js')
 const indexPage = join(appDir, 'pages/index.js')
@@ -50,7 +48,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.indexOf('index page updated') &&
+        return html.includes('index page updated') &&
           !html.includes('custom _app')
           ? 'success'
           : html
@@ -102,7 +100,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.indexOf('index page updated') &&
+        return html.includes('index page updated') &&
           !html.includes('custom _document')
           ? 'success'
           : html

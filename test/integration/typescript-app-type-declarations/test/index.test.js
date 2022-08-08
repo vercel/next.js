@@ -4,8 +4,6 @@ import { join } from 'path'
 import { findPort, launchApp, killApp } from 'next-test-utils'
 import { promises as fs } from 'fs'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 const appTypeDeclarations = join(appDir, 'next-env.d.ts')
 

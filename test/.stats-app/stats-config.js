@@ -9,7 +9,7 @@ const imagePageData = fs.readFileSync(
 
 const clientGlobs = [
   {
-    name: 'Client Bundles (main, webpack, commons)',
+    name: 'Client Bundles (main, webpack)',
     globs: [
       '.next/static/runtime/+(main|webpack)-*',
       '.next/static/chunks/!(polyfills*)',
@@ -30,6 +30,13 @@ const clientGlobs = [
   {
     name: 'Rendered Page Sizes',
     globs: ['fetched-pages/**/*.html'],
+  },
+  {
+    name: 'Middleware size',
+    globs: [
+      '.next/server/middleware*.js',
+      '.next/server/edge-runtime-webpack.js',
+    ],
   },
 ]
 
@@ -61,6 +68,7 @@ module.exports = {
   commentReleaseHeading: 'Stats from current release',
   appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next build',
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
+  appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next --port $PORT',
   mainRepo: 'vercel/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,
@@ -121,15 +129,19 @@ module.exports = {
       },
     },
     {
-      title: 'Webpack 4 Mode',
+      title: 'Default Build with SWC',
       diff: 'onOutputChange',
       diffConfigFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              webpack5: false,
+              swcMinify: true,
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -139,14 +151,19 @@ module.exports = {
           `,
         },
       ],
+      // renames to apply to make file names deterministic
       renames,
       configFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              webpack5: false
+              swcMinify: true,
+              generateBuildId: () => 'BUILD_ID'
             }
           `,
         },

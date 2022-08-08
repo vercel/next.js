@@ -4,7 +4,6 @@ import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Configuration', () => {
   beforeAll(async () => {

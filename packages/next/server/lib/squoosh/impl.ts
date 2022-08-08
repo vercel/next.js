@@ -2,10 +2,12 @@ import semver from 'next/dist/compiled/semver'
 import { codecs as supportedFormats, preprocessors } from './codecs'
 import ImageData from './image_data'
 
+type EncoderKey = keyof typeof supportedFormats
+
 // Fixed in Node.js 16.5.0 and newer.
 // See https://github.com/nodejs/node/pull/39337
 // Eventually, remove this delay when engines is updated.
-// See https://git.io/JCTr0
+// See https://github.com/vercel/next.js/blob/1bcc923439f495a1717421e06af7e64c6003072c/packages/next/package.json#L249-L251
 const FIXED_VERSION = '16.5.0'
 const DELAY_MS = 1000
 let _promise: Promise<void> | undefined
@@ -37,12 +39,14 @@ export async function decodeBuffer(
     .join('')
   const key = Object.entries(supportedFormats).find(([, { detectors }]) =>
     detectors.some((detector) => detector.exec(firstChunkString))
-  )?.[0] as keyof typeof supportedFormats
+  )?.[0] as EncoderKey | undefined
   if (!key) {
     throw Error(`Buffer has an unsupported format`)
   }
-  const d = await supportedFormats[key].dec()
-  return d.decode(new Uint8Array(buffer))
+  const encoder = supportedFormats[key]
+  const mod = await encoder.dec()
+  const rgba = mod.decode(new Uint8Array(buffer))
+  return rgba
 }
 
 export async function rotate(
@@ -82,7 +86,7 @@ export async function encodeJpeg(
   const e = supportedFormats['mozjpeg']
   const m = await e.enc()
   await maybeDelay()
-  const r = await m.encode!(image.data, image.width, image.height, {
+  const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     quality,
   })
@@ -98,9 +102,28 @@ export async function encodeWebp(
   const e = supportedFormats['webp']
   const m = await e.enc()
   await maybeDelay()
-  const r = await m.encode!(image.data, image.width, image.height, {
+  const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     quality,
+  })
+  return Buffer.from(r)
+}
+
+export async function encodeAvif(
+  image: ImageData,
+  { quality }: { quality: number }
+): Promise<Buffer | Uint8Array> {
+  image = ImageData.from(image)
+
+  const e = supportedFormats['avif']
+  const m = await e.enc()
+  await maybeDelay()
+  const val = e.autoOptimize.min || 62
+  const r = await m.encode(image.data, image.width, image.height, {
+    ...e.defaultEncoderOptions,
+    // Think of cqLevel as the "amount" of quantization (0 to 62),
+    // so a lower value yields higher quality (0 to 100).
+    cqLevel: Math.round(val - (quality / 100) * val),
   })
   return Buffer.from(r)
 }

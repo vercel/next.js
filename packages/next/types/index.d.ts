@@ -1,7 +1,6 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
-/// <reference types="styled-jsx" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -24,10 +23,10 @@ import {
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
-// @ts-ignore This path is generated at build time and conflicts otherwise
-import { NextConfig as NextConfigType } from '../dist/server/config'
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
-export type NextConfig = NextConfigType
+// @ts-ignore This path is generated at build time and conflicts otherwise
+export { NextConfig } from '../dist/server/config'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -66,6 +65,12 @@ export type PageConfig = {
   amp?: boolean | 'hybrid'
   api?: {
     /**
+     * Configures or disables body size limit warning. Can take a number or
+     * any string format supported by `bytes`, for example `1000`, `'500kb'` or
+     * `'3mb'`.
+     */
+    responseLimit?: number | string | boolean
+    /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
@@ -78,6 +83,7 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
+  runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   unstable_includeFiles?: string[]
@@ -109,7 +115,7 @@ export type GetStaticPropsContext<
 export type GetStaticPropsResult<P> =
   | { props: P; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
-  | { notFound: true }
+  | { notFound: true; revalidate?: number | boolean }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
@@ -182,5 +188,28 @@ export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
     ) => Promise<GetServerSidePropsResult<infer P>>
   ? P
   : never
+
+declare global {
+  interface Crypto {
+    readonly subtle: SubtleCrypto
+    getRandomValues<
+      T extends
+        | Int8Array
+        | Int16Array
+        | Int32Array
+        | Uint8Array
+        | Uint16Array
+        | Uint32Array
+        | Uint8ClampedArray
+        | Float32Array
+        | Float64Array
+        | DataView
+        | null
+    >(
+      array: T
+    ): T
+    randomUUID(): string
+  }
+}
 
 export default next

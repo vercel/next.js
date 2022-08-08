@@ -15,8 +15,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60)
-
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 
@@ -28,7 +26,7 @@ async function hasImageMatchingUrl(browser, url) {
   let foundMatch = false
   for (const link of links) {
     const src = await link.getAttribute('src')
-    if (src === url) {
+    if (new URL(src, `http://localhost:${appPort}`).toString() === url) {
       foundMatch = true
       break
     }
@@ -54,7 +52,7 @@ async function getComputed(browser, id, prop) {
 async function getSrc(browser, id) {
   const src = await browser.elementById(id).getAttribute('src')
   if (src) {
-    const url = new URL(src)
+    const url = new URL(src, `http://localhost:${appPort}`)
     return url.href.slice(url.origin.length)
   }
 }
@@ -388,10 +386,13 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/docs/missing-src')
 
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Image is missing required "src" property. Make sure you pass "src" in props to the `next/image` component. Received: {"width":200}'
-      )
+      expect(await hasRedbox(browser)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+      }, /Image is missing required "src" property/gm)
     })
 
     it('should show invalid src error', async () => {

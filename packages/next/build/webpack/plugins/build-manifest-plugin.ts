@@ -1,13 +1,11 @@
 import devalue from 'next/dist/compiled/devalue'
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -28,11 +26,12 @@ export type ClientBuildManifest = Record<string, string[]>
 // reduced version to send to the client.
 function generateClientManifest(
   compiler: any,
+  compilation: any,
   assetMap: BuildManifest,
   rewrites: CustomRoutes['rewrites']
-): string {
-  const compilerSpan = spans.get(compiler)
-  const genClientManifestSpan = compilerSpan?.traceChild(
+): string | undefined {
+  const compilationSpan = spans.get(compilation) || spans.get(compiler)
+  const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'
   )
 
@@ -67,7 +66,7 @@ function generateClientManifest(
   })
 }
 
-function getEntrypointFiles(entrypoint: any): string[] {
+export function getEntrypointFiles(entrypoint: any): string[] {
   return (
     entrypoint
       ?.getFiles()
@@ -96,11 +95,15 @@ export default class BuildManifestPlugin {
   private buildId: string
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
+  private exportRuntime: boolean
+  private appDirEnabled: boolean
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
+    exportRuntime?: boolean
+    appDirEnabled: boolean
   }) {
     this.buildId = options.buildId
     this.isDevFallback = !!options.isDevFallback
@@ -109,14 +112,16 @@ export default class BuildManifestPlugin {
       afterFiles: [],
       fallback: [],
     }
+    this.appDirEnabled = options.appDirEnabled
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
+    this.exportRuntime = !!options.exportRuntime
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const compilerSpan = spans.get(compiler)
-    const createAssetsSpan = compilerSpan?.traceChild(
+    const compilationSpan = spans.get(compilation) || spans.get(compiler)
+    const createAssetsSpan = compilationSpan?.traceChild(
       'NextJsBuildManifest-createassets'
     )
     return createAssetsSpan?.traceFn(() => {
@@ -126,6 +131,7 @@ export default class BuildManifestPlugin {
         devFiles: [],
         ampDevFiles: [],
         lowPriorityFiles: [],
+        rootMainFiles: [],
         pages: { '/_app': [] },
         ampFirstPages: [],
       }
@@ -145,6 +151,16 @@ export default class BuildManifestPlugin {
       const mainFiles = new Set(
         getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
+
+      if (this.appDirEnabled) {
+        assetMap.rootMainFiles = [
+          ...new Set(
+            getEntrypointFiles(
+              entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT)
+            )
+          ),
+        ]
+      }
 
       const compilationAssets: {
         name: string
@@ -177,6 +193,7 @@ export default class BuildManifestPlugin {
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
+        ...(this.appDirEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT] : []),
       ])
 
       for (const entrypoint of compilation.entrypoints.values()) {
@@ -224,12 +241,20 @@ export default class BuildManifestPlugin {
         JSON.stringify(assetMap, null, 2)
       )
 
+      if (this.exportRuntime) {
+        assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] =
+          new sources.RawSource(
+            `self.__BUILD_MANIFEST=${JSON.stringify(assetMap)}`
+          )
+      }
+
       if (!this.isDevFallback) {
         const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
         assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(
             compiler,
+            compilation,
             assetMap,
             this.rewrites
           )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
@@ -241,25 +266,19 @@ export default class BuildManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    if (isWebpack5) {
-      compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
-        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-        compilation.hooks.processAssets.tap(
-          {
-            name: 'NextJsBuildManifest',
-            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-          },
-          (assets: any) => {
-            this.createAssets(compiler, compilation, assets)
-          }
-        )
-      })
-      return
-    }
-
-    compiler.hooks.emit.tap('NextJsBuildManifest', (compilation: any) => {
-      this.createAssets(compiler, compilation, compilation.assets)
+    compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
+      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+      compilation.hooks.processAssets.tap(
+        {
+          name: 'NextJsBuildManifest',
+          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+        },
+        (assets: any) => {
+          this.createAssets(compiler, compilation, assets)
+        }
+      )
     })
+    return
   }
 }

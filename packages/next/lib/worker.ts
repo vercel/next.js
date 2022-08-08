@@ -1,4 +1,4 @@
-import { Worker as JestWorker } from 'jest-worker'
+import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
@@ -84,5 +84,14 @@ export class Worker {
     }
     this._worker = undefined
     return worker.end()
+  }
+
+  /**
+   * Quietly end the worker if it exists
+   */
+  close(): void {
+    if (this._worker) {
+      this._worker.end()
+    }
   }
 }

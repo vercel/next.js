@@ -4,7 +4,6 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import { nextBuild, nextExport } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 

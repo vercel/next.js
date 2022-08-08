@@ -12,8 +12,6 @@ import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 
-jest.setTimeout(1000 * 60 * 2)
-
 let appPort
 let app
 

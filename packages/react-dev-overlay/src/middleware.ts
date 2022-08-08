@@ -11,15 +11,22 @@ import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import webpack from 'webpack'
+import type webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
 
+export { getErrorSource } from './internal/helpers/nodeStackFrames'
+export {
+  decorateServerError,
+  getServerError,
+} from './internal/helpers/nodeStackFrames'
+export { parseStack } from './internal/helpers/parseStack'
+
 export type OverlayMiddlewareOptions = {
-  isWebpack5?: boolean
   rootDirectory: string
   stats(): webpack.Stats | null
   serverStats(): webpack.Stats | null
+  edgeServerStats(): webpack.Stats | null
 }
 
 export type OriginalStackFrameResponse = {
@@ -29,34 +36,31 @@ export type OriginalStackFrameResponse = {
 
 type Source = { map: () => RawSourceMap } | null
 
-function getModuleId(compilation: any, module: any, isWebpack5?: boolean) {
-  if (isWebpack5) {
-    return compilation.chunkGraph.getModuleId(module)
-  }
-
-  return module.id
+function getModuleId(compilation: any, module: any) {
+  return compilation.chunkGraph.getModuleId(module)
 }
 
-function getModuleSource(
-  compilation: any,
-  module: any,
-  isWebpack5?: boolean
-): any {
-  if (isWebpack5) {
-    return (
-      (module &&
-        compilation.codeGenerationResults
-          .get(module)
-          ?.sources.get('javascript')) ??
-      null
-    )
-  }
+function getModuleById(
+  id: string | undefined,
+  compilation: webpack.Compilation
+) {
+  return [...compilation.modules].find(
+    (searchModule) => getModuleId(compilation, searchModule) === id
+  )
+}
 
+function findModuleNotFoundFromError(errorMessage: string | undefined) {
+  const match = errorMessage?.match(/'([^']+)' module/)
+  return match && match[1]
+}
+
+function getModuleSource(compilation: any, module: any): any {
   return (
-    module?.source(
-      compilation.dependencyTemplates,
-      compilation.runtimeTemplate
-    ) ?? null
+    (module &&
+      compilation.codeGenerationResults
+        .get(module)
+        ?.sources.get('javascript')) ??
+    null
   )
 }
 
@@ -110,6 +114,15 @@ async function findOriginalSourcePositionAndContent(
   }
 }
 
+function findOriginalSourcePositionAndContentFromCompilation(
+  modulePath: string | undefined,
+  importedModule: string,
+  compilation: webpack.Compilation
+) {
+  const module = getModuleById(modulePath, compilation)
+  return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
+}
+
 export async function createOriginalStackFrame({
   line,
   column,
@@ -117,6 +130,8 @@ export async function createOriginalStackFrame({
   modulePath,
   rootDirectory,
   frame,
+  errorMessage,
+  compilation,
 }: {
   line: number
   column: number | null
@@ -124,11 +139,21 @@ export async function createOriginalStackFrame({
   modulePath?: string
   rootDirectory: string
   frame: any
+  errorMessage?: string
+  compilation?: webpack.Compilation
 }): Promise<OriginalStackFrameResponse | null> {
-  const result = await findOriginalSourcePositionAndContent(source, {
-    line,
-    column,
-  })
+  const moduleNotFound = findModuleNotFoundFromError(errorMessage)
+  const result =
+    moduleNotFound && compilation
+      ? findOriginalSourcePositionAndContentFromCompilation(
+          modulePath,
+          moduleNotFound,
+          compilation
+        )
+      : await findOriginalSourcePositionAndContent(source, {
+          line,
+          column,
+        })
 
   if (result === null) {
     return null
@@ -180,8 +205,7 @@ export async function createOriginalStackFrame({
 export async function getSourceById(
   isFile: boolean,
   id: string,
-  compilation: any,
-  isWebpack5: boolean
+  compilation?: webpack.Compilation
 ): Promise<Source> {
   if (isFile) {
     const fileContent: string | null = await fs
@@ -205,15 +229,12 @@ export async function getSourceById(
   }
 
   try {
-    if (compilation == null) {
+    if (!compilation) {
       return null
     }
 
-    const module = [...compilation.modules].find(
-      (searchModule) =>
-        getModuleId(compilation, searchModule, isWebpack5) === id
-    )
-    return getModuleSource(compilation, module, isWebpack5)
+    const module = getModuleById(id, compilation)
+    return getModuleSource(compilation, module)
   } catch (err) {
     console.error(`Failed to lookup module by ID ("${id}"):`, err)
     return null
@@ -230,7 +251,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
     if (pathname === '/__nextjs_original-stack-frame') {
       const frame = query as unknown as StackFrame & {
-        isServerSide: 'true' | 'false'
+        isEdgeServer: 'true' | 'false'
+        isServer: 'true' | 'false'
+        errorMessage: string | undefined
       }
       if (
         !(
@@ -244,23 +267,23 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
 
-      const isServerSide = frame.isServerSide === 'true'
       const moduleId: string = frame.file.replace(
         /^(webpack-internal:\/\/\/|file:\/\/)/,
         ''
       )
 
       let source: Source
-      try {
-        const compilation = isServerSide
+      const compilation =
+        frame.isEdgeServer === 'true'
+          ? options.edgeServerStats()?.compilation
+          : frame.isServer === 'true'
           ? options.serverStats()?.compilation
           : options.stats()?.compilation
-
+      try {
         source = await getSourceById(
           frame.file.startsWith('file:'),
           moduleId,
-          compilation,
-          !!options.isWebpack5
+          compilation
         )
       } catch (err) {
         console.log('Failed to get source map:', err)
@@ -292,6 +315,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           frame,
           modulePath: moduleId,
           rootDirectory: options.rootDirectory,
+          errorMessage: frame.errorMessage,
+          compilation,
         })
 
         if (originalStackFrameResponse === null) {
@@ -320,7 +345,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
 
-      const filePath = path.resolve(options.rootDirectory, frameFile)
+      // frame files may start with their webpack layer, like (middleware)/middleware.js
+      const filePath = path.resolve(
+        options.rootDirectory,
+        frameFile.replace(/^\([^)]+\)\//, '')
+      )
       const fileExists = await fs.access(filePath, FS.F_OK).then(
         () => true,
         () => false

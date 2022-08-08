@@ -3,8 +3,6 @@ import path from 'path'
 import { nextBuild, readNextBuildServerPageFile } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const appDir = path.join(__dirname, '../app')
 
 describe('externalize next/dist/shared', () => {

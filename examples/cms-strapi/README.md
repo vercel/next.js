@@ -27,16 +27,24 @@ Once you have access to [the environment variables you'll need](#step-7-set-up-e
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-strapi cms-strapi-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-strapi cms-strapi-app
+```
+
+```bash
+pnpm create next-app --example cms-strapi cms-strapi-app
 ```
 
 ## Configuration
@@ -46,8 +54,8 @@ yarn create next-app --example cms-strapi cms-strapi-app
 Use the provided [Strapi template Next example](https://github.com/strapi/strapi-template-next-example) to run a pre-configured Strapi project locally. See the [Strapi template docs](https://strapi.io/documentation/developer-docs/latest/setup-deployment-guides/installation/templates.html#templates) for more information
 
 ```bash
-npx create-strapi-app my-project --template next-example --quickstart
-# or: yarn create strapi-app my-project --template next-example --quickstart
+npx create-strapi-app@3 my-project --template next-example --quickstart
+# or: yarn create strapi-app@3 my-project --template next-example --quickstart
 npm run develop # or: yarn develop
 ```
 

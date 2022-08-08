@@ -59,23 +59,43 @@ const NEXT_POLYFILLED_FEATURES = [
   'es7', // Should be covered by babel-preset-env instead.
 ]
 
+const url = 'https://nextjs.org/docs/messages/no-unwanted-polyfillio'
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 module.exports = {
   meta: {
     docs: {
-      description:
-        'Prohibit unwanted features to be listed in Polyfill.io tag.',
+      description: 'Prevent duplicate polyfills from Polyfill.io.',
       category: 'HTML',
       recommended: true,
+      url,
     },
-    fixable: null, // or "code" or "whitespace"
+    fixable: null,
   },
 
   create: function (context) {
+    let scriptImport = null
+
     return {
-      'JSXOpeningElement[name.name=script][attributes.length>0]'(node) {
+      ImportDeclaration(node) {
+        if (node.source && node.source.value === 'next/script') {
+          scriptImport = node.specifiers[0].local.name
+        }
+      },
+      JSXOpeningElement(node) {
+        if (
+          node.name &&
+          node.name.name !== 'script' &&
+          node.name.name !== scriptImport
+        ) {
+          return
+        }
+        if (node.attributes.length === 0) {
+          return
+        }
+
         const srcNode = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'src'
         )
@@ -99,7 +119,7 @@ module.exports = {
                 ', '
               )} ${
                 unwantedFeatures.length > 1 ? 'are' : 'is'
-              } already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.`,
+              } already shipped with Next.js. See: ${url}`,
             })
           }
         }

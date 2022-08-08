@@ -11,8 +11,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 30)
-
 const appDir = join(__dirname, '../')
 let appPort
 let app
@@ -217,19 +215,22 @@ function lazyLoadingTests() {
     let topOfBottomImage = await browser.eval(
       `document.getElementById('lazy-boundary').parentElement.offsetTop`
     )
-    let buffer = 500
+    let buffer = 450
     await browser.eval(
       `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
     )
-    await waitFor(200)
-    expect(await browser.elementById('lazy-boundary').getAttribute('src')).toBe(
-      'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600'
-    )
-    expect(
-      await browser.elementById('lazy-boundary').getAttribute('srcset')
-    ).toBe(
-      'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600 2x'
-    )
+
+    await check(() => {
+      return browser.eval(
+        'document.querySelector("#lazy-boundary").getAttribute("src")'
+      )
+    }, 'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600')
+
+    await check(() => {
+      return browser.eval(
+        'document.querySelector("#lazy-boundary").getAttribute("srcset")'
+      )
+    }, 'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600 2x')
   })
 }
 
@@ -316,6 +317,17 @@ describe('Image Component Tests', () => {
         await browser.elementById('basic-image').getAttribute('data-nimg')
       ).toBe('intrinsic')
     })
+    it('should not pass config to custom loader prop', async () => {
+      browser = await webdriver(appPort, '/loader-prop')
+      expect(
+        await browser.elementById('loader-prop-img').getAttribute('src')
+      ).toBe('https://example.vercel.sh/success/foo.jpg?width=1024')
+      expect(
+        await browser.elementById('loader-prop-img').getAttribute('srcset')
+      ).toBe(
+        'https://example.vercel.sh/success/foo.jpg?width=480 1x, https://example.vercel.sh/success/foo.jpg?width=1024 2x'
+      )
+    })
   })
   describe('Client-side Image Component Tests', () => {
     beforeAll(async () => {
@@ -335,16 +347,14 @@ describe('Image Component Tests', () => {
       ).toBe(false)
     })
     it('should only be loaded once if `sizes` is set', async () => {
-      // Get all network requests
-      const resourceEntries = await browser.eval(
-        'window.performance.getEntries()'
-      )
+      const numRequests = await browser.eval(`(function() {
+        const entries = window.performance.getEntries()
+        return entries.filter(function(entry) {
+          return entry.name.includes('test-sizes.jpg')
+        }).length
+      })()`)
 
-      // "test-sizes.jpg" should only occur once
-      const requests = resourceEntries.filter((entry) =>
-        entry.name.includes('test-sizes.jpg')
-      )
-      expect(requests.length).toBe(1)
+      expect(numRequests).toBe(1)
     })
     describe('Client-side Errors', () => {
       beforeAll(async () => {
@@ -374,19 +384,6 @@ describe('Image Component Tests', () => {
       browser = null
     })
     lazyLoadingTests()
-    it('should automatically load images if observer does not exist', async () => {
-      browser = await webdriver(appPort, '/missing-observer')
-      expect(
-        await browser.elementById('lazy-no-observer').getAttribute('src')
-      ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=2000'
-      )
-      expect(
-        await browser.elementById('lazy-no-observer').getAttribute('srcset')
-      ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=2000 2x'
-      )
-    })
   })
   describe('Client-side Lazy Loading Tests', () => {
     beforeAll(async () => {
@@ -398,20 +395,5 @@ describe('Image Component Tests', () => {
       browser = null
     })
     lazyLoadingTests()
-    it('should automatically load images if observer does not exist', async () => {
-      await browser.waitForElementByCss('#observerlink').click()
-      await waitFor(500)
-      browser = await webdriver(appPort, '/missing-observer')
-      expect(
-        await browser.elementById('lazy-no-observer').getAttribute('src')
-      ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=2000'
-      )
-      expect(
-        await browser.elementById('lazy-no-observer').getAttribute('srcset')
-      ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=2000 2x'
-      )
-    })
   })
 })

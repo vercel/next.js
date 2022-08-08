@@ -8,7 +8,6 @@ import path, { join } from 'path'
 const appDir = join(__dirname, '../')
 let appPort
 let server
-jest.setTimeout(1000 * 60 * 2)
 
 let buildManifest
 

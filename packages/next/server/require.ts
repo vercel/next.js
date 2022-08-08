@@ -1,32 +1,35 @@
 import { promises } from 'fs'
 import { join } from 'path'
 import {
+  FONT_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  FONT_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
-import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
-import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-
-export function pageNotFoundError(page: string): Error {
-  const err: any = new Error(`Cannot find module for page: ${page}`)
-  err.code = 'ENOENT'
-  return err
-}
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 
 export function getPagePath(
   page: string,
   distDir: string,
   serverless: boolean,
   dev?: boolean,
-  locales?: string[]
+  locales?: string[],
+  appDirEnabled?: boolean
 ): string {
   const serverBuildPath = join(
     distDir,
     serverless && !dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   )
+  let rootPathsManifest: undefined | PagesManifest
+
+  if (appDirEnabled) {
+    rootPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
+  }
   const pagesManifest = require(join(
     serverBuildPath,
     PAGES_MANIFEST
@@ -36,22 +39,35 @@ export function getPagePath(
     page = denormalizePagePath(normalizePagePath(page))
   } catch (err) {
     console.error(err)
-    throw pageNotFoundError(page)
+    throw new PageNotFoundError(page)
   }
-  let pagePath = pagesManifest[page]
 
-  if (!pagesManifest[page] && locales) {
-    const manifestNoLocales: typeof pagesManifest = {}
+  const checkManifest = (manifest: PagesManifest) => {
+    let curPath = manifest[page]
 
-    for (const key of Object.keys(pagesManifest)) {
-      manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
-        pagesManifest[key]
+    if (!manifest[curPath] && locales) {
+      const manifestNoLocales: typeof pagesManifest = {}
+
+      for (const key of Object.keys(manifest)) {
+        manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
+          pagesManifest[key]
+      }
+      curPath = manifestNoLocales[page]
     }
-    pagePath = manifestNoLocales[page]
+    return curPath
+  }
+  let pagePath: string | undefined
+
+  if (rootPathsManifest) {
+    pagePath = checkManifest(rootPathsManifest)
   }
 
   if (!pagePath) {
-    throw pageNotFoundError(page)
+    pagePath = checkManifest(pagesManifest)
+  }
+
+  if (!pagePath) {
+    throw new PageNotFoundError(page)
   }
   return join(serverBuildPath, pagePath)
 }
@@ -59,11 +75,21 @@ export function getPagePath(
 export function requirePage(
   page: string,
   distDir: string,
-  serverless: boolean
+  serverless: boolean,
+  appDirEnabled?: boolean
 ): any {
-  const pagePath = getPagePath(page, distDir, serverless)
+  const pagePath = getPagePath(
+    page,
+    distDir,
+    serverless,
+    false,
+    undefined,
+    appDirEnabled
+  )
   if (pagePath.endsWith('.html')) {
-    return promises.readFile(pagePath, 'utf8')
+    return promises.readFile(pagePath, 'utf8').catch((err) => {
+      throw new MissingStaticPage(page, err.message)
+    })
   }
   return require(pagePath)
 }

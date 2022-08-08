@@ -16,8 +16,6 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 1)
-
 let app
 let appPort
 const appDir = join(__dirname, '..')
