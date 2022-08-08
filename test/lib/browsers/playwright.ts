@@ -8,6 +8,7 @@ import {
   BrowserContext,
   Page,
   ElementHandle,
+  devices,
 } from 'playwright-chromium'
 import path from 'path'
 
@@ -46,9 +47,20 @@ class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string) {
+  async setup(browserName: string, locale?: string) {
     if (browser) return
     const headless = !!process.env.HEADLESS
+    let device
+
+    if (process.env.DEVICE_NAME) {
+      device = devices[process.env.DEVICE_NAME]
+
+      if (!device) {
+        throw new Error(
+          `Invalid playwright device name ${process.env.DEVICE_NAME}`
+        )
+      }
+    }
 
     if (browserName === 'safari') {
       browser = await webkit.launch({ headless })
@@ -57,7 +69,7 @@ class Playwright extends BrowserInterface {
     } else {
       browser = await chromium.launch({ headless, devtools: !headless })
     }
-    context = await browser.newContext()
+    context = await browser.newContext({ locale, ...device })
   }
 
   async get(url: string): Promise<void> {
@@ -284,6 +296,12 @@ class Playwright extends BrowserInterface {
     })
   }
 
+  touchStart() {
+    return this.chain((el: ElementHandle) => {
+      return el.dispatchEvent('touchstart').then(() => el)
+    })
+  }
+
   elementsByCss(sel) {
     return this.chain(() =>
       page.$$(sel).then((els) => {
@@ -315,12 +333,7 @@ class Playwright extends BrowserInterface {
 
   waitForCondition(condition, timeout) {
     return this.chain(() => {
-      return page.waitForFunction(
-        `function() {
-        return ${condition}
-      }`,
-        { timeout }
-      )
+      return page.waitForFunction(condition, { timeout })
     })
   }
 

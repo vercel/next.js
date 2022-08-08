@@ -495,6 +495,16 @@ describe('i18n Support', () => {
           expect(await browser.eval('window.location.pathname')).toBe(
             `${localePath}gssp/first/`
           )
+
+          await browser.back().waitForElementByCss('#index')
+          await browser.elementByCss('#to-api-post').click()
+
+          await browser.waitForCondition(
+            'window.location.pathname === "/api/post/asdf/"'
+          )
+          const body = await browser.elementByCss('body').text()
+          const json = JSON.parse(body)
+          expect(json.post).toBe(true)
         }
       })
     }
@@ -572,5 +582,26 @@ describe('i18n Support', () => {
     expect(stderr).toContain(
       'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
     )
+  })
+
+  it('should show proper error for duplicate locales', async () => {
+    nextConfig.write(`
+      module.exports = {
+        i18n: {
+          locales: ['en', 'fr', 'nl', 'eN', 'fr'],
+          defaultLocale: 'en',
+        }
+      }
+    `)
+
+    const { code, stderr } = await nextBuild(appDir, undefined, {
+      stderr: true,
+    })
+    nextConfig.restore()
+    expect(code).toBe(1)
+    expect(stderr).toContain(
+      'Specified i18n.locales contains the following duplicate locales:'
+    )
+    expect(stderr).toContain(`eN, fr`)
   })
 })

@@ -163,7 +163,44 @@ describe('GS(S)P Server-Side Change Reloading', () => {
       originalContent.replace('count = 1', 'count = 2')
     )
 
+    await check(
+      async () =>
+        JSON.parse(await browser.elementByCss('#props').text()).count + '',
+      '2'
+    )
     expect(await browser.eval('window.beforeChange')).toBe('hi')
+    await next.patchFile(page, originalContent)
+  })
+
+  it('should keep scroll position when updating from change in getStaticProps', async () => {
+    const browser = await webdriver(next.url, '/another')
+    await browser.eval(
+      'document.getElementById("scroll-target").scrollIntoView()'
+    )
+    const scrollPosition = await browser.eval(
+      'document.documentElement.scrollTop'
+    )
+    await browser.eval(`window.beforeChange = 'hi'`)
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.count).toBe(1)
+
+    const page = 'pages/another/index.js'
+    const originalContent = await next.readFile(page)
+    await next.patchFile(
+      page,
+      originalContent.replace('count = 1', 'count = 2')
+    )
+
+    await check(
+      async () =>
+        JSON.parse(await browser.elementByCss('#props').text()).count + '',
+      '2'
+    )
+    expect(await browser.eval('window.beforeChange')).toBe('hi')
+    expect(await browser.eval('document.documentElement.scrollTop')).toBe(
+      scrollPosition
+    )
     await next.patchFile(page, originalContent)
   })
 

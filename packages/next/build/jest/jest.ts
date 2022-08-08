@@ -4,6 +4,8 @@ import loadConfig from '../../server/config'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
+import { findPagesDir } from '../../lib/find-pages-dir'
+import { loadBindings, lockfilePatchPromise } from '../swc'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -50,8 +52,11 @@ export default function nextJest(options: { dir?: string } = {}) {
       let jsConfig
       let resolvedBaseUrl
       let isEsmProject = false
+      let pagesDir: string | undefined
+
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
+        pagesDir = findPagesDir(resolvedDir).pages
         const packageConfig = loadClosestPackageJson(resolvedDir)
         isEsmProject = packageConfig.type === 'module'
 
@@ -68,6 +73,13 @@ export default function nextJest(options: { dir?: string } = {}) {
           ? await customJestConfig()
           : customJestConfig) ?? {}
 
+      // eagerly load swc bindings instead of waiting for transform calls
+      await loadBindings()
+
+      if (lockfilePatchPromise.cur) {
+        await lockfilePatchPromise.cur
+      }
+
       return {
         ...resolvedJestConfig,
 
@@ -81,11 +93,16 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
 
           // Handle image imports
-          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': require.resolve(
+          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(
             `./__mocks__/fileMock.js`
           ),
 
-          // Custom config will be able to override the default mappings
+          // Keep .svg to it's own rule to make overriding easy
+          '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
+
+          // custom config comes last to ensure the above rules are matched,
+          // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
+          // CSS/image mocks
           ...(resolvedJestConfig.moduleNameMapper || {}),
         },
         testPathIgnorePatterns: [
@@ -100,13 +117,14 @@ export default function nextJest(options: { dir?: string } = {}) {
 
         transform: {
           // Use SWC to compile tests
-          '^.+\\.(js|jsx|ts|tsx)$': [
+          '^.+\\.(js|jsx|ts|tsx|mjs)$': [
             require.resolve('../swc/jest-transformer'),
             {
               nextConfig,
               jsConfig,
               resolvedBaseUrl,
               isEsmProject,
+              pagesDir,
             },
           ],
           // Allow for appending/overriding the default transforms

@@ -15,4 +15,5 @@ When restarted it will retry all uncompleted jobs, but if a job was unsuccessful
 
 ### Useful Links
 
-- [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md)
+- [`getStaticPaths`](https://nextjs.org/docs/basic-features/data-fetching/get-static-paths)
+- [`getStaticProps`](https://nextjs.org/docs/basic-features/data-fetching/get-static-props)

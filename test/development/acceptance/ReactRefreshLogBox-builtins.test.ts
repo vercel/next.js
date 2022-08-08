@@ -100,4 +100,49 @@ describe('ReactRefreshLogBox', () => {
 
     await cleanup()
   })
+
+  test('Module not found (missing global CSS)', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'pages/_app.js',
+          `
+        import './non-existent.css'
+        
+        export default function App({ Component, pageProps }) {
+          return <Component {...pageProps} />
+        }
+      `,
+        ],
+        [
+          'pages/index.js',
+          `
+        export default function Page(props) {
+          return <p>index page</p>
+        }
+      `,
+        ],
+      ])
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    const source = await session.getRedboxSource()
+    expect(source).toMatchSnapshot()
+
+    await session.patch(
+      'pages/_app.js',
+      `
+      export default function App({ Component, pageProps }) {
+        return <Component {...pageProps} />
+      }
+    `
+    )
+    expect(await session.hasRedbox(false)).toBe(false)
+    expect(
+      await session.evaluate(() => document.documentElement.innerHTML)
+    ).toContain('index page')
+
+    await cleanup()
+  })
 })

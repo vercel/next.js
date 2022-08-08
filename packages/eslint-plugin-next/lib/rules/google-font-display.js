@@ -1,12 +1,13 @@
 const NodeAttributes = require('../utils/node-attributes.js')
 
+const url = 'https://nextjs.org/docs/messages/google-font-display'
+
 module.exports = {
   meta: {
     docs: {
-      description:
-        'Ensure correct font-display property is assigned for Google Fonts',
+      description: 'Enforce font-display behavior with Google Fonts.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/google-font-display',
+      url,
     },
   },
   create: function (context) {
@@ -33,22 +34,23 @@ module.exports = {
           const displayValue = params.get('display')
 
           if (!params.has('display')) {
-            message = 'Display parameter is missing.'
+            message =
+              'A font-display parameter is missing (adding `&display=optional` is recommended).'
           } else if (
+            displayValue === 'auto' ||
             displayValue === 'block' ||
-            displayValue === 'fallback' ||
-            displayValue === 'auto'
+            displayValue === 'fallback'
           ) {
             message = `${
               displayValue[0].toUpperCase() + displayValue.slice(1)
-            } behavior is not recommended.`
+            } is not recommended.`
           }
         }
 
         if (message) {
           context.report({
             node,
-            message: `${message} See: https://nextjs.org/docs/messages/google-font-display`,
+            message: `${message} See: ${url}`,
           })
         }
       },

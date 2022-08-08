@@ -4,11 +4,9 @@ import { promises } from 'fs'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
-// @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
-import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfigComplete } from './config-shared'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
@@ -17,6 +15,8 @@ import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
+import { mockRequest } from './lib/mock-request'
+import { hasMatch } from '../shared/lib/match-remote-pattern'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -75,6 +75,7 @@ export class ImageOptimizerCache {
       minimumCacheTTL = 60,
       formats = ['image/webp'],
     } = imageData
+    const remotePatterns = nextConfig.experimental.images?.remotePatterns || []
     const { url, w, q } = query
     let href: string
 
@@ -104,7 +105,7 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is invalid' }
       }
 
-      if (!domains || !domains.includes(hrefParsed.hostname)) {
+      if (!hasMatch(domains, remotePatterns, hrefParsed)) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }
@@ -123,7 +124,7 @@ export class ImageOptimizerCache {
 
     const width = parseInt(w, 10)
 
-    if (!width || isNaN(width)) {
+    if (width <= 0 || isNaN(width)) {
       return {
         errorMessage: '"w" parameter (width) must be a number greater than 0',
       }
@@ -307,60 +308,12 @@ export async function imageOptimizer(
     maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   } else {
     try {
-      const resBuffers: Buffer[] = []
-      const mockRes: any = new Stream.Writable()
-
-      const isStreamFinished = new Promise(function (resolve, reject) {
-        mockRes.on('finish', () => resolve(true))
-        mockRes.on('end', () => resolve(true))
-        mockRes.on('error', (err: any) => reject(err))
-      })
-
-      mockRes.write = (chunk: Buffer | string) => {
-        resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-      }
-      mockRes._write = (
-        chunk: Buffer | string,
-        _encoding: string,
-        callback: () => void
-      ) => {
-        mockRes.write(chunk)
-        // According to Node.js documentation, the callback MUST be invoked to signal that
-        // the write completed successfully. If this callback is not invoked, the 'finish' event
-        // will not be emitted.
-        // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
-        callback()
-      }
-
-      const mockHeaders: Record<string, string | string[]> = {}
-
-      mockRes.writeHead = (_status: any, _headers: any) =>
-        Object.assign(mockHeaders, _headers)
-      mockRes.getHeader = (name: string) => mockHeaders[name.toLowerCase()]
-      mockRes.getHeaders = () => mockHeaders
-      mockRes.getHeaderNames = () => Object.keys(mockHeaders)
-      mockRes.setHeader = (name: string, value: string | string[]) =>
-        (mockHeaders[name.toLowerCase()] = value)
-      mockRes.removeHeader = (name: string) => {
-        delete mockHeaders[name.toLowerCase()]
-      }
-      mockRes._implicitHeader = () => {}
-      mockRes.connection = _res.connection
-      mockRes.finished = false
-      mockRes.statusCode = 200
-
-      const mockReq: any = new Stream.Readable()
-
-      mockReq._read = () => {
-        mockReq.emit('end')
-        mockReq.emit('close')
-        return Buffer.from('')
-      }
-
-      mockReq.headers = _req.headers
-      mockReq.method = _req.method
-      mockReq.url = href
-      mockReq.connection = _req.connection
+      const {
+        resBuffers,
+        req: mockReq,
+        res: mockRes,
+        streamPromise: isStreamFinished,
+      } = mockRequest(href, _req.headers, _req.method || 'GET', _req.connection)
 
       await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
       await isStreamFinished
@@ -419,7 +372,12 @@ export async function imageOptimizer(
 
   if (mimeType) {
     contentType = mimeType
-  } else if (upstreamType?.startsWith('image/') && getExtension(upstreamType)) {
+  } else if (
+    upstreamType?.startsWith('image/') &&
+    getExtension(upstreamType) &&
+    upstreamType !== WEBP &&
+    upstreamType !== AVIF
+  ) {
     contentType = upstreamType
   } else {
     contentType = JPEG
@@ -464,10 +422,7 @@ export async function imageOptimizer(
       optimizedBuffer = await transformer.toBuffer()
       // End sharp transformation logic
     } else {
-      if (
-        showSharpMissingWarning &&
-        nextConfig.experimental?.outputStandalone
-      ) {
+      if (showSharpMissingWarning && nextConfig.output === 'standalone') {
         // TODO: should we ensure squoosh also works even though we don't
         // recommend it be used in production and this is a production feature
         console.error(
@@ -546,10 +501,18 @@ export async function imageOptimizer(
       throw new ImageError(500, 'Unable to optimize buffer')
     }
   } catch (error) {
-    return {
-      buffer: upstreamBuffer,
-      contentType: upstreamType!,
-      maxAge,
+    if (upstreamBuffer && upstreamType) {
+      // If we fail to optimize, fallback to the original image
+      return {
+        buffer: upstreamBuffer,
+        contentType: upstreamType,
+        maxAge: nextConfig.images.minimumCacheTTL,
+      }
+    } else {
+      throw new ImageError(
+        400,
+        'Unable to optimize image and unable to fallback to upstream image'
+      )
     }
   }
 }
@@ -600,14 +563,16 @@ function setResponseHeaders(
   contentType: string | null,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string,
+  maxAge: number,
+  isDev: boolean
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
     'Cache-Control',
     isStatic
       ? 'public, max-age=315360000, immutable'
-      : `public, max-age=0, must-revalidate`
+      : `public, max-age=${isDev ? 0 : maxAge}, must-revalidate`
   )
   if (sendEtagResponse(req, res, etag)) {
     // already called res.end() so we're finished
@@ -641,7 +606,9 @@ export function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string,
+  maxAge: number,
+  isDev: boolean
 ) {
   const contentType = getContentType(extension)
   const etag = getHash([buffer])
@@ -653,9 +620,12 @@ export function sendResponse(
     contentType,
     isStatic,
     xCache,
-    contentSecurityPolicy
+    contentSecurityPolicy,
+    maxAge,
+    isDev
   )
   if (!result.finished) {
+    res.setHeader('Content-Length', Buffer.byteLength(buffer))
     res.end(buffer)
   }
 }
@@ -755,7 +725,9 @@ export async function resizeImage(
   extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
-  if (sharp) {
+  if (isAnimated(content)) {
+    return content
+  } else if (sharp) {
     const transformer = sharp(content)
 
     if (extension === 'avif') {

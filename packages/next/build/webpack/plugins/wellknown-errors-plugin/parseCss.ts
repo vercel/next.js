@@ -23,8 +23,8 @@ export function getCssError(
 
   const res = regexCssError.exec(err.message)
   if (res) {
-    const [, _lineNumer, _column, reason] = res
-    const lineNumber = Math.max(1, parseInt(_lineNumer, 10))
+    const [, _lineNumber, _column, reason] = res
+    const lineNumber = Math.max(1, parseInt(_lineNumber, 10))
     const column = Math.max(1, parseInt(_column, 10))
 
     return new SimpleWebpackError(

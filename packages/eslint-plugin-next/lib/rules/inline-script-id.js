@@ -1,10 +1,12 @@
+const url = 'https://nextjs.org/docs/messages/inline-script-id'
+
 module.exports = {
   meta: {
     docs: {
       description:
-        'next/script components with inline content must specify an `id` attribute.',
+        'Enforce `id` attribute on `next/script` components with inline content.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/inline-script-id',
+      url,
     },
   },
   create: function (context) {
@@ -59,8 +61,7 @@ module.exports = {
           if (!attributeNames.has('id')) {
             context.report({
               node,
-              message:
-                'next/script components with inline content must specify an `id` attribute. See: https://nextjs.org/docs/messages/inline-script-id',
+              message: `\`next/script\` components with inline content must specify an \`id\` attribute. See: ${url}`,
             })
           }
         }

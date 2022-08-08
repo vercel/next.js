@@ -1,0 +1,6 @@
+{
+  "displayName": false,
+  "fileName": false,
+  "transpileTemplateLiterals": false,
+  "ssr": true
+}

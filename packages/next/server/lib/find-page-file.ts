@@ -1,13 +1,57 @@
-import { join, sep as pathSeparator, normalize } from 'path'
-import chalk from '../../lib/chalk'
-import { warn } from '../../build/output/log'
-import { promises } from 'fs'
-import { denormalizePagePath } from '../normalize-page-path'
 import { fileExists } from '../../lib/file-exists'
+import { getPagePaths } from '../../shared/lib/page-path/get-page-paths'
+import { nonNullable } from '../../lib/non-nullable'
+import { join, sep, normalize } from 'path'
+import { promises } from 'fs'
+import { warn } from '../../build/output/log'
+import chalk from '../../lib/chalk'
+
+/**
+ * Finds a page file with the given parameters. If the page is duplicated with
+ * multiple extensions it will throw, otherwise it will return the *relative*
+ * path to the page file or null if it is not found.
+ *
+ * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
+ * @param normalizedPagePath The page normalized (it will be denormalized).
+ * @param pageExtensions Array of page extensions.
+ */
+export async function findPageFile(
+  pagesDir: string,
+  normalizedPagePath: string,
+  pageExtensions: string[]
+): Promise<string | null> {
+  const pagePaths = getPagePaths(normalizedPagePath, pageExtensions)
+  const [existingPath, ...others] = (
+    await Promise.all(
+      pagePaths.map(async (path) =>
+        (await fileExists(join(pagesDir, path))) ? path : null
+      )
+    )
+  ).filter(nonNullable)
+
+  if (!existingPath) {
+    return null
+  }
+
+  if (!(await isTrueCasePagePath(existingPath, pagesDir))) {
+    return null
+  }
+
+  if (others.length > 0) {
+    warn(
+      `Duplicate page detected. ${chalk.cyan(
+        join('pages', existingPath)
+      )} and ${chalk.cyan(
+        join('pages', others[0])
+      )} both resolve to ${chalk.cyan(normalizedPagePath)}.`
+    )
+  }
+
+  return existingPath
+}
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
-  const pageSegments = normalize(pagePath).split(pathSeparator).filter(Boolean)
-
+  const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
   const segmentExistsPromises = pageSegments.map(async (segment, i) => {
     const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i))
     const parentDirEntries = await promises.readdir(segmentParentDir)
@@ -15,51 +59,4 @@ async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   })
 
   return (await Promise.all(segmentExistsPromises)).every(Boolean)
-}
-
-export async function findPageFile(
-  rootDir: string,
-  normalizedPagePath: string,
-  pageExtensions: string[]
-): Promise<string | null> {
-  const foundPagePaths: string[] = []
-
-  const page = denormalizePagePath(normalizedPagePath)
-
-  for (const extension of pageExtensions) {
-    if (!normalizedPagePath.endsWith('/index')) {
-      const relativePagePath = `${page}.${extension}`
-      const pagePath = join(rootDir, relativePagePath)
-
-      if (await fileExists(pagePath)) {
-        foundPagePaths.push(relativePagePath)
-      }
-    }
-
-    const relativePagePathWithIndex = join(page, `index.${extension}`)
-    const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
-    if (await fileExists(pagePathWithIndex)) {
-      foundPagePaths.push(relativePagePathWithIndex)
-    }
-  }
-
-  if (foundPagePaths.length < 1) {
-    return null
-  }
-
-  if (!(await isTrueCasePagePath(foundPagePaths[0], rootDir))) {
-    return null
-  }
-
-  if (foundPagePaths.length > 1) {
-    warn(
-      `Duplicate page detected. ${chalk.cyan(
-        join('pages', foundPagePaths[0])
-      )} and ${chalk.cyan(
-        join('pages', foundPagePaths[1])
-      )} both resolve to ${chalk.cyan(normalizedPagePath)}.`
-    )
-  }
-
-  return foundPagePaths[0]
 }

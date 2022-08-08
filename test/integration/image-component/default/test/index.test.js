@@ -137,6 +137,20 @@ function runTests(mode) {
         },
       ])
 
+      // When priority={true}, we should _not_ set loading="lazy"
+      expect(
+        await browser.elementById('basic-image').getAttribute('loading')
+      ).toBe(null)
+      expect(
+        await browser.elementById('load-eager').getAttribute('loading')
+      ).toBe(null)
+      expect(
+        await browser.elementById('responsive1').getAttribute('loading')
+      ).toBe(null)
+      expect(
+        await browser.elementById('responsive2').getAttribute('loading')
+      ).toBe(null)
+
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .join('\n')
@@ -278,6 +292,102 @@ function runTests(mode) {
         await browser.close()
       }
     }
+  })
+
+  it('should callback native onLoad in most cases', async () => {
+    let browser = await webdriver(appPort, '/on-load')
+
+    await browser.eval(
+      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+    )
+
+    await check(
+      () => browser.eval(`document.getElementById("img1").currentSrc`),
+      /test(.*)jpg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img2").currentSrc`),
+      /test(.*).png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img3").currentSrc`),
+      /test\.svg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img4").currentSrc`),
+      /test(.*)ico/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'loaded 1 img1 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'loaded 1 img2 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg3").textContent`),
+      'loaded 1 img3 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg4").textContent`),
+      'loaded 1 img4 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg8").textContent`),
+      'loaded 1 img8 with native onLoad'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        ),
+      'intrinsic'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      /wide.png/
+    )
+    await browser.eval('document.getElementById("toggle").click()')
+    // The normal `onLoad()` is triggered by lazy placeholder image
+    // so ideally this would be "2" instead of "3" count
+    await check(
+      () => browser.eval(`document.getElementById("msg8").textContent`),
+      'loaded 3 img8 with native onLoad'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        ),
+      'fixed'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      /test-rect.jpg/
+    )
+  })
+
+  it('should callback native onError when error occured while loading image', async () => {
+    let browser = await webdriver(appPort, '/on-error')
+
+    await check(
+      () => browser.eval(`document.getElementById("img1").currentSrc`),
+      /test\.png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img2").currentSrc`),
+      //This is an empty data url
+      /nonexistent-img\.png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'no error occured'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'error occured while loading img2'
+    )
   })
 
   it('should work with image with blob src', async () => {
@@ -584,14 +694,65 @@ function runTests(mode) {
     }
   })
 
+  it('should handle the styles prop appropriately', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/style-prop')
+
+      expect(
+        await browser.elementById('with-styles').getAttribute('style')
+      ).toBe(
+        'border-radius:10px;padding:0;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%'
+      )
+      expect(
+        await browser
+          .elementById('with-overlapping-styles-intrinsic')
+          .getAttribute('style')
+      ).toBe(
+        'width:0;border-radius:10px;margin:auto;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;display:block;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%'
+      )
+
+      expect(
+        await browser
+          .elementById('without-styles-responsive')
+          .getAttribute('style')
+      ).toBe(
+        'position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%'
+      )
+
+      if (mode === 'dev') {
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).toMatch(
+          /Image with src \/test.png is assigned the following styles, which are overwritten by automatically-generated styles: padding/gm
+        )
+        expect(warnings).toMatch(
+          /Image with src \/test.jpg is assigned the following styles, which are overwritten by automatically-generated styles: width, margin/gm
+        )
+        expect(warnings).not.toMatch(
+          /Image with src \/test.webp is assigned the following styles/gm
+        )
+      }
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
 
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Image is missing required "src" property. Make sure you pass "src" in props to the `next/image` component. Received: {"width":200}'
-      )
+      expect(await hasRedbox(browser)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+      }, /Image is missing required "src" property/gm)
     })
 
     it('should show invalid src error', async () => {
@@ -688,18 +849,6 @@ function runTests(mode) {
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
-    })
-
-    it('should warn when style prop is used', async () => {
-      const browser = await webdriver(appPort, '/invalid-style')
-
-      await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
-      }, /Image with src (.*)jpg(.*) is using unsupported "style" property(.*)/gm)
-
-      expect(await hasRedbox(browser)).toBe(false)
     })
 
     it('should not warn when Image is child of p', async () => {
@@ -831,6 +980,7 @@ function runTests(mode) {
         }
         return 'done'
       }, 'done')
+      await waitFor(1000)
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .filter((log) => log.startsWith('Image with src'))
@@ -1039,6 +1189,7 @@ function runTests(mode) {
           ),
         'none'
       )
+
       expect(
         await getComputedStyle(
           browser,
@@ -1059,6 +1210,95 @@ function runTests(mode) {
             'background-image'
           ),
         'none'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should re-lazyload images after src changes', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/lazy-src-change')
+      // image should not be loaded as it is out of viewport
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      // Move image into viewport
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "none"'
+      )
+
+      // image should be loaded by now
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(
+        () => browser.eval(`document.getElementById("basic-image").currentSrc`),
+        /test\.jpg/
+      )
+
+      // Make image out of viewport again
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "block"'
+      )
+      // Toggle image's src
+      await browser.eval(
+        'document.getElementById("button-change-image-src").click()'
+      )
+      // "new" image should be lazy loaded
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      // Move image into viewport again
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "none"'
+      )
+      // "new" image should be loaded by now
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(
+        () => browser.eval(`document.getElementById("basic-image").currentSrc`),
+        /test\.png/
       )
     } finally {
       if (browser) {
@@ -1150,7 +1390,7 @@ function runTests(mode) {
     }
   })
 
-  it('should be valid W3C HTML', async () => {
+  it('should be valid HTML', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/valid-html-w3c')
@@ -1161,8 +1401,10 @@ function runTests(mode) {
         url,
         format: 'json',
         isLocal: true,
+        validator: 'whatwg',
       })
-      expect(result.messages).toEqual([])
+      expect(result.isValid).toBe(true)
+      expect(result.errors).toEqual([])
     } finally {
       if (browser) {
         await browser.close()

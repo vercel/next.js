@@ -1,12 +1,13 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import spawn from 'cross-spawn'
+import type { PackageManager } from './get-pkg-manager'
 
 interface InstallArgs {
   /**
-   * Indicate whether to install packages using Yarn.
+   * Indicate whether to install packages using npm, pnpm or Yarn.
    */
-  useYarn: boolean
+  packageManager: PackageManager
   /**
    * Indicate whether there is an active Internet connection.
    */
@@ -25,10 +26,10 @@ interface InstallArgs {
 export function install(
   root: string,
   dependencies: string[] | null,
-  { useYarn, isOnline, devDependencies }: InstallArgs
+  { packageManager, isOnline, devDependencies }: InstallArgs
 ): Promise<void> {
   /**
-   * NPM-specific command-line flags.
+   * (p)npm-specific command-line flags.
    */
   const npmFlags: string[] = []
   /**
@@ -40,11 +41,12 @@ export function install(
    */
   return new Promise((resolve, reject) => {
     let args: string[]
-    let command: string = useYarn ? 'yarnpkg' : 'npm'
+    let command = packageManager
+    const useYarn = packageManager === 'yarn'
 
     if (dependencies && dependencies.length) {
       /**
-       * If there are dependencies, run a variation of `{displayCommand} add`.
+       * If there are dependencies, run a variation of `{packageManager} add`.
        */
       if (useYarn) {
         /**
@@ -57,7 +59,7 @@ export function install(
         args.push(...dependencies)
       } else {
         /**
-         * Call `npm install [--save|--save-dev] ...`.
+         * Call `(p)npm install [--save|--save-dev] ...`.
          */
         args = ['install', '--save-exact']
         args.push(devDependencies ? '--save-dev' : '--save')
@@ -65,7 +67,7 @@ export function install(
       }
     } else {
       /**
-       * If there are no dependencies, run a variation of `{displayCommand}
+       * If there are no dependencies, run a variation of `{packageManager}
        * install`.
        */
       args = ['install']

@@ -1,7 +1,7 @@
 use chrono::Utc;
+use swc_common::errors::HANDLER;
 use swc_common::{Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::HANDLER;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {
@@ -54,8 +54,7 @@ impl Fold for PageConfig {
                         init: Some(Box::new(Expr::Lit(Lit::Str(Str {
                             value: format!("{} {}", STRING_LITERAL_DROP_BUNDLE, timestamp).into(),
                             span: DUMMY_SP,
-                            kind: StrKind::Synthesized {},
-                            has_escape: false,
+                            raw: None,
                         })))),
                         span: DUMMY_SP,
                         definite: false,

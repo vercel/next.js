@@ -1,12 +1,16 @@
-import { ApolloServer } from 'apollo-server-micro'
-import { schema } from '../../lib/schema'
+import { createServer } from '@graphql-yoga/node'
+import gql from 'graphql-tag'
 
-const apolloServer = new ApolloServer({ schema })
+import resolvers from 'lib/resolvers'
+import typeDefs from 'lib/schema'
 
-export const config = {
-  api: {
-    bodyParser: false,
+const server = createServer({
+  schema: {
+    typeDefs: gql(typeDefs),
+    resolvers,
   },
-}
+  endpoint: '/api/graphql',
+  // graphiql: false // uncomment to disable GraphiQL
+})
 
-export default apolloServer.createHandler({ path: '/api/graphql' })
+export default server

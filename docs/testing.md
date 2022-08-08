@@ -10,6 +10,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cypress">Next.js with Cypress</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-playwright">Next.js with Playwright</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-jest">Next.js with Jest and React Testing Library</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-vitest">Next.js with Vitest</a></li>
   </ul>
 </details>
 
@@ -212,7 +213,7 @@ test('should navigate to the about page', async ({ page }) => {
   // Start from the index page (the baseURL is set via the webServer in the playwright.config.ts)
   await page.goto('http://localhost:3000/')
   // Find an element with the text 'About Page' and click on it
-  await page.click('text=About Page')
+  await page.click('text=About')
   // The new url should be "/about" (baseURL is used there)
   await expect(page).toHaveURL('http://localhost:3000/about')
   // The new page should contain an h1 with "About Page"
@@ -232,7 +233,7 @@ Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another 
 
 ### Running Playwright on Continuous Integration (CI)
 
-Playwright will by default run your tests in the [headless mode]https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
+Playwright will by default run your tests in the [headless mode](https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
 
 You can learn more about Playwright and Continuous Integration from these resources:
 
@@ -262,10 +263,10 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
 
-To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom`:
+To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/react`, `@testing-library/jest-dom`:
 
 ```bash
-npm install --save-dev jest @testing-library/react @testing-library/jest-dom
+npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
 Create a `jest.config.js` file in your project's root directory and add the following:
@@ -301,6 +302,8 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 - Ignoring `.next` from test resolving
 - Loading `next.config.js` for flags that enable SWC transforms
 
+> **Note**: To test environment variables directly, load them manually in a separate setup script or in your `jest.config.js` file. For more information, please see [Test Environment Variables](https://nextjs.org/docs/basic-features/environment-variables#test-environment-variables).
+
 ### Setting up Jest (with Babel)
 
 If you opt-out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
@@ -310,10 +313,17 @@ Here are the recommended options to configure Jest for Next.js:
 ```jsx
 // jest.config.js
 module.exports = {
+  collectCoverage: true,
+  // on node 14.x coverage provider v8 offers good speed and more or less good report
+  coverageProvider: 'v8',
   collectCoverageFrom: [
     '**/*.{js,jsx,ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
+    '!<rootDir>/out/**',
+    '!<rootDir>/.next/**',
+    '!<rootDir>/*.config.js',
+    '!<rootDir>/coverage/**',
   ],
   moduleNameMapper: {
     // Handle CSS imports (with CSS modules)
@@ -438,6 +448,7 @@ For example, we can add a test to check if the `<Home />` component successfully
 
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
+import '@testing-library/jest-dom'
 
 describe('Home', () => {
   it('renders a heading', () => {
@@ -482,7 +493,6 @@ For further reading, you may find these resources helpful:
 
 The Next.js community has created packages and articles you may find helpful:
 
-- [next-page-tester](https://github.com/toomuchdesign/next-page-tester) for DOM Integration Testing.
 - [next-router-mock](https://github.com/scottrippey/next-router-mock) for Storybook.
 - [Test Preview Vercel Deploys with Cypress](https://glebbahmutov.com/blog/develop-preview-test/) by Gleb Bahmutov.
 

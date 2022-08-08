@@ -1,9 +1,10 @@
 {
   "name": "@next/swc",
-  "version": "12.1.1-canary.2",
+  "version": "12.2.4",
   "private": true,
   "scripts": {
-    "build-native": "napi build --platform --cargo-name next_swc_napi native",
+    "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi native --features plugin",
+    "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi native",
     "build-wasm": "wasm-pack build crates/wasm --scope=next"
   },
   "napi": {
@@ -23,5 +24,8 @@
         "aarch64-pc-windows-msvc"
       ]
     }
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "2.7.0"
   }
 }

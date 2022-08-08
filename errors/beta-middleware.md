@@ -2,12 +2,14 @@
 
 #### Why This Error Occurred
 
-The middleware feature of Next.js is still in beta so this warning is shown to express that the feature is not yet covered by semver and can experience changes at any point.
+[Middleware](https://nextjs.org/docs/advanced-features/middleware) was beta in versions prior to `v12.2` and not yet covered by [semver](https://semver.org/).
 
 #### Possible Ways to Fix It
 
-No fix necessary.
+You can continue to use Middleware in versions prior to `v12.2`. However, you will need to make changes to upgrade to newer versions.
+
+If you're using Next.js on Vercel, your existing deploys using Middleware will continue to work, and you can continue to deploy your site using Middleware. When you upgrade your site to `v12.2` or later, you will need to follow the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide).
 
 ### Useful Links
 
-- [semver documentation](https://semver.org/)
+- [Middleware Upgrade Guide](https://nextjs.org/docs/messages/middleware-upgrade-guide)

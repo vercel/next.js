@@ -140,7 +140,7 @@ async function handler(req, res) {
 export default handler
 ```
 
-> Go to the [API Routes with CORS](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors) example to see the finished app
+> Go to the [API Routes with CORS](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors) example to see the finished app.
 
 ## Extending the `req`/`res` objects with TypeScript
 
@@ -165,9 +165,8 @@ export const setCookie = (
   const stringValue =
     typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
 
-  if ('maxAge' in options) {
-    options.expires = new Date(Date.now() + options.maxAge)
-    options.maxAge /= 1000
+  if (typeof options.maxAge === 'number') {
+    options.expires = new Date(Date.now() + options.maxAge * 1000)
   }
 
   res.setHeader('Set-Cookie', serialize(name, stringValue, options))

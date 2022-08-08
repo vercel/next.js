@@ -1,4 +1,4 @@
-/* eslint-disable no-extend-native */
+/* eslint-disable no-extend-native, no-sequences */
 
 // Contains polyfills for methods missing after browser version(s):
 // Edge 16, Firefox 60, Chrome 61, Safari 10.1

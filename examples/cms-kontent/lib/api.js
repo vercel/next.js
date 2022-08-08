@@ -16,31 +16,32 @@ const client = new DeliveryClient({
 
 function parseAuthor(author) {
   return {
-    name: author.name.value,
-    picture: author.picture.value[0].url,
+    name: author.elements.name.value,
+    picture: author.elements.picture.value[0].url,
   }
 }
 
 function parsePost(post) {
   return {
-    title: post.title.value,
-    slug: post.slug.value,
-    date: post.date.value.toISOString(),
-    content: post.content.value,
-    excerpt: post.excerpt.value,
-    coverImage: post.cover_image.value[0].url,
-    author: parseAuthor(post.author.value[0]),
+    title: post.elements.title.value,
+    slug: post.elements.slug.value,
+    date: post.elements.date.value,
+    content: post.elements.content.value,
+    excerpt: post.elements.excerpt.value,
+    coverImage: post.elements.cover_image.value[0].url,
+    author: parseAuthor(post.elements.author.linkedItems[0]),
   }
 }
 
 export async function getAllPostSlugs() {
-  const postsResponse = await client
+  return await client
     .items()
     .type('post')
     .elementsParameter(['slug'])
     .toPromise()
-
-  return postsResponse.items.map((post) => post.slug.value)
+    .then((response) =>
+      response.data.items.map((post) => post.elements.slug.value)
+    )
 }
 
 export async function getMorePostsForSlug(slug, preview) {
@@ -51,16 +52,14 @@ export async function getMorePostsForSlug(slug, preview) {
     })
     .type('post')
     .orderByDescending('elements.date')
-    .withParameter('elements.slug[neq]', slug)
+    .notEqualsFilter('elements.slug', slug)
     .limitParameter(2)
     .toPromise()
-    .then((res) => {
-      return res.items.map((post) => parsePost(post))
-    })
+    .then((response) => response.data.items.map((post) => parsePost(post)))
 }
 
 export async function getPostBySlug(slug, preview) {
-  const post = await client
+  return await client
     .items()
     .queryConfig({
       usePreviewMode: !!preview,
@@ -68,9 +67,7 @@ export async function getPostBySlug(slug, preview) {
     .type('post')
     .equalsFilter('elements.slug', slug)
     .toPromise()
-    .then((result) => result.getFirstItem())
-    .then((post) => parsePost(post))
-  return post
+    .then((response) => parsePost(response.data.items[0]))
 }
 
 export async function getAllPosts(preview) {
@@ -82,5 +79,5 @@ export async function getAllPosts(preview) {
     .type('post')
     .orderByDescending('elements.date')
     .toPromise()
-    .then((postsResponse) => postsResponse.items.map((post) => parsePost(post)))
+    .then((response) => response.data.items.map((post) => parsePost(post)))
 }

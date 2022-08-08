@@ -20,6 +20,7 @@ export async function verifyAndLint(
     const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
       numWorkers,
       enableWorkerThreads,
+      maxRetries: 0,
     }) as Worker & {
       runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
     }

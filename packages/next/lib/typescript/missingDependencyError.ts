@@ -3,7 +3,7 @@ import chalk from 'next/dist/compiled/chalk'
 import { getOxfordCommaList } from '../oxford-comma-list'
 import { MissingDependency } from '../has-necessary-dependencies'
 import { FatalError } from '../fatal-error'
-import { isYarn } from '../is-yarn'
+import { getPkgManager } from '../helpers/get-pkg-manager'
 
 export async function missingDepsError(
   dir: string,
@@ -11,6 +11,7 @@ export async function missingDepsError(
 ) {
   const packagesHuman = getOxfordCommaList(missingPackages.map((p) => p.pkg))
   const packagesCli = missingPackages.map((p) => p.pkg).join(' ')
+  const packageManager = getPkgManager(dir)
 
   const removalMsg =
     '\n\n' +
@@ -28,7 +29,11 @@ export async function missingDepsError(
       chalk.bold(`Please install ${chalk.bold(packagesHuman)} by running:`) +
       '\n\n' +
       `\t${chalk.bold.cyan(
-        ((await isYarn(dir)) ? 'yarn add --dev' : 'npm install --save-dev') +
+        (packageManager === 'yarn'
+          ? 'yarn add --dev'
+          : packageManager === 'pnpm'
+          ? 'pnpm install --save-dev'
+          : 'npm install --save-dev') +
           ' ' +
           packagesCli
       )}` +

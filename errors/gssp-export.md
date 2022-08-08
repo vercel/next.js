@@ -33,6 +33,6 @@ The `getServerSideProps` lifecycle is not compatible with `next export`, so you'
 
 ### Useful Links
 
-- [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md)
-- [`getStaticProps` documentation](/docs/basic-features/data-fetching/get-static-props.md)
-- [`exportPathMap` documentation](/docs/api-reference/next.config.js/exportPathMap.md)
+- [Automatic Static Optimization](https://nextjs.org/docs/advanced-features/automatic-static-optimization)
+- [`getStaticProps` documentation](https://nextjs.org/docs/basic-features/data-fetching/get-static-props)
+- [`exportPathMap` documentation](https://nextjs.org/docs/api-reference/next.config.js/exportPathMap)

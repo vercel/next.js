@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
+import type { ClonableBody } from './body-streams'
 
 export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
@@ -13,12 +14,14 @@ export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
 export interface RequestMeta {
   __NEXT_INIT_QUERY?: ParsedUrlQuery
   __NEXT_INIT_URL?: string
+  __NEXT_CLONABLE_BODY?: ClonableBody
   __nextHadTrailingSlash?: boolean
   __nextIsLocaleDomain?: boolean
   __nextStrippedLocale?: boolean
   _nextDidRewrite?: boolean
   _nextHadBasePath?: boolean
   _nextRewroteUrl?: string
+  _protocol?: string
 }
 
 export function getRequestMeta(
@@ -59,7 +62,7 @@ type NextQueryMetadata = {
   __nextLocale?: string
   __nextSsgPath?: string
   _nextBubbleNoFallback?: '1'
-  _nextDataReq?: '1'
+  __nextDataReq?: '1'
 }
 
 export type NextParsedUrlQuery = ParsedUrlQuery &
@@ -80,7 +83,7 @@ export function getNextInternalQuery(
     '__nextLocale',
     '__nextSsgPath',
     '_nextBubbleNoFallback',
-    '_nextDataReq',
+    '__nextDataReq',
   ]
   const nextInternalQuery: NextQueryMetadata = {}
 

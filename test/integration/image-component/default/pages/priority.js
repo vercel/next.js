@@ -14,7 +14,7 @@ const Page = () => {
       ></Image>
       <Image
         loading="eager"
-        id="basic-image"
+        id="load-eager"
         src="/test.png"
         width="400"
         height="400"

@@ -8,15 +8,19 @@ describe('reading request body in middleware', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/_middleware.js': `
+        'middleware.js': `
           const { NextResponse } = require('next/server');
 
           export default async function middleware(request) {
             if (!request.body) {
-              return new Response('No body', { status: 400 });
+              return new Response(null, { status: 400 });
             }
 
-            const json = await request.json();
+            let json;
+
+            if (!request.nextUrl.searchParams.has("no_reading")) {
+              json = await request.json();
+            }
 
             if (request.nextUrl.searchParams.has("next")) {
               const res = NextResponse.next();
@@ -24,35 +28,10 @@ describe('reading request body in middleware', () => {
               return res;
             }
 
-            return new Response(JSON.stringify({
-              root: true,
-              ...json,
-            }), {
+            return new Response(null, {
               status: 200,
               headers: {
-                'content-type': 'application/json',
-              },
-            })
-          }
-        `,
-
-        'pages/nested/_middleware.js': `
-          const { NextResponse } = require('next/server');
-
-          export default async function middleware(request) {
-            if (!request.body) {
-              return new Response('No body', { status: 400 });
-            }
-
-            const json = await request.json();
-
-            return new Response(JSON.stringify({
-              root: false,
-              ...json,
-            }), {
-              status: 200,
-              headers: {
-                'content-type': 'application/json',
+                data: JSON.stringify({ root: true, ...json }),
               },
             })
           }
@@ -90,30 +69,9 @@ describe('reading request body in middleware', () => {
       }
     )
     expect(response.status).toEqual(200)
-    expect(await response.json()).toEqual({
+    expect(JSON.parse(response.headers.get('data'))).toEqual({
       foo: 'bar',
       root: true,
-    })
-  })
-
-  it('reads the same body on both middlewares', async () => {
-    const response = await fetchViaHTTP(
-      next.url,
-      '/nested/hello',
-      {
-        next: '1',
-      },
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          foo: 'bar',
-        }),
-      }
-    )
-    expect(response.status).toEqual(200)
-    expect(await response.json()).toEqual({
-      foo: 'bar',
-      root: false,
     })
   })
 
@@ -140,5 +98,33 @@ describe('reading request body in middleware', () => {
       api: true,
     })
     expect(response.headers.get('x-from-root-middleware')).toEqual('1')
+    expect(response.headers.has('data')).toBe(false)
+  })
+
+  it('passes the body to the api endpoint when no body is consumed on middleware', async () => {
+    const response = await fetchViaHTTP(
+      next.url,
+      '/api/hi',
+      {
+        next: '1',
+        no_reading: '1',
+      },
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          foo: 'bar',
+        }),
+      }
+    )
+    expect(response.status).toEqual(200)
+    expect(await response.json()).toEqual({
+      foo: 'bar',
+      api: true,
+    })
+    expect(response.headers.get('x-from-root-middleware')).toEqual('1')
+    expect(response.headers.has('data')).toBe(false)
   })
 })

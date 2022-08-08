@@ -1,5 +1,6 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { NextConfigComplete } from '../../../server/config-shared'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfigComplete } from '../../../server/config-shared'
+
 import { base } from './blocks/base'
 import { css } from './blocks/css'
 import { images } from './blocks/images'

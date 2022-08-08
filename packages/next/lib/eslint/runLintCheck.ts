@@ -14,11 +14,11 @@ import { ESLINT_PROMPT_VALUES } from '../constants'
 import { existsSync, findPagesDir } from '../find-pages-dir'
 import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
-import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
 import isError, { getProperError } from '../is-error'
+import { getPkgManager } from '../helpers/get-pkg-manager'
 
 type Config = {
   plugins: string[]
@@ -34,8 +34,12 @@ function isValidSeverity(severity: string): severity is Severity {
 }
 
 const requiredPackages = [
-  { file: 'eslint', pkg: 'eslint' },
-  { file: 'eslint-config-next', pkg: 'eslint-config-next' },
+  { file: 'eslint', pkg: 'eslint', exportsRestrict: false },
+  {
+    file: 'eslint-config-next',
+    pkg: 'eslint-config-next',
+    exportsRestrict: false,
+  },
 ]
 
 async function cliPrompt() {
@@ -95,15 +99,18 @@ async function lint(
   try {
     // Load ESLint after we're sure it exists:
     const deps = await hasNecessaryDependencies(baseDir, requiredPackages)
+    const packageManager = getPkgManager(baseDir)
 
     if (deps.missing.some((dep) => dep.pkg === 'eslint')) {
       Log.error(
         `ESLint must be installed${
           lintDuringBuild ? ' in order to run during builds:' : ':'
         } ${chalk.bold.cyan(
-          (await isYarn(baseDir))
-            ? 'yarn add --dev eslint'
-            : 'npm install --save-dev eslint'
+          (packageManager === 'yarn'
+            ? 'yarn add --dev'
+            : packageManager === 'pnpm'
+            ? 'pnpm install --save-dev'
+            : 'npm install --save-dev') + ' eslint'
         )}`
       )
       return null
@@ -167,7 +174,8 @@ async function lint(
       }
     }
 
-    const pagesDir = findPagesDir(baseDir)
+    // TODO: should we apply these rules to "root" dir as well?
+    const pagesDir = findPagesDir(baseDir).pages
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false
@@ -265,10 +273,12 @@ export async function runLintCheck(
 ): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
+    // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
     const eslintrcFile =
       (await findUp(
         [
           '.eslintrc.js',
+          '.eslintrc.cjs',
           '.eslintrc.yaml',
           '.eslintrc.yml',
           '.eslintrc.json',
