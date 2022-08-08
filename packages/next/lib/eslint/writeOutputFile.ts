@@ -38,8 +38,9 @@ export async function writeOutputFile(outputFile: string, outputData: string) {
       await fs.mkdir(path.dirname(filePath), { recursive: true })
       await fs.writeFile(filePath, outputData)
       Log.info(`The output file has been created: ${filePath}`)
-    } catch {
+    } catch (err) {
       Log.error(`There was a problem writing the output file: ${filePath}`)
+      console.error(err)
     }
   }
 }
