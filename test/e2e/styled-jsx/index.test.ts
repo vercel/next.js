@@ -2,6 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 const appDir = path.join(__dirname, 'app')
 
@@ -16,7 +17,6 @@ function runTest(packageManager?: string) {
         files: {
           node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
           pages: new FileRef(path.join(appDir, 'pages')),
-          'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
           '.npmrc': new FileRef(path.join(appDir, '.npmrc')),
         },
         packageJson: {
@@ -41,13 +41,36 @@ function runTest(packageManager?: string) {
     })
     afterAll(() => next.destroy())
 
-    it('should contain styled-jsx styles in html', async () => {
+    it('should contain styled-jsx styles during SSR', async () => {
       const html = await renderViaHTTP(next.url, '/')
-      expect(html).toMatch(/color:(\s)*red/)
-      expect(html).toMatch(/color:(\s)*cyan/)
+      expect(html).toMatch(/color:.*?red/)
+      expect(html).toMatch(/color:.*?cyan/)
+    })
+
+    it('should render styles during CSR', async () => {
+      const browser = await webdriver(next.url, '/')
+      const color = await browser.eval(
+        `getComputedStyle(document.querySelector('button')).color`
+      )
+
+      expect(color).toMatch('0, 255, 255')
+    })
+
+    it('should render styles during CSR (AMP)', async () => {
+      const browser = await webdriver(next.url, '/amp')
+      const color = await browser.eval(
+        `getComputedStyle(document.querySelector('button')).color`
+      )
+
+      expect(color).toMatch('0, 255, 255')
+    })
+
+    it('should render styles during SSR (AMP)', async () => {
+      const html = await renderViaHTTP(next.url, '/amp')
+      expect(html).toMatch(/color:.*?cyan/)
     })
   })
 }
 
-runTest()
+// runTest()
 runTest('pnpm')

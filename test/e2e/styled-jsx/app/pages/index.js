@@ -1,4 +1,4 @@
-import { Button } from '../node_modules_bak/my-comps/button'
+import { Button } from 'my-comps/button'
 
 export default function Page() {
   return (

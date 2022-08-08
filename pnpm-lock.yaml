@@ -154,7 +154,6 @@ importers:
       semver: 7.3.7
       shell-quote: 1.7.3
       styled-components: 5.3.3
-      styled-jsx: 5.0.2
       styled-jsx-plugin-postcss: 3.0.2
       tailwindcss: 1.1.3
       taskr: 1.1.0
@@ -308,7 +307,6 @@ importers:
       semver: 7.3.7
       shell-quote: 1.7.3
       styled-components: 5.3.3_vtcxgy2wlmese7djxl6h7ok674
-      styled-jsx: 5.0.2_uuaxwgga6hqycsez5ok7v2wg4i
       styled-jsx-plugin-postcss: 3.0.2
       tailwindcss: 1.1.3
       taskr: 1.1.0
@@ -586,7 +584,6 @@ importers:
       '@swc/helpers': 0.4.3
       caniuse-lite: 1.0.30001332
       postcss: 8.4.14
-      styled-jsx: 5.0.2_@babel+core@7.18.0
       use-sync-external-store: 1.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -751,6 +748,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
+      styled-jsx: 5.0.2_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -20563,23 +20561,6 @@ packages:
         optional: true
     dependencies:
       '@babel/core': 7.18.0
-    dev: false
-
-  /styled-jsx/5.0.2_uuaxwgga6hqycsez5ok7v2wg4i:
-    resolution: {integrity: sha512-LqPQrbBh3egD57NBcHET4qcgshPks+yblyhPlH2GY8oaDgKs8SK4C3dBh3oSJjgzJ3G5t1SYEZGHkP+QEpX9EQ==}
-    engines: {node: '>= 12.0.0'}
-    peerDependencies:
-      '@babel/core': '*'
-      babel-plugin-macros: '*'
-      react: '>= 16.8.0 || 17.x.x || ^18.0.0-0'
-    peerDependenciesMeta:
-      '@babel/core':
-        optional: true
-      babel-plugin-macros:
-        optional: true
-    dependencies:
-      '@babel/core': 7.18.0
-      react: 18.2.0
     dev: true
 
   /stylehacks/4.0.3:

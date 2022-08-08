@@ -1,6 +1,7 @@
 import type { NextConfigComplete, ServerRuntime } from '../server/config-shared'
 
 import '../server/node-polyfill-fetch'
+import '../build/webpack/require-hook'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'

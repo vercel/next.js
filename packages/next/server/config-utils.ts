@@ -1,15 +1,16 @@
-export function createLoadRequireHook(callback?: () => void) {
-  let installed: boolean = false
+import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
 
-  return () => {
-    if (installed) {
-      return
-    }
-    installed = true
+let installed: boolean = false
 
-    callback?.()
-
-    // load mapped modules
-    require('../build/webpack/require-hook')
+export function loadWebpackHook() {
+  if (installed) {
+    return
   }
+  installed = true
+
+  initWebpack()
+
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  require('../build/webpack/require-hook')
 }
