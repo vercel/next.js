@@ -1,4 +1,4 @@
-import { Worker } from 'jest-worker'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import * as path from 'path'
 import { execOnce } from '../../../shared/lib/utils'
 import { cpus } from 'os'

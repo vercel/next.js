@@ -204,6 +204,10 @@ module.exports = {
           source: '/blog/about',
           destination: '/hello',
         },
+        {
+          source: '/overridden/:path*',
+          destination: '/overridden',
+        },
       ],
       beforeFiles: [
         {
@@ -219,6 +223,14 @@ module.exports = {
         {
           source: '/old-blog/:path*',
           destination: '/blog/:path*',
+        },
+        {
+          source: '/overridden',
+          destination: 'https://example.vercel.sh',
+        },
+        {
+          source: '/nfl/:path*',
+          destination: '/_sport/nfl/:path*',
         },
       ],
     }

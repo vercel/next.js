@@ -9,7 +9,7 @@ const customJestConfig = {
   verbose: true,
   rootDir: 'test',
   modulePaths: ['<rootDir>/lib'],
-  transformIgnorePatterns: ['/next[/\\\\]dist/'],
+  transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
 }
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async

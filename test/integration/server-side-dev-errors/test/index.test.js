@@ -11,6 +11,7 @@ import {
   hasRedbox,
   getRedboxSource,
 } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '../')
 const gspPage = join(appDir, 'pages/gsp.js')
@@ -49,7 +50,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/gsp')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/gsp.js') &&
           err.includes('6:2') &&
@@ -81,7 +82,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/gssp')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/gssp.js') &&
           err.includes('6:2') &&
@@ -113,7 +114,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/blog/first')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/blog/[slug].js') &&
           err.includes('6:2') &&
@@ -145,7 +146,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/api/hello')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/hello.js') &&
           err.includes('2:2') &&
@@ -177,7 +178,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/api/blog/first')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/blog/[slug].js') &&
           err.includes('2:2') &&
@@ -202,7 +203,7 @@ describe('server-side dev errors', () => {
     await webdriver(appPort, '/uncaught-rejection')
 
     await check(async () => {
-      const err = stderr.substr(stderrIdx)
+      const err = stderr.slice(stderrIdx)
 
       return err.includes('pages/uncaught-rejection.js') &&
         err.includes('7:19') &&
@@ -213,12 +214,28 @@ describe('server-side dev errors', () => {
     }, 'success')
   })
 
+  it('should show server-side error for uncaught empty rejection correctly', async () => {
+    const stderrIdx = stderr.length
+    await webdriver(appPort, '/uncaught-empty-rejection')
+
+    await check(async () => {
+      const cleanStderr = stripAnsi(stderr.slice(stderrIdx))
+
+      return cleanStderr.includes('pages/uncaught-empty-rejection.js') &&
+        cleanStderr.includes('7:19') &&
+        cleanStderr.includes('getServerSideProps') &&
+        cleanStderr.includes('new Error()')
+        ? 'success'
+        : cleanStderr
+    }, 'success')
+  })
+
   it('should show server-side error for uncaught exception correctly', async () => {
     const stderrIdx = stderr.length
     await webdriver(appPort, '/uncaught-exception')
 
     await check(async () => {
-      const err = stderr.substr(stderrIdx)
+      const err = stderr.slice(stderrIdx)
 
       return err.includes('pages/uncaught-exception.js') &&
         err.includes('7:10') &&
@@ -226,6 +243,22 @@ describe('server-side dev errors', () => {
         err.includes('catch this exception')
         ? 'success'
         : err
+    }, 'success')
+  })
+
+  it('should show server-side error for uncaught empty exception correctly', async () => {
+    const stderrIdx = stderr.length
+    await webdriver(appPort, '/uncaught-empty-exception')
+
+    await check(async () => {
+      const cleanStderr = stripAnsi(stderr.slice(stderrIdx))
+
+      return cleanStderr.includes('pages/uncaught-empty-exception.js') &&
+        cleanStderr.includes('7:10') &&
+        cleanStderr.includes('getServerSideProps') &&
+        cleanStderr.includes('new Error()')
+        ? 'success'
+        : cleanStderr
     }, 'success')
   })
 })

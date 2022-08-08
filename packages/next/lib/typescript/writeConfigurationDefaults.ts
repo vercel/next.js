@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
@@ -54,6 +54,12 @@ function getDesiredCompilerOptions(
     },
     moduleResolution: {
       parsedValue: ts.ModuleResolutionKind.NodeJs,
+      // All of these values work:
+      parsedValues: [
+        ts.ModuleResolutionKind.NodeJs,
+        ts.ModuleResolutionKind.Node12,
+        ts.ModuleResolutionKind.NodeNext,
+      ],
       value: 'node',
       reason: 'to match webpack resolution',
     },

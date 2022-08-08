@@ -37,6 +37,15 @@ fn send_json_to_zipkin(zipkin_api: &str, value: String) {
     println!("body = {:?}", res.text());
 }
 
+// function to append zero to a number until 16 characters
+fn pad_zeros(num: u64) -> String {
+    let mut num_str = num.to_string();
+    while num_str.len() < 16 {
+        num_str = format!("0{}", num_str);
+    }
+    num_str
+}
+
 fn main() {
     let service_name = "nextjs";
     let ipv4 = "127.0.0.1";
@@ -68,6 +77,13 @@ fn main() {
                                 logged_url = true;
                             }
                             data["localEndpoint"] = Value::Object(local_endpoint.clone());
+
+                            data["id"] = Value::String(pad_zeros(data["id"].as_u64().unwrap()));
+                            if data["parentId"] != Value::Null {
+                                data["parentId"] =
+                                    Value::String(pad_zeros(data["parentId"].as_u64().unwrap()));
+                            }
+
                             data
                         })
                         .collect::<Value>(),
@@ -78,6 +94,8 @@ fn main() {
                 };
 
                 let json_map = serde_json::to_string(&v).expect("Failed to serialize");
+
+                // println!("{:}", json_map);
 
                 send_json_to_zipkin(&zipkin_api, json_map);
             }

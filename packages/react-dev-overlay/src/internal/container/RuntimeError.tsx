@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { StackFrame } from 'stacktrace-parser'
 import { CodeFrame } from '../components/CodeFrame'
+import { ReadyRuntimeError } from '../helpers/getErrorByType'
 import { noop as css } from '../helpers/noop-template'
 import { getFrameSource, OriginalStackFrame } from '../helpers/stack-frame'
-import { ReadyRuntimeError } from './Errors'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 

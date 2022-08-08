@@ -54,6 +54,7 @@ experience of a web page. The following web vitals are all included:
 - [Largest Contentful Paint](https://web.dev/lcp/) (LCP)
 - [First Input Delay](https://web.dev/fid/) (FID)
 - [Cumulative Layout Shift](https://web.dev/cls/) (CLS)
+- [Interaction to Next Paint](https://web.dev/inp/) (INP) _(experimental)_
 
 You can handle all the results of these metrics using the `web-vital` label:
 
@@ -84,6 +85,9 @@ export function reportWebVitals(metric) {
       break
     case 'TTFB':
       // handle TTFB results
+      break
+    case 'INP':
+      // handle INP results (note: INP is still an experimental metric)
       break
     default:
       break
@@ -159,12 +163,12 @@ export function reportWebVitals(metric) {
 
 > **Note**: If you use [Google Analytics](https://analytics.google.com/analytics/web/), using the
 > `id` value can allow you to construct metric distributions manually (to calculate percentiles,
-> etc...).
+> etc.)
 >
 > ```js
 > export function reportWebVitals({ id, name, label, value }) {
 >   // Use `window.gtag` if you initialized Google Analytics as this example:
->   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics/pages/_document.js
+>   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics/pages/_app.js
 >   window.gtag('event', name, {
 >     event_category:
 >       label === 'web-vital' ? 'Web Vitals' : 'Next.js custom metric',

@@ -8,11 +8,12 @@ import {
   FontManifest,
 } from '../../../server/font-utils'
 import postcss from 'postcss'
-import minifier from 'cssnano-simple'
+import minifier from 'next/dist/compiled/cssnano-simple'
 import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../shared/lib/constants'
+import * as Log from '../../output/log'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([
@@ -197,11 +198,18 @@ export class FontStylesheetGatheringPlugin {
             const css = await fontDefinitionPromises[promiseIndex]
 
             if (css) {
-              const content = await minifyCss(css)
-              this.manifestContent.push({
-                url: fontStylesheets[promiseIndex],
-                content,
-              })
+              try {
+                const content = await minifyCss(css)
+                this.manifestContent.push({
+                  url: fontStylesheets[promiseIndex],
+                  content,
+                })
+              } catch (err) {
+                Log.warn(
+                  `Failed to minify the stylesheet for ${fontStylesheets[promiseIndex]}. Skipped optimizing this font.`
+                )
+                console.error(err)
+              }
             }
           }
 

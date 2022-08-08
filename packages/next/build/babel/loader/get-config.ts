@@ -77,17 +77,13 @@ function getPlugins(
     : null
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
-        [require('react-refresh/babel'), { skipEnvCheck: true }],
+        [
+          require('next/dist/compiled/react-refresh/babel'),
+          { skipEnvCheck: true },
+        ],
         { type: 'plugin' }
       )
     : null
-  const noAnonymousDefaultExportItem =
-    hasReactRefresh && !isServer
-      ? createConfigItem(
-          [require('../plugins/no-anonymous-default-export'), {}],
-          { type: 'plugin' }
-        )
-      : null
   const pageConfigItem =
     !isServer && isPageFile
       ? createConfigItem([require('../plugins/next-page-config')], {
@@ -127,7 +123,6 @@ function getPlugins(
     : null
 
   return [
-    noAnonymousDefaultExportItem,
     reactRefreshItem,
     pageConfigItem,
     disallowExportAllItem,

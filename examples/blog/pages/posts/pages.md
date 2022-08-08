@@ -43,7 +43,7 @@ Importantly, Next.js lets you **choose** which pre-rendering form you'd like to 
 
 We **recommend** using **Static Generation** over Server-side Rendering for performance reasons. Statically generated pages can be cached by CDN with no extra configuration to boost performance. However, in some cases, Server-side Rendering might be the only option.
 
-You can also use **Client-side Rendering** along with Static Generation or Server-side Rendering. That means some parts of a page can be rendered entirely by client side JavaScript. To learn more, take a look at the [Data Fetching](/docs/basic-features/data-fetching.md#fetching-data-on-the-client-side) documentation.
+You can also use **Client-side Rendering** along with Static Generation or Server-side Rendering. That means some parts of a page can be rendered entirely by client side JavaScript. To learn more, take a look at the [Data Fetching](/docs/basic-features/data-fetching/client-side.md) documentation.
 
 ## Static Generation (Recommended)
 
@@ -117,7 +117,7 @@ export async function getStaticProps() {
 export default Blog
 ```
 
-To learn more about how `getStaticProps` works, check out the [Data Fetching documentation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation).
+To learn more about how `getStaticProps` works, check out the [Data Fetching documentation](/docs/basic-features/data-fetching/get-static-props.md).
 
 #### Scenario 2: Your page paths depend on external data
 
@@ -176,7 +176,7 @@ export async function getStaticProps({ params }) {
 export default Post
 ```
 
-To learn more about how `getStaticPaths` works, check out the [Data Fetching documentation](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation).
+To learn more about how `getStaticPaths` works, check out the [Data Fetching documentation](/docs/basic-features/data-fetching/get-static-paths.md).
 
 ### When should I use Static Generation?
 
@@ -195,7 +195,7 @@ On the other hand, Static Generation is **not** a good idea if you cannot pre-re
 
 In cases like this, you can do one of the following:
 
-- Use Static Generation with **Client-side Rendering:** You can skip pre-rendering some parts of a page and then use client-side JavaScript to populate them. To learn more about this approach, check out the [Data Fetching documentation](/docs/basic-features/data-fetching.md#fetching-data-on-the-client-side).
+- Use Static Generation with **Client-side Rendering:** You can skip pre-rendering some parts of a page and then use client-side JavaScript to populate them. To learn more about this approach, check out the [Data Fetching documentation](/docs/basic-features/data-fetching/client-side.md).
 - Use **Server-Side Rendering:** Next.js pre-renders a page on each request. It will be slower because the page cannot be cached by a CDN, but the pre-rendered page will always be up-to-date. We'll talk about this approach below.
 
 ## Server-side Rendering
@@ -228,7 +228,7 @@ export default Page
 
 As you can see, `getServerSideProps` is similar to `getStaticProps`, but the difference is that `getServerSideProps` is run on every request instead of on build time.
 
-To learn more about how `getServerSideProps` works, check out our [Data Fetching documentation](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering)
+To learn more about how `getServerSideProps` works, check out our [Data Fetching documentation](/docs/basic-features/data-fetching/get-server-side-props.md)
 
 ## Summary
 

@@ -23,10 +23,10 @@ describe('next/swc', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(`
-        "import { useState } from 'react';
-        var ref = useState(0), count = ref[0], setCount = ref[1];
-        "
-      `)
+"import { useState } from \\"react\\";
+var ref = useState(0), count = ref[0], setCount = ref[1];
+"
+`)
     })
 
     it('should be able to ignore some Array-destructured hook return values', async () => {
@@ -42,10 +42,10 @@ describe('next/swc', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(`
-        "import { useState } from 'react';
-        var ref = useState(0), setCount = ref[1];
-        "
-      `)
+"import { useState } from \\"react\\";
+var ref = useState(0), setCount = ref[1];
+"
+`)
     })
   })
 })

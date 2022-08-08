@@ -18,7 +18,7 @@ export default function SsrProfile({
           Server-side Rendering (SSR)
         </a>{' '}
         and{' '}
-        <a href="https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering">
+        <a href="https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props">
           getServerSideProps
         </a>
       </h2>

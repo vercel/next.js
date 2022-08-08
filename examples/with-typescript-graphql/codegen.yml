@@ -1,0 +1,14 @@
+schema:
+  - 'lib/schema.ts':
+      noRequire: true
+documents: ./lib/documents/*.graphql
+generates:
+  ./lib/graphql-operations.ts:
+    plugins:
+      - typescript
+      - typescript-operations
+      - typed-document-node
+  ./lib/resolvers-types.ts:
+    plugins:
+      - typescript
+      - typescript-resolvers

@@ -24,7 +24,10 @@ function MyApp({ Component, pageProps }) {
   return (
     <Page>
       {/* Inject the Segment snippet into the <head> of the document  */}
-      <Script dangerouslySetInnerHTML={{ __html: renderSnippet() }} />
+      <Script
+        id="segment-script"
+        dangerouslySetInnerHTML={{ __html: renderSnippet() }}
+      />
       <Component {...pageProps} />
     </Page>
   )

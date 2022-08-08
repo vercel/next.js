@@ -11,12 +11,21 @@ module.exports = function (task) {
   task.plugin(
     'swc',
     {},
-    function* (file, serverOrClient, { stripExtension, dev } = {}) {
+    function* (
+      file,
+      serverOrClient,
+      {
+        stripExtension,
+        keepImportAssertions = false,
+        interopClientDefaultExport = false,
+      } = {}
+    ) {
       // Don't compile .d.ts
       if (file.base.endsWith('.d.ts')) return
 
       const isClient = serverOrClient === 'client'
 
+      /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
         module: {
           type: 'commonjs',
@@ -24,12 +33,16 @@ module.exports = function (task) {
         },
         jsc: {
           loose: true,
-
+          externalHelpers: true,
           target: 'es2016',
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
+            importAssertions: true,
             tsx: file.base.endsWith('.tsx'),
+          },
+          experimental: {
+            keepImportAssertions,
           },
           transform: {
             react: {
@@ -43,6 +56,7 @@ module.exports = function (task) {
         },
       }
 
+      /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
         module: {
           type: 'commonjs',
@@ -55,11 +69,17 @@ module.exports = function (task) {
         },
         jsc: {
           loose: true,
-
+          // Do not enable external helpers on server-side files build
+          // _is_native_funtion helper is not compatible with edge runtime (need investigate)
+          externalHelpers: false,
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
+            importAssertions: true,
             tsx: file.base.endsWith('.tsx'),
+          },
+          experimental: {
+            keepImportAssertions,
           },
           transform: {
             react: {
@@ -82,6 +102,7 @@ module.exports = function (task) {
       const options = {
         filename: path.join(file.dir, file.base),
         sourceMaps: true,
+        inlineSourcesContent: false,
         sourceFileName: path.relative(distFilePath, fullFilePath),
 
         ...swcOptions,
@@ -98,6 +119,16 @@ module.exports = function (task) {
       }
 
       if (output.map) {
+        if (interopClientDefaultExport) {
+          output.code += `
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
+`
+        }
+
         const map = `${file.base}.map`
 
         output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)

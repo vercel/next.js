@@ -2,14 +2,27 @@ const os = require('os')
 const path = require('path')
 const execa = require('execa')
 const fs = require('fs-extra')
+const childProcess = require('child_process')
+const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
-async function createNextInstall(dependencies) {
+async function createNextInstall(
+  dependencies,
+  installCommand,
+  packageJson = {},
+  packageLockPath = ''
+) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
-  const installDir = path.join(tmpDir, `next-install-${Date.now()}`)
-  const tmpRepoDir = path.join(tmpDir, `next-repo-${Date.now()}`)
+  const installDir = path.join(
+    tmpDir,
+    `next-install-${randomBytes(32).toString('hex')}`
+  )
+  const tmpRepoDir = path.join(
+    tmpDir,
+    `next-repo-${randomBytes(32).toString('hex')}`
+  )
 
   // ensure swc binary is present in the native folder if
   // not already built
@@ -31,7 +44,7 @@ async function createNextInstall(dependencies) {
     }
   }
 
-  for (const item of ['package.json', 'yarn.lock', 'packages']) {
+  for (const item of ['package.json', 'packages']) {
     await fs.copy(path.join(origRepoDir, item), path.join(tmpRepoDir, item), {
       filter: (item) => {
         return (
@@ -44,31 +57,60 @@ async function createNextInstall(dependencies) {
     })
   }
 
-  const pkgPaths = await linkPackages(tmpRepoDir)
+  let combinedDependencies = dependencies
+
+  if (!(packageJson && packageJson.nextPrivateSkipLocalDeps)) {
+    const pkgPaths = await linkPackages(tmpRepoDir)
+    combinedDependencies = {
+      next: pkgPaths.get('next'),
+      ...Object.keys(dependencies).reduce((prev, pkg) => {
+        const pkgPath = pkgPaths.get(pkg)
+        prev[pkg] = pkgPath || dependencies[pkg]
+        return prev
+      }, {}),
+    }
+  }
 
   await fs.ensureDir(installDir)
   await fs.writeFile(
     path.join(installDir, 'package.json'),
     JSON.stringify(
       {
-        dependencies: {
-          ...dependencies,
-          next: pkgPaths.get('next'),
-        },
+        ...packageJson,
+        dependencies: combinedDependencies,
         private: true,
       },
       null,
       2
     )
   )
-  await execa('yarn', ['install'], {
-    cwd: installDir,
-    stdio: ['ignore', 'inherit', 'inherit'],
-    env: {
-      ...process.env,
-      YARN_CACHE_FOLDER: path.join(installDir, '.yarn-cache'),
-    },
-  })
+
+  if (packageLockPath) {
+    await fs.copy(
+      packageLockPath,
+      path.join(installDir, path.basename(packageLockPath))
+    )
+  }
+
+  if (installCommand) {
+    const installString =
+      typeof installCommand === 'function'
+        ? installCommand({ dependencies: combinedDependencies })
+        : installCommand
+
+    console.log('running install command', installString)
+
+    childProcess.execSync(installString, {
+      cwd: installDir,
+      stdio: ['ignore', 'inherit', 'inherit'],
+    })
+  } else {
+    await execa('pnpm', ['install', '--strict-peer-dependencies=false'], {
+      cwd: installDir,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: process.env,
+    })
+  }
 
   await fs.remove(tmpRepoDir)
   return installDir

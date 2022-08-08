@@ -1,10 +1,12 @@
+import type { NextConfigComplete } from '../server/config-shared'
+
 import '../server/node-polyfill-fetch'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { isValidElementType } from 'react-is'
+import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   Redirect,
@@ -16,32 +18,30 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
+  MIDDLEWARE_FILENAME,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths, PageConfig } from 'next/types'
-import {
-  denormalizePagePath,
-  normalizePagePath,
-} from '../server/normalize-page-path'
+import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
 import { BuildManifest } from '../server/get-page-files'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
-import { NextConfigComplete } from '../server/config-shared'
-import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
+import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
-const { builtinModules } = require('module')
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
@@ -59,27 +59,17 @@ const fsStat = (file: string) => {
   return (fileStats[file] = fileSize(file))
 }
 
-export function collectPages(
-  directory: string,
-  pageExtensions: string[]
-): Promise<string[]> {
-  return recursiveReadDir(
-    directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
-  )
-}
-
 export interface PageInfo {
   isHybridAmp?: boolean
   size: number
   totalSize: number
   static: boolean
   isSsg: boolean
-  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
+  runtime: ServerRuntime
 }
 
 export async function printTreeView(
@@ -92,6 +82,7 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
+    middlewareManifest,
     useStatic404,
     gzipSize = true,
   }: {
@@ -100,6 +91,7 @@ export async function printTreeView(
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
+    middlewareManifest: MiddlewareManifest
     useStatic404: boolean
     gzipSize?: boolean
   }
@@ -141,7 +133,6 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
-
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
     static: useStatic404,
@@ -189,16 +180,14 @@ export async function printTreeView(
       (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
     const symbol =
-      item === '/_app'
+      item === '/_app' || item === '/_app.server'
         ? ' '
-        : item.endsWith('/_middleware')
-        ? 'ƒ'
-        : pageInfo?.isWebSsr
-        ? 'ℇ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
         ? '●'
+        : pageInfo?.runtime === SERVER_RUNTIME.edge
+        ? 'ℇ'
         : 'λ'
 
     usedSymbols.add(symbol)
@@ -348,6 +337,18 @@ export async function printTreeView(
     ])
   })
 
+  const middlewareInfo = middlewareManifest.middleware?.['/']
+  if (middlewareInfo?.files.length > 0) {
+    const sizes = await Promise.all(
+      middlewareInfo.files
+        .map((dep) => `${distPath}/${dep}`)
+        .map(gzipSize ? fsStatGzip : fsStat)
+    )
+
+    messages.push(['', '', ''])
+    messages.push(['ƒ Middleware', getPrettySize(sum(sizes)), ''])
+  }
+
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r'],
@@ -359,11 +360,6 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        usedSymbols.has('ƒ') && [
-          'ƒ',
-          '(Middleware)',
-          `intercepts requests (uses ${chalk.cyan('_middleware')})`,
-        ],
         usedSymbols.has('ℇ') && [
           'ℇ',
           '(Streaming)',
@@ -715,13 +711,13 @@ export async function buildStaticPaths(
     // For a string-provided path, we must make sure it matches the dynamic
     // route.
     if (typeof entry === 'string') {
-      entry = removePathTrailingSlash(entry)
+      entry = removeTrailingSlash(entry)
 
       const localePathResult = normalizeLocalePath(entry, locales)
       let cleanedEntry = entry
 
       if (localePathResult.detectedLocale) {
-        cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+        cleanedEntry = entry.slice(localePathResult.detectedLocale.length + 1)
       } else if (defaultLocale) {
         entry = `/${defaultLocale}${entry}`
       }
@@ -856,7 +852,6 @@ export async function isPageStatic(
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
-  hasFlightData?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[]
@@ -867,8 +862,8 @@ export async function isPageStatic(
   traceExcludes?: string[]
 }> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
-  return isPageStaticSpan.traceAsyncFn(async () => {
-    try {
+  return isPageStaticSpan
+    .traceAsyncFn(async () => {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
 
@@ -879,7 +874,6 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
-      const hasFlightData = !!(Comp as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -967,11 +961,7 @@ export async function isPageStatic(
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = mod.pageConfig
       return {
-        isStatic:
-          !hasStaticProps &&
-          !hasGetInitialProps &&
-          !hasServerProps &&
-          !hasFlightData,
+        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,
@@ -979,16 +969,18 @@ export async function isPageStatic(
         encodedPrerenderRoutes,
         hasStaticProps,
         hasServerProps,
-        hasFlightData,
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
       }
-    } catch (err) {
-      if (isError(err) && err.code === 'MODULE_NOT_FOUND') return {}
-      throw err
-    }
-  })
+    })
+    .catch((err) => {
+      if (err.message === 'INVALID_DEFAULT_EXPORT') {
+        throw err
+      }
+      console.error(err)
+      throw new Error(`Failed to collect page data for ${page}`)
+    })
 }
 
 export async function hasCustomGetInitialProps(
@@ -1101,54 +1093,31 @@ export function detectConflictingPaths(
   }
 }
 
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
-      }
-    })
-  })
-
-  return [...cssFiles]
-}
-
-export function getRawPageExtensions(pageExtensions: string[]): string[] {
+/**
+ * With RSC we automatically add .server and .client to page extensions. This
+ * function allows to remove them for cases where we just need to strip out
+ * the actual extension keeping the .server and .client.
+ */
+export function withoutRSCExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
   )
 }
 
-export function isFlightPage(
+export function isServerComponentPage(
   nextConfig: NextConfigComplete,
-  pagePath: string
+  filePath: string
 ): boolean {
-  if (
-    !(
-      nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.concurrentFeatures
-    )
-  )
+  if (!nextConfig.experimental.serverComponents) {
     return false
+  }
 
-  const rawPageExtensions = getRawPageExtensions(
+  const rawPageExtensions = withoutRSCExtensions(
     nextConfig.pageExtensions || []
   )
-  const isRscPage = rawPageExtensions.some((ext) => {
-    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  return rawPageExtensions.some((ext) => {
+    return filePath.endsWith(`.server.${ext}`)
   })
-  return isRscPage
-}
-
-export function getUnresolvedModuleFromError(
-  error: string
-): string | undefined {
-  const moduleErrorRegex = new RegExp(
-    `Module not found: Can't resolve '(\\w+)'`
-  )
-  const [, moduleName] = error.match(moduleErrorRegex) || []
-  return builtinModules.find((item: string) => item === moduleName)
 }
 
 export async function copyTracedFiles(
@@ -1156,7 +1125,8 @@ export async function copyTracedFiles(
   distDir: string,
   pageKeys: string[],
   tracingRoot: string,
-  serverConfig: { [key: string]: any }
+  serverConfig: { [key: string]: any },
+  middlewareManifest: MiddlewareManifest
 ) {
   const outputPath = path.join(distDir, 'standalone')
   const copiedFiles = new Set()
@@ -1186,11 +1156,7 @@ export async function copyTracedFiles(
           const symlink = await fs.readlink(tracedFilePath).catch(() => null)
 
           if (symlink) {
-            console.log('symlink', path.relative(tracingRoot, symlink))
-            await fs.symlink(
-              path.relative(tracingRoot, symlink),
-              fileOutputPath
-            )
+            await fs.symlink(symlink, fileOutputPath)
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
           }
@@ -1199,6 +1165,21 @@ export async function copyTracedFiles(
         await copySema.release()
       })
     )
+  }
+
+  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
+    if (isMiddlewareFilename(middleware.name)) {
+      for (const file of middleware.files) {
+        const originalPath = path.join(distDir, file)
+        const fileOutputPath = path.join(
+          outputPath,
+          path.relative(tracingRoot, distDir),
+          file
+        )
+        await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+        await fs.copyFile(originalPath, fileOutputPath)
+      }
+    }
   }
 
   for (const page of pageKeys) {
@@ -1226,16 +1207,14 @@ const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
 
-const nextServer = new NextServer({
-  dir: path.join(__dirname),
-  dev: false,
-  conf: ${JSON.stringify({
-    ...serverConfig,
-    distDir: `./${path.relative(dir, distDir)}`,
-  })},
-})
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+// Allow the graceful termination to be manually configurable
+if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
+}
 
-const handler = nextServer.getRequestHandler()
+let handler
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -1246,12 +1225,26 @@ const server = http.createServer(async (req, res) => {
     res.end('internal server error')
   }
 })
-const currentPort = process.env.PORT || 3000
+const currentPort = parseInt(process.env.PORT, 10) || 3000
+
 server.listen(currentPort, (err) => {
   if (err) {
     console.error("Failed to start server", err)
     process.exit(1)
   }
+  const nextServer = new NextServer({
+    hostname: 'localhost',
+    port: currentPort,
+    dir: path.join(__dirname),
+    dev: false,
+    customServer: false,
+    conf: ${JSON.stringify({
+      ...serverConfig,
+      distDir: `./${path.relative(dir, distDir)}`,
+    })},
+  })
+  handler = nextServer.getRequestHandler()
+
   console.log("Listening on port", currentPort)
 })
     `
@@ -1263,4 +1256,48 @@ export function isReservedPage(page: string) {
 
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
+}
+
+export function isMiddlewareFile(file: string) {
+  return (
+    file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function isMiddlewareFilename(file?: string) {
+  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
+export function getPossibleMiddlewareFilenames(
+  folder: string,
+  extensions: string[]
+) {
+  return extensions.map((extension) =>
+    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
+  )
+}
+
+export class MiddlewareInServerlessTargetError extends Error {
+  constructor() {
+    super(
+      'Next.js Middleware is not supported in the deprecated serverless target.\n' +
+        'Please remove `target: "serverless" from your next.config.js to use Middleware.'
+    )
+    this.name = 'MiddlewareInServerlessTargetError'
+  }
+}
+
+export class NestedMiddlewareError extends Error {
+  constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
+    super(
+      `Nested Middleware is not allowed, found:\n` +
+        `${nestedFileNames.map((file) => `pages${file}`).join('\n')}\n` +
+        `Please move your code to a single file at ${path.join(
+          path.posix.sep,
+          path.relative(mainDir, path.resolve(pagesDir, '..')),
+          'middleware'
+        )} instead.\n` +
+        `Read More - https://nextjs.org/docs/messages/nested-middleware`
+    )
+  }
 }

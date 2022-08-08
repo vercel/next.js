@@ -2,7 +2,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as dotenv from 'dotenv'
-import dotenvExpand from 'dotenv-expand'
+import { expand as dotenvExpand } from 'dotenv-expand'
 
 export type Env = { [key: string]: string }
 export type LoadedEnvFiles = Array<{

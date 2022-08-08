@@ -1,5 +1,5 @@
-import chalk from 'chalk'
-import { Worker } from 'jest-worker'
+import chalk from 'next/dist/compiled/chalk'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { ESLINT_DEFAULT_DIRS } from './constants'
@@ -20,6 +20,7 @@ export async function verifyAndLint(
     const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
       numWorkers,
       enableWorkerThreads,
+      maxRetries: 0,
     }) as Worker & {
       runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
     }

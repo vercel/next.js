@@ -4,6 +4,8 @@ import loadConfig from '../../server/config'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
+import { findPagesDir } from '../../lib/find-pages-dir'
+import { loadBindings, lockfilePatchPromise } from '../swc'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -25,10 +27,6 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
   }
 }
 
-console.warn(
-  '"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer'
-)
-
 /*
 // Usage in jest.config.js
 const nextJest = require('next/jest');
@@ -46,7 +44,7 @@ module.exports = createJestConfig(customJestConfig)
 */
 export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
-  return (customJestConfig: any) => {
+  return (customJestConfig?: any) => {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
     return async () => {
@@ -54,8 +52,11 @@ export default function nextJest(options: { dir?: string } = {}) {
       let jsConfig
       let resolvedBaseUrl
       let isEsmProject = false
+      let pagesDir: string | undefined
+
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
+        pagesDir = findPagesDir(resolvedDir).pages
         const packageConfig = loadClosestPackageJson(resolvedDir)
         isEsmProject = packageConfig.type === 'module'
 
@@ -68,9 +69,16 @@ export default function nextJest(options: { dir?: string } = {}) {
       }
       // Ensure provided async config is supported
       const resolvedJestConfig =
-        typeof customJestConfig === 'function'
+        (typeof customJestConfig === 'function'
           ? await customJestConfig()
-          : customJestConfig
+          : customJestConfig) ?? {}
+
+      // eagerly load swc bindings instead of waiting for transform calls
+      await loadBindings()
+
+      if (lockfilePatchPromise.cur) {
+        await lockfilePatchPromise.cur
+      }
 
       return {
         ...resolvedJestConfig,
@@ -85,17 +93,22 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
 
           // Handle image imports
-          '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': require.resolve(
+          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(
             `./__mocks__/fileMock.js`
           ),
 
-          // Custom config will be able to override the default mappings
+          // Keep .svg to it's own rule to make overriding easy
+          '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
+
+          // custom config comes last to ensure the above rules are matched,
+          // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
+          // CSS/image mocks
           ...(resolvedJestConfig.moduleNameMapper || {}),
         },
         testPathIgnorePatterns: [
           // Don't look for tests in node_modules
           '/node_modules/',
-          // Don't look for tests in the the Next.js build output
+          // Don't look for tests in the Next.js build output
           '/.next/',
           // Custom config can append to testPathIgnorePatterns but not modify it
           // This is to ensure `.next` and `node_modules` are always excluded
@@ -104,13 +117,14 @@ export default function nextJest(options: { dir?: string } = {}) {
 
         transform: {
           // Use SWC to compile tests
-          '^.+\\.(js|jsx|ts|tsx)$': [
+          '^.+\\.(js|jsx|ts|tsx|mjs)$': [
             require.resolve('../swc/jest-transformer'),
             {
               nextConfig,
               jsConfig,
               resolvedBaseUrl,
               isEsmProject,
+              pagesDir,
             },
           ],
           // Allow for appending/overriding the default transforms
@@ -126,6 +140,11 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Custom config can append to transformIgnorePatterns but not modify it
           // This is to ensure `node_modules` and .module.css/sass/scss are always excluded
           ...(resolvedJestConfig.transformIgnorePatterns || []),
+        ],
+        watchPathIgnorePatterns: [
+          // Don't re-run tests when the Next.js build output changes
+          '/.next/',
+          ...(resolvedJestConfig.watchPathIgnorePatterns || []),
         ],
       }
     }

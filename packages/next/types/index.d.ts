@@ -1,7 +1,6 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
-/// <reference types="styled-jsx" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -23,6 +22,8 @@ import {
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
+
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
@@ -64,6 +65,12 @@ export type PageConfig = {
   amp?: boolean | 'hybrid'
   api?: {
     /**
+     * Configures or disables body size limit warning. Can take a number or
+     * any string format supported by `bytes`, for example `1000`, `'500kb'` or
+     * `'3mb'`.
+     */
+    responseLimit?: number | string | boolean
+    /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
@@ -76,6 +83,7 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
+  runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   unstable_includeFiles?: string[]
@@ -200,7 +208,7 @@ declare global {
     >(
       array: T
     ): T
-    randomUUID?(): string
+    randomUUID(): string
   }
 }
 
