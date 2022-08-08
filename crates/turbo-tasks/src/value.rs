@@ -2,6 +2,9 @@ use std::{fmt::Debug, ops::Deref};
 
 use crate::Typed;
 
+/// Pass a value by value (`Value<Xxx>`) instead of by reference (`XxxVc`).
+///
+/// Persistent, requires serialization.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct Value<T: Typed> {
     inner: T,
@@ -25,6 +28,10 @@ impl<T: Typed> Deref for Value<T> {
     }
 }
 
+/// Pass a value by value (`Value<Xxx>`) instead of by reference (`XxxVc`).
+///
+/// Doesn't require serialization, and won't be stored in the persistent cache
+/// in the future.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct TransientValue<T> {
     inner: T,

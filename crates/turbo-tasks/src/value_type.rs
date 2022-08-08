@@ -179,7 +179,7 @@ impl ValueType {
         self.any_serialization.map(|s| s.1)
     }
 
-    /// This is internally used by `#[turbo_tasks::value(Trait)]`
+    /// This is internally used by `#[turbo_tasks::value_impl]`
     pub fn register_trait_method(
         &mut self,
         trait_type: TraitTypeId,
@@ -196,7 +196,7 @@ impl ValueType {
         self.trait_methods.get(trait_method_key)
     }
 
-    /// This is internally used by `#[turbo_tasks::value(Trait)]`
+    /// This is internally used by `#[turbo_tasks::value_impl]`
     pub fn register_trait(&mut self, trait_type: TraitTypeId) {
         self.traits.insert(trait_type);
     }

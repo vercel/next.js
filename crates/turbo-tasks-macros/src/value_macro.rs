@@ -450,18 +450,38 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
-    let strongly_consistent = if let Some(inner_type) = inner_type {
+    let strongly_consistent = {
+        let (return_type, map) = if let Some(inner_type) = inner_type {
+            (
+                quote! {
+                   turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>
+                },
+                quote! { .map(|r| &r.0) },
+            )
+        } else {
+            (quote! {turbo_tasks::ReadRawVcFuture<#ident>}, quote! {})
+        };
         quote! {
+            /// The invalidation of tasks due to changes is eventually consistent by default.
+            /// Tasks will execute as early as any of their children has changed, even while
+            /// other children or grandchildren are still computing (and may or may not result
+            /// in a future invalidation). Tasks may execute multiple times until the graph
+            /// reaches the end state. Partial applied changes might be visible to the user.
+            /// But changes are available as fast as possible and won't be blocked by some
+            /// slower parts of the graph (e. g. recomputation of blurred images, linting,
+            /// etc).
+            ///
+            /// When you read a task with `.strongly_consistent()` it will make that one read
+            /// operation strongly consistent. That means it will only return a result when all
+            /// children and grandchildren in that graph have been settled. This means your
+            /// current task will recompute less often, but it might also need to wait for
+            /// slower operations in the graph and can't continue with partial applied changes.
+            ///
+            /// Reading strongly consistent is also far more expensive compared to normal
+            /// reading, so it should be used with care.
             #[must_use]
-            pub fn strongly_consistent(self) -> turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type> {
-                self.node.into_strongly_consistent_read::<#ident>().map(|r| &r.0)
-            }
-        }
-    } else {
-        quote! {
-            #[must_use]
-            pub fn strongly_consistent(self) -> turbo_tasks::ReadRawVcFuture<#ident> {
-                self.node.into_strongly_consistent_read::<#ident>()
+            pub fn strongly_consistent(self) -> #return_type {
+                self.node.into_strongly_consistent_read::<#ident>() #map
             }
         }
     };
