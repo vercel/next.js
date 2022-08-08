@@ -28,7 +28,7 @@ function runTest(packageManager?: string) {
           },
         },
         dependencies: {
-          'styled-jsx': '4.0.0', // incompatible styled-jsx on user side
+          'styled-jsx': '5.0.0', // styled-jsx on user side
         },
         startCommand: 'yarn ' + ((global as any).isNextDev ? 'dev' : 'start'),
         buildCommand: `yarn build`,
