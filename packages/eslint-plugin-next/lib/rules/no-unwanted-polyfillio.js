@@ -25,6 +25,7 @@ const NEXT_POLYFILLED_FEATURES = [
   'Number.parseInt',
   'Object.assign',
   'Object.entries',
+  'Object.fromEntries',
   'Object.getOwnPropertyDescriptor',
   'Object.getOwnPropertyDescriptors',
   'Object.is',
@@ -57,7 +58,7 @@ const NEXT_POLYFILLED_FEATURES = [
   'es2016', // contains polyfilled 'Array.prototype.includes', 'String.prototype.padEnd' and 'String.prototype.padStart'
   'es2017', // contains polyfilled 'Object.entries', 'Object.getOwnPropertyDescriptors', 'Object.values', 'String.prototype.padEnd' and 'String.prototype.padStart'
   'es2018', // contains polyfilled 'Promise.prototype.finally' and ''Symbol.asyncIterator'
-  // 'es2019', // Contains unpolyfilled 'Object.fromEntries' and polyfilled 'Array.prototype.flat', 'Array.prototype.flatMap', 'String.prototype.trimEnd' and 'String.prototype.trimStart'
+  'es2019', // Contains polyfilled 'Object.fromEntries' and polyfilled 'Array.prototype.flat', 'Array.prototype.flatMap', 'String.prototype.trimEnd' and 'String.prototype.trimStart'
   'es5', // Should be covered by babel-preset-env instead.
   'es6', // Should be covered by babel-preset-env instead.
   'es7', // contains polyfilled 'Array.prototype.includes', 'String.prototype.padEnd' and 'String.prototype.padStart'
