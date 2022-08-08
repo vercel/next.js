@@ -62,6 +62,7 @@ export default Home
 - [`scroll`](#disable-scrolling-to-the-top-of-the-page) - Scroll to the top of the page after a navigation. Defaults to `true`
 - [`shallow`](/docs/routing/shallow-routing.md) - Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md). Defaults to `false`
 - `locale` - The active locale is automatically prepended. `locale` allows for providing a different locale. When `false` `href` has to include the locale as the default behavior is disabled.
+- `legacyBehavior` - A boolean value which helps to safely migrate to [new `<Link />` component](https://github.com/vercel/next.js/pull/36436) which can be enabled by adding `newNextLinkBehavior: true` in the experimental option inside `next.config.js`. Defaults to `true`
 
 ## If the route has dynamic segments
 
