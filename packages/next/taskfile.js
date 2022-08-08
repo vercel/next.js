@@ -62,23 +62,26 @@ export async function copy_styled_jsx_assets(task, opts) {
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
     const exportsIndex = content.indexOf('export')
 
-    await fs.writeFile(
-      join(outputDir, file),
+    let replacedContent =
       `${content.substring(0, exportsIndex)}\n` +
-        `declare module 'styled-jsx${
-          file === 'index.d.ts' ? '' : '/' + fileNoExt
-        }' {
+      `declare module 'styled-jsx${
+        file === 'index.d.ts' ? '' : '/' + fileNoExt
+      }' {
         ${content.substring(exportsIndex)}
       }`
-    )
+    if (file === 'index.d.ts') {
+      replacedContent = replacedContent
+        .replace(/export function StyleRegistry/g, 'export function IRegistry')
+        .replace(/StyleRegistry/g, 'IStyleRegistry')
+        .replace(/IRegistry/g, 'Registry')
+    }
+    await fs.writeFile(join(outputDir, file), replacedContent)
     typeReferences += `/// <reference types="./${fileNoExt}" />\n`
   }
 
   await fs.writeFile(join(outputDir, 'global.d.ts'), typeReferences)
 
-  console.log('jsFiles', jsFiles)
   for (const file of jsFiles) {
-    console.log('file', file)
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
     const distFile = join(outputDir, file)
     await fs.ensureDir(dirname(distFile))
