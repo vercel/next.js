@@ -27,6 +27,27 @@ describe('Middleware Rewrite', () => {
   testsWithLocale('/fr')
 
   function tests() {
+    it('should not have un-necessary data request on rewrite', async () => {
+      const browser = await webdriver(next.url, '/to-blog/first', {
+        waitHydration: false,
+      })
+      let requests = []
+
+      browser.on('request', (req) => {
+        requests.push(new URL(req.url()).pathname)
+      })
+
+      await check(
+        () => browser.eval(`next.router.isReady ? "yup" : "nope"`),
+        'yup'
+      )
+
+      expect(
+        requests.filter((url) => url === '/fallback-true-blog/first.json')
+          .length
+      ).toBeLessThan(2)
+    })
+
     it('should not mix component cache when navigating between dynamic routes', async () => {
       const browser = await webdriver(next.url, '/param-1')
 

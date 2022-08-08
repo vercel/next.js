@@ -6,7 +6,7 @@ import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 import fetch from 'next/dist/compiled/node-fetch'
 import { printAndExit } from '../server/lib/utils'
-import { cliCommand } from '../bin/next'
+import { cliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
 
 const nextInfo: cliCommand = async (argv) => {
