@@ -134,10 +134,10 @@ function runTests(startServer = nextStart) {
     expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    expect(cookies[0]).toMatchObject({ Path: path, SameSite: 'None' })
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]['Path']).toBe(path)
-    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    expect(cookies[0]).toMatchObject({ Path: path, SameSite: 'None' })
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]['Path']).toBe(path)
   })
