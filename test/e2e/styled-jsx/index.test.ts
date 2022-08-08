@@ -16,7 +16,7 @@ function runTest(packageManager?: string) {
         files: {
           node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
           pages: new FileRef(path.join(appDir, 'pages')),
-          // 'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
+          'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
         },
         packageJson: {
           scripts: {
@@ -25,6 +25,9 @@ function runTest(packageManager?: string) {
             dev: `yarn setup && next dev`,
             start: 'next start',
           },
+        },
+        dependencies: {
+          'styled-jsx': '4.0.0', // incompatible styled-jsx on user side
         },
         startCommand: 'yarn ' + ((global as any).isNextDev ? 'dev' : 'start'),
         buildCommand: `yarn build`,
@@ -40,8 +43,7 @@ function runTest(packageManager?: string) {
     it('should contain styled-jsx styles in html', async () => {
       const html = await renderViaHTTP(next.url, '/')
       expect(html).toMatch(/color:(\s)*red/)
-      // TODO: support styled-jsx from node-modules
-      // expect(html).toMatch(/color:(\s)*cyan/)
+      expect(html).toMatch(/color:(\s)*cyan/)
     })
   })
 }
