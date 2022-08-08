@@ -29,6 +29,8 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   MODERN_BROWSERSLIST_TARGET,
+  COMPILER_NAMES,
+  CompilerNameValues,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
@@ -334,13 +336,13 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling = false,
     rewrites,
     runWebpackSpan,
-    target = 'server',
+    target = COMPILER_NAMES.server,
     appDir,
     middlewareRegex,
   }: {
     buildId: string
     config: NextConfigComplete
-    compilerType: 'client' | 'server' | 'edge-server'
+    compilerType: CompilerNameValues
     dev?: boolean
     entrypoints: webpack5.EntryObject
     hasReactRoot: boolean
@@ -354,9 +356,9 @@ export default async function getBaseWebpackConfig(
     middlewareRegex?: string
   }
 ): Promise<webpack.Configuration> {
-  const isClient = compilerType === 'client'
-  const isEdgeServer = compilerType === 'edge-server'
-  const isNodeServer = compilerType === 'server'
+  const isClient = compilerType === COMPILER_NAMES.client
+  const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
+  const isNodeServer = compilerType === COMPILER_NAMES.server
   const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
     dir,
     config

@@ -19,7 +19,7 @@ import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
-import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import { BLOCKED_PAGES, COMPILER_NAMES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
@@ -454,17 +454,17 @@ export default class HotReloader {
           Promise.all([
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'client',
+              compilerType: COMPILER_NAMES.client,
               entrypoints: entrypoints.client,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'server',
+              compilerType: COMPILER_NAMES.server,
               entrypoints: entrypoints.server,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'edge-server',
+              compilerType: COMPILER_NAMES.edgeServer,
               entrypoints: entrypoints.edgeServer,
             }),
           ])
@@ -478,7 +478,7 @@ export default class HotReloader {
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
       runWebpackSpan: this.hotReloaderSpan,
       dev: true,
-      compilerType: 'client',
+      compilerType: COMPILER_NAMES.client,
       config: this.config,
       buildId: this.buildId,
       pagesDir: this.pagesDir,
@@ -547,9 +547,10 @@ export default class HotReloader {
       config.entry = async (...args) => {
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
-        const isClientCompilation = config.name === 'client'
-        const isNodeServerCompilation = config.name === 'server'
-        const isEdgeServerCompilation = config.name === 'edge-server'
+        const isClientCompilation = config.name === COMPILER_NAMES.client
+        const isNodeServerCompilation = config.name === COMPILER_NAMES.server
+        const isEdgeServerCompilation =
+          config.name === COMPILER_NAMES.edgeServer
 
         await Promise.all(
           Object.keys(entries).map(async (entryKey) => {
@@ -558,9 +559,11 @@ export default class HotReloader {
 
             const result = /^(client|server|edge-server)(.*)/g.exec(entryKey)
             const [, key, page] = result! // this match should always happen
-            if (key === 'client' && !isClientCompilation) return
-            if (key === 'server' && !isNodeServerCompilation) return
-            if (key === 'edge-server' && !isEdgeServerCompilation) return
+            if (key === COMPILER_NAMES.client && !isClientCompilation) return
+            if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
+              return
+            if (key === COMPILER_NAMES.edgeServer && !isEdgeServerCompilation)
+              return
 
             const isEntry = entryData.type === EntryTypes.ENTRY
             const isChildEntry = entryData.type === EntryTypes.CHILD_ENTRY
@@ -586,7 +589,7 @@ export default class HotReloader {
                 })
               : {}
 
-            runDependingOnPageType({
+            await runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
               onEdgeServer: () => {
@@ -615,7 +618,7 @@ export default class HotReloader {
                   entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: 'client',
+                    compilerType: COMPILER_NAMES.client,
                     value: entryData.request,
                     appDir: this.config.experimental.appDir,
                   })
@@ -623,7 +626,7 @@ export default class HotReloader {
                   entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: 'client',
+                    compilerType: COMPILER_NAMES.client,
                     value: getClientEntry({
                       absolutePagePath: entryData.absolutePagePath,
                       page,
@@ -989,7 +992,10 @@ export default class HotReloader {
     )
   }
 
-  public async ensurePage(page: string, clientOnly: boolean = false) {
+  public async ensurePage(
+    page: string,
+    clientOnly: boolean = false
+  ): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return

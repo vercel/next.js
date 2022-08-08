@@ -56,6 +56,7 @@ import {
   MIDDLEWARE_MANIFEST,
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
+  COMPILER_NAMES,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -744,17 +745,17 @@ export default async function build(
             Promise.all([
               getBaseWebpackConfig(dir, {
                 ...commonWebpackOptions,
-                compilerType: 'client',
+                compilerType: COMPILER_NAMES.client,
                 entrypoints: entrypoints.client,
               }),
               getBaseWebpackConfig(dir, {
                 ...commonWebpackOptions,
-                compilerType: 'server',
+                compilerType: COMPILER_NAMES.server,
                 entrypoints: entrypoints.server,
               }),
               getBaseWebpackConfig(dir, {
                 ...commonWebpackOptions,
-                compilerType: 'edge-server',
+                compilerType: COMPILER_NAMES.edgeServer,
                 entrypoints: entrypoints.edgeServer,
               }),
             ])

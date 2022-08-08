@@ -27,7 +27,8 @@ interface Options {
 /**
  * Webpack module id
  */
-type ModuleId = string | number | null
+// TODO-APP ensure `null` is included as it is used.
+type ModuleId = string | number /*| null*/
 
 export type ManifestChunks = Array<`${string}:${string}` | string>
 

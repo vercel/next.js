@@ -357,7 +357,7 @@ export default class DevServer extends Server {
             continue
           }
 
-          runDependingOnPageType({
+          await runDependingOnPageType({
             page: pageName,
             pageRuntime: staticInfo.runtime,
             onClient: () => {},
@@ -928,7 +928,10 @@ export default class DevServer extends Server {
     return this.hasPage(isSSR ? pathname : this.actualMiddlewareFile!)
   }
 
-  protected async ensureMiddleware(pathname: string, isSSR?: boolean) {
+  protected async ensureMiddleware(
+    pathname: string,
+    isSSR?: boolean
+  ): Promise<void> {
     return this.hotReloader!.ensurePage(
       isSSR ? pathname : this.actualMiddlewareFile!
     )
@@ -1105,7 +1108,7 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async ensureApiPage(pathname: string) {
+  protected async ensureApiPage(pathname: string): Promise<void> {
     return this.hotReloader!.ensurePage(pathname)
   }
 

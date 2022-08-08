@@ -16,6 +16,18 @@ import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+import {
+  CompilerNameValues,
+  COMPILER_INDEXES,
+  COMPILER_NAMES,
+} from '../../shared/lib/constants'
+
+/**
+ * Returns object keys with type inferred from the object key
+ */
+const keys = Object.keys as <T>(o: T) => Extract<keyof T, string>[]
+
+const COMPILER_KEYS = keys(COMPILER_INDEXES)
 
 function treePathToEntrypoint(
   segmentPath: string[],
@@ -171,15 +183,16 @@ export function onDemandEntryHandler({
   const lastClientAccessPages = ['']
   const lastServerAccessPagesForAppDir = ['']
 
-  const startBuilding = (_compilation: webpack.Compilation) => {
-    invalidator.startBuilding()
+  const startBuilding = (compilation: webpack.Compilation) => {
+    const compilationName = compilation.name as any as CompilerNameValues
+    invalidator.startBuilding(compilationName)
   }
   for (const compiler of multiCompiler.compilers) {
     compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
   }
 
   function getPagePathsFromEntrypoints(
-    type: 'client' | 'server' | 'edge-server',
+    type: CompilerNameValues,
     entrypoints: Map<string, { name?: string }>,
     root?: boolean
   ) {
@@ -207,18 +220,18 @@ export function onDemandEntryHandler({
     const root = !!appDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
-        'client',
+        COMPILER_NAMES.client,
         clientStats.compilation.entrypoints,
         root
       ),
       ...getPagePathsFromEntrypoints(
-        'server',
+        COMPILER_NAMES.server,
         serverStats.compilation.entrypoints,
         root
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
-            'edge-server',
+            COMPILER_NAMES.edgeServer,
             edgeServerStats.compilation.entrypoints,
             root
           )
@@ -319,7 +332,7 @@ export function onDemandEntryHandler({
   }
 
   return {
-    async ensurePage(page: string, clientOnly: boolean) {
+    async ensurePage(page: string, clientOnly: boolean): Promise<void> {
       const pagePathData = await findPagePathData(
         rootDir,
         pagesDir,
@@ -331,8 +344,8 @@ export function onDemandEntryHandler({
       let entryAdded = false
 
       const addPageEntry = (
-        compilerType: 'client' | 'server' | 'edge-server'
-      ) => {
+        compilerType: CompilerNameValues
+      ): Promise<void> => {
         return new Promise<void>((resolve, reject) => {
           const isServerComponent = serverComponentRegex.test(
             pagePathData.absolutePagePath
@@ -351,7 +364,7 @@ export function onDemandEntryHandler({
             }
           } else {
             if (
-              compilerType === 'client' &&
+              compilerType === COMPILER_NAMES.client &&
               (isServerComponent || isInsideAppDir)
             ) {
               // Skip adding the client entry here.
@@ -381,25 +394,32 @@ export function onDemandEntryHandler({
         nextConfig,
       })
 
-      const result = runDependingOnPageType({
+      const added = new Set<CompilerNameValues>()
+      await runDependingOnPageType({
         page: pagePathData.page,
         pageRuntime: staticInfo.runtime,
-        onClient: () => addPageEntry('client'),
-        onServer: () => addPageEntry('server'),
-        onEdgeServer: () => addPageEntry('edge-server'),
+        onClient: () => {
+          added.add(COMPILER_NAMES.client)
+          return addPageEntry(COMPILER_NAMES.client)
+        },
+        onServer: () => {
+          added.add(COMPILER_NAMES.server)
+          return addPageEntry(COMPILER_NAMES.server)
+        },
+        onEdgeServer: () => {
+          added.add(COMPILER_NAMES.edgeServer)
+          return addPageEntry(COMPILER_NAMES.edgeServer)
+        },
       })
 
-      const promises = Object.values(result)
       if (entryAdded) {
         reportTrigger(
-          !clientOnly && promises.length > 1
+          !clientOnly && added.size > 1
             ? `${pagePathData.page} (client and server)`
             : pagePathData.page
         )
-        invalidator.invalidate(Object.keys(result))
+        invalidator.invalidate([...added])
       }
-
-      return Promise.all(promises)
     },
 
     onHMR(client: ws) {
@@ -463,61 +483,66 @@ function disposeInactiveEntries(
   })
 }
 
+type BuildingTracker = {
+  -readonly [compilerKey in CompilerNameValues]: boolean
+}
+
+type RebuildTracker = {
+  -readonly [compilerKey in CompilerNameValues]: boolean
+}
 // Make sure only one invalidation happens at a time∫
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
   private multiCompiler: webpack.MultiCompiler
-  private building: boolean
-  public rebuildAgain: boolean
+  private building: BuildingTracker = {
+    client: false,
+    server: false,
+    'edge-server': false,
+  }
+  public rebuildAgain: RebuildTracker = {
+    client: false,
+    server: false,
+    'edge-server': false,
+  }
 
   constructor(multiCompiler: webpack.MultiCompiler) {
     this.multiCompiler = multiCompiler
-    // contains an array of types of compilers currently building
-    this.building = false
-    this.rebuildAgain = false
   }
 
-  invalidate(keys: string[] = []) {
-    // If there's a current build is processing, we won't abort it by invalidating.
-    // (If aborted, it'll cause a client side hard reload)
-    // But let it to invalidate just after the completion.
-    // So, it can re-build the queued pages at once.
-    if (this.building) {
-      this.rebuildAgain = true
-      return
+  invalidate(compilerKeys: typeof COMPILER_KEYS = COMPILER_KEYS): void {
+    // this.building = true
+
+    for (const key of compilerKeys) {
+      // If there's a current build is processing, we won't abort it by invalidating.
+      // (If aborted, it'll cause a client side hard reload)
+      // But let it to invalidate just after the completion.
+      // So, it can re-build the queued pages at once.
+
+      if (this.building[key]) {
+        this.rebuildAgain[key] = true
+        continue
+      }
+
+      this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching.invalidate()
+      this.building[key] = true
     }
+  }
 
-    this.building = true
+  public startBuilding(compilerKey: keyof typeof COMPILER_INDEXES) {
+    this.building[compilerKey] = true
+  }
 
-    if (!keys || keys.length === 0) {
-      this.multiCompiler.compilers[0].watching.invalidate()
-      this.multiCompiler.compilers[1].watching.invalidate()
-      this.multiCompiler.compilers[2].watching.invalidate()
-      return
-    }
+  public doneBuilding() {
+    const rebuild: typeof COMPILER_KEYS = []
+    for (const key of COMPILER_KEYS) {
+      this.building[key] = false
 
-    for (const key of keys) {
-      if (key === 'client') {
-        this.multiCompiler.compilers[0].watching.invalidate()
-      } else if (key === 'server') {
-        this.multiCompiler.compilers[1].watching.invalidate()
-      } else if (key === 'edgeServer') {
-        this.multiCompiler.compilers[2].watching.invalidate()
+      if (this.rebuildAgain[key]) {
+        rebuild.push(key)
+        this.rebuildAgain[key] = false
       }
     }
-  }
-
-  startBuilding() {
-    this.building = true
-  }
-
-  doneBuilding() {
-    this.building = false
-
-    if (this.rebuildAgain) {
-      this.rebuildAgain = false
-      this.invalidate()
-    }
+    this.invalidate(rebuild)
   }
 }
 

@@ -16,7 +16,10 @@ import type {
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { FLIGHT_SERVER_CSS_MANIFEST } from '../../../shared/lib/constants'
+import {
+  COMPILER_NAMES,
+  FLIGHT_SERVER_CSS_MANIFEST,
+} from '../../../shared/lib/constants'
 import { FlightCSSManifest } from './flight-manifest-plugin'
 
 interface Options {
@@ -155,7 +158,7 @@ export class FlightClientEntryPlugin {
     const invalidator = getInvalidator()
     // Check if any of the entry injections need an invalidation
     if (invalidator && res.includes(true)) {
-      invalidator.invalidate(['client'])
+      invalidator.invalidate([COMPILER_NAMES.client])
     }
   }
 
@@ -279,7 +282,7 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
-      const pageKey = 'client' + routeInfo.page
+      const pageKey = COMPILER_NAMES.client + routeInfo.page
       if (!entries[pageKey]) {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
