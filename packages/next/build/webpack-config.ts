@@ -652,9 +652,9 @@ export default async function getBaseWebpackConfig(
   const reactDomDir = dirname(require.resolve('react-dom/package.json'))
 
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
-    server: ['main', 'module'],
-    client: ['browser', 'module', 'main'],
-    'edge-server': ['browser', 'module', 'main'],
+    [COMPILER_NAMES.server]: ['main', 'module'],
+    [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
+    [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
   const resolveConfig = {
@@ -1499,7 +1499,7 @@ export default async function getBaseWebpackConfig(
             [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
-        ...(compilerType !== 'edge-server'
+        ...(compilerType !== COMPILER_NAMES.edgeServer
           ? {}
           : {
               EdgeRuntime: JSON.stringify(

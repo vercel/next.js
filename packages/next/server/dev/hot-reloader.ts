@@ -597,7 +597,7 @@ export default class HotReloader {
                 if (!isEdgeServerCompilation || !isEntry) return
                 entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
-                  compilerType: 'edge-server',
+                  compilerType: COMPILER_NAMES.edgeServer,
                   name: bundlePath,
                   value: getEdgeServerEntry({
                     absolutePagePath: entryData.absolutePagePath,

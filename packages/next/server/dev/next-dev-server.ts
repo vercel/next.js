@@ -30,6 +30,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
+  COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
@@ -814,7 +815,7 @@ export default class DevServer extends Server {
 
           const src = getErrorSource(err as Error)
           const compilation = (
-            src === 'edge-server'
+            src === COMPILER_NAMES.edgeServer
               ? this.hotReloader?.edgeServerStats?.compilation
               : this.hotReloader?.serverStats?.compilation
           )!
@@ -843,7 +844,7 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (src === 'edge-server') {
+            if (src === COMPILER_NAMES.edgeServer) {
               err = err.message
             }
             if (type === 'warning') {

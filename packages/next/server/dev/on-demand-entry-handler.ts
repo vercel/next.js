@@ -495,14 +495,14 @@ type RebuildTracker = {
 class Invalidator {
   private multiCompiler: webpack.MultiCompiler
   private building: BuildingTracker = {
-    client: false,
-    server: false,
-    'edge-server': false,
+    [COMPILER_NAMES.client]: false,
+    [COMPILER_NAMES.server]: false,
+    [COMPILER_NAMES.edgeServer]: false,
   }
   public rebuildAgain: RebuildTracker = {
-    client: false,
-    server: false,
-    'edge-server': false,
+    [COMPILER_NAMES.client]: false,
+    [COMPILER_NAMES.server]: false,
+    [COMPILER_NAMES.edgeServer]: false,
   }
 
   constructor(multiCompiler: webpack.MultiCompiler) {
