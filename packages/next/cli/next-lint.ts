@@ -71,10 +71,12 @@ const nextLint: cliCommand = async (argv) => {
     '--cache-strategy': String,
     '--error-on-unmatched-pattern': Boolean,
     '--format': String,
+    '--output-file': String,
 
     // Aliases
     '-c': '--config',
     '-f': '--format',
+    '-o': '--output-file',
   }
 
   let args: arg.Result<arg.Spec>
@@ -127,6 +129,7 @@ const nextLint: cliCommand = async (argv) => {
           --max-warnings Int             Number of warnings to trigger nonzero exit code - default: -1
         
         Output:
+          -o, --output-file path::String  Specify file to write report to
           -f, --format String            Use a specific output format - default: Next.js custom formatter
 
         Inline configuration comments:
@@ -171,6 +174,7 @@ const nextLint: cliCommand = async (argv) => {
   const maxWarnings = args['--max-warnings'] ?? -1
   const formatter = args['--format'] || null
   const strict = Boolean(args['--strict'])
+  const outputFile = args['--output-file'] || null
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
@@ -183,6 +187,7 @@ const nextLint: cliCommand = async (argv) => {
     reportErrorsOnly,
     maxWarnings,
     formatter,
+    outputFile,
     strict
   )
     .then(async (lintResults) => {
