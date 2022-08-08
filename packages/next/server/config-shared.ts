@@ -7,8 +7,7 @@ import {
   imageConfigDefault,
   RemotePattern,
 } from '../shared/lib/image-config'
-
-export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
+import { ServerRuntime } from 'next/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
