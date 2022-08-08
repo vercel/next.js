@@ -701,7 +701,8 @@ describe('ESLint', () => {
                 'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.',
             }),
             expect.objectContaining({
-              message: `Do not use <img>. Use Image from 'next/image' instead. See: https://nextjs.org/docs/messages/no-img-element`,
+              message:
+                'Do not use `<img>` element. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element',
             }),
           ])
         )
@@ -710,7 +711,7 @@ describe('ESLint', () => {
           expect.arrayContaining([
             expect.objectContaining({
               message:
-                'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts',
+                'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts',
             }),
           ])
         )
@@ -740,12 +741,12 @@ describe('ESLint', () => {
         'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
       )
       expect(fileOutput).toContain(
-        `Do not use <img>. Use Image from 'next/image' instead. See: https://nextjs.org/docs/messages/no-img-element`
+        'Do not use `<img>` element. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element'
       )
 
       expect(fileOutput).toContain('file-linting/pages/index.js')
       expect(fileOutput).toContain(
-        'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts'
+        'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'
       )
     })
 
