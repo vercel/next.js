@@ -1,6 +1,5 @@
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
-import '../build/webpack/require-hook'
 
 import type { TLSSocket } from 'tls'
 import type { Route } from './router'
@@ -56,6 +55,7 @@ import { RenderOpts, renderToHTML } from './render'
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
+import loadRequireHook from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
@@ -89,6 +89,8 @@ import { shouldUseReactRoot } from './utils'
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
+
+loadRequireHook()
 
 export * from './base-server'
 

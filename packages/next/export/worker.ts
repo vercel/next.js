@@ -6,7 +6,7 @@ import type { NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
 
 import '../server/node-polyfill-fetch'
-import '../build/webpack/require-hook'
+import loadRequireHook from '../build/webpack/require-hook'
 
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
@@ -27,6 +27,7 @@ import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 
+loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
 
 ;(global as any).__NEXT_DATA__ = {
