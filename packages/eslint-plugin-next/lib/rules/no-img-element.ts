@@ -10,7 +10,8 @@ const rule: Rule.RuleModule = {
       recommended: true,
       url,
     },
-    fixable: 'code',
+    type: 'problem',
+    schema: [],
   },
 
   create(context) {

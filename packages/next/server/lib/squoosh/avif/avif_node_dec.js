@@ -379,22 +379,6 @@ var Module = (function () {
       }
     }
     function getBinaryPromise() {
-      if (!wasmBinary && (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER)) {
-        if (typeof fetch === 'function') {
-          return fetch(wasmBinaryFile, { credentials: 'same-origin' })
-            .then(function (response) {
-              if (!response['ok']) {
-                throw (
-                  "failed to load wasm binary file at '" + wasmBinaryFile + "'"
-                )
-              }
-              return response['arrayBuffer']()
-            })
-            .catch(function () {
-              return getBinary(wasmBinaryFile)
-            })
-        }
-      }
       return Promise.resolve().then(function () {
         return getBinary(wasmBinaryFile)
       })
@@ -426,25 +410,7 @@ var Module = (function () {
           })
       }
       function instantiateAsync() {
-        if (
-          !wasmBinary &&
-          typeof WebAssembly.instantiateStreaming === 'function' &&
-          !isDataURI(wasmBinaryFile) &&
-          typeof fetch === 'function'
-        ) {
-          return fetch(wasmBinaryFile, { credentials: 'same-origin' }).then(
-            function (response) {
-              var result = WebAssembly.instantiateStreaming(response, info)
-              return result.then(receiveInstantiationResult, function (reason) {
-                err('wasm streaming compile failed: ' + reason)
-                err('falling back to ArrayBuffer instantiation')
-                return instantiateArrayBuffer(receiveInstantiationResult)
-              })
-            }
-          )
-        } else {
-          return instantiateArrayBuffer(receiveInstantiationResult)
-        }
+        return instantiateArrayBuffer(receiveInstantiationResult)
       }
       if (Module['instantiateWasm']) {
         try {

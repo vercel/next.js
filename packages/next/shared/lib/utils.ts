@@ -252,6 +252,11 @@ export type NextApiResponse<T = any> = ServerResponse & {
        * when the client shuts down (browser is closed).
        */
       maxAge?: number
+      /**
+       * Specifies the path for the preview session to work under. By default,
+       * the path is considered the "default path", i.e., any pages under "/".
+       */
+      path?: string
     }
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>

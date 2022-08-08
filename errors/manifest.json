@@ -715,6 +715,10 @@
         {
           "title": "invalid-next-config",
           "path": "/errors/invalid-next-config.md"
+        },
+        {
+          "title": "failed-to-fetch-devpagesmanifest",
+          "path": "/errors/failed-to-fetch-devpagesmanifest.md"
         }
       ]
     }
