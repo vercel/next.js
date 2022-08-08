@@ -42,9 +42,16 @@ export type Redirect = {
   basePath?: false
   locale?: false
   has?: RouteHas[]
-  statusCode?: number
-  permanent?: boolean
-}
+} & (
+  | {
+      statusCode?: never
+      permanent: boolean
+    }
+  | {
+      statusCode: number
+      permanent?: never
+    }
+)
 
 export type Middleware = {
   source: string

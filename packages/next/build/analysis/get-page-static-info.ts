@@ -1,4 +1,4 @@
-import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
+import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 import {
@@ -11,6 +11,7 @@ import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
+import { ServerRuntime } from '../../types'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
 
 export interface MiddlewareConfig {

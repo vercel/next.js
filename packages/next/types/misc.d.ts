@@ -367,3 +367,7 @@ declare module 'next/dist/compiled/watchpack' {
 
   export default Watchpack
 }
+
+declare module 'next/dist/compiled/is-animated' {
+  export default function isAnimated(buffer: Buffer): boolean
+}
