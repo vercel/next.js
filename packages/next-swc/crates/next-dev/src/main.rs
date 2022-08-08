@@ -89,18 +89,19 @@ async fn main() {
     }
 
     join! {
-            async move {
-                let (elapsed, count) = tt_clone.get_or_wait_update_info(Duration::ZERO).await;
-                println!("initial compilation {} ({} task execution, {} tasks)",
-                FormatDuration(start.elapsed()), FormatDuration(elapsed), count);
+        async move {
+            let (elapsed, count) = tt_clone.get_or_wait_update_info(Duration::ZERO).await;
+            println!("initial compilation {} ({} task execution, {} tasks)",
+            FormatDuration(start.elapsed()), FormatDuration(elapsed), count);
 
-                loop {
-                    let (elapsed, count) = tt_clone.get_or_wait_update_info(Duration::from_millis(100)).await;
-                    println!("updated in {} ({} tasks)", FormatDuration(elapsed), count);             }
-            },
-            async {
-                server.future.await.unwrap()
+            loop {
+                let (elapsed, count) = tt_clone.get_or_wait_update_info(Duration::from_millis(100)).await;
+                println!("updated in {} ({} tasks)", FormatDuration(elapsed), count);
             }
+        },
+        async {
+            server.future.await.unwrap()
         }
+    }
     .await;
 }
