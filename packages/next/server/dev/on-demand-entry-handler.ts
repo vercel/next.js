@@ -35,7 +35,7 @@ function treePathToEntrypoint(
 ): string {
   const [parallelRouteKey, segment] = segmentPath
 
-  // TODO: modify this path to cover parallelRouteKey convention
+  // TODO-APP: modify this path to cover parallelRouteKey convention
   const path =
     (parentPath ? parentPath + '/' : '') +
     (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +
@@ -213,7 +213,7 @@ export function onDemandEntryHandler({
   }
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
-    if (invalidator.rebuildAgain) {
+    if (invalidator.shouldRebuildAll()) {
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
@@ -394,21 +394,21 @@ export function onDemandEntryHandler({
         nextConfig,
       })
 
-      const added = new Set<CompilerNameValues>()
+      const added = new Map<CompilerNameValues, Promise<void>>()
       await runDependingOnPageType({
         page: pagePathData.page,
         pageRuntime: staticInfo.runtime,
         onClient: () => {
-          added.add(COMPILER_NAMES.client)
-          return addPageEntry(COMPILER_NAMES.client)
+          added.set(COMPILER_NAMES.client, addPageEntry(COMPILER_NAMES.client))
         },
         onServer: () => {
-          added.add(COMPILER_NAMES.server)
-          return addPageEntry(COMPILER_NAMES.server)
+          added.set(COMPILER_NAMES.server, addPageEntry(COMPILER_NAMES.server))
         },
         onEdgeServer: () => {
-          added.add(COMPILER_NAMES.edgeServer)
-          return addPageEntry(COMPILER_NAMES.edgeServer)
+          added.set(
+            COMPILER_NAMES.edgeServer,
+            addPageEntry(COMPILER_NAMES.edgeServer)
+          )
         },
       })
 
@@ -418,8 +418,10 @@ export function onDemandEntryHandler({
             ? `${pagePathData.page} (client and server)`
             : pagePathData.page
         )
-        invalidator.invalidate([...added])
       }
+
+      invalidator.invalidate([...added.keys()])
+      await Promise.all(added.values())
     },
 
     onHMR(client: ws) {
@@ -499,7 +501,7 @@ class Invalidator {
     [COMPILER_NAMES.server]: false,
     [COMPILER_NAMES.edgeServer]: false,
   }
-  public rebuildAgain: RebuildTracker = {
+  private rebuildAgain: RebuildTracker = {
     [COMPILER_NAMES.client]: false,
     [COMPILER_NAMES.server]: false,
     [COMPILER_NAMES.edgeServer]: false,
@@ -509,9 +511,11 @@ class Invalidator {
     this.multiCompiler = multiCompiler
   }
 
-  invalidate(compilerKeys: typeof COMPILER_KEYS = COMPILER_KEYS): void {
-    // this.building = true
+  public shouldRebuildAll() {
+    return keys(this.rebuildAgain).some((key) => this.rebuildAgain[key])
+  }
 
+  invalidate(compilerKeys: typeof COMPILER_KEYS = COMPILER_KEYS): void {
     for (const key of compilerKeys) {
       // If there's a current build is processing, we won't abort it by invalidating.
       // (If aborted, it'll cause a client side hard reload)
