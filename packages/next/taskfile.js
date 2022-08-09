@@ -53,13 +53,21 @@ export async function copy_styled_jsx_assets(task, opts) {
     cwd: styledJsxPath,
   })
   const outputDir = join(__dirname, 'dist/styled-jsx')
-  let typeReferences = ``
+  let typeReferences = ''
 
   await fs.ensureDir(outputDir)
 
   for (const file of typeFiles) {
+    // Port `declare module 'styled-jsx'` to `declare module 'next/dist/styled-jsx'`
     const fileNoExt = file.replace(/\.d\.ts/, '')
-    const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
+    const content = (
+      await fs.readFile(join(styledJsxPath, file), 'utf8')
+    ).replace(
+      `declare module 'styled-jsx${
+        fileNoExt === 'index' ? '' : `/${fileNoExt}`
+      }'`,
+      `declare module 'next/dist/styled-jsx/${fileNoExt}'`
+    )
     await fs.writeFile(join(outputDir, file), content)
     typeReferences += `/// <reference types="./${fileNoExt}" />\n`
   }
