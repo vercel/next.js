@@ -262,6 +262,7 @@ Second, the `sizes` property configures how `next/future/image` automatically ge
 For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
 
 ```js
+import Image from 'next/image'
 const Example = () => (
   <div className="grid-element">
     <Image
