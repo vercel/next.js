@@ -143,15 +143,17 @@ For example, if you know your styling will cause an image to be full-width on mo
 
 ```js
 import Image from 'next/image'
-;<div className="grid-element">
-  <Image
-    src="/example.png"
-    layout="fill"
-    sizes="(min-width: 75em) 33vw,
-            (min-width: 48em) 50vw,
-            100vw"
-  />
-</div>
+const Example = () => (
+  <div className="grid-element">
+    <Image
+      src="/example.png"
+      layout="fill"
+      sizes="(min-width: 75em) 33vw,
+              (min-width: 48em) 50vw,
+              100vw"
+    />
+  </div>
+)
 ```
 
 This example `sizes` could have a dramatic effect on performance metrics. Without the `33vw` sizes, the image selected from the server would be 3 times as wide as it needs to be. Because file size is proportional to the square of the width, without `sizes` the user would download an image that's 9 times larger than necessary.
