@@ -726,7 +726,7 @@ export default async function loadConfig(
   customConfig?: object | null
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook()
+  loadWebpackHook()
 
   let configFileName = 'next.config.js'
 
