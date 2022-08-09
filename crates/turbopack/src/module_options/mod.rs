@@ -93,6 +93,7 @@ pub async fn the_module_options() -> ModuleOptionsVc {
                     ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".svg".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".woff2".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
             ),

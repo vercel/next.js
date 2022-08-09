@@ -134,6 +134,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
             UrlAssetReferenceVc::new(
                 self.context,
                 RequestVc::parse(Value::new(src.to_string().into())),
+                AstPathVc::cell(as_parent_path(ast_path)),
             )
             .into(),
         );

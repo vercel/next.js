@@ -23,6 +23,7 @@ use crate::{
     references::AstPathVc,
     resolve::esm_resolve,
 };
+
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAsyncAssetReference {

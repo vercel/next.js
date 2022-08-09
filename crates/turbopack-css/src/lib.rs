@@ -1,10 +1,14 @@
 #![feature(min_specialization)]
 #![feature(into_future)]
 
+use std::future::IntoFuture;
+
 use anyhow::Result;
+use swc_common::{Globals, GLOBALS};
 use swc_css_ast::{AtRule, AtRulePrelude, Rule};
 use swc_css_codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit};
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use swc_css_visit::{VisitMutWith, VisitMutWithPath};
+use turbo_tasks::{primitives::StringVc, util::try_join_all, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -14,8 +18,10 @@ use turbopack_core::{
 };
 
 pub mod chunk;
+mod code_gen;
 pub mod embed;
 pub(crate) mod parse;
+mod path_visitor;
 pub(crate) mod references;
 
 use crate::{
@@ -23,7 +29,9 @@ use crate::{
         CssChunkContextVc, CssChunkItem, CssChunkItemContent, CssChunkItemContentVc,
         CssChunkItemVc, CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc,
     },
+    code_gen::CodeGenerateableVc,
     parse::{parse, ParseResult},
+    path_visitor::ApplyVisitors,
     references::{analyze_css_stylesheet, import::ImportAssetReferenceVc},
 };
 
@@ -110,8 +118,8 @@ impl CssChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn content(
         &self,
-        _chunk_context: CssChunkContextVc,
-        _context: ChunkingContextVc,
+        chunk_context: CssChunkContextVc,
+        context: ChunkingContextVc,
     ) -> Result<CssChunkItemContentVc> {
         let references = &*self.module.references().await?;
         let mut imports = vec![];
@@ -126,6 +134,32 @@ impl CssChunkItem for ModuleChunkItem {
             }
         }
 
+        let mut code_gens = Vec::new();
+        for r in references.iter() {
+            if let Some(code_gen) = CodeGenerateableVc::resolve_from(r).await? {
+                code_gens.push(
+                    code_gen
+                        .code_generation(chunk_context, context)
+                        .into_future(),
+                );
+            }
+        }
+        // need to keep that around to allow references into that
+        let code_gens = try_join_all(code_gens.into_iter()).await?;
+        let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
+        // TOOD use interval tree with references into "code_gens"
+        let mut visitors = Vec::new();
+        let mut root_visitors = Vec::new();
+        for code_gen in code_gens {
+            for (path, visitor) in code_gen.visitors.iter() {
+                if path.is_empty() {
+                    root_visitors.push(&**visitor);
+                } else {
+                    visitors.push((path, &**visitor));
+                }
+            }
+        }
+
         let module = self.module.await?;
         let parsed = parse(module.source).await?;
 
@@ -136,6 +170,19 @@ impl CssChunkItem for ModuleChunkItem {
         } = &*parsed
         {
             let mut stylesheet = stylesheet.clone();
+
+            let globals = Globals::new();
+            GLOBALS.set(&globals, || {
+                if !visitors.is_empty() {
+                    stylesheet.visit_mut_with_path(
+                        &mut ApplyVisitors::new(visitors),
+                        &mut Default::default(),
+                    );
+                }
+                for visitor in root_visitors {
+                    stylesheet.visit_mut_with(&mut visitor.create());
+                }
+            });
 
             // remove imports
             stylesheet.rules.retain(|r| {

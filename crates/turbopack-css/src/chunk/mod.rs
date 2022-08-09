@@ -16,7 +16,7 @@ use turbopack_core::{
 };
 use writer::{expand_imports, WriterWithIndent};
 
-use crate::ImportAssetReferenceVc;
+use crate::{embed::CssEmbeddableVc, ImportAssetReferenceVc};
 
 #[turbo_tasks::value]
 pub struct CssChunk {
@@ -127,6 +127,13 @@ impl Asset for CssChunk {
         let mut references = Vec::new();
         for r in content.external_asset_references.iter() {
             references.push(*r);
+            let assets = r.resolve_reference().primary_assets();
+            for asset in assets.await?.iter() {
+                if let Some(embeddable) = CssEmbeddableVc::resolve_from(asset).await? {
+                    let embed = embeddable.as_css_embed(self.context);
+                    references.extend(embed.references().await?.iter());
+                }
+            }
         }
         for chunk in content.chunks.iter() {
             references.push(ChunkReferenceVc::new_parallel(*chunk).into());

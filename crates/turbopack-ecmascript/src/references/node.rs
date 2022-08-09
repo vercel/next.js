@@ -12,6 +12,7 @@ use turbopack_core::{
     },
     source_asset::SourceAssetVc,
 };
+
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
