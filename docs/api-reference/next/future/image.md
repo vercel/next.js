@@ -263,7 +263,6 @@ For example, if you know your styling will cause an image to be full-width on mo
 
 ```js
 import Image from 'next/image'
-
 ;<div className="grid-element">
   <Image
     src="/example.png"
