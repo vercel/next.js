@@ -3,8 +3,6 @@ import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 
-import { NextRequest } from '../../../../server/web/spec-extension/request'
-
 import WebServer from '../../../../server/web-server'
 import {
   WebNextRequest,
@@ -105,7 +103,7 @@ export function getRender({
   })
   const requestHandler = server.getRequestHandler()
 
-  return async function render(request: NextRequest) {
+  return async function render(request: Request) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
     requestHandler(extendedReq, extendedRes)

@@ -194,10 +194,12 @@ Then, send a request to `/api/clear-preview-mode-cookies` to invoke the API Rout
 `setPreviewData` takes an optional second parameter which should be an options object. It accepts the following keys:
 
 - `maxAge`: Specifies the number (in seconds) for the preview session to last for.
+- `path`: Specifies the path the cookie should be applied under. Defaults to `/` enabling preview mode for all paths.
 
 ```js
 setPreviewData(data, {
   maxAge: 60 * 60, // The preview mode cookies expire in 1 hour
+  path: '/about', // The preview mode cookies apply to paths with /about
 })
 ```
 

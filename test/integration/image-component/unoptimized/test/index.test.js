@@ -45,40 +45,42 @@ function runTests() {
       await browser.elementById('eager-image').getAttribute('srcset')
     ).toBeNull()
 
-    await browser.eval(
-      `document.getElementById("internal-image").scrollIntoView({behavior: "smooth"})`
-    )
-    await browser.eval(
-      `document.getElementById("static-image").scrollIntoView({behavior: "smooth"})`
-    )
-    await browser.eval(
-      `document.getElementById("external-image").scrollIntoView({behavior: "smooth"})`
-    )
-    await browser.eval(
-      `document.getElementById("eager-image").scrollIntoView({behavior: "smooth"})`
-    )
+    await check(async () => {
+      await browser.eval(
+        `window.scrollTo(0, 0); document.getElementById("external-image").scrollIntoView()`
+      )
+      return browser.eval(
+        `document.getElementById("external-image").currentSrc`
+      )
+    }, 'https://image-optimization-test.vercel.app/test.jpg')
 
-    await check(
-      () =>
-        browser.eval(`document.getElementById("external-image").currentSrc`),
-      'https://image-optimization-test.vercel.app/test.jpg'
-    )
-    await check(
-      () => browser.elementById('internal-image').getAttribute('src'),
-      '/test.png'
-    )
-    await check(
-      () => browser.elementById('static-image').getAttribute('src'),
-      /test(.*)jpg/
-    )
-    await check(
-      () => browser.elementById('external-image').getAttribute('src'),
-      'https://image-optimization-test.vercel.app/test.jpg'
-    )
-    await check(
-      () => browser.elementById('eager-image').getAttribute('src'),
-      '/test.webp'
-    )
+    await check(async () => {
+      await browser.eval(
+        `window.scrollTo(0, 0); document.getElementById("internal-image").scrollIntoView()`
+      )
+      return browser.elementById('internal-image').getAttribute('src')
+    }, '/test.png')
+
+    await check(async () => {
+      await browser.eval(
+        `window.scrollTo(0, 0); document.getElementById("static-image").scrollIntoView()`
+      )
+      return browser.elementById('static-image').getAttribute('src')
+    }, /test(.*)jpg/)
+
+    await check(async () => {
+      await browser.eval(
+        `window.scrollTo(0, 0); document.getElementById("external-image").scrollIntoView()`
+      )
+      return browser.elementById('external-image').getAttribute('src')
+    }, 'https://image-optimization-test.vercel.app/test.jpg')
+
+    await check(async () => {
+      await browser.eval(
+        `window.scrollTo(0, 0); document.getElementById("eager-image").scrollIntoView()`
+      )
+      return browser.elementById('eager-image').getAttribute('src')
+    }, '/test.webp')
 
     expect(
       await browser.elementById('internal-image').getAttribute('srcset')

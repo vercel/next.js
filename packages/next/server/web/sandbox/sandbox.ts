@@ -1,27 +1,30 @@
-import type { RequestData, FetchEventResult } from '../types'
-import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
 import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { getModuleContext } from './context'
+import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import { requestToBodyStream } from '../../body-streams'
 
 export const ErrorSource = Symbol('SandboxError')
 
 type RunnerFn = (params: {
   name: string
   env: string[]
-  onWarning: (warn: Error) => void
+  onWarning?: (warn: Error) => void
   paths: string[]
-  request: RequestData
+  request: NodejsRequestData
   useCache: boolean
-  wasm: WasmBinding[]
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'wasm' | 'assets'>
+  distDir: string
 }) => Promise<FetchEventResult>
 
 export const run = withTaggedErrors(async (params) => {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
-    onWarning: params.onWarning,
+    onWarning: params.onWarning ?? (() => {}),
     useCache: params.useCache !== false,
     env: params.env,
-    wasm: params.wasm,
+    edgeFunctionEntry: params.edgeFunctionEntry,
+    distDir: params.distDir,
   })
 
   for (const paramPath of params.paths) {
@@ -41,9 +44,25 @@ export const run = withTaggedErrors(async (params) => {
     }
   }
 
-  return runtime.context._ENTRIES[`middleware_${params.name}`].default({
-    request: params.request,
-  })
+  const edgeFunction: (args: {
+    request: RequestData
+  }) => Promise<FetchEventResult> =
+    runtime.context._ENTRIES[`middleware_${params.name}`].default
+
+  const cloned = !['HEAD', 'GET'].includes(params.request.method)
+    ? params.request.body?.cloneBodyStream()
+    : undefined
+
+  try {
+    return await edgeFunction({
+      request: {
+        ...params.request,
+        body: cloned && requestToBodyStream(runtime.context, cloned),
+      },
+    })
+  } finally {
+    await params.request.body?.finalize()
+  }
 })
 
 /**
