@@ -24,13 +24,12 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
-  getRedirectStatus,
-  modifyRouteRegex,
   normalizeRouteRegex,
   Redirect,
   Rewrite,
   RouteType,
 } from '../lib/load-custom-routes'
+import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'

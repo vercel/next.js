@@ -1,3 +1,4 @@
+import type { Rewrite, CustomRoutes } from '../../../lib/load-custom-routes'
 import devalue from 'next/dist/compiled/devalue'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -13,10 +14,8 @@ import {
 import { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
-import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { spans } from './profiling-plugin'
-import { CustomRoutes } from '../../../lib/load-custom-routes'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
