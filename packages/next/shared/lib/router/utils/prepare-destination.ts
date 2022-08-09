@@ -17,13 +17,12 @@ export function matchHas(
   const params: Params = {}
 
   const allMatch = has.every((hasItem) => {
-    let value: undefined | string
-    let key = hasItem.key
+    type values = undefined | false | string
+    let value: values | values[]
 
     switch (hasItem.type) {
       case 'header': {
-        key = key!.toLowerCase()
-        value = req.headers[key] as string
+        value = req.headers[hasItem.key.toLowerCase()]
         break
       }
       case 'cookie': {
@@ -31,7 +30,7 @@ export function matchHas(
         break
       }
       case 'query': {
-        value = query[key!]
+        value = query[hasItem.key]
         break
       }
       case 'host': {
@@ -47,22 +46,55 @@ export function matchHas(
     }
 
     if (!hasItem.value && value) {
-      params[getSafeParamName(key!)] = value
+      let found
+      if (Array.isArray(value)) {
+        // ensure at least one value is truthy
+        // ensure we return the last value
+        value.forEach((v) => {
+          if (v) found = v
+        })
+        if (!found) return false
+      } else {
+        found = value
+      }
+
+      if ('key' in hasItem) {
+        params[getSafeParamName(hasItem.key)] = found
+      } else {
+        params[getSafeParamName(hasItem.type)] = found
+      }
+
       return true
-    } else if (value) {
+    } else if (typeof value !== 'undefined') {
       const matcher = new RegExp(`^${hasItem.value}$`)
-      const matches = Array.isArray(value)
-        ? value.slice(-1)[0].match(matcher)
-        : value.match(matcher)
+      // a value of false is equivalent to ''
+      // e.g. /path?q - q is false and should be matched as ''
+      const match = (v: string | false) => String(v || '').match(matcher)
+
+      let matches: ReturnType<typeof match> = null
+
+      if (Array.isArray(value)) {
+        // any match in an array means we have it
+        // ensure we return the last matching value
+        value.forEach((v) => {
+          if (typeof v !== 'undefined') {
+            const matched = match(v)
+            if (matched) matches = matched
+          }
+        })
+      } else {
+        matches = match(value)
+      }
 
       if (matches) {
         if (Array.isArray(matches)) {
           if (matches.groups) {
-            Object.keys(matches.groups).forEach((groupKey) => {
-              params[groupKey] = matches.groups![groupKey]
+            const groups = matches.groups
+            Object.keys(groups).forEach((groupKey) => {
+              params[groupKey] = groups[groupKey]
             })
-          } else if (hasItem.type === 'host' && matches[0]) {
-            params.host = matches[0]
+          } else if (!('key' in hasItem) && matches[0]) {
+            params[hasItem.type] = matches[0]
           }
         }
         return true
