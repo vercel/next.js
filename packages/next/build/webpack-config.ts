@@ -685,6 +685,8 @@ export default async function getBaseWebpackConfig(
       'react-dom/server$': `${reactDomDir}/server`,
       'react-dom/server.browser$': `${reactDomDir}/server.browser`,
       'react-dom/client$': `${reactDomDir}/client`,
+      'styled-jsx/style$': require.resolve(`next/dist/styled-jsx/style`),
+      'styled-jsx$': require.resolve(`next/dist/styled-jsx`),
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -860,11 +862,11 @@ export default async function getBaseWebpackConfig(
     const isEsmRequested = dependencyType === 'esm'
 
     const isLocalCallback = (localRes: string) => {
-      // Makes sure dist/shared and dist/server are not bundled
+      // Makes sure dist/styled-jsx, dist/shared and dist/server are not bundled
       // we need to process shared `router/router` and `dynamic`,
       // so that the DefinePlugin can inject process.env values
       const isNextExternal =
-        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+        /next[/\\]dist[/\\](styled-jsx|shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
           localRes
         )
 

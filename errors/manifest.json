@@ -719,6 +719,10 @@
         {
           "title": "failed-to-fetch-devpagesmanifest",
           "path": "/errors/failed-to-fetch-devpagesmanifest.md"
+        },
+        {
+          "title": "middleware-parse-user-agent",
+          "path": "/errors/middleware-parse-user-agent.md"
         }
       ]
     }

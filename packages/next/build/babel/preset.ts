@@ -16,7 +16,7 @@ type StyledJsxBabelOptions =
 // Resolve styled-jsx plugins
 function styledJsxOptions(options: StyledJsxBabelOptions) {
   options = options || {}
-  options.styleModule = 'next/dist/shared/lib/styled-jsx'
+  options.styleModule = 'styled-jsx/style'
 
   if (!Array.isArray(options.plugins)) {
     return options
@@ -185,8 +185,8 @@ export default (
       ],
       [
         isTest && options['styled-jsx'] && options['styled-jsx']['babel-test']
-          ? require('styled-jsx/babel-test')
-          : require('styled-jsx/babel'),
+          ? require('next/dist/styled-jsx/babel-test')
+          : require('next/dist/styled-jsx/babel'),
         styledJsxOptions(options['styled-jsx']),
       ],
       require('./plugins/amp-attributes'),
