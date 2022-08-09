@@ -1,8 +1,13 @@
-module.exports = function (plop) {
-  function getFileName(str) {
-    return str.toLowerCase().replace(/ /g, '-')
-  }
+const path = require('path')
+const fs = require('fs')
+// @ts-check
 
+function slugify(str) {
+  return str.toLowerCase().replace(/ /g, '-')
+}
+
+/** @param {import("plop").NodePlopAPI} plop */
+module.exports = function (plop) {
   plop.setGenerator('test', {
     description: 'Create a new test',
     prompts: [
@@ -30,15 +35,16 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.name)
+      if (!data) return []
+      const fileName = slugify(data.name)
       return [
         {
           type: 'add',
           templateFile: `test/${
-            data.type === 'unit' ? 'unit' : 'e2e'
+            data?.type === 'unit' ? 'unit' : 'e2e'
           }/example.txt`,
           path: `test/{{type}}/${
-            data.type === 'unit'
+            data?.type === 'unit'
               ? `${fileName}.test.ts`
               : `${fileName}/index.test.ts`
           }`,
@@ -57,7 +63,8 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.title)
+      if (!data) return []
+      const fileName = slugify(data.title)
       return [
         {
           type: 'add',
@@ -67,7 +74,7 @@ module.exports = function (plop) {
         {
           type: 'modify',
           path: 'errors/manifest.json',
-          transform(fileContents, data) {
+          transform(fileContents) {
             const manifestData = JSON.parse(fileContents)
             manifestData.routes[0].routes.push({
               title: fileName,
@@ -76,6 +83,79 @@ module.exports = function (plop) {
             return JSON.stringify(manifestData, null, 2)
           },
         },
+      ]
+    },
+  })
+
+  plop.setGenerator('lint', {
+    description: 'Create a new lint rule',
+    prompts: [
+      {
+        name: 'title',
+        type: 'input',
+        message: 'Title of the rule',
+      },
+      {
+        name: 'description',
+        type: 'input',
+        message: 'Describe the rule in a single sentence',
+      },
+      {
+        name: 'type',
+        type: 'list',
+        message: 'Should the linter warn or throw an error?',
+        choices: ['error', 'warn'],
+        default: 'error',
+      },
+    ],
+    actions: function (data) {
+      if (!data) return []
+      const fileName = slugify(data.title)
+      return [
+        {
+          type: 'add',
+          path: `packages/eslint-plugin-next/lib/rules/${fileName}.js`,
+          templateFile: `packages/eslint-plugin-next/lib/template.txt`,
+          data: { fileName },
+        },
+        {
+          type: 'add',
+          path: `test/unit/eslint-plugin-next/${fileName}.test.ts`,
+          templateFile: `test/unit/eslint-plugin-next/template.txt`,
+          data: { fileName },
+        },
+        {
+          type: 'add',
+          path: `errors/${fileName}.md`,
+          templateFile: `errors/template.txt`,
+        },
+        // TODO:
+        // {
+        //   type: 'modify',
+        //   path: 'packages/eslint-plugin-next/lib/index.js',
+        //   transform(fileContents) {
+        //     const rules = fs
+        //       .readdirSync(
+        //         path.join(__dirname, '/packages/eslint-plugin-next/lib/rules')
+        //       )
+        //       .map((file) => file.replace(/\.js$/, ''))
+        //     return `module.exports = ${JSON.stringify(
+        //       {
+        //         rules: rules.reduce((acc, rule) => {
+        //           acc[rule] = `require('./rules/${rule}'),`
+        //           return acc
+        //         }, {}),
+        //         configs: {
+        //           recommended: {
+        //             plugins: ['@next/next'],
+        //           },
+        //         },
+        //       },
+        //       null,
+        //       2
+        //     )};`
+        //   },
+        // },
       ]
     },
   })

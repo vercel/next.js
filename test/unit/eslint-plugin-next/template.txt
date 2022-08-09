@@ -1,0 +1,26 @@
+import rule from '@next/eslint-plugin-next/lib/rules/{{fileName}}'
+import { RuleTester } from 'eslint'
+
+const ruleTester = new RuleTester({
+  parserOptions: {
+    ecmaVersion: 2018,
+    sourceType: 'module',
+    ecmaFeatures: { modules: true, jsx: true },
+  },
+})
+
+ruleTester.run('{{fileName}}', rule, {
+  valid: [``],
+  invalid: [
+    {
+      code: ``,
+      filename: '',
+      errors: [
+        {
+          message: '',
+          type: '',
+        },
+      ],
+    },
+  ],
+})
