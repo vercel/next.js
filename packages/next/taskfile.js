@@ -1959,7 +1959,6 @@ export async function compile(task, opts) {
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
-      'copy_styled_jsx_assets',
     ],
     opts
   )
