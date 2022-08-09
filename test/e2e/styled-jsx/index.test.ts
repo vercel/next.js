@@ -6,10 +6,8 @@ import webdriver from 'next-webdriver'
 
 const appDir = path.join(__dirname, 'app')
 
-function runTest(packageManager?: string) {
-  describe(`styled-jsx with ${
-    packageManager ? ' ' + packageManager : ''
-  }`, () => {
+function runTest() {
+  describe(`styled-jsx`, () => {
     let next: NextInstance
 
     beforeAll(async () => {
@@ -32,11 +30,6 @@ function runTest(packageManager?: string) {
         },
         startCommand: 'yarn ' + ((global as any).isNextDev ? 'dev' : 'start'),
         buildCommand: `yarn build`,
-        ...(packageManager
-          ? {
-              installCommand: `npx ${packageManager} install`,
-            }
-          : {}),
       })
     })
     afterAll(() => next.destroy())
@@ -73,4 +66,3 @@ function runTest(packageManager?: string) {
 }
 
 runTest()
-runTest('pnpm')
