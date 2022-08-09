@@ -71,10 +71,20 @@ export class NextRequest extends Request {
     return this[INTERNALS].url
   }
 
+  /**
+   * @deprecated
+   * `page` has been deprecated in favour of `URLPattern`.
+   * Read more: https://nextjs.org/docs/messages/middleware-request-page
+   */
   public get page() {
     throw new RemovedPageError()
   }
 
+  /**
+   * @deprecated
+   * `ua` has been removed in favour of \`userAgent\` function.
+   * Read more: https://nextjs.org/docs/messages/middleware-parse-user-agent
+   */
   public get ua() {
     throw new RemovedUAError()
   }

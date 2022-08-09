@@ -1,4 +1,4 @@
-import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
+import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
 import {
   extractExportedConstValue,
@@ -10,6 +10,7 @@ import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
+import { ServerRuntime } from '../../types'
 
 interface MiddlewareConfig {
   pathMatcher: RegExp
