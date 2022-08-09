@@ -33,7 +33,7 @@ The `context` parameter is an object containing the following keys:
 - `params`: If this page uses a [dynamic route](/docs/routing/dynamic-routes.md), `params` contains the route parameters. If the page name is `[id].js` , then `params` will look like `{ id: ... }`.
 - `req`: [The `HTTP` IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage), with an additional `cookies` prop, which is an object with string keys mapping to string values of cookies.
 - `res`: [The `HTTP` response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
-- `query`: An object representing the query string.
+- `query`: An object representing the query string, including dynamic route parameters.
 - `preview`: `preview` is `true` if the page is in the [Preview Mode](/docs/advanced-features/preview-mode.md) and `false` otherwise.
 - `previewData`: The [preview](/docs/advanced-features/preview-mode.md) data set by `setPreviewData`.
 - `resolvedUrl`: A normalized version of the request `URL` that strips the `_next/data` prefix for client transitions and includes original query values.
