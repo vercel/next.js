@@ -20,12 +20,10 @@ export default function RootStyleRegistry({ children }) {
   }
 
   useFlushEffects(() => {
-    const effects = styledComponentsFlushEffect()
-
     return (
       <>
         {styledJsxFlushEffect()}
-        {effects}
+        {styledComponentsFlushEffect()}
       </>
     )
   })

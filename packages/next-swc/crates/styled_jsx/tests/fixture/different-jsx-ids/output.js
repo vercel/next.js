@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 const color = 'red';
 const otherColor = 'green';
 const A = ()=><div className={"jsx-551210e97e875d0e"}>

@@ -27,7 +27,6 @@ import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
-
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -56,6 +55,7 @@ import { RenderOpts, renderToHTML } from './render'
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
+import loadRequireHook from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
@@ -89,6 +89,8 @@ import { shouldUseReactRoot } from './utils'
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
+
+loadRequireHook()
 
 export * from './base-server'
 
