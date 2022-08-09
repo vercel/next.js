@@ -31,3 +31,4 @@ export default function Page() {
 - [Minifed production error 423 (React)](https://reactjs.org/docs/error-decoder.html/?invariant=423)
 - [Minifed production error 425 (React)](https://reactjs.org/docs/error-decoder.html/?invariant=425)
 - [`suppressHydrationWarning` documentation](https://reactjs.org/docs/dom-elements.html#suppresshydrationwarning)
+- [Hydration Error (Next.js)](https://nextjs.org/docs/messages/react-hydration-error)
