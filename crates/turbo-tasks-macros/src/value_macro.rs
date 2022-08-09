@@ -376,7 +376,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote!()
     } else {
         quote! {
-            #[derive(turbo_tasks::debug::internal::ValueDebug)]
+            #[derive(turbo_tasks::debug::ValueDebugFormat, turbo_tasks::debug::internal::ValueDebug)]
         }
     };
     let eq_derive = if manual_eq {
@@ -494,7 +494,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             impl turbo_tasks::debug::ValueDebug for #ident {
                 #[turbo_tasks::function]
                 async fn dbg(&self) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
-                    use turbo_tasks::debug::internal::ValueDebugFormat;
+                    use turbo_tasks::debug::ValueDebugFormat;
                     (&self.0).value_debug_format().try_to_value_debug_string().await
                 }
             }
@@ -504,9 +504,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let value_debug_format_impl = quote! {
-        impl turbo_tasks::debug::internal::ValueDebugFormat for #ref_ident {
-            fn value_debug_format(&self) -> turbo_tasks::debug::internal::ValueDebugFormatString {
-                turbo_tasks::debug::internal::ValueDebugFormatString::Async(Box::pin(async move {
+        impl turbo_tasks::debug::ValueDebugFormat for #ref_ident {
+            fn value_debug_format(&self) -> turbo_tasks::debug::ValueDebugFormatString {
+                turbo_tasks::debug::ValueDebugFormatString::Async(Box::pin(async move {
                     Ok(if let Some(value_debug) = turbo_tasks::debug::ValueDebugVc::resolve_from(self).await? {
                         value_debug.dbg().await?.to_string()
                     } else {

@@ -25,6 +25,11 @@ pub fn derive_value_debug_attr(input: TokenStream) -> TokenStream {
     derive::derive_value_debug(input)
 }
 
+#[proc_macro_derive(ValueDebugFormat, attributes(turbo_tasks))]
+pub fn derive_value_debug_format_attr(input: TokenStream) -> TokenStream {
+    derive::derive_value_debug_format(input)
+}
+
 /// Creates a ValueVc struct for a `struct` or `enum` that represent
 /// that type placed into a cell in a Task.
 ///

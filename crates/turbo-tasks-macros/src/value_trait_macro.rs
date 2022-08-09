@@ -148,7 +148,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             impl #ref_ident {
                 #[turbo_tasks::function]
                 pub async fn dbg(self) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
-                    use turbo_tasks::debug::internal::ValueDebugFormat;
+                    use turbo_tasks::debug::ValueDebugFormat;
                     self.value_debug_format().try_to_value_debug_string().await
                 }
             }
@@ -158,9 +158,9 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let value_debug_format_impl = quote! {
-        impl turbo_tasks::debug::internal::ValueDebugFormat for #ref_ident {
-            fn value_debug_format(&self) -> turbo_tasks::debug::internal::ValueDebugFormatString {
-                turbo_tasks::debug::internal::ValueDebugFormatString::Async(Box::pin(async move {
+        impl turbo_tasks::debug::ValueDebugFormat for #ref_ident {
+            fn value_debug_format(&self) -> turbo_tasks::debug::ValueDebugFormatString {
+                turbo_tasks::debug::ValueDebugFormatString::Async(Box::pin(async move {
                     Ok(if let Some(value_debug) = turbo_tasks::debug::ValueDebugVc::resolve_from(self).await? {
                         format!(concat!(stringify!(#ident), "({})"), value_debug.dbg().await?.as_str())
                     } else {
