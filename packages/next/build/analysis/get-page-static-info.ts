@@ -11,7 +11,7 @@ import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
-import { ServerRuntime } from '../../types'
+import { ServerRuntime } from 'next/types'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
 
 export interface MiddlewareConfig {
