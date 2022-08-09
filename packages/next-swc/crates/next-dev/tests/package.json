@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "devDependencies": {
+    "expect": "^24.5.0",
+    "jest-circus-browser": "^1.0.7"
+  },
+  "installConfig": {
+    "hoistingLimits": "workspaces"
+  }
+}

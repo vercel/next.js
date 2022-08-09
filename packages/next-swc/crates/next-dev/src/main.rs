@@ -68,7 +68,7 @@ async fn main() {
     let server = NextDevServerBuilder::new()
         .turbo_tasks(tt)
         .project_dir(dir)
-        .entry_asset_path("src/index.js".into())
+        .entry_asset("src/index.js".into())
         .eager_compile(args.eager_compile)
         .hostname(args.hostname)
         .port(args.port)
