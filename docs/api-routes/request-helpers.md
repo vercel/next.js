@@ -1,18 +1,18 @@
 ---
-description: API Routes provide built-in middlewares that parse the incoming request. Learn more about them here.
+description: API Routes provide built-in request helpers that parse the incoming request. Learn more about them here.
 ---
 
-# API Middlewares
+# API Routes Request Helpers
 
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware">API Routes with middleware</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware">API Routes Request Helpers</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors">API Routes with CORS</a></li>
   </ul>
 </details>
 
-API routes provide built in middlewares which parse the incoming request (`req`). Those middlewares are:
+API Routes provide built-in request helpers which parse the incoming request (`req`):
 
 - `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
 - `req.query` - An object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
@@ -20,7 +20,7 @@ API routes provide built in middlewares which parse the incoming reques
 
 ## Custom config
 
-Every API route can export a `config` object to change the default configs, which are the following:
+Every API Route can export a `config` object to change the default configuration, which is the following:
 
 ```js
 export const config = {
@@ -32,7 +32,7 @@ export const config = {
 }
 ```
 
-The `api` object includes all configs available for API routes.
+The `api` object includes all config options available for API Routes.
 
 `bodyParser` is automatically enabled. If you want to consume the body as a `Stream` or with [`raw-body`](https://www.npmjs.com/package/raw-body), you can set this to `false`.
 
@@ -68,7 +68,7 @@ export const config = {
 }
 ```
 
-`responseLimit` is automatically enabled, warning when an API routes' response body is over 4MB.
+`responseLimit` is automatically enabled, warning when an API Routes' response body is over 4MB.
 
 If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false`.
 
@@ -90,57 +90,6 @@ export const config = {
   },
 }
 ```
-
-## Connect/Express middleware support
-
-You can also use [Connect](https://github.com/senchalabs/connect) compatible middleware.
-
-For example, [configuring CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) for your API endpoint can be done leveraging the [cors](https://www.npmjs.com/package/cors) package.
-
-First, install `cors`:
-
-```bash
-npm i cors
-# or
-yarn add cors
-```
-
-Now, let's add `cors` to the API route:
-
-```js
-import Cors from 'cors'
-
-// Initializing the cors middleware
-const cors = Cors({
-  methods: ['GET', 'HEAD'],
-})
-
-// Helper method to wait for a middleware to execute before continuing
-// And to throw an error when an error happens in a middleware
-function runMiddleware(req, res, fn) {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result) => {
-      if (result instanceof Error) {
-        return reject(result)
-      }
-
-      return resolve(result)
-    })
-  })
-}
-
-async function handler(req, res) {
-  // Run the middleware
-  await runMiddleware(req, res, cors)
-
-  // Rest of the API logic
-  res.json({ message: 'Hello Everyone!' })
-}
-
-export default handler
-```
-
-> Go to the [API Routes with CORS](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors) example to see the finished app.
 
 ## Extending the `req`/`res` objects with TypeScript
 
