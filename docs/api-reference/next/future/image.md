@@ -45,7 +45,7 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 
 Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
 
-### With `next/image` (Before)
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -56,7 +56,7 @@ function Page() {
 }
 ```
 
-### With `next/future/image` (After)
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -68,7 +68,7 @@ function Page() {
 }
 ```
 
-### With `next/image` (Before)
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -79,7 +79,7 @@ function Page() {
 }
 ```
 
-### With `next/future/image` (After)
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -91,7 +91,7 @@ function Page() {
 }
 ```
 
-### With `next/image` (Before)
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -102,7 +102,7 @@ function Page() {
 }
 ```
 
-### With `next/future/image` (After)
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -113,7 +113,7 @@ function Page() {
 }
 ```
 
-### With `next/image` (Before)
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -124,7 +124,7 @@ function Page() {
 }
 ```
 
-### With `next/future/image` (After)
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
