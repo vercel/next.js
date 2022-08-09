@@ -45,6 +45,24 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 
 Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
 
+| `next/image` (Before)              | `next/future/image` (After)                                                 |
+| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- | --------------------- |
+| ```import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}``` | ```import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { maxWidth: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} style={css} />
+}``` |
+| `fixed`               | Sized to `width` and `height` exactly                    |
+| `responsive`          | Scale to fit width of container                          |
+| `fill`                | Grow in both X and Y axes to fill container              |
+
 <table>
 <thead>
   <tr>
