@@ -2260,25 +2260,23 @@ interface MiddlewareEffectParams<T extends FetchDataOutput> {
   router: Router
 }
 
-function matchesMiddleware<T extends FetchDataOutput>(
+async function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
-  return Promise.resolve(options.router.pageLoader.getMiddleware()).then(
-    (matchers) => {
-      if (!matchers) return false
-
-      const { pathname: asPathname } = parsePath(options.asPath)
-      const cleanedAs = hasBasePath(asPathname)
-        ? removeBasePath(asPathname)
-        : asPathname
-
-      // Check only path match on client. Matching "has" should be done on server
-      // where we can access more info such as headers, HttpOnly cookie, etc.
-      return matchers.some((m) =>
-        new RegExp(m.regexp).test(addLocale(cleanedAs, options.locale))
-      )
-    }
+  const matchers = await Promise.resolve(
+    options.router.pageLoader.getMiddleware()
   )
+  if (!matchers) return false
+
+  const { pathname: asPathname } = parsePath(options.asPath)
+  const cleanedAs = hasBasePath(asPathname)
+    ? removeBasePath(asPathname)
+    : asPathname
+  const cleanedAsWithLocale = addLocale(cleanedAs, options.locale)
+
+  // Check only path match on client. Matching "has" should be done on server
+  // where we can access more info such as headers, HttpOnly cookie, etc.
+  return matchers.some((m) => new RegExp(m.regexp).test(cleanedAsWithLocale))
 }
 
 function withMiddlewareEffects<T extends FetchDataOutput>(
