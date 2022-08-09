@@ -1,7 +1,6 @@
 module.exports = {
   experimental: {
     appDir: true,
-    runtime: 'nodejs',
     serverComponents: true,
     legacyBrowsers: false,
     browsersListForSwc: true,
