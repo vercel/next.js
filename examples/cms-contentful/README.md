@@ -256,6 +256,7 @@ This will deploy the Next.js project as well as connect it to your Contentful sp
 In your Contentful space, go to **Settings > Webhooks** and add a new webhook:
 
 - **Give the webhook a name**
+- **Activate:** Check the activate checkbox to ensure the webhook is marked as active
 - **Specify the POST URL:** Using the URL from your Vercel deployment in step 8, add the path `/api/revalidate` at the end, so it would look something like:
 
   ```
@@ -268,16 +269,21 @@ In your Contentful space, go to **Settings > Webhooks** and add a new webhook:
 
   ![Content webhook url](./docs/content-webhook-url.png)
 
-- **Specify Secret Header:** Add a header name `x-vercel-reval-key` and enter the value of the
+- **Specify Secret Header:** Add a secret header named `x-vercel-reval-key` and enter the value of the
   `CONTENTFUL_REVALIDATE_SECRET` from before.
   You can keep other options as is and save.
 
   ![Content secret header](./docs/content-secret-header.png)
 
-Now, try editing the title of one of your blog posts in Contentful and click Publish. You should see the changed reflected in the website you just deployed, all without triggering a build! Behind the scenes a call was made to the revalidate api that triggers a revalidation of both the landing page and the specific post that was changed.
+- **Set Content type:** Set content to `application/json` in the dropdown.
 
-![Content publish changes](./docs/content-publish-changes.png)
+  ![Content publish changes](./docs/content-content-type.png)
 
-- Note that you can verify if your request was made successfully by checking the webhook request log on Contentful and checking for a successful 200 status code, or by having your functions tab open on Vercel when committing the change (log drains may also be used). If you are experiencing issues with the api call, ensure you have correctly entered in the value for environment variable `CONTENTFUL_REVALIDATE_SECRET` within your Vercel deployment
+
+- **Edit post:** Now, try editing the title of one of your blog posts in Contentful and click Publish. You should see the changed reflected in the website you just deployed, all without triggering a build! Behind the scenes a call was made to the revalidate api that triggers a revalidation of both the landing page and the specific post that was changed.
+
+  ![Content publish changes](./docs/content-publish-changes.png)
+
+- **Verify:** You can verify if your request was made successfully by checking the webhook request log on Contentful and checking for a successful 200 status code, or by having your functions tab open on Vercel when committing the change (log drains may also be used). If you are experiencing issues with the api call, ensure you have correctly entered in the value for environment variable `CONTENTFUL_REVALIDATE_SECRET` within your Vercel deployment.
 
   ![Content successful request](./docs/content-successful-request.png)
