@@ -992,6 +992,42 @@ function runTests(mode) {
         )
       ).toBe('100%')
     })
+    it('should add position styles to fill images', async () => {
+      expect(
+        await browser.eval(`document.getElementById("fill-image-1").style.left`)
+      ).toBe('0px')
+      expect(
+        await browser.eval(`document.getElementById("fill-image-1").style.top`)
+      ).toBe('0px')
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.right`
+        )
+      ).toBe('0px')
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.bottom`
+        )
+      ).toBe('0px')
+    })
+    it('should not add fill styles to non-fill images', async () => {
+      const fillStyles = [
+        'height',
+        'width',
+        'position',
+        'left',
+        'top',
+        'right',
+        'bottom',
+      ]
+      for (let fillStyle of fillStyles) {
+        expect(
+          await browser.eval(
+            `document.getElementById("non-fill-image").style.${fillStyle}`
+          )
+        ).toBe('')
+      }
+    })
     if (mode === 'dev') {
       it('should not log incorrect warnings', async () => {
         await waitFor(1000)

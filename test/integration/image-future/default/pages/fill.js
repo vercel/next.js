@@ -16,6 +16,13 @@ const Page = () => {
       >
         <Image id="fill-image-1" src="/wide.png" sizes="300px" fill />
       </div>
+      <span>Non-fill image:</span>
+      <Image
+        id="non-fill-image"
+        src="/test.jpg"
+        width="400"
+        height="400"
+      ></Image>
     </div>
   )
 }
