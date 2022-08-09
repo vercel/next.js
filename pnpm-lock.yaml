@@ -561,7 +561,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.2
+      styled-jsx: 5.0.3
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -750,7 +750,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.2_@babel+core@7.18.0
+      styled-jsx: 5.0.3_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -20560,8 +20560,8 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.0.2_@babel+core@7.18.0:
-    resolution: {integrity: sha512-LqPQrbBh3egD57NBcHET4qcgshPks+yblyhPlH2GY8oaDgKs8SK4C3dBh3oSJjgzJ3G5t1SYEZGHkP+QEpX9EQ==}
+  /styled-jsx/5.0.3_@babel+core@7.18.0:
+    resolution: {integrity: sha512-v82oihjxFj2WJtQiodZIDjJpnmVcE71HTCVylxdcQHU0ocnI0rGhJ0+5A3311NMQUx0KFJ+18RSHNlfIgcSU8g==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
       '@babel/core': '*'
