@@ -20,6 +20,7 @@ module.exports = {
     'no-title-in-document-head': require('./rules/no-title-in-document-head'),
     'no-typos': require('./rules/no-typos'),
     'no-unwanted-polyfillio': require('./rules/no-unwanted-polyfillio'),
+    'date-hydration': require('./rules/date-hydration'),
   },
   configs: {
     recommended: {
@@ -40,6 +41,7 @@ module.exports = {
         '@next/next/no-title-in-document-head': 'warn',
         '@next/next/no-typos': 'warn',
         '@next/next/no-unwanted-polyfillio': 'warn',
+        '@next/next/date-hydration': 'warn',
         // errors
         '@next/next/inline-script-id': 'error',
         '@next/next/no-assign-module-variable': 'error',

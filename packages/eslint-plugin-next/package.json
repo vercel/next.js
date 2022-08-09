@@ -15,6 +15,7 @@
     "glob": "7.1.7"
   },
   "devDependencies": {
-    "@types/eslint": "7.28.0"
+    "@types/eslint": "7.28.0",
+    "@types/estree-jsx": "1.0.0"
   }
 }
