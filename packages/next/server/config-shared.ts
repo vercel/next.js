@@ -1,6 +1,6 @@
 import os from 'os'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
+import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
   ImageConfigComplete,

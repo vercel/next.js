@@ -1,4 +1,4 @@
-import { __ApiPreviewProps } from './api-utils'
+import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Route } from './router'
@@ -27,7 +27,7 @@ import type { PayloadOptions } from './send-payload'
 import { join, resolve } from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
-import { getRedirectStatus } from '../lib/load-custom-routes'
+import { getRedirectStatus } from '../lib/redirect-status'
 import {
   NEXT_BUILTIN_DOCUMENT,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
