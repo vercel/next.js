@@ -64,10 +64,7 @@ import { HtmlContext } from '../shared/lib/html-context'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
-import {
-  allowedStatusCodes,
-  getRedirectStatus,
-} from '../lib/load-custom-routes'
+import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
