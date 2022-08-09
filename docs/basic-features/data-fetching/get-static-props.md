@@ -30,6 +30,8 @@ You should use `getStaticProps` if:
 `getStaticProps` always runs on the server and never on the client. You can validate code written inside `getStaticProps` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
 
 - `getStaticProps` always runs during `next build`
+- `getStaticProps` runs in the background when using [`fallback: true`](/docs/api-reference/data-fetching/get-static-paths#fallback-true)
+- `getStaticProps` is called before initial render when using [`fallback: blocking`](/docs/api-reference/data-fetching/get-static-paths#fallback-blocking)
 - `getStaticProps` runs in the background when using `revalidate`
 - `getStaticProps` runs on-demand in the background when using [`revalidate()`](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation)
 

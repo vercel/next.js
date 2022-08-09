@@ -41,7 +41,6 @@ describe('app dir - react server components', () => {
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
       },
       dependencies: {
-        'styled-jsx': 'latest',
         'styled-components': '6.0.0-alpha.5',
         react: 'experimental',
         'react-dom': 'experimental',
@@ -327,7 +326,8 @@ describe('app dir - react server components', () => {
     const head = getNodeBySelector(html, 'head').html()
 
     // from styled-jsx
-    expect(head).toMatch(/{color:(\s*)purple;?}/)
+    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
+    expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)

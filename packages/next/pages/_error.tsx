@@ -1,6 +1,6 @@
 import React from 'react'
 import Head from '../shared/lib/head'
-import { NextPageContext } from '../shared/lib/utils'
+import type { NextPageContext } from '../shared/lib/utils'
 
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
@@ -57,7 +57,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                 .next-error-h1 {
                   border-right: 1px solid rgba(0, 0, 0, .3);
                 }
-                
+
                 ${
                   withDarkMode
                     ? `@media (prefers-color-scheme: dark) {

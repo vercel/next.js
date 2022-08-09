@@ -89,6 +89,7 @@ importers:
       escape-string-regexp: 2.0.0
       eslint: 7.24.0
       eslint-config-next: workspace:*
+      eslint-plugin-eslint-plugin: 4.3.0
       eslint-plugin-import: 2.22.1
       eslint-plugin-jest: 24.3.5
       eslint-plugin-react: 7.23.2
@@ -154,7 +155,6 @@ importers:
       semver: 7.3.7
       shell-quote: 1.7.3
       styled-components: 5.3.3
-      styled-jsx: link:packages/next/node_modules/styled-jsx
       styled-jsx-plugin-postcss: 3.0.2
       tailwindcss: 1.1.3
       taskr: 1.1.0
@@ -243,6 +243,7 @@ importers:
       escape-string-regexp: 2.0.0
       eslint: 7.24.0
       eslint-config-next: link:packages/eslint-config-next
+      eslint-plugin-eslint-plugin: 4.3.0_eslint@7.24.0
       eslint-plugin-import: 2.22.1_23iivq3ybsthf4qrv3kgatrvhe
       eslint-plugin-jest: 24.3.5_lqson4bxnnkvr5juyhnlzmz4rq
       eslint-plugin-react: 7.23.2_eslint@7.24.0
@@ -308,7 +309,6 @@ importers:
       semver: 7.3.7
       shell-quote: 1.7.3
       styled-components: 5.3.3_vtcxgy2wlmese7djxl6h7ok674
-      styled-jsx: link:packages/next/node_modules/styled-jsx
       styled-jsx-plugin-postcss: 3.0.2
       tailwindcss: 1.1.3
       taskr: 1.1.0
@@ -364,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.4
+      '@next/eslint-plugin-next': 12.2.5-canary.0
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -420,12 +420,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.4
-      '@next/polyfill-module': 12.2.4
-      '@next/polyfill-nomodule': 12.2.4
-      '@next/react-dev-overlay': 12.2.4
-      '@next/react-refresh-utils': 12.2.4
-      '@next/swc': 12.2.4
+      '@next/env': 12.2.5-canary.0
+      '@next/polyfill-module': 12.2.5-canary.0
+      '@next/polyfill-nomodule': 12.2.5-canary.0
+      '@next/react-dev-overlay': 12.2.5-canary.0
+      '@next/react-refresh-utils': 12.2.5-canary.0
+      '@next/swc': 12.2.5-canary.0
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
@@ -586,7 +586,6 @@ importers:
       '@swc/helpers': 0.4.3
       caniuse-lite: 1.0.30001332
       postcss: 8.4.14
-      styled-jsx: 5.0.2_@babel+core@7.18.0
       use-sync-external-store: 1.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -751,6 +750,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
+      styled-jsx: 5.0.2_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -10326,6 +10326,17 @@ packages:
       - supports-color
     dev: true
 
+  /eslint-plugin-eslint-plugin/4.3.0_eslint@7.24.0:
+    resolution: {integrity: sha512-0xZ++ilIpGY+gBwsaW/uIhG/Rrl/sltPCai3UUPzWbaOPud2tel9UCWj8sLTADNmVqBD+vcqLHzHY86q/b71yg==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      eslint: '>=6.0.0'
+    dependencies:
+      eslint: 7.24.0
+      eslint-utils: 3.0.0_eslint@7.24.0
+      estraverse: 5.3.0
+    dev: true
+
   /eslint-plugin-import/2.22.1_23iivq3ybsthf4qrv3kgatrvhe:
     resolution: {integrity: sha512-8K7JjINHOpH64ozkAhpT3sd+FswIZTfMZTjdx052pnWrgRCVfp8op9tbjpAk3DdUeI/Ba4C8OjdC0r90erHEOw==}
     engines: {node: '>=4'}
@@ -10443,6 +10454,7 @@ packages:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
     dependencies:
       eslint: 7.32.0
+    dev: false
 
   /eslint-plugin-react/7.23.2_eslint@7.24.0:
     resolution: {integrity: sha512-AfjgFQB+nYszudkxRkTFu0UR1zEQig0ArVMPloKhxwlwkzaw/fBiH0QWcBBhZONlXqQC51+nfqFrkn4EzHcGBw==}
@@ -20562,7 +20574,7 @@ packages:
         optional: true
     dependencies:
       '@babel/core': 7.18.0
-    dev: false
+    dev: true
 
   /stylehacks/4.0.3:
     resolution: {integrity: sha512-7GlLk9JwlElY4Y6a/rmbH2MhVlTyVmiJd1PfTCqFaIBEGMYNsrO/v3SeGTdhBThLg4Z+NbOk/qFMwCa+J+3p/g==}
