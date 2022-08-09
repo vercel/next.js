@@ -6,11 +6,7 @@ import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
-import type {
-  NextConfig,
-  NextConfigComplete,
-  ServerRuntime,
-} from './config-shared'
+import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
@@ -23,7 +19,7 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import type { PreviewData } from 'next/types'
+import type { PreviewData, ServerRuntime } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
@@ -734,6 +730,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         match: getPathMatch('/_next/data/:path*'),
         type: 'route',
         name: '_next/data catchall',
+        check: true,
         fn: async (req, res, params, _parsedUrl) => {
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct

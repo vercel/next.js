@@ -89,6 +89,7 @@ importers:
       escape-string-regexp: 2.0.0
       eslint: 7.24.0
       eslint-config-next: workspace:*
+      eslint-plugin-eslint-plugin: 4.3.0
       eslint-plugin-import: 2.22.1
       eslint-plugin-jest: 24.3.5
       eslint-plugin-react: 7.23.2
@@ -242,6 +243,7 @@ importers:
       escape-string-regexp: 2.0.0
       eslint: 7.24.0
       eslint-config-next: link:packages/eslint-config-next
+      eslint-plugin-eslint-plugin: 4.3.0_eslint@7.24.0
       eslint-plugin-import: 2.22.1_23iivq3ybsthf4qrv3kgatrvhe
       eslint-plugin-jest: 24.3.5_lqson4bxnnkvr5juyhnlzmz4rq
       eslint-plugin-react: 7.23.2_eslint@7.24.0
@@ -362,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.4-canary.9
+      '@next/eslint-plugin-next': 12.2.5-canary.0
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -418,12 +420,13 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.4-canary.9
-      '@next/polyfill-module': 12.2.4-canary.9
-      '@next/polyfill-nomodule': 12.2.4-canary.9
-      '@next/react-dev-overlay': 12.2.4-canary.9
-      '@next/react-refresh-utils': 12.2.4-canary.9
-      '@next/swc': 12.2.4-canary.9
+      '@next/env': 12.2.5-canary.0
+      '@next/polyfill-module': 12.2.5-canary.0
+      '@next/polyfill-nomodule': 12.2.5-canary.0
+      '@next/react-dev-overlay': 12.2.5-canary.0
+      '@next/react-refresh-utils': 12.2.5-canary.0
+      '@next/swc': 12.2.5-canary.0
+      '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -583,7 +586,6 @@ importers:
       '@swc/helpers': 0.4.3
       caniuse-lite: 1.0.30001332
       postcss: 8.4.14
-      styled-jsx: 5.0.2_@babel+core@7.18.0
       use-sync-external-store: 1.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -616,6 +618,7 @@ importers:
       '@next/react-dev-overlay': link:../react-dev-overlay
       '@next/react-refresh-utils': link:../react-refresh-utils
       '@next/swc': link:../next-swc
+      '@segment/ajv-human-errors': 2.1.2_ajv@8.11.0
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
       '@taskr/watch': 1.1.0
@@ -747,6 +750,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
+      styled-jsx: 5.0.2_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -5010,6 +5014,14 @@ packages:
     dependencies:
       any-observable: 0.3.0_rxjs@6.6.2
       rxjs: 6.6.2
+    dev: true
+
+  /@segment/ajv-human-errors/2.1.2_ajv@8.11.0:
+    resolution: {integrity: sha512-d1uQndRFLRO01+xW1y5m+joxDgHf5SLJ70YCY2ArLoo2FJ50o6AoX2mEbuGvnKz/IdwnvDugm9Ti3mZQkW1OoA==}
+    peerDependencies:
+      ajv: ^8.0.0
+    dependencies:
+      ajv: 8.11.0
     dev: true
 
   /@sidvind/better-ajv-errors/0.6.10_ajv@6.12.6:
@@ -10312,6 +10324,17 @@ packages:
       find-up: 2.1.0
     transitivePeerDependencies:
       - supports-color
+    dev: true
+
+  /eslint-plugin-eslint-plugin/4.3.0_eslint@7.24.0:
+    resolution: {integrity: sha512-0xZ++ilIpGY+gBwsaW/uIhG/Rrl/sltPCai3UUPzWbaOPud2tel9UCWj8sLTADNmVqBD+vcqLHzHY86q/b71yg==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      eslint: '>=6.0.0'
+    dependencies:
+      eslint: 7.24.0
+      eslint-utils: 3.0.0_eslint@7.24.0
+      estraverse: 5.3.0
     dev: true
 
   /eslint-plugin-import/2.22.1_23iivq3ybsthf4qrv3kgatrvhe:
@@ -20551,7 +20574,7 @@ packages:
         optional: true
     dependencies:
       '@babel/core': 7.18.0
-    dev: false
+    dev: true
 
   /stylehacks/4.0.3:
     resolution: {integrity: sha512-7GlLk9JwlElY4Y6a/rmbH2MhVlTyVmiJd1PfTCqFaIBEGMYNsrO/v3SeGTdhBThLg4Z+NbOk/qFMwCa+J+3p/g==}
