@@ -155,7 +155,6 @@ importers:
       semver: 7.3.7
       shell-quote: 1.7.3
       styled-components: 5.3.3
-      styled-jsx: link:packages/next/node_modules/styled-jsx
       styled-jsx-plugin-postcss: 3.0.2
       tailwindcss: 1.1.3
       taskr: 1.1.0
@@ -310,7 +309,6 @@ importers:
       semver: 7.3.7
       shell-quote: 1.7.3
       styled-components: 5.3.3_vtcxgy2wlmese7djxl6h7ok674
-      styled-jsx: link:packages/next/node_modules/styled-jsx
       styled-jsx-plugin-postcss: 3.0.2
       tailwindcss: 1.1.3
       taskr: 1.1.0
@@ -588,7 +586,6 @@ importers:
       '@swc/helpers': 0.4.3
       caniuse-lite: 1.0.30001332
       postcss: 8.4.14
-      styled-jsx: 5.0.2_@babel+core@7.18.0
       use-sync-external-store: 1.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -753,6 +750,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
+      styled-jsx: 5.0.2_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -10456,6 +10454,7 @@ packages:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
     dependencies:
       eslint: 7.32.0
+    dev: false
 
   /eslint-plugin-react/7.23.2_eslint@7.24.0:
     resolution: {integrity: sha512-AfjgFQB+nYszudkxRkTFu0UR1zEQig0ArVMPloKhxwlwkzaw/fBiH0QWcBBhZONlXqQC51+nfqFrkn4EzHcGBw==}
@@ -20575,7 +20574,7 @@ packages:
         optional: true
     dependencies:
       '@babel/core': 7.18.0
-    dev: false
+    dev: true
 
   /stylehacks/4.0.3:
     resolution: {integrity: sha512-7GlLk9JwlElY4Y6a/rmbH2MhVlTyVmiJd1PfTCqFaIBEGMYNsrO/v3SeGTdhBThLg4Z+NbOk/qFMwCa+J+3p/g==}

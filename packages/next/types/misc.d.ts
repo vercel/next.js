@@ -18,6 +18,11 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
   export = m
 }
 
+declare module 'next/dist/styled-jsx' {
+  import m from 'styled-jsx'
+  export = m
+}
+
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
