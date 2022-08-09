@@ -1,5 +1,4 @@
 #![feature(min_specialization)]
-#![feature(into_future)]
 
 use std::future::IntoFuture;
 

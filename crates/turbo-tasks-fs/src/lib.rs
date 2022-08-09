@@ -1032,9 +1032,11 @@ impl From<fs::Metadata> for FileMeta {
             Permissions::Readable
         } else {
             // https://github.com/fitzgen/is_executable/blob/master/src/lib.rs#L96
-            (permissions.mode() & 0o111 != 0)
-                .then(|| Permissions::Executable)
-                .unwrap_or(Permissions::Writable)
+            if permissions.mode() & 0o111 != 0 {
+                Permissions::Executable
+            } else {
+                Permissions::Writable
+            }
         };
         Self {
             permissions: perm,

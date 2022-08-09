@@ -7,7 +7,6 @@
 #![feature(generic_associated_types)]
 #![feature(result_flattening)]
 #![feature(box_syntax)]
-#![feature(into_future)]
 
 pub mod backend;
 mod collectibles;

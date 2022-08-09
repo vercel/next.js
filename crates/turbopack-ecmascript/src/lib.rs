@@ -1,7 +1,6 @@
 #![feature(box_syntax)]
 #![feature(box_patterns)]
 #![feature(min_specialization)]
-#![feature(into_future)]
 #![feature(iter_intersperse)]
 #![feature(str_split_as_str)]
 #![recursion_limit = "256"]

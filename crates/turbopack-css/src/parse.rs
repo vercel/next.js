@@ -56,7 +56,7 @@ fn parse_content(string: String, fs_path: String) -> Result<ParseResultVc> {
     let config = ParserConfig::default();
 
     let mut errors = Vec::new();
-    let parsed_stylesheet = match parse_file::<Stylesheet>(&*fm, config, &mut errors) {
+    let parsed_stylesheet = match parse_file::<Stylesheet>(&fm, config, &mut errors) {
         Ok(stylesheet) => stylesheet,
         Err(e) => {
             // TODO report in in a stream

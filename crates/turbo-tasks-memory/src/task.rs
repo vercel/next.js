@@ -382,7 +382,8 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         let mut state = self.state.write().unwrap();
-        match state.state_type {
+        let state_type = &state.state_type;
+        match state_type {
             Done | InProgress | InProgressDirty => {
                 // should not start in this state
                 return false;
@@ -397,10 +398,11 @@ impl Task {
                 // finished.
                 if !state.children.is_empty() {
                     let set = take(&mut state.children);
-                    match state.scopes {
+                    let state_scopes = &state.scopes;
+                    match state_scopes {
                         TaskScopes::Root(scope) => {
                             turbo_tasks.schedule_backend_background_job(
-                                backend.create_backend_job(Job::RemoveFromScope(set, scope)),
+                                backend.create_backend_job(Job::RemoveFromScope(set, *scope)),
                             );
                         }
                         TaskScopes::Inner(ref scopes) => {

@@ -19,12 +19,12 @@ pub async fn issue_to_styled_string(
         let source = &*source.await?;
         let source_name = source.asset.path().to_string().await?;
         if *source_name != *context_name {
-            writeln!(&mut str, "{}", (&*context_name).bright_blue())?;
+            writeln!(&mut str, "{}", (*context_name).bright_blue())?;
         }
         writeln!(
             &mut str,
             "{}:{}:{}",
-            (&*source_name).bright_blue(),
+            (*source_name).bright_blue(),
             source.start.line + 1,
             source.start.column
         )?;
@@ -82,7 +82,7 @@ pub async fn issue_to_styled_string(
             }
         }
     } else {
-        writeln!(&mut str, "{}", (&*context_name).bright_blue())?;
+        writeln!(&mut str, "{}", (*context_name).bright_blue())?;
     }
     let severity = &*issue.severity().await?;
     let title = &*issue.title().await?;

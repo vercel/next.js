@@ -34,7 +34,7 @@ impl ChunkingContext for DevChunkingContext {
         let mut name = if let Some(inner) = self.context_path.await?.get_path_to(&*path.await?) {
             clean(inner)
         } else {
-            clean(&*path.to_string().await?)
+            clean(&path.to_string().await?)
         };
         if !name.ends_with(extension) {
             name += extension;

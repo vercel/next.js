@@ -490,7 +490,7 @@ impl<T: ValueTraitVc> Future for CollectiblesFuture<T> {
                 Ok(set) => {
                     if this.take {
                         this.turbo_tasks
-                            .unemit_collectibles(T::get_trait_type_id(), &*set);
+                            .unemit_collectibles(T::get_trait_type_id(), &set);
                     }
                     Ok(set.iter().map(|raw| (*raw).into()).collect())
                 }
