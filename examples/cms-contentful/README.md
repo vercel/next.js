@@ -271,14 +271,12 @@ In your Contentful space, go to **Settings > Webhooks** and add a new webhook:
 
 - **Specify Secret Header:** Add a secret header named `x-vercel-reval-key` and enter the value of the
   `CONTENTFUL_REVALIDATE_SECRET` from before.
-  You can keep other options as is and save.
 
   ![Content secret header](./docs/content-secret-header.png)
 
-- **Set Content type:** Set content to `application/json` in the dropdown.
+- **Set Content type:** Set content type to `application/json` in the dropdown.
 
   ![Content publish changes](./docs/content-content-type.png)
-
 
 - **Edit post:** Now, try editing the title of one of your blog posts in Contentful and click Publish. You should see the changed reflected in the website you just deployed, all without triggering a build! Behind the scenes a call was made to the revalidate api that triggers a revalidation of both the landing page and the specific post that was changed.
 
