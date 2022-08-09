@@ -4,7 +4,6 @@ import {
   extractExportedConstValue,
   UnsupportedValueError,
 } from './extract-const-value'
-import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
@@ -178,14 +177,14 @@ function getMiddlewareConfig(
 
 function getMiddlewareRegExpStrings(
   matcherOrMatchers: unknown,
-  nextConfig: NextConfig,
-  { doNotRecurseOnRoot }: { doNotRecurseOnRoot?: boolean } = {}
+  nextConfig: NextConfig
 ): string[] {
   if (Array.isArray(matcherOrMatchers)) {
     return matcherOrMatchers.flatMap((matcher) =>
-      getMiddlewareRegExpStrings(matcher, nextConfig, { doNotRecurseOnRoot })
+      getMiddlewareRegExpStrings(matcher, nextConfig)
     )
   }
+  const { i18n } = nextConfig
 
   if (typeof matcherOrMatchers !== 'string') {
     throw new Error(
@@ -198,24 +197,23 @@ function getMiddlewareRegExpStrings(
   if (!matcher.startsWith('/')) {
     throw new Error('`matcher`: path matcher must start with /')
   }
+  const isRoot = matcher === '/'
 
-  if (matcher === '/' && !doNotRecurseOnRoot) {
-    return getMiddlewareRegExpStrings(['/', '/index'], nextConfig, {
-      doNotRecurseOnRoot: true,
-    })
+  if (i18n?.locales) {
+    matcher = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : matcher}`
   }
 
-  if (nextConfig.i18n?.locales) {
-    matcher = `/:nextInternalLocale(${nextConfig.i18n.locales
-      .map((locale) => escapeStringRegexp(locale))
-      .join('|')})${matcher === '/' ? '' : matcher}`
-  }
+  matcher = `/:nextData(_next/data/[^/]{1,})?${matcher}${
+    isRoot
+      ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
+      : '(.json)?'
+  }`
 
   if (nextConfig.basePath) {
-    matcher = `${nextConfig.basePath}${matcher === '/' ? '' : matcher}`
+    matcher = `${nextConfig.basePath}${matcher}`
   }
-
   const parsedPage = tryToParsePath(matcher)
+
   if (parsedPage.error) {
     throw new Error(`Invalid path matcher: ${matcher}`)
   }
