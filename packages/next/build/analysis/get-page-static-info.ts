@@ -198,7 +198,7 @@ function getMiddlewareMatchers(
 
     const isRoot = source === '/'
 
-    if (i18n?.locales) {
+    if (i18n?.locales && r.locale !== false) {
       source = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : source}`
     }
 
@@ -208,7 +208,7 @@ function getMiddlewareMatchers(
         : '(.json)?'
     }`
 
-    if (nextConfig.basePath) {
+    if (nextConfig.basePath && r.basePath !== false) {
       source = `${nextConfig.basePath}${source}`
     }
     const parsedPage = tryToParsePath(source)

@@ -76,6 +76,14 @@ const runTests = () => {
           },
         ],
       },
+      {
+        source: '/hello',
+        basePath: true,
+      },
+      {
+        source: '/hello',
+        locale: true,
+      },
     ])
     const stderr = await getStderr()
 
@@ -116,6 +124,12 @@ const runTests = () => {
       `invalid \`has\` items found for route {"source":"/hello","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
     )
     expect(stderr).toContain(`Valid \`has\` object shape is {`)
+    expect(stderr).toContain(
+      '`basePath` must be undefined or false for route {"source":"/hello","basePath":true}'
+    )
+    expect(stderr).toContain(
+      '`locale` must be undefined or false for route {"source":"/hello","locale":true}'
+    )
   })
 }
 
