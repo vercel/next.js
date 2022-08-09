@@ -28,12 +28,25 @@ describe('Middleware can set the matcher in its config', () => {
     expect(await response.text()).toContain('This should run the middleware')
   })
 
-  it('adds the header for a matched data path', async () => {
+  it('adds the header for a matched data path (with header)', async () => {
     const response = await fetchViaHTTP(
       next.url,
       `/_next/data/${next.buildId}/with-middleware.json`,
       undefined,
       { headers: { 'x-nextjs-data': '1' } }
+    )
+    expect(await response.json()).toMatchObject({
+      pageProps: {
+        message: 'Hello, cruel world.',
+      },
+    })
+    expect(response.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it('adds the header for a matched data path (without header)', async () => {
+    const response = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/with-middleware.json`
     )
     expect(await response.json()).toMatchObject({
       pageProps: {
