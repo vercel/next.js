@@ -3,6 +3,7 @@ const path = require('path')
 const execa = require('execa')
 const fs = require('fs-extra')
 const childProcess = require('child_process')
+const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
@@ -14,8 +15,14 @@ async function createNextInstall(
 ) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
-  const installDir = path.join(tmpDir, `next-install-${Date.now()}`)
-  const tmpRepoDir = path.join(tmpDir, `next-repo-${Date.now()}`)
+  const installDir = path.join(
+    tmpDir,
+    `next-install-${randomBytes(32).toString('hex')}`
+  )
+  const tmpRepoDir = path.join(
+    tmpDir,
+    `next-repo-${randomBytes(32).toString('hex')}`
+  )
 
   // ensure swc binary is present in the native folder if
   // not already built

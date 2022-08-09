@@ -19,7 +19,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.23
+      '@edge-runtime/jest-environment': 1.1.0-beta.25
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -89,6 +89,7 @@ importers:
       escape-string-regexp: 2.0.0
       eslint: 7.24.0
       eslint-config-next: workspace:*
+      eslint-plugin-eslint-plugin: 4.3.0
       eslint-plugin-import: 2.22.1
       eslint-plugin-jest: 24.3.5
       eslint-plugin-react: 7.23.2
@@ -172,7 +173,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.23
+      '@edge-runtime/jest-environment': 1.1.0-beta.25
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -242,6 +243,7 @@ importers:
       escape-string-regexp: 2.0.0
       eslint: 7.24.0
       eslint-config-next: link:packages/eslint-config-next
+      eslint-plugin-eslint-plugin: 4.3.0_eslint@7.24.0
       eslint-plugin-import: 2.22.1_23iivq3ybsthf4qrv3kgatrvhe
       eslint-plugin-jest: 24.3.5_lqson4bxnnkvr5juyhnlzmz4rq
       eslint-plugin-react: 7.23.2_eslint@7.24.0
@@ -362,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.4-canary.8
+      '@next/eslint-plugin-next': 12.2.5-canary.0
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -414,16 +416,17 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.23
+      '@edge-runtime/primitives': 1.1.0-beta.25
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.4.4
+      '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.4-canary.8
-      '@next/polyfill-module': 12.2.4-canary.8
-      '@next/polyfill-nomodule': 12.2.4-canary.8
-      '@next/react-dev-overlay': 12.2.4-canary.8
-      '@next/react-refresh-utils': 12.2.4-canary.8
-      '@next/swc': 12.2.4-canary.8
+      '@next/env': 12.2.5-canary.0
+      '@next/polyfill-module': 12.2.5-canary.0
+      '@next/polyfill-nomodule': 12.2.5-canary.0
+      '@next/react-dev-overlay': 12.2.5-canary.0
+      '@next/react-refresh-utils': 12.2.5-canary.0
+      '@next/swc': 12.2.5-canary.0
+      '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -494,7 +497,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.23
+      edge-runtime: 1.1.0-beta.25
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -558,7 +561,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.2
+      styled-jsx: 5.0.3
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -583,7 +586,6 @@ importers:
       '@swc/helpers': 0.4.3
       caniuse-lite: 1.0.30001332
       postcss: 8.4.14
-      styled-jsx: 5.0.2_@babel+core@7.18.0
       use-sync-external-store: 1.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -607,15 +609,16 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.23
+      '@edge-runtime/primitives': 1.1.0-beta.25
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.4.4
+      '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
       '@next/polyfill-module': link:../next-polyfill-module
       '@next/polyfill-nomodule': link:../next-polyfill-nomodule
       '@next/react-dev-overlay': link:../react-dev-overlay
       '@next/react-refresh-utils': link:../react-refresh-utils
       '@next/swc': link:../next-swc
+      '@segment/ajv-human-errors': 2.1.2_ajv@8.11.0
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
       '@taskr/watch': 1.1.0
@@ -684,7 +687,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.23
+      edge-runtime: 1.1.0-beta.25
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -747,6 +750,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
+      styled-jsx: 5.0.3_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -832,7 +836,10 @@ importers:
       whatwg-fetch: 3.0.0
 
   packages/next-swc:
-    specifiers: {}
+    specifiers:
+      '@napi-rs/cli': 2.7.0
+    devDependencies:
+      '@napi-rs/cli': 2.7.0
 
   packages/react-dev-overlay:
     specifiers:
@@ -3211,14 +3218,14 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/format/1.1.0-beta.23:
-    resolution: {integrity: sha512-TuY7ywLzp2XQQZpM8cX1dzm2QMK2juvtpMVR8K61utL2qvokzJ4gBYLcPSKhH0EWAt4WwgymNVRX0cpdSLAqAg==}
+  /@edge-runtime/format/1.1.0-beta.25:
+    resolution: {integrity: sha512-7fzTXgfVzcWs6T8ePVyogbVU67TbXpDHhgop9yP9stsRlejJjD2bDm/jDwX9XAfQdET5gVaKDiYc0wkp9E4gig==}
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.23:
-    resolution: {integrity: sha512-mQ5Vst9k44umfsR90mLy6DqatEPBOiU25T1mtKdmyuQVXhvcH2+3oevTu6/aPW/5J489ZXp60BDWfye4lQD7ew==}
+  /@edge-runtime/jest-environment/1.1.0-beta.25:
+    resolution: {integrity: sha512-tOjxI0/8m0beqEiOXmDzPCqpycUiMLvIV1PoQ9zb5qcxJqF8AcmZMRqICfdqnWo+P3qJIr8YeZSG31lz5EaJfw==}
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.23
+      '@edge-runtime/vm': 1.1.0-beta.25
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
@@ -3226,14 +3233,14 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.23:
-    resolution: {integrity: sha512-0vHcZZwyxjmw/so9irYtA82/+nAlJRs+1WpRYBx7iae1FOGCPM4BIKEmboWmwTuj7c6avz9kIbptokdMUPgV9A==}
+  /@edge-runtime/primitives/1.1.0-beta.25:
+    resolution: {integrity: sha512-+lKore2sAuGD2AMa2GZviLMHKfFmw5k2BzhvyatKPuJ/frIFpb1OdluxGHfqmVBtNIJwnn7IJoJd9jm8r/6Flg==}
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.23:
-    resolution: {integrity: sha512-XBp3rCuX4scJVOo2KconAotL5XGX3zdd8IkfDNr5VVSQ/B6HkiTNuf+EvzSQTpplF+fiyLTpfcP9EbNLibwLTA==}
+  /@edge-runtime/vm/1.1.0-beta.25:
+    resolution: {integrity: sha512-xDre6a3L0KXsxQxuZaXw5ukyGh5v7k1E7XL5ooxBbaHz+5GtvCidSZ3sPvFDzetlKq7eBT4ztg4RTkHbCUclDA==}
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.23
+      '@edge-runtime/primitives': 1.1.0-beta.25
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -4644,8 +4651,8 @@ packages:
       glob-to-regexp: 0.3.0
     dev: true
 
-  /@napi-rs/cli/2.4.4:
-    resolution: {integrity: sha512-f+tvwCv1ka24dBqI2DgBhR7Oxl3DKHOp4onxLXwyBFt6iCADnr3YZIr1/2Iq5r3uqxFgaf01bfPsRQZPkEp0kQ==}
+  /@napi-rs/cli/2.7.0:
+    resolution: {integrity: sha512-bQb+r9/xW8LFRbpEN7A/4fX8LnEWbI0JzyOzXGDpO+cI8dXRxX7OPySOpzT2nBgP1brA2Ydkw/t9lyxLN9TlxQ==}
     engines: {node: '>= 10'}
     hasBin: true
     dev: true
@@ -5007,6 +5014,14 @@ packages:
     dependencies:
       any-observable: 0.3.0_rxjs@6.6.2
       rxjs: 6.6.2
+    dev: true
+
+  /@segment/ajv-human-errors/2.1.2_ajv@8.11.0:
+    resolution: {integrity: sha512-d1uQndRFLRO01+xW1y5m+joxDgHf5SLJ70YCY2ArLoo2FJ50o6AoX2mEbuGvnKz/IdwnvDugm9Ti3mZQkW1OoA==}
+    peerDependencies:
+      ajv: ^8.0.0
+    dependencies:
+      ajv: 8.11.0
     dev: true
 
   /@sidvind/better-ajv-errors/0.6.10_ajv@6.12.6:
@@ -9965,12 +9980,12 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.23:
-    resolution: {integrity: sha512-A7dO/Y+4UJnaxFcdz6pepL+0GcvvViWvf201oFQXepgdSxPDKiqxaayCag0eiirQ6OfF+cSTmPD3xrfEoAIjiQ==}
+  /edge-runtime/1.1.0-beta.25:
+    resolution: {integrity: sha512-2yC0hqnMis0t2zIFCWsV7uu8hEhUZDgVszZyXS/C4719r1km2FkL5kWk+6ktVD4A6fUTnzTrYPq+fzTxIt7X2A==}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0-beta.23
-      '@edge-runtime/vm': 1.1.0-beta.23
+      '@edge-runtime/format': 1.1.0-beta.25
+      '@edge-runtime/vm': 1.1.0-beta.25
       exit-hook: 2.2.1
       http-status: 1.5.2
       mri: 1.2.0
@@ -10311,6 +10326,17 @@ packages:
       - supports-color
     dev: true
 
+  /eslint-plugin-eslint-plugin/4.3.0_eslint@7.24.0:
+    resolution: {integrity: sha512-0xZ++ilIpGY+gBwsaW/uIhG/Rrl/sltPCai3UUPzWbaOPud2tel9UCWj8sLTADNmVqBD+vcqLHzHY86q/b71yg==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      eslint: '>=6.0.0'
+    dependencies:
+      eslint: 7.24.0
+      eslint-utils: 3.0.0_eslint@7.24.0
+      estraverse: 5.3.0
+    dev: true
+
   /eslint-plugin-import/2.22.1_23iivq3ybsthf4qrv3kgatrvhe:
     resolution: {integrity: sha512-8K7JjINHOpH64ozkAhpT3sd+FswIZTfMZTjdx052pnWrgRCVfp8op9tbjpAk3DdUeI/Ba4C8OjdC0r90erHEOw==}
     engines: {node: '>=4'}
@@ -10428,6 +10454,7 @@ packages:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
     dependencies:
       eslint: 7.32.0
+    dev: false
 
   /eslint-plugin-react/7.23.2_eslint@7.24.0:
     resolution: {integrity: sha512-AfjgFQB+nYszudkxRkTFu0UR1zEQig0ArVMPloKhxwlwkzaw/fBiH0QWcBBhZONlXqQC51+nfqFrkn4EzHcGBw==}
@@ -20533,8 +20560,8 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.0.2_@babel+core@7.18.0:
-    resolution: {integrity: sha512-LqPQrbBh3egD57NBcHET4qcgshPks+yblyhPlH2GY8oaDgKs8SK4C3dBh3oSJjgzJ3G5t1SYEZGHkP+QEpX9EQ==}
+  /styled-jsx/5.0.3_@babel+core@7.18.0:
+    resolution: {integrity: sha512-v82oihjxFj2WJtQiodZIDjJpnmVcE71HTCVylxdcQHU0ocnI0rGhJ0+5A3311NMQUx0KFJ+18RSHNlfIgcSU8g==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
       '@babel/core': '*'
@@ -20547,7 +20574,7 @@ packages:
         optional: true
     dependencies:
       '@babel/core': 7.18.0
-    dev: false
+    dev: true
 
   /stylehacks/4.0.3:
     resolution: {integrity: sha512-7GlLk9JwlElY4Y6a/rmbH2MhVlTyVmiJd1PfTCqFaIBEGMYNsrO/v3SeGTdhBThLg4Z+NbOk/qFMwCa+J+3p/g==}

@@ -2,7 +2,7 @@
 
 This example contains everything needed to get a Next.js development and production environment up and running with Docker Compose.
 
-## Benfits of Docker Compose
+## Benefits of Docker Compose
 
 - Develop locally without Node.js or TypeScript installed ✨
 - Easy to run, consistent development environment across Mac, Windows, and Linux teams
@@ -41,10 +41,10 @@ First, run the development server:
 docker network create my_network
 
 # Build dev using new BuildKit engine
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.dev.yml build --parallel
+docker compose -f docker-compose.dev.yml build
 
 # Up dev
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.dev.yml up
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
@@ -63,10 +63,10 @@ First, run the production server (Final image approximately 110 MB).
 docker network create my_network
 
 # Build prod using new BuildKit engine
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.prod.yml build --parallel
+docker compose -f docker-compose.prod.yml build
 
 # Up prod in detached mode
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 Alternatively, run the production server without without multistage builds (Final image approximately 1 GB).
@@ -77,10 +77,10 @@ Alternatively, run the production server without without multistage builds (Fina
 docker network create my_network
 
 # Build prod without multistage using new BuildKit engine
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.prod-without-multistage.yml build --parallel
+docker compose -f docker-compose.prod-without-multistage.yml build
 
 # Up prod without multistage in detached mode
-docker-compose -f docker-compose.prod-without-multistage.yml up -d
+docker compose -f docker-compose.prod-without-multistage.yml up -d
 ```
 
 Open [http://localhost:3000](http://localhost:3000).

@@ -115,5 +115,5 @@ export const config = {}
 ### Useful Links
 
 - [Enabling AMP Support](https://nextjs.org/docs/advanced-features/amp-support/introduction)
-- [API Middlewares](https://nextjs.org/docs/api-routes/api-middlewares)
+- [API Routes Request Helpers](https://nextjs.org/docs/api-routes/request-helpers)
 - [Switchable Runtime](https://nextjs.org/docs/advanced-features/react-18/switchable-runtime)

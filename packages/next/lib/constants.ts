@@ -1,4 +1,4 @@
-import type { ServerRuntime } from '../server/config-shared'
+import type { ServerRuntime } from '../types'
 import { join } from '../shared/lib/isomorphic/path'
 
 export const NEXT_PROJECT_ROOT = join(__dirname, '..', '..')

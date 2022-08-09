@@ -105,13 +105,7 @@ export default class DevServer extends Server {
   private pagesDir: string
   private appDir?: string
   private actualMiddlewareFile?: string
-
-  /**
-   * Since the dev server is stateful and middleware routes can be added and
-   * removed over time, we need to keep a list of all of the middleware
-   * routing items to be returned in `getMiddleware()`
-   */
-  private middleware?: RoutingItem[]
+  private middleware?: RoutingItem
   private edgeFunctions?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
@@ -289,12 +283,11 @@ export default class DevServer extends Server {
       wp.watch(files, directories, 0)
 
       wp.on('aggregated', async () => {
-        const routedMiddleware: string[] = []
         let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
-        const ssrMiddleware = new Set<string>()
+        const edgeRoutesSet = new Set<string>()
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -326,7 +319,7 @@ export default class DevServer extends Server {
             this.actualMiddlewareFile = rootFile
             middlewareMatcher =
               staticInfo.middleware?.pathMatcher || new RegExp('.*')
-            routedMiddleware.push('/')
+            edgeRoutesSet.add('/')
             continue
           }
 
@@ -364,10 +357,7 @@ export default class DevServer extends Server {
             onClient: () => {},
             onServer: () => {},
             onEdgeServer: () => {
-              if (!pageName.startsWith('/api/')) {
-                routedMiddleware.push(pageName)
-              }
-              ssrMiddleware.add(pageName)
+              edgeRoutesSet.add(pageName)
             },
           })
           routedPages.push(pageName)
@@ -382,24 +372,22 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = []
         this.edgeFunctions = []
-        getSortedRoutes(routedMiddleware).forEach((page) => {
+        const edgeRoutes = Array.from(edgeRoutesSet)
+        getSortedRoutes(edgeRoutes).forEach((page) => {
           const isRootMiddleware = page === '/' && !!middlewareMatcher
           const middlewareRegex = isRootMiddleware
             ? { re: middlewareMatcher!, groups: {} }
-            : getMiddlewareRegex(page, {
-                catchAll: !ssrMiddleware.has(page),
-              })
+            : getMiddlewareRegex(page, { catchAll: false })
           const routeItem = {
             match: getRouteMatcher(middlewareRegex),
             page,
             re: middlewareRegex.re,
-            ssr: !isRootMiddleware,
           }
 
-          this.middleware!.push(routeItem)
-          if (!isRootMiddleware) {
+          if (isRootMiddleware) {
+            this.middleware = routeItem
+          } else {
             this.edgeFunctions!.push(routeItem)
           }
         })
@@ -907,7 +895,7 @@ export default class DevServer extends Server {
   }
 
   protected getMiddleware() {
-    return this.middleware ?? []
+    return this.middleware
   }
 
   protected getEdgeFunctions() {
@@ -922,20 +910,12 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected async hasMiddleware(
-    pathname: string,
-    isSSR?: boolean
-  ): Promise<boolean> {
-    return this.hasPage(isSSR ? pathname : this.actualMiddlewareFile!)
+  protected async hasMiddleware(): Promise<boolean> {
+    return this.hasPage(this.actualMiddlewareFile!)
   }
 
-  protected async ensureMiddleware(
-    pathname: string,
-    isSSR?: boolean
-  ): Promise<void> {
-    return this.hotReloader!.ensurePage(
-      isSSR ? pathname : this.actualMiddlewareFile!
-    )
+  protected async ensureEdgeFunction(pathname: string) {
+    return this.hotReloader!.ensurePage(pathname)
   }
 
   generateRoutes() {
@@ -990,10 +970,11 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify(
-              this.getMiddleware().map((middleware) => [
-                middleware.re!.source,
-                !!middleware.ssr,
-              ])
+              this.middleware
+                ? {
+                    location: this.middleware.re!.source,
+                  }
+                : {}
             )
           )
           .send()

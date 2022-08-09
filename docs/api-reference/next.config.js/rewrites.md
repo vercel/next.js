@@ -42,7 +42,7 @@ module.exports = {
 
 Rewrites are applied to client-side routing, a `<Link href="/about">` will have the rewrite applied in the above example.
 
-`rewrites` is an async function that expects an array to be returned holding objects with `source` and `destination` properties:
+`rewrites` is an async function that expects to return either an array or an object of arrays (see below) holding objects with `source` and `destination` properties:
 
 - `source`: `String` - is the incoming request path pattern.
 - `destination`: `String` is the path you want to route to.
@@ -50,7 +50,7 @@ Rewrites are applied to client-side routing, a `<Link href="/about">` will have 
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
-Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
+When the `rewrites` function returns an array, rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes. When the `rewrites` function returns an object of arrays with a specific shape, this behavior can be changed and more finely controlled, as of `v10.1` of Next.js:
 
 ```js
 module.exports = {

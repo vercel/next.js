@@ -149,7 +149,7 @@ export function renderToInitialStream({
 }
 
 export function createHeadInjectionTransformStream(
-  inject: string
+  inject: () => string
 ): TransformStream<Uint8Array, Uint8Array> {
   let injected = false
   return new TransformStream({
@@ -159,7 +159,7 @@ export function createHeadInjectionTransformStream(
       if (!injected && (index = content.indexOf('</head')) !== -1) {
         injected = true
         const injectedContent =
-          content.slice(0, index) + inject + content.slice(index)
+          content.slice(0, index) + inject() + content.slice(index)
         controller.enqueue(encodeText(injectedContent))
       } else {
         controller.enqueue(chunk)
@@ -175,13 +175,15 @@ export async function continueFromInitialStream(
     dataStream,
     generateStaticHTML,
     flushEffectHandler,
-    allStylesheets,
+    flushEffectsToHead,
+    initialStylesheets,
   }: {
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     flushEffectHandler?: () => string
-    allStylesheets: string[]
+    flushEffectsToHead: boolean
+    initialStylesheets?: string[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -193,15 +195,22 @@ export async function continueFromInitialStream(
 
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
     createBufferedTransformStream(),
-    flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
+    flushEffectHandler && !flushEffectsToHead
+      ? createFlushEffectStream(flushEffectHandler)
+      : null,
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-    createHeadInjectionTransformStream(
-      (allStylesheets || [])
+    createHeadInjectionTransformStream(() => {
+      const inlineStyleLinks = (initialStylesheets || [])
         .map((href) => `<link rel="stylesheet" href="/_next/${href}">`)
         .join('')
-    ),
+      // TODO-APP: Inject flush effects to end of head in app layout rendering, to avoid
+      // hydration errors. Remove this once it's ready to be handled by react itself.
+      const flushEffectsContent =
+        flushEffectHandler && flushEffectsToHead ? flushEffectHandler() : ''
+      return inlineStyleLinks + flushEffectsContent
+    }),
   ].filter(nonNullable)
 
   return transforms.reduce(

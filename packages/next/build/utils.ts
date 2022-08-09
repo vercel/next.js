@@ -1,6 +1,7 @@
-import type { NextConfigComplete, ServerRuntime } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 
 import '../server/node-polyfill-fetch'
+import loadRequireHook from '../build/webpack/require-hook'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -27,7 +28,7 @@ import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths, PageConfig } from 'next/types'
+import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
 import { BuildManifest } from '../server/get-page-files'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
@@ -58,6 +59,8 @@ const fsStat = (file: string) => {
   if (cached) return cached
   return (fileStats[file] = fileSize(file))
 }
+
+loadRequireHook()
 
 export interface PageInfo {
   isHybridAmp?: boolean

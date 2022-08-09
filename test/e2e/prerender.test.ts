@@ -1,4 +1,5 @@
 import fs from 'fs-extra'
+import cookie from 'cookie'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
 import escapeRegex from 'escape-string-regexp'
@@ -176,6 +177,11 @@ describe('Prerender', () => {
     '/another': {
       dataRoute: `/_next/data/${next.buildId}/another.json`,
       initialRevalidateSeconds: 1,
+      srcRoute: null,
+    },
+    '/preview': {
+      dataRoute: `/_next/data/${next.buildId}/preview.json`,
+      initialRevalidateSeconds: false,
       srcRoute: null,
     },
     '/api-docs/first': {
@@ -1522,6 +1528,14 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
+                )}\\/preview.json$`
+              ),
+              page: '/preview',
+            },
+            {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(
+                  next.buildId
                 )}\\/something.json$`
               ),
               page: '/something',
@@ -1771,6 +1785,67 @@ describe('Prerender', () => {
           expect(initialHtml).toBe(newHtml)
         })
       }
+
+      it('should revalidate manual revalidate with preview cookie', async () => {
+        const initialRes = await fetchViaHTTP(next.url, '/preview')
+        expect(initialRes.status).toBe(200)
+
+        const initial$ = cheerio.load(await initialRes.text())
+        const initialProps = JSON.parse(initial$('#props').text())
+
+        expect(initialProps).toEqual({
+          preview: false,
+          previewData: null,
+        })
+
+        const previewRes = await fetchViaHTTP(next.url, '/api/enable')
+        let previewCookie = ''
+
+        expect(previewRes.headers.get('set-cookie')).toMatch(
+          /(__prerender_bypass|__next_preview_data)/
+        )
+
+        previewRes.headers
+          .get('set-cookie')
+          .split(',')
+          .forEach((c) => {
+            c = cookie.parse(c)
+            const isBypass = c.__prerender_bypass
+
+            if (isBypass || c.__next_preview_data) {
+              if (previewCookie) previewCookie += '; '
+
+              previewCookie += `${
+                isBypass ? '__prerender_bypass' : '__next_preview_data'
+              }=${c[isBypass ? '__prerender_bypass' : '__next_preview_data']}`
+            }
+          })
+
+        const apiRes = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          { pathname: '/preview' },
+          {
+            headers: {
+              cookie: previewCookie,
+            },
+          }
+        )
+
+        expect(apiRes.status).toBe(200)
+        expect(await apiRes.json()).toEqual({ revalidated: true })
+
+        const postRevalidateRes = await fetchViaHTTP(next.url, '/preview')
+        expect(initialRes.status).toBe(200)
+
+        const postRevalidate$ = cheerio.load(await postRevalidateRes.text())
+        const postRevalidateProps = JSON.parse(postRevalidate$('#props').text())
+
+        expect(postRevalidateProps).toEqual({
+          preview: false,
+          previewData: null,
+        })
+      })
 
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'

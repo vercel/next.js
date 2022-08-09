@@ -391,6 +391,10 @@ const configSchema = {
       },
       type: 'object',
     },
+    exportPathMap: {
+      isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
+    } as any,
     future: {
       additionalProperties: false,
       properties: {},
@@ -398,12 +402,14 @@ const configSchema = {
     },
     generateBuildId: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     generateEtags: {
       type: 'boolean',
     },
     headers: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     httpAgentOptions: {
       additionalProperties: false,
@@ -557,9 +563,11 @@ const configSchema = {
     },
     redirects: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     rewrites: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     sassOptions: {
       type: 'object',
@@ -594,6 +602,8 @@ const configSchema = {
     },
     webpack: {
       isFunction: true,
+      errorMessage:
+        'must be a function that returns a webpack configuration object',
     } as any,
   },
 } as JSONSchemaType<NextConfig>
