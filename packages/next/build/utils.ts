@@ -173,9 +173,11 @@ export async function printTreeView(
     routerType: ROUTER_TYPE
   }) => {
     messages.push(
-      [routerType === 'app' ? 'Route' : 'Page', 'Size', 'First Load JS'].map(
-        (entry) => chalk.underline(entry)
-      ) as [string, string, string]
+      [
+        routerType === 'app' ? 'Route (app)' : 'Route (pages)',
+        'Size',
+        'First Load JS',
+      ].map((entry) => chalk.underline(entry)) as [string, string, string]
     )
 
     filterAndSortList(list).forEach((item, i, arr) => {
@@ -328,7 +330,7 @@ export async function printTreeView(
     const sharedFiles = stats.router[routerType]?.common.files ?? []
 
     messages.push([
-      '+ First Load JS',
+      '+ First Load JS shared by all',
       typeof sharedFilesSize === 'number' ? getPrettySize(sharedFilesSize) : '',
       '',
     ])
@@ -362,7 +364,6 @@ export async function printTreeView(
 
   // If enabled, then print the tree for the app directory.
   if (lists.app && stats.router.app) {
-    messages.push(['App', '', ''])
     await printFileTree({
       routerType: 'app',
       list: lists.app,
@@ -377,10 +378,6 @@ export async function printTreeView(
   } as any)
 
   if (!lists.pages.includes('/404')) {
-    if (lists.app && stats.router.app) {
-      messages.push(['Pages', '', ''])
-    }
-
     lists.pages = [...lists.pages, '/404']
   }
 
