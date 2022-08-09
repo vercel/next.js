@@ -44,7 +44,7 @@ export async function copy_regenerator_runtime(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function copy_styled_jsx_assets(task, opts) {
-  // we copy the styled-jsx types so that we can reference them
+  // we copy the styled-jsx assets and types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
   // package is hoisted out of Next.js' node_modules or not
   const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
@@ -53,33 +53,22 @@ export async function copy_styled_jsx_assets(task, opts) {
     cwd: styledJsxPath,
   })
   const outputDir = join(__dirname, 'dist/styled-jsx')
-  let typeReferences = ``
+  // Separate type files into different folders to avoid conflicts between
+  // dev dep `styled-jsx` and `next/dist/styled-jsx` for duplicated declare modules
+  const typesDir = join(outputDir, 'types')
+  let typeReferences = ''
 
   await fs.ensureDir(outputDir)
+  await fs.ensureDir(typesDir)
 
   for (const file of typeFiles) {
     const fileNoExt = file.replace(/\.d\.ts/, '')
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
-    const exportsIndex = content.indexOf('export')
-
-    let replacedContent =
-      `${content.substring(0, exportsIndex)}\n` +
-      `declare module 'styled-jsx${
-        file === 'index.d.ts' ? '' : '/' + fileNoExt
-      }' {
-        ${content.substring(exportsIndex)}
-      }`
-    if (file === 'index.d.ts') {
-      replacedContent = replacedContent
-        .replace(/export function StyleRegistry/g, 'export function IRegistry')
-        .replace(/StyleRegistry/g, 'IStyleRegistry')
-        .replace(/IRegistry/g, 'Registry')
-    }
-    await fs.writeFile(join(outputDir, file), replacedContent)
+    await fs.writeFile(join(typesDir, file), content)
     typeReferences += `/// <reference types="./${fileNoExt}" />\n`
   }
 
-  await fs.writeFile(join(outputDir, 'global.d.ts'), typeReferences)
+  await fs.writeFile(join(typesDir, 'global.d.ts'), typeReferences)
 
   for (const file of jsFiles) {
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
@@ -1806,7 +1795,12 @@ export async function path_to_regexp(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'path_to_regexp', 'copy_ncced'],
+    [
+      'browser_polyfills',
+      'path_to_regexp',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+    ],
     opts
   )
 }
@@ -1965,7 +1959,6 @@ export async function compile(task, opts) {
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
-      'copy_styled_jsx_assets',
     ],
     opts
   )
