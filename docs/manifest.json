@@ -137,7 +137,7 @@
             },
             {
               "title": "API Middlewares",
-              "path": "/docs/api-routes/api-middlewares.md"
+              "path": "/docs/api-routes/request-helpers.md"
             },
             {
               "title": "Response Helpers",
