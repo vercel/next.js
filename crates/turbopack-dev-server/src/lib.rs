@@ -23,6 +23,7 @@ use hyper::{
     Body, Request, Response, Server,
 };
 use hyper_tungstenite::tungstenite::Message;
+use mime_guess::mime;
 use tokio::select;
 use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, RawVcReadResult, TransientValue};
 use turbo_tasks_fs::FileContent;
@@ -163,12 +164,24 @@ impl DevServerVc {
                             {
                                 let content_type = content.content_type().map_or_else(
                                     || {
-                                        mime_guess::from_path(asset_path)
-                                            .first_or_octet_stream()
-                                            .to_string()
+                                        let guess = mime_guess::from_path(asset_path)
+                                            .first_or_octet_stream();
+                                        // If a text type, application/javascript, or
+                                        // application/json was guessed, use a utf-8 charset as we
+                                        // most likely generated it as such.
+                                        if (guess.type_() == mime::TEXT
+                                            || guess.subtype() == mime::JAVASCRIPT
+                                            || guess.subtype() == mime::JSON)
+                                            && guess.get_param("charset").is_none()
+                                        {
+                                            guess.to_string() + "; charset=utf-8"
+                                        } else {
+                                            guess.to_string()
+                                        }
                                     },
                                     |m| m.to_string(),
                                 );
+
                                 let bytes = content.content().to_vec();
                                 tx.send(
                                     Response::builder()

@@ -9,7 +9,7 @@ use turbopack_core::{
 #[turbo_tasks::value(shared)]
 pub struct DevHtmlAsset {
     pub path: FileSystemPathVc,
-    pub chunk_group: ChunkGroupVc,
+    pub chunk_groups: Vec<ChunkGroupVc>,
 }
 
 #[turbo_tasks::value_impl]
@@ -26,14 +26,17 @@ impl Asset for DevHtmlAsset {
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();
 
-        for chunk in self.chunk_group.chunks().await?.iter() {
-            if let Some(p) = context_path.get_relative_path_to(&*chunk.as_asset().path().await?) {
-                if p.ends_with(".js") {
-                    scripts.push(format!("<script src=\"{}\"></script>", p));
-                } else if p.ends_with(".css") {
-                    stylesheets.push(format!("<link rel=\"stylesheet\" href=\"{}\">", p));
-                } else {
-                    return Err(anyhow!("chunk with unknown asset type: {}", p));
+        for chunk_group in &self.chunk_groups {
+            for chunk in chunk_group.chunks().await?.iter() {
+                if let Some(p) = context_path.get_relative_path_to(&*chunk.as_asset().path().await?)
+                {
+                    if p.ends_with(".js") {
+                        scripts.push(format!("<script src=\"{}\"></script>", p));
+                    } else if p.ends_with(".css") {
+                        stylesheets.push(format!("<link rel=\"stylesheet\" href=\"{}\">", p));
+                    } else {
+                        return Err(anyhow!("chunk with unknown asset type: {}", p));
+                    }
                 }
             }
         }
@@ -50,10 +53,12 @@ impl Asset for DevHtmlAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
-        let chunks = self.chunk_group.chunks().await?;
         let mut references = Vec::new();
-        for chunk in chunks.iter() {
-            references.push(ChunkReferenceVc::new(*chunk).into());
+        for chunk_group in &self.chunk_groups {
+            let chunks = chunk_group.chunks().await?;
+            for chunk in chunks.iter() {
+                references.push(ChunkReferenceVc::new(*chunk).into());
+            }
         }
         Ok(AssetReferencesVc::cell(references))
     }

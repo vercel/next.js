@@ -23,7 +23,7 @@ mod web_entry_source;
 pub struct NextDevServerBuilder {
     turbo_tasks: Option<Arc<TurboTasks<MemoryBackend>>>,
     project_dir: Option<String>,
-    entry_asset_path: Option<String>,
+    entry_assets: Vec<String>,
     eager_compile: bool,
     hostname: Option<IpAddr>,
     port: Option<u16>,
@@ -40,7 +40,7 @@ impl NextDevServerBuilder {
         NextDevServerBuilder {
             turbo_tasks: None,
             project_dir: None,
-            entry_asset_path: None,
+            entry_assets: vec![],
             eager_compile: false,
             hostname: None,
             port: None,
@@ -57,8 +57,8 @@ impl NextDevServerBuilder {
         self
     }
 
-    pub fn entry_asset_path(mut self, entry_asset_path: String) -> NextDevServerBuilder {
-        self.entry_asset_path = Some(entry_asset_path);
+    pub fn entry_asset(mut self, entry_asset_path: String) -> NextDevServerBuilder {
+        self.entry_assets.push(entry_asset_path);
         self
     }
 
@@ -109,12 +109,10 @@ impl NextDevServerBuilder {
                 let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
                 let main_source = create_web_entry_source(
                     FileSystemPathVc::new(fs, ""),
-                    FileSystemPathVc::new(
-                        fs,
-                        &self
-                            .entry_asset_path
-                            .context("entry_asset_path must be set")?,
-                    ),
+                    self.entry_assets
+                        .iter()
+                        .map(|a| FileSystemPathVc::new(fs, a))
+                        .collect(),
                     dev_server_fs,
                     self.eager_compile,
                 );

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use futures::future::try_join_all;
 use turbo_tasks::Value;
 use turbo_tasks_fs::{FileSystemPathVc, FileSystemVc};
 use turbopack::ModuleAssetContextVc;
@@ -21,11 +22,10 @@ use crate::EcmascriptModuleAssetVc;
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
     root: FileSystemPathVc,
-    entry_path: FileSystemPathVc,
+    entry_paths: Vec<FileSystemPathVc>,
     dev_server_fs: FileSystemVc,
     eager_compile: bool,
 ) -> Result<ContentSourceVc> {
-    let source_asset = SourceAssetVc::new(entry_path).into();
     let context: AssetContextVc = ModuleAssetContextVc::new(
         root,
         EnvironmentVc::new(
@@ -42,38 +42,38 @@ pub async fn create_web_entry_source(
         ),
     )
     .into();
-    let module = context.process(source_asset);
+
     let chunking_context: DevChunkingContextVc = DevChunkingContext {
         context_path: root,
         chunk_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/chunks"),
         asset_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static"),
     }
     .into();
-    let entry_asset =
+
+    let modules = entry_paths
+        .into_iter()
+        .map(|p| context.process(SourceAssetVc::new(p).into()));
+    let chunks = try_join_all(modules.map(|module| async move {
         if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-            let chunk = ecmascript.as_evaluated_chunk(chunking_context.into());
-            let chunk_group = ChunkGroupVc::from_chunk(chunk);
-            DevHtmlAsset {
-                path: FileSystemPathVc::new(dev_server_fs, "index.html"),
-                chunk_group,
-            }
-            .cell()
-            .into()
+            Ok(ecmascript.as_evaluated_chunk(chunking_context.into()))
         } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-            let chunk = chunkable.as_chunk(chunking_context.into());
-            let chunk_group = ChunkGroupVc::from_chunk(chunk);
-            DevHtmlAsset {
-                path: FileSystemPathVc::new(dev_server_fs, "index.html"),
-                chunk_group,
-            }
-            .cell()
-            .into()
+            Ok(chunkable.as_chunk(chunking_context.into()))
         } else {
             // TODO convert into a serve-able asset
-            return Err(anyhow!(
+            Err(anyhow!(
                 "Entry module is not chunkable, so it can't be used to bootstrap the application"
-            ));
-        };
+            ))
+        }
+        // ChunkGroupVc::from_chunk(m)
+    }))
+    .await?;
+
+    let entry_asset = DevHtmlAsset {
+        path: FileSystemPathVc::new(dev_server_fs, "index.html"),
+        chunk_groups: chunks.into_iter().map(ChunkGroupVc::from_chunk).collect(),
+    }
+    .cell()
+    .into();
 
     let root_path = FileSystemPathVc::new(dev_server_fs, "");
     let graph = if eager_compile {
