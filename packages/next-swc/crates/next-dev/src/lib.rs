@@ -1,5 +1,4 @@
 #![feature(future_join)]
-#![feature(future_poll_fn)]
 #![feature(min_specialization)]
 
 use std::{net::IpAddr, sync::Arc};
