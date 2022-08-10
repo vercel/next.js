@@ -2,8 +2,12 @@ import type { ComponentType } from 'react'
 import type { FontManifest } from '../server/font-utils'
 import type { GetStaticProps } from '../types'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextConfigComplete } from '../server/config-shared'
+import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
+
+import '../server/node-polyfill-fetch'
+import loadRequireHook from '../build/webpack/require-hook'
+
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../server/render'
@@ -15,7 +19,6 @@ import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
-import '../server/node-polyfill-fetch'
 import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
@@ -23,7 +26,9 @@ import { isInAmpMode } from '../shared/lib/amp-mode'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
+import { addRequestMeta } from '../server/request-meta'
 
+loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
 
 ;(global as any).__NEXT_DATA__ = {
@@ -84,6 +89,7 @@ interface RenderOpts {
   locales?: string[]
   locale?: string
   defaultLocale?: string
+  domainLocales?: DomainLocale[]
   trailingSlash?: boolean
   appDir?: boolean
 }
@@ -206,6 +212,18 @@ export default async function exportPage({
 
       if (renderOpts.trailingSlash && !req.url?.endsWith('/')) {
         req.url += '/'
+      }
+
+      if (
+        locale &&
+        buildExport &&
+        renderOpts.domainLocales &&
+        renderOpts.domainLocales.some(
+          (dl) =>
+            dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+        )
+      ) {
+        addRequestMeta(req, '__nextIsLocaleDomain', true)
       }
 
       envConfig.setConfig({

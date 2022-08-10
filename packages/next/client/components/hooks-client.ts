@@ -12,6 +12,11 @@ import {
   LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 
+export {
+  FlushEffectsContext,
+  useFlushEffects,
+} from '../../shared/lib/flush-effects'
+
 /**
  * Get the current search params. For example useSearchParams() would return {"foo": "bar"} when ?foo=bar
  */

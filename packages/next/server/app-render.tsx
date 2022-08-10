@@ -1,12 +1,11 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
-import type { ServerRuntime } from './config-shared'
+import type { ServerRuntime } from '../types'
 
 import React from 'react'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
-import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
 import {
@@ -23,6 +22,7 @@ import { htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
+import { FlushEffectsContext } from '../client/components/hooks-client'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -413,7 +413,6 @@ export async function renderToHTMLOrFlight(
     buildManifest,
     serverComponentManifest,
     supportsDynamicHTML,
-    runtime,
     ComponentMod,
   } = renderOpts
 
@@ -985,18 +984,26 @@ export async function renderToHTMLOrFlight(
     }
   )
 
-  /**
-   * Style registry for styled-jsx
-   */
-  const jsxStyleRegistry = createStyleRegistry()
+  let flushEffectsHandler: (() => React.ReactNode) | null = null
+  function FlushEffects({ children }: { children: JSX.Element }) {
+    // Reset flushEffectsHandler on each render
+    flushEffectsHandler = null
+    const setFlushEffectsHandler = React.useCallback(
+      (handler: () => React.ReactNode) => {
+        if (flushEffectsHandler)
+          throw new Error(
+            'The `useFlushEffects` hook cannot be used more than once.'
+          )
+        flushEffectsHandler = handler
+      },
+      []
+    )
 
-  /**
-   * styled-jsx styles as React Component
-   */
-  const styledJsxFlushEffect = (): React.ReactNode => {
-    const styles = jsxStyleRegistry.styles()
-    jsxStyleRegistry.flush()
-    return <>{styles}</>
+    return (
+      <FlushEffectsContext.Provider value={setFlushEffectsHandler}>
+        {children}
+      </FlushEffectsContext.Provider>
+    )
   }
 
   /**
@@ -1015,10 +1022,17 @@ export async function renderToHTMLOrFlight(
   const generateStaticHTML = supportsDynamicHTML !== true
   const bodyResult = async () => {
     const content = (
-      <StyleRegistry registry={jsxStyleRegistry}>
+      <FlushEffects>
         <ServerComponentsRenderer />
-      </StyleRegistry>
+      </FlushEffects>
     )
+
+    const flushEffectHandler = (): string => {
+      const flushed = ReactDOMServer.renderToString(
+        <>{flushEffectsHandler && flushEffectsHandler()}</>
+      )
+      return flushed
+    }
 
     const renderStream = await renderToInitialStream({
       ReactDOMServer,
@@ -1031,17 +1045,11 @@ export async function renderToHTMLOrFlight(
       },
     })
 
-    const flushEffectHandler = (): string => {
-      const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
-      return flushed
-    }
-
-    const hasConcurrentFeatures = !!runtime
-
     return await continueFromInitialStream(renderStream, {
       dataStream: serverComponentsInlinedTransformStream?.readable,
-      generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+      generateStaticHTML: generateStaticHTML,
       flushEffectHandler,
+      flushEffectsToHead: true,
       initialStylesheets,
     })
   }
