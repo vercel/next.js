@@ -30,9 +30,9 @@ To develop locally:
    ```
    git checkout -b MY_BRANCH_NAME
    ```
-3. Install pnpm:
+3. Enable pnpm:
    ```
-   npm install -g pnpm
+   corepack enable pnpm
    ```
 4. Install the dependencies with:
    ```
