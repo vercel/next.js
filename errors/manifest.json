@@ -673,8 +673,14 @@
           "path": "/errors/import-next.md"
         },
         {
-          "title": "invalid-getserversideprops-return-value",
-          "path": "/errors/invalid-getserversideprops-return-value.md"
+          "path": "/errors/invalid-getserversideprops-return-value.md",
+          "redirect": {
+            "destination": "/docs/messages/invalid-getserversideprops-value"
+          }
+        },
+        {
+          "title": "invalid-getserversideprops-value",
+          "path": "/errors/invalid-getserversideprops-value.md"
         },
         {
           "title": "no-assign-module-variable",
