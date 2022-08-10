@@ -5,7 +5,6 @@ import {
   extractExportedConstValue,
   UnsupportedValueError,
 } from './extract-const-value'
-import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
@@ -187,6 +186,7 @@ function getMiddlewareMatchers(
   } else {
     matchers.push(matcherOrMatchers)
   }
+  const { i18n } = nextConfig
 
   const routes = matchers.map(
     (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
@@ -196,25 +196,25 @@ function getMiddlewareMatchers(
   return routes.map((r) => {
     let { source, ...rest } = r
 
-    if (nextConfig.i18n?.locales) {
-      source = `/:nextInternalLocale(${nextConfig.i18n.locales
-        .map((locale) => escapeStringRegexp(locale))
-        .join('|')})${
-        source === '/' && !nextConfig.trailingSlash ? '' : source
-      }`
+    const isRoot = source === '/'
+
+    if (i18n?.locales) {
+      source = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : source}`
     }
+
+    source = `/:nextData(_next/data/[^/]{1,})?${source}${
+      isRoot
+        ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
+        : '(.json)?'
+    }`
 
     if (nextConfig.basePath) {
-      source = `${nextConfig.basePath}${source === '/' ? '' : source}`
+      source = `${nextConfig.basePath}${source}`
     }
-
     const parsedPage = tryToParsePath(source)
-    if (parsedPage.error) {
-      throw new Error(`Invalid source: ${source}`)
-    }
 
-    if (!parsedPage.regexStr) {
-      throw new Error("Can't parse")
+    if (parsedPage.error) {
+      throw new Error(`Invalid path matcher: ${matcher}`)
     }
 
     return {
