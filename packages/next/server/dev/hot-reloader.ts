@@ -1,10 +1,12 @@
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfigComplete } from '../config-shared'
+import type { CustomRoutes } from '../../lib/load-custom-routes'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'
 import { UrlObject } from 'url'
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -40,8 +42,6 @@ import {
   withoutRSCExtensions,
   isMiddlewareFilename,
 } from '../../build/utils'
-import { NextConfigComplete } from '../config-shared'
-import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
