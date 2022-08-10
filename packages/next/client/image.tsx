@@ -812,6 +812,8 @@ export default function Image({
                     padding: 0,
                   }}
                   alt=""
+                  width={widthInt}
+                  height={heightInt}
                   aria-hidden={true}
                   src={sizerSvgUrl}
                 />
