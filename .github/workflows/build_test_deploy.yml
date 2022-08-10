@@ -1463,7 +1463,7 @@ jobs:
           rm -rf test
       - name: Build
         id: build
-        uses: vmactions/freebsd-vm@v0
+        uses: vmactions/freebsd-vm@v0.2.3
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup
