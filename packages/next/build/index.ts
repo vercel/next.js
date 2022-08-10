@@ -957,12 +957,11 @@ export default async function build(
       const buildManifest = JSON.parse(
         await promises.readFile(buildManifestPath, 'utf8')
       ) as BuildManifest
-      const appBuildManifest =
-        appDir && existsSync(appBuildManifestPath)
-          ? (JSON.parse(
-              await promises.readFile(appBuildManifestPath, 'utf8')
-            ) as AppBuildManifest)
-          : undefined
+      const appBuildManifest = appDir
+        ? (JSON.parse(
+            await promises.readFile(appBuildManifestPath, 'utf8')
+          ) as AppBuildManifest)
+        : undefined
 
       const timeout = config.staticPageGenerationTimeout || 0
       const sharedPool = config.experimental.sharedPool || false
