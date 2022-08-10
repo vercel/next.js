@@ -213,8 +213,8 @@ function getMiddlewareMatchers(
     }
     const parsedPage = tryToParsePath(source)
 
-    if (parsedPage.error) {
-      throw new Error(`Invalid path matcher: ${matcher}`)
+    if (parsedPage.error || !parsedPage.regexStr) {
+      throw new Error(`Invalid source: ${source}`)
     }
 
     return {
