@@ -570,7 +570,6 @@ export default function Image({
       }
     }
   }
-
   const imgStyle = Object.assign(
     fill
       ? {
