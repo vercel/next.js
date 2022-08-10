@@ -19,7 +19,7 @@ import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -59,6 +59,7 @@ import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
+import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -572,7 +573,7 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/'),
         ...(config.experimental.appDir
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]: dev
+              [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]: dev
                 ? [
                     require.resolve(
                       `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
@@ -1718,6 +1719,10 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      !!config.experimental.appDir &&
+        hasServerComponents &&
+        isClient &&
+        new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
         (isClient
           ? new FlightManifestPlugin({

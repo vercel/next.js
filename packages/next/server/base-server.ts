@@ -1,4 +1,4 @@
-import { __ApiPreviewProps } from './api-utils'
+import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Route } from './router'
@@ -27,7 +27,7 @@ import type { PayloadOptions } from './send-payload'
 import { join, resolve } from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
-import { getRedirectStatus } from '../lib/load-custom-routes'
+import { getRedirectStatus } from '../lib/redirect-status'
 import {
   NEXT_BUILTIN_DOCUMENT,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
@@ -119,6 +119,10 @@ export interface Options {
    * The port the server is running behind
    */
   port?: number
+  /**
+   * The HTTP Server that Next.js is running behind
+   */
+  httpServer?: import('http').Server
 }
 
 export interface BaseRequestHandler {
@@ -617,7 +621,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      if (defaultLocale) {
+      if (!this.minimalMode && defaultLocale) {
         const redirect = getLocaleRedirect({
           defaultLocale,
           domainLocale,
@@ -664,6 +668,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public getRequestHandler(): BaseRequestHandler {
     return this.handleRequest.bind(this)
   }
+
+  protected async handleUpgrade(
+    _req: BaseNextRequest,
+    _socket: any,
+    _head?: any
+  ): Promise<void> {}
 
   public setAssetPrefix(prefix?: string): void {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
