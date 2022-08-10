@@ -1049,20 +1049,16 @@ export default class NextNodeServer extends BaseServer {
     return manifest
   }
 
-  /**
-   * Return a list of middleware routing items. This method exists to be later
-   * overridden by the development server in order to use a different source
-   * to get the list.
-   */
+  /** Returns a middleware routing item. */
   protected getMiddleware(): RoutingItem | undefined {
     const manifest = this.getMiddlewareManifest()
-    const rootMiddleware = manifest?.middleware?.['/']
-    if (!rootMiddleware) {
+    const middleware = manifest?.middleware?.['/']
+    if (!middleware) {
       return
     }
 
     return {
-      match: getMiddlewareMatcher(rootMiddleware),
+      match: getMiddlewareMatcher(middleware),
       page: '/',
     }
   }
@@ -1077,13 +1073,6 @@ export default class NextNodeServer extends BaseServer {
       match: getMiddlewareMatcher(manifest.functions[page]),
       page,
     }))
-  }
-
-  protected getEdgeRoutes(): RoutingItem[] {
-    const edgeFunctions = this.getEdgeFunctions()
-    const middleware = this.getMiddleware()
-
-    return edgeFunctions.concat(middleware ? [middleware] : [])
   }
 
   /**
