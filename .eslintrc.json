@@ -71,6 +71,7 @@
             "functions": false,
             "classes": false,
             "variables": false,
+            "enums": false,
             "typedefs": false
           }
         ],
@@ -106,6 +107,16 @@
     {
       "files": ["examples/**/*"],
       "rules": {
+        "@typescript-eslint/no-use-before-define": [
+          "error",
+          {
+            "functions": true,
+            "classes": true,
+            "variables": true,
+            "enums": true,
+            "typedefs": true
+          }
+        ],
         "import/no-anonymous-default-export": [
           "error",
           {
