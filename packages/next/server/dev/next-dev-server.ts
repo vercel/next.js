@@ -84,10 +84,6 @@ const ReactDevOverlay = (props: any) => {
 
 export interface Options extends ServerOptions {
   /**
-   * The HTTP Server that Next.js is running behind
-   */
-  httpServer?: HTTPServer
-  /**
    * Tells of Next.js is running from the `next dev` command
    */
   isNextDevCommand?: boolean
@@ -629,6 +625,8 @@ export default class DevServer extends Server {
             )
           ) {
             this.hotReloader?.onHMR(req, socket, head)
+          } else {
+            this.handleUpgrade(req, socket, head)
           }
         })
       }
