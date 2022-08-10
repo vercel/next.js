@@ -1494,7 +1494,7 @@ jobs:
             env
             freebsd-version
             npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-            cd packages/next-swc && npm run build-native-no-plugin -- --release --target x86_64-unknown-freebsd
+            cd packages/next-swc && napi build --platform -p next-swc-napi --cargo-name next_swc_napi native --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
       - name: Upload artifact
