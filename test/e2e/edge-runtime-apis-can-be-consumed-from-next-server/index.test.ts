@@ -41,5 +41,15 @@ describe('Edge Runtime APIs can be consumed from next/server', () => {
         },
       })
     })
+
+    test('crypto', async () => {
+      const response = await fetchViaHTTP(next.url, `/api/${target}/crypto`, {
+        input: 'Hello, world',
+      })
+      await expect(response.json()).resolves.toEqual({
+        input: 'Hello, world',
+        hash: '4ae7c3b6ac0beff671efa8cf57386151c06e58ca53a78d83f36107316cec125f',
+      })
+    })
   }
 })
