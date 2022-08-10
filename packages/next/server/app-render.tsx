@@ -595,7 +595,7 @@ export async function renderToHTMLOrFlight(
     parentParams,
     firstItem,
     rootLayoutIncluded,
-    serverCSSManifest,
+    serverStylesheets,
   }: // parentSegmentPath,
   {
     createSegmentPath: CreateSegmentPath
@@ -603,7 +603,7 @@ export async function renderToHTMLOrFlight(
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
-    serverCSSManifest: { [file: string]: string[] }
+    serverStylesheets: { [file: string]: string[] }
     // parentSegmentPath: string
   }): Promise<{ Component: React.ComponentType }> => {
     const Loading = loading ? await interopDefault(loading()) : undefined
@@ -626,7 +626,7 @@ export async function renderToHTMLOrFlight(
 
     // const cssSegmentPath =
     //   !parentSegmentPath && !segment ? '' : parentSegmentPath + '/' + segment
-    // const stylesheets = serverCSSManifest[cssSegmentPath]
+    // const stylesheets = serverStylesheets[cssSegmentPath]
 
     /**
      * Check if the current layout/page is a client component
@@ -688,7 +688,7 @@ export async function renderToHTMLOrFlight(
             loaderTree: parallelRoutes[parallelRouteKey],
             parentParams: currentParams,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            serverCSSManifest,
+            serverStylesheets,
             // parentSegmentPath: cssSegmentPath,
           })
 
@@ -910,7 +910,7 @@ export async function renderToHTMLOrFlight(
                   loaderTree: loaderTreeToFilter,
                   parentParams: currentParams,
                   firstItem: true,
-                  serverCSSManifest,
+                  serverStylesheets: serverCSSManifest,
                   // parentSegmentPath: '',
                 }
               )
@@ -971,7 +971,7 @@ export async function renderToHTMLOrFlight(
     loaderTree: loaderTree,
     parentParams: {},
     firstItem: true,
-    serverCSSManifest: mappedServerCSSManifest,
+    serverStylesheets: mappedServerCSSManifest,
     // parentSegmentPath: '',
   })
 
