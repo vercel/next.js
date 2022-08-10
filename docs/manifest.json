@@ -128,6 +128,13 @@
           "title": "API Routes",
           "routes": [
             {
+              "path": "/docs/api-routes/api-middlewares",
+              "redirect": {
+                "destination": "/docs/api-routes/request-helpers",
+                "permanent": true
+              }
+            },
+            {
               "title": "Introduction",
               "path": "/docs/api-routes/introduction.md"
             },
@@ -137,7 +144,7 @@
             },
             {
               "title": "API Middlewares",
-              "path": "/docs/api-routes/api-middlewares.md"
+              "path": "/docs/api-routes/request-helpers.md"
             },
             {
               "title": "Response Helpers",

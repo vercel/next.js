@@ -310,7 +310,7 @@ pub fn styled_jsx_import_decl(style_import_name: &str) -> ModuleItem {
         })],
         src: Str {
             span: DUMMY_SP,
-            value: "next/dist/shared/lib/styled-jsx".into(),
+            value: "styled-jsx/style".into(),
             raw: None,
         },
     }))

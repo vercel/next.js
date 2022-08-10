@@ -19,7 +19,7 @@ import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -59,6 +59,7 @@ import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
+import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -572,7 +573,7 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/'),
         ...(config.experimental.appDir
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]: dev
+              [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]: dev
                 ? [
                     require.resolve(
                       `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
@@ -685,6 +686,8 @@ export default async function getBaseWebpackConfig(
       'react-dom/server$': `${reactDomDir}/server`,
       'react-dom/server.browser$': `${reactDomDir}/server.browser`,
       'react-dom/client$': `${reactDomDir}/client`,
+      'styled-jsx/style$': require.resolve(`next/dist/styled-jsx/style`),
+      'styled-jsx$': require.resolve(`next/dist/styled-jsx`),
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -860,11 +863,11 @@ export default async function getBaseWebpackConfig(
     const isEsmRequested = dependencyType === 'esm'
 
     const isLocalCallback = (localRes: string) => {
-      // Makes sure dist/shared and dist/server are not bundled
+      // Makes sure dist/styled-jsx, dist/shared and dist/server are not bundled
       // we need to process shared `router/router` and `dynamic`,
       // so that the DefinePlugin can inject process.env values
       const isNextExternal =
-        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+        /next[/\\]dist[/\\](styled-jsx|shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
           localRes
         )
 
@@ -974,7 +977,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const rscSharedRegex =
-    /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context)\.js|node_modules\/styled-jsx\/)/
+    /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context|flush-effects)\.js|node_modules\/styled-jsx\/)/
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1716,6 +1719,10 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      !!config.experimental.appDir &&
+        hasServerComponents &&
+        isClient &&
+        new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
         (isClient
           ? new FlightManifestPlugin({

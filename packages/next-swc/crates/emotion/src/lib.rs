@@ -480,13 +480,28 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                     if let Some(cm) = self.create_sourcemap(expr.span.lo()) {
                                         expr.args.push(cm.as_arg());
                                     }
-                                    c.args.push(
-                                        Expr::Object(ObjectLit {
-                                            span: DUMMY_SP,
-                                            props: args_props,
-                                        })
-                                        .as_arg(),
-                                    );
+                                    if let Some(ExprOrSpread { expr, .. }) = c.args.get_mut(1) {
+                                        if let Expr::Object(ObjectLit { props, .. }) = expr.as_mut()
+                                        {
+                                            props.extend(args_props);
+                                        } else {
+                                            c.args.push(
+                                                Expr::Object(ObjectLit {
+                                                    span: DUMMY_SP,
+                                                    props: args_props,
+                                                })
+                                                .as_arg(),
+                                            );
+                                        }
+                                    } else {
+                                        c.args.push(
+                                            Expr::Object(ObjectLit {
+                                                span: DUMMY_SP,
+                                                props: args_props,
+                                            })
+                                            .as_arg(),
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -592,14 +607,27 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                         }),
                                     )));
                                 }
-
-                                callee.args.push(
-                                    Expr::Object(ObjectLit {
-                                        span: DUMMY_SP,
-                                        props: object_props,
-                                    })
-                                    .as_arg(),
-                                );
+                                if let Some(ExprOrSpread { expr, .. }) = callee.args.get_mut(1) {
+                                    if let Expr::Object(ObjectLit { props, .. }) = expr.as_mut() {
+                                        props.extend(object_props);
+                                    } else {
+                                        callee.args.push(
+                                            Expr::Object(ObjectLit {
+                                                span: DUMMY_SP,
+                                                props: object_props,
+                                            })
+                                            .as_arg(),
+                                        );
+                                    }
+                                } else {
+                                    callee.args.push(
+                                        Expr::Object(ObjectLit {
+                                            span: DUMMY_SP,
+                                            props: object_props,
+                                        })
+                                        .as_arg(),
+                                    );
+                                }
                                 return Expr::Call(CallExpr {
                                     span: DUMMY_SP,
                                     callee: callee.as_callee(),

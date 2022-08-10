@@ -284,6 +284,11 @@ declare module 'next/dist/compiled/postcss-scss' {
   import m from 'postcss-scss'
   export = m
 }
+declare module 'next/dist/styled-jsx' {
+  import m from 'styled-jsx'
+  export = m
+}
+
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -329,6 +334,11 @@ declare module 'next/dist/compiled/@edge-runtime/primitives' {
   export = m
 }
 
+declare module 'next/dist/compiled/@segment/ajv-human-errors' {
+  import * as m from '@segment/ajv-human-errors'
+  export = m
+}
+
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack4'
 
@@ -361,4 +371,8 @@ declare module 'next/dist/compiled/watchpack' {
   }
 
   export default Watchpack
+}
+
+declare module 'next/dist/compiled/is-animated' {
+  export default function isAnimated(buffer: Buffer): boolean
 }
