@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { type PageConfig } from 'next'
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 
 export const config: PageConfig = {}
 
