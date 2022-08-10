@@ -1445,7 +1445,7 @@ jobs:
           path: packages/next-swc/native/next-swc.*.node
 
   build-native-freebsd:
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
     name: stable - x86_64-unknown-freebsd - node@16
     runs-on: macos-12
