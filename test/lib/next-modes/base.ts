@@ -178,9 +178,13 @@ export class NextInstance {
       }
     }
 
-    const nextConfigFile = Object.keys(this.files).find((file) =>
+    let nextConfigFile = Object.keys(this.files).find((file) =>
       file.startsWith('next.config.')
     )
+
+    if (await fs.pathExists(path.join(this.testDir, 'next.config.js'))) {
+      nextConfigFile = 'next.config.js'
+    }
 
     if (nextConfigFile && this.nextConfig) {
       throw new Error(
