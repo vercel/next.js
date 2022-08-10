@@ -256,6 +256,8 @@ router.prefetch(url, as)
 
 - `url` - The URL to prefetch, including explicit routes (e.g. `/dashboard`) and dynamic routes (e.g. `/product/[id]`)
 - `as` - Optional decorator for `url`. Before Next.js 9.5.3 this was used to prefetch dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
+- `options` - Optional object with the following configuration options:
+  - `locale` - The active locale is automatically prepended. `locale` allows for providing a different locale. When `false` `url` has to include the locale as the default behavior is disabled.
 
 #### Usage
 
