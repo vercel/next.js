@@ -54,6 +54,7 @@ import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
+import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
 import loadRequireHook from '../build/webpack/require-hook'
 
@@ -501,10 +502,15 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  protected async handleUpgrade(req: NodeNextRequest, socket: any, head: any) {
+    await this.router.execute(req, socket, nodeParseUrl(req.url, true), head)
+  }
+
   protected async proxyRequest(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    parsedUrl: ParsedUrl
+    parsedUrl: ParsedUrl,
+    upgradeHead?: any
   ) {
     const { query } = parsedUrl
     delete (parsedUrl as any).query
@@ -516,27 +522,46 @@ export default class NextNodeServer extends BaseServer {
       changeOrigin: true,
       ignorePath: true,
       xfwd: true,
-      proxyTimeout: 30_000, // limit proxying to 30 seconds
+      ws: true,
+      // we limit proxy requests to 30s by default, in development
+      // we don't time out WebSocket requests to allow proxying
+      proxyTimeout: upgradeHead && this.renderOpts.dev ? undefined : 30_000,
     })
 
     await new Promise((proxyResolve, proxyReject) => {
       let finished = false
 
-      proxy.on('proxyReq', (proxyReq) => {
-        proxyReq.on('close', () => {
-          if (!finished) {
-            finished = true
-            proxyResolve(true)
-          }
-        })
-      })
       proxy.on('error', (err) => {
+        console.error(`Failed to proxy ${target}`, err)
         if (!finished) {
           finished = true
           proxyReject(err)
         }
       })
-      proxy.web(req.originalRequest, res.originalResponse)
+
+      // if upgrade head is present treat as WebSocket request
+      if (upgradeHead) {
+        proxy.on('proxyReqWs', (proxyReq) => {
+          proxyReq.on('close', () => {
+            if (!finished) {
+              finished = true
+              proxyResolve(true)
+            }
+          })
+        })
+        proxy.ws(req as any as IncomingMessage, res, upgradeHead)
+        proxyResolve(true)
+      } else {
+        proxy.on('proxyReq', (proxyReq) => {
+          proxyReq.on('close', () => {
+            if (!finished) {
+              finished = true
+              proxyResolve(true)
+            }
+          })
+        })
+        proxy.web(req.originalRequest, res.originalResponse)
+      }
     })
 
     return {
@@ -989,7 +1014,7 @@ export default class NextNodeServer extends BaseServer {
           matchesLocale: true,
           matchesLocaleAPIRoutes: true,
           matchesTrailingSlash: true,
-          fn: async (req, res, params, parsedUrl) => {
+          fn: async (req, res, params, parsedUrl, upgradeHead) => {
             const { newUrl, parsedDestination } = prepareDestination({
               appendParamsToQuery: true,
               destination: rewriteRoute.destination,
@@ -1002,7 +1027,8 @@ export default class NextNodeServer extends BaseServer {
               return this.proxyRequest(
                 req as NodeNextRequest,
                 res as NodeNextResponse,
-                parsedDestination
+                parsedDestination,
+                upgradeHead
               )
             }
 
