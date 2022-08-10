@@ -6,7 +6,7 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -155,7 +155,7 @@ export default class BuildManifestPlugin {
         assetMap.rootMainFiles = [
           ...new Set(
             getEntrypointFiles(
-              entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT)
+              entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
             )
           ),
         ]
@@ -192,7 +192,7 @@ export default class BuildManifestPlugin {
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
-        ...(this.appDirEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT] : []),
+        ...(this.appDirEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] : []),
       ])
 
       for (const entrypoint of compilation.entrypoints.values()) {
