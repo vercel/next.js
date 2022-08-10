@@ -242,7 +242,6 @@ export default class Router {
         // disabled
         ...(this.useFileSystemPublicRoutes
           ? [
-              ...(edgeSSRCatchAllRoute ? [edgeSSRCatchAllRoute] : []),
               {
                 type: 'route',
                 name: 'page checker',
