@@ -43,7 +43,7 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 
 ## Migration
 
-Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following code snippets help you to understand the comparison between these two components:
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following code snippets compare the two components:
 
 #### before: `next/image`
 
