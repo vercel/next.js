@@ -39,6 +39,8 @@ turbopack-dev-server = { path = "../turbopack-dev-server" }
 webbrowser = "0.7.1"
 
 [dev-dependencies]
+tungstenite = "0.17.3" # For matching on errors from chromiumoxide. Keep in 
+# sync with chromiumoxide's tungstenite requirement.
 chromiumoxide = { version = "0.3.5", features = [
   "tokio-runtime",
 ], default-features = false }

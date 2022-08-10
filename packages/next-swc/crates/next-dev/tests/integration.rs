@@ -1,13 +1,19 @@
 #![cfg(test)]
 extern crate test_generator;
 
-use std::{net::SocketAddr, path::Path};
+use std::{env, net::SocketAddr, path::Path};
 
-use chromiumoxide::browser::{Browser, BrowserConfig};
+use chromiumoxide::{
+    browser::{Browser, BrowserConfig},
+    error::CdpError::Ws,
+};
 use futures::StreamExt;
+use lazy_static::lazy_static;
 use next_dev::{register, NextDevServerBuilder};
 use serde::Deserialize;
 use test_generator::test_resources;
+use tokio::task::JoinHandle;
+use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbo_tasks::TurboTasks;
 use turbo_tasks_memory::MemoryBackend;
 
@@ -22,6 +28,12 @@ struct JestRunResult {
 struct JestTestResult {
     test_path: Vec<String>,
     errors: Vec<String>,
+}
+
+lazy_static! {
+    // Allows for interactive manual debugging of a test case in a browser with:
+    // `TURBOPACK_DEBUG_BROWSER=1 cargo test -p next-dev -- test_my_pattern --nocapture`
+    static ref DEBUG_BROWSER: bool = env::var("TURBOPACK_DEBUG_BROWSER").is_ok();
 }
 
 #[test_resources("crates/next-dev/tests/integration/*/*/*")]
@@ -77,34 +89,70 @@ async fn test(resource: &str) {
     println!("server started at http://{}", server.addr);
 
     tokio::select! {
-        r = run_browser_test(server.addr) => r.unwrap(),
+        r = run_browser(server.addr) => r.unwrap(),
         r = server.future => r.unwrap(),
     };
 }
 
-async fn create_browser() -> Result<Browser, Box<dyn std::error::Error>> {
-    let (browser, mut handler) = Browser::launch(BrowserConfig::builder().build()?).await?;
+async fn create_browser(
+    is_debugging: bool,
+) -> Result<(Browser, JoinHandle<()>), Box<dyn std::error::Error>> {
+    let mut config_builder = BrowserConfig::builder();
+    if is_debugging {
+        config_builder = config_builder
+            .with_head()
+            .args(vec!["--auto-open-devtools-for-tabs"]);
+    }
+
+    let (browser, mut handler) = Browser::launch(config_builder.build()?).await?;
     // See https://crates.io/crates/chromiumoxide
-    tokio::task::spawn(async move {
+    let thread_handle = tokio::task::spawn(async move {
         loop {
-            let _ = handler.next().await.unwrap();
+            if let Err(Ws(Protocol(ResetWithoutClosingHandshake))) = handler.next().await.unwrap() {
+                // The user has most likely closed the browser. End gracefully.
+                break;
+            }
         }
     });
 
-    Ok(browser)
+    Ok((browser, thread_handle))
 }
 
-async fn run_browser_test(addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
-    let browser = create_browser().await?;
+async fn run_browser(addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
+    if *DEBUG_BROWSER {
+        run_debug_browser(addr).await?;
+    }
 
+    run_test_browser(addr).await?;
+
+    Ok(())
+}
+
+async fn run_debug_browser(addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
+    let (browser, handle) = create_browser(true).await?;
     let page = browser.new_page(format!("http://{}", addr)).await?;
 
-    let run_result: JestRunResult = page
-        .evaluate("__jest__.run()")
-        .await
-        .unwrap()
-        .into_value()
-        .unwrap();
+    let run_tests_msg =
+        "Entering debug mode. Run `await __jest__.run()` in the browser console to run tests.";
+    println!("\n\n{}", run_tests_msg);
+    page.evaluate(format!(
+        r#"console.info("%cTurbopack tests:", "font-weight: bold;", "{}");"#,
+        run_tests_msg
+    ))
+    .await?;
+
+    // Wait for the user to close the browser
+    handle.await?;
+
+    Ok(())
+}
+
+async fn run_test_browser(addr: SocketAddr) -> Result<JestRunResult, Box<dyn std::error::Error>> {
+    let (browser, _) = create_browser(false).await?;
+    let page = browser.new_page(format!("http://{}", addr)).await?;
+    page.wait_for_navigation().await?;
+
+    let run_result: JestRunResult = page.evaluate("__jest__.run()").await?.into_value()?;
 
     assert!(
         !run_result.test_results.is_empty(),
@@ -112,7 +160,7 @@ async fn run_browser_test(addr: SocketAddr) -> Result<(), Box<dyn std::error::Er
     );
 
     let mut messages = vec![];
-    for test_result in run_result.test_results {
+    for test_result in &run_result.test_results {
         // It's possible to fail multiple tests across these tests,
         // so collect them and fail the respective test in Rust with
         // an aggregate message.
@@ -132,5 +180,5 @@ async fn run_browser_test(addr: SocketAddr) -> Result<(), Box<dyn std::error::Er
         )
     }
 
-    Ok(())
+    Ok(run_result)
 }
