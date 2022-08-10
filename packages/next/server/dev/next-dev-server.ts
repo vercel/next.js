@@ -914,6 +914,10 @@ export default class DevServer extends Server {
     return this.hasPage(this.actualMiddlewareFile!)
   }
 
+  protected async ensureMiddleware() {
+    return this.hotReloader!.ensurePage(this.actualMiddlewareFile!)
+  }
+
   protected async ensureEdgeFunction(pathname: string) {
     return this.hotReloader!.ensurePage(pathname)
   }
