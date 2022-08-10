@@ -1,1 +1,1 @@
-import styles from './style.module.css'
+import './style.module.css'
