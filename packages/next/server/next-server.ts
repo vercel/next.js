@@ -1049,7 +1049,7 @@ export default class NextNodeServer extends BaseServer {
     return manifest
   }
 
-  /** Returns a middleware routing item. */
+  /** Returns the middleware routing item if there is one. */
   protected getMiddleware(): RoutingItem | undefined {
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
