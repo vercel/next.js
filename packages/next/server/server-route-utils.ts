@@ -9,7 +9,7 @@ import type { Route } from './router'
 import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 
-import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
+import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import {
   compileNonPath,
