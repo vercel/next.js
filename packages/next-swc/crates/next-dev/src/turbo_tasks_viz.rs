@@ -3,8 +3,9 @@ use std::{str::FromStr, sync::Arc};
 use anyhow::Result;
 use mime::Mime;
 use turbo_tasks::TurboTasks;
-use turbo_tasks_fs::{File, FileContent, FileContentVc};
+use turbo_tasks_fs::{File, FileContent};
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
+use turbopack_core::version::VersionedContentVc;
 use turbopack_dev_server::source::{ContentSource, ContentSourceVc};
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
@@ -22,7 +23,7 @@ impl TurboTasksSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for TurboTasksSource {
     #[turbo_tasks::function]
-    fn get(&self, path: &str) -> Result<FileContentVc> {
+    fn get(&self, path: &str) -> Result<VersionedContentVc> {
         let tt = &self.turbo_tasks;
         if path == "graph" {
             let mut stats = Stats::new();
@@ -56,7 +57,7 @@ impl ContentSource for TurboTasksSource {
     }
 
     #[turbo_tasks::function]
-    fn get_by_id(&self, _id: &str) -> FileContentVc {
+    fn get_by_id(&self, _id: &str) -> VersionedContentVc {
         FileContent::NotFound.into()
     }
 }
