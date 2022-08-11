@@ -468,7 +468,7 @@ async function render(renderingProps: RenderRouteInfo): Promise<void> {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
-  const { App, err } = renderErrorProps
+  let { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
@@ -497,10 +497,18 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
       return lastAppProps?.Component === ErrorComponent
-        ? import('../pages/_error').then((m) => ({
-            ErrorComponent: m.default as React.ComponentType<{}>,
-            styleSheets: [],
-          }))
+        ? import('../pages/_error')
+            .then((errorModule) => {
+              return import('../pages/_app').then((appModule) => {
+                App = appModule.default as any as AppComponent
+                renderErrorProps.App = App
+                return errorModule
+              })
+            })
+            .then((m) => ({
+              ErrorComponent: m.default as React.ComponentType<{}>,
+              styleSheets: [],
+            }))
         : { ErrorComponent, styleSheets }
     })
     .then(({ ErrorComponent, styleSheets }) => {

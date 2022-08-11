@@ -23,7 +23,7 @@ import {
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
@@ -510,14 +510,14 @@ export function finalizeEntrypoint({
     // Client special cases
     name !== 'polyfills' &&
     name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
     // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
     if (appDir && entry.import.includes('flight')) {
       return {
-        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
         ...entry,
       }
     }

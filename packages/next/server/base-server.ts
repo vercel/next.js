@@ -129,6 +129,10 @@ export interface Options {
    * The port the server is running behind
    */
   port?: number
+  /**
+   * The HTTP Server that Next.js is running behind
+   */
+  httpServer?: import('http').Server
 }
 
 export interface BaseRequestHandler {
@@ -271,7 +275,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse
   ): void
 
-  protected abstract loadEnvConfig(params: { dev: boolean }): void
+  protected abstract loadEnvConfig(params: {
+    dev: boolean
+    forceReload?: boolean
+  }): void
 
   public constructor(options: ServerOptions) {
     const {
@@ -674,6 +681,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public getRequestHandler(): BaseRequestHandler {
     return this.handleRequest.bind(this)
   }
+
+  protected async handleUpgrade(
+    _req: BaseNextRequest,
+    _socket: any,
+    _head?: any
+  ): Promise<void> {}
 
   public setAssetPrefix(prefix?: string): void {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
