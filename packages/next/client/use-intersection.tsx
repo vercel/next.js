@@ -72,6 +72,9 @@ export function useIntersection<T extends Element>({
   return [setElement, visible, resetVisible]
 }
 
+const observers = new Map<Identifier, Observer>()
+const idList: Identifier[] = []
+
 function observe(
   element: Element,
   callback: ObserveCallback,
@@ -98,10 +101,6 @@ function observe(
     }
   }
 }
-
-const observers = new Map<Identifier, Observer>()
-
-const idList: Identifier[] = []
 
 function createObserver(options: UseIntersectionObserverInit): Observer {
   const id = {

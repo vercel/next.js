@@ -98,6 +98,34 @@ export const createHeaderRoute = ({
   }
 }
 
+// since initial query values are decoded by querystring.parse
+// we need to re-encode them here but still allow passing through
+// values from rewrites/redirects
+export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
+  const initialQuery = getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
+  const initialQueryValues: Array<string | string[]> =
+    Object.values(initialQuery)
+
+  return stringifyQs(query, undefined, undefined, {
+    encodeURIComponent(value) {
+      if (
+        value in initialQuery ||
+        initialQueryValues.some((initialQueryVal: string | string[]) => {
+          // `value` always refers to a query value, even if it's nested in an array
+          return Array.isArray(initialQueryVal)
+            ? initialQueryVal.includes(value)
+            : initialQueryVal === value
+        })
+      ) {
+        // Encode keys and values from initial query
+        return encodeURIComponent(value)
+      }
+
+      return value
+    },
+  })
+}
+
 export const createRedirectRoute = ({
   rule,
   restrictedRedirectPaths,
@@ -150,32 +178,4 @@ export const createRedirectRoute = ({
       }
     },
   }
-}
-
-// since initial query values are decoded by querystring.parse
-// we need to re-encode them here but still allow passing through
-// values from rewrites/redirects
-export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
-  const initialQuery = getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
-  const initialQueryValues: Array<string | string[]> =
-    Object.values(initialQuery)
-
-  return stringifyQs(query, undefined, undefined, {
-    encodeURIComponent(value) {
-      if (
-        value in initialQuery ||
-        initialQueryValues.some((initialQueryVal: string | string[]) => {
-          // `value` always refers to a query value, even if it's nested in an array
-          return Array.isArray(initialQueryVal)
-            ? initialQueryVal.includes(value)
-            : initialQueryVal === value
-        })
-      ) {
-        // Encode keys and values from initial query
-        return encodeURIComponent(value)
-      }
-
-      return value
-    },
-  })
 }
