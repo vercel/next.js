@@ -6,7 +6,7 @@ import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('Middleware custom matchers i18n', () => {
+describe('Middleware custom matchers basePath', () => {
   let next: NextInstance
 
   beforeAll(async () => {
