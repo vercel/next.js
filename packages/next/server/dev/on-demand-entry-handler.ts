@@ -127,6 +127,10 @@ export const entries: {
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
 
+const doneCallbacks: EventEmitter | null = new EventEmitter()
+const lastClientAccessPages = ['']
+const lastServerAccessPagesForAppDir = ['']
+
 export function onDemandEntryHandler({
   maxInactiveAge,
   multiCompiler,
@@ -145,9 +149,6 @@ export function onDemandEntryHandler({
   appDir?: string
 }) {
   invalidator = new Invalidator(multiCompiler)
-  const doneCallbacks: EventEmitter | null = new EventEmitter()
-  const lastClientAccessPages = ['']
-  const lastServerAccessPagesForAppDir = ['']
 
   const startBuilding = (_compilation: webpack.Compilation) => {
     invalidator.startBuilding()
@@ -223,11 +224,7 @@ export function onDemandEntryHandler({
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
 
   setInterval(function () {
-    disposeInactiveEntries(
-      lastClientAccessPages,
-      lastServerAccessPagesForAppDir,
-      maxInactiveAge
-    )
+    disposeInactiveEntries(maxInactiveAge)
   }, pingIntervalTime + 1000).unref()
 
   function handleAppDirPing(
@@ -397,11 +394,7 @@ export function onDemandEntryHandler({
   }
 }
 
-function disposeInactiveEntries(
-  lastClientAccessPages: string[],
-  lastServerAccessPagesForAppDir: string[],
-  maxInactiveAge: number
-) {
+function disposeInactiveEntries(maxInactiveAge: number) {
   Object.keys(entries).forEach((page) => {
     const { lastActiveTime, status, dispose, bundlePath } = entries[page]
 
@@ -467,19 +460,19 @@ class Invalidator {
     this.building = true
 
     if (!keys || keys.length === 0) {
-      this.multiCompiler.compilers[0].watching.invalidate()
-      this.multiCompiler.compilers[1].watching.invalidate()
-      this.multiCompiler.compilers[2].watching.invalidate()
+      this.multiCompiler.compilers[0].watching?.invalidate()
+      this.multiCompiler.compilers[1].watching?.invalidate()
+      this.multiCompiler.compilers[2].watching?.invalidate()
       return
     }
 
     for (const key of keys) {
       if (key === 'client') {
-        this.multiCompiler.compilers[0].watching.invalidate()
+        this.multiCompiler.compilers[0].watching?.invalidate()
       } else if (key === 'server') {
-        this.multiCompiler.compilers[1].watching.invalidate()
+        this.multiCompiler.compilers[1].watching?.invalidate()
       } else if (key === 'edgeServer') {
-        this.multiCompiler.compilers[2].watching.invalidate()
+        this.multiCompiler.compilers[2].watching?.invalidate()
       }
     }
   }
