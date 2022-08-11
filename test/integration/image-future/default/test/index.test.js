@@ -1010,24 +1010,6 @@ function runTests(mode) {
         )
       ).toBe('0px')
     })
-    it('should not add fill styles to non-fill images', async () => {
-      const fillStyles = [
-        'height',
-        'width',
-        'position',
-        'left',
-        'top',
-        'right',
-        'bottom',
-      ]
-      for (let fillStyle of fillStyles) {
-        expect(
-          await browser.eval(
-            `document.getElementById("non-fill-image").style.${fillStyle}`
-          )
-        ).toBe('')
-      }
-    })
     if (mode === 'dev') {
       it('should not log incorrect warnings', async () => {
         await waitFor(1000)
