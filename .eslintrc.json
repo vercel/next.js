@@ -71,8 +71,8 @@
             "functions": false,
             "classes": false,
             "variables": false,
-            "enums": false,
-            "typedefs": false
+            "enums": true,
+            "typedefs": true
           }
         ],
         "no-unused-vars": "off",
