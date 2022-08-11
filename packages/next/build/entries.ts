@@ -2,7 +2,6 @@ import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pag
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
-import type { ServerRuntime } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import type { LoadedEnvFiles } from '@next/env'
@@ -20,7 +19,7 @@ import {
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
@@ -38,6 +37,7 @@ import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { serverComponentRegex } from './webpack/loaders/utils'
+import { ServerRuntime } from '../types'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -506,14 +506,14 @@ export function finalizeEntrypoint({
     // Client special cases
     name !== 'polyfills' &&
     name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
     // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
     if (appDir && entry.import.includes('flight')) {
       return {
-        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
         ...entry,
       }
     }

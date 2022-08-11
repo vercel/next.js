@@ -427,7 +427,7 @@ const backgroundCache: Record<string, Promise<any>> = {}
 
 interface FetchDataOutput {
   dataHref: string
-  json: Record<string, any>
+  json: Record<string, any> | null
   response: Response
   text: string
 }
@@ -481,7 +481,7 @@ function fetchNextData({
               return { dataHref, response, text, json: {} }
             }
 
-            if (response.status === 404) {
+            if (!hasMiddleware && response.status === 404) {
               if (tryToParseAsJSON(text)?.notFound) {
                 return {
                   dataHref,
@@ -489,16 +489,6 @@ function fetchNextData({
                   response,
                   text,
                 }
-              }
-
-              /**
-               * If there is a 404 that is not for SSG we used to fail but if
-               * there is a middleware we must respond with an empty object.
-               * For now we will return the data when there is a middleware.
-               * TODO: Update the server to success on these requests.
-               */
-              if (hasMiddleware) {
-                return { dataHref, response, text, json: {} }
               }
             }
 
@@ -518,7 +508,7 @@ function fetchNextData({
 
           return {
             dataHref,
-            json: parseJSON ? tryToParseAsJSON(text) : {},
+            json: parseJSON ? tryToParseAsJSON(text) : null,
             response,
             text,
           }
@@ -562,7 +552,7 @@ function tryToParseAsJSON(text: string) {
   try {
     return JSON.parse(text)
   } catch (error) {
-    return {}
+    return null
   }
 }
 
@@ -1169,7 +1159,7 @@ export default class Router implements BaseRouter {
       ;[pages, { __rewrites: rewrites }] = await Promise.all([
         this.pageLoader.getPageList(),
         getClientBuildManifest(),
-        this.pageLoader.getMiddlewareList(),
+        this.pageLoader.getMiddleware(),
       ])
     } catch (err) {
       // If we fail to resolve the page list or client-build manifest, we must
@@ -1757,7 +1747,10 @@ export default class Router implements BaseRouter {
         route = removeTrailingSlash(data.effect.resolvedHref)
         pathname = data.effect.resolvedHref
         query = { ...query, ...data.effect.parsedAs.query }
-        resolvedAs = data.effect.parsedAs.pathname
+        resolvedAs = removeBasePath(
+          normalizeLocalePath(data.effect.parsedAs.pathname, this.locales)
+            .pathname
+        )
 
         // Check again the cache with the new destination.
         existingInfo = this.components[route]
@@ -1770,7 +1763,6 @@ export default class Router implements BaseRouter {
           // If we have a match with the current route due to rewrite,
           // we can copy the existing information to the rewritten one.
           // Then, we return the information along with the matched route.
-          this.components[requestedRoute] = { ...existingInfo, route }
           return { ...existingInfo, route }
         }
       }
@@ -1815,24 +1807,24 @@ export default class Router implements BaseRouter {
 
       const { props } = await this._getData(async () => {
         if (shouldFetchData && !useStreamedFlightData) {
-          const { json } =
-            data ||
-            (await fetchNextData({
-              dataHref: this.pageLoader.getDataHref({
-                href: formatWithValidation({ pathname, query }),
-                asPath: resolvedAs,
-                locale,
-              }),
-              isServerRender: this.isSsr,
-              parseJSON: true,
-              inflightCache: this.sdc,
-              persistCache: !isPreview,
-              isPrefetch: false,
-              unstable_skipClientCache,
-            }))
+          const { json } = data?.json
+            ? data
+            : await fetchNextData({
+                dataHref: this.pageLoader.getDataHref({
+                  href: formatWithValidation({ pathname, query }),
+                  asPath: resolvedAs,
+                  locale,
+                }),
+                isServerRender: this.isSsr,
+                parseJSON: true,
+                inflightCache: this.sdc,
+                persistCache: !isPreview,
+                isPrefetch: false,
+                unstable_skipClientCache,
+              })
 
           return {
-            props: json,
+            props: json || {},
           }
         }
 
@@ -1911,11 +1903,6 @@ export default class Router implements BaseRouter {
       routeInfo.resolvedAs = resolvedAs
       this.components[route] = routeInfo
 
-      // If the route was rewritten in the process of fetching data,
-      // we update the cache to allow hitting the same data for shallow requests.
-      if (route !== requestedRoute) {
-        this.components[requestedRoute] = { ...routeInfo, route }
-      }
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
@@ -2276,18 +2263,17 @@ interface MiddlewareEffectParams<T extends FetchDataOutput> {
 function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
-  return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
-    (items) => {
+  return Promise.resolve(options.router.pageLoader.getMiddleware()).then(
+    (middleware) => {
       const { pathname: asPathname } = parsePath(options.asPath)
       const cleanedAs = hasBasePath(asPathname)
         ? removeBasePath(asPathname)
         : asPathname
 
-      return !!items?.some(([regex, ssr]) => {
-        return (
-          !ssr && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
-        )
-      })
+      const regex = middleware?.location
+      return (
+        !!regex && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+      )
     }
   )
 }
@@ -2341,7 +2327,14 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
   const matchedPath = response.headers.get('x-matched-path')
 
-  if (!rewriteTarget && !matchedPath?.includes('__next_data_catchall')) {
+  if (
+    matchedPath &&
+    !rewriteTarget &&
+    !matchedPath.includes('__next_data_catchall') &&
+    !matchedPath.includes('/_error') &&
+    !matchedPath.includes('/404')
+  ) {
+    // leverage x-matched-path to detect next.config.js rewrites
     rewriteTarget = matchedPath
   }
 

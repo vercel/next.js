@@ -18,13 +18,17 @@ import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
-import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
+import type {
+  GetServerSideProps,
+  GetStaticProps,
+  PreviewData,
+  ServerRuntime,
+} from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
-import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
-import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
+import { StyleRegistry, createStyleRegistry } from 'next/dist/styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
   GSSP_COMPONENT_MEMBER_ERROR,
@@ -60,10 +64,7 @@ import { HtmlContext } from '../shared/lib/html-context'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
-import {
-  allowedStatusCodes,
-  getRedirectStatus,
-} from '../lib/load-custom-routes'
+import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
@@ -1269,6 +1270,7 @@ export async function renderToHTML(
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
           flushEffectHandler,
+          flushEffectsToHead: false,
         })
       }
 

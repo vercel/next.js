@@ -1,7 +1,22 @@
 import React from 'react'
 import { useRouter } from './router'
 
-export function RouteAnnouncer() {
+const nextjsRouteAnnouncerStyles: React.CSSProperties = {
+  border: 0,
+  clip: 'rect(0 0 0 0)',
+  height: '1px',
+  margin: '-1px',
+  overflow: 'hidden',
+  padding: 0,
+  position: 'absolute',
+  width: '1px',
+
+  // https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe
+  whiteSpace: 'nowrap',
+  wordWrap: 'normal',
+}
+
+export const RouteAnnouncer = () => {
   const { asPath } = useRouter()
   const [routeAnnouncement, setRouteAnnouncement] = React.useState('')
 
@@ -39,20 +54,7 @@ export function RouteAnnouncer() {
       aria-live="assertive" // Make the announcement immediately.
       id="__next-route-announcer__"
       role="alert"
-      style={{
-        border: 0,
-        clip: 'rect(0 0 0 0)',
-        height: '1px',
-        margin: '-1px',
-        overflow: 'hidden',
-        padding: 0,
-        position: 'absolute',
-        width: '1px',
-
-        // https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe
-        whiteSpace: 'nowrap',
-        wordWrap: 'normal',
-      }}
+      style={nextjsRouteAnnouncerStyles}
     >
       {routeAnnouncement}
     </p>

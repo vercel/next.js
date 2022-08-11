@@ -1,15 +1,15 @@
-import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
+import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
 } from './extract-const-value'
-import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
+import { ServerRuntime } from '../../types'
 
 interface MiddlewareConfig {
   pathMatcher: RegExp
@@ -184,6 +184,7 @@ function getMiddlewareRegExpStrings(
       getMiddlewareRegExpStrings(matcher, nextConfig)
     )
   }
+  const { i18n } = nextConfig
 
   if (typeof matcherOrMatchers !== 'string') {
     throw new Error(
@@ -196,20 +197,23 @@ function getMiddlewareRegExpStrings(
   if (!matcher.startsWith('/')) {
     throw new Error('`matcher`: path matcher must start with /')
   }
+  const isRoot = matcher === '/'
 
-  if (nextConfig.i18n?.locales) {
-    matcher = `/:nextInternalLocale(${nextConfig.i18n.locales
-      .map((locale) => escapeStringRegexp(locale))
-      .join('|')})${
-      matcher === '/' && !nextConfig.trailingSlash ? '' : matcher
-    }`
+  if (i18n?.locales) {
+    matcher = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : matcher}`
   }
+
+  matcher = `/:nextData(_next/data/[^/]{1,})?${matcher}${
+    isRoot
+      ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
+      : '(.json)?'
+  }`
 
   if (nextConfig.basePath) {
-    matcher = `${nextConfig.basePath}${matcher === '/' ? '' : matcher}`
+    matcher = `${nextConfig.basePath}${matcher}`
   }
-
   const parsedPage = tryToParsePath(matcher)
+
   if (parsedPage.error) {
     throw new Error(`Invalid path matcher: ${matcher}`)
   }

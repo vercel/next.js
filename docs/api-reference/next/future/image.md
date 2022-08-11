@@ -9,6 +9,7 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 | Version   | Changes                                      |
 | --------- | -------------------------------------------- |
+| `v12.2.4` | Support for `fill` property added.           |
 | `v12.2.0` | Experimental `next/future/image` introduced. |
 
 </details>
@@ -29,6 +30,8 @@ module.exports = {
 }
 ```
 
+## Comparison
+
 Compared to `next/image`, the new `next/future/image` component has the following changes:
 
 - Renders a single `<img>` without `<div>` or `<span>` wrappers
@@ -36,15 +39,103 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
 - Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
 - Removes `loader` config in favor of [`loader`](#loader) prop
-- Note: there is no `fill` mode so `width` & `height` props are required
 - Note: the [`onError`](#onerror) prop might behave differently
 
-The default layout for `next/image` was `intrinsic`, which would shrink the `width` if the image was larger than it's container. Since no styles are automatically applied to `next/future/image`, you'll need to add the following CSS to achieve the same behavior:
+## Migration
 
-```css
-max-width: 100%;
-height: auto;
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following code snippets compare the two components:
+
+#### before: `next/image`
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
 ```
+
+#### after: `next/future/image`
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { maxWidth: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} style={css} />
+}
+```
+
+#### before: `next/image`
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="responsive" />
+}
+```
+
+#### after: `next/future/image`
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+const css = { width: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} sizes="100vw" style={css} />
+}
+```
+
+#### before: `next/image`
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fill" />
+}
+```
+
+#### after: `next/future/image`
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} sizes="100vw" fill />
+}
+```
+
+#### before: `next/image`
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fixed" />
+}
+```
+
+#### after: `next/future/image`
+
+```jsx
+import Image from 'next/future/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+You can also use `className` instead of `style`.
 
 ## Required Props
 
@@ -64,13 +155,13 @@ When using an external URL, you must add it to [domains](#domains) in `next.conf
 
 The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ### height
 
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ## Optional Props
 
@@ -108,13 +199,57 @@ const MyImage = (props) => {
 }
 ```
 
+### fill
+
+A boolean that causes the image to fill the parent element instead of setting [`width`](#width) and [`height`](#height).
+
+The parent element _must_ assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style.
+
+By default, the img element will automatically be assigned the `position: "absolute"` style.
+
+The default image fit behavior will stretch the image to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
+
+Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
+
+See also:
+
+- [position](https://developer.mozilla.org/en-US/docs/Web/CSS/position)
+- [object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit)
+- [object-position](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
+
 ### sizes
 
-A string that provides information about how wide the image will be at different breakpoints.
+A string that provides information about how wide the image will be at different breakpoints. The value of `sizes` will greatly affect performance for images using [`fill`](#fill) or which are styled to have a responsive size.
 
-It's important to assign `sizes` for responsive images that takes up less than the full viewport width. For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+The `sizes` property serves two important purposes related to image performance:
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
+First, the value of `sizes` is used by the browser to determine which size of the image to download, from `next/future/image`'s automatically-generated source set. When the browser chooses, it does not yet know the size of the image on the page, so it selects an image that is the same size or larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen. If you don't specify a `sizes` value in an image with the `fill` property, a default value of `100vw` (full screen width) is used.
+
+Second, the `sizes` property configures how `next/future/image` automatically generates an image source set. If no `sizes` value is present, a small source set is generated, suitable for a fixed-size image. If `sizes` is defined, a large source set is generated, suitable for a responsive image. If the `sizes` property includes sizes such as `50vw`, which represent a percentage of the viewport width, then the source set is trimmed to not include any values which are too small to ever be necessary.
+
+For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
+
+```js
+import Image from 'next/image'
+const Example = () => (
+  <div className="grid-element">
+    <Image
+      src="/example.png"
+      layout="fill"
+      sizes="(min-width: 75em) 33vw,
+              (min-width: 48em) 50vw,
+              100vw"
+    />
+  </div>
+)
+```
+
+This example `sizes` could have a dramatic effect on performance metrics. Without the `33vw` sizes, the image selected from the server would be 3 times as wide as it needs to be. Because file size is proportional to the square of the width, without `sizes` the user would download an image that's 9 times larger than necessary.
+
+Learn more about `srcset` and `sizes`:
+
+- [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
+- [mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
 
 ### quality
 

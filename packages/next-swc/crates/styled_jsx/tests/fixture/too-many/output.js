@@ -1,8 +1,8 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export const Red = ({ Component ='button' ,  })=>{
     return <Component className={_JSXStyle.dynamic([
         [
-            "6c7c8cee856673a7",
+            "1a9f9e2fa701f7ec",
             [
                 e1,
                 e2,
@@ -27,7 +27,7 @@ export const Red = ({ Component ='button' ,  })=>{
 
       {}
 
-      <_JSXStyle id={"6c7c8cee856673a7"} dynamic={[
+      <_JSXStyle id={"1a9f9e2fa701f7ec"} dynamic={[
         e1,
         e2,
         e3,

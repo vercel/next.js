@@ -27,7 +27,6 @@ import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
-
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -55,7 +54,9 @@ import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
+import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
+import loadRequireHook from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
@@ -89,6 +90,8 @@ import { shouldUseReactRoot } from './utils'
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
+
+loadRequireHook()
 
 export * from './base-server'
 
@@ -499,10 +502,15 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  protected async handleUpgrade(req: NodeNextRequest, socket: any, head: any) {
+    await this.router.execute(req, socket, nodeParseUrl(req.url, true), head)
+  }
+
   protected async proxyRequest(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    parsedUrl: ParsedUrl
+    parsedUrl: ParsedUrl,
+    upgradeHead?: any
   ) {
     const { query } = parsedUrl
     delete (parsedUrl as any).query
@@ -514,27 +522,46 @@ export default class NextNodeServer extends BaseServer {
       changeOrigin: true,
       ignorePath: true,
       xfwd: true,
-      proxyTimeout: 30_000, // limit proxying to 30 seconds
+      ws: true,
+      // we limit proxy requests to 30s by default, in development
+      // we don't time out WebSocket requests to allow proxying
+      proxyTimeout: upgradeHead && this.renderOpts.dev ? undefined : 30_000,
     })
 
     await new Promise((proxyResolve, proxyReject) => {
       let finished = false
 
-      proxy.on('proxyReq', (proxyReq) => {
-        proxyReq.on('close', () => {
-          if (!finished) {
-            finished = true
-            proxyResolve(true)
-          }
-        })
-      })
       proxy.on('error', (err) => {
+        console.error(`Failed to proxy ${target}`, err)
         if (!finished) {
           finished = true
           proxyReject(err)
         }
       })
-      proxy.web(req.originalRequest, res.originalResponse)
+
+      // if upgrade head is present treat as WebSocket request
+      if (upgradeHead) {
+        proxy.on('proxyReqWs', (proxyReq) => {
+          proxyReq.on('close', () => {
+            if (!finished) {
+              finished = true
+              proxyResolve(true)
+            }
+          })
+        })
+        proxy.ws(req as any as IncomingMessage, res, upgradeHead)
+        proxyResolve(true)
+      } else {
+        proxy.on('proxyReq', (proxyReq) => {
+          proxyReq.on('close', () => {
+            if (!finished) {
+              finished = true
+              proxyResolve(true)
+            }
+          })
+        })
+        proxy.web(req.originalRequest, res.originalResponse)
+      }
     })
 
     return {
@@ -987,7 +1014,7 @@ export default class NextNodeServer extends BaseServer {
           matchesLocale: true,
           matchesLocaleAPIRoutes: true,
           matchesTrailingSlash: true,
-          fn: async (req, res, params, parsedUrl) => {
+          fn: async (req, res, params, parsedUrl, upgradeHead) => {
             const { newUrl, parsedDestination } = prepareDestination({
               appendParamsToQuery: true,
               destination: rewriteRoute.destination,
@@ -1000,7 +1027,8 @@ export default class NextNodeServer extends BaseServer {
               return this.proxyRequest(
                 req as NodeNextRequest,
                 res as NodeNextResponse,
-                parsedDestination
+                parsedDestination,
+                upgradeHead
               )
             }
 
@@ -1052,16 +1080,17 @@ export default class NextNodeServer extends BaseServer {
    * overridden by the development server in order to use a different source
    * to get the list.
    */
-  protected getMiddleware(): RoutingItem[] {
+  protected getMiddleware(): RoutingItem | undefined {
     const manifest = this.getMiddlewareManifest()
-    if (!manifest) {
-      return []
+    const rootMiddleware = manifest?.middleware?.['/']
+    if (!rootMiddleware) {
+      return
     }
 
-    return manifest.sortedMiddleware.map((page) => ({
-      match: getMiddlewareMatcher(manifest.middleware[page]),
-      page,
-    }))
+    return {
+      match: getMiddlewareMatcher(rootMiddleware),
+      page: '/',
+    }
   }
 
   protected getEdgeFunctions(): RoutingItem[] {
@@ -1074,6 +1103,13 @@ export default class NextNodeServer extends BaseServer {
       match: getMiddlewareMatcher(manifest.functions[page]),
       page,
     }))
+  }
+
+  protected getEdgeRoutes(): RoutingItem[] {
+    const edgeFunctions = this.getEdgeFunctions()
+    const middleware = this.getMiddleware()
+
+    return edgeFunctions.concat(middleware ? [middleware] : [])
   }
 
   /**
@@ -1132,20 +1168,18 @@ export default class NextNodeServer extends BaseServer {
    * server where we need to check the filesystem. Here we just check the
    * middleware manifest.
    */
-  protected async hasMiddleware(
-    pathname: string,
-    _isSSR?: boolean
-  ): Promise<boolean> {
+  protected async hasMiddleware(pathname: string): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
     return Boolean(info && info.paths.length > 0)
   }
 
   /**
    * A placeholder for a function to be defined in the development server.
-   * It will make sure that the middleware has been compiled so that we
-   * can run it.
+   * It will make sure that the root middleware or an edge function has been compiled
+   * so that we can run it.
    */
-  protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}
+  protected async ensureMiddleware() {}
+  protected async ensureEdgeFunction(_pathname: string) {}
 
   /**
    * This method gets all middleware matchers and execute them when the request
@@ -1203,61 +1237,58 @@ export default class NextNodeServer extends BaseServer {
     let result: FetchEventResult | null = null
     const method = (params.request.method || 'GET').toUpperCase()
 
-    const middlewareList = this.getMiddleware()
-    for (const middleware of middlewareList) {
-      if (middleware.match(normalizedPathname)) {
-        if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
-          console.warn(`The Edge Function for ${middleware.page} was not found`)
-          continue
-        }
+    const middleware = this.getMiddleware()
+    if (!middleware) {
+      return { finished: false }
+    }
+    if (!(await this.hasMiddleware(middleware.page))) {
+      console.warn(`The Edge Function for ${middleware.page} was not found`)
+      return { finished: false }
+    }
 
-        await this.ensureMiddleware(middleware.page, middleware.ssr)
-        const middlewareInfo = this.getEdgeFunctionInfo({
-          page: middleware.page,
-          middleware: !middleware.ssr,
-        })
+    if (middleware && middleware.match(normalizedPathname)) {
+      await this.ensureMiddleware()
+      const middlewareInfo = this.getEdgeFunctionInfo({
+        page: middleware.page,
+        middleware: true,
+      })
 
-        if (!middlewareInfo) {
-          throw new MiddlewareNotFoundError()
-        }
+      if (!middlewareInfo) {
+        throw new MiddlewareNotFoundError()
+      }
 
-        result = await run({
-          distDir: this.distDir,
-          name: middlewareInfo.name,
-          paths: middlewareInfo.paths,
-          env: middlewareInfo.env,
-          edgeFunctionEntry: middlewareInfo,
-          request: {
-            headers: params.request.headers,
-            method,
-            nextConfig: {
-              basePath: this.nextConfig.basePath,
-              i18n: this.nextConfig.i18n,
-              trailingSlash: this.nextConfig.trailingSlash,
-            },
-            url: url,
-            page: page,
-            body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+      result = await run({
+        distDir: this.distDir,
+        name: middlewareInfo.name,
+        paths: middlewareInfo.paths,
+        env: middlewareInfo.env,
+        edgeFunctionEntry: middlewareInfo,
+        request: {
+          headers: params.request.headers,
+          method,
+          nextConfig: {
+            basePath: this.nextConfig.basePath,
+            i18n: this.nextConfig.i18n,
+            trailingSlash: this.nextConfig.trailingSlash,
           },
-          useCache: !this.nextConfig.experimental.runtime,
-          onWarning: params.onWarning,
+          url: url,
+          page: page,
+          body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+        },
+        useCache: !this.nextConfig.experimental.runtime,
+        onWarning: params.onWarning,
+      })
+
+      for (let [key, value] of result.response.headers) {
+        if (key !== 'x-middleware-next') {
+          allHeaders.append(key, value)
+        }
+      }
+
+      if (!this.renderOpts.dev) {
+        result.waitUntil.catch((error) => {
+          console.error(`Uncaught: middleware waitUntil errored`, error)
         })
-
-        for (let [key, value] of result.response.headers) {
-          if (key !== 'x-middleware-next') {
-            allHeaders.append(key, value)
-          }
-        }
-
-        if (!this.renderOpts.dev) {
-          result.waitUntil.catch((error) => {
-            console.error(`Uncaught: middleware waitUntil errored`, error)
-          })
-        }
-
-        if (!result.response.headers.has('x-middleware-next')) {
-          break
-        }
       }
     }
 
@@ -1329,7 +1360,7 @@ export default class NextNodeServer extends BaseServer {
       name: 'middleware catchall',
       fn: async (req, res, _params, parsed) => {
         const middleware = this.getMiddleware()
-        if (!middleware.length) {
+        if (!middleware) {
           return { finished: false }
         }
 
@@ -1341,11 +1372,13 @@ export default class NextNodeServer extends BaseServer {
 
         parsedUrl.pathname = pathnameInfo.pathname
         const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
-        if (!middleware.some((m) => m.match(normalizedPathname))) {
+        if (!middleware.match(normalizedPathname)) {
           return { finished: false }
         }
 
-        let result: Awaited<ReturnType<typeof this.runMiddleware>>
+        let result: Awaited<
+          ReturnType<typeof NextNodeServer.prototype.runMiddleware>
+        >
 
         try {
           result = await this.runMiddleware({
@@ -1492,7 +1525,7 @@ export default class NextNodeServer extends BaseServer {
 
     const routes = []
     if (!this.renderOpts.dev || devReady) {
-      if (this.getMiddleware().length) routes[0] = middlewareCatchAllRoute
+      if (this.getMiddleware()) routes[0] = middlewareCatchAllRoute
       if (this.getEdgeFunctions().length) routes[1] = edgeCatchAllRoute
     }
 
@@ -1545,7 +1578,7 @@ export default class NextNodeServer extends BaseServer {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
     try {
-      await this.ensureMiddleware(params.page, true)
+      await this.ensureEdgeFunction(params.page)
       middlewareInfo = this.getEdgeFunctionInfo({
         page: params.page,
         middleware: false,
