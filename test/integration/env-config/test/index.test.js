@@ -12,10 +12,12 @@ import {
   launchApp,
   killApp,
   fetchViaHTTP,
+  check,
 } from 'next-test-utils'
 
 let app
 let appPort
+let output = ''
 const appDir = join(__dirname, '../app')
 
 const getEnvFromHtml = async (path) => {
@@ -27,7 +29,7 @@ const getEnvFromHtml = async (path) => {
   return env
 }
 
-const runTests = (mode = 'dev') => {
+const runTests = (mode = 'dev', didReload = false) => {
   const isDevOnly = mode === 'dev'
   const isTestEnv = mode === 'test'
   const isDev = isDevOnly || isTestEnv
@@ -56,6 +58,11 @@ const runTests = (mode = 'dev') => {
     expect(data.ENV_FILE_EMPTY_FIRST).toBe(isTestEnv ? '' : '$escaped')
     expect(data.ENV_FILE_PROCESS_ENV).toBe('env-cli')
 
+    if (didReload) {
+      expect(data.NEW_ENV_KEY).toBe('true')
+      expect(data.NEW_ENV_LOCAL_KEY).toBe('hello')
+      expect(data.NEW_ENV_DEV_KEY).toBe('from-dev')
+    }
     expect(data.nextConfigEnv).toBe('hello from next.config.js')
     expect(data.nextConfigPublicEnv).toBe('hello again from next.config.js')
   }
@@ -138,17 +145,84 @@ const runTests = (mode = 'dev') => {
 describe('Env Config', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      output = ''
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
           ENV_FILE_PROCESS_ENV: 'env-cli',
         },
+        onStdout(msg) {
+          output += msg || ''
+        },
+        onStderr(msg) {
+          output += msg || ''
+        },
       })
+
+      await renderViaHTTP(appPort, '/another-global')
     })
     afterAll(() => killApp(app))
 
     runTests('dev')
+
+    describe('with hot reload', () => {
+      const originalContents = []
+      beforeAll(async () => {
+        const outputIndex = output.length
+        const envToUpdate = [
+          {
+            toAdd: 'NEW_ENV_KEY=true',
+            file: '.env',
+          },
+          {
+            toAdd: 'NEW_ENV_LOCAL_KEY=hello',
+            file: '.env.local',
+          },
+          {
+            toAdd: 'NEW_ENV_DEV_KEY=from-dev\nNEXT_PUBLIC_HELLO_WORLD=again',
+            file: '.env.development',
+          },
+        ]
+
+        for (const { file, toAdd } of envToUpdate) {
+          const content = await fs.readFile(join(appDir, file), 'utf8')
+          originalContents.push({ file, content })
+          await fs.writeFile(join(appDir, file), content + '\n' + toAdd)
+        }
+
+        await check(() => {
+          return output.substring(outputIndex)
+        }, /Loaded env from/)
+      })
+      afterAll(async () => {
+        for (const { file, content } of originalContents) {
+          await fs.writeFile(join(appDir, file), content)
+        }
+      })
+
+      runTests('dev', true)
+
+      it('should update inlined values correctly', async () => {
+        await renderViaHTTP(appPort, '/another-global')
+
+        const buildManifest = await fs.readJson(
+          join(__dirname, '../app/.next/build-manifest.json')
+        )
+
+        const pageFile = buildManifest.pages['/another-global'].find(
+          (filename) => filename.includes('pages/another-global')
+        )
+
+        // read client bundle contents since a server side render can
+        // have the value available during render but it not be injected
+        const bundleContent = await fs.readFile(
+          join(appDir, '.next', pageFile),
+          'utf8'
+        )
+        expect(bundleContent).toContain('again')
+      })
+    })
   })
 
   describe('test environment', () => {
