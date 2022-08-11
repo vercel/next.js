@@ -415,9 +415,9 @@ export function onDemandEntryHandler({
             ? `${pagePathData.page} (client and server)`
             : pagePathData.page
         )
+        invalidator.invalidate([...added.keys()])
       }
 
-      invalidator.invalidate([...added.keys()])
       await Promise.all(added.values())
     },
 
