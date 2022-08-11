@@ -28,3 +28,4 @@ tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 swc_ecma_transforms_testing = "0.105.0"
 testing = "0.29.0"
 serde_json = "1"
+swc_ecma_transforms_react = "0.140.0"

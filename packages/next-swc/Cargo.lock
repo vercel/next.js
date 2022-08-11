@@ -3744,6 +3744,7 @@ dependencies = [
  "sourcemap",
  "swc_atoms",
  "swc_common",
+ "swc_ecma_transforms_react",
  "swc_ecma_transforms_testing",
  "swc_ecmascript",
  "swc_trace_macro",
