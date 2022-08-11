@@ -39,6 +39,62 @@ lazy_static! {
 #[test_resources("crates/next-dev/tests/integration/*/*/*")]
 #[tokio::main]
 async fn test(resource: &str) {
+    if resource.ends_with("__skipped__") {
+        // "Skip" directories named `__skipped__`, which include test directories to
+        // skip. These tests are not considered truly skipped by `cargo test`, but they
+        // are not run.
+        return;
+    }
+
+    let run_result = run_test(resource).await;
+
+    assert!(
+        !run_result.test_results.is_empty(),
+        "Expected one or more tests to run."
+    );
+
+    let mut messages = vec![];
+    for test_result in run_result.test_results {
+        // It's possible to fail multiple tests across these tests,
+        // so collect them and fail the respective test in Rust with
+        // an aggregate message.
+        if !test_result.errors.is_empty() {
+            messages.push(format!(
+                "\"{}\":\n{}",
+                test_result.test_path[1..].join(" > "),
+                test_result.errors.join("\n")
+            ));
+        }
+    }
+
+    if !messages.is_empty() {
+        panic!(
+            "Failed with error(s) in the following test(s):\n\n{}",
+            messages.join("\n\n--\n")
+        )
+    };
+}
+
+#[test_resources("crates/next-dev/tests/integration/*/*/__skipped__/*")]
+#[should_panic]
+#[tokio::main]
+async fn test_skipped_fails(resource: &str) {
+    let run_result = run_test(resource).await;
+
+    // Assert that this skipped test itself has at least one browser test which
+    // fails.
+    assert!(
+        // Skipped tests sometimes have errors (e.g. unsupported syntax) that prevent tests from
+        // running at all. Allow them to have empty results.
+        run_result.test_results.is_empty()
+            || run_result
+                .test_results
+                .into_iter()
+                .any(|r| !r.errors.is_empty()),
+    );
+}
+
+async fn run_test(resource: &str) -> JestRunResult {
     register();
     let path = Path::new(resource)
         // test_resources matches and returns relative paths from the workspace root,
@@ -52,13 +108,6 @@ async fn test(resource: &str) {
         "{} is not a directory. Integration tests must be directories.",
         path.to_str().unwrap()
     );
-
-    if path.ends_with("__skipped__") {
-        // "Skip" directories named `__skipped__`, which include test directories to
-        // skip. These tests are not considered truly skipped by `cargo test`, but they
-        // are not run.
-        return;
-    }
 
     let test_entry = path.join("index.js");
     assert!(
@@ -90,8 +139,8 @@ async fn test(resource: &str) {
 
     tokio::select! {
         r = run_browser(server.addr) => r.unwrap(),
-        r = server.future => r.unwrap(),
-    };
+        _ = server.future => panic!("Never resolves"),
+    }
 }
 
 async fn create_browser(
@@ -118,14 +167,12 @@ async fn create_browser(
     Ok((browser, thread_handle))
 }
 
-async fn run_browser(addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_browser(addr: SocketAddr) -> Result<JestRunResult, Box<dyn std::error::Error>> {
     if *DEBUG_BROWSER {
         run_debug_browser(addr).await?;
     }
 
-    run_test_browser(addr).await?;
-
-    Ok(())
+    run_test_browser(addr).await
 }
 
 async fn run_debug_browser(addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
@@ -152,33 +199,5 @@ async fn run_test_browser(addr: SocketAddr) -> Result<JestRunResult, Box<dyn std
     let page = browser.new_page(format!("http://{}", addr)).await?;
     page.wait_for_navigation().await?;
 
-    let run_result: JestRunResult = page.evaluate("__jest__.run()").await?.into_value()?;
-
-    assert!(
-        !run_result.test_results.is_empty(),
-        "Expected one or more tests to run."
-    );
-
-    let mut messages = vec![];
-    for test_result in &run_result.test_results {
-        // It's possible to fail multiple tests across these tests,
-        // so collect them and fail the respective test in Rust with
-        // an aggregate message.
-        if !test_result.errors.is_empty() {
-            messages.push(format!(
-                "\"{}\":\n{}",
-                test_result.test_path[1..].join(" > "),
-                test_result.errors.join("\n")
-            ));
-        }
-    }
-
-    if !messages.is_empty() {
-        panic!(
-            "Failed with error(s) in the following test(s):\n\n{}",
-            messages.join("\n\n--\n")
-        )
-    }
-
-    Ok(run_result)
+    Ok(page.evaluate("__jest__.run()").await?.into_value()?)
 }
