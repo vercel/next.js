@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
+import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
@@ -30,8 +31,6 @@ describe('Middleware custom matchers basePath', () => {
     }
   })
 
-  // This test is failing because of https://github.com/vercel/next.js/issues/39428.
-  /*
   it('should match has query on client routing', async () => {
     for (const id of ['hello', 'about']) {
       const browser = await webdriver(next.url, '/docs/routes')
@@ -43,5 +42,4 @@ describe('Middleware custom matchers basePath', () => {
       expect(noReload).toBe(true)
     }
   })
-  */
 })

@@ -2269,14 +2269,19 @@ async function matchesMiddleware<T extends FetchDataOutput>(
   if (!matchers) return false
 
   const { pathname: asPathname } = parsePath(options.asPath)
+  // remove basePath first since path prefix has to be in the order of `/${basePath}/${locale}`
   const cleanedAs = hasBasePath(asPathname)
     ? removeBasePath(asPathname)
     : asPathname
-  const cleanedAsWithLocale = addLocale(cleanedAs, options.locale)
+  const asWithBasePathAndLocale = addBasePath(
+    addLocale(cleanedAs, options.locale)
+  )
 
   // Check only path match on client. Matching "has" should be done on server
   // where we can access more info such as headers, HttpOnly cookie, etc.
-  return matchers.some((m) => new RegExp(m.regexp).test(cleanedAsWithLocale))
+  return matchers.some((m) =>
+    new RegExp(m.regexp).test(asWithBasePathAndLocale)
+  )
 }
 
 function withMiddlewareEffects<T extends FetchDataOutput>(
