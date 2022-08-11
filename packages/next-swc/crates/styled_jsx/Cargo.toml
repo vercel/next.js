@@ -11,12 +11,12 @@ version = "0.14.0"
 
 [dependencies]
 easy-error = "1.0.0"
-swc_common = { version = "0.26.0", features = ["concurrent", "sourcemap"] }
-swc_css = "0.116.0"
-swc_css_prefixer = "0.113.3"
-swc_ecmascript = { version = "0.186.0", features = ["parser", "minifier", "utils", "visit"] }
+swc_common = { version = "0.27.1", features = ["concurrent", "sourcemap"] }
+swc_css = "0.118.0"
+swc_css_prefixer = "0.115.0"
+swc_ecmascript = { version = "0.188.0", features = ["parser", "minifier", "utils", "visit"] }
 tracing = "0.1.32"
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.104.0"
-testing = "0.28.0"
+swc_ecma_transforms_testing = "0.105.0"
+testing = "0.29.0"
