@@ -1,6 +1,6 @@
 import React from 'react'
 import Head from '../shared/lib/head'
-import { NextPageContext } from '../shared/lib/utils'
+import type { NextPageContext } from '../shared/lib/utils'
 
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
@@ -57,7 +57,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                 .next-error-h1 {
                   border-right: 1px solid rgba(0, 0, 0, .3);
                 }
-                
+
                 ${
                   withDarkMode
                     ? `@media (prefers-color-scheme: dark) {
@@ -119,16 +119,17 @@ const styles: { [k: string]: React.CSSProperties } = {
     display: 'inline-block',
     margin: 0,
     marginRight: '20px',
-    padding: '10px 23px 10px 0',
+    padding: '0 23px 0 0',
     fontSize: '24px',
     fontWeight: 500,
     verticalAlign: 'top',
+    lineHeight: '49px',
   },
 
   h2: {
     fontSize: '14px',
     fontWeight: 'normal',
-    lineHeight: 'inherit',
+    lineHeight: '49px',
     margin: 0,
     padding: 0,
   },

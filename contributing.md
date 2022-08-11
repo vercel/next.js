@@ -30,9 +30,9 @@ To develop locally:
    ```
    git checkout -b MY_BRANCH_NAME
    ```
-3. Install pnpm:
+3. Enable pnpm:
    ```
-   npm install -g pnpm
+   corepack enable pnpm
    ```
 4. Install the dependencies with:
    ```
@@ -306,9 +306,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
-# or
+```
+
+```bash
 yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
-# or
+```
+
+```bash
 pnpm create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 ```
 

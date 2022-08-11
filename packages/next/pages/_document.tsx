@@ -978,7 +978,11 @@ export class NextScript extends Component<OriginProps> {
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
         console.warn(
-          `Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(
+          `Warning: data for page "${__NEXT_DATA__.page}"${
+            __NEXT_DATA__.page === context.dangerousAsPath
+              ? ''
+              : ` (path "${context.dangerousAsPath}")`
+          } is ${prettyBytes(
             bytes
           )} which exceeds the threshold of ${prettyBytes(
             largePageDataBytes

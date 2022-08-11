@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 import styles from './styles';
 const styles2 = require('./styles2');
 import { foo as styles3 } from './styles';

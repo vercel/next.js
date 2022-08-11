@@ -152,9 +152,9 @@ function getEmotionOptions(nextConfig, development) {
   return {
     enabled: true,
     autoLabel,
-    labelFormat: nextConfig?.experimental?.emotion?.labelFormat,
+    labelFormat: nextConfig?.compiler?.emotion?.labelFormat,
     sourcemap: development
-      ? nextConfig?.experimental?.emotion?.sourceMap ?? true
+      ? nextConfig?.compiler?.emotion?.sourceMap ?? true
       : false,
   }
 }
