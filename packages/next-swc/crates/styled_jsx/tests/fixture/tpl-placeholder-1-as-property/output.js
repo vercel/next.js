@@ -1,9 +1,9 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default class {
     render() {
         return <div className={_JSXStyle.dynamic([
             [
-                "e1b0d3df4c8dcbf0",
+                "fc144a5ba38f1ea7",
                 [
                     inputSize ? 'height: calc(2 * var(--a)) !important;' : ''
                 ]
@@ -12,14 +12,14 @@ export default class {
 
           <p className={_JSXStyle.dynamic([
             [
-                "e1b0d3df4c8dcbf0",
+                "fc144a5ba38f1ea7",
                 [
                     inputSize ? 'height: calc(2 * var(--a)) !important;' : ''
                 ]
             ]
         ])}>test</p>
 
-          <_JSXStyle id={"e1b0d3df4c8dcbf0"} dynamic={[
+          <_JSXStyle id={"fc144a5ba38f1ea7"} dynamic={[
             inputSize ? 'height: calc(2 * var(--a)) !important;' : ''
         ]}>{`@media only screen{a.__jsx-style-dynamic-selector{${inputSize ? 'height: calc(2 * var(--a)) !important;' : ''}
                 }}`}</_JSXStyle>

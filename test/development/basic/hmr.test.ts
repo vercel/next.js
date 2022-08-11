@@ -3,7 +3,6 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
   check,
-  clickReloadOnFullRefreshWarning,
   getBrowserBodyText,
   getRedboxHeader,
   getRedboxSource,
@@ -137,7 +136,6 @@ describe('basic HMR', () => {
           // change the content
           try {
             await next.patchFile(aboutPagePath, editedContent)
-            await clickReloadOnFullRefreshWarning(browser)
             await check(() => getBrowserBodyText(browser), /COOL page/)
           } finally {
             // add the original content
@@ -449,7 +447,6 @@ describe('basic HMR', () => {
 
         await next.patchFile(aboutPage, aboutContent)
 
-        await clickReloadOnFullRefreshWarning(browser)
         await check(
           () => getBrowserBodyText(browser),
           /This is the contact page/
@@ -484,7 +481,6 @@ describe('basic HMR', () => {
           aboutContent.replace('export', 'aa=20;\nexport')
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
 
@@ -554,7 +550,6 @@ describe('basic HMR', () => {
           )
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
@@ -604,7 +599,6 @@ describe('basic HMR', () => {
 
         const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
 
-        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
         expect(
@@ -656,7 +650,6 @@ describe('basic HMR', () => {
           )
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
@@ -710,7 +703,6 @@ describe('basic HMR', () => {
           errorContent.replace('throw error', 'return {}')
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         await check(() => getBrowserBodyText(browser), /Hello/)
 
         await next.patchFile(erroredPage, errorContent)
@@ -759,7 +751,6 @@ describe('basic HMR', () => {
           errorContent.replace('throw error', 'return {}')
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         await check(() => getBrowserBodyText(browser), /Hello/)
 
         await next.patchFile(erroredPage, errorContent)
@@ -790,5 +781,41 @@ describe('basic HMR', () => {
     expect(traceData).toContain('client-hmr-latency')
     expect(traceData).toContain('client-error')
     expect(traceData).toContain('client-success')
+  })
+
+  it('should have correct compile timing after fixing error', async () => {
+    const pageName = 'pages/auto-export-is-ready.js'
+    const originalContent = await next.readFile(pageName)
+
+    try {
+      const browser = await webdriver(next.url, '/auto-export-is-ready')
+      const outputLength = next.cliOutput.length
+      await next.patchFile(
+        pageName,
+        `import hello from 'non-existent'\n` + originalContent
+      )
+      expect(await hasRedbox(browser, true)).toBe(true)
+      await waitFor(3000)
+      await next.patchFile(pageName, originalContent)
+      await check(
+        () => next.cliOutput.substring(outputLength),
+        /compiled.*?successfully/i
+      )
+      const compileTime = next.cliOutput
+        .substring(outputLength)
+        .match(/compiled.*?successfully in ([\d.]{1,})\s?(?:s|ms)/i)
+
+      let compileTimeMs = parseFloat(compileTime[1])
+      if (
+        next.cliOutput
+          .substring(outputLength)
+          .match(/compiled.*?successfully in ([\d.]{1,})\s?s/)
+      ) {
+        compileTimeMs = compileTimeMs * 1000
+      }
+      expect(compileTimeMs).toBeLessThan(3000)
+    } finally {
+      await next.patchFile(pageName, originalContent)
+    }
   })
 })

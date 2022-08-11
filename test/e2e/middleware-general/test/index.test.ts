@@ -4,11 +4,9 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
-import escapeStringRegexp from 'escape-string-regexp'
 
-const middlewareWarning = 'using beta Middleware (not covered by semver)'
 const urlsError = 'Please use only absolute URLs'
 
 describe('Middleware Runtime', () => {
@@ -76,14 +74,6 @@ describe('Middleware Runtime', () => {
 
   function runTests({ i18n }: { i18n?: boolean }) {
     if ((global as any).isNextDev) {
-      it('should have showed warning for middleware usage', async () => {
-        await renderViaHTTP(next.url, '/')
-        await check(
-          () => next.cliOutput,
-          new RegExp(escapeStringRegexp(middlewareWarning))
-        )
-      })
-
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about`)
         await browser.eval('window.didrefresh = "hello"')
@@ -105,6 +95,15 @@ describe('Middleware Runtime', () => {
           await browser.close()
         }
       })
+
+      it('should only contain middleware route in dev middleware manifest', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
+        )
+        const { location } = await res.json()
+        expect(location).toBe('.*')
+      })
     }
 
     if ((global as any).isNextStart) {
@@ -124,16 +123,9 @@ describe('Middleware Runtime', () => {
             page: '/',
             regexp: '^/.*$',
             wasm: [],
+            assets: [],
           },
         })
-      })
-
-      it('should have middleware warning during build', () => {
-        expect(next.cliOutput).toContain(middlewareWarning)
-      })
-
-      it('should have middleware warning during start', () => {
-        expect(next.cliOutput).toContain(middlewareWarning)
       })
 
       it('should have correct files in manifest', async () => {
@@ -166,6 +158,22 @@ describe('Middleware Runtime', () => {
         expect(res.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
       })
     }
+
+    it('should have init header for NextResponse.redirect', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/redirect-to-somewhere',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere'
+      )
+      expect(res.headers.get('x-redirect-header')).toBe('hi')
+    })
 
     it('should have correct query values for rewrite to ssg page', async () => {
       const browser = await webdriver(next.url, '/to-ssg')

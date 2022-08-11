@@ -6,9 +6,11 @@
 /docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @balazsorban44
 /examples/ @timneutkens @ijjk @shuding @leerob @steven-tey @balazsorban44
 
-# SWC Build (@padmaia)
+# SWC Build & Telemetry (@padmaia)
 
-/packages/next/build/   @timneutkens @ijjk @shuding @padmaia @huozhi 
+/packages/next/build/   @timneutkens @ijjk @shuding @padmaia @huozhi
+/packages/next/telemetry/ @timneutkens @ijjk @shuding @padmaia
+/packages/next-swc/ @timneutkens @ijjk @shuding @padmaia
 
 # Image Component (@styfle)
 

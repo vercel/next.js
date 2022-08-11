@@ -1,5 +1,8 @@
-import type { EdgeMiddlewareMeta } from '../loaders/get-module-build-info'
-import type { EdgeSSRMeta, WasmBinding } from '../loaders/get-module-build-info'
+import type {
+  AssetBinding,
+  EdgeMiddlewareMeta,
+} from '../loaders/get-module-build-info'
+import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -8,25 +11,25 @@ import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
-interface EdgeFunctionDefinition {
+export interface EdgeFunctionDefinition {
   env: string[]
   files: string[]
   name: string
   page: string
   regexp: string
-  wasm?: WasmBinding[]
+  wasm?: AssetBinding[]
+  assets?: AssetBinding[]
 }
 
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
-  clientInfo: [location: string, isSSR: boolean][]
   middleware: { [page: string]: EdgeFunctionDefinition }
   functions: { [page: string]: EdgeFunctionDefinition }
 }
@@ -36,13 +39,13 @@ interface EntryMetadata {
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
-  wasmBindings: Set<WasmBinding>
+  wasmBindings: Map<string, string>
+  assetBindings: Map<string, string>
 }
 
 const NAME = 'MiddlewarePlugin'
 const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
-  clientInfo: [],
   middleware: {},
   functions: {},
   version: 1,
@@ -95,6 +98,27 @@ export default class MiddlewarePlugin {
         getCreateAssets({ compilation, metadataByEntry })
       )
     })
+  }
+}
+
+export async function handleWebpackExtenalForEdgeRuntime({
+  request,
+  context,
+  contextInfo,
+  getResolve,
+}: {
+  request: string
+  context: string
+  contextInfo: any
+  getResolve: () => any
+}) {
+  if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
+    // allows user to provide and use their polyfills, as we do with buffer.
+    try {
+      await getResolve()(context, request)
+    } catch {
+      return `root  globalThis.__import_unsupported('${request}')`
+    }
   }
 }
 
@@ -258,16 +282,51 @@ function getCodeAnalizer(params: {
         !isNullLiteral(firstParameter) &&
         !isUndefinedIdentifier(firstParameter)
       ) {
-        const error = new wp.WebpackError(
-          `Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
-        )
-        error.name = NAME
-        error.module = parser.state.current
-        error.loc = node.loc
+        const error = buildWebpackError({
+          message: `Middleware is returning a response body (line: ${node.loc.start.line}), which is not supported.
+Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
+          compilation,
+          parser,
+          ...node,
+        })
         if (dev) {
           compilation.warnings.push(error)
         } else {
           compilation.errors.push(error)
+        }
+      }
+    }
+
+    /**
+     * Handler to store original source location of static and dynamic imports into module's buildInfo.
+     */
+    const handleImport = (node: any) => {
+      if (isInMiddlewareLayer(parser) && node.source?.value && node?.loc) {
+        const { module, source } = parser.state
+        const buildInfo = getModuleBuildInfo(module)
+        if (!buildInfo.importLocByPath) {
+          buildInfo.importLocByPath = new Map()
+        }
+
+        const importedModule = node.source.value?.toString()!
+        buildInfo.importLocByPath.set(importedModule, {
+          sourcePosition: {
+            ...node.loc.start,
+            source: module.identifier(),
+          },
+          sourceContent: source.toString(),
+        })
+
+        if (!dev && isNodeJsModule(importedModule)) {
+          compilation.warnings.push(
+            buildWebpackError({
+              message: `A Node.js module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
+              compilation,
+              parser,
+              ...node,
+            })
+          )
         }
       }
     }
@@ -297,6 +356,8 @@ function getCodeAnalizer(params: {
     hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
+    hooks.importCall.tap(NAME, handleImport)
+    hooks.import.tap(NAME, handleImport)
 
     /**
      * Support static analyzing environment variables through
@@ -328,7 +389,10 @@ function getCodeAnalizer(params: {
         }
       }
     })
-    registerUnsupportedApiHooks(parser, compilation)
+    if (!dev) {
+      // do not issue compilation warning on dev: invoking code will provide details
+      registerUnsupportedApiHooks(parser, compilation)
+    }
   }
 }
 
@@ -363,7 +427,8 @@ function getExtractMetadata(params: {
 
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
-        wasmBindings: new Set<WasmBinding>(),
+        wasmBindings: new Map(),
+        assetBindings: new Map(),
       }
 
       for (const entryModule of entryModules) {
@@ -390,18 +455,19 @@ function getExtractMetadata(params: {
             continue
           }
 
-          const error = new wp.WebpackError(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
-              typeof buildInfo.usingIndirectEval !== 'boolean'
-                ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
-                    ', '
-                  )}`
-                : ''
-            }`
+          compilation.errors.push(
+            buildWebpackError({
+              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
+                typeof buildInfo.usingIndirectEval !== 'boolean'
+                  ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
+                      ', '
+                    )}`
+                  : ''
+              }`,
+              entryModule,
+              compilation,
+            })
           )
-
-          error.module = entryModule
-          compilation.errors.push(error)
         }
 
         /**
@@ -431,7 +497,17 @@ function getExtractMetadata(params: {
          * append it to the entry wasm bindings.
          */
         if (buildInfo?.nextWasmMiddlewareBinding) {
-          entryMetadata.wasmBindings.add(buildInfo.nextWasmMiddlewareBinding)
+          entryMetadata.wasmBindings.set(
+            buildInfo.nextWasmMiddlewareBinding.name,
+            buildInfo.nextWasmMiddlewareBinding.filePath
+          )
+        }
+
+        if (buildInfo?.nextAssetMiddlewareBinding) {
+          entryMetadata.assetBindings.set(
+            buildInfo.nextAssetMiddlewareBinding.name,
+            buildInfo.nextAssetMiddlewareBinding.filePath
+          )
         }
 
         /**
@@ -509,10 +585,17 @@ function getCreateAssets(params: {
         name: entrypoint.name,
         page: page,
         regexp,
-        wasm: Array.from(metadata.wasmBindings),
+        wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
+          name,
+          filePath,
+        })),
+        assets: Array.from(metadata.assetBindings, ([name, filePath]) => ({
+          name,
+          filePath,
+        })),
       }
 
-      if (metadata.edgeApiFunction /* || metadata.edgeSSR */) {
+      if (metadata.edgeApiFunction || metadata.edgeSSR) {
         middlewareManifest.functions[page] = edgeFunctionDefinition
       } else {
         middlewareManifest.middleware[page] = edgeFunctionDefinition
@@ -521,13 +604,6 @@ function getCreateAssets(params: {
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
       Object.keys(middlewareManifest.middleware)
-    )
-
-    middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
-      (key) => [
-        middlewareManifest.middleware[key].regexp,
-        !!metadataByEntry.get(middlewareManifest.middleware[key].name)?.edgeSSR,
-      ]
     )
 
     assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
@@ -540,7 +616,7 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
-      files.push(`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`)
+      files.push(`server/${FLIGHT_MANIFEST}.js`)
       files.push(
         ...entryFiles
           .filter(
@@ -573,14 +649,18 @@ function registerUnsupportedApiHooks(
   parser: webpack5.javascript.JavascriptParser,
   compilation: webpack5.Compilation
 ) {
-  const { WebpackError } = compilation.compiler.webpack
   for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
     const warnForUnsupportedApi = (node: any) => {
       if (!isInMiddlewareLayer(parser)) {
         return
       }
       compilation.warnings.push(
-        makeUnsupportedApiError(WebpackError, parser, expression, node.loc)
+        buildUnsupportedApiError({
+          compilation,
+          parser,
+          apiName: expression,
+          ...node,
+        })
       )
       return true
     }
@@ -599,12 +679,12 @@ function registerUnsupportedApiHooks(
       return
     }
     compilation.warnings.push(
-      makeUnsupportedApiError(
-        WebpackError,
+      buildUnsupportedApiError({
+        compilation,
         parser,
-        `process.${callee}`,
-        node.loc
-      )
+        apiName: `process.${callee}`,
+        ...node,
+      })
     )
     return true
   }
@@ -617,18 +697,43 @@ function registerUnsupportedApiHooks(
     .tap(NAME, warnForUnsupportedProcessApi)
 }
 
-function makeUnsupportedApiError(
-  WebpackError: typeof webpack5.WebpackError,
-  parser: webpack5.javascript.JavascriptParser,
-  name: string,
+function buildUnsupportedApiError({
+  apiName,
+  loc,
+  ...rest
+}: {
+  apiName: string
   loc: any
-) {
-  const error = new WebpackError(
-    `You're using a Node.js API (${name} at line: ${loc.start.line}) which is not supported in the Edge Runtime that Middleware uses. 
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime`
-  )
+  compilation: webpack5.Compilation
+  parser: webpack5.javascript.JavascriptParser
+}) {
+  return buildWebpackError({
+    message: `A Node.js API is used (${apiName} at line: ${loc.start.line}) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`,
+    loc,
+    ...rest,
+  })
+}
+
+function buildWebpackError({
+  message,
+  loc,
+  compilation,
+  entryModule,
+  parser,
+}: {
+  message: string
+  loc?: any
+  compilation: webpack5.Compilation
+  entryModule?: webpack5.Module
+  parser?: webpack5.javascript.JavascriptParser
+}) {
+  const error = new compilation.compiler.webpack.WebpackError(message)
   error.name = NAME
-  error.module = parser.state.current
+  const module = entryModule ?? parser?.state.current
+  if (module) {
+    error.module = module
+  }
   error.loc = loc
   return error
 }
@@ -661,4 +766,8 @@ function isProcessEnvMemberExpression(memberExpression: any): boolean {
       (memberExpression.property?.type === 'Identifier' &&
         memberExpression.property.name === 'env'))
   )
+}
+
+function isNodeJsModule(moduleName: string) {
+  return require('module').builtinModules.includes(moduleName)
 }

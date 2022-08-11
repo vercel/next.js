@@ -63,9 +63,7 @@ describe('should set-up next', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          outputStandalone: true,
-        },
+        output: 'standalone',
         async rewrites() {
           return [
             {
@@ -135,6 +133,27 @@ describe('should set-up next', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should not apply locale redirect in minimal mode', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      redirect: 'manual',
+      headers: {
+        'accept-language': 'fr',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('index page')
+
+    const resCookie = await fetchViaHTTP(appPort, '/', undefined, {
+      redirect: 'manual',
+      headers: {
+        'accept-language': 'en',
+        cookie: 'NEXT_LOCALE=fr',
+      },
+    })
+    expect(resCookie.status).toBe(200)
+    expect(await resCookie.text()).toContain('index page')
   })
 
   it('should output required-server-files manifest correctly', async () => {

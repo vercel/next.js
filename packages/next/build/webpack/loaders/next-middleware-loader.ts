@@ -9,8 +9,15 @@ export type MiddlewareLoaderOptions = {
 }
 
 export default function middlewareLoader(this: any) {
-  const { absolutePagePath, page, matcherRegexp }: MiddlewareLoaderOptions =
-    this.getOptions()
+  const {
+    absolutePagePath,
+    page,
+    matcherRegexp: base64MatcherRegex,
+  }: MiddlewareLoaderOptions = this.getOptions()
+  const matcherRegexp = Buffer.from(
+    base64MatcherRegex || '',
+    'base64'
+  ).toString()
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.nextEdgeMiddleware = {
@@ -20,14 +27,9 @@ export default function middlewareLoader(this: any) {
   }
 
   return `
-        import { adapter, blockUnallowedResponse } from 'next/dist/server/web/adapter'
+        import { adapter, blockUnallowedResponse, enhanceGlobals } from 'next/dist/server/web/adapter'
 
-        // The condition is true when the "process" module is provided
-        if (process !== global.process) {
-          // prefer local process but global.process has correct "env"
-          process.env = global.process.env;
-          global.process = process;
-        }
+        enhanceGlobals()
 
         var mod = require(${stringifiedPagePath})
         var handler = mod.middleware || mod.default;
