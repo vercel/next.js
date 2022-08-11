@@ -15,8 +15,6 @@ import type {
   VariableDeclaration,
 } from '@swc/core'
 
-export class NoSuchDeclarationError extends Error {}
-
 /**
  * Extracts the value of an exported const variable named `exportedName`
  * (e.g. "export const config = { runtime: 'experimental-edge' }") from swc's AST.
@@ -140,6 +138,7 @@ export class UnsupportedValueError extends Error {
     this.path = codePath
   }
 }
+export class NoSuchDeclarationError extends Error {}
 
 function extractValue(node: Node, path?: string[]): any {
   if (isNullLiteral(node)) {

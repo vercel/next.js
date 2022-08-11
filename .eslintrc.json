@@ -69,7 +69,7 @@
           "warn",
           {
             "functions": false,
-            "classes": true,
+            "classes": false,
             "variables": true,
             "enums": true,
             "typedefs": true

@@ -289,18 +289,6 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   return { assetPrefix: prefix }
 }
 
-const wrapApp =
-  (App: AppComponent) =>
-  (wrappedAppProps: Record<string, any>): JSX.Element => {
-    const appProps: AppProps = {
-      ...wrappedAppProps,
-      Component: CachedComponent,
-      err: initialData.err,
-      router,
-    }
-    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
-  }
-
 export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   let initialErr = initialData.err
 
@@ -407,6 +395,18 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   if (window.__NEXT_PRELOADREADY) {
     await window.__NEXT_PRELOADREADY(initialData.dynamicIds)
   }
+
+  const wrapApp =
+    (App: AppComponent) =>
+    (wrappedAppProps: Record<string, any>): JSX.Element => {
+      const appProps: AppProps = {
+        ...wrappedAppProps,
+        Component: CachedComponent,
+        err: initialData.err,
+        router,
+      }
+      return <AppContainer>{renderApp(App, appProps)}</AppContainer>
+    }
 
   router = createRouter(initialData.page, initialData.query, asPath, {
     initialProps: initialData.props,

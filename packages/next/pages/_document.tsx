@@ -346,6 +346,77 @@ function getScripts(
   })
 }
 
+/**
+ * `Document` component handles the initial `document` markup and renders only on the server side.
+ * Commonly used for implementing server side rendering for `css-in-js` libraries.
+ */
+export default class Document<P = {}> extends Component<DocumentProps & P> {
+  /**
+   * `getInitialProps` hook returns the context object with the addition of `renderPage`.
+   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
+   */
+  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+    return ctx.defaultGetInitialProps(ctx)
+  }
+
+  render() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+}
+
+// Add a special property to the built-in `Document` component so later we can
+// identify if a user customized `Document` is used or not.
+const InternalFunctionDocument: DocumentType =
+  function InternalFunctionDocument() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
+
+export function Html(
+  props: React.DetailedHTMLProps<
+    React.HtmlHTMLAttributes<HTMLHtmlElement>,
+    HTMLHtmlElement
+  >
+) {
+  const {
+    inAmpMode,
+    docComponentsRendered,
+    locale,
+    scriptLoader,
+    __NEXT_DATA__,
+  } = useContext(HtmlContext)
+
+  docComponentsRendered.Html = true
+  handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
+
+  return (
+    <html
+      {...props}
+      lang={props.lang || locale || undefined}
+      amp={inAmpMode ? '' : undefined}
+      data-ampdevmode={
+        inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
+      }
+    />
+  )
+}
+
 function AmpStyles({
   styles,
 }: {
@@ -867,6 +938,13 @@ export class Head extends Component<HeadProps> {
   }
 }
 
+export function Main() {
+  const { docComponentsRendered } = useContext(HtmlContext)
+  docComponentsRendered.Main = true
+  // @ts-ignore
+  return <next-js-internal-body-render-target />
+}
+
 export class NextScript extends Component<OriginProps> {
   static contextType = HtmlContext
 
@@ -1026,84 +1104,6 @@ export class NextScript extends Component<OriginProps> {
       </>
     )
   }
-}
-
-/**
- * `Document` component handles the initial `document` markup and renders only on the server side.
- * Commonly used for implementing server side rendering for `css-in-js` libraries.
- */
-export default class Document<P = {}> extends Component<DocumentProps & P> {
-  /**
-   * `getInitialProps` hook returns the context object with the addition of `renderPage`.
-   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
-   */
-  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
-    return ctx.defaultGetInitialProps(ctx)
-  }
-
-  render() {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </Html>
-    )
-  }
-}
-
-// Add a special property to the built-in `Document` component so later we can
-// identify if a user customized `Document` is used or not.
-const InternalFunctionDocument: DocumentType =
-  function InternalFunctionDocument() {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </Html>
-    )
-  }
-;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
-
-export function Html(
-  props: React.DetailedHTMLProps<
-    React.HtmlHTMLAttributes<HTMLHtmlElement>,
-    HTMLHtmlElement
-  >
-) {
-  const {
-    inAmpMode,
-    docComponentsRendered,
-    locale,
-    scriptLoader,
-    __NEXT_DATA__,
-  } = useContext(HtmlContext)
-
-  docComponentsRendered.Html = true
-  handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
-
-  return (
-    <html
-      {...props}
-      lang={props.lang || locale || undefined}
-      amp={inAmpMode ? '' : undefined}
-      data-ampdevmode={
-        inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
-      }
-    />
-  )
-}
-
-export function Main() {
-  const { docComponentsRendered } = useContext(HtmlContext)
-  docComponentsRendered.Main = true
-  // @ts-ignore
-  return <next-js-internal-body-render-target />
 }
 
 function getAmpPath(ampPath: string, asPath: string): string {

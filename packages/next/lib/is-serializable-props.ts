@@ -5,16 +5,6 @@ import {
 
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
-export class SerializableError extends Error {
-  constructor(page: string, method: string, path: string, message: string) {
-    super(
-      path
-        ? `Error serializing \`${path}\` returned from \`${method}\` in "${page}".\nReason: ${message}`
-        : `Error serializing props returned from \`${method}\` in "${page}".\nReason: ${message}`
-    )
-  }
-}
-
 export function isSerializableProps(
   page: string,
   method: string,
@@ -140,4 +130,14 @@ export function isSerializableProps(
   }
 
   return isSerializable(new Map(), input, '')
+}
+
+export class SerializableError extends Error {
+  constructor(page: string, method: string, path: string, message: string) {
+    super(
+      path
+        ? `Error serializing \`${path}\` returned from \`${method}\` in "${page}".\nReason: ${message}`
+        : `Error serializing props returned from \`${method}\` in "${page}".\nReason: ${message}`
+    )
+  }
 }
