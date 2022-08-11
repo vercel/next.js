@@ -339,51 +339,63 @@ export function onDemandEntryHandler({
       )
 
       let entryAdded = false
+      const added = new Map<CompilerNameValues, Promise<void>>()
+
+      const isServerComponent = serverComponentRegex.test(
+        pagePathData.absolutePagePath
+      )
+      const isInsideAppDir =
+        appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
       const addPageEntry = (
         compilerType: CompilerNameValues
       ): Promise<void> => {
-        return new Promise<void>((resolve, reject) => {
-          const isServerComponent = serverComponentRegex.test(
-            pagePathData.absolutePagePath
-          )
-          const isInsideAppDir =
-            appDir && pagePathData.absolutePagePath.startsWith(appDir)
-
-          const pageKey = `${compilerType}${pagePathData.page}`
-
-          if (entries[pageKey]) {
-            entries[pageKey].dispose = false
-            entries[pageKey].lastActiveTime = Date.now()
-            if (entries[pageKey].status === BUILT) {
-              resolve()
-              return
-            }
-          } else {
-            if (
-              compilerType === COMPILER_NAMES.client &&
-              (isServerComponent || isInsideAppDir)
-            ) {
-              // Skip adding the client entry here.
-            } else {
-              entryAdded = true
-              entries[pageKey] = {
-                type: EntryTypes.ENTRY,
-                absolutePagePath: pagePathData.absolutePagePath,
-                request: pagePathData.absolutePagePath,
-                bundlePath: pagePathData.bundlePath,
-                dispose: false,
-                lastActiveTime: Date.now(),
-                status: ADDED,
-              }
-            }
-          }
-
-          doneCallbacks!.once(pageKey, (err: Error) => {
-            if (err) return reject(err)
-            resolve()
-          })
+        let resolve: (value: void | PromiseLike<void>) => void,
+          reject: (reason?: any) => void
+        const promise = new Promise<void>((res, rej) => {
+          resolve = res
+          reject = rej
         })
+
+        const pageKey = `${compilerType}${pagePathData.page}`
+
+        if (entries[pageKey]) {
+          entries[pageKey].dispose = false
+          entries[pageKey].lastActiveTime = Date.now()
+          if (entries[pageKey].status === BUILT) {
+            resolve!()
+            added.set(compilerType, promise)
+            return promise
+          }
+        } else {
+          if (
+            compilerType === COMPILER_NAMES.client &&
+            (isServerComponent || isInsideAppDir)
+          ) {
+            // Skip adding the client entry here.
+          } else {
+            entryAdded = true
+            entries[pageKey] = {
+              type: EntryTypes.ENTRY,
+              absolutePagePath: pagePathData.absolutePagePath,
+              request: pagePathData.absolutePagePath,
+              bundlePath: pagePathData.bundlePath,
+              dispose: false,
+              lastActiveTime: Date.now(),
+              status: ADDED,
+            }
+            added.set(compilerType, promise)
+          }
+        }
+
+        doneCallbacks!.once(pageKey, (err: Error) => {
+          if (err) {
+            return reject(err)
+          }
+          resolve()
+        })
+
+        return promise
       }
 
       const staticInfo = await getPageStaticInfo({
@@ -391,21 +403,17 @@ export function onDemandEntryHandler({
         nextConfig,
       })
 
-      const added = new Map<CompilerNameValues, Promise<void>>()
       await runDependingOnPageType({
         page: pagePathData.page,
         pageRuntime: staticInfo.runtime,
         onClient: () => {
-          added.set(COMPILER_NAMES.client, addPageEntry(COMPILER_NAMES.client))
+          addPageEntry(COMPILER_NAMES.client)
         },
         onServer: () => {
-          added.set(COMPILER_NAMES.server, addPageEntry(COMPILER_NAMES.server))
+          addPageEntry(COMPILER_NAMES.server)
         },
         onEdgeServer: () => {
-          added.set(
-            COMPILER_NAMES.edgeServer,
-            addPageEntry(COMPILER_NAMES.edgeServer)
-          )
+          addPageEntry(COMPILER_NAMES.edgeServer)
         },
       })
 
