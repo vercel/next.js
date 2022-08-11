@@ -80,6 +80,7 @@ let headManager: {
   getIsSsr?: () => boolean
 }
 let initialMatchesMiddleware = false
+let lastAppProps: AppProps
 
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
@@ -287,6 +288,18 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   appElement = document.getElementById('__next')
   return { assetPrefix: prefix }
 }
+
+const wrapApp =
+  (App: AppComponent) =>
+  (wrappedAppProps: Record<string, any>): JSX.Element => {
+    const appProps: AppProps = {
+      ...wrappedAppProps,
+      Component: CachedComponent,
+      err: initialData.err,
+      router,
+    }
+    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
+  }
 
 export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   let initialErr = initialData.err
@@ -663,18 +676,6 @@ function renderApp(App: AppComponent, appProps: AppProps) {
   return <App {...appProps} />
 }
 
-const wrapApp =
-  (App: AppComponent) =>
-  (wrappedAppProps: Record<string, any>): JSX.Element => {
-    const appProps: AppProps = {
-      ...wrappedAppProps,
-      Component: CachedComponent,
-      err: initialData.err,
-      router,
-    }
-    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
-  }
-
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
   const getCacheKey = () => {
@@ -818,7 +819,6 @@ if (process.env.__NEXT_RSC) {
   }
 }
 
-let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
   let { App, Component, props, err, __N_RSC }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =

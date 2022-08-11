@@ -136,6 +136,35 @@ function getCodeAnalizer(params: {
     const { hooks } = parser
 
     /**
+     * For an expression this will check the graph to ensure it is being used
+     * by exports. Then it will store in the module buildInfo a boolean to
+     * express that it contains dynamic code and, if it is available, the
+     * module path that is using it.
+     */
+    const handleExpression = () => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+
+      wp.optimize.InnerGraph.onUsage(parser.state, (used = true) => {
+        const buildInfo = getModuleBuildInfo(parser.state.module)
+        if (buildInfo.usingIndirectEval === true || used === false) {
+          return
+        }
+
+        if (!buildInfo.usingIndirectEval || used === true) {
+          buildInfo.usingIndirectEval = used
+          return
+        }
+
+        buildInfo.usingIndirectEval = new Set([
+          ...Array.from(buildInfo.usingIndirectEval),
+          ...Array.from(used),
+        ])
+      })
+    }
+
+    /**
      * This expression handler allows to wrap a dynamic code expression with a
      * function call where we can warn about dynamic code not being allowed
      * but actually execute the expression.
@@ -214,35 +243,6 @@ function getCodeAnalizer(params: {
         dep2.loc = expr.loc
         parser.state.module.addPresentationalDependency(dep2)
       }
-    }
-
-    /**
-     * For an expression this will check the graph to ensure it is being used
-     * by exports. Then it will store in the module buildInfo a boolean to
-     * express that it contains dynamic code and, if it is available, the
-     * module path that is using it.
-     */
-    const handleExpression = () => {
-      if (!isInMiddlewareLayer(parser)) {
-        return
-      }
-
-      wp.optimize.InnerGraph.onUsage(parser.state, (used = true) => {
-        const buildInfo = getModuleBuildInfo(parser.state.module)
-        if (buildInfo.usingIndirectEval === true || used === false) {
-          return
-        }
-
-        if (!buildInfo.usingIndirectEval || used === true) {
-          buildInfo.usingIndirectEval = used
-          return
-        }
-
-        buildInfo.usingIndirectEval = new Set([
-          ...Array.from(buildInfo.usingIndirectEval),
-          ...Array.from(used),
-        ])
-      })
     }
 
     /**

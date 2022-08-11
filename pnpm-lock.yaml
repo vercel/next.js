@@ -364,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.5-canary.4
+      '@next/eslint-plugin-next': 12.2.5-canary.6
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -420,12 +420,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.5-canary.4
-      '@next/polyfill-module': 12.2.5-canary.4
-      '@next/polyfill-nomodule': 12.2.5-canary.4
-      '@next/react-dev-overlay': 12.2.5-canary.4
-      '@next/react-refresh-utils': 12.2.5-canary.4
-      '@next/swc': 12.2.5-canary.4
+      '@next/env': 12.2.5-canary.6
+      '@next/polyfill-module': 12.2.5-canary.6
+      '@next/polyfill-nomodule': 12.2.5-canary.6
+      '@next/react-dev-overlay': 12.2.5-canary.6
+      '@next/react-refresh-utils': 12.2.5-canary.6
+      '@next/swc': 12.2.5-canary.6
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
@@ -561,7 +561,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.3
+      styled-jsx: 5.0.4
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -750,7 +750,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.3_@babel+core@7.18.0
+      styled-jsx: 5.0.4_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -20559,8 +20559,8 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.0.3_@babel+core@7.18.0:
-    resolution: {integrity: sha512-v82oihjxFj2WJtQiodZIDjJpnmVcE71HTCVylxdcQHU0ocnI0rGhJ0+5A3311NMQUx0KFJ+18RSHNlfIgcSU8g==}
+  /styled-jsx/5.0.4_@babel+core@7.18.0:
+    resolution: {integrity: sha512-sDFWLbg4zR+UkNzfk5lPilyIgtpddfxXEULxhujorr5jtePTUqiPDc5BC0v1NRqTr/WaFBGQQUoYToGlF4B2KQ==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
       '@babel/core': '*'

@@ -575,40 +575,9 @@ export async function renderToHTML(
     isPreview,
     getRequestMeta(req, '__nextIsLocaleDomain')
   )
+
+  let scriptLoader: any = {}
   const jsxStyleRegistry = createStyleRegistry()
-  const ctx = {
-    err,
-    req: isAutoExport ? undefined : req,
-    res: isAutoExport ? undefined : res,
-    pathname,
-    query,
-    asPath,
-    locale: renderOpts.locale,
-    locales: renderOpts.locales,
-    defaultLocale: renderOpts.defaultLocale,
-    AppTree: (props: any) => {
-      return (
-        <AppContainerWithIsomorphicFiberStructure>
-          {renderPageTree(App, OriginComponent, { ...props, router })}
-        </AppContainerWithIsomorphicFiberStructure>
-      )
-    },
-    defaultGetInitialProps: async (
-      docCtx: DocumentContext,
-      options: { nonce?: string } = {}
-    ): Promise<DocumentInitialProps> => {
-      const enhanceApp = (AppComp: any) => {
-        return (props: any) => <AppComp {...props} />
-      }
-
-      const { html, head } = await docCtx.renderPage({ enhanceApp })
-      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
-      jsxStyleRegistry.flush()
-      return { html, head, styles }
-    },
-  }
-  let props: any
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -617,10 +586,8 @@ export async function renderToHTML(
 
   // Disable AMP under the web environment
   const inAmpMode = process.env.NEXT_RUNTIME !== 'edge' && isInAmpMode(ampState)
-
-  const reactLoadableModules: string[] = []
-
   let head: JSX.Element[] = defaultHead(inAmpMode)
+  const reactLoadableModules: string[] = []
 
   let initialScripts: any = {}
   if (hasPageScripts) {
@@ -628,16 +595,6 @@ export async function renderToHTML(
       .concat(hasPageScripts())
       .filter((script: any) => script.props.strategy === 'beforeInteractive')
       .map((script: any) => script.props)
-  }
-
-  let scriptLoader: any = {}
-  const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
-
-  const styledJsxFlushEffect = () => {
-    const styles = jsxStyleRegistry.styles()
-    jsxStyleRegistry.flush()
-    return <>{styles}</>
   }
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
@@ -700,6 +657,50 @@ export async function renderToHTML(
         </AppContainer>
       </>
     )
+  }
+
+  const ctx = {
+    err,
+    req: isAutoExport ? undefined : req,
+    res: isAutoExport ? undefined : res,
+    pathname,
+    query,
+    asPath,
+    locale: renderOpts.locale,
+    locales: renderOpts.locales,
+    defaultLocale: renderOpts.defaultLocale,
+    AppTree: (props: any) => {
+      return (
+        <AppContainerWithIsomorphicFiberStructure>
+          {renderPageTree(App, OriginComponent, { ...props, router })}
+        </AppContainerWithIsomorphicFiberStructure>
+      )
+    },
+    defaultGetInitialProps: async (
+      docCtx: DocumentContext,
+      options: { nonce?: string } = {}
+    ): Promise<DocumentInitialProps> => {
+      const enhanceApp = (AppComp: any) => {
+        return (props: any) => <AppComp {...props} />
+      }
+
+      const { html, head: renderPageHead } = await docCtx.renderPage({
+        enhanceApp,
+      })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      jsxStyleRegistry.flush()
+      return { html, head: renderPageHead, styles }
+    },
+  }
+  let props: any
+
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+
+  const styledJsxFlushEffect = () => {
+    const styles = jsxStyleRegistry.styles()
+    jsxStyleRegistry.flush()
+    return <>{styles}</>
   }
 
   props = await loadGetInitialProps(App, {
@@ -1301,7 +1302,7 @@ export async function renderToHTML(
       }
 
       const { docProps } = (documentInitialPropsRes as any) || {}
-      const documentElement = () => {
+      const documentElement = (htmlProps: any) => {
         if (process.env.NEXT_RUNTIME === 'edge') {
           return (Document as any)()
         } else {

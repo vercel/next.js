@@ -9,6 +9,31 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 
+class NextRequestHint extends NextRequest {
+  sourcePage: string
+
+  constructor(params: {
+    init: RequestInit
+    input: Request | string
+    page: string
+  }) {
+    super(params.input, params.init)
+    this.sourcePage = params.page
+  }
+
+  get request() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+
+  respondWith() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+
+  waitUntil() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+}
+
 export async function adapter(params: {
   handler: NextMiddleware
   page: string
@@ -204,29 +229,4 @@ function getUnsupportedModuleErrorMessage(module: string) {
   // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
   return `The edge runtime does not support Node.js '${module}' module.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
-}
-
-class NextRequestHint extends NextRequest {
-  sourcePage: string
-
-  constructor(params: {
-    init: RequestInit
-    input: Request | string
-    page: string
-  }) {
-    super(params.input, params.init)
-    this.sourcePage = params.page
-  }
-
-  get request() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
-
-  respondWith() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
-
-  waitUntil() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
 }

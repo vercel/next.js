@@ -493,7 +493,7 @@ type BuildingTracker = {
 type RebuildTracker = {
   -readonly [compilerKey in CompilerNameValues]: boolean
 }
-// Make sure only one invalidation happens at a time∫
+// Make sure only one invalidation happens at a time
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
   private multiCompiler: webpack.MultiCompiler
