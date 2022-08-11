@@ -161,6 +161,10 @@ export const entries: {
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
 
+const doneCallbacks: EventEmitter | null = new EventEmitter()
+const lastClientAccessPages = ['']
+const lastServerAccessPagesForAppDir = ['']
+
 export function onDemandEntryHandler({
   maxInactiveAge,
   multiCompiler,
@@ -179,9 +183,6 @@ export function onDemandEntryHandler({
   appDir?: string
 }) {
   invalidator = new Invalidator(multiCompiler)
-  const doneCallbacks: EventEmitter | null = new EventEmitter()
-  const lastClientAccessPages = ['']
-  const lastServerAccessPagesForAppDir = ['']
 
   const startBuilding = (compilation: webpack.Compilation) => {
     const compilationName = compilation.name as any as CompilerNameValues
@@ -258,11 +259,7 @@ export function onDemandEntryHandler({
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
 
   setInterval(function () {
-    disposeInactiveEntries(
-      lastClientAccessPages,
-      lastServerAccessPagesForAppDir,
-      maxInactiveAge
-    )
+    disposeInactiveEntries(maxInactiveAge)
   }, pingIntervalTime + 1000).unref()
 
   function handleAppDirPing(
@@ -448,11 +445,7 @@ export function onDemandEntryHandler({
   }
 }
 
-function disposeInactiveEntries(
-  lastClientAccessPages: string[],
-  lastServerAccessPagesForAppDir: string[],
-  maxInactiveAge: number
-) {
+function disposeInactiveEntries(maxInactiveAge: number) {
   Object.keys(entries).forEach((entryKey) => {
     const entryData = entries[entryKey]
     const { lastActiveTime, status, dispose } = entryData
@@ -527,7 +520,7 @@ class Invalidator {
         continue
       }
 
-      this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching.invalidate()
+      this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching?.invalidate()
       this.building[key] = true
     }
   }

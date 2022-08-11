@@ -29,6 +29,7 @@ import {
   BUILDING,
   entries,
   EntryTypes,
+  getInvalidator,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
@@ -946,6 +947,10 @@ export default class HotReloader {
         edgeServerStats: () => this.edgeServerStats,
       }),
     ]
+
+    // trigger invalidation to ensure any previous callbacks
+    // are handled in the on-demand-entry-handler
+    getInvalidator()?.invalidate()
   }
 
   public async stop(): Promise<void> {

@@ -161,8 +161,14 @@ export default class NextNodeServer extends BaseServer {
       ? (compression() as ExpressMiddleware)
       : undefined
 
-  protected loadEnvConfig({ dev }: { dev: boolean }) {
-    loadEnvConfig(this.dir, dev, Log)
+  protected loadEnvConfig({
+    dev,
+    forceReload,
+  }: {
+    dev: boolean
+    forceReload?: boolean
+  }) {
+    loadEnvConfig(this.dir, dev, Log, forceReload)
   }
 
   protected getPublicDir(): string {
