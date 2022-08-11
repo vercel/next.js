@@ -686,8 +686,8 @@ export default async function getBaseWebpackConfig(
       'react-dom/server$': `${reactDomDir}/server`,
       'react-dom/server.browser$': `${reactDomDir}/server.browser`,
       'react-dom/client$': `${reactDomDir}/client`,
-      'styled-jsx/style$': require.resolve(`next/dist/styled-jsx/style`),
-      'styled-jsx$': require.resolve(`next/dist/styled-jsx`),
+      'styled-jsx/style$': require.resolve(`styled-jsx/style`),
+      'styled-jsx$': require.resolve(`styled-jsx`),
 
       ...customAppAliases,
       ...customErrorAlias,

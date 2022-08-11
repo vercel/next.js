@@ -28,7 +28,7 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
 
 import React from 'react'
-import { StyleRegistry, createStyleRegistry } from 'next/dist/styled-jsx'
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
   GSSP_COMPONENT_MEMBER_ERROR,
