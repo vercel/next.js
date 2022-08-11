@@ -349,6 +349,120 @@ function handleLoading(
   })
 }
 
+const ImageElement = ({
+  imgAttributes,
+  heightInt,
+  widthInt,
+  qualityInt,
+  layout,
+  className,
+  imgStyle,
+  blurStyle,
+  isLazy,
+  placeholder,
+  loading,
+  srcString,
+  config,
+  unoptimized,
+  loader,
+  onLoadingCompleteRef,
+  setBlurComplete,
+  setIntersection,
+  onLoad,
+  onError,
+  isVisible,
+  noscriptSizes,
+  ...rest
+}: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
+  return (
+    <>
+      <img
+        {...rest}
+        {...imgAttributes}
+        decoding="async"
+        data-nimg={layout}
+        className={className}
+        style={{ ...imgStyle, ...blurStyle }}
+        ref={useCallback(
+          (img: ImgElementWithDataProp) => {
+            if (process.env.NODE_ENV !== 'production') {
+              if (img && !srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+            }
+            setIntersection(img)
+            if (img?.complete) {
+              handleLoading(
+                img,
+                srcString,
+                layout,
+                placeholder,
+                onLoadingCompleteRef,
+                setBlurComplete
+              )
+            }
+          },
+          [
+            setIntersection,
+            srcString,
+            layout,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete,
+          ]
+        )}
+        onLoad={(event) => {
+          const img = event.currentTarget as ImgElementWithDataProp
+          handleLoading(
+            img,
+            srcString,
+            layout,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete
+          )
+          if (onLoad) {
+            onLoad(event)
+          }
+        }}
+        onError={(event) => {
+          if (placeholder === 'blur') {
+            // If the real image fails to load, this will still remove the placeholder.
+            setBlurComplete(true)
+          }
+          if (onError) {
+            onError(event)
+          }
+        }}
+      />
+      {(isLazy || placeholder === 'blur') && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              config,
+              src: srcString,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes: noscriptSizes,
+              loader,
+            })}
+            decoding="async"
+            data-nimg={layout}
+            style={imgStyle}
+            className={className}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading}
+          />
+        </noscript>
+      )}
+    </>
+  )
+}
+
 export default function Image({
   src,
   sizes,
@@ -842,120 +956,6 @@ export default function Image({
           />
         </Head>
       ) : null}
-    </>
-  )
-}
-
-const ImageElement = ({
-  imgAttributes,
-  heightInt,
-  widthInt,
-  qualityInt,
-  layout,
-  className,
-  imgStyle,
-  blurStyle,
-  isLazy,
-  placeholder,
-  loading,
-  srcString,
-  config,
-  unoptimized,
-  loader,
-  onLoadingCompleteRef,
-  setBlurComplete,
-  setIntersection,
-  onLoad,
-  onError,
-  isVisible,
-  noscriptSizes,
-  ...rest
-}: ImageElementProps) => {
-  loading = isLazy ? 'lazy' : loading
-  return (
-    <>
-      <img
-        {...rest}
-        {...imgAttributes}
-        decoding="async"
-        data-nimg={layout}
-        className={className}
-        style={{ ...imgStyle, ...blurStyle }}
-        ref={useCallback(
-          (img: ImgElementWithDataProp) => {
-            if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
-                console.error(`Image is missing required "src" property:`, img)
-              }
-            }
-            setIntersection(img)
-            if (img?.complete) {
-              handleLoading(
-                img,
-                srcString,
-                layout,
-                placeholder,
-                onLoadingCompleteRef,
-                setBlurComplete
-              )
-            }
-          },
-          [
-            setIntersection,
-            srcString,
-            layout,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete,
-          ]
-        )}
-        onLoad={(event) => {
-          const img = event.currentTarget as ImgElementWithDataProp
-          handleLoading(
-            img,
-            srcString,
-            layout,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete
-          )
-          if (onLoad) {
-            onLoad(event)
-          }
-        }}
-        onError={(event) => {
-          if (placeholder === 'blur') {
-            // If the real image fails to load, this will still remove the placeholder.
-            setBlurComplete(true)
-          }
-          if (onError) {
-            onError(event)
-          }
-        }}
-      />
-      {(isLazy || placeholder === 'blur') && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            decoding="async"
-            data-nimg={layout}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
-      )}
     </>
   )
 }
