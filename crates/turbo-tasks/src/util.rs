@@ -1,10 +1,7 @@
 use std::{fmt::Display, future::Future, sync::Arc, time::Duration};
 
 use anyhow::Error;
-use futures::{
-    stream::{Collect, FuturesUnordered, TryCollect},
-    StreamExt, TryStreamExt,
-};
+use futures::future::join_all;
 
 pub use super::{
     id_factory::IdFactory, infinite_vec::InfiniteVec, no_move_vec::NoMoveVec, once_map::*,
@@ -46,16 +43,12 @@ impl From<Error> for SharedError {
     }
 }
 
-pub fn join_all<T: Unpin, F: Future<Output = T> + Unpin>(
+// Unlike Futures::future::try_join_all, this results in the Error that
+// occurs first in the list of futures, not the first to fail in time.
+pub async fn try_join_all<T: Unpin, E: Unpin, F: Future<Output = Result<T, E>>>(
     futures: impl Iterator<Item = F>,
-) -> Collect<FuturesUnordered<F>, Vec<T>> {
-    futures.collect::<FuturesUnordered<F>>().collect()
-}
-
-pub fn try_join_all<T: Unpin, E: Unpin, F: Future<Output = Result<T, E>>>(
-    futures: impl Iterator<Item = F>,
-) -> TryCollect<FuturesUnordered<F>, Vec<T>> {
-    futures.collect::<FuturesUnordered<F>>().try_collect()
+) -> Result<Vec<T>, E> {
+    join_all(futures).await.into_iter().collect()
 }
 
 pub struct FormatDuration(pub Duration);
