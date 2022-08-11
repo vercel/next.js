@@ -21,6 +21,13 @@ interface ModuleContext {
 }
 
 /**
+ * A Map of cached module contexts indexed by the module name. It allows
+ * to have a different cache scoped per module name or depending on the
+ * provided module key on creation.
+ */
+const moduleContexts = new Map<string, ModuleContext>()
+
+/**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
@@ -36,13 +43,6 @@ export function clearModuleContext(path: string, content: Buffer | string) {
     }
   }
 }
-
-/**
- * A Map of cached module contexts indexed by the module name. It allows
- * to have a different cache scoped per module name or depending on the
- * provided module key on creation.
- */
-const moduleContexts = new Map<string, ModuleContext>()
 
 interface ModuleContextOptions {
   moduleName: string

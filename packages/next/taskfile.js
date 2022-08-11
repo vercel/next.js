@@ -56,19 +56,12 @@ export async function copy_styled_jsx_assets(task, opts) {
   // Separate type files into different folders to avoid conflicts between
   // dev dep `styled-jsx` and `next/dist/styled-jsx` for duplicated declare modules
   const typesDir = join(outputDir, 'types')
-  let typeReferences = ''
-
-  await fs.ensureDir(outputDir)
   await fs.ensureDir(typesDir)
 
   for (const file of typeFiles) {
-    const fileNoExt = file.replace(/\.d\.ts/, '')
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
     await fs.writeFile(join(typesDir, file), content)
-    typeReferences += `/// <reference types="./${fileNoExt}" />\n`
   }
-
-  await fs.writeFile(join(typesDir, 'global.d.ts'), typeReferences)
 
   for (const file of jsFiles) {
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
