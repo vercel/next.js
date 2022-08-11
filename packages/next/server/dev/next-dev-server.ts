@@ -266,7 +266,7 @@ export default class DevServer extends Server {
       })
 
       const wp = (this.webpackWatcher = new Watchpack({
-        ignored: /(node_modules|\.next)/,
+        ignored: /([/\\]node_modules[/\\]|[/\\]\.next[/\\]|[/\\]\.git[/\\])/,
       }))
       const pages = [this.pagesDir]
       const app = this.appDir ? [this.appDir] : []
