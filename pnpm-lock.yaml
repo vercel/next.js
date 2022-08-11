@@ -586,6 +586,7 @@ importers:
       '@swc/helpers': 0.4.3
       caniuse-lite: 1.0.30001332
       postcss: 8.4.14
+      styled-jsx: 5.0.4_@babel+core@7.18.0
       use-sync-external-store: 1.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -750,7 +751,6 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.4_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -20573,7 +20573,7 @@ packages:
         optional: true
     dependencies:
       '@babel/core': 7.18.0
-    dev: true
+    dev: false
 
   /stylehacks/4.0.3:
     resolution: {integrity: sha512-7GlLk9JwlElY4Y6a/rmbH2MhVlTyVmiJd1PfTCqFaIBEGMYNsrO/v3SeGTdhBThLg4Z+NbOk/qFMwCa+J+3p/g==}
