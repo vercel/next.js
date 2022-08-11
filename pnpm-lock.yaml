@@ -561,7 +561,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.3
+      styled-jsx: 5.0.4
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -750,7 +750,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.3_@babel+core@7.18.0
+      styled-jsx: 5.0.4_@babel+core@7.18.0
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -10454,6 +10454,7 @@ packages:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
     dependencies:
       eslint: 7.32.0
+    dev: false
 
   /eslint-plugin-react/7.23.2_eslint@7.24.0:
     resolution: {integrity: sha512-AfjgFQB+nYszudkxRkTFu0UR1zEQig0ArVMPloKhxwlwkzaw/fBiH0QWcBBhZONlXqQC51+nfqFrkn4EzHcGBw==}
@@ -18448,7 +18449,7 @@ packages:
     dev: true
 
   /querystring/0.2.0:
-    resolution: {integrity: sha512-X/xY82scca2tau62i9mDyU9K+I+djTMUsvwf7xnUX5GLvVzgJybOJf4Y6o9Zx3oJK/LSXg5tTZBjwzqVPaPO2g==}
+    resolution: {integrity: sha1-sgmEkgO7Jd+CDadW50cAWHhSFiA=}
     engines: {node: '>=0.4.x'}
     deprecated: The querystring API is considered Legacy. new code should use the URLSearchParams API instead.
     dev: true
@@ -20559,8 +20560,8 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.0.3_@babel+core@7.18.0:
-    resolution: {integrity: sha512-v82oihjxFj2WJtQiodZIDjJpnmVcE71HTCVylxdcQHU0ocnI0rGhJ0+5A3311NMQUx0KFJ+18RSHNlfIgcSU8g==}
+  /styled-jsx/5.0.4_@babel+core@7.18.0:
+    resolution: {integrity: sha512-sDFWLbg4zR+UkNzfk5lPilyIgtpddfxXEULxhujorr5jtePTUqiPDc5BC0v1NRqTr/WaFBGQQUoYToGlF4B2KQ==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
       '@babel/core': '*'
