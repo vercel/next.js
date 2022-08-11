@@ -12,3 +12,4 @@ bench = false
 [dependencies]
 base16 = "0.2.1"
 md4 = "0.10.1"
+twox-hash = "1.6.3"

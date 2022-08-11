@@ -3,40 +3,22 @@
 pub mod fs;
 pub mod html;
 pub mod source;
+pub mod update;
 
-use std::{
-    future::Future,
-    net::SocketAddr,
-    pin::Pin,
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::{future::Future, net::SocketAddr, pin::Pin, time::Instant};
 
 use anyhow::{anyhow, Result};
-use event_listener::Event;
-use futures::{
-    stream::{unfold, FuturesUnordered, StreamExt},
-    SinkExt, Stream,
-};
 use hyper::{
     service::{make_service_fn, service_fn},
     Body, Request, Response, Server,
 };
-use hyper_tungstenite::tungstenite::Message;
 use mime_guess::mime;
-use tokio::select;
-use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, RawVcReadResult, TransientValue};
+use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, TransientValue};
 use turbo_tasks_fs::FileContent;
 use turbopack_cli_utils::issue::issue_to_styled_string;
-use turbopack_core::{asset::AssetVc, issue::IssueVc};
+use turbopack_core::issue::IssueVc;
 
-use self::source::ContentSourceVc;
-
-#[turbo_tasks::value(shared)]
-enum FindAssetResult {
-    NotFound,
-    Found(AssetVc),
-}
+use self::{source::ContentSourceVc, update::UpdateServer};
 
 #[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
 pub struct DevServer {
@@ -56,51 +38,6 @@ impl DevServerVc {
     }
 }
 
-struct State {
-    event: Event,
-    prev_value: Option<Option<RawVcReadResult<FileContent>>>,
-}
-
-impl State {
-    fn set_value(&mut self, value: Option<RawVcReadResult<FileContent>>) {
-        if let Some(ref prev_value) = self.prev_value {
-            match (prev_value, &value) {
-                (None, None) => return,
-                (Some(a), Some(b)) if **a == **b => return,
-                _ => {}
-            }
-        }
-        self.prev_value = Some(value);
-        self.event.notify(usize::MAX);
-    }
-    fn take(&mut self) -> Option<Option<RawVcReadResult<FileContent>>> {
-        self.prev_value.take()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl DevServerVc {
-    #[turbo_tasks::function]
-    async fn content_with_state(
-        self,
-        id: &str,
-        state: TransientValue<Arc<Mutex<State>>>,
-    ) -> Result<()> {
-        let content = self
-            .await?
-            .source
-            .get_by_id(id)
-            .strongly_consistent()
-            .await?;
-        {
-            let state = state.into_value();
-            let mut state = state.lock().unwrap();
-            state.set_value(Some(content));
-        }
-        Ok(())
-    }
-}
-
 impl DevServerVc {
     pub async fn listen(self) -> Result<DevServerListening> {
         let tt = turbo_tasks::turbo_tasks();
@@ -115,39 +52,8 @@ impl DevServerVc {
                     let future = async move {
                         if hyper_tungstenite::is_upgrade_request(&request) {
                             let (response, websocket) = hyper_tungstenite::upgrade(request, None)?;
-
-                            tt.run_once_process(Box::pin(async move {
-                                if let Err(err) = (async move {
-                                    let mut websocket = websocket.await?;
-                                    let mut change_stream_futures = FuturesUnordered::new();
-                                    loop {
-                                        select! {
-                                            Some(message) = websocket.next() => {
-                                                if let Message::Text(msg) = message? {
-                                                    let data = json::parse(&msg)?;
-                                                    if let Some(id) = data.as_str() {
-                                                            let stream = self.change_stream(id).skip(1);
-                                                            change_stream_futures.push(stream.into_future());
-                                                    }
-                                                }
-                                            }
-                                            Some((_change, stream)) = change_stream_futures.next() => {
-                                                websocket.send(Message::text("refresh")).await?;
-                                                change_stream_futures.push(stream.into_future());
-                                            }
-                                            else => break
-                                        }
-                                    }
-
-                                    Ok::<(), anyhow::Error>(())
-                                })
-                                .await
-                                {
-                                    println!("[WS]: error {}", err);
-                                }
-                                Ok::<(), anyhow::Error>(())
-                            }));
-
+                            let update_server = UpdateServer::new(websocket, source);
+                            update_server.run(&*tt);
                             return Ok(response);
                         }
                         let (tx, rx) = tokio::sync::oneshot::channel();
@@ -160,7 +66,7 @@ impl DevServerVc {
                             }
                             let file_content = source.get(&asset_path);
                             if let FileContent::Content(content) =
-                                &*file_content.strongly_consistent().await?
+                                &*file_content.content().strongly_consistent().await?
                             {
                                 let content_type = content.content_type().map_or_else(
                                     || {
@@ -252,33 +158,6 @@ impl DevServerVc {
             server.await?;
             Ok(())
         }))
-    }
-
-    fn change_stream(
-        self,
-        id: &str,
-    ) -> Pin<Box<dyn Stream<Item = Option<RawVcReadResult<FileContent>>> + Send + Sync>> {
-        let state = State {
-            event: Event::new(),
-            prev_value: None,
-        };
-        let listener = state.event.listen();
-        let state = Arc::new(Mutex::new(state));
-        self.content_with_state(id, TransientValue::new(state.clone()));
-        Box::pin(unfold(
-            (state, listener),
-            |(state, mut listener)| async move {
-                loop {
-                    listener.await;
-                    let mut s = state.lock().unwrap();
-                    listener = s.event.listen();
-                    if let Some(value) = s.take() {
-                        drop(s);
-                        return Some((value, (state, listener)));
-                    }
-                }
-            },
-        ))
     }
 }
 

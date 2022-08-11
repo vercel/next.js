@@ -886,8 +886,9 @@ impl From<Permissions> for fs::Permissions {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Clone)]
 pub enum FileContent {
-    Content(#[turbo_tasks(debug_ignore)] File),
+    Content(File),
     NotFound,
 }
 
@@ -902,6 +903,7 @@ pub enum LinkContent {
 #[derive(Clone)]
 pub struct File {
     meta: FileMeta,
+    #[turbo_tasks(debug_ignore)]
     content: Vec<u8>,
 }
 

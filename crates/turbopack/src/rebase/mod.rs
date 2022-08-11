@@ -37,7 +37,7 @@ impl Asset for RebasedAsset {
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> FileContentVc {
+    fn content(&self) -> FileContentVc {
         self.source.content()
     }
 

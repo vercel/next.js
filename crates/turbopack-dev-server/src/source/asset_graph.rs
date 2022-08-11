@@ -5,8 +5,10 @@ use std::{
 
 use anyhow::Result;
 use turbo_tasks::{get_invalidator, Invalidator, ValueToString};
-use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
-use turbopack_core::{asset::AssetVc, reference::all_referenced_assets};
+use turbo_tasks_fs::{FileContent, FileSystemPathVc};
+use turbopack_core::{
+    asset::AssetVc, reference::all_referenced_assets, version::VersionedContentVc,
+};
 
 use super::{ContentSource, ContentSourceVc};
 
@@ -92,7 +94,7 @@ impl AssetGraphContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for AssetGraphContentSource {
     #[turbo_tasks::function]
-    async fn get(self_vc: AssetGraphContentSourceVc, path: &str) -> Result<FileContentVc> {
+    async fn get(self_vc: AssetGraphContentSourceVc, path: &str) -> Result<VersionedContentVc> {
         let assets = self_vc.all_assets_map().strongly_consistent().await?;
         if let Some(asset) = assets.get(path) {
             {
@@ -106,12 +108,13 @@ impl ContentSource for AssetGraphContentSource {
                     }
                 }
             }
-            return Ok(asset.content());
+            return Ok(asset.versioned_content());
         }
         Ok(FileContent::NotFound.into())
     }
+
     #[turbo_tasks::function]
-    async fn get_by_id(self_vc: AssetGraphContentSourceVc, id: &str) -> Result<FileContentVc> {
+    async fn get_by_id(self_vc: AssetGraphContentSourceVc, id: &str) -> Result<VersionedContentVc> {
         let root_path_str = self_vc.await?.root_path.to_string().await?;
         if id.starts_with(&*root_path_str) {
             let path = &id[root_path_str.len()..];

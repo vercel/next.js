@@ -1,7 +1,10 @@
 use anyhow::Result;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
-use crate::reference::AssetReferencesVc;
+use crate::{
+    reference::AssetReferencesVc,
+    version::{VersionedContentVc, VersionedFileContentVc},
+};
 
 /// A list of [Asset]s
 #[turbo_tasks::value(shared, transparent)]
@@ -31,4 +34,9 @@ pub trait Asset {
 
     /// Other things (most likely [Asset]s) referenced from this [Asset].
     fn references(&self) -> AssetReferencesVc;
+
+    /// The content of the [Asset] alongside its version.
+    async fn versioned_content(&self) -> Result<VersionedContentVc> {
+        Ok(VersionedFileContentVc::new(self.content()).await?.into())
+    }
 }

@@ -11,6 +11,7 @@ pub mod resolve;
 pub mod source_asset;
 pub mod target;
 mod utils;
+pub mod version;
 
 pub fn register() {
     turbo_tasks::register();

@@ -278,7 +278,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             .into())
         } else {
             Ok(EcmascriptChunkItemContent {
-                inner_code: format!("/* unparsable {} */", self.module.path().to_string().await?),
+                inner_code: format!(
+                    "/* unparseable {} */",
+                    self.module.path().to_string().await?
+                ),
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
                 options: EcmascriptChunkItemOptions {
                     ..Default::default()

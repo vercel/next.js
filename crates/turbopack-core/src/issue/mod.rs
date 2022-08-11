@@ -319,8 +319,8 @@ impl IssueSourceVc {
         }
         Ok(Self::cell(
             if let FileLinesContent::Lines(lines) = &*asset.content().lines().await? {
-                let start = find_line_and_column(lines, start);
-                let end = find_line_and_column(lines, end);
+                let start = find_line_and_column(lines.as_ref(), start);
+                let end = find_line_and_column(lines.as_ref(), end);
                 IssueSource { asset, start, end }
             } else {
                 IssueSource {
