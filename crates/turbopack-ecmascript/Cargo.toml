@@ -20,15 +20,15 @@ regex = "1.5.4"
 serde = "1.0.136"
 serde_json = "1.0.81"
 serde_regex = "1.1.0"
-swc_atoms = "0.3.1"
-swc_ecma_ast = "0.89.0"
-swc_ecma_codegen = "0.120.0"
-swc_ecma_parser = "0.116.0"
-swc_ecma_quote = "0.30.0"
-swc_ecma_transforms_base = "0.102.0"
-swc_ecma_transforms_module = "0.137.0"
-swc_ecma_transforms_react = "0.139.0"
-swc_ecma_utils = "0.98.0"
+swc_atoms = "0.4.2"
+swc_ecma_ast = "0.90.4"
+swc_ecma_codegen = "0.121.1"
+swc_ecma_parser = "0.117.1"
+swc_ecma_quote = "0.32.1"
+swc_ecma_transforms_base = "0.103.3"
+swc_ecma_transforms_module = "0.138.1"
+swc_ecma_transforms_react = "0.140.1"
+swc_ecma_utils = "0.99.1"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
@@ -38,11 +38,15 @@ url = "2.2.2"
 
 [dependencies.swc_common]
 features = ["concurrent"]
-version = "0.26.0"
+version = "0.27.3"
+
+[dependencies.swc_core]
+features = ["ast", "quote"]
+version = "0.6.5"
 
 [dependencies.swc_ecma_visit]
 features = ["path"]
-version = "0.75.0"
+version = "0.76.2"
 
 [dependencies.num-bigint]
 version = "0.4"
@@ -51,7 +55,7 @@ version = "0.4"
 criterion = { version = "0.3.5", features = ["async_tokio"] }
 difference = "2.0"
 rstest = "0.12.0"
-testing = "0.28.0"
+testing = "0.29.1"
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 turbo-tasks-testing = { path = "../turbo-tasks-testing" }
 

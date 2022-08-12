@@ -18,19 +18,19 @@ turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-core = { path = "../turbopack-core" }
 
-swc_atoms = "0.3.1"
-swc_css_ast = "0.103.0"
-swc_css_codegen = "0.113.0"
-swc_css_parser = "0.112.0"
-swc_css_utils = "0.100.0"
+swc_atoms = "0.4.2"
+swc_css_ast = "0.105.2"
+swc_css_codegen = "0.115.1"
+swc_css_parser = "0.114.1"
+swc_css_utils = "0.102.1"
 
 [dependencies.swc_common]
 features = ["concurrent"]
-version = "0.26.0"
+version = "0.27.3"
 
 [dependencies.swc_css_visit]
 features = ["path"]
-version = "0.102.0"
+version = "0.104.1"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

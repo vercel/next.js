@@ -14,7 +14,7 @@ bench = false
 anyhow = "1.0.47"
 clap = { version = "3.2.15", features = ["derive"] }
 regex = "1.6.0"
-swc = "0.212.1"
-swc_common = "0.26.0"
-swc_ecma_ast = "0.89.0"
-swc_ecma_parser = "0.116.0"
+swc = "0.213.3"
+swc_common = "0.27.3"
+swc_ecma_ast = "0.90.4"
+swc_ecma_parser = "0.117.1"
