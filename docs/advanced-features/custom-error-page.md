@@ -12,7 +12,7 @@ To avoid the above pitfalls, Next.js provides a static 404 page by default witho
 
 ### Customizing The 404 Page
 
-To create a custom 404 page you can create a `pages/404.js` file. This file is statically generated at build time.
+To create a custom 404 page you can create a `pages/404.js` file (`pages/404/index.js` also works). This file is statically generated at build time.
 
 ```jsx
 // pages/404.js
@@ -29,7 +29,7 @@ Server-rendering an error page for every visit adds complexity to responding to 
 
 ### Customizing The 500 Page
 
-To customize the 500 page you can create a `pages/500.js` file. This file is statically generated at build time.
+To customize the 500 page you can create a `pages/500.js` file (`pages/500/index.js` also works). This file is statically generated at build time.
 
 ```jsx
 // pages/500.js
