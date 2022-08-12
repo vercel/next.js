@@ -2,6 +2,7 @@
 
 This is the existing [blog-starter](https://github.com/vercel/next.js/tree/canary/examples/blog-starter) plus TypeScript.
 This example showcases [Next.js's Static Generation feature](https://nextjs.org/docs/basic-features/pages) using Sitefinity CMS as the data source.
+
 ## Demo
 
 [https://next-blog-starter.vercel.app/](https://next-blog-starter.vercel.app/)
@@ -14,22 +15,22 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ### Related examples
 
-- [WordPress](/examples/cms-wordpress)
-- [DatoCMS](/examples/cms-datocms)
-- [Sanity](/examples/cms-sanity)
-- [TakeShape](/examples/cms-takeshape)
-- [Prismic](/examples/cms-prismic)
-- [Contentful](/examples/cms-contentful)
-- [Strapi](/examples/cms-strapi)
-- [Agility CMS](/examples/cms-agilitycms)
-- [Cosmic](/examples/cms-cosmic)
-- [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)
-- [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent)
-- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
-- [Builder.io](/examples/cms-builder-io)
-- [TinaCMS](/examples/cms-tina/)
+-   [WordPress](/examples/cms-wordpress)
+-   [DatoCMS](/examples/cms-datocms)
+-   [Sanity](/examples/cms-sanity)
+-   [TakeShape](/examples/cms-takeshape)
+-   [Prismic](/examples/cms-prismic)
+-   [Contentful](/examples/cms-contentful)
+-   [Strapi](/examples/cms-strapi)
+-   [Agility CMS](/examples/cms-agilitycms)
+-   [Cosmic](/examples/cms-cosmic)
+-   [ButterCMS](/examples/cms-buttercms)
+-   [Storyblok](/examples/cms-storyblok)
+-   [GraphCMS](/examples/cms-graphcms)
+-   [Kontent](/examples/cms-kontent)
+-   [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
+-   [Builder.io](/examples/cms-builder-io)
+-   [TinaCMS](/examples/cms-tina/)
 
 ## How to use
 
@@ -58,6 +59,7 @@ First, [install](https://www.progress.com/documentation/sitefinity-cms/install-s
 For the purpose of this demo a ready to use dynamic module was build containing two types - 'Post' and 'Author'.
 
 In order to install it:
+
 1. Open the CMS Administration under (/Sitefinity)
 2. Open the Export/Import screen under (/Sitefinity/Administration/Packaging)
 3. Click on Import Zip file and import the file from the [sitefinity folder](./sitefinity/SitefinityExport.zip)
@@ -83,8 +85,8 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`
 
-- `SF_API_URL` - This is the url of the 'Default' web service that we configured earlier. E.g. http://locahost/api/default/
-- `SF_URL` - This is the URL of the CMS itself. E.g. http://localhost/
+-   `SF_API_URL` - This is the url of the 'Default' web service that we configured earlier. E.g. http://locahost/api/default/
+-   `SF_URL` - This is the URL of the CMS itself. E.g. http://localhost/
 
 ### Step 6. Run Next.js in development mode
 

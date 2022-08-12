@@ -7,15 +7,15 @@ export async function getAllPostSlugsFromCms(): Promise<string[]> {
                 itemDefaultUrl
             }
         }
-    `;
+    `
 
-    const blogPosts = await executeGraphQLForBlogPosts(query);
-    const slugs = blogPosts.map(x => x.itemDefaultUrl);
-    return slugs;
+    const blogPosts = await executeGraphQLForBlogPosts(query)
+    const slugs = blogPosts.map((x) => x.itemDefaultUrl)
+    return slugs
 }
 
 export async function getPostBySlugFromCms(slug: string): Promise<PostType> {
-    const modifiedSlug = slug;
+    const modifiedSlug = slug
     var query = `
         query {
             posts(_filter: {itemDefaultUrl: {_eq: "${modifiedSlug}"}}) {
@@ -39,13 +39,14 @@ export async function getPostBySlugFromCms(slug: string): Promise<PostType> {
                 }
             }
         }
-    `;
+    `
 
-    const blogPosts = (await executeGraphQLForBlogPosts(query)).map(x => mapCmsBlog(x));
-    if (blogPosts.length > 0)
-        return blogPosts[0];
+    const blogPosts = (await executeGraphQLForBlogPosts(query)).map((x) =>
+        mapCmsBlog(x)
+    )
+    if (blogPosts.length > 0) return blogPosts[0]
 
-    return null;
+    return null
 }
 
 export async function getAllPostsFromCms(): Promise<PostType[]> {
@@ -72,16 +73,24 @@ export async function getAllPostsFromCms(): Promise<PostType[]> {
                 }
             }
         }
-    `;
+    `
 
-    const blogPosts = (await executeGraphQLForBlogPosts(query)).map(x => mapCmsBlog(x));
-    return blogPosts;
+    const blogPosts = (await executeGraphQLForBlogPosts(query)).map((x) =>
+        mapCmsBlog(x)
+    )
+    return blogPosts
 }
 
-export async function executeGraphQLForBlogPosts(query: string): Promise<CmsPost[]> {
-    const graphQLEndpoint = `${process.env.SF_API_URL}graphql`;
-    const response = await fetch(graphQLEndpoint, { method: "POST", body: JSON.stringify({ query }), headers: { 'Content-Type': 'application/json' } }).then((x) => x.json());
-    return response["data"]["posts"];
+export async function executeGraphQLForBlogPosts(
+    query: string
+): Promise<CmsPost[]> {
+    const graphQLEndpoint = `${process.env.SF_API_URL}graphql`
+    const response = await fetch(graphQLEndpoint, {
+        method: 'POST',
+        body: JSON.stringify({ query }),
+        headers: { 'Content-Type': 'application/json' },
+    }).then((x) => x.json())
+    return response['data']['posts']
 }
 
 function mapCmsBlog(source: CmsPost): PostType {
@@ -93,37 +102,37 @@ function mapCmsBlog(source: CmsPost): PostType {
         title: source.title,
         author: {
             name: source.authorOfPost[0].title,
-            picture: transformImageUrl(source.authorOfPost[0].picture[0].url)
+            picture: transformImageUrl(source.authorOfPost[0].picture[0].url),
         },
         coverImage: transformImageUrl(source.coverImage[0].url),
         ogImage: {
-            url: transformImageUrl(source.openGraphImage[0].url)
-        }
+            url: transformImageUrl(source.openGraphImage[0].url),
+        },
     }
 }
 
 function transformImageUrl(url: string) {
-    if (!url.startsWith("http")) {
+    if (!url.startsWith('http')) {
         url = process.env.SF_URL + url.substring(1)
     }
 
-    return url;
+    return url
 }
 
 interface CmsPost {
-    title: string;
-    excerpt: string;
-    dateCreated: string;
-    content: string;
-    itemDefaultUrl: string;
+    title: string
+    excerpt: string
+    dateCreated: string
+    content: string
+    itemDefaultUrl: string
     openGraphImage: {
-        url: string;
-    };
+        url: string
+    }
     coverImage: {
-        url: string;
-    };
+        url: string
+    }
     authorOfPost: {
-        title: string;
+        title: string
         picture: {
             url: string
         }

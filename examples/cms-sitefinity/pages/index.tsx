@@ -41,7 +41,7 @@ export default function Index({ allPosts }: Props) {
 }
 
 export const getStaticProps = async () => {
-    const allPosts = await getAllPostsFromCms();
+    const allPosts = await getAllPostsFromCms()
 
     return {
         props: { allPosts },
