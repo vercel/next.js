@@ -72,7 +72,8 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> InfiniteVec<T, INITIAL_CAPACI
         unsafe { &*bucket_ptr.add(index) }
     }
 
-    /// SAFETY: There must not be a concurrent operation to this idx
+    /// # Safety
+    /// There must not be a concurrent operation to this idx
     pub unsafe fn get_mut_or<'a, 'b: 'a>(&'a self, idx: usize, default: &'b mut T) -> &'b mut T {
         let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket_ptr = unsafe { self.buckets.get_unchecked(bucket_idx as usize) }
@@ -87,7 +88,8 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> InfiniteVec<T, INITIAL_CAPACI
         item
     }
 
-    /// SAFETY: There must not be a concurrent operation to this idx
+    /// # Safety
+    /// There must not be a concurrent operation to this idx
     /// Make sure to call "fence(Ordering::Release)" after writing
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn get_mut(&self, idx: usize) -> &mut T {
@@ -125,7 +127,8 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> InfiniteVec<T, INITIAL_CAPACI
         unsafe { &mut *bucket_ptr.add(index) }
     }
 
-    /// SAFETY: There must not be a concurrent operation to this idx
+    /// # Safety
+    /// There must not be a concurrent operation to this idx
     pub unsafe fn set(&self, idx: usize, value: T) -> T {
         let item = unsafe { self.get_mut(idx) };
         let old = std::mem::replace(item, value);
