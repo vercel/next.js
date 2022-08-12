@@ -27,7 +27,7 @@ const variables = [
   'NEXT_PUBLIC_HELLO_WORLD',
 ]
 
-export default async (req, res) => {
+export default async function handler(req, res) {
   const items = {
     nextConfigEnv: process.env.nextConfigEnv,
     nextConfigPublicEnv: process.env.nextConfigPublicEnv,
