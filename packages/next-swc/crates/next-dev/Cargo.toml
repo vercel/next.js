@@ -45,7 +45,6 @@ chromiumoxide = { version = "0.3.5", features = [
   "tokio-runtime",
 ], default-features = false }
 lazy_static = "1.4.0"
-portpicker = "0.1.1"
 test-generator = "0.3.0"
 
 [build-dependencies]
