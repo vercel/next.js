@@ -404,33 +404,17 @@ export function onDemandEntryHandler({
       const addPageEntry = (
         compilerType: CompilerNameValues
       ): Promise<void> => {
-        let resolve: (value: void | PromiseLike<void>) => void
-        let reject: (reason?: any) => void
-        const promise = new Promise<void>((res, rej) => {
-          resolve = res
-          reject = rej
-        })
+        return new Promise((resolve, reject) => {
+          const pageKey = `${compilerType}${pagePathData.page}`
 
-        const pageKey = `${compilerType}${pagePathData.page}`
-
-        if (entries[pageKey]) {
-          added.set(compilerType, promise)
-
-          entries[pageKey].dispose = false
-          entries[pageKey].lastActiveTime = Date.now()
-          if (entries[pageKey].status === BUILT) {
-            resolve!()
-            return promise
-          }
-        } else {
-          if (
-            compilerType === COMPILER_NAMES.client &&
-            (isServerComponent || isInsideAppDir)
-          ) {
-            // Skip adding the client entry here.
+          if (entries[pageKey]) {
+            entries[pageKey].dispose = false
+            entries[pageKey].lastActiveTime = Date.now()
+            if (entries[pageKey].status === BUILT) {
+              resolve!()
+              return
+            }
           } else {
-            added.set(compilerType, promise)
-
             entryAdded = true
             entries[pageKey] = {
               type: EntryTypes.ENTRY,
@@ -442,16 +426,14 @@ export function onDemandEntryHandler({
               status: ADDED,
             }
           }
-        }
 
-        doneCallbacks!.once(pageKey, (err: Error) => {
-          if (err) {
-            return reject(err)
-          }
-          resolve()
+          doneCallbacks!.once(pageKey, (err: Error) => {
+            if (err) {
+              return reject(err)
+            }
+            resolve()
+          })
         })
-
-        return promise
       }
 
       const staticInfo = await getPageStaticInfo({
@@ -463,13 +445,20 @@ export function onDemandEntryHandler({
         page: pagePathData.page,
         pageRuntime: staticInfo.runtime,
         onClient: () => {
-          addPageEntry(COMPILER_NAMES.client)
+          // Skip adding the client entry for app / Server Components.
+          if (isServerComponent || isInsideAppDir) {
+            return
+          }
+          added.set(COMPILER_NAMES.client, addPageEntry(COMPILER_NAMES.client))
         },
         onServer: () => {
-          addPageEntry(COMPILER_NAMES.server)
+          added.set(COMPILER_NAMES.server, addPageEntry(COMPILER_NAMES.server))
         },
         onEdgeServer: () => {
-          addPageEntry(COMPILER_NAMES.edgeServer)
+          added.set(
+            COMPILER_NAMES.edgeServer,
+            addPageEntry(COMPILER_NAMES.edgeServer)
+          )
         },
       })
 
