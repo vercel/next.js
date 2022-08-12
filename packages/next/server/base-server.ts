@@ -119,6 +119,10 @@ export interface Options {
    * The port the server is running behind
    */
   port?: number
+  /**
+   * The HTTP Server that Next.js is running behind
+   */
+  httpServer?: import('http').Server
 }
 
 export interface BaseRequestHandler {
@@ -135,6 +139,25 @@ type RequestContext = {
   pathname: string
   query: NextParsedUrlQuery
   renderOpts: RenderOptsPartial
+}
+
+class NoFallbackError extends Error {}
+
+// Internal wrapper around build errors at development
+// time, to prevent us from propagating or logging them
+export class WrappedBuildError extends Error {
+  innerError: Error
+
+  constructor(innerError: Error) {
+    super()
+    this.innerError = innerError
+  }
+}
+
+type ResponsePayload = {
+  type: 'html' | 'json'
+  body: RenderResult
+  revalidateOptions?: any
 }
 
 export default abstract class Server<ServerOptions extends Options = Options> {
@@ -261,7 +284,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse
   ): void
 
-  protected abstract loadEnvConfig(params: { dev: boolean }): void
+  protected abstract loadEnvConfig(params: {
+    dev: boolean
+    forceReload?: boolean
+  }): void
 
   public constructor(options: ServerOptions) {
     const {
@@ -664,6 +690,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public getRequestHandler(): BaseRequestHandler {
     return this.handleRequest.bind(this)
   }
+
+  protected async handleUpgrade(
+    _req: BaseNextRequest,
+    _socket: any,
+    _head?: any
+  ): Promise<void> {}
 
   public setAssetPrefix(prefix?: string): void {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
@@ -2126,22 +2158,3 @@ export function prepareServerlessUrl(
 }
 
 export { stringifyQuery } from './server-route-utils'
-
-class NoFallbackError extends Error {}
-
-// Internal wrapper around build errors at development
-// time, to prevent us from propagating or logging them
-export class WrappedBuildError extends Error {
-  innerError: Error
-
-  constructor(innerError: Error) {
-    super()
-    this.innerError = innerError
-  }
-}
-
-type ResponsePayload = {
-  type: 'html' | 'json'
-  body: RenderResult
-  revalidateOptions?: any
-}

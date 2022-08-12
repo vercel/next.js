@@ -319,6 +319,116 @@ function handleLoading(
   })
 }
 
+const ImageElement = ({
+  imgAttributes,
+  heightInt,
+  widthInt,
+  qualityInt,
+  className,
+  imgStyle,
+  blurStyle,
+  isLazy,
+  fill,
+  placeholder,
+  loading,
+  srcString,
+  config,
+  unoptimized,
+  loader,
+  onLoadingCompleteRef,
+  setBlurComplete,
+  setShowAltText,
+  onLoad,
+  onError,
+  noscriptSizes,
+  ...rest
+}: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
+  return (
+    <>
+      <img
+        {...rest}
+        {...imgAttributes}
+        width={widthInt}
+        height={heightInt}
+        decoding="async"
+        data-nimg={`future${fill ? '-fill' : ''}`}
+        className={className}
+        // @ts-ignore - TODO: upgrade to `@types/react@17`
+        loading={loading}
+        style={{ ...imgStyle, ...blurStyle }}
+        ref={useCallback(
+          (img: ImgElementWithDataProp) => {
+            if (process.env.NODE_ENV !== 'production') {
+              if (img && !srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+            }
+            if (img?.complete) {
+              handleLoading(
+                img,
+                srcString,
+                placeholder,
+                onLoadingCompleteRef,
+                setBlurComplete
+              )
+            }
+          },
+          [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
+        )}
+        onLoad={(event) => {
+          const img = event.currentTarget as ImgElementWithDataProp
+          handleLoading(
+            img,
+            srcString,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete
+          )
+          if (onLoad) {
+            onLoad(event)
+          }
+        }}
+        onError={(event) => {
+          // if the real image fails to load, this will ensure "alt" is visible
+          setShowAltText(true)
+          if (placeholder === 'blur') {
+            // If the real image fails to load, this will still remove the placeholder.
+            setBlurComplete(true)
+          }
+          if (onError) {
+            onError(event)
+          }
+        }}
+      />
+      {placeholder === 'blur' && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              config,
+              src: srcString,
+              unoptimized,
+              width: widthInt,
+              quality: qualityInt,
+              sizes: noscriptSizes,
+              loader,
+            })}
+            width={widthInt}
+            height={heightInt}
+            decoding="async"
+            data-nimg={`future${fill ? '-fill' : ''}`}
+            style={imgStyle}
+            className={className}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading}
+          />
+        </noscript>
+      )}
+    </>
+  )
+}
+
 export default function Image({
   src,
   sizes,
@@ -576,12 +686,16 @@ export default function Image({
           position: 'absolute',
           height: '100%',
           width: '100%',
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
         }
       : {},
     showAltText || placeholder === 'blur' ? {} : { color: 'transparent' },
     style
   )
-  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
+  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
@@ -686,116 +800,6 @@ export default function Image({
           />
         </Head>
       ) : null}
-    </>
-  )
-}
-
-const ImageElement = ({
-  imgAttributes,
-  heightInt,
-  widthInt,
-  qualityInt,
-  className,
-  imgStyle,
-  blurStyle,
-  isLazy,
-  fill,
-  placeholder,
-  loading,
-  srcString,
-  config,
-  unoptimized,
-  loader,
-  onLoadingCompleteRef,
-  setBlurComplete,
-  setShowAltText,
-  onLoad,
-  onError,
-  noscriptSizes,
-  ...rest
-}: ImageElementProps) => {
-  loading = isLazy ? 'lazy' : loading
-  return (
-    <>
-      <img
-        {...rest}
-        {...imgAttributes}
-        width={widthInt}
-        height={heightInt}
-        decoding="async"
-        data-nimg={`future${fill ? '-fill' : ''}`}
-        className={className}
-        // @ts-ignore - TODO: upgrade to `@types/react@17`
-        loading={loading}
-        style={{ ...imgStyle, ...blurStyle }}
-        ref={useCallback(
-          (img: ImgElementWithDataProp) => {
-            if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
-                console.error(`Image is missing required "src" property:`, img)
-              }
-            }
-            if (img?.complete) {
-              handleLoading(
-                img,
-                srcString,
-                placeholder,
-                onLoadingCompleteRef,
-                setBlurComplete
-              )
-            }
-          },
-          [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
-        )}
-        onLoad={(event) => {
-          const img = event.currentTarget as ImgElementWithDataProp
-          handleLoading(
-            img,
-            srcString,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete
-          )
-          if (onLoad) {
-            onLoad(event)
-          }
-        }}
-        onError={(event) => {
-          // if the real image fails to load, this will ensure "alt" is visible
-          setShowAltText(true)
-          if (placeholder === 'blur') {
-            // If the real image fails to load, this will still remove the placeholder.
-            setBlurComplete(true)
-          }
-          if (onError) {
-            onError(event)
-          }
-        }}
-      />
-      {placeholder === 'blur' && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            width={widthInt}
-            height={heightInt}
-            decoding="async"
-            data-nimg={`future${fill ? '-fill' : ''}`}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
-      )}
     </>
   )
 }

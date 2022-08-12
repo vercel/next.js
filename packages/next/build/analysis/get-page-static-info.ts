@@ -226,6 +226,7 @@ function getMiddlewareRegExpStrings(
   }
 }
 
+let warnedAboutExperimentalEdgeApiFunctions = false
 function warnAboutExperimentalEdgeApiFunctions() {
   if (warnedAboutExperimentalEdgeApiFunctions) {
     return
@@ -233,8 +234,6 @@ function warnAboutExperimentalEdgeApiFunctions() {
   Log.warn(`You are using an experimental edge runtime, the API might change.`)
   warnedAboutExperimentalEdgeApiFunctions = true
 }
-
-let warnedAboutExperimentalEdgeApiFunctions = false
 
 const warnedUnsupportedValueMap = new Map<string, boolean>()
 function warnAboutUnsupportedValue(

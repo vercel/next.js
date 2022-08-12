@@ -26,6 +26,39 @@ import type ws from 'ws'
 import { isMiddlewareFilename } from '../../build/utils'
 import { nonNullable } from '../../lib/non-nullable'
 
+class EventStream {
+  clients: Set<ws>
+  constructor() {
+    this.clients = new Set()
+  }
+
+  everyClient(fn: (client: ws) => void) {
+    for (const client of this.clients) {
+      fn(client)
+    }
+  }
+
+  close() {
+    this.everyClient((client) => {
+      client.close()
+    })
+    this.clients.clear()
+  }
+
+  handler(client: ws) {
+    this.clients.add(client)
+    client.addEventListener('close', () => {
+      this.clients.delete(client)
+    })
+  }
+
+  publish(payload: any) {
+    this.everyClient((client) => {
+      client.send(JSON.stringify(payload))
+    })
+  }
+}
+
 export class WebpackHotMiddleware {
   eventStream: EventStream
   clientLatestStats: { ts: number; stats: webpack.Stats } | null
@@ -159,39 +192,6 @@ export class WebpackHotMiddleware {
     // https://github.com/webpack/tapable/issues/32#issuecomment-350644466
     this.closed = true
     this.eventStream.close()
-  }
-}
-
-class EventStream {
-  clients: Set<ws>
-  constructor() {
-    this.clients = new Set()
-  }
-
-  everyClient(fn: (client: ws) => void) {
-    for (const client of this.clients) {
-      fn(client)
-    }
-  }
-
-  close() {
-    this.everyClient((client) => {
-      client.close()
-    })
-    this.clients.clear()
-  }
-
-  handler(client: ws) {
-    this.clients.add(client)
-    client.addEventListener('close', () => {
-      this.clients.delete(client)
-    })
-  }
-
-  publish(payload: any) {
-    this.everyClient((client) => {
-      client.send(JSON.stringify(payload))
-    })
   }
 }
 
