@@ -188,13 +188,16 @@ function getMiddlewareMatchers(
   }
   const { i18n } = nextConfig
 
-  const routes = matchers.map(
+  let routes = matchers.map(
     (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
   )
+
+  // check before we process the routes and after to ensure
+  // they are still valid
   checkCustomRoutes(routes, 'middleware')
 
-  return routes.map((r) => {
-    let { source, ...rest } = r
+  routes = routes.map((r) => {
+    let { source } = r
 
     const isRoot = source === '/'
 
@@ -211,6 +214,14 @@ function getMiddlewareMatchers(
     if (nextConfig.basePath && r.basePath !== false) {
       source = `${nextConfig.basePath}${source}`
     }
+
+    return { ...r, source }
+  })
+
+  checkCustomRoutes(routes, 'middleware')
+
+  return routes.map((r) => {
+    const { source, ...rest } = r
     const parsedPage = tryToParsePath(source)
 
     if (parsedPage.error || !parsedPage.regexStr) {
