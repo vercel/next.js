@@ -12,6 +12,7 @@ import { renderToHTML } from './render'
 import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
+import WebResponseCache from './response-cache/web'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -44,6 +45,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
+  protected getResponseCache() {
+    return new WebResponseCache(this.minimalMode)
+  }
   protected getRoutesManifest() {
     return {
       headers: [],
@@ -72,6 +76,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getHasStaticDir() {
     return false
+  }
+  protected async getFallback() {
+    return ''
   }
   protected generateImageRoutes() {
     return []

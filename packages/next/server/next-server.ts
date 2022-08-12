@@ -80,13 +80,14 @@ import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
-import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { shouldUseReactRoot } from './utils'
+import ResponseCache from './response-cache'
+import { IncrementalCache } from './lib/incremental-cache'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -169,6 +170,34 @@ export default class NextNodeServer extends BaseServer {
     forceReload?: boolean
   }) {
     loadEnvConfig(this.dir, dev, Log, forceReload)
+  }
+
+  protected getResponseCache({ dev }: { dev: boolean }) {
+    const incrementalCache = new IncrementalCache({
+      fs: this.getCacheFilesystem(),
+      dev,
+      serverDistDir: this.serverDistDir,
+      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+      flushToDisk:
+        !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
+      incrementalCacheHandlerPath:
+        this.nextConfig.experimental?.incrementalCacheHandlerPath,
+      getPrerenderManifest: () => {
+        if (dev) {
+          return {
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }
+        } else {
+          return this.getPrerenderManifest()
+        }
+      },
+    })
+
+    return new ResponseCache(incrementalCache, this.minimalMode)
   }
 
   protected getPublicDir(): string {
@@ -796,6 +825,12 @@ export default class NextNodeServer extends BaseServer {
       'server',
       FLIGHT_SERVER_CSS_MANIFEST + '.json'
     ))
+  }
+
+  protected getFallback(page: string): Promise<string> {
+    page = normalizePagePath(page)
+    const cacheFs = this.getCacheFilesystem()
+    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
   protected getCacheFilesystem(): CacheFs {
