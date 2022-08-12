@@ -88,335 +88,6 @@ function hasComponentProps(child: any): child is React.ReactElement {
   return !!child && !!child.props
 }
 
-function handleDocumentScriptLoaderItems(
-  scriptLoader: { beforeInteractive?: any[] },
-  __NEXT_DATA__: NEXT_DATA,
-  props: any
-): void {
-  if (!props.children) return
-
-  const scriptLoaderItems: ScriptProps[] = []
-
-  const children = Array.isArray(props.children)
-    ? props.children
-    : [props.children]
-
-  const headChildren = children.find(
-    (child: React.ReactElement) => child.type === Head
-  )?.props?.children
-  const bodyChildren = children.find(
-    (child: React.ReactElement) => child.type === 'body'
-  )?.props?.children
-
-  // Scripts with beforeInteractive can be placed inside Head or <body> so children of both needs to be traversed
-  const combinedChildren = [
-    ...(Array.isArray(headChildren) ? headChildren : [headChildren]),
-    ...(Array.isArray(bodyChildren) ? bodyChildren : [bodyChildren]),
-  ]
-
-  React.Children.forEach(combinedChildren, (child: any) => {
-    if (!child) return
-
-    if (child.type === Script) {
-      if (child.props.strategy === 'beforeInteractive') {
-        scriptLoader.beforeInteractive = (
-          scriptLoader.beforeInteractive || []
-        ).concat([
-          {
-            ...child.props,
-          },
-        ])
-        return
-      } else if (
-        ['lazyOnload', 'afterInteractive', 'worker'].includes(
-          child.props.strategy
-        )
-      ) {
-        scriptLoaderItems.push(child.props)
-        return
-      }
-    }
-  })
-
-  __NEXT_DATA__.scriptLoader = scriptLoaderItems
-}
-
-function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
-  const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
-
-  // disable `nextScriptWorkers` in edge runtime
-  if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null
-
-  try {
-    let {
-      partytownSnippet,
-      // @ts-ignore: Prevent webpack from processing this require
-    } = __non_webpack_require__('@builder.io/partytown/integration'!)
-
-    const children = Array.isArray(props.children)
-      ? props.children
-      : [props.children]
-
-    // Check to see if the user has defined their own Partytown configuration
-    const userDefinedConfig = children.find(
-      (child) =>
-        hasComponentProps(child) &&
-        child?.props?.dangerouslySetInnerHTML?.__html.length &&
-        'data-partytown-config' in child.props
-    )
-
-    return (
-      <>
-        {!userDefinedConfig && (
-          <script
-            data-partytown-config=""
-            dangerouslySetInnerHTML={{
-              __html: `
-            partytown = {
-              lib: "${assetPrefix}/_next/static/~partytown/"
-            };
-          `,
-            }}
-          />
-        )}
-        <script
-          data-partytown=""
-          dangerouslySetInnerHTML={{
-            __html: partytownSnippet(),
-          }}
-        />
-        {(scriptLoader.worker || []).map((file: ScriptProps, index: number) => {
-          const {
-            strategy,
-            src,
-            children: scriptChildren,
-            dangerouslySetInnerHTML,
-            ...scriptProps
-          } = file
-
-          let srcProps: {
-            src?: string
-            dangerouslySetInnerHTML?: {
-              __html: string
-            }
-          } = {}
-
-          if (src) {
-            // Use external src if provided
-            srcProps.src = src
-          } else if (
-            dangerouslySetInnerHTML &&
-            dangerouslySetInnerHTML.__html
-          ) {
-            // Embed inline script if provided with dangerouslySetInnerHTML
-            srcProps.dangerouslySetInnerHTML = {
-              __html: dangerouslySetInnerHTML.__html,
-            }
-          } else if (scriptChildren) {
-            // Embed inline script if provided with children
-            srcProps.dangerouslySetInnerHTML = {
-              __html:
-                typeof scriptChildren === 'string'
-                  ? scriptChildren
-                  : Array.isArray(scriptChildren)
-                  ? scriptChildren.join('')
-                  : '',
-            }
-          } else {
-            throw new Error(
-              'Invalid usage of next/script. Did you forget to include a src attribute or an inline script? https://nextjs.org/docs/messages/invalid-script'
-            )
-          }
-
-          return (
-            <script
-              {...srcProps}
-              {...scriptProps}
-              type="text/partytown"
-              key={src || index}
-              nonce={props.nonce}
-              data-nscript="worker"
-              crossOrigin={props.crossOrigin || crossOrigin}
-            />
-          )
-        })}
-      </>
-    )
-  } catch (err) {
-    if (isError(err) && err.code !== 'MODULE_NOT_FOUND') {
-      console.warn(`Warning: ${err.message}`)
-    }
-    return null
-  }
-}
-
-function getPreNextScripts(context: HtmlProps, props: OriginProps) {
-  const { scriptLoader, disableOptimizedLoading, crossOrigin } = context
-
-  const webWorkerScripts = getPreNextWorkerScripts(context, props)
-
-  const beforeInteractiveScripts = (scriptLoader.beforeInteractive || [])
-    .filter((script) => script.src)
-    .map((file: ScriptProps, index: number) => {
-      const { strategy, ...scriptProps } = file
-      return (
-        <script
-          {...scriptProps}
-          key={scriptProps.src || index}
-          defer={scriptProps.defer ?? !disableOptimizedLoading}
-          nonce={props.nonce}
-          data-nscript="beforeInteractive"
-          crossOrigin={props.crossOrigin || crossOrigin}
-        />
-      )
-    })
-
-  return (
-    <>
-      {webWorkerScripts}
-      {beforeInteractiveScripts}
-    </>
-  )
-}
-
-function getDynamicChunks(
-  context: HtmlProps,
-  props: OriginProps,
-  files: DocumentFiles
-) {
-  const {
-    dynamicImports,
-    assetPrefix,
-    isDevelopment,
-    devOnlyCacheBusterQueryString,
-    disableOptimizedLoading,
-    crossOrigin,
-  } = context
-
-  return dynamicImports.map((file) => {
-    if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
-
-    return (
-      <script
-        async={!isDevelopment && disableOptimizedLoading}
-        defer={!disableOptimizedLoading}
-        key={file}
-        src={`${assetPrefix}/_next/${encodeURI(
-          file
-        )}${devOnlyCacheBusterQueryString}`}
-        nonce={props.nonce}
-        crossOrigin={props.crossOrigin || crossOrigin}
-      />
-    )
-  })
-}
-
-function getScripts(
-  context: HtmlProps,
-  props: OriginProps,
-  files: DocumentFiles
-) {
-  const {
-    assetPrefix,
-    buildManifest,
-    isDevelopment,
-    devOnlyCacheBusterQueryString,
-    disableOptimizedLoading,
-    crossOrigin,
-  } = context
-
-  const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
-  const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
-    file.endsWith('.js')
-  )
-
-  return [...normalScripts, ...lowPriorityScripts].map((file) => {
-    return (
-      <script
-        key={file}
-        src={`${assetPrefix}/_next/${encodeURI(
-          file
-        )}${devOnlyCacheBusterQueryString}`}
-        nonce={props.nonce}
-        async={!isDevelopment && disableOptimizedLoading}
-        defer={!disableOptimizedLoading}
-        crossOrigin={props.crossOrigin || crossOrigin}
-      />
-    )
-  })
-}
-
-/**
- * `Document` component handles the initial `document` markup and renders only on the server side.
- * Commonly used for implementing server side rendering for `css-in-js` libraries.
- */
-export default class Document<P = {}> extends Component<DocumentProps & P> {
-  /**
-   * `getInitialProps` hook returns the context object with the addition of `renderPage`.
-   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
-   */
-  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
-    return ctx.defaultGetInitialProps(ctx)
-  }
-
-  render() {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </Html>
-    )
-  }
-}
-
-// Add a special property to the built-in `Document` component so later we can
-// identify if a user customized `Document` is used or not.
-const InternalFunctionDocument: DocumentType =
-  function InternalFunctionDocument() {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </Html>
-    )
-  }
-;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
-
-export function Html(
-  props: React.DetailedHTMLProps<
-    React.HtmlHTMLAttributes<HTMLHtmlElement>,
-    HTMLHtmlElement
-  >
-) {
-  const {
-    inAmpMode,
-    docComponentsRendered,
-    locale,
-    scriptLoader,
-    __NEXT_DATA__,
-  } = useContext(HtmlContext)
-
-  docComponentsRendered.Html = true
-  handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
-
-  return (
-    <html
-      {...props}
-      lang={props.lang || locale || undefined}
-      amp={inAmpMode ? '' : undefined}
-      data-ampdevmode={
-        inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
-      }
-    />
-  )
-}
-
 function AmpStyles({
   styles,
 }: {
@@ -938,11 +609,262 @@ export class Head extends Component<HeadProps> {
   }
 }
 
-export function Main() {
-  const { docComponentsRendered } = useContext(HtmlContext)
-  docComponentsRendered.Main = true
-  // @ts-ignore
-  return <next-js-internal-body-render-target />
+function handleDocumentScriptLoaderItems(
+  scriptLoader: { beforeInteractive?: any[] },
+  __NEXT_DATA__: NEXT_DATA,
+  props: any
+): void {
+  if (!props.children) return
+
+  const scriptLoaderItems: ScriptProps[] = []
+
+  const children = Array.isArray(props.children)
+    ? props.children
+    : [props.children]
+
+  const headChildren = children.find(
+    (child: React.ReactElement) => child.type === Head
+  )?.props?.children
+  const bodyChildren = children.find(
+    (child: React.ReactElement) => child.type === 'body'
+  )?.props?.children
+
+  // Scripts with beforeInteractive can be placed inside Head or <body> so children of both needs to be traversed
+  const combinedChildren = [
+    ...(Array.isArray(headChildren) ? headChildren : [headChildren]),
+    ...(Array.isArray(bodyChildren) ? bodyChildren : [bodyChildren]),
+  ]
+
+  React.Children.forEach(combinedChildren, (child: any) => {
+    if (!child) return
+
+    if (child.type === Script) {
+      if (child.props.strategy === 'beforeInteractive') {
+        scriptLoader.beforeInteractive = (
+          scriptLoader.beforeInteractive || []
+        ).concat([
+          {
+            ...child.props,
+          },
+        ])
+        return
+      } else if (
+        ['lazyOnload', 'afterInteractive', 'worker'].includes(
+          child.props.strategy
+        )
+      ) {
+        scriptLoaderItems.push(child.props)
+        return
+      }
+    }
+  })
+
+  __NEXT_DATA__.scriptLoader = scriptLoaderItems
+}
+
+function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
+  const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
+
+  // disable `nextScriptWorkers` in edge runtime
+  if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null
+
+  try {
+    let {
+      partytownSnippet,
+      // @ts-ignore: Prevent webpack from processing this require
+    } = __non_webpack_require__('@builder.io/partytown/integration'!)
+
+    const children = Array.isArray(props.children)
+      ? props.children
+      : [props.children]
+
+    // Check to see if the user has defined their own Partytown configuration
+    const userDefinedConfig = children.find(
+      (child) =>
+        hasComponentProps(child) &&
+        child?.props?.dangerouslySetInnerHTML?.__html.length &&
+        'data-partytown-config' in child.props
+    )
+
+    return (
+      <>
+        {!userDefinedConfig && (
+          <script
+            data-partytown-config=""
+            dangerouslySetInnerHTML={{
+              __html: `
+            partytown = {
+              lib: "${assetPrefix}/_next/static/~partytown/"
+            };
+          `,
+            }}
+          />
+        )}
+        <script
+          data-partytown=""
+          dangerouslySetInnerHTML={{
+            __html: partytownSnippet(),
+          }}
+        />
+        {(scriptLoader.worker || []).map((file: ScriptProps, index: number) => {
+          const {
+            strategy,
+            src,
+            children: scriptChildren,
+            dangerouslySetInnerHTML,
+            ...scriptProps
+          } = file
+
+          let srcProps: {
+            src?: string
+            dangerouslySetInnerHTML?: {
+              __html: string
+            }
+          } = {}
+
+          if (src) {
+            // Use external src if provided
+            srcProps.src = src
+          } else if (
+            dangerouslySetInnerHTML &&
+            dangerouslySetInnerHTML.__html
+          ) {
+            // Embed inline script if provided with dangerouslySetInnerHTML
+            srcProps.dangerouslySetInnerHTML = {
+              __html: dangerouslySetInnerHTML.__html,
+            }
+          } else if (scriptChildren) {
+            // Embed inline script if provided with children
+            srcProps.dangerouslySetInnerHTML = {
+              __html:
+                typeof scriptChildren === 'string'
+                  ? scriptChildren
+                  : Array.isArray(scriptChildren)
+                  ? scriptChildren.join('')
+                  : '',
+            }
+          } else {
+            throw new Error(
+              'Invalid usage of next/script. Did you forget to include a src attribute or an inline script? https://nextjs.org/docs/messages/invalid-script'
+            )
+          }
+
+          return (
+            <script
+              {...srcProps}
+              {...scriptProps}
+              type="text/partytown"
+              key={src || index}
+              nonce={props.nonce}
+              data-nscript="worker"
+              crossOrigin={props.crossOrigin || crossOrigin}
+            />
+          )
+        })}
+      </>
+    )
+  } catch (err) {
+    if (isError(err) && err.code !== 'MODULE_NOT_FOUND') {
+      console.warn(`Warning: ${err.message}`)
+    }
+    return null
+  }
+}
+
+function getPreNextScripts(context: HtmlProps, props: OriginProps) {
+  const { scriptLoader, disableOptimizedLoading, crossOrigin } = context
+
+  const webWorkerScripts = getPreNextWorkerScripts(context, props)
+
+  const beforeInteractiveScripts = (scriptLoader.beforeInteractive || [])
+    .filter((script) => script.src)
+    .map((file: ScriptProps, index: number) => {
+      const { strategy, ...scriptProps } = file
+      return (
+        <script
+          {...scriptProps}
+          key={scriptProps.src || index}
+          defer={scriptProps.defer ?? !disableOptimizedLoading}
+          nonce={props.nonce}
+          data-nscript="beforeInteractive"
+          crossOrigin={props.crossOrigin || crossOrigin}
+        />
+      )
+    })
+
+  return (
+    <>
+      {webWorkerScripts}
+      {beforeInteractiveScripts}
+    </>
+  )
+}
+
+function getDynamicChunks(
+  context: HtmlProps,
+  props: OriginProps,
+  files: DocumentFiles
+) {
+  const {
+    dynamicImports,
+    assetPrefix,
+    isDevelopment,
+    devOnlyCacheBusterQueryString,
+    disableOptimizedLoading,
+    crossOrigin,
+  } = context
+
+  return dynamicImports.map((file) => {
+    if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
+
+    return (
+      <script
+        async={!isDevelopment && disableOptimizedLoading}
+        defer={!disableOptimizedLoading}
+        key={file}
+        src={`${assetPrefix}/_next/${encodeURI(
+          file
+        )}${devOnlyCacheBusterQueryString}`}
+        nonce={props.nonce}
+        crossOrigin={props.crossOrigin || crossOrigin}
+      />
+    )
+  })
+}
+
+function getScripts(
+  context: HtmlProps,
+  props: OriginProps,
+  files: DocumentFiles
+) {
+  const {
+    assetPrefix,
+    buildManifest,
+    isDevelopment,
+    devOnlyCacheBusterQueryString,
+    disableOptimizedLoading,
+    crossOrigin,
+  } = context
+
+  const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
+  const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
+    file.endsWith('.js')
+  )
+
+  return [...normalScripts, ...lowPriorityScripts].map((file) => {
+    return (
+      <script
+        key={file}
+        src={`${assetPrefix}/_next/${encodeURI(
+          file
+        )}${devOnlyCacheBusterQueryString}`}
+        nonce={props.nonce}
+        async={!isDevelopment && disableOptimizedLoading}
+        defer={!disableOptimizedLoading}
+        crossOrigin={props.crossOrigin || crossOrigin}
+      />
+    )
+  })
 }
 
 export class NextScript extends Component<OriginProps> {
@@ -1104,6 +1026,84 @@ export class NextScript extends Component<OriginProps> {
       </>
     )
   }
+}
+
+/**
+ * `Document` component handles the initial `document` markup and renders only on the server side.
+ * Commonly used for implementing server side rendering for `css-in-js` libraries.
+ */
+export default class Document<P = {}> extends Component<DocumentProps & P> {
+  /**
+   * `getInitialProps` hook returns the context object with the addition of `renderPage`.
+   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
+   */
+  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+    return ctx.defaultGetInitialProps(ctx)
+  }
+
+  render() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+}
+
+// Add a special property to the built-in `Document` component so later we can
+// identify if a user customized `Document` is used or not.
+const InternalFunctionDocument: DocumentType =
+  function InternalFunctionDocument() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
+
+export function Html(
+  props: React.DetailedHTMLProps<
+    React.HtmlHTMLAttributes<HTMLHtmlElement>,
+    HTMLHtmlElement
+  >
+) {
+  const {
+    inAmpMode,
+    docComponentsRendered,
+    locale,
+    scriptLoader,
+    __NEXT_DATA__,
+  } = useContext(HtmlContext)
+
+  docComponentsRendered.Html = true
+  handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
+
+  return (
+    <html
+      {...props}
+      lang={props.lang || locale || undefined}
+      amp={inAmpMode ? '' : undefined}
+      data-ampdevmode={
+        inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
+      }
+    />
+  )
+}
+
+export function Main() {
+  const { docComponentsRendered } = useContext(HtmlContext)
+  docComponentsRendered.Main = true
+  // @ts-ignore
+  return <next-js-internal-body-render-target />
 }
 
 function getAmpPath(ampPath: string, asPath: string): string {

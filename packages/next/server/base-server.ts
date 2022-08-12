@@ -141,6 +141,25 @@ type RequestContext = {
   renderOpts: RenderOptsPartial
 }
 
+class NoFallbackError extends Error {}
+
+// Internal wrapper around build errors at development
+// time, to prevent us from propagating or logging them
+export class WrappedBuildError extends Error {
+  innerError: Error
+
+  constructor(innerError: Error) {
+    super()
+    this.innerError = innerError
+  }
+}
+
+type ResponsePayload = {
+  type: 'html' | 'json'
+  body: RenderResult
+  revalidateOptions?: any
+}
+
 export default abstract class Server<ServerOptions extends Options = Options> {
   protected dir: string
   protected quiet: boolean
@@ -2139,22 +2158,3 @@ export function prepareServerlessUrl(
 }
 
 export { stringifyQuery } from './server-route-utils'
-
-class NoFallbackError extends Error {}
-
-// Internal wrapper around build errors at development
-// time, to prevent us from propagating or logging them
-export class WrappedBuildError extends Error {
-  innerError: Error
-
-  constructor(innerError: Error) {
-    super()
-    this.innerError = innerError
-  }
-}
-
-type ResponsePayload = {
-  type: 'html' | 'json'
-  body: RenderResult
-  revalidateOptions?: any
-}
