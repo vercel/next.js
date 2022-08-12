@@ -70,8 +70,8 @@ Go to /sitefinity/Administration/WebServices and edit the 'Default' web service 
 
 ### Step 4. Install the GraphQL package
 
-Add the [Sitefinity CMS nugget source](https://www.progress.com/documentation/sitefinity-cms/sitefinity-cms-nuget-packages-repository)
-Install the [Progress.Sitefinity.GraphQL](https://nuget.sitefinity.com/#/package/Progress.Sitefinity.GraphQL) package (enable prerelease filter).
+1. Add the [Sitefinity CMS nugget source](https://www.progress.com/documentation/sitefinity-cms/sitefinity-cms-nuget-packages-repository)
+2. Install the [Progress.Sitefinity.GraphQL](https://nuget.sitefinity.com/#/package/Progress.Sitefinity.GraphQL) package (enable prerelease filter).
 
 ### Step 5. Set up environment variables
 
