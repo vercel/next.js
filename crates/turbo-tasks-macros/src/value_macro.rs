@@ -519,7 +519,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
-    let doc_msg_refer_to_ident = format!(" Vc for [`{ident}`]\n\n", ident = ident);
+    let doc_msg_refer_to_ident = format!(" Vc for [`{ident}`]");
 
     let expanded = quote! {
         #derive
@@ -538,8 +538,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::macro_helpers::Lazy::new(|| {
                 #value_type_init_ident.get_or_init(|| {
                     panic!(
-                        "DISKFILESYSTEM_VALUE_TYPE has not been initialized (this should happen via the \
-                         generated register function)"
+                        concat!(
+                            stringify!(#value_type_ident),
+                            " has not been initialized (this should happen via the generated register function)"
+                        )
                     )
                 })
             });
@@ -568,6 +570,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #for_input_marker
 
         #[doc = #doc_msg_refer_to_ident]
+        ///
         /// A reference to a value created by a turbo-tasks function.
         /// The type can either point to a cell in a [`turbo_tasks::Task`] or to the output of
         /// a [`turbo_tasks::Task`], which then transitively points to a cell again, or
