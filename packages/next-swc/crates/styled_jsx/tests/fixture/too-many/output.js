@@ -1,4 +1,4 @@
-import _JSXStyle from "styled-jsx/style";
+import _JSXStyle from "next/dist/shared/lib/styled-jsx";
 export const Red = ({ Component ='button' ,  })=>{
     return <Component className={_JSXStyle.dynamic([
         [

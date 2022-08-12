@@ -1,4 +1,4 @@
-import _JSXStyle from "styled-jsx/style";
+import _JSXStyle from "next/dist/shared/lib/styled-jsx";
 export default (({ breakPoint  })=><div className={_JSXStyle.dynamic([
         [
             "5d2a0e645566ce9c",

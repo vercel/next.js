@@ -1,4 +1,4 @@
-import _JSXStyle from "styled-jsx/style";
+import _JSXStyle from "next/dist/shared/lib/styled-jsx";
 export default function IndexPage() {
     return <div className={"jsx-b6abd0684ba81871"}>
 
