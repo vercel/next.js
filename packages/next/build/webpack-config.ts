@@ -7,12 +7,11 @@ import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
-  NEXT_PROJECT_ROOT,
-  NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   SERVER_RUNTIME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -28,6 +27,8 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   MODERN_BROWSERSLIST_TARGET,
+  COMPILER_NAMES,
+  CompilerNameValues,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
@@ -60,6 +61,10 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
+
+const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
+const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
+const NEXT_PROJECT_ROOT_DIST_CLIENT = pathJoin(NEXT_PROJECT_ROOT_DIST, 'client')
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -334,13 +339,13 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling = false,
     rewrites,
     runWebpackSpan,
-    target = 'server',
+    target = COMPILER_NAMES.server,
     appDir,
     middlewareRegex,
   }: {
     buildId: string
     config: NextConfigComplete
-    compilerType: 'client' | 'server' | 'edge-server'
+    compilerType: CompilerNameValues
     dev?: boolean
     entrypoints: webpack5.EntryObject
     hasReactRoot: boolean
@@ -354,9 +359,9 @@ export default async function getBaseWebpackConfig(
     middlewareRegex?: string
   }
 ): Promise<webpack.Configuration> {
-  const isClient = compilerType === 'client'
-  const isEdgeServer = compilerType === 'edge-server'
-  const isNodeServer = compilerType === 'server'
+  const isClient = compilerType === COMPILER_NAMES.client
+  const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
+  const isNodeServer = compilerType === COMPILER_NAMES.server
   const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
     dir,
     config
@@ -650,9 +655,9 @@ export default async function getBaseWebpackConfig(
   const reactDomDir = dirname(require.resolve('react-dom/package.json'))
 
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
-    server: ['main', 'module'],
-    client: ['browser', 'module', 'main'],
-    'edge-server': ['browser', 'module', 'main'],
+    [COMPILER_NAMES.server]: ['main', 'module'],
+    [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
+    [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
   const resolveConfig = {
@@ -1319,14 +1324,14 @@ export default async function getBaseWebpackConfig(
                 // RSC server compilation loaders
                 {
                   ...serverComponentCodeCondition,
-                  issuerLayer: 'sc_server',
+                  issuerLayer: WEBPACK_LAYERS.server,
                   use: {
                     loader: 'next-flight-server-loader',
                   },
                 },
                 {
                   test: clientComponentRegex,
-                  issuerLayer: 'sc_server',
+                  issuerLayer: WEBPACK_LAYERS.server,
                   use: {
                     loader: 'next-flight-client-loader',
                   },
@@ -1334,7 +1339,7 @@ export default async function getBaseWebpackConfig(
                 // _app should be treated as a client component as well as all its dependencies.
                 {
                   test: new RegExp(`_app\\.(${rawPageExtensions.join('|')})$`),
-                  layer: 'sc_client',
+                  layer: WEBPACK_LAYERS.client,
                 },
               ]
             : []
@@ -1345,13 +1350,13 @@ export default async function getBaseWebpackConfig(
               // same layer.
               {
                 test: rscSharedRegex,
-                layer: 'rsc_shared_deps',
+                layer: WEBPACK_LAYERS.rscShared,
               },
             ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
-          issuerLayer: 'api',
+          issuerLayer: WEBPACK_LAYERS.api,
           parser: {
             // Switch back to normal URL handling
             url: true,
@@ -1361,7 +1366,7 @@ export default async function getBaseWebpackConfig(
           oneOf: [
             {
               ...codeCondition,
-              issuerLayer: 'api',
+              issuerLayer: WEBPACK_LAYERS.api,
               parser: {
                 // Switch back to normal URL handling
                 url: true,
@@ -1370,7 +1375,7 @@ export default async function getBaseWebpackConfig(
             },
             {
               ...codeCondition,
-              issuerLayer: 'middleware',
+              issuerLayer: WEBPACK_LAYERS.middleware,
               use: getBabelOrSwcLoader(),
             },
             {
@@ -1408,7 +1413,7 @@ export default async function getBaseWebpackConfig(
               {
                 oneOf: [
                   {
-                    issuerLayer: 'middleware',
+                    issuerLayer: WEBPACK_LAYERS.middleware,
                     resolve: {
                       fallback: {
                         process: require.resolve('./polyfills/process'),
@@ -1508,7 +1513,7 @@ export default async function getBaseWebpackConfig(
             [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
-        ...(compilerType !== 'edge-server'
+        ...(compilerType !== COMPILER_NAMES.edgeServer
           ? {}
           : {
               EdgeRuntime: JSON.stringify(
@@ -1794,10 +1799,10 @@ export default async function getBaseWebpackConfig(
       dependency: 'url',
       loader: 'next-middleware-asset-loader',
       type: 'javascript/auto',
-      layer: 'edge-asset',
+      layer: WEBPACK_LAYERS.edgeAsset,
     })
     webpack5Config.module?.rules?.unshift({
-      issuerLayer: 'edge-asset',
+      issuerLayer: WEBPACK_LAYERS.edgeAsset,
       type: 'asset/source',
     })
   }

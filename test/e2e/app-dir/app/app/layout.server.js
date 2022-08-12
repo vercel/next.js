@@ -1,4 +1,5 @@
 import '../styles/global.css'
+import './style.css'
 
 export async function getServerSideProps() {
   return {

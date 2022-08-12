@@ -136,6 +136,18 @@ export function createFlushEffectStream(
   })
 }
 
+export function renderToInitialStream({
+  ReactDOMServer,
+  element,
+  streamOptions,
+}: {
+  ReactDOMServer: any
+  element: React.ReactElement
+  streamOptions?: any
+}): Promise<ReactReadableStream> {
+  return ReactDOMServer.renderToReadableStream(element, streamOptions)
+}
+
 export function createHeadInjectionTransformStream(
   inject: () => string
 ): TransformStream<Uint8Array, Uint8Array> {
@@ -154,18 +166,6 @@ export function createHeadInjectionTransformStream(
       }
     },
   })
-}
-
-export function renderToInitialStream({
-  ReactDOMServer,
-  element,
-  streamOptions,
-}: {
-  ReactDOMServer: any
-  element: React.ReactElement
-  streamOptions?: any
-}): Promise<ReactReadableStream> {
-  return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
 export async function continueFromInitialStream(

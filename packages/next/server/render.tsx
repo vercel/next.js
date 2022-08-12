@@ -40,6 +40,7 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../lib/constants'
 import {
+  COMPILER_NAMES,
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
@@ -229,6 +230,7 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   serverComponentManifest?: any
+  serverCSSManifest?: any
   distDir?: string
   locale?: string
   locales?: string[]
@@ -1491,7 +1493,8 @@ export async function renderToHTML(
 }
 
 function errorToJSON(err: Error) {
-  let source: 'server' | 'edge-server' = 'server'
+  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
+    'server'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
     source =
@@ -1511,7 +1514,10 @@ function errorToJSON(err: Error) {
 function serializeError(
   dev: boolean | undefined,
   err: Error
-): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
+): Error & {
+  statusCode?: number
+  source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+} {
   if (dev) {
     return errorToJSON(err)
   }

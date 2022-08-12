@@ -16,6 +16,18 @@ import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+import {
+  CompilerNameValues,
+  COMPILER_INDEXES,
+  COMPILER_NAMES,
+} from '../../shared/lib/constants'
+
+/**
+ * Returns object keys with type inferred from the object key
+ */
+const keys = Object.keys as <T>(o: T) => Extract<keyof T, string>[]
+
+const COMPILER_KEYS = keys(COMPILER_INDEXES)
 
 function treePathToEntrypoint(
   segmentPath: string[],
@@ -23,7 +35,7 @@ function treePathToEntrypoint(
 ): string {
   const [parallelRouteKey, segment] = segmentPath
 
-  // TODO: modify this path to cover parallelRouteKey convention
+  // TODO-APP: modify this path to cover parallelRouteKey convention
   const path =
     (parentPath ? parentPath + '/' : '') +
     (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +
@@ -89,98 +101,62 @@ export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
 export const BUILT = Symbol('built')
 
+interface EntryType {
+  /**
+   * Tells if a page is scheduled to be disposed.
+   */
+  dispose?: boolean
+  /**
+   * Timestamp with the last time the page was active.
+   */
+  lastActiveTime?: number
+  /**
+   * Page build status.
+   */
+  status?: typeof ADDED | typeof BUILDING | typeof BUILT
+
+  /**
+   * Path to the page file relative to the dist folder with no extension.
+   * For example: `pages/about/index`
+   */
+  bundlePath: string
+
+  /**
+   * Webpack request to create a dependency for.
+   */
+  request: string
+}
+
+// Shadowing check in ESLint does not account for enum
+// eslint-disable-next-line no-shadow
+export const enum EntryTypes {
+  ENTRY,
+  CHILD_ENTRY,
+}
+interface Entry extends EntryType {
+  type: EntryTypes.ENTRY
+  /**
+   * The absolute page to the page file. Used for detecting if the file was removed. For example:
+   * `/Users/Rick/project/pages/about/index.js`
+   */
+  absolutePagePath: string
+}
+
+interface ChildEntry extends EntryType {
+  type: EntryTypes.CHILD_ENTRY
+  /**
+   * Which parent entries use this childEntry.
+   */
+  parentEntries: Set<string>
+}
+
 export const entries: {
   /**
    * The key composed of the compiler name and the page. For example:
    * `edge-server/about`
    */
-  [page: string]: {
-    /**
-     * The absolute page to the page file. For example:
-     * `/Users/Rick/project/pages/about/index.js`
-     */
-    absolutePagePath: string
-    /**
-     * Path to the page file relative to the dist folder with no extension.
-     * For example: `pages/about/index`
-     */
-    bundlePath: string
-    /**
-     * Client entry loader and query parameters when RSC is enabled.
-     */
-    clientLoader?: string
-    /**
-     * Tells if a page is scheduled to be disposed.
-     */
-    dispose?: boolean
-    /**
-     * Timestamp with the last time the page was active.
-     */
-    lastActiveTime?: number
-    /**
-     * Page build status.
-     */
-    status?: typeof ADDED | typeof BUILDING | typeof BUILT
-  }
+  [entryName: string]: Entry | ChildEntry
 } = {}
-
-// Make sure only one invalidation happens at a time∫
-// Otherwise, webpack hash gets changed and it'll force the client to reload.
-class Invalidator {
-  private multiCompiler: webpack.MultiCompiler
-  private building: boolean
-  public rebuildAgain: boolean
-
-  constructor(multiCompiler: webpack.MultiCompiler) {
-    this.multiCompiler = multiCompiler
-    // contains an array of types of compilers currently building
-    this.building = false
-    this.rebuildAgain = false
-  }
-
-  invalidate(keys: string[] = []) {
-    // If there's a current build is processing, we won't abort it by invalidating.
-    // (If aborted, it'll cause a client side hard reload)
-    // But let it to invalidate just after the completion.
-    // So, it can re-build the queued pages at once.
-    if (this.building) {
-      this.rebuildAgain = true
-      return
-    }
-
-    this.building = true
-
-    if (!keys || keys.length === 0) {
-      this.multiCompiler.compilers[0].watching?.invalidate()
-      this.multiCompiler.compilers[1].watching?.invalidate()
-      this.multiCompiler.compilers[2].watching?.invalidate()
-      return
-    }
-
-    for (const key of keys) {
-      if (key === 'client') {
-        this.multiCompiler.compilers[0].watching?.invalidate()
-      } else if (key === 'server') {
-        this.multiCompiler.compilers[1].watching?.invalidate()
-      } else if (key === 'edgeServer') {
-        this.multiCompiler.compilers[2].watching?.invalidate()
-      }
-    }
-  }
-
-  startBuilding() {
-    this.building = true
-  }
-
-  doneBuilding() {
-    this.building = false
-
-    if (this.rebuildAgain) {
-      this.rebuildAgain = false
-      this.invalidate()
-    }
-  }
-}
 
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
@@ -188,6 +164,60 @@ export const getInvalidator = () => invalidator
 const doneCallbacks: EventEmitter | null = new EventEmitter()
 const lastClientAccessPages = ['']
 const lastServerAccessPagesForAppDir = ['']
+
+type BuildingTracker = Set<CompilerNameValues>
+type RebuildTracker = Set<CompilerNameValues>
+
+// Make sure only one invalidation happens at a time
+// Otherwise, webpack hash gets changed and it'll force the client to reload.
+class Invalidator {
+  private multiCompiler: webpack.MultiCompiler
+
+  private building: BuildingTracker = new Set()
+  private rebuildAgain: RebuildTracker = new Set()
+
+  constructor(multiCompiler: webpack.MultiCompiler) {
+    this.multiCompiler = multiCompiler
+  }
+
+  public shouldRebuildAll() {
+    return this.rebuildAgain.size > 0
+  }
+
+  invalidate(compilerKeys: typeof COMPILER_KEYS = COMPILER_KEYS): void {
+    for (const key of compilerKeys) {
+      // If there's a current build is processing, we won't abort it by invalidating.
+      // (If aborted, it'll cause a client side hard reload)
+      // But let it to invalidate just after the completion.
+      // So, it can re-build the queued pages at once.
+
+      if (this.building.has(key)) {
+        this.rebuildAgain.add(key)
+        continue
+      }
+
+      this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching?.invalidate()
+      this.building.add(key)
+    }
+  }
+
+  public startBuilding(compilerKey: keyof typeof COMPILER_INDEXES) {
+    this.building.add(compilerKey)
+  }
+
+  public doneBuilding() {
+    const rebuild: typeof COMPILER_KEYS = []
+    for (const key of COMPILER_KEYS) {
+      this.building.delete(key)
+
+      if (this.rebuildAgain.has(key)) {
+        rebuild.push(key)
+        this.rebuildAgain.delete(key)
+      }
+    }
+    this.invalidate(rebuild)
+  }
+}
 
 export function onDemandEntryHandler({
   maxInactiveAge,
@@ -208,15 +238,16 @@ export function onDemandEntryHandler({
 }) {
   invalidator = new Invalidator(multiCompiler)
 
-  const startBuilding = (_compilation: webpack.Compilation) => {
-    invalidator.startBuilding()
+  const startBuilding = (compilation: webpack.Compilation) => {
+    const compilationName = compilation.name as any as CompilerNameValues
+    invalidator.startBuilding(compilationName)
   }
   for (const compiler of multiCompiler.compilers) {
     compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
   }
 
   function getPagePathsFromEntrypoints(
-    type: 'client' | 'server' | 'edge-server',
+    type: CompilerNameValues,
     entrypoints: Map<string, { name?: string }>,
     root?: boolean
   ) {
@@ -237,25 +268,25 @@ export function onDemandEntryHandler({
   }
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
-    if (invalidator.rebuildAgain) {
+    if (invalidator.shouldRebuildAll()) {
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
     const root = !!appDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
-        'client',
+        COMPILER_NAMES.client,
         clientStats.compilation.entrypoints,
         root
       ),
       ...getPagePathsFromEntrypoints(
-        'server',
+        COMPILER_NAMES.server,
         serverStats.compilation.entrypoints,
         root
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
-            'edge-server',
+            COMPILER_NAMES.edgeServer,
             edgeServerStats.compilation.entrypoints,
             root
           )
@@ -352,7 +383,7 @@ export function onDemandEntryHandler({
   }
 
   return {
-    async ensurePage(page: string, clientOnly: boolean) {
+    async ensurePage(page: string, clientOnly: boolean): Promise<void> {
       const pagePathData = await findPagePathData(
         rootDir,
         pagesDir,
@@ -362,44 +393,65 @@ export function onDemandEntryHandler({
       )
 
       let entryAdded = false
+      const added = new Map<CompilerNameValues, Promise<void>>()
 
-      const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
-        return new Promise<void>((resolve, reject) => {
-          const isServerComponent = serverComponentRegex.test(
-            pagePathData.absolutePagePath
-          )
-          const isInsideAppDir =
-            appDir && pagePathData.absolutePagePath.startsWith(appDir)
+      const isServerComponent = serverComponentRegex.test(
+        pagePathData.absolutePagePath
+      )
+      const isInsideAppDir =
+        appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-          const pageKey = `${type}${pagePathData.page}`
+      const addPageEntry = (
+        compilerType: CompilerNameValues
+      ): Promise<void> => {
+        let resolve: (value: void | PromiseLike<void>) => void
+        let reject: (reason?: any) => void
+        const promise = new Promise<void>((res, rej) => {
+          resolve = res
+          reject = rej
+        })
 
-          if (entries[pageKey]) {
-            entries[pageKey].dispose = false
-            entries[pageKey].lastActiveTime = Date.now()
-            if (entries[pageKey].status === BUILT) {
-              resolve()
-              return
-            }
+        const pageKey = `${compilerType}${pagePathData.page}`
+
+        if (entries[pageKey]) {
+          added.set(compilerType, promise)
+
+          entries[pageKey].dispose = false
+          entries[pageKey].lastActiveTime = Date.now()
+          if (entries[pageKey].status === BUILT) {
+            resolve!()
+            return promise
+          }
+        } else {
+          if (
+            compilerType === COMPILER_NAMES.client &&
+            (isServerComponent || isInsideAppDir)
+          ) {
+            // Skip adding the client entry here.
           } else {
-            if (type === 'client' && (isServerComponent || isInsideAppDir)) {
-              // Skip adding the client entry here.
-            } else {
-              entryAdded = true
-              entries[pageKey] = {
-                absolutePagePath: pagePathData.absolutePagePath,
-                bundlePath: pagePathData.bundlePath,
-                dispose: false,
-                lastActiveTime: Date.now(),
-                status: ADDED,
-              }
+            added.set(compilerType, promise)
+
+            entryAdded = true
+            entries[pageKey] = {
+              type: EntryTypes.ENTRY,
+              absolutePagePath: pagePathData.absolutePagePath,
+              request: pagePathData.absolutePagePath,
+              bundlePath: pagePathData.bundlePath,
+              dispose: false,
+              lastActiveTime: Date.now(),
+              status: ADDED,
             }
           }
+        }
 
-          doneCallbacks!.once(pageKey, (err: Error) => {
-            if (err) return reject(err)
-            resolve()
-          })
+        doneCallbacks!.once(pageKey, (err: Error) => {
+          if (err) {
+            return reject(err)
+          }
+          resolve()
         })
+
+        return promise
       }
 
       const staticInfo = await getPageStaticInfo({
@@ -407,25 +459,30 @@ export function onDemandEntryHandler({
         nextConfig,
       })
 
-      const result = runDependingOnPageType({
+      await runDependingOnPageType({
         page: pagePathData.page,
         pageRuntime: staticInfo.runtime,
-        onClient: () => addPageEntry('client'),
-        onServer: () => addPageEntry('server'),
-        onEdgeServer: () => addPageEntry('edge-server'),
+        onClient: () => {
+          addPageEntry(COMPILER_NAMES.client)
+        },
+        onServer: () => {
+          addPageEntry(COMPILER_NAMES.server)
+        },
+        onEdgeServer: () => {
+          addPageEntry(COMPILER_NAMES.edgeServer)
+        },
       })
 
-      const promises = Object.values(result)
       if (entryAdded) {
         reportTrigger(
-          !clientOnly && promises.length > 1
+          !clientOnly && added.size > 1
             ? `${pagePathData.page} (client and server)`
             : pagePathData.page
         )
-        invalidator.invalidate(Object.keys(result))
+        invalidator.invalidate([...added.keys()])
       }
 
-      return Promise.all(promises)
+      await Promise.all(added.values())
     },
 
     onHMR(client: ws) {
@@ -453,17 +510,18 @@ export function onDemandEntryHandler({
 }
 
 function disposeInactiveEntries(maxInactiveAge: number) {
-  Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status, dispose, bundlePath } = entries[page]
+  Object.keys(entries).forEach((entryKey) => {
+    const entryData = entries[entryKey]
+    const { lastActiveTime, status, dispose } = entryData
 
-    const isClientComponentsEntry =
-      bundlePath.startsWith('app/') && page.startsWith('client/')
+    // TODO-APP: implement disposing of CHILD_ENTRY
+    if (entryData.type === EntryTypes.CHILD_ENTRY) {
+      return
+    }
 
-    // Disposing client component entry is handled when disposing server component entry
-    if (isClientComponentsEntry) return
-
-    // Skip pages already scheduled for disposing
-    if (dispose) return
+    if (dispose)
+      // Skip pages already scheduled for disposing
+      return
 
     // This means this entry is currently building or just added
     // We don't need to dispose those entries.
@@ -473,20 +531,13 @@ function disposeInactiveEntries(maxInactiveAge: number) {
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
     if (
-      lastClientAccessPages.includes(page) ||
-      lastServerAccessPagesForAppDir.includes(page)
+      lastClientAccessPages.includes(entryKey) ||
+      lastServerAccessPagesForAppDir.includes(entryKey)
     )
       return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
-      const isServerComponentsEntry =
-        bundlePath.startsWith('app/') && page.startsWith('server/')
-
-      // Dispose client component entrypoint when server component entrypoint is disposed.
-      if (isServerComponentsEntry) {
-        entries[page.replace('server/', 'client/')].dispose = true
-      }
-      entries[page].dispose = true
+      entries[entryKey].dispose = true
     }
   })
 }
