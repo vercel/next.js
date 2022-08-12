@@ -19,13 +19,13 @@ export default function RootStyleRegistry({ children }) {
     return <>{styles}</>
   }
 
+  // Allow multiple useFlushEffects
   useFlushEffects(() => {
-    return (
-      <>
-        {styledJsxFlushEffect()}
-        {styledComponentsFlushEffect()}
-      </>
-    )
+    return <>{styledJsxFlushEffect()}</>
+  })
+
+  useFlushEffects(() => {
+    return <>{styledComponentsFlushEffect()}</>
   })
 
   // Only include style registry on server side for SSR
