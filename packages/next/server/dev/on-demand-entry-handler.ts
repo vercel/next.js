@@ -350,8 +350,8 @@ export function onDemandEntryHandler({
       const addPageEntry = (
         compilerType: CompilerNameValues
       ): Promise<void> => {
-        let resolve: (value: void | PromiseLike<void>) => void,
-          reject: (reason?: any) => void
+        let resolve: (value: void | PromiseLike<void>) => void
+        let reject: (reason?: any) => void
         const promise = new Promise<void>((res, rej) => {
           resolve = res
           reject = rej
@@ -360,11 +360,12 @@ export function onDemandEntryHandler({
         const pageKey = `${compilerType}${pagePathData.page}`
 
         if (entries[pageKey]) {
+          added.set(compilerType, promise)
+
           entries[pageKey].dispose = false
           entries[pageKey].lastActiveTime = Date.now()
           if (entries[pageKey].status === BUILT) {
             resolve!()
-            added.set(compilerType, promise)
             return promise
           }
         } else {
@@ -374,6 +375,8 @@ export function onDemandEntryHandler({
           ) {
             // Skip adding the client entry here.
           } else {
+            added.set(compilerType, promise)
+
             entryAdded = true
             entries[pageKey] = {
               type: EntryTypes.ENTRY,
@@ -384,7 +387,6 @@ export function onDemandEntryHandler({
               lastActiveTime: Date.now(),
               status: ADDED,
             }
-            added.set(compilerType, promise)
           }
         }
 
