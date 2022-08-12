@@ -16,23 +16,23 @@ describe('Middleware custom matchers basePath', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should match', async () => {
-    for (const path of ['/docs/hello', '/docs/about']) {
-      const res = await fetchViaHTTP(next.url, path)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('x-from-middleware')).toBeDefined()
-    }
+  it.each(['/docs/hello', '/docs/about'])('should match', async (path) => {
+    const res = await fetchViaHTTP(next.url, path)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-from-middleware')).toBeDefined()
   })
 
-  it('should not match', async () => {
-    for (const path of ['/hello', '/about', '/invalid/docs/hello']) {
+  it.each(['/hello', '/about', '/invalid/docs/hello'])(
+    'should not match',
+    async (path) => {
       const res = await fetchViaHTTP(next.url, path)
       expect(res.status).toBe(404)
     }
-  })
+  )
 
-  it('should match has query on client routing', async () => {
-    for (const id of ['hello', 'about']) {
+  it.each(['hello', 'about'])(
+    'should match has query on client routing',
+    async (id) => {
       const browser = await webdriver(next.url, '/docs/routes')
       await browser.eval('window.__TEST_NO_RELOAD = true')
       await browser.elementById(id).click()
@@ -41,5 +41,5 @@ describe('Middleware custom matchers basePath', () => {
       const noReload = await browser.eval('window.__TEST_NO_RELOAD')
       expect(noReload).toBe(true)
     }
-  })
+  )
 })
