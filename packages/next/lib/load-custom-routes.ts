@@ -246,7 +246,7 @@ export function checkCustomRoutes(
 
     if (type === 'header') {
       invalidParts.push(...checkHeader(route as Header))
-    } else if (type === 'rewrite' || type === 'redirect') {
+    } else if (type !== 'middleware') {
       let _route = route as Rewrite | Redirect
       if (!_route.destination) {
         invalidParts.push('`destination` is missing')
