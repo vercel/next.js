@@ -843,7 +843,7 @@ export default async function getBaseWebpackConfig(
     if (!isLocal) {
       // styled-jsx is also marked as externals here to avoid being
       // bundled in client components for RSC.
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      if (/^(?:next$|styled-jsx$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -911,7 +911,7 @@ export default async function getBaseWebpackConfig(
 
     // Forcedly resolve the styled-jsx installed by next.js,
     // since `resolveExternal` cannot find the styled-jsx dep with pnpm
-    if (['styled-jsx/style', 'styled-jsx'].includes(request)) {
+    if (request === 'styled-jsx/style') {
       resolveResult.res = require.resolve(request)
     }
 
