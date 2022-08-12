@@ -89,13 +89,11 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] =
 export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
-  initialStylesheets,
   children,
   hotReloader,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
-  initialStylesheets: string[]
   children: React.ReactNode
   hotReloader?: React.ReactNode
 }) {
@@ -293,6 +291,7 @@ export default function AppRouter({
       window.removeEventListener('popstate', onPopState)
     }
   }, [onPopState])
+
   return (
     <PathnameContext.Provider value={pathname}>
       <SearchParamsContext.Provider value={searchParams}>
@@ -311,7 +310,6 @@ export default function AppRouter({
                 // Root node always has `url`
                 // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                 url: canonicalUrl,
-                stylesheets: initialStylesheets,
               }}
             >
               <ErrorOverlay>

@@ -13,13 +13,11 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   FLIGHT_MANIFEST,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage, getPagePath } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type ManifestItem = {
   id: number | string
@@ -121,22 +119,6 @@ export async function loadComponents(
         ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
         : null,
     ])
-
-  if (hasServerComponents) {
-    try {
-      // Make sure to also load the client entry in cache.
-      const __client__ = await requirePage(
-        normalizePagePath(pathname) + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-        distDir,
-        serverless,
-        appDirEnabled
-      )
-      ComponentMod.__client__ = __client__
-    } catch (_) {
-      // This page might not be a server component page, so there is no
-      // client entry to load.
-    }
-  }
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)

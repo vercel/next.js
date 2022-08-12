@@ -626,6 +626,7 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
           .map(
             (file) =>
               'server/' +
+              // TODO-APP: seems this should be removed.
               file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
           )
       )
