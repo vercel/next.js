@@ -30,7 +30,6 @@ import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
 import {
   NEXT_BUILTIN_DOCUMENT,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -211,6 +210,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected appPathRoutes?: Record<string, string>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
+  protected serverCSSManifest?: any
   public readonly hostname?: string
   public readonly port?: number
 
@@ -245,6 +245,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
+  protected abstract getServerCSSManifest(): any
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
     parsedUrl: NextUrlWithParsedQuery
@@ -330,6 +331,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const serverComponents = this.nextConfig.experimental.serverComponents
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
+      : undefined
+    this.serverCSSManifest = serverComponents
+      ? this.getServerCSSManifest()
       : undefined
 
     this.renderOpts = {
@@ -1046,9 +1050,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const appPathRoutes: Record<string, string> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      if (entry.endsWith(NEXT_CLIENT_SSR_ENTRY_SUFFIX)) {
-        return
-      }
       appPathRoutes[normalizeAppPath(entry) || '/'] = entry
     })
     return appPathRoutes

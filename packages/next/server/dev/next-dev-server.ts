@@ -30,6 +30,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
+  COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
@@ -376,7 +377,7 @@ export default class DevServer extends Server {
             continue
           }
 
-          runDependingOnPageType({
+          await runDependingOnPageType({
             page: pageName,
             pageRuntime: staticInfo.runtime,
             onClient: () => {},
@@ -836,7 +837,7 @@ export default class DevServer extends Server {
 
           const src = getErrorSource(err as Error)
           const compilation = (
-            src === 'edge-server'
+            src === COMPILER_NAMES.edgeServer
               ? this.hotReloader?.edgeServerStats?.compilation
               : this.hotReloader?.serverStats?.compilation
           )!
@@ -865,7 +866,7 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (src === 'edge-server') {
+            if (src === COMPILER_NAMES.edgeServer) {
               err = err.message
             }
             if (type === 'warning') {
@@ -936,6 +937,10 @@ export default class DevServer extends Server {
   }
 
   protected getServerComponentManifest() {
+    return undefined
+  }
+
+  protected getServerCSSManifest() {
     return undefined
   }
 
@@ -1123,7 +1128,7 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async ensureApiPage(pathname: string) {
+  protected async ensureApiPage(pathname: string): Promise<void> {
     return this.hotReloader!.ensurePage(pathname)
   }
 
@@ -1148,6 +1153,7 @@ export default class DevServer extends Server {
       // manifest.
       if (serverComponents) {
         this.serverComponentManifest = super.getServerComponentManifest()
+        this.serverCSSManifest = super.getServerCSSManifest()
       }
 
       return super.findPageComponents(pathname, query, params, isAppDir)

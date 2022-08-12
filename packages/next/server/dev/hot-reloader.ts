@@ -21,16 +21,14 @@ import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
-import {
-  BLOCKED_PAGES,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-} from '../../shared/lib/constants'
+import { BLOCKED_PAGES, COMPILER_NAMES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
   entries,
+  EntryTypes,
   getInvalidator,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
@@ -50,7 +48,6 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
-import { stringify } from 'querystring'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -457,17 +454,17 @@ export default class HotReloader {
           Promise.all([
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'client',
+              compilerType: COMPILER_NAMES.client,
               entrypoints: entrypoints.client,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'server',
+              compilerType: COMPILER_NAMES.server,
               entrypoints: entrypoints.server,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'edge-server',
+              compilerType: COMPILER_NAMES.edgeServer,
               entrypoints: entrypoints.edgeServer,
             }),
           ])
@@ -481,7 +478,7 @@ export default class HotReloader {
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
       runWebpackSpan: this.hotReloaderSpan,
       dev: true,
-      compilerType: 'client',
+      compilerType: COMPILER_NAMES.client,
       config: this.config,
       buildId: this.buildId,
       pagesDir: this.pagesDir,
@@ -550,51 +547,60 @@ export default class HotReloader {
       config.entry = async (...args) => {
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
-        const isClientCompilation = config.name === 'client'
-        const isNodeServerCompilation = config.name === 'server'
-        const isEdgeServerCompilation = config.name === 'edge-server'
+        const isClientCompilation = config.name === COMPILER_NAMES.client
+        const isNodeServerCompilation = config.name === COMPILER_NAMES.server
+        const isEdgeServerCompilation =
+          config.name === COMPILER_NAMES.edgeServer
 
         await Promise.all(
-          Object.keys(entries).map(async (pageKey) => {
-            const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+          Object.keys(entries).map(async (entryKey) => {
+            const entryData = entries[entryKey]
+            const { bundlePath, dispose } = entryData
 
-            // @FIXME
-            const { clientLoader } = entries[pageKey] as any
-
-            const result = /^(client|server|edge-server)(.*)/g.exec(pageKey)
+            const result = /^(client|server|edge-server)(.*)/g.exec(entryKey)
             const [, key, page] = result! // this match should always happen
-            if (key === 'client' && !isClientCompilation) return
-            if (key === 'server' && !isNodeServerCompilation) return
-            if (key === 'edge-server' && !isEdgeServerCompilation) return
+            if (key === COMPILER_NAMES.client && !isClientCompilation) return
+            if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
+              return
+            if (key === COMPILER_NAMES.edgeServer && !isEdgeServerCompilation)
+              return
+
+            const isEntry = entryData.type === EntryTypes.ENTRY
+            const isChildEntry = entryData.type === EntryTypes.CHILD_ENTRY
 
             // Check if the page was removed or disposed and remove it
-            const pageExists = !dispose && (await fileExists(absolutePagePath))
-            if (!pageExists) {
-              delete entries[pageKey]
-              return
+            if (isEntry) {
+              const pageExists =
+                !dispose && (await fileExists(entryData.absolutePagePath))
+              if (!pageExists) {
+                delete entries[entryKey]
+                return
+              }
             }
 
-            const isServerComponent =
-              serverComponentRegex.test(absolutePagePath)
-            const isInsideAppDir =
-              this.appDir && absolutePagePath.startsWith(this.appDir)
+            const isServerComponent = isEntry
+              ? serverComponentRegex.test(entryData.absolutePagePath)
+              : false
 
-            const staticInfo = await getPageStaticInfo({
-              pageFilePath: absolutePagePath,
-              nextConfig: this.config,
-            })
+            const staticInfo = isEntry
+              ? await getPageStaticInfo({
+                  pageFilePath: entryData.absolutePagePath,
+                  nextConfig: this.config,
+                })
+              : {}
 
-            runDependingOnPageType({
+            await runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
               onEdgeServer: () => {
-                if (!isEdgeServerCompilation) return
-                entries[pageKey].status = BUILDING
+                // TODO-APP: verify if child entry should support.
+                if (!isEdgeServerCompilation || !isEntry) return
+                entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
-                  compilerType: 'edge-server',
+                  compilerType: COMPILER_NAMES.edgeServer,
                   name: bundlePath,
                   value: getEdgeServerEntry({
-                    absolutePagePath,
+                    absolutePagePath: entryData.absolutePagePath,
                     buildId: this.buildId,
                     bundlePath,
                     config: this.config,
@@ -608,28 +614,21 @@ export default class HotReloader {
               },
               onClient: () => {
                 if (!isClientCompilation) return
-                if (isServerComponent || isInsideAppDir) {
-                  entries[pageKey].status = BUILDING
+                if (isChildEntry) {
+                  entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: 'client',
-                    value:
-                      `next-client-pages-loader?${stringify({
-                        isServerComponent,
-                        page: denormalizePagePath(
-                          bundlePath.replace(/^pages/, '')
-                        ),
-                        absolutePagePath: clientLoader,
-                      })}!` + clientLoader,
+                    compilerType: COMPILER_NAMES.client,
+                    value: entryData.request,
                     appDir: this.config.experimental.appDir,
                   })
                 } else {
-                  entries[pageKey].status = BUILDING
+                  entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: 'client',
+                    compilerType: COMPILER_NAMES.client,
                     value: getClientEntry({
-                      absolutePagePath,
+                      absolutePagePath: entryData.absolutePagePath,
                       page,
                     }),
                     appDir: this.config.experimental.appDir,
@@ -637,11 +636,18 @@ export default class HotReloader {
                 }
               },
               onServer: () => {
-                if (!isNodeServerCompilation) return
-                entries[pageKey].status = BUILDING
-                let request = relative(config.context!, absolutePagePath)
-                if (!isAbsolute(request) && !request.startsWith('../')) {
-                  request = `./${request}`
+                // TODO-APP: verify if child entry should support.
+                if (!isNodeServerCompilation || !isEntry) return
+                entries[entryKey].status = BUILDING
+                let relativeRequest = relative(
+                  config.context!,
+                  entryData.absolutePagePath
+                )
+                if (
+                  !isAbsolute(relativeRequest) &&
+                  !relativeRequest.startsWith('../')
+                ) {
+                  relativeRequest = `./${relativeRequest}`
                 }
 
                 entrypoints[bundlePath] = finalizeEntrypoint({
@@ -654,12 +660,12 @@ export default class HotReloader {
                           name: bundlePath,
                           pagePath: join(
                             APP_DIR_ALIAS,
-                            relative(this.appDir!, absolutePagePath)
+                            relative(this.appDir!, entryData.absolutePagePath)
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
                         })
-                      : request,
+                      : relativeRequest,
                   appDir: this.config.experimental.appDir,
                 })
               },
@@ -699,8 +705,7 @@ export default class HotReloader {
           stats.entrypoints.forEach((entry, key) => {
             if (
               key.startsWith('pages/') ||
-              (key.startsWith('app/') &&
-                !key.endsWith(NEXT_CLIENT_SSR_ENTRY_SUFFIX)) ||
+              key.startsWith('app/') ||
               isMiddlewareFilename(key)
             ) {
               // TODO this doesn't handle on demand loaded chunks
@@ -991,7 +996,10 @@ export default class HotReloader {
     )
   }
 
-  public async ensurePage(page: string, clientOnly: boolean = false) {
+  public async ensurePage(
+    page: string,
+    clientOnly: boolean = false
+  ): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
