@@ -7,8 +7,6 @@ import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
-  NEXT_PROJECT_ROOT,
-  NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
@@ -63,6 +61,10 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
+
+const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
+const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
+const NEXT_PROJECT_ROOT_DIST_CLIENT = pathJoin(NEXT_PROJECT_ROOT_DIST, 'client')
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,

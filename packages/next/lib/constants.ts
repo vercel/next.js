@@ -1,12 +1,4 @@
 import type { ServerRuntime } from '../types'
-import { join } from '../shared/lib/isomorphic/path'
-
-export const NEXT_PROJECT_ROOT = join(__dirname, '..', '..')
-export const NEXT_PROJECT_ROOT_DIST = join(NEXT_PROJECT_ROOT, 'dist')
-export const NEXT_PROJECT_ROOT_DIST_CLIENT = join(
-  NEXT_PROJECT_ROOT_DIST,
-  'client'
-)
 
 // Regex for API routes
 export const API_ROUTE = /^\/api(?:\/|$)/
