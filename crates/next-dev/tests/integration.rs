@@ -12,7 +12,7 @@ use lazy_static::lazy_static;
 use next_dev::{register, NextDevServerBuilder};
 use serde::Deserialize;
 use test_generator::test_resources;
-use tokio::task::JoinHandle;
+use tokio::{net::TcpSocket, task::JoinHandle};
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbo_tasks::TurboTasks;
 use turbo_tasks_memory::MemoryBackend;
@@ -116,6 +116,7 @@ async fn run_test(resource: &str) -> JestRunResult {
         test_entry.to_str().unwrap()
     );
 
+    let requested_addr = get_free_local_addr().unwrap();
     let server = NextDevServerBuilder::new()
         .turbo_tasks(TurboTasks::new(MemoryBackend::new()))
         .project_dir("tests".into())
@@ -129,8 +130,8 @@ async fn run_test(resource: &str) -> JestRunResult {
                 .replace('\\', "/"),
         )
         .eager_compile(false)
-        .hostname("127.0.0.1".parse().unwrap())
-        .port(portpicker::pick_unused_port().unwrap())
+        .hostname(requested_addr.ip())
+        .port(requested_addr.port())
         .build()
         .await
         .unwrap();
@@ -200,4 +201,10 @@ async fn run_test_browser(addr: SocketAddr) -> Result<JestRunResult, Box<dyn std
     page.wait_for_navigation().await?;
 
     Ok(page.evaluate("__jest__.run()").await?.into_value()?)
+}
+
+fn get_free_local_addr() -> Result<SocketAddr, std::io::Error> {
+    let socket = TcpSocket::new_v4()?;
+    socket.bind("127.0.0.1:0".parse().unwrap())?;
+    socket.local_addr()
 }
