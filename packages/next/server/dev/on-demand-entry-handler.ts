@@ -398,34 +398,34 @@ export function onDemandEntryHandler({
       const isInsideAppDir =
         appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-      const addPageEntry = (
+      const addEntry = (
         compilerType: CompilerNameValues
       ): {
-        pageKey: string
+        entryKey: string
         newEntry: boolean
         shouldInvalidate: boolean
       } => {
-        const pageKey = `${compilerType}${pagePathData.page}`
+        const entryKey = `${compilerType}${pagePathData.page}`
 
-        if (entries[pageKey]) {
-          entries[pageKey].dispose = false
-          entries[pageKey].lastActiveTime = Date.now()
-          if (entries[pageKey].status === BUILT) {
+        if (entries[entryKey]) {
+          entries[entryKey].dispose = false
+          entries[entryKey].lastActiveTime = Date.now()
+          if (entries[entryKey].status === BUILT) {
             return {
-              pageKey,
+              entryKey,
               newEntry: false,
               shouldInvalidate: false,
             }
           }
 
           return {
-            pageKey,
+            entryKey,
             newEntry: false,
             shouldInvalidate: true,
           }
         }
 
-        entries[pageKey] = {
+        entries[entryKey] = {
           type: EntryTypes.ENTRY,
           absolutePagePath: pagePathData.absolutePagePath,
           request: pagePathData.absolutePagePath,
@@ -436,7 +436,7 @@ export function onDemandEntryHandler({
         }
 
         return {
-          pageKey,
+          entryKey: entryKey,
           newEntry: true,
           shouldInvalidate: true,
         }
@@ -447,10 +447,7 @@ export function onDemandEntryHandler({
         nextConfig,
       })
 
-      const added = new Map<
-        CompilerNameValues,
-        ReturnType<typeof addPageEntry>
-      >()
+      const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
 
       await runDependingOnPageType({
         page: pagePathData.page,
@@ -460,15 +457,15 @@ export function onDemandEntryHandler({
           if (isServerComponent || isInsideAppDir) {
             return
           }
-          added.set(COMPILER_NAMES.client, addPageEntry(COMPILER_NAMES.client))
+          added.set(COMPILER_NAMES.client, addEntry(COMPILER_NAMES.client))
         },
         onServer: () => {
-          added.set(COMPILER_NAMES.server, addPageEntry(COMPILER_NAMES.server))
+          added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
         },
         onEdgeServer: () => {
           added.set(
             COMPILER_NAMES.edgeServer,
-            addPageEntry(COMPILER_NAMES.edgeServer)
+            addEntry(COMPILER_NAMES.edgeServer)
           )
         },
       })
@@ -489,9 +486,9 @@ export function onDemandEntryHandler({
 
       if (entriesThatShouldBeInvalidated.length > 0) {
         const invalidatePromises = entriesThatShouldBeInvalidated.map(
-          ({ pageKey }) => {
+          ({ entryKey }) => {
             return new Promise<void>((resolve, reject) => {
-              doneCallbacks!.once(pageKey, (err: Error) => {
+              doneCallbacks!.once(entryKey, (err: Error) => {
                 if (err) {
                   return reject(err)
                 }
