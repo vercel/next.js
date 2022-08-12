@@ -691,8 +691,8 @@ export default async function getBaseWebpackConfig(
       'react-dom/server$': `${reactDomDir}/server`,
       'react-dom/server.browser$': `${reactDomDir}/server.browser`,
       'react-dom/client$': `${reactDomDir}/client`,
-      'styled-jsx/style$': require.resolve(`next/dist/styled-jsx/style`),
-      'styled-jsx$': require.resolve(`next/dist/styled-jsx`),
+      'styled-jsx/style$': require.resolve(`styled-jsx/style`),
+      'styled-jsx$': require.resolve(`styled-jsx`),
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -846,7 +846,9 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      // styled-jsx is also marked as externals here to avoid being
+      // bundled in client components for RSC.
+      if (/^(?:next$|styled-jsx$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -868,11 +870,11 @@ export default async function getBaseWebpackConfig(
     const isEsmRequested = dependencyType === 'esm'
 
     const isLocalCallback = (localRes: string) => {
-      // Makes sure dist/styled-jsx, dist/shared and dist/server are not bundled
+      // Makes sure dist/shared and dist/server are not bundled
       // we need to process shared `router/router` and `dynamic`,
       // so that the DefinePlugin can inject process.env values
       const isNextExternal =
-        /next[/\\]dist[/\\](styled-jsx|shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
           localRes
         )
 
@@ -911,6 +913,13 @@ export default async function getBaseWebpackConfig(
     if ('localRes' in resolveResult) {
       return resolveResult.localRes
     }
+
+    // Forcedly resolve the styled-jsx installed by next.js,
+    // since `resolveExternal` cannot find the styled-jsx dep with pnpm
+    if (request === 'styled-jsx/style') {
+      resolveResult.res = require.resolve(request)
+    }
+
     const { res, isEsm } = resolveResult
 
     // If the request cannot be resolved we need to have
