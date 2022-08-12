@@ -656,7 +656,12 @@ pub async fn read_matches(
                         } else {
                             context.try_join(str).await?
                         } {
-                            if !force_in_context || fs_path.await?.is_inside(&*context.await?) {
+                            // This explicit deref of `context` is necessary
+                            #[allow(clippy::explicit_auto_deref)]
+                            let should_match =
+                                !force_in_context || fs_path.await?.is_inside(&*context.await?);
+
+                            if should_match {
                                 let len = prefix.len();
                                 prefix.push_str(str);
                                 match *fs_path.get_type().await? {

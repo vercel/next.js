@@ -33,7 +33,9 @@ impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<FileContentVc> {
         let context = self.entry.path().parent().await?;
-        let self_path = context.get_relative_path_to(&*self.entry.path().await?);
+        // For clippy -- This explicit deref is necessary
+        let entry_path = &*self.entry.path().await?;
+        let self_path = context.get_relative_path_to(entry_path);
         let mut result = Vec::new();
         let set = all_assets(self.entry);
         for asset in set.await?.iter() {

@@ -906,7 +906,7 @@ impl VisitAstPath for Analyzer<'_> {
             }
             BlockStmtOrExpr::Expr(inner_expr) => {
                 expr.visit_children_with_path(self, ast_path);
-                let return_value = self.eval_context.eval(&**inner_expr);
+                let return_value = self.eval_context.eval(inner_expr);
 
                 JsValue::function(box return_value)
             }

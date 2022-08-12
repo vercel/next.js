@@ -219,7 +219,9 @@ impl ResolveResultVc {
         if let Some(current) = iter.next() {
             let mut current = current.await?.clone();
             for result in iter {
-                current.merge_alternatives(&*result.await?);
+                // For clippy -- This explicit deref is necessary
+                let other = &*result.await?;
+                current.merge_alternatives(other);
             }
             Ok(Self::cell(current))
         } else {
@@ -248,8 +250,10 @@ impl ResolveResultVc {
             for reference in references {
                 current.add_reference(reference)
             }
-            for result in iter {
-                current.merge_alternatives(&*result.await?);
+            for result_vc in iter {
+                // For clippy -- This explicit deref is necessary
+                let result = &*result_vc.await?;
+                current.merge_alternatives(result);
             }
             Ok(Self::cell(current))
         } else {
@@ -399,10 +403,12 @@ async fn find_package(
     let options = options.await?;
     for resolve_modules in &options.modules {
         match resolve_modules {
-            ResolveModules::Nested(root, names) => {
+            ResolveModules::Nested(root_vc, names) => {
                 let mut context = context;
                 let mut context_value = context.await?;
-                while context_value.is_inside(&*root.await?) {
+                // For clippy -- This explicit deref is necessary
+                let root = &*root_vc.await?;
+                while context_value.is_inside(root) {
                     for name in names.iter() {
                         if let Some(nested_path) = join_path(&context_value.path, name) {
                             let fs_path =
@@ -546,7 +552,7 @@ pub async fn resolve(
             let result = resolved_map.lookup(fs_path).await?;
             if !matches!(&*result, ImportMapResult::NoEntry) {
                 return Ok(resolve_import_map_result(
-                    &*result,
+                    &result,
                     fs_path.parent(),
                     options,
                 ));
@@ -666,13 +672,16 @@ pub async fn resolve(
         Ok(ResolveResult::unresolveable().into())
     }
 
+    // This explicit deref of `context` is necessary
+    #[allow(clippy::explicit_auto_deref)]
     let options_value: &ResolveOptions = &*options.await?;
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {
-        let result = import_map.lookup(request).await?;
-        if !matches!(&*result, ImportMapResult::NoEntry) {
-            return Ok(resolve_import_map_result(&*result, context, options));
+        let result_vc = import_map.lookup(request).await?;
+        let result = &*result_vc;
+        if !matches!(result, ImportMapResult::NoEntry) {
+            return Ok(resolve_import_map_result(result, context, options));
         }
     }
 

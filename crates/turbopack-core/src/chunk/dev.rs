@@ -25,16 +25,18 @@ impl ChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
     async fn as_chunk_path(
         &self,
-        path: FileSystemPathVc,
+        path_vc: FileSystemPathVc,
         extension: &str,
     ) -> Result<FileSystemPathVc> {
         fn clean(s: &str) -> String {
             s.replace('/', "_")
         }
-        let mut name = if let Some(inner) = self.context_path.await?.get_path_to(&*path.await?) {
+        // For clippy -- This explicit deref is necessary
+        let path = &*path_vc.await?;
+        let mut name = if let Some(inner) = self.context_path.await?.get_path_to(path) {
             clean(inner)
         } else {
-            clean(&path.to_string().await?)
+            clean(&path_vc.to_string().await?)
         };
         if !name.ends_with(extension) {
             name += extension;

@@ -28,8 +28,8 @@ impl Asset for DevHtmlAsset {
 
         for chunk_group in &self.chunk_groups {
             for chunk in chunk_group.chunks().await?.iter() {
-                if let Some(p) = context_path.get_relative_path_to(&*chunk.as_asset().path().await?)
-                {
+                let chunk_path = &*chunk.as_asset().path().await?;
+                if let Some(p) = context_path.get_relative_path_to(chunk_path) {
                     if p.ends_with(".js") {
                         scripts.push(format!("<script src=\"{}\"></script>", p));
                     } else if p.ends_with(".css") {

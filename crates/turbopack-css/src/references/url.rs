@@ -91,7 +91,7 @@ impl CodeGenerateable for UrlAssetReference {
         if let ReferencedAsset::Some(asset) = &*self_vc.get_referenced_asset(context).await? {
             let path = asset.path().await?;
             let relative_path = context_path
-                .get_relative_path_to(&*path)
+                .get_relative_path_to(&path)
                 .unwrap_or_else(|| format!("/{}", path.path));
 
             visitors.push(

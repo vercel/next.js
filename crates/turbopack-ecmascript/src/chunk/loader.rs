@@ -62,7 +62,9 @@ impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
         let placeable = EcmascriptChunkPlaceableVc::resolve_from(self.asset)
             .await?
             .unwrap();
-        let id = stringify_module_id(&*chunk_context.id(placeable).await?);
+        // For clippy -- This explicit deref is necessary
+        let module_id = &*chunk_context.id(placeable).await?;
+        let id = stringify_module_id(module_id);
 
         let mut chunk_ids = HashSet::new();
         for chunk in chunks.iter() {
@@ -70,11 +72,10 @@ impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
             let fs = chunk.path();
             let id = fs.to_string().await?.to_string();
             // Or why the pathname can't be found from the chunk.path().
-            let pathname = fs
-                .root()
-                .await?
-                .get_relative_path_to(&*chunk.as_asset().path().await?)
-                .unwrap();
+            let root = fs.root().await?;
+            // For clippy -- This explicit deref is necessary
+            let asset_path = &*chunk.as_asset().path().await?;
+            let pathname = root.get_relative_path_to(asset_path).unwrap();
             chunk_ids.insert((id, pathname));
         }
 
