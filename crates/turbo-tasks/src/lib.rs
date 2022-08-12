@@ -1,4 +1,3 @@
-#![feature(backtrace)]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(try_trait_v2)]
@@ -7,6 +6,8 @@
 #![feature(generic_associated_types)]
 #![feature(result_flattening)]
 #![feature(box_syntax)]
+#![feature(error_generic_member_access)]
+#![feature(provide_any)]
 
 pub mod backend;
 mod collectibles;

@@ -26,8 +26,8 @@ impl std::error::Error for SharedError {
         self.inner.source()
     }
 
-    fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
-        Some(self.inner.backtrace())
+    fn provide<'a>(&'a self, req: &mut std::any::Demand<'a>) {
+        self.inner.provide(req);
     }
 }
 
