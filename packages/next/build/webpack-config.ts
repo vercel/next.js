@@ -841,7 +841,9 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      // styled-jsx is also marked as externals here to avoid being
+      // bundled in client components for RSC.
+      if (/^(?:next$|styled-jsx$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -863,11 +865,11 @@ export default async function getBaseWebpackConfig(
     const isEsmRequested = dependencyType === 'esm'
 
     const isLocalCallback = (localRes: string) => {
-      // Makes sure dist/styled-jsx, dist/shared and dist/server are not bundled
+      // Makes sure dist/shared and dist/server are not bundled
       // we need to process shared `router/router` and `dynamic`,
       // so that the DefinePlugin can inject process.env values
       const isNextExternal =
-        /next[/\\]dist[/\\](styled-jsx|shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
           localRes
         )
 
