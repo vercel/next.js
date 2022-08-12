@@ -165,6 +165,60 @@ const doneCallbacks: EventEmitter | null = new EventEmitter()
 const lastClientAccessPages = ['']
 const lastServerAccessPagesForAppDir = ['']
 
+type BuildingTracker = Set<CompilerNameValues>
+type RebuildTracker = Set<CompilerNameValues>
+
+// Make sure only one invalidation happens at a time
+// Otherwise, webpack hash gets changed and it'll force the client to reload.
+class Invalidator {
+  private multiCompiler: webpack.MultiCompiler
+
+  private building: BuildingTracker = new Set()
+  private rebuildAgain: RebuildTracker = new Set()
+
+  constructor(multiCompiler: webpack.MultiCompiler) {
+    this.multiCompiler = multiCompiler
+  }
+
+  public shouldRebuildAll() {
+    return this.rebuildAgain.size > 0
+  }
+
+  invalidate(compilerKeys: typeof COMPILER_KEYS = COMPILER_KEYS): void {
+    for (const key of compilerKeys) {
+      // If there's a current build is processing, we won't abort it by invalidating.
+      // (If aborted, it'll cause a client side hard reload)
+      // But let it to invalidate just after the completion.
+      // So, it can re-build the queued pages at once.
+
+      if (this.building.has(key)) {
+        this.rebuildAgain.add(key)
+        continue
+      }
+
+      this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching?.invalidate()
+      this.building.add(key)
+    }
+  }
+
+  public startBuilding(compilerKey: keyof typeof COMPILER_INDEXES) {
+    this.building.add(compilerKey)
+  }
+
+  public doneBuilding() {
+    const rebuild: typeof COMPILER_KEYS = []
+    for (const key of COMPILER_KEYS) {
+      this.building.delete(key)
+
+      if (this.rebuildAgain.has(key)) {
+        rebuild.push(key)
+        this.rebuildAgain.delete(key)
+      }
+    }
+    this.invalidate(rebuild)
+  }
+}
+
 export function onDemandEntryHandler({
   maxInactiveAge,
   multiCompiler,
@@ -486,71 +540,6 @@ function disposeInactiveEntries(maxInactiveAge: number) {
       entries[entryKey].dispose = true
     }
   })
-}
-
-type BuildingTracker = {
-  -readonly [compilerKey in CompilerNameValues]: boolean
-}
-
-type RebuildTracker = {
-  -readonly [compilerKey in CompilerNameValues]: boolean
-}
-// Make sure only one invalidation happens at a time
-// Otherwise, webpack hash gets changed and it'll force the client to reload.
-class Invalidator {
-  private multiCompiler: webpack.MultiCompiler
-  private building: BuildingTracker = {
-    [COMPILER_NAMES.client]: false,
-    [COMPILER_NAMES.server]: false,
-    [COMPILER_NAMES.edgeServer]: false,
-  }
-  private rebuildAgain: RebuildTracker = {
-    [COMPILER_NAMES.client]: false,
-    [COMPILER_NAMES.server]: false,
-    [COMPILER_NAMES.edgeServer]: false,
-  }
-
-  constructor(multiCompiler: webpack.MultiCompiler) {
-    this.multiCompiler = multiCompiler
-  }
-
-  public shouldRebuildAll() {
-    return keys(this.rebuildAgain).some((key) => this.rebuildAgain[key])
-  }
-
-  invalidate(compilerKeys: typeof COMPILER_KEYS = COMPILER_KEYS): void {
-    for (const key of compilerKeys) {
-      // If there's a current build is processing, we won't abort it by invalidating.
-      // (If aborted, it'll cause a client side hard reload)
-      // But let it to invalidate just after the completion.
-      // So, it can re-build the queued pages at once.
-
-      if (this.building[key]) {
-        this.rebuildAgain[key] = true
-        continue
-      }
-
-      this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching?.invalidate()
-      this.building[key] = true
-    }
-  }
-
-  public startBuilding(compilerKey: keyof typeof COMPILER_INDEXES) {
-    this.building[compilerKey] = true
-  }
-
-  public doneBuilding() {
-    const rebuild: typeof COMPILER_KEYS = []
-    for (const key of COMPILER_KEYS) {
-      this.building[key] = false
-
-      if (this.rebuildAgain[key]) {
-        rebuild.push(key)
-        this.rebuildAgain[key] = false
-      }
-    }
-    this.invalidate(rebuild)
-  }
 }
 
 /**
