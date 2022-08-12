@@ -1,0 +1,16 @@
+[package]
+name = "turbopack-create-test-app"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "turbopack-create-test-app"
+path = "src/main.rs"
+bench = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+tempfile = "3.3.0"
