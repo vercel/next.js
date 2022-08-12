@@ -15,12 +15,16 @@ import {
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   SERVER_RUNTIME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CompilerNameValues,
+  COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -203,7 +207,7 @@ export function getEdgeServerEntry(opts: {
 
   return {
     import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
-    layer: opts.isServerComponent ? 'sc_server' : undefined,
+    layer: opts.isServerComponent ? WEBPACK_LAYERS.server : undefined,
   }
 }
 
@@ -215,7 +219,7 @@ export function getAppEntry(opts: {
 }) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
-    layer: 'sc_server',
+    layer: WEBPACK_LAYERS.server,
   }
 }
 
@@ -359,7 +363,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         }
       }
 
-      runDependingOnPageType({
+      await runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
         onClient: () => {
@@ -393,7 +397,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             server[serverBundlePath] = isServerComponent
               ? {
                   import: mappings[page],
-                  layer: 'sc_server',
+                  layer: WEBPACK_LAYERS.server,
                 }
               : [mappings[page]]
           }
@@ -435,33 +439,46 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   }
 }
 
-export function runDependingOnPageType<T>(params: {
+export async function runDependingOnPageType<T>(params: {
   onClient: () => T
   onEdgeServer: () => T
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
-}) {
+}): Promise<void> {
   if (isMiddlewareFile(params.page)) {
-    return { edgeServer: params.onEdgeServer() }
-  } else if (params.page.match(API_ROUTE)) {
-    return params.pageRuntime === SERVER_RUNTIME.edge
-      ? { edgeServer: params.onEdgeServer() }
-      : { server: params.onServer() }
-  } else if (params.page === '/_document') {
-    return { server: params.onServer() }
-  } else if (
+    await params.onEdgeServer()
+    return
+  }
+  if (params.page.match(API_ROUTE)) {
+    if (params.pageRuntime === SERVER_RUNTIME.edge) {
+      await params.onEdgeServer()
+      return
+    }
+
+    await params.onServer()
+    return
+  }
+  if (params.page === '/_document') {
+    await params.onServer()
+    return
+  }
+  if (
     params.page === '/_app' ||
     params.page === '/_error' ||
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    return { client: params.onClient(), server: params.onServer() }
-  } else {
-    return params.pageRuntime === SERVER_RUNTIME.edge
-      ? { client: params.onClient(), edgeServer: params.onEdgeServer() }
-      : { client: params.onClient(), server: params.onServer() }
+    await Promise.all([params.onClient(), params.onServer()])
+    return
   }
+  if (params.pageRuntime === SERVER_RUNTIME.edge) {
+    await Promise.all([params.onClient(), params.onEdgeServer()])
+    return
+  }
+
+  await Promise.all([params.onClient(), params.onServer()])
+  return
 }
 
 export function finalizeEntrypoint({
@@ -471,7 +488,7 @@ export function finalizeEntrypoint({
   isServerComponent,
   appDir,
 }: {
-  compilerType?: 'client' | 'server' | 'edge-server'
+  compilerType?: CompilerNameValues
   name: string
   value: ObjectValue<webpack5.EntryObject>
   isServerComponent?: boolean
@@ -483,18 +500,25 @@ export function finalizeEntrypoint({
       : value
 
   const isApi = name.startsWith('pages/api/')
-  if (compilerType === 'server') {
+  if (compilerType === COMPILER_NAMES.server) {
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-      layer: isApi ? 'api' : isServerComponent ? 'sc_server' : undefined,
+      layer: isApi
+        ? WEBPACK_LAYERS.api
+        : isServerComponent
+        ? WEBPACK_LAYERS.server
+        : undefined,
       ...entry,
     }
   }
 
-  if (compilerType === 'edge-server') {
+  if (compilerType === COMPILER_NAMES.edgeServer) {
     return {
-      layer: isMiddlewareFilename(name) || isApi ? 'middleware' : undefined,
+      layer:
+        isMiddlewareFilename(name) || isApi
+          ? WEBPACK_LAYERS.middleware
+          : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,
@@ -504,7 +528,7 @@ export function finalizeEntrypoint({
 
   if (
     // Client special cases
-    name !== 'polyfills' &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
     name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
     name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&

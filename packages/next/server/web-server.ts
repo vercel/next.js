@@ -127,6 +127,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
     return undefined
   }
+  protected getServerCSSManifest() {
+    // TODO-APP: Support web server.
+    return undefined
+  }
   protected async renderHTML(
     req: WebNextRequest,
     _res: WebNextResponse,
