@@ -1018,23 +1018,19 @@ export async function renderToHTMLOrFlight(
     }
   )
 
-  let flushEffectsHandler: (() => React.ReactNode) | null = null
+  const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
   function FlushEffects({ children }: { children: JSX.Element }) {
     // Reset flushEffectsHandler on each render
-    flushEffectsHandler = null
-    const setFlushEffectsHandler = React.useCallback(
+    flushEffectsCallbacks.clear()
+    const addFlushEffects = React.useCallback(
       (handler: () => React.ReactNode) => {
-        if (flushEffectsHandler)
-          throw new Error(
-            'The `useFlushEffects` hook cannot be used more than once.'
-          )
-        flushEffectsHandler = handler
+        flushEffectsCallbacks.add(handler)
       },
       []
     )
 
     return (
-      <FlushEffectsContext.Provider value={setFlushEffectsHandler}>
+      <FlushEffectsContext.Provider value={addFlushEffects}>
         {children}
       </FlushEffectsContext.Provider>
     )
@@ -1063,7 +1059,7 @@ export async function renderToHTMLOrFlight(
 
     const flushEffectHandler = (): string => {
       const flushed = ReactDOMServer.renderToString(
-        <>{flushEffectsHandler && flushEffectsHandler()}</>
+        <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
       )
       return flushed
     }
