@@ -21,12 +21,12 @@ describe('Dynamic Route Interpolation', () => {
           export default function Page(props) { 
             const router = useRouter()
             return (
-              <div>
+              <>
                 <p id="slug">{props.slug}</p>
                 <Link href={router.asPath}>
                   <a id="now">{props.now}</a>
                 </Link>
-              </div>
+              </>
             )
           }
         `,
