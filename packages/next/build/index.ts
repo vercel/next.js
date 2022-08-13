@@ -57,6 +57,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
   COMPILER_NAMES,
   APP_BUILD_MANIFEST,
+  FLIGHT_SERVER_CSS_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -708,6 +709,10 @@ export default async function build(
               ? [
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    FLIGHT_SERVER_CSS_MANIFEST + '.json'
+                  ),
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
