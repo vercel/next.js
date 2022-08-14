@@ -44,50 +44,20 @@ export async function copy_regenerator_runtime(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function copy_styled_jsx_assets(task, opts) {
-  // we copy the styled-jsx assets and types so that we can reference them
+  // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
   // package is hoisted out of Next.js' node_modules or not
   const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
   const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
-  const jsFiles = glob.sync('**/{index,style,babel,babel-test}.js', {
-    cwd: styledJsxPath,
-  })
   const outputDir = join(__dirname, 'dist/styled-jsx')
   // Separate type files into different folders to avoid conflicts between
   // dev dep `styled-jsx` and `next/dist/styled-jsx` for duplicated declare modules
   const typesDir = join(outputDir, 'types')
-  let typeReferences = ''
-  let globalTypesContent = ''
-
-  await fs.ensureDir(outputDir)
   await fs.ensureDir(typesDir)
 
   for (const file of typeFiles) {
-    const fileNoExt = file.replace(/\.d\.ts/, '')
-    let content = await fs.readFile(join(styledJsxPath, file), 'utf8')
-
-    if (file === 'index.d.ts') {
-      const styledJsxIdx = content.indexOf(`declare module 'styled-jsx' {`)
-      globalTypesContent = content.substring(0, styledJsxIdx)
-      content = content
-        .substring(styledJsxIdx)
-        .replace('React.', `import('react').`)
-    }
-
-    await fs.writeFile(join(typesDir, file), content)
-    typeReferences += `/// <reference types="./${fileNoExt}" />\n`
-  }
-
-  await fs.writeFile(
-    join(typesDir, 'global.d.ts'),
-    `${typeReferences}\n${globalTypesContent}`
-  )
-
-  for (const file of jsFiles) {
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
-    const distFile = join(outputDir, file)
-    await fs.ensureDir(dirname(distFile))
-    await fs.writeFile(distFile, content)
+    await fs.writeFile(join(typesDir, file), content)
   }
 }
 

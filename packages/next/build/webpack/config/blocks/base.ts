@@ -1,5 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { COMPILER_NAMES } from '../../../../shared/lib/constants'
 import { ConfigurationContext } from '../utils'
 
 export const base = curry(function base(
@@ -9,9 +10,9 @@ export const base = curry(function base(
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer
     ? ctx.isEdgeRuntime
-      ? 'edge-server'
-      : 'server'
-    : 'client'
+      ? COMPILER_NAMES.edgeServer
+      : COMPILER_NAMES.server
+    : COMPILER_NAMES.client
 
   // @ts-ignore TODO webpack 5 typings
   config.target = !ctx.targetWeb

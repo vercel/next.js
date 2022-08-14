@@ -4,6 +4,7 @@ import url from 'url'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
 import {
   nextBuild,
   nextStart,
@@ -170,6 +171,9 @@ describe('Env Config', () => {
       const originalContents = []
       beforeAll(async () => {
         const outputIndex = output.length
+        const envFiles = (await fs.readdir(appDir)).filter((file) =>
+          file.startsWith('.env')
+        )
         const envToUpdate = [
           {
             toAdd: 'NEW_ENV_KEY=true',
@@ -185,12 +189,16 @@ describe('Env Config', () => {
           },
         ]
 
-        for (const { file, toAdd } of envToUpdate) {
-          const content = await fs.readFile(join(appDir, file), 'utf8')
+        for (const file of envFiles) {
+          const filePath = join(appDir, file)
+          const content = await fs.readFile(filePath, 'utf8')
           originalContents.push({ file, content })
-          await fs.writeFile(join(appDir, file), content + '\n' + toAdd)
-        }
 
+          const toUpdate = envToUpdate.find((item) => item.file === file)
+          if (toUpdate) {
+            await fs.writeFile(filePath, content + `\n${toUpdate.toAdd}`)
+          }
+        }
         await check(() => {
           return output.substring(outputIndex)
         }, /Loaded env from/)
@@ -203,24 +211,138 @@ describe('Env Config', () => {
 
       runTests('dev', true)
 
-      it('should update inlined values correctly', async () => {
-        await renderViaHTTP(appPort, '/another-global')
+      it('should have updated runtime values after change', async () => {
+        let html = await fetchViaHTTP(appPort, '/').then((res) => res.text())
+        let renderedEnv = JSON.parse(cheerio.load(html)('p').text())
 
-        const buildManifest = await fs.readJson(
-          join(__dirname, '../app/.next/build-manifest.json')
-        )
+        expect(renderedEnv['ENV_FILE_KEY']).toBe('env')
+        expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe('localenv')
+        let outputIdx = output.length
 
-        const pageFile = buildManifest.pages['/another-global'].find(
-          (filename) => filename.includes('pages/another-global')
-        )
+        const envFile = join(appDir, '.env')
+        const envLocalFile = join(appDir, '.env.local')
+        const envContent = originalContents.find(
+          (item) => item.file === '.env'
+        ).content
+        const envLocalContent = originalContents.find(
+          (item) => item.file === '.env.local'
+        ).content
 
-        // read client bundle contents since a server side render can
-        // have the value available during render but it not be injected
-        const bundleContent = await fs.readFile(
-          join(appDir, '.next', pageFile),
-          'utf8'
-        )
-        expect(bundleContent).toContain('again')
+        try {
+          await fs.writeFile(
+            envFile,
+            envContent.replace(`ENV_FILE_KEY=env`, `ENV_FILE_KEY=env-updated`)
+          )
+
+          // we should only log we loaded new env from .env
+          await check(() => output.substring(outputIdx), /Loaded env from/)
+          expect(
+            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+          ).toBe(1)
+          expect(output.substring(outputIdx)).not.toContain('.env.local')
+
+          await check(async () => {
+            html = await fetchViaHTTP(appPort, '/').then((res) => res.text())
+            renderedEnv = JSON.parse(cheerio.load(html)('p').text())
+            expect(renderedEnv['ENV_FILE_KEY']).toBe('env-updated')
+            expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe('localenv')
+            return 'success'
+          }, 'success')
+
+          outputIdx = output.length
+
+          await fs.writeFile(
+            envLocalFile,
+            envLocalContent.replace(
+              `ENV_FILE_LOCAL_OVERRIDE_TEST=localenv`,
+              `ENV_FILE_LOCAL_OVERRIDE_TEST=localenv-updated`
+            )
+          )
+
+          // we should only log we loaded new env from .env
+          await check(() => output.substring(outputIdx), /Loaded env from/)
+          expect(
+            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+          ).toBe(1)
+          expect(output.substring(outputIdx)).toContain('.env.local')
+
+          await check(async () => {
+            html = await fetchViaHTTP(appPort, '/').then((res) => res.text())
+            renderedEnv = JSON.parse(cheerio.load(html)('p').text())
+            expect(renderedEnv['ENV_FILE_KEY']).toBe('env-updated')
+            expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe(
+              'localenv-updated'
+            )
+            return 'success'
+          }, 'success')
+        } finally {
+          await fs.writeFile(envFile, envContent)
+          await fs.writeFile(envLocalFile, envLocalContent)
+        }
+      })
+
+      it('should trigger HMR correctly when NEXT_PUBLIC_ env is changed', async () => {
+        const envFile = join(appDir, '.env')
+        const envLocalFile = join(appDir, '.env.local')
+        const envContent = originalContents.find(
+          (item) => item.file === '.env'
+        ).content
+        const envLocalContent = originalContents.find(
+          (item) => item.file === '.env.local'
+        ).content
+
+        try {
+          const browser = await webdriver(appPort, '/global')
+          expect(await browser.elementByCss('p').text()).toBe('another')
+
+          let outputIdx = output.length
+
+          await fs.writeFile(
+            envFile,
+            envContent.replace(
+              `NEXT_PUBLIC_TEST_DEST=another`,
+              `NEXT_PUBLIC_TEST_DEST=replaced`
+            )
+          )
+          // we should only log we loaded new env from .env
+          await check(() => output.substring(outputIdx), /Loaded env from/)
+          expect(
+            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+          ).toBe(1)
+          expect(output.substring(outputIdx)).not.toContain('.env.local')
+
+          await check(() => browser.elementByCss('p').text(), 'replaced')
+
+          outputIdx = output.length
+
+          await fs.writeFile(
+            envLocalFile,
+            envLocalContent + `\nNEXT_PUBLIC_TEST_DEST=overridden`
+          )
+          // we should only log we loaded new env from .env
+          await check(() => output.substring(outputIdx), /Loaded env from/)
+          expect(
+            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+          ).toBe(1)
+          expect(output.substring(outputIdx)).toContain('.env.local')
+
+          await check(() => browser.elementByCss('p').text(), 'overridden')
+
+          outputIdx = output.length
+
+          await fs.writeFile(envLocalFile, envLocalContent)
+          // we should only log we loaded new env from .env
+          await check(() => output.substring(outputIdx), /Loaded env from/)
+          expect(
+            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+          ).toBe(1)
+          expect(output.substring(outputIdx)).toContain('.env.local')
+
+          await check(() => browser.elementByCss('p').text(), 'replaced')
+        } finally {
+          await fs.writeFile(envFile, envContent)
+          await fs.writeFile(envLocalFile, envLocalContent)
+        }
       })
     })
   })

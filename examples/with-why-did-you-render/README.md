@@ -1,60 +1,21 @@
 # Why did you render
 
-This is a simple example of how to use [why-did-you-render](https://github.com/welldone-software/why-did-you-render).
+This is a simple example of how to use [why-did-you-render](https://github.com/welldone-software/why-did-you-render) within a Next.js app.
 
-The header component will rerender despite the state staying the same.
+We are essentially extending webpack config to allow the monkey patched `React` version of WDYR in development mode and adding to our application
+by importing `wdyr.js` at the top of Next.js `_app.js`.
+
+By default, all pure components will be tracked, but you can add
+`Component.whyDidYouRender = true` to regular function components in case you need.
+
+In this example, the header component will rerender despite the state staying the same.
 
 You can see `why-did-you-render` console logs about this redundant re-render in the developer console.
 
-## Installation guide
+When using Typescript, call the file `wdyr.ts` instead and add the following line to the top of the file to import the package's types:
 
-1. add `why-did-you-render` to the project by running:
-
-   ```
-   yarn add @welldone-software/why-did-you-render
-   ```
-
-1. Create `scripts/wdyr.js` with the code:
-
-   ```jsx
-   import React from 'react'
-
-   if (process.env.NODE_ENV === 'development') {
-     if (typeof window !== 'undefined') {
-       const whyDidYouRender = require('@welldone-software/why-did-you-render')
-       whyDidYouRender(React, {
-         trackAllPureComponents: true,
-       })
-     }
-   }
-   ```
-
-1. Import `scripts/wdyr.js` as the first import of `_app`.
-
-1. Make sure that [`react-preset`](https://babeljs.io/docs/en/babel-preset-react) uses `@welldone-software/why-did-you-render` to import the monkey patched `React` with WDYR, by modifying `next/babel` in `babel.config.js`:
-
-```jsx
-// babel.config.js
-module.exports = function (api) {
-  const isServer = api.caller((caller) => caller?.isServer)
-  const isCallerDevelopment = api.caller((caller) => caller?.isDev)
-
-  const presets = [
-    [
-      'next/babel',
-      {
-        'preset-react': {
-          importSource:
-            !isServer && isCallerDevelopment
-              ? '@welldone-software/why-did-you-render'
-              : 'react',
-        },
-      },
-    ],
-  ]
-
-  return { presets }
-}
+```
+/// <reference types="@welldone-software/why-did-you-render" />
 ```
 
 ## Deploy your own

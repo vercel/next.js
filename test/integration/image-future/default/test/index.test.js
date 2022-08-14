@@ -992,6 +992,15 @@ function runTests(mode) {
         )
       ).toBe('100%')
     })
+    it('should add position styles to fill images', async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").getAttribute('style')`
+        )
+      ).toBe(
+        'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent'
+      )
+    })
     if (mode === 'dev') {
       it('should not log incorrect warnings', async () => {
         await waitFor(1000)

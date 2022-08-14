@@ -638,6 +638,10 @@ declare module 'webpack4' {
      */
     type Rule = RuleSetRule
 
+    abstract class Plugin {
+      apply(compiler: Compiler): void
+    }
+
     namespace Options {
       type Devtool =
         | 'eval'
@@ -1445,10 +1449,6 @@ declare module 'webpack4' {
     abstract class MultiWatching implements Watching {
       close(callback: () => void): void
       invalidate(): void
-    }
-
-    abstract class Plugin {
-      apply(compiler: Compiler): void
     }
 
     abstract class ResolvePlugin {

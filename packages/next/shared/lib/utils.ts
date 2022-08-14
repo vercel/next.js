@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
+import { COMPILER_NAMES } from './constants'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -92,7 +93,10 @@ export type NEXT_DATA = {
   autoExport?: boolean
   isFallback?: boolean
   dynamicIds?: (string | number)[]
-  err?: Error & { statusCode?: number; source?: 'server' | 'edge-server' }
+  err?: Error & {
+    statusCode?: number
+    source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+  }
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
