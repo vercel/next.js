@@ -284,6 +284,48 @@ export function getClientEntry(opts: {
     : pageLoader
 }
 
+export async function runDependingOnPageType<T>(params: {
+  onClient: () => T
+  onEdgeServer: () => T
+  onServer: () => T
+  page: string
+  pageRuntime: ServerRuntime
+}): Promise<void> {
+  if (isMiddlewareFile(params.page)) {
+    await params.onEdgeServer()
+    return
+  }
+  if (params.page.match(API_ROUTE)) {
+    if (params.pageRuntime === SERVER_RUNTIME.edge) {
+      await params.onEdgeServer()
+      return
+    }
+
+    await params.onServer()
+    return
+  }
+  if (params.page === '/_document') {
+    await params.onServer()
+    return
+  }
+  if (
+    params.page === '/_app' ||
+    params.page === '/_error' ||
+    params.page === '/404' ||
+    params.page === '/500'
+  ) {
+    await Promise.all([params.onClient(), params.onServer()])
+    return
+  }
+  if (params.pageRuntime === SERVER_RUNTIME.edge) {
+    await Promise.all([params.onClient(), params.onEdgeServer()])
+    return
+  }
+
+  await Promise.all([params.onClient(), params.onServer()])
+  return
+}
+
 export async function createEntrypoints(params: CreateEntrypointsParams) {
   const {
     config,
@@ -437,48 +479,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     edgeServer,
     middlewareRegex,
   }
-}
-
-export async function runDependingOnPageType<T>(params: {
-  onClient: () => T
-  onEdgeServer: () => T
-  onServer: () => T
-  page: string
-  pageRuntime: ServerRuntime
-}): Promise<void> {
-  if (isMiddlewareFile(params.page)) {
-    await params.onEdgeServer()
-    return
-  }
-  if (params.page.match(API_ROUTE)) {
-    if (params.pageRuntime === SERVER_RUNTIME.edge) {
-      await params.onEdgeServer()
-      return
-    }
-
-    await params.onServer()
-    return
-  }
-  if (params.page === '/_document') {
-    await params.onServer()
-    return
-  }
-  if (
-    params.page === '/_app' ||
-    params.page === '/_error' ||
-    params.page === '/404' ||
-    params.page === '/500'
-  ) {
-    await Promise.all([params.onClient(), params.onServer()])
-    return
-  }
-  if (params.pageRuntime === SERVER_RUNTIME.edge) {
-    await Promise.all([params.onClient(), params.onEdgeServer()])
-    return
-  }
-
-  await Promise.all([params.onClient(), params.onServer()])
-  return
 }
 
 export function finalizeEntrypoint({

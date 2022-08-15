@@ -26,6 +26,26 @@ import type ws from 'ws'
 import { isMiddlewareFilename } from '../../build/utils'
 import { nonNullable } from '../../lib/non-nullable'
 
+function isMiddlewareStats(stats: webpack.Stats) {
+  for (const key of stats.compilation.entrypoints.keys()) {
+    if (isMiddlewareFilename(key)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function statsToJson(stats?: webpack.Stats | null) {
+  if (!stats) return {}
+  return stats.toJson({
+    all: false,
+    errors: true,
+    hash: true,
+    warnings: true,
+  })
+}
+
 class EventStream {
   clients: Set<ws>
   constructor() {
@@ -193,24 +213,4 @@ export class WebpackHotMiddleware {
     this.closed = true
     this.eventStream.close()
   }
-}
-
-function isMiddlewareStats(stats: webpack.Stats) {
-  for (const key of stats.compilation.entrypoints.keys()) {
-    if (isMiddlewareFilename(key)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-function statsToJson(stats?: webpack.Stats | null) {
-  if (!stats) return {}
-  return stats.toJson({
-    all: false,
-    errors: true,
-    hash: true,
-    warnings: true,
-  })
 }

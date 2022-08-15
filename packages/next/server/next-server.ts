@@ -111,6 +111,30 @@ export interface NodeRequestHandler {
   ): Promise<void>
 }
 
+const MiddlewareMatcherCache = new WeakMap<
+  MiddlewareManifest['middleware'][string],
+  RouteMatch
+>()
+
+function getMiddlewareMatcher(
+  info: MiddlewareManifest['middleware'][string]
+): RouteMatch {
+  const stored = MiddlewareMatcherCache.get(info)
+  if (stored) {
+    return stored
+  }
+
+  if (typeof info.regexp !== 'string' || !info.regexp) {
+    throw new Error(
+      `Invariant: invalid regexp for middleware ${JSON.stringify(info)}`
+    )
+  }
+
+  const matcher = getRouteMatcher({ re: new RegExp(info.regexp), groups: {} })
+  MiddlewareMatcherCache.set(info, matcher)
+  return matcher
+}
+
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
 
@@ -1688,28 +1712,4 @@ export default class NextNodeServer extends BaseServer {
 
     return result
   }
-}
-
-const MiddlewareMatcherCache = new WeakMap<
-  MiddlewareManifest['middleware'][string],
-  RouteMatch
->()
-
-function getMiddlewareMatcher(
-  info: MiddlewareManifest['middleware'][string]
-): RouteMatch {
-  const stored = MiddlewareMatcherCache.get(info)
-  if (stored) {
-    return stored
-  }
-
-  if (typeof info.regexp !== 'string' || !info.regexp) {
-    throw new Error(
-      `Invariant: invalid regexp for middleware ${JSON.stringify(info)}`
-    )
-  }
-
-  const matcher = getRouteMatcher({ re: new RegExp(info.regexp), groups: {} })
-  MiddlewareMatcherCache.set(info, matcher)
-  return matcher
 }
