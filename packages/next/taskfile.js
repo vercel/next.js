@@ -42,6 +42,12 @@ export async function copy_regenerator_runtime(task, opts) {
     .target('compiled/regenerator-runtime')
 }
 
+export async function copy_swc_core_visitor(task, opts) {
+  await task
+    .source(require.resolve('@swc/core/Visitor'))
+    .target('compiled/@swc/core')
+}
+
 // eslint-disable-next-line camelcase
 export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
@@ -1909,6 +1915,7 @@ export async function ncc(task, opts) {
     [
       'ncc_browserslist',
       'copy_regenerator_runtime',
+      'copy_swc_core_visitor',
       'copy_babel_runtime',
       'copy_constants_browserify',
       'copy_react_server_dom_webpack',

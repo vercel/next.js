@@ -36,6 +36,10 @@ declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
 }
 
+declare module 'next/dist/compiled/@swc/core/Visitor' {
+  export * from '@swc/core/Visitor'
+}
+
 declare module 'next/dist/compiled/chalk' {
   import m from 'chalk'
   export = m
