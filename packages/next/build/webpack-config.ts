@@ -7,8 +7,6 @@ import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
-  NEXT_PROJECT_ROOT,
-  NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
@@ -64,10 +62,171 @@ import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 
+const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
+const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
+const NEXT_PROJECT_ROOT_DIST_CLIENT = pathJoin(NEXT_PROJECT_ROOT_DIST, 'client')
+
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
   ignored: ['**/.git/**', '**/.next/**'],
 })
+
+export function getDefineEnv({
+  dev,
+  config,
+  distDir,
+  isClient,
+  hasRewrites,
+  hasReactRoot,
+  isNodeServer,
+  isEdgeServer,
+  middlewareRegex,
+  hasServerComponents,
+}: {
+  dev?: boolean
+  distDir: string
+  isClient?: boolean
+  hasRewrites?: boolean
+  hasReactRoot?: boolean
+  isNodeServer?: boolean
+  isEdgeServer?: boolean
+  middlewareRegex?: string
+  config: NextConfigComplete
+  hasServerComponents?: boolean
+}) {
+  return {
+    // internal field to identify the plugin config
+    __NEXT_DEFINE_ENV: 'true',
+
+    ...Object.keys(process.env).reduce(
+      (prev: { [key: string]: string }, key: string) => {
+        if (key.startsWith('NEXT_PUBLIC_')) {
+          prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
+        }
+        return prev
+      },
+      {}
+    ),
+    ...Object.keys(config.env).reduce((acc, key) => {
+      errorIfEnvConflicted(config, key)
+
+      return {
+        ...acc,
+        [`process.env.${key}`]: JSON.stringify(config.env[key]),
+      }
+    }, {}),
+    ...(!isEdgeServer
+      ? {}
+      : {
+          EdgeRuntime: JSON.stringify(
+            /**
+             * Cloud providers can set this environment variable to allow users
+             * and library authors to have different implementations based on
+             * the runtime they are running with, if it's not using `edge-runtime`
+             */
+            process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
+          ),
+        }),
+    // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
+    'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
+    ...((isNodeServer || isEdgeServer) && {
+      'process.env.NEXT_RUNTIME': JSON.stringify(
+        isEdgeServer ? 'edge' : 'nodejs'
+      ),
+    }),
+    'process.env.__NEXT_MIDDLEWARE_REGEX': JSON.stringify(
+      middlewareRegex || ''
+    ),
+    'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
+      config.experimental.manualClientBasePath
+    ),
+    'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
+      config.experimental.newNextLinkBehavior
+    ),
+    'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
+      config.experimental.optimisticClientCache
+    ),
+    'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(config.crossOrigin),
+    'process.browser': JSON.stringify(isClient),
+    'process.env.__NEXT_TEST_MODE': JSON.stringify(
+      process.env.__NEXT_TEST_MODE
+    ),
+    // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
+    ...(dev && (isClient || isEdgeServer)
+      ? {
+          'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
+        }
+      : {}),
+    'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(config.trailingSlash),
+    'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
+      config.devIndicators.buildActivity
+    ),
+    'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
+      config.devIndicators.buildActivityPosition
+    ),
+    'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
+    'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
+    'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
+    'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
+      config.optimizeFonts && !dev
+    ),
+    'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
+      config.experimental.optimizeCss && !dev
+    ),
+    'process.env.__NEXT_SCRIPT_WORKERS': JSON.stringify(
+      config.experimental.nextScriptWorkers && !dev
+    ),
+    'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
+      config.experimental.scrollRestoration
+    ),
+    'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
+      deviceSizes: config.images.deviceSizes,
+      imageSizes: config.images.imageSizes,
+      path: config.images.path,
+      loader: config.images.loader,
+      dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
+      experimentalUnoptimized: config?.experimental?.images?.unoptimized,
+      experimentalFuture: config.experimental?.images?.allowFutureImage,
+      ...(dev
+        ? {
+            // pass domains in development to allow validating on the client
+            domains: config.images.domains,
+            experimentalRemotePatterns:
+              config.experimental?.images?.remotePatterns,
+          }
+        : {}),
+    }),
+    'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
+    'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
+    'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
+    'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
+    'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
+    ...(isNodeServer || isEdgeServer
+      ? {
+          // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
+          // This is typically found in unmaintained modules from the
+          // pre-webpack era (common in server-side code)
+          'global.GENTLY': JSON.stringify(false),
+        }
+      : undefined),
+    // stub process.env with proxy to warn a missing value is
+    // being accessed in development mode
+    ...(config.experimental.pageEnv && dev
+      ? {
+          'process.env': `
+            new Proxy(${isNodeServer ? 'process.env' : '{}'}, {
+              get(target, prop) {
+                if (typeof target[prop] === 'undefined') {
+                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://nextjs.org/docs/messages/missing-env-value\`)
+                }
+                return target[prop]
+              }
+            })
+          `,
+        }
+      : {}),
+  }
+}
 
 function getSupportedBrowsers(
   dir: string,
@@ -689,8 +848,8 @@ export default async function getBaseWebpackConfig(
       'react-dom/server$': `${reactDomDir}/server`,
       'react-dom/server.browser$': `${reactDomDir}/server.browser`,
       'react-dom/client$': `${reactDomDir}/client`,
-      'styled-jsx/style$': require.resolve(`next/dist/styled-jsx/style`),
-      'styled-jsx$': require.resolve(`next/dist/styled-jsx`),
+      'styled-jsx/style$': require.resolve(`styled-jsx/style`),
+      'styled-jsx$': require.resolve(`styled-jsx`),
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -844,7 +1003,9 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      // styled-jsx is also marked as externals here to avoid being
+      // bundled in client components for RSC.
+      if (/^(?:next$|styled-jsx$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -866,11 +1027,11 @@ export default async function getBaseWebpackConfig(
     const isEsmRequested = dependencyType === 'esm'
 
     const isLocalCallback = (localRes: string) => {
-      // Makes sure dist/styled-jsx, dist/shared and dist/server are not bundled
+      // Makes sure dist/shared and dist/server are not bundled
       // we need to process shared `router/router` and `dynamic`,
       // so that the DefinePlugin can inject process.env values
       const isNextExternal =
-        /next[/\\]dist[/\\](styled-jsx|shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
           localRes
         )
 
@@ -909,6 +1070,13 @@ export default async function getBaseWebpackConfig(
     if ('localRes' in resolveResult) {
       return resolveResult.localRes
     }
+
+    // Forcedly resolve the styled-jsx installed by next.js,
+    // since `resolveExternal` cannot find the styled-jsx dep with pnpm
+    if (request === 'styled-jsx/style') {
+      resolveResult.res = require.resolve(request)
+    }
+
     const { res, isEsm } = resolveResult
 
     // If the request cannot be resolved we need to have
@@ -1484,141 +1652,20 @@ export default async function getBaseWebpackConfig(
           // Avoid process being overridden when in web run time
           ...(isClient && { process: [require.resolve('process')] }),
         }),
-      new webpack.DefinePlugin({
-        ...Object.keys(process.env).reduce(
-          (prev: { [key: string]: string }, key: string) => {
-            if (key.startsWith('NEXT_PUBLIC_')) {
-              prev[`process.env.${key}`] = JSON.stringify(process.env[key]!)
-            }
-            return prev
-          },
-          {}
-        ),
-        ...Object.keys(config.env).reduce((acc, key) => {
-          errorIfEnvConflicted(config, key)
-
-          return {
-            ...acc,
-            [`process.env.${key}`]: JSON.stringify(config.env[key]),
-          }
-        }, {}),
-        ...(compilerType !== COMPILER_NAMES.edgeServer
-          ? {}
-          : {
-              EdgeRuntime: JSON.stringify(
-                /**
-                 * Cloud providers can set this environment variable to allow users
-                 * and library authors to have different implementations based on
-                 * the runtime they are running with, if it's not using `edge-runtime`
-                 */
-                process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
-              ),
-            }),
-        // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
-        'process.env.NODE_ENV': JSON.stringify(
-          dev ? 'development' : 'production'
-        ),
-        ...((isNodeServer || isEdgeServer) && {
-          'process.env.NEXT_RUNTIME': JSON.stringify(
-            isEdgeServer ? 'edge' : 'nodejs'
-          ),
-        }),
-        'process.env.__NEXT_MIDDLEWARE_REGEX': JSON.stringify(
-          middlewareRegex || ''
-        ),
-        'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
-          config.experimental.manualClientBasePath
-        ),
-        'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
-          config.experimental.newNextLinkBehavior
-        ),
-        'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
-          config.experimental.optimisticClientCache
-        ),
-        'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
-        'process.browser': JSON.stringify(isClient),
-        'process.env.__NEXT_TEST_MODE': JSON.stringify(
-          process.env.__NEXT_TEST_MODE
-        ),
-        // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
-        ...(dev && (isClient || isEdgeServer)
-          ? {
-              'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
-            }
-          : {}),
-        'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
-          config.trailingSlash
-        ),
-        'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
-          config.devIndicators.buildActivity
-        ),
-        'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
-          config.devIndicators.buildActivityPosition
-        ),
-        'process.env.__NEXT_STRICT_MODE': JSON.stringify(
-          config.reactStrictMode
-        ),
-        'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
-        'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
-        'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-          config.optimizeFonts && !dev
-        ),
-        'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
-          config.experimental.optimizeCss && !dev
-        ),
-        'process.env.__NEXT_SCRIPT_WORKERS': JSON.stringify(
-          config.experimental.nextScriptWorkers && !dev
-        ),
-        'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
-          config.experimental.scrollRestoration
-        ),
-        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
-          deviceSizes: config.images.deviceSizes,
-          imageSizes: config.images.imageSizes,
-          path: config.images.path,
-          loader: config.images.loader,
-          dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
-          experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-          experimentalFuture: config.experimental?.images?.allowFutureImage,
-          ...(dev
-            ? {
-                // pass domains in development to allow validating on the client
-                domains: config.images.domains,
-                experimentalRemotePatterns:
-                  config.experimental?.images?.remotePatterns,
-              }
-            : {}),
-        }),
-        'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
-        'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
-        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
-        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
-        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
-        ...(isNodeServer || isEdgeServer
-          ? {
-              // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
-              // This is typically found in unmaintained modules from the
-              // pre-webpack era (common in server-side code)
-              'global.GENTLY': JSON.stringify(false),
-            }
-          : undefined),
-        // stub process.env with proxy to warn a missing value is
-        // being accessed in development mode
-        ...(config.experimental.pageEnv && dev
-          ? {
-              'process.env': `
-            new Proxy(${isNodeServer ? 'process.env' : '{}'}, {
-              get(target, prop) {
-                if (typeof target[prop] === 'undefined') {
-                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://nextjs.org/docs/messages/missing-env-value\`)
-                }
-                return target[prop]
-              }
-            })
-          `,
-            }
-          : {}),
-      }),
+      new webpack.DefinePlugin(
+        getDefineEnv({
+          dev,
+          config,
+          distDir,
+          isClient,
+          hasRewrites,
+          hasReactRoot,
+          isNodeServer,
+          isEdgeServer,
+          middlewareRegex,
+          hasServerComponents,
+        })
+      ),
       isClient &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
