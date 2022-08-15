@@ -7,7 +7,7 @@ pub mod raw;
 pub mod typescript;
 
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     future::Future,
     mem::take,
     pin::Pin,
@@ -72,7 +72,7 @@ use super::{
     ModuleAssetType,
 };
 use crate::{
-    analyzer::graph::EvalContext,
+    analyzer::{graph::EvalContext, imports::Reexport, ModuleValue},
     chunk::{EcmascriptExports, EcmascriptExportsVc},
     code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
     emitter::IssueEmitter,
@@ -163,8 +163,6 @@ pub(crate) async fn analyze_ecmascript_module(
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new();
     let path = source.path();
 
-    let mut import_references = HashMap::new();
-
     let is_typescript = match &*ty {
         ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration => true,
         ModuleAssetType::Ecmascript => false,
@@ -200,6 +198,8 @@ pub(crate) async fn analyze_ecmascript_module(
             trailing_comments,
             ..
         } => {
+            let mut import_references = Vec::new();
+
             let pos = program.span().lo;
             if is_typescript {
                 if let Some(comments) = leading_comments.get(&pos) {
@@ -271,38 +271,14 @@ pub(crate) async fn analyze_ecmascript_module(
                 GLOBALS.set(globals, || {
                     let var_graph = create_graph(program, eval_context);
 
-                    if let Program::Module(Module { body, .. }) = program {
-                        body.iter()
-                            .filter_map(|item| match item {
-                                ModuleItem::ModuleDecl(ModuleDecl::Import(decl)) => {
-                                    Some(decl.src.value.to_string())
-                                }
-                                ModuleItem::ModuleDecl(ModuleDecl::ExportAll(decl)) => {
-                                    Some(decl.src.value.to_string())
-                                }
-                                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(_))
-                                | ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(_))
-                                | ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(_)) => None,
-                                ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(decl)) => {
-                                    decl.src.as_ref().map(|src| src.value.to_string())
-                                }
-                                ModuleItem::ModuleDecl(ModuleDecl::TsImportEquals(_))
-                                | ModuleItem::ModuleDecl(ModuleDecl::TsExportAssignment(_))
-                                | ModuleItem::ModuleDecl(ModuleDecl::TsNamespaceExport(_)) => None,
-                                ModuleItem::Stmt(_) => None,
-                            })
-                            .filter({
-                                let mut set = HashSet::new();
-                                move |src| set.insert(src.clone())
-                            })
-                            .for_each(|src| {
-                                let r = EsmAssetReferenceVc::new(
-                                    context,
-                                    RequestVc::parse(Value::new(src.clone().into())),
-                                );
-                                import_references.insert(src, r);
-                                analysis.add_reference(r);
-                            });
+                    for (src, annotations) in eval_context.imports.references() {
+                        let r = EsmAssetReferenceVc::new(
+                            context,
+                            RequestVc::parse(Value::new(src.to_string().into())),
+                            Value::new(annotations.clone()),
+                        );
+                        import_references.push(r);
+                        analysis.add_reference(r);
                     }
 
                     // TODO migrate to effects
@@ -311,6 +287,31 @@ pub(crate) async fn analyze_ecmascript_module(
                         &import_references,
                         &mut analysis,
                     );
+
+                    for (i, reexport) in eval_context.imports.reexports() {
+                        let import_ref = import_references[i];
+                        match reexport {
+                            Reexport::Star => {
+                                visitor.esm_star_exports.push(import_ref);
+                            }
+                            Reexport::Namespace { exported: n } => {
+                                visitor.esm_exports.insert(
+                                    n.to_string(),
+                                    EsmExport::ImportedNamespace(import_ref),
+                                );
+                            }
+                            Reexport::Named {
+                                imported: i,
+                                exported: e,
+                            } => {
+                                visitor.esm_exports.insert(
+                                    e.to_string(),
+                                    EsmExport::ImportedBinding(import_ref, i.to_string()),
+                                );
+                            }
+                        }
+                    }
+
                     program.visit_with_path(&mut visitor, &mut Default::default());
 
                     (
@@ -1123,12 +1124,12 @@ pub(crate) async fn analyze_ecmascript_module(
                         handle_member(&ast_path, obj, prop, &mut analysis).await?;
                     }
                     Effect::ImportedBinding {
-                        request,
+                        esm_reference_index,
                         export,
                         ast_path,
                         span: _,
                     } => {
-                        if let Some(r) = import_references.get(&request) {
+                        if let Some(r) = import_references.get(esm_reference_index) {
                             analysis.add_code_gen(
                                 EsmBinding {
                                     reference: *r,
@@ -1302,7 +1303,9 @@ async fn value_visitor_inner(
                 JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject)
             }
             JsValue::FreeVar(_) => JsValue::Unknown(Some(Arc::new(v)), "unknown global"),
-            JsValue::Module(ref name) => match &**name {
+            JsValue::Module(ModuleValue {
+                module: ref name, ..
+            }) => match &**name {
                 // TODO check externals
                 "path" if *environment.node_externals().await? => {
                     JsValue::WellKnownObject(WellKnownObjectKind::PathModule)
@@ -1425,7 +1428,7 @@ impl StaticAnalyser {
 struct AssetReferencesVisitor<'a> {
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
-    import_references: &'a HashMap<String, EsmAssetReferenceVc>,
+    import_references: &'a [EsmAssetReferenceVc],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     esm_exports: BTreeMap<String, EsmExport>,
     esm_star_exports: Vec<EsmAssetReferenceVc>,
@@ -1436,7 +1439,7 @@ struct AssetReferencesVisitor<'a> {
 impl<'a> AssetReferencesVisitor<'a> {
     fn new(
         eval_context: &'a EvalContext,
-        import_references: &'a HashMap<String, EsmAssetReferenceVc>,
+        import_references: &'a [EsmAssetReferenceVc],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     ) -> Self {
         Self {
@@ -1514,9 +1517,6 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         let path = AstPathVc::cell(as_parent_path(ast_path));
-        if let Some(esm_ref) = self.import_references.get(&*export.src.value) {
-            self.esm_star_exports.push(*esm_ref);
-        }
         self.analysis.add_code_gen(EsmModuleItemVc::new(path));
         export.visit_children_with_path(self, ast_path);
     }
@@ -1526,74 +1526,49 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         let path = AstPathVc::cell(as_parent_path(ast_path));
-        let esm_ref = export
-            .src
-            .as_ref()
-            .map(|src| self.import_references.get(&*src.value).copied());
-        for spec in export.specifiers.iter() {
-            fn to_string(name: &ModuleExportName) -> String {
-                match name {
-                    ModuleExportName::Ident(ident) => ident.sym.to_string(),
-                    ModuleExportName::Str(str) => str.value.to_string(),
+        if export.src.is_none() {
+            for spec in export.specifiers.iter() {
+                fn to_string(name: &ModuleExportName) -> String {
+                    match name {
+                        ModuleExportName::Ident(ident) => ident.sym.to_string(),
+                        ModuleExportName::Str(str) => str.value.to_string(),
+                    }
                 }
-            }
-            match spec {
-                ExportSpecifier::Namespace(ExportNamespaceSpecifier { name, .. }) => {
-                    if let Some(esm_ref) = esm_ref {
-                        self.esm_exports.insert(
-                            to_string(name),
-                            esm_ref.map_or(EsmExport::Error, EsmExport::ImportedNamespace),
-                        );
-                    } else {
+                match spec {
+                    ExportSpecifier::Namespace(_) => {
                         panic!(
                             "ExportNamespaceSpecifier will not happen in combination with src == \
                              None"
                         );
                     }
-                }
-                ExportSpecifier::Default(ExportDefaultSpecifier { exported }) => {
-                    if let Some(esm_ref) = esm_ref {
-                        self.esm_exports.insert(
-                            exported.sym.to_string(),
-                            esm_ref.map_or(EsmExport::Error, |r| {
-                                EsmExport::ImportedBinding(r, "default".to_string())
-                            }),
-                        );
-                    } else {
+                    ExportSpecifier::Default(_) => {
                         panic!(
                             "ExportDefaultSpecifier will not happen in combination with src == \
                              None"
                         );
                     }
-                }
-                ExportSpecifier::Named(ExportNamedSpecifier { orig, exported, .. }) => {
-                    let key = to_string(exported.as_ref().unwrap_or(orig));
-                    let binding_name = to_string(orig);
-                    let export = if let Some(esm_ref) = esm_ref {
-                        esm_ref.map_or(EsmExport::Error, |r| {
-                            EsmExport::ImportedBinding(r, binding_name)
-                        })
-                    } else {
-                        let imported_binding = if let ModuleExportName::Ident(ident) = orig {
-                            self.eval_context.imports.get_binding(&ident.to_id())
-                        } else {
-                            None
-                        };
-                        if let Some((request, export)) = imported_binding {
-                            if let Some(esm_ref) = self.import_references.get(&request) {
+                    ExportSpecifier::Named(ExportNamedSpecifier { orig, exported, .. }) => {
+                        let key = to_string(exported.as_ref().unwrap_or(orig));
+                        let binding_name = to_string(orig);
+                        let export = {
+                            let imported_binding = if let ModuleExportName::Ident(ident) = orig {
+                                self.eval_context.imports.get_binding(&ident.to_id())
+                            } else {
+                                None
+                            };
+                            if let Some((index, export)) = imported_binding {
+                                let esm_ref = self.import_references[index];
                                 if let Some(export) = export {
-                                    EsmExport::ImportedBinding(*esm_ref, export)
+                                    EsmExport::ImportedBinding(esm_ref, export)
                                 } else {
-                                    EsmExport::ImportedNamespace(*esm_ref)
+                                    EsmExport::ImportedNamespace(esm_ref)
                                 }
                             } else {
-                                EsmExport::Error
+                                EsmExport::LocalBinding(binding_name)
                             }
-                        } else {
-                            EsmExport::LocalBinding(binding_name)
-                        }
-                    };
-                    self.esm_exports.insert(key, export);
+                        };
+                        self.esm_exports.insert(key, export);
+                    }
                 }
             }
         }

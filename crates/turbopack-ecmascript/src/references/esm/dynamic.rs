@@ -127,13 +127,20 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                     Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
                     _ => pm.create(),
                 };
-                call_expr.callee = Callee::Expr(quote_expr!(
-                        "__turbopack_require__($arg)",
-                        arg: Expr = expr
-                ));
-                call_expr.args = vec![
-                    ExprOrSpread { spread: None, expr: quote_expr!("__turbopack_import__") },
-                ];
+                if pm.is_internal_import() {
+                    call_expr.callee = Callee::Expr(quote_expr!(
+                            "__turbopack_require__($arg)",
+                            arg: Expr = expr
+                    ));
+                    call_expr.args = vec![
+                        ExprOrSpread { spread: None, expr: quote_expr!("__turbopack_import__") },
+                    ];
+                } else {
+                    call_expr.args = vec![
+                        ExprOrSpread { spread: None, expr: box expr }
+                    ]
+                }
+
             })
         };
 

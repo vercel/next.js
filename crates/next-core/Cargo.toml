@@ -1,8 +1,7 @@
 [package]
-name = "turbopack-dev-server"
+name = "next-core"
 version = "0.1.0"
 edition = "2021"
-autobenches = false
 
 [lib]
 bench = false
@@ -11,21 +10,16 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
-event-listener = "2.5.2"
 futures = "0.3.21"
-hyper = { version = "0.14", features = ["full"] }
-hyper-tungstenite = "0.8.1"
-lazy_static = "1.4.0"
+json = "0.12.4"
 mime = "0.3.16"
-mime_guess = "2.0.4"
 serde = "1.0.136"
-serde_json = "1.0.83"
-tokio = "1.11.0"
+tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack = { path = "../turbopack" }
 turbopack-core = { path = "../turbopack-core" }
-# TODO remove this dependency
-turbopack-cli-utils = { path = "../turbopack-cli-utils" }
+turbopack-dev-server = { path = "../turbopack-dev-server" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

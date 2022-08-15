@@ -49,7 +49,7 @@ pub use prefix_tree::PrefixTree;
 #[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub enum SpecialType {
     OriginalReferenceExternal,
-    OriginalRefernceTypeExternal(String),
+    OriginalReferenceTypeExternal(String),
     Ignore,
     Empty,
     Custom(u8),

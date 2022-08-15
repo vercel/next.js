@@ -23,7 +23,7 @@ pub struct DevChunkingContext {
 #[turbo_tasks::value_impl]
 impl ChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
-    async fn as_chunk_path(
+    async fn chunk_path(
         &self,
         path_vc: FileSystemPathVc,
         extension: &str,

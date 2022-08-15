@@ -89,7 +89,7 @@ impl ValueToString for CssChunk {
 impl Asset for CssChunk {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
-        self.context.as_chunk_path(self.entry.path(), ".css")
+        self.context.chunk_path(self.entry.path(), ".css")
     }
 
     #[turbo_tasks::function]

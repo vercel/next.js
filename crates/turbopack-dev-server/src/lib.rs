@@ -60,10 +60,7 @@ impl DevServerVc {
                         let task_id = tt.run_once(Box::pin(async move {
                             let uri = request.uri();
                             let path = uri.path();
-                            let mut asset_path = path[1..].to_string();
-                            if asset_path.is_empty() || asset_path.ends_with('/') {
-                                asset_path += "index.html";
-                            }
+                            let asset_path = path[1..].to_string();
                             let file_content = source.get(&asset_path);
                             if let FileContent::Content(content) =
                                 &*file_content.content().strongly_consistent().await?

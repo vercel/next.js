@@ -4,7 +4,10 @@ use anyhow::Result;
 use turbopack_core::environment::EnvironmentVc;
 use url::Url;
 
-use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
+use super::{
+    imports::ImportAnnotations, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind,
+    WellKnownObjectKind,
+};
 
 pub async fn replace_well_known(
     value: JsValue,
@@ -280,7 +283,10 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
 pub fn require(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         if let Some(s) = args[0].as_str() {
-            JsValue::Module(s.into())
+            JsValue::Module(ModuleValue {
+                module: s.into(),
+                annotations: ImportAnnotations::default(),
+            })
         } else {
             JsValue::Unknown(
                 Some(Arc::new(JsValue::call(

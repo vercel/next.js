@@ -15,11 +15,12 @@ use swc_common::Mark;
 use swc_ecma_ast::{Id, Ident, Lit};
 use url::Url;
 
+use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
 
 pub mod builtin;
 pub mod graph;
-mod imports;
+pub mod imports;
 pub mod linker;
 pub mod well_known;
 
@@ -131,6 +132,12 @@ impl Display for ConstantValue {
     }
 }
 
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ModuleValue {
+    pub module: JsWord,
+    pub annotations: ImportAnnotations,
+}
+
 /// TODO: Use `Arc`
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum JsValue {
@@ -169,7 +176,7 @@ pub enum JsValue {
     Member(usize, Box<JsValue>, Box<JsValue>),
 
     /// This is a reference to a imported module
-    Module(JsWord),
+    Module(ModuleValue),
 
     /// Some kind of well known object
     /// (must not be an array, otherwise Array.concat need to be changed)
@@ -321,7 +328,12 @@ impl Display for JsValue {
                     .join(", ")
             ),
             JsValue::Member(_, obj, prop) => write!(f, "{}[{}]", obj, prop),
-            JsValue::Module(name) => write!(f, "Module({})", name),
+            JsValue::Module(ModuleValue {
+                module: name,
+                annotations,
+            }) => {
+                write!(f, "Module({}, {})", name, annotations)
+            }
             JsValue::Unknown(..) => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
             JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({:?})", func),
@@ -440,7 +452,7 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
-            | JsValue::Module(_)
+            | JsValue::Module(..)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown(_, _)
@@ -464,7 +476,7 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
-            | JsValue::Module(_)
+            | JsValue::Module(..)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown(_, _)
@@ -516,7 +528,7 @@ impl JsValue {
                 | JsValue::Url(_)
                 | JsValue::FreeVar(_)
                 | JsValue::Variable(_)
-                | JsValue::Module(_)
+                | JsValue::Module(..)
                 | JsValue::WellKnownObject(_)
                 | JsValue::WellKnownFunction(_)
                 | JsValue::Unknown(_, _)
@@ -782,8 +794,11 @@ impl JsValue {
                     prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
-            JsValue::Module(name) => {
-                format!("module<{}>", name)
+            JsValue::Module(ModuleValue {
+                module: name,
+                annotations,
+            }) => {
+                format!("module<{}, {}>", name, annotations)
             }
             JsValue::Unknown(inner, explainer) => {
                 if unknown_depth == 0 || explainer.is_empty() {
@@ -1016,7 +1031,7 @@ impl JsValue {
             // These are placeholders
             JsValue::Argument(_)
             | JsValue::Variable(_)
-            | JsValue::Module(_)
+            | JsValue::Module(..)
             | JsValue::FreeVar(_) => true,
         }
     }
@@ -1117,7 +1132,7 @@ macro_rules! for_each_children_async {
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
-            | JsValue::Module(_)
+            | JsValue::Module(..)
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
@@ -1334,7 +1349,7 @@ impl JsValue {
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
-            | JsValue::Module(_)
+            | JsValue::Module(..)
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
@@ -1394,7 +1409,7 @@ impl JsValue {
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
-            | JsValue::Module(_)
+            | JsValue::Module(..)
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
@@ -1700,7 +1715,16 @@ impl JsValue {
             (JsValue::Member(lc, lo, lp), JsValue::Member(rc, ro, rp)) => {
                 lc == rc && lo.similar(ro, depth - 1) && lp.similar(rp, depth - 1)
             }
-            (JsValue::Module(l), JsValue::Module(r)) => l == r,
+            (
+                JsValue::Module(ModuleValue {
+                    module: l,
+                    annotations: la,
+                }),
+                JsValue::Module(ModuleValue {
+                    module: r,
+                    annotations: ra,
+                }),
+            ) => l == r && la == ra,
             (JsValue::WellKnownObject(l), JsValue::WellKnownObject(r)) => l == r,
             (JsValue::WellKnownFunction(l), JsValue::WellKnownFunction(r)) => l == r,
             (JsValue::Unknown(_, l), JsValue::Unknown(_, r)) => l == r,
@@ -1764,7 +1788,13 @@ impl JsValue {
                 o.similar_hash(state, depth - 1);
                 p.similar_hash(state, depth - 1);
             }
-            JsValue::Module(v) => Hash::hash(v, state),
+            JsValue::Module(ModuleValue {
+                module: v,
+                annotations: a,
+            }) => {
+                Hash::hash(v, state);
+                Hash::hash(a, state);
+            }
             JsValue::WellKnownObject(v) => Hash::hash(v, state),
             JsValue::WellKnownFunction(v) => Hash::hash(v, state),
             JsValue::Unknown(_, v) => Hash::hash(v, state),
@@ -1872,7 +1902,7 @@ pub mod test_utils {
     use turbopack_core::environment::EnvironmentVc;
 
     use super::{
-        well_known::replace_well_known, FreeVarKind, JsValue, WellKnownFunctionKind,
+        well_known::replace_well_known, FreeVarKind, JsValue, ModuleValue, WellKnownFunctionKind,
         WellKnownObjectKind,
     };
     use crate::analyzer::builtin::replace_builtin;
@@ -1901,7 +1931,9 @@ pub mod test_utils {
             JsValue::FreeVar(kind) => {
                 JsValue::Unknown(Some(Arc::new(JsValue::FreeVar(kind))), "unknown global")
             }
-            JsValue::Module(ref name) => match name.as_ref() {
+            JsValue::Module(ModuleValue {
+                module: ref name, ..
+            }) => match name.as_ref() {
                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                 "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),

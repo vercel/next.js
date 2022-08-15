@@ -152,7 +152,8 @@ impl EcmascriptChunkContent {
                 .map(|id| format!(" && chunks.has({})", stringify_str(id)))
                 .collect::<Vec<_>>()
                 .join("");
-            let entry_id = stringify_module_id(&evaluate.entry_module_id);
+            let id = &&*evaluate.entry_module_id.await?;
+            let entry_id = stringify_module_id(id);
             // Add a runnable to the chunk that requests the entry module to ensure it gets
             // executed when the chunk is evaluated.
             // The condition stops the entry module from being executed while chunks it
@@ -178,18 +179,22 @@ impl EcmascriptChunkContent {
         var modules = { __proto__: null };
         var cache = { __proto__: null };
         var loading = { __proto__: null };
+        var hOP = Object.prototype.hasOwnProperty;
         let socket;
         // TODO: temporary solution
-        var process = { env: { NODE_ENV: "development" } };
+        var _process = typeof process !== "undefined" ? process : { env: { NODE_ENV: "development" } };
         function require(from, id) {
             return getModule(from, id).exports;
         }
         var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
+        function defineProp(obj, name, options) {
+            if (!hOP.call(obj, name)) Object.defineProperty(obj, name, options);
+        }
         function esm(exports, getters) {
-            Object.defineProperty(exports, "__esModule", { value: true });
-            if(toStringTag) Object.defineProperty(exports, toStringTag, { value: "Module" });
+            defineProp(exports, "__esModule", { value: true });
+            if(toStringTag) defineProp(exports, toStringTag, { value: "Module" });
             for(var key in getters) {
-                Object.defineProperty(exports, key, { get: getters[key], enumerable: true, });
+                defineProp(exports, key, { get: getters[key], enumerable: true, });
             }
         }
         function exportValue(module, value) {
@@ -200,10 +205,12 @@ impl EcmascriptChunkContent {
         }
         function interopEsm(raw, ns, allowExportDefault) {
             var getters = { __proto__: null };
-            for(var key in raw) {
-                getters[key] = createGetter(raw, key);
+            if (typeof raw === "object") {
+                for (var key in raw) {
+                    getters[key] = createGetter(raw, key);
+                }
             }
-            if(!(allowExportDefault && "default" in getters)) {
+            if (!(allowExportDefault && "default" in getters)) {
                 getters["default"] = () => raw;
             }
             esm(ns, getters);
@@ -256,7 +263,7 @@ impl EcmascriptChunkContent {
                 m: module,
                 c: cache,
                 l: loadFile,
-                p: process
+                p: _process
             });
             module.loaded = true;
             if(module.interopNamespace) {
@@ -279,21 +286,23 @@ impl EcmascriptChunkContent {
             runnable.push(...run);
             runnable = runnable.filter(r => r(runtime))
         }
-        self.TURBOPACK = { push: op };
-        array.forEach(op);
-        var connectingSocket = new WebSocket("ws" + location.origin.slice(4));
-        connectingSocket.onopen = () => {
-            socket = connectingSocket;
-            for(var chunk of chunks) {
-                socket.send(JSON.stringify(chunk));
-            }
-            socket.onmessage = (event) => {
-                var data = JSON.parse(event.data);
-                if (data.type === "restart" || data.type === "partial") {
-                    location.reload();
+        if (typeof WebSocket !== "undefined") {
+            var connectingSocket = new WebSocket("ws" + location.origin.slice(4));
+            connectingSocket.onopen = () => {
+                socket = connectingSocket;
+                for(var chunk of chunks) {
+                    socket.send(JSON.stringify(chunk));
+                }
+                socket.onmessage = (event) => {
+                    var data = JSON.parse(event.data);
+                    if (data.type === "restart" || data.type === "partial") {
+                        location.reload();
+                    }
                 }
             }
         }
+        self.TURBOPACK = { push: op };
+        array.forEach(op);
     }
 })();"#;
         }
@@ -355,7 +364,7 @@ impl EcmascriptChunkContentVc {
 impl VersionedContent for EcmascriptChunkContent {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<FileContentVc> {
-        Ok(self.file_content().await?)
+        self.file_content().await
     }
 
     #[turbo_tasks::function]
@@ -460,7 +469,7 @@ impl Version for EcmascriptChunkVersion {
 #[turbo_tasks::value]
 struct EcmascriptChunkEvaluate {
     chunks_ids: StringsVc,
-    entry_module_id: ModuleId,
+    entry_module_id: ModuleIdVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -491,10 +500,11 @@ impl EcmascriptChunkVc {
                 }
             }
             let c_context = chunk_context(this.context);
-            let entry_module_id = c_context
-                .id(EcmascriptChunkPlaceableVc::cast_from(this.entry))
+            let entry_module_id = EcmascriptChunkPlaceableVc::cast_from(this.entry)
+                .as_chunk_item(this.context)
+                .content(c_context, this.context)
                 .await?
-                .clone();
+                .id;
             Some(EcmascriptChunkEvaluateVc::cell(EcmascriptChunkEvaluate {
                 chunks_ids: StringsVc::cell(chunks_ids),
                 entry_module_id,
@@ -514,7 +524,7 @@ impl EcmascriptChunkVc {
 impl Asset for EcmascriptChunk {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
-        self.context.as_chunk_path(self.entry.path(), ".js")
+        self.context.chunk_path(self.entry.path(), ".js")
     }
 
     #[turbo_tasks::function]

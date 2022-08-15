@@ -26,6 +26,7 @@ use turbopack_core::{
     environment::EnvironmentVc,
     reference::all_referenced_assets,
     resolve::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc},
+    transition::{TransitionVc, TransitionsByNameVc},
 };
 
 mod graph;
@@ -38,7 +39,11 @@ pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 
 #[turbo_tasks::function]
-async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> {
+async fn module(
+    source: AssetVc,
+    transitions: TransitionsByNameVc,
+    environment: EnvironmentVc,
+) -> Result<AssetVc> {
     let path = source.path();
     let options = module_options(path.parent());
     let options = options.await?;
@@ -66,7 +71,7 @@ async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> 
             ModuleType::Ecmascript(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    ModuleAssetContextVc::new(path.parent(), environment).into(),
+                    ModuleAssetContextVc::new(transitions, path.parent(), environment).into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
                     *transforms,
                     environment,
@@ -76,7 +81,12 @@ async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> 
             ModuleType::Typescript(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    ModuleAssetContextVc::new(path.parent(), environment.with_typescript()).into(),
+                    ModuleAssetContextVc::new(
+                        transitions,
+                        path.parent(),
+                        environment.with_typescript(),
+                    )
+                    .into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
                     *transforms,
                     environment,
@@ -86,7 +96,12 @@ async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> 
             ModuleType::TypescriptDeclaration(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    ModuleAssetContextVc::new(path.parent(), environment.with_typescript()).into(),
+                    ModuleAssetContextVc::new(
+                        transitions,
+                        path.parent(),
+                        environment.with_typescript(),
+                    )
+                    .into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
                     *transforms,
                     environment,
@@ -97,12 +112,12 @@ async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> 
             ModuleType::Raw => source,
             ModuleType::Css => turbopack_css::CssModuleAssetVc::new(
                 source,
-                ModuleAssetContextVc::new(path.parent(), environment).into(),
+                ModuleAssetContextVc::new(transitions, path.parent(), environment).into(),
             )
             .into(),
             ModuleType::Static => turbopack_static::StaticModuleAssetVc::new(
                 source,
-                ModuleAssetContextVc::new(path.parent(), environment).into(),
+                ModuleAssetContextVc::new(transitions, path.parent(), environment).into(),
             )
             .into(),
             ModuleType::Custom(_) => todo!(),
@@ -112,17 +127,40 @@ async fn module(source: AssetVc, environment: EnvironmentVc) -> Result<AssetVc> 
 
 #[turbo_tasks::value]
 pub struct ModuleAssetContext {
+    transitions: TransitionsByNameVc,
     context_path: FileSystemPathVc,
     environment: EnvironmentVc,
+    transition: Option<TransitionVc>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleAssetContextVc {
     #[turbo_tasks::function]
-    pub fn new(context_path: FileSystemPathVc, environment: EnvironmentVc) -> Self {
+    pub fn new(
+        transitions: TransitionsByNameVc,
+        context_path: FileSystemPathVc,
+        environment: EnvironmentVc,
+    ) -> Self {
         Self::cell(ModuleAssetContext {
+            transitions,
             context_path,
             environment,
+            transition: None,
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_transition(
+        transitions: TransitionsByNameVc,
+        context_path: FileSystemPathVc,
+        environment: EnvironmentVc,
+        transition: TransitionVc,
+    ) -> Self {
+        Self::cell(ModuleAssetContext {
+            transitions,
+            context_path,
+            environment,
+            transition: Some(transition),
         })
     }
 }
@@ -150,22 +188,20 @@ impl AssetContext for ModuleAssetContext {
 
     #[turbo_tasks::function]
     async fn resolve_asset(
-        &self,
+        self_vc: ModuleAssetContextVc,
         context_path: FileSystemPathVc,
         request: RequestVc,
         resolve_options: ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
+        let this = self_vc.await?;
         let result =
             turbopack_core::resolve::resolve(context_path, request, resolve_options).await?;
         let mut result = result
-            .map(
-                |a| module(a, self.environment).resolve(),
-                |i| async move { Ok(i) },
-            )
+            .map(|a| self_vc.process(a).resolve(), |i| async move { Ok(i) })
             .await?;
-        if *self.environment.is_typescript_enabled().await? {
+        if *this.environment.is_typescript_enabled().await? {
             let types_reference = TypescriptTypesAssetReferenceVc::new(
-                ModuleAssetContextVc::new(context_path, self.environment).into(),
+                ModuleAssetContextVc::new(this.transitions, context_path, this.environment).into(),
                 request,
             );
             result.add_reference(types_reference.into());
@@ -174,57 +210,86 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    async fn process_resolve_result(&self, result: ResolveResultVc) -> Result<ResolveResultVc> {
+    async fn process_resolve_result(
+        self_vc: ModuleAssetContextVc,
+        result: ResolveResultVc,
+    ) -> Result<ResolveResultVc> {
         Ok(result
             .await?
-            .map(
-                |a| module(a, self.environment).resolve(),
-                |i| async move { Ok(i) },
-            )
+            .map(|a| self_vc.process(a).resolve(), |i| async move { Ok(i) })
             .await?
             .into())
     }
 
     #[turbo_tasks::function]
-    fn process(&self, asset: AssetVc) -> AssetVc {
-        module(asset, self.environment)
+    async fn process(self_vc: ModuleAssetContextVc, asset: AssetVc) -> Result<AssetVc> {
+        let this = self_vc.await?;
+        if let Some(transition) = this.transition {
+            let asset = transition.process_source(asset);
+            let environment = transition.process_environment(this.environment);
+            let m = module(asset, this.transitions, environment);
+            Ok(transition.process_module(m))
+        } else {
+            Ok(module(asset, this.transitions, this.environment))
+        }
     }
 
     #[turbo_tasks::function]
     fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc {
-        ModuleAssetContextVc::new(path, self.environment).into()
+        ModuleAssetContextVc::new(self.transitions, path, self.environment).into()
     }
 
     #[turbo_tasks::function]
     fn with_environment(&self, environment: EnvironmentVc) -> AssetContextVc {
-        ModuleAssetContextVc::new(self.context_path, environment).into()
+        ModuleAssetContextVc::new(self.transitions, self.context_path, environment).into()
+    }
+
+    #[turbo_tasks::function]
+    async fn with_transition(&self, transition: &str) -> Result<AssetContextVc> {
+        Ok(
+            if let Some(transition) = self.transitions.await?.get(transition) {
+                ModuleAssetContextVc::new_transition(
+                    self.transitions,
+                    self.context_path,
+                    self.environment,
+                    *transition,
+                )
+                .into()
+            } else {
+                // TODO report issue
+                ModuleAssetContextVc::new(self.transitions, self.context_path, self.environment)
+                    .into()
+            },
+        )
     }
 }
 
 #[turbo_tasks::function]
 pub async fn emit(asset: AssetVc) {
-    // emit_assets_recursive_avoid_cycle(asset, CycleDetectionVc::new());
     emit_assets_recursive(asset);
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(asset: AssetVc) -> CompletionVc {
-    emit_assets_aggregated(asset)
+pub async fn emit_with_completion(asset: AssetVc, output_dir: FileSystemPathVc) -> CompletionVc {
+    emit_assets_aggregated(asset, output_dir)
 }
 
 #[turbo_tasks::function]
-async fn emit_assets_aggregated(asset: AssetVc) -> CompletionVc {
+async fn emit_assets_aggregated(asset: AssetVc, output_dir: FileSystemPathVc) -> CompletionVc {
     let aggregated = aggregate(asset);
-    emit_aggregated_assets(aggregated)
+    emit_aggregated_assets(aggregated, output_dir)
 }
 
 #[turbo_tasks::function]
-async fn emit_aggregated_assets(aggregated: AggregatedGraphVc) -> Result<CompletionVc> {
+async fn emit_aggregated_assets(
+    aggregated: AggregatedGraphVc,
+    output_dir: FileSystemPathVc,
+) -> Result<CompletionVc> {
     Ok(match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => emit_asset(*asset),
+        AggregatedGraphNodeContent::Asset(asset) => emit_asset_into_dir(*asset, output_dir),
         AggregatedGraphNodeContent::Children(children) => {
             for aggregated in children {
-                emit_aggregated_assets(*aggregated).await?;
+                emit_aggregated_assets(*aggregated, output_dir).await?;
             }
             CompletionVc::new()
         }
@@ -241,61 +306,22 @@ async fn emit_assets_recursive(asset: AssetVc) -> Result<()> {
     Ok(())
 }
 
-#[turbo_tasks::value(shared)]
-struct CycleDetection {
-    visited: HashSet<AssetVc>,
-}
-
-impl CycleDetection {
-    fn has(&self, asset: &AssetVc) -> bool {
-        self.visited.contains(asset)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl CycleDetectionVc {
-    #[turbo_tasks::function]
-    fn new() -> Self {
-        Self::cell(CycleDetection {
-            visited: HashSet::new(),
-        })
-    }
-
-    #[turbo_tasks::function]
-    async fn concat(self, asset: AssetVc) -> Result<Self> {
-        let mut visited = self.await?.visited.clone();
-        visited.insert(asset);
-        Ok(CycleDetection { visited }.into())
-    }
-}
-
-#[turbo_tasks::function]
-async fn emit_assets_recursive_avoid_cycle(
-    asset: AssetVc,
-    cycle_detection: CycleDetectionVc,
-) -> Result<()> {
-    emit_asset(asset);
-    let assets_set = all_referenced_assets(asset).await?;
-    if !assets_set.is_empty() {
-        let cycle_detection_value = cycle_detection.await?;
-        let new_cycle_detection = cycle_detection.concat(asset);
-        for ref_asset in assets_set.iter() {
-            let ref_asset = ref_asset.resolve().await?;
-            if ref_asset == asset {
-                continue;
-            }
-            if cycle_detection_value.has(&ref_asset) {
-                continue;
-            }
-            emit_assets_recursive_avoid_cycle(ref_asset, new_cycle_detection);
-        }
-    }
-    Ok(())
-}
-
 #[turbo_tasks::function]
 pub fn emit_asset(asset: AssetVc) -> CompletionVc {
     asset.path().write(asset.content())
+}
+
+#[turbo_tasks::function]
+pub async fn emit_asset_into_dir(
+    asset: AssetVc,
+    output_dir: FileSystemPathVc,
+) -> Result<CompletionVc> {
+    let dir = &*output_dir.await?;
+    Ok(if asset.path().await?.is_inside(dir) {
+        asset.path().write(asset.content())
+    } else {
+        CompletionVc::new()
+    })
 }
 
 #[turbo_tasks::function]

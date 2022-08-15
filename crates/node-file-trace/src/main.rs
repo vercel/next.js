@@ -5,7 +5,7 @@ extern crate turbo_malloc;
 
 mod nft_json;
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap},
     env::current_dir,
     fs,
     future::Future,
@@ -36,6 +36,7 @@ use turbopack_core::{
     reference::all_assets,
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
+    transition::TransitionsByNameVc,
 };
 
 use crate::nft_json::NftJsonAssetVc;
@@ -162,6 +163,7 @@ async fn input_to_modules<'a>(
 ) -> Result<AssetsVc> {
     let root = FileSystemPathVc::new(fs, "");
     let context: AssetContextVc = ModuleAssetContextVc::new(
+        TransitionsByNameVc::cell(HashMap::new()),
         root,
         EnvironmentVc::new(
             Value::new(ExecutionEnvironment::NodeJsLambda(

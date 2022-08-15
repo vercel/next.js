@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Result};
 use futures::future::try_join_all;
 use turbo_tasks::Value;
 use turbo_tasks_fs::{FileSystemPathVc, FileSystemVc};
-use turbopack::ModuleAssetContextVc;
+use turbopack::{ecmascript::EcmascriptModuleAssetVc, ModuleAssetContextVc};
 use turbopack_core::{
     chunk::{
         dev::{DevChunkingContext, DevChunkingContextVc},
@@ -11,13 +13,12 @@ use turbopack_core::{
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     source_asset::SourceAssetVc,
+    transition::TransitionsByNameVc,
 };
 use turbopack_dev_server::{
     html::DevHtmlAsset,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
-
-use crate::EcmascriptModuleAssetVc;
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
@@ -27,6 +28,7 @@ pub async fn create_web_entry_source(
     eager_compile: bool,
 ) -> Result<ContentSourceVc> {
     let context: AssetContextVc = ModuleAssetContextVc::new(
+        TransitionsByNameVc::cell(HashMap::new()),
         root,
         EnvironmentVc::new(
             Value::new(ExecutionEnvironment::Browser(
@@ -45,8 +47,8 @@ pub async fn create_web_entry_source(
 
     let chunking_context: DevChunkingContextVc = DevChunkingContext {
         context_path: root,
-        chunk_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/chunks"),
-        asset_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static"),
+        chunk_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static/chunks"),
+        asset_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static/assets"),
     }
     .into();
 

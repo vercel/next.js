@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
@@ -13,6 +13,7 @@ use turbopack_core::{
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
+    transition::TransitionsByNameVc,
 };
 
 pub fn benchmark(c: &mut Criterion) {
@@ -82,6 +83,7 @@ fn bench_emit_with_completion(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let source = SourceAssetVc::new(input);
                 let context = ModuleAssetContextVc::new(
+                    TransitionsByNameVc::cell(HashMap::new()),
                     input_dir,
                     EnvironmentVc::new(
                         Value::new(ExecutionEnvironment::NodeJsLambda(
@@ -98,7 +100,7 @@ fn bench_emit_with_completion(b: &mut Bencher, bench_input: &BenchInput) {
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
-                emit_with_completion(rebased.into()).await?;
+                emit_with_completion(rebased.into(), output_dir).await?;
 
                 Ok(())
             })
@@ -129,6 +131,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let source = SourceAssetVc::new(input);
                 let context = ModuleAssetContextVc::new(
+                    TransitionsByNameVc::cell(HashMap::new()),
                     input_dir,
                     EnvironmentVc::new(
                         Value::new(ExecutionEnvironment::NodeJsLambda(

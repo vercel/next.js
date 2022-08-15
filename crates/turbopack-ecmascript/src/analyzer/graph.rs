@@ -33,9 +33,8 @@ pub enum Effect {
         span: Span,
     },
     ImportedBinding {
-        request: String,
+        esm_reference_index: usize,
         export: Option<String>,
-        // TODO asserts, etc.
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
@@ -78,7 +77,7 @@ impl Effect {
                 prop.normalize();
             }
             Effect::ImportedBinding {
-                request: _,
+                esm_reference_index: _,
                 export: _,
                 ast_path: _,
                 span: _,
@@ -1075,9 +1074,11 @@ impl VisitAstPath for Analyzer<'_> {
         ident: &'ast Ident,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if let Some((request, export)) = self.eval_context.imports.get_binding(&ident.to_id()) {
+        if let Some((esm_reference_index, export)) =
+            self.eval_context.imports.get_binding(&ident.to_id())
+        {
             self.data.effects.push(Effect::ImportedBinding {
-                request,
+                esm_reference_index,
                 export,
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),

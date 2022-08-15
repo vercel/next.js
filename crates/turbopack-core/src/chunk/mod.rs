@@ -35,7 +35,7 @@ pub enum ChunkId {
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
-    fn as_chunk_path(&self, path: FileSystemPathVc, extension: &str) -> FileSystemPathVc;
+    fn chunk_path(&self, path: FileSystemPathVc, extension: &str) -> FileSystemPathVc;
 
     fn can_be_in_same_chunk(&self, asset_a: AssetVc, asset_b: AssetVc) -> BoolVc;
 

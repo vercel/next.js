@@ -36,7 +36,7 @@ mod value_type;
 
 pub use anyhow::{Error, Result};
 pub use collectibles::CollectiblesSource;
-pub use completion::{Completion, CompletionVc};
+pub use completion::{Completion, CompletionVc, CompletionsVc};
 pub use display::{ValueToString, ValueToStringVc};
 pub use id::{
     with_task_id_mapping, without_task_id_mapping, FunctionId, IdMapping, TaskId, TraitTypeId,

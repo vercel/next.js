@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use swc_ecma_ast::Expr;
+use swc_ecma_ast::{Expr, Lit};
 use swc_ecma_quote::quote;
 use turbo_tasks::{Value, ValueToString};
 use turbopack_core::{
     chunk::ModuleId,
-    resolve::{ResolveResult, ResolveResultVc},
+    resolve::{ResolveResult, ResolveResultVc, SpecialType},
 };
 
 use crate::{utils::module_id_to_lit, EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc};
@@ -32,6 +32,10 @@ pub(crate) enum PatternMapping {
     /// require(`./images/${name}.png`)
     /// ```
     Map(HashMap<String, ModuleId>),
+    /// Original reference
+    OriginalReferenceExternal,
+    /// Original reference with different request
+    OriginalReferenceTypeExternal(String),
 }
 
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -42,6 +46,14 @@ pub(crate) enum ResolveType {
 }
 
 impl PatternMapping {
+    pub fn is_internal_import(&self) -> bool {
+        match self {
+            PatternMapping::Invalid | PatternMapping::Single(_) | PatternMapping::Map(_) => true,
+            PatternMapping::OriginalReferenceExternal
+            | PatternMapping::OriginalReferenceTypeExternal(_) => false,
+        }
+    }
+
     pub fn create(&self) -> Expr {
         match self {
             PatternMapping::Invalid => {
@@ -52,12 +64,21 @@ impl PatternMapping {
             PatternMapping::Map(_) => {
                 todo!("emit an error for this case: Complex expression can't be transformed");
             }
+            PatternMapping::OriginalReferenceExternal => {
+                todo!("emit an error for this case: apply need to be used");
+            }
+            PatternMapping::OriginalReferenceTypeExternal(s) => {
+                Expr::Lit(Lit::Str(s.as_str().into()))
+            }
         }
     }
 
-    pub fn apply(&self, _key_expr: Expr) -> Expr {
+    pub fn apply(&self, key_expr: Expr) -> Expr {
+        match self {
+            PatternMapping::OriginalReferenceExternal => key_expr,
+            _ => self.create(),
+        }
         // TODO handle PatternMapping::Map
-        self.create()
     }
 }
 
@@ -82,6 +103,12 @@ impl PatternMappingVc {
                 }
             }
             ResolveResult::Single(asset, _) => asset,
+            ResolveResult::Special(SpecialType::OriginalReferenceExternal, _) => {
+                return Ok(PatternMapping::OriginalReferenceExternal.cell())
+            }
+            ResolveResult::Special(SpecialType::OriginalReferenceTypeExternal(s), _) => {
+                return Ok(PatternMapping::OriginalReferenceTypeExternal(s.clone()).cell())
+            }
             _ => {
                 // TODO implement mapping
                 println!(

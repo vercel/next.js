@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "bench_against_node_nft")]
 use std::time::Instant;
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     env::temp_dir,
     fmt::{Display, Write as _},
     fs::{self, remove_dir_all},
@@ -33,6 +33,7 @@ use turbopack_core::target::CompileTargetVc;
 use turbopack_core::{
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
+    transition::TransitionsByNameVc,
 };
 
 #[template]
@@ -313,6 +314,7 @@ fn node_file_trace<B: Backend + 'static>(
 
                 let source = SourceAssetVc::new(input);
                 let context = ModuleAssetContextVc::new(
+                    TransitionsByNameVc::cell(HashMap::new()),
                     input_dir,
                     EnvironmentVc::new(
                         Value::new(ExecutionEnvironment::NodeJsLambda(
@@ -330,7 +332,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
                 let output_path = rebased.path();
-                emit_with_completion(rebased.into()).await?;
+                emit_with_completion(rebased.into(), output_dir).await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 {

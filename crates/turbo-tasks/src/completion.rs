@@ -21,3 +21,17 @@ impl CompletionVc {
         CompletionVc::cell(Completion)
     }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct Completions(Vec<CompletionVc>);
+
+#[turbo_tasks::value_impl]
+impl CompletionsVc {
+    #[turbo_tasks::function]
+    pub async fn all(self) -> anyhow::Result<CompletionVc> {
+        for c in self.await?.iter() {
+            c.await?;
+        }
+        Ok(CompletionVc::new())
+    }
+}

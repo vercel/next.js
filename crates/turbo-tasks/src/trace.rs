@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    path::{Path, PathBuf},
     sync::{atomic::*, Arc, Mutex},
     time::Duration,
 };
@@ -67,6 +68,11 @@ ignore!(
     AtomicUsize
 );
 ignore!((), String, Duration, anyhow::Error);
+ignore!(Path, PathBuf);
+
+impl<'a> TraceRawVcs for &'a str {
+    fn trace_raw_vcs(&self, _context: &mut TraceRawVcsContext) {}
+}
 
 impl<A: TraceRawVcs> TraceRawVcs for (A,) {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {

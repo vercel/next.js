@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -28,7 +29,7 @@ impl Asset for DevHtmlAsset {
 
         for chunk_group in &self.chunk_groups {
             for chunk in chunk_group.chunks().await?.iter() {
-                let chunk_path = &*chunk.as_asset().path().await?;
+                let chunk_path = &*chunk.path().await?;
                 if let Some(p) = context_path.get_relative_path_to(chunk_path) {
                     if p.ends_with(".js") {
                         scripts.push(format!("<script src=\"{}\"></script>", p));
@@ -48,7 +49,7 @@ impl Asset for DevHtmlAsset {
             scripts.join("\n"),
         );
 
-        Ok(FileContent::Content(File::from_source(html)).into())
+        Ok(FileContent::Content(File::from_source(html).with_content_type(TEXT_HTML_UTF_8)).into())
     }
 
     #[turbo_tasks::function]

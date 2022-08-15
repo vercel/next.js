@@ -166,7 +166,7 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResult {
             ResolveResult::Special(
                 name.as_ref().map_or_else(
                     || SpecialType::OriginalReferenceExternal,
-                    |req| SpecialType::OriginalRefernceTypeExternal(req.to_string()),
+                    |req| SpecialType::OriginalReferenceTypeExternal(req.to_string()),
                 ),
                 Vec::new(),
             )

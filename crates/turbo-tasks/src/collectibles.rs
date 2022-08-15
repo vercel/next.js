@@ -6,6 +6,7 @@ use crate::{
 };
 
 #[turbo_tasks::function]
+#[allow(dead_code)] // It's used indirectly
 pub async fn read_collectibles(raw: RawVc, trait_type: usize) -> Result<RawVcSetVc> {
     if let RawVc::TaskOutput(task) = raw {
         let tt = crate::turbo_tasks();

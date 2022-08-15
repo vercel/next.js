@@ -13,9 +13,16 @@ pub trait ContentSource {
     fn get_by_id(&self, id: &str) -> VersionedContentVc;
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 pub struct NoContentSource;
 
+#[turbo_tasks::value_impl]
+impl NoContentSourceVc {
+    #[turbo_tasks::function]
+    pub fn new() -> Self {
+        NoContentSource.cell()
+    }
+}
 #[turbo_tasks::value_impl]
 impl ContentSource for NoContentSource {
     #[turbo_tasks::function]

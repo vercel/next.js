@@ -87,6 +87,14 @@ impl AssetGraphContentSourceVc {
             let p = &*p_vc.await?;
             if let Some(sub_path) = root_path.get_path_to(p) {
                 map.insert(sub_path.to_string(), asset);
+                if sub_path == "index.html" {
+                    map.insert("".to_string(), asset);
+                } else if let Some(p) = sub_path.strip_suffix("/index.html") {
+                    map.insert(p.to_string(), asset);
+                    map.insert(format!("{p}/"), asset);
+                } else if let Some(p) = sub_path.strip_suffix(".html") {
+                    map.insert(p.to_string(), asset);
+                }
             }
         }
         Ok(AssetsMapVc::cell(map))

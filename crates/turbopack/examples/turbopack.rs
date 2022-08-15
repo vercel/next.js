@@ -3,6 +3,7 @@
 #![feature(min_specialization)]
 
 use std::{
+    collections::HashMap,
     env::current_dir,
     fs,
     time::{Duration, Instant},
@@ -23,6 +24,7 @@ use turbopack_core::{
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
+    transition::TransitionsByNameVc,
 };
 
 #[tokio::main]
@@ -46,6 +48,7 @@ async fn main() -> Result<()> {
 
             let source = SourceAssetVc::new(entry);
             let context = turbopack::ModuleAssetContextVc::new(
+                TransitionsByNameVc::cell(HashMap::new()),
                 input,
                 EnvironmentVc::new(
                     Value::new(ExecutionEnvironment::NodeJsLambda(

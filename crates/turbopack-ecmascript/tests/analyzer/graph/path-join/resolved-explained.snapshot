@@ -1,4 +1,4 @@
-a = module<foo>
+a = module<foo, {}>
 
 path = path*0*
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html

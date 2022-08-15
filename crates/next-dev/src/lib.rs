@@ -4,20 +4,19 @@
 use std::{net::IpAddr, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
+use next_core::{create_server_rendered_source, create_web_entry_source};
 use turbo_tasks::{CollectiblesSource, TransientValue, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::MemoryBackend;
-use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_cli_utils::issue::issue_to_styled_string;
 use turbopack_core::issue::{IssueSeverity, IssueVc};
 use turbopack_dev_server::{
-    fs::DevServerFileSystemVc, source::router::RouterContentSource, DevServerListening, DevServerVc,
+    fs::DevServerFileSystemVc,
+    source::{combined::CombinedContentSource, router::RouterContentSource},
+    DevServerListening, DevServerVc,
 };
 
-use self::web_entry_source::create_web_entry_source;
-
 mod turbo_tasks_viz;
-mod web_entry_source;
 
 pub struct NextDevServerBuilder {
     turbo_tasks: Option<Arc<TurboTasks<MemoryBackend>>>,
@@ -100,13 +99,22 @@ impl NextDevServerBuilder {
         turbo_tasks
             .clone()
             .run_once(async move {
-                let disk_fs = DiskFileSystemVc::new(
-                    "project".to_string(),
-                    self.project_dir.context("project_dir must be set")?,
+                let project_dir = self.project_dir.context("project_dir must be set")?;
+                let output_disk_fs = DiskFileSystemVc::new(
+                    "output".to_string(),
+                    format!("{project_dir}/.next/server"),
                 );
+                handle_issues(output_disk_fs).await?;
+                output_disk_fs.await?.start_watching()?;
+                let output_fs = output_disk_fs.into();
+
+                let disk_fs = DiskFileSystemVc::new("project".to_string(), project_dir);
+                handle_issues(disk_fs).await?;
+                disk_fs.await?.start_watching()?;
                 let fs = disk_fs.into();
+
                 let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
-                let main_source = create_web_entry_source(
+                let web_source = create_web_entry_source(
                     FileSystemPathVc::new(fs, ""),
                     self.entry_assets
                         .iter()
@@ -115,6 +123,11 @@ impl NextDevServerBuilder {
                     dev_server_fs,
                     self.eager_compile,
                 );
+                let rendered_source = create_server_rendered_source(
+                    FileSystemPathVc::new(fs, ""),
+                    FileSystemPathVc::new(output_fs, ""),
+                    FileSystemPathVc::new(dev_server_fs, ""),
+                );
                 let viz = turbo_tasks_viz::TurboTasksSource {
                     turbo_tasks: turbo_tasks.clone(),
                 }
@@ -122,7 +135,11 @@ impl NextDevServerBuilder {
                 .into();
                 let source = RouterContentSource {
                     routes: vec![("__turbo_tasks__/".to_string(), viz)],
-                    fallback: main_source,
+                    fallback: CombinedContentSource {
+                        sources: vec![rendered_source, web_source],
+                    }
+                    .cell()
+                    .into(),
                 }
                 .cell()
                 .into();
@@ -138,12 +155,11 @@ impl NextDevServerBuilder {
                     ),
                 );
 
-                handle_issues(disk_fs).await?;
                 handle_issues(dev_server_fs).await?;
-                handle_issues(main_source).await?;
+                handle_issues(web_source).await?;
+                handle_issues(rendered_source).await?;
                 handle_issues(server).await?;
 
-                disk_fs.await?.start_watching()?;
                 server.listen().await
             })
             .await
@@ -151,9 +167,6 @@ impl NextDevServerBuilder {
 }
 
 pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_dev_server::register();
-    turbopack::register();
+    next_core::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

@@ -4,7 +4,12 @@
         Member(
             3,
             Module(
-                Atom('x2' type=inline),
+                ModuleValue {
+                    module: Atom('x2' type=inline),
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
             ),
             Constant(
                 StrWord(
@@ -18,7 +23,12 @@
         Member(
             3,
             Module(
-                Atom('x1' type=inline),
+                ModuleValue {
+                    module: Atom('x1' type=inline),
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
             ),
             Constant(
                 StrWord(
@@ -30,7 +40,12 @@
     (
         "yy",
         Module(
-            Atom('x3' type=inline),
+            ModuleValue {
+                module: Atom('x3' type=inline),
+                annotations: ImportAnnotations {
+                    map: {},
+                },
+            },
         ),
     ),
 ]

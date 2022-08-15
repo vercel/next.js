@@ -130,7 +130,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                             PatternMapping::Invalid => Expr::Ident(Ident::new("undefined".into(), DUMMY_SP)),
                             pm => Expr::Call(CallExpr {
                                 span: DUMMY_SP,
-                                callee: Callee::Expr(box Expr::Ident(Ident::new("__turbopack_require__".into(), DUMMY_SP))),
+                                callee: Callee::Expr(box Expr::Ident(Ident::new(if pm.is_internal_import() { "__turbopack_require__" } else { "require" }.into(), DUMMY_SP))),
                                 args: vec![
                                     pm.create().into(),
                                 ],

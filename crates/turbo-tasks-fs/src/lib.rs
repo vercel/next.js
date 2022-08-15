@@ -635,6 +635,23 @@ impl FileSystemPathVc {
         }
     }
 
+    /// Adds a suffix to the filename. [path] must not contain `/`.
+    #[turbo_tasks::function]
+    pub async fn append(self, path: &str) -> Result<Self> {
+        let this = self.await?;
+        if path.contains('/') {
+            bail!(
+                "FileSystemPathVc(\"{}\").append(\"{}\") must not append '/'",
+                this.path,
+                path
+            )
+        }
+        Ok(Self::new_normalized(
+            this.fs,
+            format!("{}{}", this.path, path),
+        ))
+    }
+
     #[turbo_tasks::function]
     pub async fn try_join(self, path: &str) -> Result<FileSystemPathOptionVc> {
         let this = self.await?;
