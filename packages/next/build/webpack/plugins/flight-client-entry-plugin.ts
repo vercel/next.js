@@ -195,10 +195,7 @@ export class FlightClientEntryPlugin {
     const clientComponentImports: ClientComponentImports = []
     const serverCSSImports: CssImports = {}
 
-    const filterClientComponents = (
-      dependencyToFilter: any,
-      segmentPath: string
-    ): void => {
+    const filterClientComponents = (dependencyToFilter: any): void => {
       const mod: webpack5.NormalModule =
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
@@ -220,20 +217,24 @@ export class FlightClientEntryPlugin {
           : mod.resourceResolveData?.path
 
       // Ensure module is not walked again if it's already been visited
-      if (!visitedBySegment[segmentPath]) {
-        visitedBySegment[segmentPath] = new Set()
+      if (!visitedBySegment[layoutOrPageRequest]) {
+        visitedBySegment[layoutOrPageRequest] = new Set()
       }
-      if (!modRequest || visitedBySegment[segmentPath].has(modRequest)) {
+      if (
+        !modRequest ||
+        visitedBySegment[layoutOrPageRequest].has(modRequest)
+      ) {
         return
       }
-      visitedBySegment[segmentPath].add(modRequest)
+      visitedBySegment[layoutOrPageRequest].add(modRequest)
 
       const isCSS = regexCSS.test(modRequest)
       const isClientComponent = clientComponentRegex.test(modRequest)
 
       if (isCSS) {
-        serverCSSImports[segmentPath] = serverCSSImports[segmentPath] || []
-        serverCSSImports[segmentPath].push(modRequest)
+        serverCSSImports[layoutOrPageRequest] =
+          serverCSSImports[layoutOrPageRequest] || []
+        serverCSSImports[layoutOrPageRequest].push(modRequest)
       }
 
       // Check if request is for css file.
@@ -245,12 +246,12 @@ export class FlightClientEntryPlugin {
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
-          filterClientComponents(connection.dependency, segmentPath)
+          filterClientComponents(connection.dependency)
         })
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(dependency, layoutOrPageRequest)
+    filterClientComponents(dependency)
 
     return [clientComponentImports, serverCSSImports]
   }
