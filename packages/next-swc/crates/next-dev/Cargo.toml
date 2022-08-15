@@ -27,6 +27,7 @@ console-subscriber = { version = "0.1.6", optional = true }
 futures = "0.3.21"
 json = "0.12.4"
 mime = "0.3.16"
+next-core = { path = "../next-core" }
 serde = "1.0.136"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks = { path = "../turbo-tasks" }

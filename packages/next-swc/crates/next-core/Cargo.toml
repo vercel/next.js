@@ -1,0 +1,25 @@
+[package]
+name = "next-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.47"
+futures = "0.3.21"
+json = "0.12.4"
+mime = "0.3.16"
+serde = "1.0.136"
+tokio = { version = "1.11.0", features = ["full"] }
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack = { path = "../turbopack" }
+turbopack-core = { path = "../turbopack-core" }
+turbopack-dev-server = { path = "../turbopack-dev-server" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
