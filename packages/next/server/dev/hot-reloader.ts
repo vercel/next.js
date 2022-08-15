@@ -50,6 +50,10 @@ import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 
+function diff(a: Set<any>, b: Set<any>) {
+  return new Set([...a].filter((v) => !b.has(v)))
+}
+
 const wsServer = new ws.Server({ noServer: true })
 
 export async function renderScriptError(
@@ -1026,8 +1030,4 @@ export default class HotReloader {
     }
     return this.onDemandEntries?.ensurePage(page, clientOnly) as any
   }
-}
-
-function diff(a: Set<any>, b: Set<any>) {
-  return new Set([...a].filter((v) => !b.has(v)))
 }

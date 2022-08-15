@@ -23,6 +23,170 @@ export interface PageStaticInfo {
 }
 
 /**
+ * Receives a parsed AST from SWC and checks if it belongs to a module that
+ * requires a runtime to be specified. Those are:
+ *   - Modules with `export function getStaticProps | getServerSideProps`
+ *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
+ */
+function checkExports(swcAST: any) {
+  if (Array.isArray(swcAST?.body)) {
+    try {
+      for (const node of swcAST.body) {
+        if (
+          node.type === 'ExportDeclaration' &&
+          node.declaration?.type === 'FunctionDeclaration' &&
+          ['getStaticProps', 'getServerSideProps'].includes(
+            node.declaration.identifier?.value
+          )
+        ) {
+          return {
+            ssg: node.declaration.identifier.value === 'getStaticProps',
+            ssr: node.declaration.identifier.value === 'getServerSideProps',
+          }
+        }
+
+        if (node.type === 'ExportNamedDeclaration') {
+          const values = node.specifiers.map(
+            (specifier: any) =>
+              specifier.type === 'ExportSpecifier' &&
+              specifier.orig?.type === 'Identifier' &&
+              specifier.orig?.value
+          )
+
+          return {
+            ssg: values.some((value: any) =>
+              ['getStaticProps'].includes(value)
+            ),
+            ssr: values.some((value: any) =>
+              ['getServerSideProps'].includes(value)
+            ),
+          }
+        }
+      }
+    } catch (err) {}
+  }
+
+  return { ssg: false, ssr: false }
+}
+
+async function tryToReadFile(filePath: string, shouldThrow: boolean) {
+  try {
+    return await fs.readFile(filePath, {
+      encoding: 'utf8',
+    })
+  } catch (error) {
+    if (shouldThrow) {
+      throw error
+    }
+  }
+}
+
+function getMiddlewareRegExpStrings(
+  matcherOrMatchers: unknown,
+  nextConfig: NextConfig
+): string[] {
+  if (Array.isArray(matcherOrMatchers)) {
+    return matcherOrMatchers.flatMap((matcher) =>
+      getMiddlewareRegExpStrings(matcher, nextConfig)
+    )
+  }
+  const { i18n } = nextConfig
+
+  if (typeof matcherOrMatchers !== 'string') {
+    throw new Error(
+      '`matcher` must be a path matcher or an array of path matchers'
+    )
+  }
+
+  let matcher: string = matcherOrMatchers
+
+  if (!matcher.startsWith('/')) {
+    throw new Error('`matcher`: path matcher must start with /')
+  }
+  const isRoot = matcher === '/'
+
+  if (i18n?.locales) {
+    matcher = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : matcher}`
+  }
+
+  matcher = `/:nextData(_next/data/[^/]{1,})?${matcher}${
+    isRoot
+      ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
+      : '(.json)?'
+  }`
+
+  if (nextConfig.basePath) {
+    matcher = `${nextConfig.basePath}${matcher}`
+  }
+  const parsedPage = tryToParsePath(matcher)
+
+  if (parsedPage.error) {
+    throw new Error(`Invalid path matcher: ${matcher}`)
+  }
+
+  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
+  if (regexes.length < 1) {
+    throw new Error("Can't parse matcher")
+  } else {
+    return regexes
+  }
+}
+
+function getMiddlewareConfig(
+  config: any,
+  nextConfig: NextConfig
+): Partial<MiddlewareConfig> {
+  const result: Partial<MiddlewareConfig> = {}
+
+  if (config.matcher) {
+    result.pathMatcher = new RegExp(
+      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
+    )
+
+    if (result.pathMatcher.source.length > 4096) {
+      throw new Error(
+        `generated matcher config must be less than 4096 characters.`
+      )
+    }
+  }
+
+  return result
+}
+
+let warnedAboutExperimentalEdgeApiFunctions = false
+function warnAboutExperimentalEdgeApiFunctions() {
+  if (warnedAboutExperimentalEdgeApiFunctions) {
+    return
+  }
+  Log.warn(`You are using an experimental edge runtime, the API might change.`)
+  warnedAboutExperimentalEdgeApiFunctions = true
+}
+
+const warnedUnsupportedValueMap = new Map<string, boolean>()
+function warnAboutUnsupportedValue(
+  pageFilePath: string,
+  page: string | undefined,
+  error: UnsupportedValueError
+) {
+  if (warnedUnsupportedValueMap.has(pageFilePath)) {
+    return
+  }
+
+  Log.warn(
+    `Next.js can't recognize the exported \`config\` field in ` +
+      (page ? `route "${page}"` : `"${pageFilePath}"`) +
+      ':\n' +
+      error.message +
+      (error.path ? ` at "${error.path}"` : '') +
+      '.\n' +
+      'The default config will be used instead.\n' +
+      'Read More - https://nextjs.org/docs/messages/invalid-page-config'
+  )
+
+  warnedUnsupportedValueMap.set(pageFilePath, true)
+}
+
+/**
  * For a given pageFilePath and nextConfig, if the config supports it, this
  * function will read the file and return the runtime that should be used.
  * It will look into the file content only if the page *requires* a runtime
@@ -93,168 +257,4 @@ export async function getPageStaticInfo(params: {
   }
 
   return { ssr: false, ssg: false }
-}
-
-/**
- * Receives a parsed AST from SWC and checks if it belongs to a module that
- * requires a runtime to be specified. Those are:
- *   - Modules with `export function getStaticProps | getServerSideProps`
- *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
- */
-function checkExports(swcAST: any) {
-  if (Array.isArray(swcAST?.body)) {
-    try {
-      for (const node of swcAST.body) {
-        if (
-          node.type === 'ExportDeclaration' &&
-          node.declaration?.type === 'FunctionDeclaration' &&
-          ['getStaticProps', 'getServerSideProps'].includes(
-            node.declaration.identifier?.value
-          )
-        ) {
-          return {
-            ssg: node.declaration.identifier.value === 'getStaticProps',
-            ssr: node.declaration.identifier.value === 'getServerSideProps',
-          }
-        }
-
-        if (node.type === 'ExportNamedDeclaration') {
-          const values = node.specifiers.map(
-            (specifier: any) =>
-              specifier.type === 'ExportSpecifier' &&
-              specifier.orig?.type === 'Identifier' &&
-              specifier.orig?.value
-          )
-
-          return {
-            ssg: values.some((value: any) =>
-              ['getStaticProps'].includes(value)
-            ),
-            ssr: values.some((value: any) =>
-              ['getServerSideProps'].includes(value)
-            ),
-          }
-        }
-      }
-    } catch (err) {}
-  }
-
-  return { ssg: false, ssr: false }
-}
-
-async function tryToReadFile(filePath: string, shouldThrow: boolean) {
-  try {
-    return await fs.readFile(filePath, {
-      encoding: 'utf8',
-    })
-  } catch (error) {
-    if (shouldThrow) {
-      throw error
-    }
-  }
-}
-
-function getMiddlewareConfig(
-  config: any,
-  nextConfig: NextConfig
-): Partial<MiddlewareConfig> {
-  const result: Partial<MiddlewareConfig> = {}
-
-  if (config.matcher) {
-    result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
-    )
-
-    if (result.pathMatcher.source.length > 4096) {
-      throw new Error(
-        `generated matcher config must be less than 4096 characters.`
-      )
-    }
-  }
-
-  return result
-}
-
-function getMiddlewareRegExpStrings(
-  matcherOrMatchers: unknown,
-  nextConfig: NextConfig
-): string[] {
-  if (Array.isArray(matcherOrMatchers)) {
-    return matcherOrMatchers.flatMap((matcher) =>
-      getMiddlewareRegExpStrings(matcher, nextConfig)
-    )
-  }
-  const { i18n } = nextConfig
-
-  if (typeof matcherOrMatchers !== 'string') {
-    throw new Error(
-      '`matcher` must be a path matcher or an array of path matchers'
-    )
-  }
-
-  let matcher: string = matcherOrMatchers
-
-  if (!matcher.startsWith('/')) {
-    throw new Error('`matcher`: path matcher must start with /')
-  }
-  const isRoot = matcher === '/'
-
-  if (i18n?.locales) {
-    matcher = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : matcher}`
-  }
-
-  matcher = `/:nextData(_next/data/[^/]{1,})?${matcher}${
-    isRoot
-      ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
-      : '(.json)?'
-  }`
-
-  if (nextConfig.basePath) {
-    matcher = `${nextConfig.basePath}${matcher}`
-  }
-  const parsedPage = tryToParsePath(matcher)
-
-  if (parsedPage.error) {
-    throw new Error(`Invalid path matcher: ${matcher}`)
-  }
-
-  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
-  if (regexes.length < 1) {
-    throw new Error("Can't parse matcher")
-  } else {
-    return regexes
-  }
-}
-
-let warnedAboutExperimentalEdgeApiFunctions = false
-function warnAboutExperimentalEdgeApiFunctions() {
-  if (warnedAboutExperimentalEdgeApiFunctions) {
-    return
-  }
-  Log.warn(`You are using an experimental edge runtime, the API might change.`)
-  warnedAboutExperimentalEdgeApiFunctions = true
-}
-
-const warnedUnsupportedValueMap = new Map<string, boolean>()
-function warnAboutUnsupportedValue(
-  pageFilePath: string,
-  page: string | undefined,
-  error: UnsupportedValueError
-) {
-  if (warnedUnsupportedValueMap.has(pageFilePath)) {
-    return
-  }
-
-  Log.warn(
-    `Next.js can't recognize the exported \`config\` field in ` +
-      (page ? `route "${page}"` : `"${pageFilePath}"`) +
-      ':\n' +
-      error.message +
-      (error.path ? ` at "${error.path}"` : '') +
-      '.\n' +
-      'The default config will be used instead.\n' +
-      'Read More - https://nextjs.org/docs/messages/invalid-page-config'
-  )
-
-  warnedUnsupportedValueMap.set(pageFilePath, true)
 }

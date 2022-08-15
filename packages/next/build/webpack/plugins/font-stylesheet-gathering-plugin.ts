@@ -30,6 +30,23 @@ function minifyCss(css: string): Promise<string> {
     .then((res) => res.css)
 }
 
+function isNodeCreatingLinkElement(node: any) {
+  const callee = node.callee as any
+  if (callee.type !== 'Identifier') {
+    return false
+  }
+  const componentNode = node.arguments[0] as any
+  if (componentNode.type !== 'Literal') {
+    return false
+  }
+  // React has pragma: _jsx.
+  // Next has pragma: __jsx.
+  return (
+    (callee.name === '_jsx' || callee.name === '__jsx') &&
+    componentNode.value === 'link'
+  )
+}
+
 export class FontStylesheetGatheringPlugin {
   compiler?: webpack.Compiler
   gatheredStylesheets: Array<string> = []
@@ -239,21 +256,4 @@ export class FontStylesheetGatheringPlugin {
       )
     })
   }
-}
-
-function isNodeCreatingLinkElement(node: any) {
-  const callee = node.callee as any
-  if (callee.type !== 'Identifier') {
-    return false
-  }
-  const componentNode = node.arguments[0] as any
-  if (componentNode.type !== 'Literal') {
-    return false
-  }
-  // React has pragma: _jsx.
-  // Next has pragma: __jsx.
-  return (
-    (callee.name === '_jsx' || callee.name === '__jsx') &&
-    componentNode.value === 'link'
-  )
 }

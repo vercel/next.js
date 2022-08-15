@@ -310,6 +310,43 @@ function checkRedirectValues(
   }
 }
 
+function errorToJSON(err: Error) {
+  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
+    'server'
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
+  }
+
+  return {
+    name: err.name,
+    source,
+    message: stripAnsi(err.message),
+    stack: err.stack,
+  }
+}
+
+function serializeError(
+  dev: boolean | undefined,
+  err: Error
+): Error & {
+  statusCode?: number
+  source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+} {
+  if (dev) {
+    return errorToJSON(err)
+  }
+
+  return {
+    name: 'Internal Server Error.',
+    message: '500 - Internal Server Error.',
+    statusCode: 500,
+  }
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -1490,41 +1527,4 @@ export async function renderToHTML(
       createBufferedTransformStream(postOptimize)
     )
   )
-}
-
-function errorToJSON(err: Error) {
-  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
-    'server'
-
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    source =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
-        err
-      ) || 'server'
-  }
-
-  return {
-    name: err.name,
-    source,
-    message: stripAnsi(err.message),
-    stack: err.stack,
-  }
-}
-
-function serializeError(
-  dev: boolean | undefined,
-  err: Error
-): Error & {
-  statusCode?: number
-  source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
-} {
-  if (dev) {
-    return errorToJSON(err)
-  }
-
-  return {
-    name: 'Internal Server Error.',
-    message: '500 - Internal Server Error.',
-    statusCode: 500,
-  }
 }

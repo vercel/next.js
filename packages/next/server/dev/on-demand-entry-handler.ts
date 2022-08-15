@@ -219,6 +219,136 @@ class Invalidator {
   }
 }
 
+function disposeInactiveEntries(maxInactiveAge: number) {
+  Object.keys(entries).forEach((entryKey) => {
+    const entryData = entries[entryKey]
+    const { lastActiveTime, status, dispose } = entryData
+
+    // TODO-APP: implement disposing of CHILD_ENTRY
+    if (entryData.type === EntryTypes.CHILD_ENTRY) {
+      return
+    }
+
+    if (dispose)
+      // Skip pages already scheduled for disposing
+      return
+
+    // This means this entry is currently building or just added
+    // We don't need to dispose those entries.
+    if (status !== BUILT) return
+
+    // We should not build the last accessed page even we didn't get any pings
+    // Sometimes, it's possible our XHR ping to wait before completing other requests.
+    // In that case, we should not dispose the current viewing page
+    if (
+      lastClientAccessPages.includes(entryKey) ||
+      lastServerAccessPagesForAppDir.includes(entryKey)
+    )
+      return
+
+    if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
+      entries[entryKey].dispose = true
+    }
+  })
+}
+
+function tryToNormalizePagePath(page: string) {
+  try {
+    return normalizePagePath(page)
+  } catch (err) {
+    console.error(err)
+    throw new PageNotFoundError(page)
+  }
+}
+
+/**
+ * Attempts to find a page file path from the given pages absolute directory,
+ * a page and allowed extensions. If the page can't be found it will throw an
+ * error. It defaults the `/_error` page to Next.js internal error page.
+ *
+ * @param rootDir Absolute path to the project root.
+ * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
+ * @param normalizedPagePath The page normalized (it will be denormalized).
+ * @param pageExtensions Array of page extensions.
+ */
+async function findPagePathData(
+  rootDir: string,
+  pagesDir: string,
+  page: string,
+  extensions: string[],
+  appDir?: string
+) {
+  const normalizedPagePath = tryToNormalizePagePath(page)
+  let pagePath: string | null = null
+
+  if (isMiddlewareFile(normalizedPagePath)) {
+    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
+
+    if (!pagePath) {
+      throw new PageNotFoundError(normalizedPagePath)
+    }
+
+    const pageUrl = ensureLeadingSlash(
+      removePagePathTail(normalizePathSep(pagePath), {
+        extensions,
+      })
+    )
+
+    return {
+      absolutePagePath: join(rootDir, pagePath),
+      bundlePath: normalizedPagePath.slice(1),
+      page: posix.normalize(pageUrl),
+    }
+  }
+
+  // Check appDir first falling back to pagesDir
+  if (appDir) {
+    pagePath = await findPageFile(appDir, normalizedPagePath, extensions)
+    if (pagePath) {
+      const pageUrl = ensureLeadingSlash(
+        removePagePathTail(normalizePathSep(pagePath), {
+          keepIndex: true,
+          extensions,
+        })
+      )
+
+      return {
+        absolutePagePath: join(appDir, pagePath),
+        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
+        page: posix.normalize(pageUrl),
+      }
+    }
+  }
+
+  if (!pagePath) {
+    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
+  }
+
+  if (pagePath !== null) {
+    const pageUrl = ensureLeadingSlash(
+      removePagePathTail(normalizePathSep(pagePath), {
+        extensions,
+      })
+    )
+
+    return {
+      absolutePagePath: join(pagesDir, pagePath),
+      bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
+      page: posix.normalize(pageUrl),
+    }
+  }
+
+  if (page === '/_error') {
+    return {
+      absolutePagePath: require.resolve('next/dist/pages/_error'),
+      bundlePath: page,
+      page: normalizePathSep(page),
+    }
+  } else {
+    throw new PageNotFoundError(normalizedPagePath)
+  }
+}
+
 export function onDemandEntryHandler({
   maxInactiveAge,
   multiCompiler,
@@ -523,135 +653,5 @@ export function onDemandEntryHandler({
         } catch (_) {}
       })
     },
-  }
-}
-
-function disposeInactiveEntries(maxInactiveAge: number) {
-  Object.keys(entries).forEach((entryKey) => {
-    const entryData = entries[entryKey]
-    const { lastActiveTime, status, dispose } = entryData
-
-    // TODO-APP: implement disposing of CHILD_ENTRY
-    if (entryData.type === EntryTypes.CHILD_ENTRY) {
-      return
-    }
-
-    if (dispose)
-      // Skip pages already scheduled for disposing
-      return
-
-    // This means this entry is currently building or just added
-    // We don't need to dispose those entries.
-    if (status !== BUILT) return
-
-    // We should not build the last accessed page even we didn't get any pings
-    // Sometimes, it's possible our XHR ping to wait before completing other requests.
-    // In that case, we should not dispose the current viewing page
-    if (
-      lastClientAccessPages.includes(entryKey) ||
-      lastServerAccessPagesForAppDir.includes(entryKey)
-    )
-      return
-
-    if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
-      entries[entryKey].dispose = true
-    }
-  })
-}
-
-/**
- * Attempts to find a page file path from the given pages absolute directory,
- * a page and allowed extensions. If the page can't be found it will throw an
- * error. It defaults the `/_error` page to Next.js internal error page.
- *
- * @param rootDir Absolute path to the project root.
- * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
- * @param normalizedPagePath The page normalized (it will be denormalized).
- * @param pageExtensions Array of page extensions.
- */
-async function findPagePathData(
-  rootDir: string,
-  pagesDir: string,
-  page: string,
-  extensions: string[],
-  appDir?: string
-) {
-  const normalizedPagePath = tryToNormalizePagePath(page)
-  let pagePath: string | null = null
-
-  if (isMiddlewareFile(normalizedPagePath)) {
-    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
-
-    if (!pagePath) {
-      throw new PageNotFoundError(normalizedPagePath)
-    }
-
-    const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), {
-        extensions,
-      })
-    )
-
-    return {
-      absolutePagePath: join(rootDir, pagePath),
-      bundlePath: normalizedPagePath.slice(1),
-      page: posix.normalize(pageUrl),
-    }
-  }
-
-  // Check appDir first falling back to pagesDir
-  if (appDir) {
-    pagePath = await findPageFile(appDir, normalizedPagePath, extensions)
-    if (pagePath) {
-      const pageUrl = ensureLeadingSlash(
-        removePagePathTail(normalizePathSep(pagePath), {
-          keepIndex: true,
-          extensions,
-        })
-      )
-
-      return {
-        absolutePagePath: join(appDir, pagePath),
-        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
-        page: posix.normalize(pageUrl),
-      }
-    }
-  }
-
-  if (!pagePath) {
-    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
-  }
-
-  if (pagePath !== null) {
-    const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), {
-        extensions,
-      })
-    )
-
-    return {
-      absolutePagePath: join(pagesDir, pagePath),
-      bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
-      page: posix.normalize(pageUrl),
-    }
-  }
-
-  if (page === '/_error') {
-    return {
-      absolutePagePath: require.resolve('next/dist/pages/_error'),
-      bundlePath: page,
-      page: normalizePathSep(page),
-    }
-  } else {
-    throw new PageNotFoundError(normalizedPagePath)
-  }
-}
-
-function tryToNormalizePagePath(page: string) {
-  try {
-    return normalizePagePath(page)
-  } catch (err) {
-    console.error(err)
-    throw new PageNotFoundError(page)
   }
 }
