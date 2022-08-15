@@ -18,11 +18,6 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
   export = m
 }
 
-declare module 'next/dist/styled-jsx' {
-  import m from 'styled-jsx'
-  export = m
-}
-
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
@@ -289,6 +284,7 @@ declare module 'next/dist/compiled/postcss-scss' {
   import m from 'postcss-scss'
   export = m
 }
+
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -361,6 +357,12 @@ declare module 'next/dist/compiled/watchpack' {
 
   class Watchpack extends EventEmitter {
     constructor(options?: any)
+    watch(params: {
+      files?: string[]
+      directories?: string[]
+      startTime?: number
+      missing?: string[]
+    }): void
     watch(files: string[], directories: string[], startTime?: number): void
     close(): void
 

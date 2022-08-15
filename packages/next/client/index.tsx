@@ -80,6 +80,7 @@ let headManager: {
   getIsSsr?: () => boolean
 }
 let initialMatchesMiddleware = false
+let lastAppProps: AppProps
 
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
@@ -288,6 +289,18 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   return { assetPrefix: prefix }
 }
 
+const wrapApp =
+  (App: AppComponent) =>
+  (wrappedAppProps: Record<string, any>): JSX.Element => {
+    const appProps: AppProps = {
+      ...wrappedAppProps,
+      Component: CachedComponent,
+      err: initialData.err,
+      router,
+    }
+    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
+  }
+
 export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   let initialErr = initialData.err
 
@@ -468,7 +481,7 @@ async function render(renderingProps: RenderRouteInfo): Promise<void> {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
-  const { App, err } = renderErrorProps
+  let { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
@@ -497,10 +510,18 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
       return lastAppProps?.Component === ErrorComponent
-        ? import('../pages/_error').then((m) => ({
-            ErrorComponent: m.default as React.ComponentType<{}>,
-            styleSheets: [],
-          }))
+        ? import('../pages/_error')
+            .then((errorModule) => {
+              return import('../pages/_app').then((appModule) => {
+                App = appModule.default as any as AppComponent
+                renderErrorProps.App = App
+                return errorModule
+              })
+            })
+            .then((m) => ({
+              ErrorComponent: m.default as React.ComponentType<{}>,
+              styleSheets: [],
+            }))
         : { ErrorComponent, styleSheets }
     })
     .then(({ ErrorComponent, styleSheets }) => {
@@ -655,18 +676,6 @@ function renderApp(App: AppComponent, appProps: AppProps) {
   return <App {...appProps} />
 }
 
-const wrapApp =
-  (App: AppComponent) =>
-  (wrappedAppProps: Record<string, any>): JSX.Element => {
-    const appProps: AppProps = {
-      ...wrappedAppProps,
-      Component: CachedComponent,
-      err: initialData.err,
-      router,
-    }
-    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
-  }
-
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
   const getCacheKey = () => {
@@ -810,7 +819,6 @@ if (process.env.__NEXT_RSC) {
   }
 }
 
-let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
   let { App, Component, props, err, __N_RSC }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =

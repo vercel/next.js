@@ -75,10 +75,12 @@ function withTaggedErrors(fn: RunnerFn): RunnerFn {
       .then((result) => ({
         ...result,
         waitUntil: result?.waitUntil?.catch((error) => {
+          // TODO: used COMPILER_NAMES.edgeServer instead. Verify that it does not increase the runtime size.
           throw getServerError(error, 'edge-server')
         }),
       }))
       .catch((error) => {
+        // TODO: used COMPILER_NAMES.edgeServer instead
         throw getServerError(error, 'edge-server')
       })
 }

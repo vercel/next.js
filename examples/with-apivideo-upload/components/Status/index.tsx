@@ -6,6 +6,13 @@ interface IStatusProps {
   done: boolean
   title: string
 }
+
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+`
 const Status: React.FC<IStatusProps> = ({ done, title }): JSX.Element => (
   <Container>
     <p>{title}</p>
@@ -14,10 +21,3 @@ const Status: React.FC<IStatusProps> = ({ done, title }): JSX.Element => (
 )
 
 export default Status
-
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-`

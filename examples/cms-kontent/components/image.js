@@ -1,10 +1,6 @@
 import NextImage from 'next/image'
 import { transformImageUrl } from '@kentico/kontent-delivery'
 
-const getLoader = (src) => {
-  return srcIsKontentAsset(src) ? kontentImageLoader : undefined
-}
-
 const srcIsKontentAsset = (src) => {
   try {
     const { hostname } = new URL(src)
@@ -21,6 +17,10 @@ const kontentImageLoader = ({ src, width, quality = 75 }) => {
     .withCompression('lossless')
     .withAutomaticFormat()
     .getUrl()
+}
+
+const getLoader = (src) => {
+  return srcIsKontentAsset(src) ? kontentImageLoader : undefined
 }
 
 export default function Image(props) {

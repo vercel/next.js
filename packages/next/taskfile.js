@@ -49,43 +49,15 @@ export async function copy_styled_jsx_assets(task, opts) {
   // package is hoisted out of Next.js' node_modules or not
   const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
   const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
-  const jsFiles = glob.sync('**/{index,style,babel,babel-test}.js', {
-    cwd: styledJsxPath,
-  })
   const outputDir = join(__dirname, 'dist/styled-jsx')
-  let typeReferences = ``
-
-  await fs.ensureDir(outputDir)
+  // Separate type files into different folders to avoid conflicts between
+  // dev dep `styled-jsx` and `next/dist/styled-jsx` for duplicated declare modules
+  const typesDir = join(outputDir, 'types')
+  await fs.ensureDir(typesDir)
 
   for (const file of typeFiles) {
-    const fileNoExt = file.replace(/\.d\.ts/, '')
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
-    const exportsIndex = content.indexOf('export')
-
-    let replacedContent =
-      `${content.substring(0, exportsIndex)}\n` +
-      `declare module 'styled-jsx${
-        file === 'index.d.ts' ? '' : '/' + fileNoExt
-      }' {
-        ${content.substring(exportsIndex)}
-      }`
-    if (file === 'index.d.ts') {
-      replacedContent = replacedContent
-        .replace(/export function StyleRegistry/g, 'export function IRegistry')
-        .replace(/StyleRegistry/g, 'IStyleRegistry')
-        .replace(/IRegistry/g, 'Registry')
-    }
-    await fs.writeFile(join(outputDir, file), replacedContent)
-    typeReferences += `/// <reference types="./${fileNoExt}" />\n`
-  }
-
-  await fs.writeFile(join(outputDir, 'global.d.ts'), typeReferences)
-
-  for (const file of jsFiles) {
-    const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
-    const distFile = join(outputDir, file)
-    await fs.ensureDir(dirname(distFile))
-    await fs.writeFile(distFile, content)
+    await fs.writeFile(join(typesDir, file), content)
   }
 }
 
@@ -1806,7 +1778,12 @@ export async function path_to_regexp(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'path_to_regexp', 'copy_ncced'],
+    [
+      'browser_polyfills',
+      'path_to_regexp',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+    ],
     opts
   )
 }
@@ -1965,7 +1942,6 @@ export async function compile(task, opts) {
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
-      'copy_styled_jsx_assets',
     ],
     opts
   )
