@@ -50,6 +50,16 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
 
 type ErrorType = 'runtime' | 'build'
 
+const shouldPreventDisplay = (
+  errorType?: ErrorType | null,
+  preventType?: ErrorType[] | null
+) => {
+  if (!preventType || !errorType) {
+    return false
+  }
+  return preventType.includes(errorType)
+}
+
 const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
   children,
   preventDisplay,
@@ -113,16 +123,6 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
       ) : undefined}
     </React.Fragment>
   )
-}
-
-const shouldPreventDisplay = (
-  errorType?: ErrorType | null,
-  preventType?: ErrorType[] | null
-) => {
-  if (!preventType || !errorType) {
-    return false
-  }
-  return preventType.includes(errorType)
 }
 
 export default ReactDevOverlay

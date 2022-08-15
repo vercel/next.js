@@ -360,11 +360,6 @@ export default function OuterLayoutRouter({
 
   return (
     <>
-      {/* {stylesheets
-        ? stylesheets.map((href) => (
-            <link rel="stylesheet" href={`/_next/${href}`} key={href} />
-          ))
-        : null} */}
       {preservedSegments.map((preservedSegment) => {
         return (
           // Loading boundary is render for each segment to ensure they have their own loading state.
