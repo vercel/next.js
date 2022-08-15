@@ -335,14 +335,6 @@ declare module 'next/dist/compiled/@segment/ajv-human-errors' {
   export = m
 }
 
-declare module 'pnp-webpack-plugin' {
-  import webpack from 'webpack4'
-
-  class PnpWebpackPlugin extends webpack.Plugin {}
-
-  export = PnpWebpackPlugin
-}
-
 declare module NodeJS {
   interface ProcessVersions {
     pnp?: string
