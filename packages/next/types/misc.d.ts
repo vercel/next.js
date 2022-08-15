@@ -284,10 +284,6 @@ declare module 'next/dist/compiled/postcss-scss' {
   import m from 'postcss-scss'
   export = m
 }
-declare module 'next/dist/styled-jsx' {
-  import m from 'styled-jsx'
-  export = m
-}
 
 declare module 'next/dist/compiled/text-table' {
   function textTable(

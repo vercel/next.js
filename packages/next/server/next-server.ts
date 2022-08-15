@@ -38,6 +38,7 @@ import {
   FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
+  FLIGHT_SERVER_CSS_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
@@ -79,13 +80,14 @@ import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
-import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
-import { isDynamicRoute } from '../shared/lib/router/utils'
 import { shouldUseReactRoot } from './utils'
+import ResponseCache from './response-cache'
+import { IncrementalCache } from './lib/incremental-cache'
+import { getSortedRoutes } from '../shared/lib/router/utils/sorted-routes'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -168,6 +170,34 @@ export default class NextNodeServer extends BaseServer {
     forceReload?: boolean
   }) {
     loadEnvConfig(this.dir, dev, Log, forceReload)
+  }
+
+  protected getResponseCache({ dev }: { dev: boolean }) {
+    const incrementalCache = new IncrementalCache({
+      fs: this.getCacheFilesystem(),
+      dev,
+      serverDistDir: this.serverDistDir,
+      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+      flushToDisk:
+        !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
+      incrementalCacheHandlerPath:
+        this.nextConfig.experimental?.incrementalCacheHandlerPath,
+      getPrerenderManifest: () => {
+        if (dev) {
+          return {
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }
+        } else {
+          return this.getPrerenderManifest()
+        }
+      },
+    })
+
+    return new ResponseCache(incrementalCache, this.minimalMode)
   }
 
   protected getPublicDir(): string {
@@ -642,6 +672,7 @@ export default class NextNodeServer extends BaseServer {
     // object here but only updating its `serverComponentManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
+    renderOpts.serverCSSManifest = this.serverCSSManifest
 
     if (
       this.nextConfig.experimental.appDir &&
@@ -785,6 +816,21 @@ export default class NextNodeServer extends BaseServer {
   protected getServerComponentManifest() {
     if (!this.nextConfig.experimental.serverComponents) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
+  }
+
+  protected getServerCSSManifest() {
+    if (!this.nextConfig.experimental.serverComponents) return undefined
+    return require(join(
+      this.distDir,
+      'server',
+      FLIGHT_SERVER_CSS_MANIFEST + '.json'
+    ))
+  }
+
+  protected getFallback(page: string): Promise<string> {
+    page = normalizePagePath(page)
+    const cacheFs = this.getCacheFilesystem()
+    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1105,10 +1151,13 @@ export default class NextNodeServer extends BaseServer {
       return []
     }
 
-    return Object.keys(manifest.functions).map((page) => ({
-      match: getMiddlewareMatcher(manifest.functions[page]),
-      page,
-    }))
+    // Make sure to sort function routes too.
+    return getSortedRoutes(Object.keys(manifest.functions)).map((page) => {
+      return {
+        match: getMiddlewareMatcher(manifest.functions[page]),
+        page,
+      }
+    })
   }
 
   protected getEdgeRoutes(): RoutingItem[] {
@@ -1325,22 +1374,13 @@ export default class NextNodeServer extends BaseServer {
         const normalizedPathname = removeTrailingSlash(pathname || '')
         let page = normalizedPathname
         let params: Params | undefined = undefined
-        let pageFound = !isDynamicRoute(page)
 
-        if (this.dynamicRoutes) {
-          for (const dynamicRoute of this.dynamicRoutes) {
-            params = dynamicRoute.match(normalizedPathname) || undefined
-            if (params) {
-              page = dynamicRoute.page
-              pageFound = true
-              break
-            }
-          }
-        }
-
-        if (!pageFound) {
-          return {
-            finished: false,
+        for (const edgeFunction of edgeFunctions) {
+          const matched = edgeFunction.match(page)
+          if (matched) {
+            params = matched
+            page = edgeFunction.page
+            break
           }
         }
 

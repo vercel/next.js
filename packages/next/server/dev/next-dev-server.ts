@@ -30,6 +30,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
+  COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
@@ -74,6 +75,7 @@ import {
   isMiddlewareFile,
   NestedMiddlewareError,
 } from '../../build/utils'
+import { getDefineEnv } from '../../build/webpack-config'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -389,22 +391,61 @@ export default class DevServer extends Server {
             continue
           }
 
-          runDependingOnPageType({
+          await runDependingOnPageType({
             page: pageName,
             pageRuntime: staticInfo.runtime,
             onClient: () => {},
-            onServer: () => {},
+            onServer: () => {
+              routedPages.push(pageName)
+            },
             onEdgeServer: () => {
               edgeRoutesSet.add(pageName)
             },
           })
-          routedPages.push(pageName)
         }
 
         if (envChange) {
           this.loadEnvConfig({ dev: true, forceReload: true })
-          await this.hotReloader?.stop()
-          await this.hotReloader?.start()
+
+          this.hotReloader?.activeConfigs?.forEach((config, idx) => {
+            const isClient = idx === 0
+            const isNodeServer = idx === 1
+            const isEdgeServer = idx === 2
+            const hasRewrites =
+              this.customRoutes.rewrites.afterFiles.length > 0 ||
+              this.customRoutes.rewrites.beforeFiles.length > 0 ||
+              this.customRoutes.rewrites.fallback.length > 0
+
+            config.plugins?.forEach((plugin: any) => {
+              // we look for the DefinePlugin definitions so we can
+              // update them on the active compilers
+              if (
+                plugin &&
+                typeof plugin.definitions === 'object' &&
+                plugin.definitions.__NEXT_DEFINE_ENV
+              ) {
+                const newDefine = getDefineEnv({
+                  dev: true,
+                  config: this.nextConfig,
+                  distDir: this.distDir,
+                  isClient,
+                  hasRewrites,
+                  hasReactRoot: this.hotReloader?.hasReactRoot,
+                  isNodeServer,
+                  isEdgeServer,
+                  hasServerComponents: this.hotReloader?.hasServerComponents,
+                })
+
+                Object.keys(plugin.definitions).forEach((key) => {
+                  if (!(key in newDefine)) {
+                    delete plugin.definitions[key]
+                  }
+                })
+                Object.assign(plugin.definitions, newDefine)
+              }
+            })
+          })
+          this.hotReloader?.invalidate()
         }
 
         if (nestedMiddleware.length > 0) {
@@ -524,7 +565,7 @@ export default class DevServer extends Server {
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
-    await this.hotReloader.start()
+    await this.hotReloader.start(true)
     await this.startWatcher()
     this.setDevReady!()
 
@@ -849,7 +890,7 @@ export default class DevServer extends Server {
 
           const src = getErrorSource(err as Error)
           const compilation = (
-            src === 'edge-server'
+            src === COMPILER_NAMES.edgeServer
               ? this.hotReloader?.edgeServerStats?.compilation
               : this.hotReloader?.serverStats?.compilation
           )!
@@ -878,7 +919,7 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (src === 'edge-server') {
+            if (src === COMPILER_NAMES.edgeServer) {
               err = err.message
             }
             if (type === 'warning') {
@@ -949,6 +990,10 @@ export default class DevServer extends Server {
   }
 
   protected getServerComponentManifest() {
+    return undefined
+  }
+
+  protected getServerCSSManifest() {
     return undefined
   }
 
@@ -1136,7 +1181,7 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async ensureApiPage(pathname: string) {
+  protected async ensureApiPage(pathname: string): Promise<void> {
     return this.hotReloader!.ensurePage(pathname)
   }
 
@@ -1161,6 +1206,7 @@ export default class DevServer extends Server {
       // manifest.
       if (serverComponents) {
         this.serverComponentManifest = super.getServerComponentManifest()
+        this.serverCSSManifest = super.getServerCSSManifest()
       }
 
       return super.findPageComponents(pathname, query, params, isAppDir)

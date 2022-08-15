@@ -3,7 +3,10 @@ import {
   decorateServerError,
   getServerError,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
+import {
+  COMPILER_NAMES,
+  EDGE_UNSUPPORTED_NODE_APIS,
+} from '../../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
@@ -126,7 +129,7 @@ async function createModuleContext(options: ModuleContextOptions) {
             new Error(
               `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
             ),
-            'edge-server'
+            COMPILER_NAMES.edgeServer
           )
           warning.name = 'DynamicCodeEvaluationWarning'
           Error.captureStackTrace(warning, __next_eval__)
@@ -143,7 +146,7 @@ async function createModuleContext(options: ModuleContextOptions) {
             const warning = getServerError(
               new Error(`Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
-              'edge-server'
+              COMPILER_NAMES.edgeServer
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
             Error.captureStackTrace(warning, __next_webassembly_compile__)
@@ -170,7 +173,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
             const warning = getServerError(
               new Error(`Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
-              'edge-server'
+              COMPILER_NAMES.edgeServer
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
             Error.captureStackTrace(warning, __next_webassembly_instantiate__)
@@ -334,7 +337,7 @@ function throwUnsupportedAPIError(name: string) {
   const error =
     new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-  decorateServerError(error, 'edge-server')
+  decorateServerError(error, COMPILER_NAMES.edgeServer)
   throw error
 }
 
@@ -342,7 +345,7 @@ function getDecorateUnhandledError(runtime: EdgeRuntime) {
   const EdgeRuntimeError = runtime.evaluate(`Error`)
   return (error: any) => {
     if (error instanceof EdgeRuntimeError) {
-      decorateServerError(error, 'edge-server')
+      decorateServerError(error, COMPILER_NAMES.edgeServer)
     }
   }
 }

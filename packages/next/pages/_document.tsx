@@ -46,9 +46,10 @@ function getDocumentFiles(
   inAmpMode: boolean
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(buildManifest, '/_app')
-  const pageFiles: readonly string[] = inAmpMode
-    ? []
-    : getPageFiles(buildManifest, pathname)
+  const pageFiles: readonly string[] =
+    process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+      ? []
+      : getPageFiles(buildManifest, pathname)
 
   return {
     sharedFiles,
@@ -434,7 +435,11 @@ export class Head extends Component<HeadProps> {
         )
     }
 
-    if (process.env.NODE_ENV !== 'development' && optimizeFonts && !inAmpMode) {
+    if (
+      process.env.NODE_ENV !== 'development' &&
+      optimizeFonts &&
+      !(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode)
+    ) {
       children = this.makeStylesheetInert(children)
     }
 
@@ -445,7 +450,7 @@ export class Head extends Component<HeadProps> {
     head = React.Children.map(head || [], (child) => {
       if (!child) return child
       const { type, props } = child
-      if (inAmpMode) {
+      if (process.env.NEXT_RUNTIME !== 'edge' && inAmpMode) {
         let badProp: string = ''
 
         if (type === 'meta' && props.name === 'viewport') {
@@ -488,7 +493,7 @@ export class Head extends Component<HeadProps> {
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page,
-      inAmpMode
+      process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
     )
 
     return (
@@ -497,14 +502,22 @@ export class Head extends Component<HeadProps> {
           <>
             <style
               data-next-hide-fouc
-              data-ampdevmode={inAmpMode ? 'true' : undefined}
+              data-ampdevmode={
+                process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+                  ? 'true'
+                  : undefined
+              }
               dangerouslySetInnerHTML={{
                 __html: `body{display:none}`,
               }}
             />
             <noscript
               data-next-hide-fouc
-              data-ampdevmode={inAmpMode ? 'true' : undefined}
+              data-ampdevmode={
+                process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+                  ? 'true'
+                  : undefined
+              }
             >
               <style
                 dangerouslySetInnerHTML={{
@@ -523,7 +536,7 @@ export class Head extends Component<HeadProps> {
         {children}
         {optimizeFonts && <meta name="next-font-preconnect" />}
 
-        {inAmpMode && (
+        {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>
             <meta
               name="viewport"
@@ -559,7 +572,7 @@ export class Head extends Component<HeadProps> {
             <script async src="https://cdn.ampproject.org/v0.js" />
           </>
         )}
-        {!inAmpMode && (
+        {!(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode) && (
           <>
             {!hasAmphtmlRel && hybridAmp && (
               <link
@@ -938,7 +951,7 @@ export class NextScript extends Component<OriginProps> {
 
     docComponentsRendered.NextScript = true
 
-    if (inAmpMode) {
+    if (process.env.NEXT_RUNTIME !== 'edge' && inAmpMode) {
       if (process.env.NODE_ENV === 'production') {
         return null
       }
@@ -985,7 +998,7 @@ export class NextScript extends Component<OriginProps> {
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page,
-      inAmpMode
+      process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
     )
 
     return (
@@ -1091,9 +1104,13 @@ export function Html(
     <html
       {...props}
       lang={props.lang || locale || undefined}
-      amp={inAmpMode ? '' : undefined}
+      amp={process.env.NEXT_RUNTIME !== 'edge' && inAmpMode ? '' : undefined}
       data-ampdevmode={
-        inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        inAmpMode &&
+        process.env.NODE_ENV !== 'production'
+          ? ''
+          : undefined
       }
     />
   )
