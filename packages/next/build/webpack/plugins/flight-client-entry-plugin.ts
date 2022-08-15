@@ -100,17 +100,17 @@ export class FlightClientEntryPlugin {
         entryModule
       )) {
         const layoutOrPageDependency = connection.dependency
+        const layoutOrPageRequest = connection.dependency.request
 
         const [clientComponentImports, cssImports] =
           this.collectClientComponentsAndCSSForDependency({
-            context: compiler.context,
+            layoutOrPageRequest,
             compilation,
             dependency: layoutOrPageDependency,
           })
 
         Object.assign(flightCSSManifest, cssImports)
 
-        const layoutOrPageRequest = connection.dependency.request
         const isAbsoluteRequest = layoutOrPageRequest[0] === '/'
 
         // Next.js internals are put into a separate entry.
@@ -180,11 +180,11 @@ export class FlightClientEntryPlugin {
   }
 
   collectClientComponentsAndCSSForDependency({
-    context,
+    layoutOrPageRequest,
     compilation,
     dependency,
   }: {
-    context: string
+    layoutOrPageRequest: string
     compilation: any
     dependency: any /* Dependency */
   }): [ClientComponentImports, CssImports] {
@@ -223,11 +223,11 @@ export class FlightClientEntryPlugin {
       if (!visitedBySegment[segmentPath]) {
         visitedBySegment[segmentPath] = new Set()
       }
-      if (!modRequest || visitedBySegment[segmentPath].has(modRequest)) return
+      if (!modRequest || visitedBySegment[segmentPath].has(modRequest)) {
+        return
+      }
       visitedBySegment[segmentPath].add(modRequest)
 
-      const isLayoutOrPage =
-        /\/(layout|page)(\.server|\.client)?\.(js|ts)x?$/.test(modRequest)
       const isCSS = regexCSS.test(modRequest)
       const isClientComponent = clientComponentRegex.test(modRequest)
 
@@ -242,21 +242,6 @@ export class FlightClientEntryPlugin {
         return
       }
 
-      if (isLayoutOrPage) {
-        segmentPath = path
-          .relative(path.join(context, 'app'), path.dirname(modRequest))
-          .replace(/\\/g, '/')
-
-        if (segmentPath !== '') {
-          segmentPath = '/' + segmentPath
-        }
-
-        // If it's a page, add an extra '/' to the segments
-        if (/\/(page)(\.server|\.client)?\.(js|ts)x?$/.test(modRequest)) {
-          segmentPath += '/'
-        }
-      }
-
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
@@ -265,7 +250,7 @@ export class FlightClientEntryPlugin {
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(dependency, '')
+    filterClientComponents(dependency, layoutOrPageRequest)
 
     return [clientComponentImports, serverCSSImports]
   }

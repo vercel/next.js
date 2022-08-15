@@ -25,7 +25,7 @@ async function createTreeCodeFromPath({
     // First item in the list is the page which can't have layouts by itself
     if (i === segments.length - 1) {
       // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-      tree = `['', {}, {page: () => require('${pagePath}')}]`
+      tree = `['', {}, {page: () => require('${await resolve(pagePath)}')}]`
       continue
     }
 
