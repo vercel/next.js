@@ -13,6 +13,7 @@ export type LoadedEnvFiles = Array<{
 let initialEnv: Env | undefined = undefined
 let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
+let previousLoadedEnvFiles: LoadedEnvFiles = []
 
 type Log = {
   info: (...args: any[]) => void
@@ -49,7 +50,13 @@ export function processEnv(
 
       result = dotenvExpand(result)
 
-      if (result.parsed) {
+      if (
+        result.parsed &&
+        !previousLoadedEnvFiles.some(
+          (item) =>
+            item.contents === envFile.contents && item.path === envFile.path
+        )
+      ) {
         log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
       }
 
@@ -88,6 +95,7 @@ export function loadEnvConfig(
     return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
   process.env = Object.assign({}, initialEnv)
+  previousLoadedEnvFiles = cachedLoadedEnvFiles
   cachedLoadedEnvFiles = []
 
   const isTest = process.env.NODE_ENV === 'test'

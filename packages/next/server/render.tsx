@@ -28,7 +28,7 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
 
 import React from 'react'
-import { StyleRegistry, createStyleRegistry } from 'next/dist/styled-jsx'
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
   GSSP_COMPONENT_MEMBER_ERROR,
@@ -40,6 +40,7 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../lib/constants'
 import {
+  COMPILER_NAMES,
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
@@ -229,6 +230,7 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   serverComponentManifest?: any
+  serverCSSManifest?: any
   distDir?: string
   locale?: string
   locales?: string[]
@@ -305,6 +307,43 @@ function checkRedirectValues(
         '\n' +
         `See more info here: https://nextjs.org/docs/messages/invalid-redirect-gssp`
     )
+  }
+}
+
+function errorToJSON(err: Error) {
+  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
+    'server'
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
+  }
+
+  return {
+    name: err.name,
+    source,
+    message: stripAnsi(err.message),
+    stack: err.stack,
+  }
+}
+
+function serializeError(
+  dev: boolean | undefined,
+  err: Error
+): Error & {
+  statusCode?: number
+  source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+} {
+  if (dev) {
+    return errorToJSON(err)
+  }
+
+  return {
+    name: 'Internal Server Error.',
+    message: '500 - Internal Server Error.',
+    statusCode: 500,
   }
 }
 
@@ -1488,37 +1527,4 @@ export async function renderToHTML(
       createBufferedTransformStream(postOptimize)
     )
   )
-}
-
-function errorToJSON(err: Error) {
-  let source: 'server' | 'edge-server' = 'server'
-
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    source =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
-        err
-      ) || 'server'
-  }
-
-  return {
-    name: err.name,
-    source,
-    message: stripAnsi(err.message),
-    stack: err.stack,
-  }
-}
-
-function serializeError(
-  dev: boolean | undefined,
-  err: Error
-): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
-  if (dev) {
-    return errorToJSON(err)
-  }
-
-  return {
-    name: 'Internal Server Error.',
-    message: '500 - Internal Server Error.',
-    statusCode: 500,
-  }
 }

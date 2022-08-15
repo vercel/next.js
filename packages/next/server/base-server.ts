@@ -10,7 +10,11 @@ import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
-import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
+import type {
+  ResponseCacheBase,
+  ResponseCacheEntry,
+  ResponseCacheValue,
+} from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   CacheFs,
@@ -24,13 +28,12 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 
-import { join, resolve } from '../shared/lib/isomorphic/path'
+import { join } from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
 import {
   NEXT_BUILTIN_DOCUMENT,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -47,7 +50,6 @@ import { isTargetLikeServerless } from './utils'
 import Router from './router'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
-import { IncrementalCache } from './lib/incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
@@ -59,7 +61,6 @@ import * as Log from '../build/output/log'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
-import ResponseCache from './response-cache'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
@@ -73,7 +74,6 @@ import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -160,6 +160,21 @@ type ResponsePayload = {
   revalidateOptions?: any
 }
 
+export function prepareServerlessUrl(
+  req: BaseNextRequest,
+  query: ParsedUrlQuery
+): void {
+  const curUrl = parseUrl(req.url!, true)
+  req.url = formatUrl({
+    ...curUrl,
+    search: undefined,
+    query: {
+      ...curUrl.query,
+      ...query,
+    },
+  })
+}
+
 export default abstract class Server<ServerOptions extends Options = Options> {
   protected dir: string
   protected quiet: boolean
@@ -204,13 +219,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     largePageDataBytes?: number
   }
   protected serverOptions: ServerOptions
-  private incrementalCache: IncrementalCache
-  private responseCache: ResponseCache
+  private responseCache: ResponseCacheBase
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected appPathRoutes?: Record<string, string>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
+  protected serverCSSManifest?: any
   public readonly hostname?: string
   public readonly port?: number
 
@@ -245,10 +260,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
+  protected abstract getServerCSSManifest(): any
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
     parsedUrl: NextUrlWithParsedQuery
   ): void
+  protected abstract getFallback(page: string): Promise<string>
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -284,6 +301,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse
   ): void
 
+  protected abstract getResponseCache(options: {
+    dev: boolean
+  }): ResponseCacheBase
+
   protected abstract loadEnvConfig(params: {
     dev: boolean
     forceReload?: boolean
@@ -302,7 +323,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = options
     this.serverOptions = options
 
-    this.dir = resolve(dir)
+    this.dir =
+      process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
+
     this.quiet = quiet
     this.loadEnvConfig({ dev })
 
@@ -311,7 +334,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
     this.port = port
-    this.distDir = join(this.dir, this.nextConfig.distDir)
+    this.distDir =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? this.nextConfig.distDir
+        : require('path').join(this.dir, this.nextConfig.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
@@ -330,6 +356,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const serverComponents = this.nextConfig.experimental.serverComponents
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
+      : undefined
+    this.serverCSSManifest = serverComponents
+      ? this.getServerCSSManifest()
       : undefined
 
     this.renderOpts = {
@@ -381,32 +410,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    this.incrementalCache = new IncrementalCache({
-      fs: this.getCacheFilesystem(),
-      dev,
-      serverDistDir: this.serverDistDir,
-      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
-      flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      incrementalCacheHandlerPath:
-        this.nextConfig.experimental?.incrementalCacheHandlerPath,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
-    })
-    this.responseCache = new ResponseCache(
-      this.incrementalCache,
-      this.minimalMode
-    )
+    this.responseCache = this.getResponseCache({ dev })
   }
 
   public logError(err: Error): void {
@@ -726,12 +730,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return Object.assign(customRoutes, { rewrites })
   }
 
-  protected getFallback(page: string): Promise<string> {
-    page = normalizePagePath(page)
-    const cacheFs = this.getCacheFilesystem()
-    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
-  }
-
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
   }
@@ -1046,9 +1044,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const appPathRoutes: Record<string, string> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      if (entry.endsWith(NEXT_CLIENT_SSR_ENTRY_SUFFIX)) {
-        return
-      }
       appPathRoutes[normalizeAppPath(entry) || '/'] = entry
     })
     return appPathRoutes
@@ -2140,21 +2135,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
   }
-}
-
-export function prepareServerlessUrl(
-  req: BaseNextRequest,
-  query: ParsedUrlQuery
-): void {
-  const curUrl = parseUrl(req.url!, true)
-  req.url = formatUrl({
-    ...curUrl,
-    search: undefined,
-    query: {
-      ...curUrl.query,
-      ...query,
-    },
-  })
 }
 
 export { stringifyQuery } from './server-route-utils'

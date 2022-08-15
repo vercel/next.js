@@ -1,1 +1,3 @@
-export default () => <p>{process.env.NEXT_PUBLIC_HELLO_WORLD}</p>
+export default function Page() {
+  return <p>{process.env.NEXT_PUBLIC_HELLO_WORLD}</p>
+}
