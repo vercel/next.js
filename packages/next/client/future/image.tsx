@@ -363,6 +363,24 @@ const ImageElement = ({
               if (img && !srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
+              if (
+                img.getAttribute('objectFit') ||
+                img.getAttribute('objectfit')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
+              if (
+                img.getAttribute('objectPosition') ||
+                img.getAttribute('objectposition')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
             }
             if (img?.complete) {
               handleLoading(
@@ -583,17 +601,6 @@ export default function Image({
     if (priority && loading === 'lazy') {
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
-      )
-    }
-
-    if ('objectFit' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" property.`
-      )
-    }
-    if ('objectPosition' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" property.`
       )
     }
 
