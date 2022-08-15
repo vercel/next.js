@@ -2043,7 +2043,7 @@ mod tests {
                                             }
                                             .into(),
                                         )),
-                                        Value::new(EnvironmentIntention::Server),
+                                        Value::new(EnvironmentIntention::ServerRendering),
                                     ),
                                 ))
                             }),

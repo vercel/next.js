@@ -115,7 +115,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                                     }
                                     .into(),
                                 )),
-                                Value::new(EnvironmentIntention::Server),
+                                Value::new(EnvironmentIntention::ServerRendering),
                             ),
                         ))
                     }),

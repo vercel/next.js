@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
                         }
                         .into(),
                     )),
-                    Value::new(EnvironmentIntention::Server),
+                    Value::new(EnvironmentIntention::ServerRendering),
                 ),
             );
             let module = context.process(source.into());

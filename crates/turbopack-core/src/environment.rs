@@ -28,8 +28,11 @@ impl EnvironmentVc {
 #[derive(PartialOrd, Ord, Debug, Hash, Clone, Copy)]
 pub enum EnvironmentIntention {
     Data,
+    Middleware,
+    Api,
     Prerendering,
-    Server,
+    ServerRendering,
+    StaticRendering,
     Client,
     // TODO allow custom trait here
     Custom(u8),
@@ -38,6 +41,7 @@ pub enum EnvironmentIntention {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
+    NodeJsBuildTime(NodeJsEnvironmentVc),
     NodeJsLambda(NodeJsEnvironmentVc),
     EdgeFunction(NodeJsEnvironmentVc),
     Browser(BrowserEnvironmentVc),
@@ -51,7 +55,8 @@ impl EnvironmentVc {
     pub async fn compile_target(self) -> Result<CompileTargetVc> {
         let this = self.await?;
         Ok(match this.execution {
-            ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
+            ExecutionEnvironment::NodeJsBuildTime(node_env)
+            | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
             ExecutionEnvironment::Browser(_) => CompileTargetVc::unknown(),
             ExecutionEnvironment::EdgeFunction(_) => todo!(),
             ExecutionEnvironment::Custom(_) => todo!(),
@@ -62,7 +67,8 @@ impl EnvironmentVc {
     pub async fn is_typescript_enabled(self) -> Result<BoolVc> {
         let this = self.await?;
         Ok(match this.execution {
-            ExecutionEnvironment::NodeJsLambda(node_env) => {
+            ExecutionEnvironment::NodeJsBuildTime(node_env)
+            | ExecutionEnvironment::NodeJsLambda(node_env) => {
                 BoolVc::cell(node_env.await?.typescript_enabled)
             }
             ExecutionEnvironment::Browser(_) => BoolVc::cell(false),
@@ -75,7 +81,9 @@ impl EnvironmentVc {
     pub async fn node_externals(self) -> Result<BoolVc> {
         let this = self.await?;
         Ok(match this.execution {
-            ExecutionEnvironment::NodeJsLambda(_) => BoolVc::cell(true),
+            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+                BoolVc::cell(true)
+            }
             ExecutionEnvironment::Browser(_) => BoolVc::cell(false),
             ExecutionEnvironment::EdgeFunction(_) => BoolVc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),

@@ -172,7 +172,7 @@ async fn input_to_modules<'a>(
                 }
                 .into(),
             )),
-            Value::new(EnvironmentIntention::Server),
+            Value::new(EnvironmentIntention::ServerRendering),
         ),
     )
     .into();

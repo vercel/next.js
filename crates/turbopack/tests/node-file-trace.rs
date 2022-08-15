@@ -323,7 +323,7 @@ fn node_file_trace<B: Backend + 'static>(
                             }
                             .into(),
                         )),
-                        Value::new(EnvironmentIntention::Server),
+                        Value::new(EnvironmentIntention::ServerRendering),
                     ),
                 );
                 let module = context.process(source.into());

@@ -92,7 +92,7 @@ fn bench_emit_with_completion(b: &mut Bencher, bench_input: &BenchInput) {
                             }
                             .into(),
                         )),
-                        Value::new(EnvironmentIntention::Server),
+                        Value::new(EnvironmentIntention::ServerRendering),
                     ),
                 );
                 let module = context.process(source.into());
@@ -139,7 +139,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                             }
                             .into(),
                         )),
-                        Value::new(EnvironmentIntention::Server),
+                        Value::new(EnvironmentIntention::ServerRendering),
                     ),
                 );
                 let module = context.process(source.into());
