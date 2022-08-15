@@ -20,6 +20,7 @@ import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type {
   Params,
+  RouteMatch,
   MiddlewareRouteMatch,
 } from '../shared/lib/router/utils/route-matcher'
 
@@ -65,6 +66,7 @@ import BaseServer, {
   prepareServerlessUrl,
   stringifyQuery,
   MiddlewareRoutingItem,
+  RoutingItem,
 } from './base-server'
 import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -76,7 +78,10 @@ import { toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import {
+  getMiddlewareRouteMatcher,
+  getRouteMatcher,
+} from '../shared/lib/router/utils/route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
@@ -1145,6 +1150,21 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  protected getEdgeFunctions(): RoutingItem[] {
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) {
+      return []
+    }
+
+    // Make sure to sort function routes too.
+    return getSortedRoutes(Object.keys(manifest.functions)).map((page) => {
+      return {
+        match: getEdgeMatcher(manifest.functions[page]),
+        page,
+      }
+    })
+  }
+
   /**
    * Get information for the edge function located in the provided page
    * folder. If the edge function info can't be found it will throw
@@ -1204,15 +1224,6 @@ export default class NextNodeServer extends BaseServer {
   protected async hasMiddleware(pathname: string): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
     return Boolean(info && info.paths.length > 0)
-  }
-
-  protected hasEdgeFunctions(): boolean {
-    const manifest = this.getMiddlewareManifest()
-    if (!manifest) {
-      return false
-    }
-
-    return Object.keys(manifest.functions).length > 0
   }
 
   /**
@@ -1352,7 +1363,8 @@ export default class NextNodeServer extends BaseServer {
       type: 'route',
       name: 'edge functions catchall',
       fn: async (req, res, _params, parsed) => {
-        if (!this.hasEdgeFunctions()) return { finished: false }
+        const edgeFunctions = this.getEdgeFunctions()
+        if (!edgeFunctions.length) return { finished: false }
 
         const { query, pathname } = parsed
         const normalizedPathname = removeTrailingSlash(pathname || '')
@@ -1556,7 +1568,7 @@ export default class NextNodeServer extends BaseServer {
     const routes = []
     if (!this.renderOpts.dev || devReady) {
       if (this.getMiddleware()) routes[0] = middlewareCatchAllRoute
-      if (this.hasEdgeFunctions()) routes[1] = edgeCatchAllRoute
+      if (this.getEdgeFunctions().length) routes[1] = edgeCatchAllRoute
     }
 
     return routes
@@ -1679,6 +1691,11 @@ const MiddlewareMatcherCache = new WeakMap<
   MiddlewareRouteMatch
 >()
 
+const EdgeMatcherCache = new WeakMap<
+  MiddlewareManifest['functions'][string],
+  RouteMatch
+>()
+
 function getMiddlewareMatcher(
   info: MiddlewareManifest['middleware'][string]
 ): MiddlewareRouteMatch {
@@ -1695,5 +1712,27 @@ function getMiddlewareMatcher(
 
   const matcher = getMiddlewareRouteMatcher(info.matchers)
   MiddlewareMatcherCache.set(info, matcher)
+  return matcher
+}
+
+function getEdgeMatcher(
+  info: MiddlewareManifest['functions'][string]
+): RouteMatch {
+  const stored = EdgeMatcherCache.get(info)
+  if (stored) {
+    return stored
+  }
+
+  if (!Array.isArray(info.matchers) || info.matchers.length !== 1) {
+    throw new Error(
+      `Invariant: invalid matchers for middleware ${JSON.stringify(info)}`
+    )
+  }
+
+  const matcher = getRouteMatcher({
+    re: new RegExp(info.matchers[0].regexp),
+    groups: {},
+  })
+  EdgeMatcherCache.set(info, matcher)
   return matcher
 }

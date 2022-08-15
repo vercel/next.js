@@ -9,7 +9,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { MiddlewareRoutingItem } from '../base-server'
+import type { MiddlewareRoutingItem, RoutingItem } from '../base-server'
 import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-info'
 
 import crypto from 'crypto'
@@ -104,7 +104,7 @@ export default class DevServer extends Server {
   private appDir?: string
   private actualMiddlewareFile?: string
   private middleware?: MiddlewareRoutingItem
-  private hasEdgeFunctionsFlag = false
+  private edgeFunctions?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -296,8 +296,8 @@ export default class DevServer extends Server {
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
+        const edgeRoutesSet = new Set<string>()
 
-        this.hasEdgeFunctionsFlag = false
         let envChange = false
 
         for (const [fileName, meta] of knownFiles) {
@@ -388,7 +388,7 @@ export default class DevServer extends Server {
               routedPages.push(pageName)
             },
             onEdgeServer: () => {
-              this.hasEdgeFunctionsFlag = true
+              edgeRoutesSet.add(pageName)
             },
           })
         }
@@ -446,6 +446,16 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
+        const edgeRoutes = Array.from(edgeRoutesSet)
+        this.edgeFunctions = getSortedRoutes(edgeRoutes).map((page) => {
+          const edgeRegex = getRouteRegex(page)
+          return {
+            match: getRouteMatcher(edgeRegex),
+            page,
+            re: edgeRegex.re,
+          }
+        })
+
         this.middleware = middlewareMatchers
           ? {
               match: getMiddlewareRouteMatcher(middlewareMatchers),
@@ -963,6 +973,10 @@ export default class DevServer extends Server {
     return this.middleware
   }
 
+  protected getEdgeFunctions() {
+    return this.edgeFunctions ?? []
+  }
+
   protected getServerComponentManifest() {
     return undefined
   }
@@ -973,10 +987,6 @@ export default class DevServer extends Server {
 
   protected async hasMiddleware(): Promise<boolean> {
     return this.hasPage(this.actualMiddlewareFile!)
-  }
-
-  protected hasEdgeFunctions(): boolean {
-    return this.hasEdgeFunctionsFlag
   }
 
   protected async ensureMiddleware() {
