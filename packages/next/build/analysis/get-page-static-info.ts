@@ -1,9 +1,7 @@
 import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
-import {
-  extractExportedConstValue,
-  UnsupportedValueError,
-} from './extract-const-value'
+import { extractExportedConstValue } from './extract-const-value'
+import { UnsupportedValueError } from './shared'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
