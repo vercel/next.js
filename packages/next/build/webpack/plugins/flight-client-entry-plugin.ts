@@ -107,7 +107,7 @@ export class FlightClientEntryPlugin {
       //       layoutOrPageDependency
       //     )
 
-      //   Object.assign(serverCSSManifest, cssImports)
+      //   Object.assign(flightCSSManifest, cssImports)
 
       //   promises.push(
       //     this.injectClientEntryAndSSRModules(
