@@ -47,63 +47,84 @@ export function clearModuleContext(path: string, content: Buffer | string) {
   }
 }
 
-interface ModuleContextOptions {
-  moduleName: string
-  onWarning: (warn: Error) => void
-  useCache: boolean
-  env: string[]
-  distDir: string
-  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
+async function loadWasm(
+  wasm: AssetBinding[]
+): Promise<Record<string, WebAssembly.Module>> {
+  const modules: Record<string, WebAssembly.Module> = {}
+
+  await Promise.all(
+    wasm.map(async (binding) => {
+      const module = await WebAssembly.compile(
+        await fs.readFile(binding.filePath)
+      )
+      modules[binding.name] = module
+    })
+  )
+
+  return modules
 }
 
-const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
-
-function getModuleContextShared(options: ModuleContextOptions) {
-  let deferredModuleContext = pendingModuleCaches.get(options.moduleName)
-  if (!deferredModuleContext) {
-    deferredModuleContext = createModuleContext(options)
-    pendingModuleCaches.set(options.moduleName, deferredModuleContext)
-  }
-  return deferredModuleContext
+function buildEnvironmentVariablesFrom(
+  keys: string[]
+): Record<string, string | undefined> {
+  const pairs = keys.map((key) => [key, process.env[key]])
+  const env = Object.fromEntries(pairs)
+  env.NEXT_RUNTIME = 'edge'
+  return env
 }
 
-/**
- * For a given module name this function will get a cached module
- * context or create it. It will return the module context along
- * with a function that allows to run some code from a given
- * filepath within the context.
- */
-export async function getModuleContext(options: ModuleContextOptions): Promise<{
-  evaluateInContext: (filepath: string) => void
-  runtime: EdgeRuntime
-  paths: Map<string, string>
-  warnedEvals: Set<string>
-}> {
-  let moduleContext = options.useCache
-    ? moduleContexts.get(options.moduleName)
-    : await getModuleContextShared(options)
+function throwUnsupportedAPIError(name: string) {
+  const error =
+    new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
+  decorateServerError(error, COMPILER_NAMES.edgeServer)
+  throw error
+}
 
-  if (!moduleContext) {
-    moduleContext = await createModuleContext(options)
-    moduleContexts.set(options.moduleName, moduleContext)
-  }
+function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
+  const env = buildEnvironmentVariablesFrom(options.env)
 
-  const evaluateInContext = (filepath: string) => {
-    if (!moduleContext!.paths.has(filepath)) {
-      const content = readFileSync(filepath, 'utf-8')
-      try {
-        moduleContext?.runtime.evaluate(content)
-        moduleContext!.paths.set(filepath, content)
-      } catch (error) {
-        if (options.useCache) {
-          moduleContext?.paths.delete(options.moduleName)
+  const processPolyfill = { env }
+  const overridenValue: Record<string, any> = {}
+  for (const key of Object.keys(process)) {
+    if (key === 'env') continue
+    Object.defineProperty(processPolyfill, key, {
+      get() {
+        if (overridenValue[key]) {
+          return overridenValue[key]
         }
-        throw error
+        if (typeof (process as any)[key] === 'function') {
+          return () => throwUnsupportedAPIError(`process.${key}`)
+        }
+        return undefined
+      },
+      set(value) {
+        overridenValue[key] = value
+      },
+      enumerable: false,
+    })
+  }
+  return processPolyfill
+}
+
+function addStub(context: EdgeRuntime['context'], name: string) {
+  Object.defineProperty(context, name, {
+    get() {
+      return function () {
+        throwUnsupportedAPIError(name)
       }
+    },
+    enumerable: false,
+  })
+}
+
+function getDecorateUnhandledError(runtime: EdgeRuntime) {
+  const EdgeRuntimeError = runtime.evaluate(`Error`)
+  return (error: any) => {
+    if (error instanceof EdgeRuntimeError) {
+      decorateServerError(error, COMPILER_NAMES.edgeServer)
     }
   }
-
-  return { ...moduleContext, evaluateInContext }
 }
 
 /**
@@ -270,82 +291,61 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
   }
 }
 
-async function loadWasm(
-  wasm: AssetBinding[]
-): Promise<Record<string, WebAssembly.Module>> {
-  const modules: Record<string, WebAssembly.Module> = {}
-
-  await Promise.all(
-    wasm.map(async (binding) => {
-      const module = await WebAssembly.compile(
-        await fs.readFile(binding.filePath)
-      )
-      modules[binding.name] = module
-    })
-  )
-
-  return modules
+interface ModuleContextOptions {
+  moduleName: string
+  onWarning: (warn: Error) => void
+  useCache: boolean
+  env: string[]
+  distDir: string
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
-function buildEnvironmentVariablesFrom(
-  keys: string[]
-): Record<string, string | undefined> {
-  const pairs = keys.map((key) => [key, process.env[key]])
-  const env = Object.fromEntries(pairs)
-  env.NEXT_RUNTIME = 'edge'
-  return env
-}
+const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
-function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
-  const env = buildEnvironmentVariablesFrom(options.env)
-
-  const processPolyfill = { env }
-  const overridenValue: Record<string, any> = {}
-  for (const key of Object.keys(process)) {
-    if (key === 'env') continue
-    Object.defineProperty(processPolyfill, key, {
-      get() {
-        if (overridenValue[key]) {
-          return overridenValue[key]
-        }
-        if (typeof (process as any)[key] === 'function') {
-          return () => throwUnsupportedAPIError(`process.${key}`)
-        }
-        return undefined
-      },
-      set(value) {
-        overridenValue[key] = value
-      },
-      enumerable: false,
-    })
+function getModuleContextShared(options: ModuleContextOptions) {
+  let deferredModuleContext = pendingModuleCaches.get(options.moduleName)
+  if (!deferredModuleContext) {
+    deferredModuleContext = createModuleContext(options)
+    pendingModuleCaches.set(options.moduleName, deferredModuleContext)
   }
-  return processPolyfill
+  return deferredModuleContext
 }
 
-function addStub(context: EdgeRuntime['context'], name: string) {
-  Object.defineProperty(context, name, {
-    get() {
-      return function () {
-        throwUnsupportedAPIError(name)
+/**
+ * For a given module name this function will get a cached module
+ * context or create it. It will return the module context along
+ * with a function that allows to run some code from a given
+ * filepath within the context.
+ */
+export async function getModuleContext(options: ModuleContextOptions): Promise<{
+  evaluateInContext: (filepath: string) => void
+  runtime: EdgeRuntime
+  paths: Map<string, string>
+  warnedEvals: Set<string>
+}> {
+  let moduleContext = options.useCache
+    ? moduleContexts.get(options.moduleName)
+    : await getModuleContextShared(options)
+
+  if (!moduleContext) {
+    moduleContext = await createModuleContext(options)
+    moduleContexts.set(options.moduleName, moduleContext)
+  }
+
+  const evaluateInContext = (filepath: string) => {
+    if (!moduleContext!.paths.has(filepath)) {
+      const content = readFileSync(filepath, 'utf-8')
+      try {
+        moduleContext?.runtime.evaluate(content)
+        moduleContext!.paths.set(filepath, content)
+      } catch (error) {
+        if (options.useCache) {
+          moduleContext?.paths.delete(options.moduleName)
+        }
+        throw error
       }
-    },
-    enumerable: false,
-  })
-}
-
-function throwUnsupportedAPIError(name: string) {
-  const error =
-    new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-  decorateServerError(error, COMPILER_NAMES.edgeServer)
-  throw error
-}
-
-function getDecorateUnhandledError(runtime: EdgeRuntime) {
-  const EdgeRuntimeError = runtime.evaluate(`Error`)
-  return (error: any) => {
-    if (error instanceof EdgeRuntimeError) {
-      decorateServerError(error, COMPILER_NAMES.edgeServer)
     }
   }
+
+  return { ...moduleContext, evaluateInContext }
 }

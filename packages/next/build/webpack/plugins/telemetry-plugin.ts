@@ -94,6 +94,37 @@ const BUILD_FEATURES: Array<Feature> = [
 const ELIMINATED_PACKAGES = new Set<string>()
 
 /**
+ * Determine if there is a feature of interest in the specified 'module'.
+ */
+function findFeatureInModule(module: Module): Feature | undefined {
+  if (module.type !== 'javascript/auto') {
+    return
+  }
+  for (const [feature, path] of FEATURE_MODULE_MAP) {
+    if (module.identifier().replace(/\\/g, '/').endsWith(path)) {
+      return feature
+    }
+  }
+}
+
+/**
+ * Find unique origin modules in the specified 'connections', which possibly
+ * contains more than one connection for a module due to different types of
+ * dependency.
+ */
+function findUniqueOriginModulesInConnections(
+  connections: Connection[]
+): Set<unknown> {
+  const originModules = new Set()
+  for (const connection of connections) {
+    if (!originModules.has(connection.originModule)) {
+      originModules.add(connection.originModule)
+    }
+  }
+  return originModules
+}
+
+/**
  * Plugin that queries the ModuleGraph to look for modules that correspond to
  * certain features (e.g. next/image and next/script) and record how many times
  * they are imported.
@@ -161,35 +192,4 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
   packagesUsedInServerSideProps(): string[] {
     return Array.from(ELIMINATED_PACKAGES)
   }
-}
-
-/**
- * Determine if there is a feature of interest in the specified 'module'.
- */
-function findFeatureInModule(module: Module): Feature | undefined {
-  if (module.type !== 'javascript/auto') {
-    return
-  }
-  for (const [feature, path] of FEATURE_MODULE_MAP) {
-    if (module.identifier().replace(/\\/g, '/').endsWith(path)) {
-      return feature
-    }
-  }
-}
-
-/**
- * Find unique origin modules in the specified 'connections', which possibly
- * contains more than one connection for a module due to different types of
- * dependency.
- */
-function findUniqueOriginModulesInConnections(
-  connections: Connection[]
-): Set<unknown> {
-  const originModules = new Set()
-  for (const connection of connections) {
-    if (!originModules.has(connection.originModule)) {
-      originModules.add(connection.originModule)
-    }
-  }
-  return originModules
 }
