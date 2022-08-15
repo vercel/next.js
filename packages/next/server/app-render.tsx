@@ -37,8 +37,8 @@ const ReactDOMServer = shouldUseReactRoot
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
-  serverComponentManifest?: any
-  serverCSSManifest?: any
+  serverComponentManifest?: FlightManifest
+  serverCSSManifest?: FlightCSSManifest
   supportsDynamicHTML?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -66,6 +66,7 @@ const enum RecordStatus {
 
 type Record = {
   status: RecordStatus
+  // Could hold the existing promise or the resolved Promise
   value: any
 }
 
@@ -603,7 +604,7 @@ export async function renderToHTMLOrFlight(
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
-    serverStylesheets: { [file: string]: string[] }
+    serverStylesheets: FlightCSSManifest
     // parentSegmentPath: string
   }): Promise<{ Component: React.ComponentType }> => {
     const Loading = loading ? await interopDefault(loading()) : undefined
@@ -910,7 +911,7 @@ export async function renderToHTMLOrFlight(
                   loaderTree: loaderTreeToFilter,
                   parentParams: currentParams,
                   firstItem: true,
-                  serverStylesheets: serverCSSManifest,
+                  serverStylesheets: serverCSSManifest || {},
                   // parentSegmentPath: '',
                 }
               )
@@ -962,7 +963,7 @@ export async function renderToHTMLOrFlight(
   // Get all the server imported styles.
   const [mappedServerCSSManifest, initialStylesheets] = getCssInlinedLinkTags(
     serverComponentManifest,
-    serverCSSManifest
+    serverCSSManifest || {}
   )
 
   // Create full component tree from root to leaf.
