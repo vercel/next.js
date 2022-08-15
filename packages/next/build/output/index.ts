@@ -5,6 +5,7 @@ import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { CompilerNameValues, COMPILER_NAMES } from '../../shared/lib/constants'
 
 export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })
@@ -238,7 +239,7 @@ export function watchCompilers(
   })
 
   function tapCompiler(
-    key: 'client' | 'server' | 'edgeServer',
+    key: CompilerNameValues,
     compiler: webpack5.Compiler,
     onEvent: (status: WebpackStatus) => void
   ) {
@@ -268,7 +269,7 @@ export function watchCompilers(
     })
   }
 
-  tapCompiler('client', client, (status) => {
+  tapCompiler(COMPILER_NAMES.client, client, (status) => {
     if (
       !status.loading &&
       !buildStore.getState().server.loading &&
@@ -284,7 +285,7 @@ export function watchCompilers(
       })
     }
   })
-  tapCompiler('server', server, (status) => {
+  tapCompiler(COMPILER_NAMES.server, server, (status) => {
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&
@@ -300,7 +301,7 @@ export function watchCompilers(
       })
     }
   })
-  tapCompiler('edgeServer', edgeServer, (status) => {
+  tapCompiler(COMPILER_NAMES.edgeServer, edgeServer, (status) => {
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&
