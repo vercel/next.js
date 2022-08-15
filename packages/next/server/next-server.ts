@@ -86,7 +86,6 @@ import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot } from './utils'
 import ResponseCache from './response-cache'
-import { isDynamicRoute } from '../shared/lib/router/utils'
 import { IncrementalCache } from './lib/incremental-cache'
 import { getSortedRoutes } from '../shared/lib/router/utils/sorted-routes'
 
@@ -1570,22 +1569,13 @@ export default class NextNodeServer extends BaseServer {
             const normalizedPathname = removeTrailingSlash(pathname || '')
             let page = normalizedPathname
             let params: Params | undefined = undefined
-            let pageFound = !isDynamicRoute(page)
 
-            if (this.dynamicRoutes) {
-              for (const dynamicRoute of this.dynamicRoutes) {
-                params = dynamicRoute.match(normalizedPathname) || undefined
-                if (params) {
-                  page = dynamicRoute.page
-                  pageFound = true
-                  break
-                }
-              }
-            }
-
-            if (!pageFound) {
-              return {
-                finished: false,
+            for (const edgeFunction of edgeFunctions) {
+              const matched = edgeFunction.match(page)
+              if (matched) {
+                params = matched
+                page = edgeFunction.page
+                break
               }
             }
 
