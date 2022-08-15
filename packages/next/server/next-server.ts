@@ -84,10 +84,10 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
-import { isDynamicRoute } from '../shared/lib/router/utils'
 import { shouldUseReactRoot } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
+import { getSortedRoutes } from '../shared/lib/router/utils/sorted-routes'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -1151,10 +1151,13 @@ export default class NextNodeServer extends BaseServer {
       return []
     }
 
-    return Object.keys(manifest.functions).map((page) => ({
-      match: getMiddlewareMatcher(manifest.functions[page]),
-      page,
-    }))
+    // Make sure to sort function routes too.
+    return getSortedRoutes(Object.keys(manifest.functions)).map((page) => {
+      return {
+        match: getMiddlewareMatcher(manifest.functions[page]),
+        page,
+      }
+    })
   }
 
   protected getEdgeRoutes(): RoutingItem[] {
@@ -1371,22 +1374,13 @@ export default class NextNodeServer extends BaseServer {
         const normalizedPathname = removeTrailingSlash(pathname || '')
         let page = normalizedPathname
         let params: Params | undefined = undefined
-        let pageFound = !isDynamicRoute(page)
 
-        if (this.dynamicRoutes) {
-          for (const dynamicRoute of this.dynamicRoutes) {
-            params = dynamicRoute.match(normalizedPathname) || undefined
-            if (params) {
-              page = dynamicRoute.page
-              pageFound = true
-              break
-            }
-          }
-        }
-
-        if (!pageFound) {
-          return {
-            finished: false,
+        for (const edgeFunction of edgeFunctions) {
+          const matched = edgeFunction.match(page)
+          if (matched) {
+            params = matched
+            page = edgeFunction.page
+            break
           }
         }
 
