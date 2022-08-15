@@ -92,13 +92,34 @@ export class FlightClientEntryPlugin {
       const entryModule: webpack5.NormalModule =
         compilation.moduleGraph.getResolvedModule(entryDependency)
 
+      const internalClientComponentEntryImports = new Set<
+        ClientComponentImports[0]
+      >()
+
       for (const connection of compilation.moduleGraph.getOutgoingConnections(
         entryModule
       )) {
         const layoutOrPageDependency = connection.dependency
-        const layoutOrPageRequest = connection.dependency.request
 
+        const [clientComponentImports, cssImports] =
+          this.collectClientComponentsAndCSSForDependency({
+            context: compiler.context,
+            compilation,
+            dependency: layoutOrPageDependency,
+          })
+
+        Object.assign(flightCSSManifest, cssImports)
+
+        const layoutOrPageRequest = connection.dependency.request
         const isAbsoluteRequest = layoutOrPageRequest[0] === '/'
+
+        // Next.js internals are put into a separate entry.
+        if (!isAbsoluteRequest) {
+          clientComponentImports.forEach((value) =>
+            internalClientComponentEntryImports.add(value)
+          )
+          continue
+        }
 
         const relativeRequest = isAbsoluteRequest
           ? path.relative(compilation.options.context, layoutOrPageRequest)
@@ -110,15 +131,6 @@ export class FlightClientEntryPlugin {
           ''
         )
 
-        const [clientComponentImports, cssImports] =
-          this.collectClientComponentsAndCSSForDependency({
-            context: compiler.context,
-            compilation,
-            dependency: layoutOrPageDependency,
-          })
-
-        Object.assign(flightCSSManifest, cssImports)
-
         promises.push(
           this.injectClientEntryAndSSRModules({
             compiler,
@@ -129,6 +141,17 @@ export class FlightClientEntryPlugin {
           })
         )
       }
+
+      // Create internal app
+      promises.push(
+        this.injectClientEntryAndSSRModules({
+          compiler,
+          compilation,
+          entryName: name,
+          clientComponentImports: [...internalClientComponentEntryImports],
+          bundlePath: 'app-internals',
+        })
+      )
     }
 
     compilation.hooks.processAssets.tap(
