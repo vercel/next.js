@@ -988,7 +988,6 @@ export async function renderToHTMLOrFlight(
 
   // Below this line is handling for rendering to HTML.
 
-  console.log({ serverCSSManifest })
   // Get all the server imported styles.
   const initialStylesheets = getAllCssInlinedLinkTags(
     serverComponentManifest,
