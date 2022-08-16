@@ -273,7 +273,7 @@ async function main() {
         }
       )
       const handleOutput = (type) => (chunk) => {
-        if (hideOutput) {
+        if (hideOutput && !isFinalRun) {
           outputChunks.push({ type, chunk })
         } else {
           process.stderr.write(chunk)
