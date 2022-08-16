@@ -537,22 +537,6 @@ export function onDemandEntryHandler({
       } => {
         const entryKey = `${compilerType}${pagePathData.page}`
 
-        if (
-          compilerType === 'server' &&
-          entries[`${COMPILER_NAMES.edgeServer}${pagePathData.page}`]
-        ) {
-          // Runtime switched from edge to server
-          delete entries[`${COMPILER_NAMES.edgeServer}${page}`]
-          invalidator.invalidate(['edge-server', 'server'])
-        } else if (
-          compilerType === 'edge-server' &&
-          entries[`${COMPILER_NAMES.server}${pagePathData.page}`]
-        ) {
-          // Runtime switched from server to edge
-          delete entries[`${COMPILER_NAMES.server}${page}`]
-          invalidator.invalidate(['edge-server', 'server'])
-        }
-
         if (entries[entryKey]) {
           entries[entryKey].dispose = false
           entries[entryKey].lastActiveTime = Date.now()
@@ -607,12 +591,22 @@ export function onDemandEntryHandler({
         },
         onServer: () => {
           added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
+          const edgeServerEntry = `${COMPILER_NAMES.edgeServer}${pagePathData.page}`
+          if (entries[edgeServerEntry]) {
+            // Runtime switched from edge to server
+            delete entries[edgeServerEntry]
+          }
         },
         onEdgeServer: () => {
           added.set(
             COMPILER_NAMES.edgeServer,
             addEntry(COMPILER_NAMES.edgeServer)
           )
+          const serverEntry = `${COMPILER_NAMES.server}${pagePathData.page}`
+          if (entries[serverEntry]) {
+            // Runtime switched from server to edge
+            delete entries[serverEntry]
+          }
         },
       })
 
