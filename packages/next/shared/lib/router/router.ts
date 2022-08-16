@@ -91,7 +91,7 @@ interface MiddlewareEffectParams<T extends FetchDataOutput> {
   router: Router
 }
 
-export function matchesMiddleware<T extends FetchDataOutput>(
+export async function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
   const matchers = await Promise.resolve(

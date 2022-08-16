@@ -156,15 +156,7 @@ function getMiddlewareConfig(
   const result: Partial<MiddlewareConfig> = {}
 
   if (config.matcher) {
-    result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
-    )
-
-    if (result.pathMatcher.source.length > 4096) {
-      throw new Error(
-        `generated matcher config must be less than 4096 characters.`
-      )
-    }
+    result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
   return result
