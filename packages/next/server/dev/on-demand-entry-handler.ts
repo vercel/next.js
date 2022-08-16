@@ -1,5 +1,5 @@
 import type ws from 'ws'
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'

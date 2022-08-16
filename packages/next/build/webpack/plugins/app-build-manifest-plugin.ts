@@ -6,7 +6,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
 } from '../../../shared/lib/constants'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { getEntrypointFiles } from './build-manifest-plugin'
 import getAppRouteFromEntrypoint from '../../../server/get-app-route-from-entrypoint'
 
@@ -54,7 +53,7 @@ export class AppBuildManifestPlugin {
     })
   }
 
-  private createAsset(assets: any, compilation: webpack5.Compilation) {
+  private createAsset(assets: any, compilation: webpack.Compilation) {
     const manifest: AppBuildManifest = {
       pages: {},
     }

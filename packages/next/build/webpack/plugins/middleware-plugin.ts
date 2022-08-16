@@ -6,7 +6,7 @@ import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
@@ -57,11 +57,11 @@ const middlewareManifest: MiddlewareManifest = {
  * simply truthy it will return true.
  */
 function isUsingIndirectEvalAndUsedByExports(args: {
-  entryModule: webpack5.Module
-  moduleGraph: webpack5.ModuleGraph
+  entryModule: webpack.Module
+  moduleGraph: webpack.ModuleGraph
   runtime: any
   usingIndirectEval: true | Set<string>
-  wp: typeof webpack5
+  wp: typeof webpack
 }): boolean {
   const { moduleGraph, runtime, entryModule, usingIndirectEval, wp } = args
   if (typeof usingIndirectEval === 'boolean') {
@@ -113,7 +113,7 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
 }
 
 function getCreateAssets(params: {
-  compilation: webpack5.Compilation
+  compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
 }) {
   const { compilation, metadataByEntry } = params
@@ -180,9 +180,9 @@ function buildWebpackError({
 }: {
   message: string
   loc?: any
-  compilation: webpack5.Compilation
-  entryModule?: webpack5.Module
-  parser?: webpack5.javascript.JavascriptParser
+  compilation: webpack.Compilation
+  entryModule?: webpack.Module
+  parser?: webpack.javascript.JavascriptParser
 }) {
   const error = new compilation.compiler.webpack.WebpackError(message)
   error.name = NAME
@@ -194,11 +194,11 @@ function buildWebpackError({
   return error
 }
 
-function isInMiddlewareLayer(parser: webpack5.javascript.JavascriptParser) {
+function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
   return parser.state.module?.layer === 'middleware'
 }
 
-function isInMiddlewareFile(parser: webpack5.javascript.JavascriptParser) {
+function isInMiddlewareFile(parser: webpack.javascript.JavascriptParser) {
   return (
     parser.state.current?.layer === 'middleware' &&
     /middleware\.\w+$/.test(parser.state.current?.rawRequest)
@@ -235,8 +235,8 @@ function buildUnsupportedApiError({
 }: {
   apiName: string
   loc: any
-  compilation: webpack5.Compilation
-  parser: webpack5.javascript.JavascriptParser
+  compilation: webpack.Compilation
+  parser: webpack.javascript.JavascriptParser
 }) {
   return buildWebpackError({
     message: `A Node.js API is used (${apiName} at line: ${loc.start.line}) which is not supported in the Edge Runtime.
@@ -247,8 +247,8 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`,
 }
 
 function registerUnsupportedApiHooks(
-  parser: webpack5.javascript.JavascriptParser,
-  compilation: webpack5.Compilation
+  parser: webpack.javascript.JavascriptParser,
+  compilation: webpack.Compilation
 ) {
   for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
     const warnForUnsupportedApi = (node: any) => {
@@ -300,10 +300,10 @@ function registerUnsupportedApiHooks(
 
 function getCodeAnalyzer(params: {
   dev: boolean
-  compiler: webpack5.Compiler
-  compilation: webpack5.Compilation
+  compiler: webpack.Compiler
+  compilation: webpack.Compilation
 }) {
-  return (parser: webpack5.javascript.JavascriptParser) => {
+  return (parser: webpack.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
@@ -573,8 +573,8 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
 }
 
 function getExtractMetadata(params: {
-  compilation: webpack5.Compilation
-  compiler: webpack5.Compiler
+  compilation: webpack.Compilation
+  compiler: webpack.Compiler
   dev: boolean
   metadataByEntry: Map<string, EntryMetadata>
 }) {
@@ -590,7 +590,7 @@ function getExtractMetadata(params: {
       }
 
       const { moduleGraph } = compilation
-      const entryModules = new Set<webpack5.Module>()
+      const entryModules = new Set<webpack.Module>()
       const addEntriesFromDependency = (dependency: any) => {
         const module = moduleGraph.getModule(dependency)
         if (module) {
@@ -709,7 +709,7 @@ export default class MiddlewarePlugin {
     this.dev = dev
   }
 
-  apply(compiler: webpack5.Compiler) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
       /**
