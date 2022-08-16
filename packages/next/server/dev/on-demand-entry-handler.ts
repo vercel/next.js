@@ -595,6 +595,7 @@ export function onDemandEntryHandler({
           if (entries[edgeServerEntry]) {
             // Runtime switched from edge to server
             delete entries[edgeServerEntry]
+            invalidator.invalidate(['edge-server'])
           }
         },
         onEdgeServer: () => {
@@ -606,6 +607,7 @@ export function onDemandEntryHandler({
           if (entries[serverEntry]) {
             // Runtime switched from server to edge
             delete entries[serverEntry]
+            invalidator.invalidate(['server'])
           }
         },
       })

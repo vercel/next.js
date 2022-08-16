@@ -48,12 +48,12 @@ describe('edge-api-routes', () => {
     await next.patchFile(
       'pages/api/hello.js',
       `
-        export const config = {
-          runtime: 'experimental-edge',
-        }
+      export const config = {
+        runtime: 'experimental-edge',
+      }
         
-        export default () => new Response('edge response')
-        `
+      export default () => new Response('edge response')
+      `
     )
     await check(() => renderViaHTTP(next.url, '/api/hello'), 'edge response')
   })
@@ -87,10 +87,10 @@ describe('edge-api-routes', () => {
     await next.patchFile(
       'pages/api/hello2.js',
       `
-        export default function (req, res) {
-          res.send('server response')
-        }
-        `
+      export default function (req, res) {
+        res.send('server response')
+      }
+      `
     )
     await check(() => renderViaHTTP(next.url, '/api/hello2'), 'server response')
   })
