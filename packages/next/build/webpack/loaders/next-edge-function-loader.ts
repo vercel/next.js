@@ -1,19 +1,26 @@
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
+import { loadEdgeFunctionConfigFromFile } from './utils'
 
 export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
   page: string
+  rootDir: string
 }
 
-export default function middlewareLoader(this: any) {
-  const { absolutePagePath, page }: EdgeFunctionLoaderOptions =
+export default async function middlewareLoader(this: any) {
+  const { absolutePagePath, page, rootDir }: EdgeFunctionLoaderOptions =
     this.getOptions()
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.nextEdgeApiFunction = {
     page: page || '/',
   }
+  buildInfo.edgeFunctionConfig = await loadEdgeFunctionConfigFromFile(
+    absolutePagePath,
+    this.getResolve()
+  )
+  buildInfo.rootDir = rootDir
 
   return `
         import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'

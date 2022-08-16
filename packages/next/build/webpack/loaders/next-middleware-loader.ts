@@ -2,10 +2,12 @@ import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
 import { MIDDLEWARE_LOCATION_REGEXP } from '../../../lib/constants'
+import { loadEdgeFunctionConfigFromFile } from './utils'
 
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
   page: string
+  rootDir: string
   matchers?: string
 }
 
@@ -21,10 +23,11 @@ export function decodeMatchers(encodedMatchers: string) {
   ) as MiddlewareMatcher[]
 }
 
-export default function middlewareLoader(this: any) {
+export default async function middlewareLoader(this: any) {
   const {
     absolutePagePath,
     page,
+    rootDir,
     matchers: encodedMatchers,
   }: MiddlewareLoaderOptions = this.getOptions()
   const matchers = encodedMatchers ? decodeMatchers(encodedMatchers) : undefined
@@ -35,6 +38,11 @@ export default function middlewareLoader(this: any) {
     page:
       page.replace(new RegExp(`/${MIDDLEWARE_LOCATION_REGEXP}$`), '') || '/',
   }
+  buildInfo.edgeFunctionConfig = await loadEdgeFunctionConfigFromFile(
+    absolutePagePath,
+    this.getResolve()
+  )
+  buildInfo.rootDir = rootDir
 
   return `
         import { adapter, blockUnallowedResponse, enhanceGlobals } from 'next/dist/server/web/adapter'

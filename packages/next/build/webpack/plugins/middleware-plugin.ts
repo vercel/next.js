@@ -8,6 +8,7 @@ import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { isMatch } from 'next/dist/compiled/micromatch'
 import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
@@ -19,6 +20,7 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../../../shared/lib/constants'
+import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -242,6 +244,33 @@ function isNodeJsModule(moduleName: string) {
   return require('module').builtinModules.includes(moduleName)
 }
 
+function getEdgeEntryBuildInfo(module: webpack.Module) {
+  let currentModule: webpack.Module | null = module
+  while (currentModule) {
+    const buildInfo = getModuleBuildInfo(currentModule)
+    if (buildInfo.edgeFunctionConfig) {
+      return buildInfo
+    }
+    currentModule = currentModule.issuer
+  }
+}
+
+function isDynamicCodeEvaluationAllowed(
+  fileName: string,
+  buildInfo?: {
+    edgeFunctionConfig?: Partial<MiddlewareConfig>
+    rootDir?: string
+  }
+) {
+  const name = fileName.replace(buildInfo?.rootDir ?? '', '')
+  for (const glob of buildInfo?.edgeFunctionConfig?.allowDynamicGlobs ?? []) {
+    if (isMatch(name, glob)) {
+      return true
+    }
+  }
+  return false
+}
+
 function buildUnsupportedApiError({
   apiName,
   loc,
@@ -325,6 +354,13 @@ function getCodeAnalyzer(params: {
     } = params
     const { hooks } = parser
 
+    function allowDynamicCodeEvaluation() {
+      return isDynamicCodeEvaluationAllowed(
+        parser.state.module.resource,
+        getEdgeEntryBuildInfo(parser.state.current)
+      )
+    }
+
     /**
      * For an expression this will check the graph to ensure it is being used
      * by exports. Then it will store in the module buildInfo a boolean to
@@ -332,7 +368,7 @@ function getCodeAnalyzer(params: {
      * module path that is using it.
      */
     const handleExpression = () => {
-      if (!isInMiddlewareLayer(parser)) {
+      if (!isInMiddlewareLayer(parser) || allowDynamicCodeEvaluation()) {
         return
       }
 
@@ -364,7 +400,7 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      if (dev) {
+      if (dev && !allowDynamicCodeEvaluation()) {
         const { ConstDependency } = wp.dependencies
         const dep1 = new ConstDependency(
           '__next_eval__(function() { return ',
@@ -391,7 +427,7 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      if (dev) {
+      if (dev && !allowDynamicCodeEvaluation()) {
         const { ConstDependency } = wp.dependencies
         const dep1 = new ConstDependency(
           '__next_webassembly_compile__(function() { return ',
@@ -421,7 +457,7 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      if (dev) {
+      if (dev && !allowDynamicCodeEvaluation()) {
         const { ConstDependency } = wp.dependencies
         const dep1 = new ConstDependency(
           '__next_webassembly_instantiate__(function() { return ',
@@ -644,7 +680,6 @@ function getExtractMetadata(params: {
           if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(id)) {
             continue
           }
-
           compilation.errors.push(
             buildWebpackError({
               message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
@@ -715,7 +750,6 @@ function getExtractMetadata(params: {
     }
   }
 }
-
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean

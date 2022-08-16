@@ -15,6 +15,7 @@ import { checkCustomRoutes } from '../../lib/load-custom-routes'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
+  allowDynamicGlobs: string[]
 }
 
 export interface MiddlewareMatcher {
@@ -171,6 +172,19 @@ function getMiddlewareConfig(
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
+  if (config.allowDynamic) {
+    result.allowDynamicGlobs = Array.isArray(config.allowDynamic)
+      ? config.allowDynamic
+      : [config.allowDynamic]
+    for (const glob of result.allowDynamicGlobs ?? []) {
+      if (typeof glob !== 'string') {
+        throw new Error(
+          `A middleware/edge exported 'config.allowDynamic' must be a string or an array of strings`
+        )
+      }
+    }
+  }
+
   return result
 }
 
@@ -223,7 +237,11 @@ export async function getPageStaticInfo(params: {
   const { isDev, pageFilePath, nextConfig, page } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
+  if (
+    /runtime|getStaticProps|getServerSideProps|matcher|allowDynamic/.test(
+      fileContent
+    )
+  ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
 
