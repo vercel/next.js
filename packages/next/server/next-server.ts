@@ -90,7 +90,6 @@ import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
-import { getSortedRoutes } from '../shared/lib/router/utils/sorted-routes'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
