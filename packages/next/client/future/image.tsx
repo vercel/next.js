@@ -358,9 +358,12 @@ const ImageElement = ({
         loading={loading}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
-          (img: ImgElementWithDataProp) => {
+          (img: ImgElementWithDataProp | null) => {
+            if (!img) {
+              return
+            }
             if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
+              if (!srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
               if (
@@ -382,7 +385,7 @@ const ImageElement = ({
                 )
               }
             }
-            if (img?.complete) {
+            if (img.complete) {
               handleLoading(
                 img,
                 srcString,
