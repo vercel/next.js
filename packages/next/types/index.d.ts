@@ -1,7 +1,6 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
-/// <reference types="styled-jsx" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -23,6 +22,8 @@ import {
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
+
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
@@ -82,6 +83,7 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
+  runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   unstable_includeFiles?: string[]

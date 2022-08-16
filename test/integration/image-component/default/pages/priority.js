@@ -14,7 +14,7 @@ const Page = () => {
       ></Image>
       <Image
         loading="eager"
-        id="basic-image"
+        id="load-eager"
         src="/test.png"
         width="400"
         height="400"
@@ -34,14 +34,6 @@ const Page = () => {
         width="1200"
         height="700"
         layout="responsive"
-      />
-      <Image
-        priority
-        id="raw"
-        src="/test.webp"
-        width="1200"
-        height="700"
-        layout="raw"
       />
       <p id="stubtext">This is the priority page</p>
     </div>

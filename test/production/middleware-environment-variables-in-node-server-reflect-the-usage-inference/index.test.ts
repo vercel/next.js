@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP } from 'next-test-utils'
 
 describe('middleware environment variables in node server reflect the usage inference', () => {
   let next: NextInstance
@@ -14,14 +14,17 @@ describe('middleware environment variables in node server reflect the usage infe
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/_middleware.js': `
+        'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+        'middleware.js': `
           export default function middleware() {
-            return new Response(JSON.stringify({
-              canBeInferred: process.env.CAN_BE_INFERRED,
-              rest: process.env
-            }), {
+            return new Response(null, {
               headers: {
-                'Content-Type': 'application/json',
+                data: JSON.stringify({
+                  canBeInferred: process.env.CAN_BE_INFERRED,
+                  rest: process.env
+                }),
                 'X-Custom-Header': process.env.X_CUSTOM_HEADER,
               }
             })
@@ -34,12 +37,8 @@ describe('middleware environment variables in node server reflect the usage infe
   afterAll(() => next.destroy())
 
   it('limits process.env to only contain env vars that are inferred from usage', async () => {
-    const html = await renderViaHTTP(next.url, '/test')
-    let parsed: any
-    expect(() => {
-      parsed = JSON.parse(html)
-    }).not.toThrow()
-    expect(parsed).toEqual({
+    const response = await fetchViaHTTP(next.url, '/test')
+    expect(JSON.parse(response.headers.get('data'))).toEqual({
       canBeInferred: 'can-be-inferred',
       rest: {
         CAN_BE_INFERRED: 'can-be-inferred',

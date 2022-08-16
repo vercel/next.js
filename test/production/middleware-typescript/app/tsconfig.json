@@ -16,5 +16,5 @@
     "isolatedModules": true
   },
   "exclude": ["node_modules"],
-  "include": ["next-env.d.ts", "pages"]
+  "include": ["next-env.d.ts", "pages", "middleware.ts"]
 }

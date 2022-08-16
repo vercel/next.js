@@ -57,8 +57,6 @@ declare module 'webpack4' {
   import { RawSourceMap } from 'source-map'
   import { ConcatSource } from 'webpack-sources1'
 
-  export = webpack
-
   function webpack(
     options: webpack.Configuration,
     handler: webpack.Compiler.Handler
@@ -74,6 +72,8 @@ declare module 'webpack4' {
   function webpack(
     options: webpack.Configuration | webpack.Configuration[]
   ): webpack.Compiler | webpack.MultiCompiler
+
+  export = webpack
 
   namespace webpack {
     /** Webpack package version. */
@@ -637,6 +637,10 @@ declare module 'webpack4' {
      * @deprecated Use RuleSetRule instead
      */
     type Rule = RuleSetRule
+
+    abstract class Plugin {
+      apply(compiler: Compiler): void
+    }
 
     namespace Options {
       type Devtool =
@@ -1445,10 +1449,6 @@ declare module 'webpack4' {
     abstract class MultiWatching implements Watching {
       close(callback: () => void): void
       invalidate(): void
-    }
-
-    abstract class Plugin {
-      apply(compiler: Compiler): void
     }
 
     abstract class ResolvePlugin {

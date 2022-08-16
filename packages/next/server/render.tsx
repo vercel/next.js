@@ -18,13 +18,16 @@ import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
-import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
+import type {
+  GetServerSideProps,
+  GetStaticProps,
+  PreviewData,
+  ServerRuntime,
+} from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
 
 import React from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
-import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -37,13 +40,14 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../lib/constants'
 import {
+  COMPILER_NAMES,
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -61,16 +65,11 @@ import { HtmlContext } from '../shared/lib/html-context'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
-import {
-  allowedStatusCodes,
-  getRedirectStatus,
-} from '../lib/load-custom-routes'
+import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
   readableStreamTee,
-  encodeText,
-  decodeText,
   streamFromArray,
   streamToString,
   chainStreams,
@@ -79,17 +78,15 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
-import { postProcessHTML } from './post-process'
-import { htmlEscapeJsonString } from './htmlescape'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
+let postProcessHTML: typeof import('./post-process').postProcessHTML
 
 const DOCTYPE = '<!DOCTYPE html>'
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+const ReactDOMServer = shouldUseReactRoot
   ? require('react-dom/server.browser')
   : require('react-dom/server')
 
@@ -97,8 +94,10 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
   tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
   warn = require('../build/output/log').warn
+  postProcessHTML = require('./post-process').postProcessHTML
 } else {
   warn = console.warn.bind(console)
+  postProcessHTML = async (_pathname: string, html: string) => html
 }
 
 function noRouter() {
@@ -197,20 +196,10 @@ function enhanceComponents(
 }
 
 function renderPageTree(
-  App: any,
-  Component: any,
-  props: any,
-  isServerComponent: boolean
+  App: AppType,
+  Component: NextComponentType,
+  props: any
 ) {
-  const { router: _, ...rest } = props
-  if (isServerComponent) {
-    return (
-      <App>
-        <Component {...rest} />
-      </App>
-    )
-  }
-
   return <App Component={Component} {...props} />
 }
 
@@ -241,6 +230,7 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   serverComponentManifest?: any
+  serverCSSManifest?: any
   distDir?: string
   locale?: string
   locales?: string[]
@@ -248,12 +238,12 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
-  runtime?: 'nodejs' | 'edge'
+  runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
   images: ImageConfigComplete
-  reactRoot: boolean
+  largePageDataBytes?: number
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -320,112 +310,41 @@ function checkRedirectValues(
   }
 }
 
-const rscCache = new Map()
+function errorToJSON(err: Error) {
+  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
+    'server'
 
-function useFlightResponse({
-  id,
-  req,
-  pageData,
-  inlinedDataWritable,
-}: {
-  id: string
-  req: ReadableStream<Uint8Array>
-  pageData: { current: string } | null
-  inlinedDataWritable: WritableStream<Uint8Array>
-}) {
-  let entry = rscCache.get(id)
-  if (!entry) {
-    const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream)
-    rscCache.set(id, entry)
-
-    let bootstrapped = false
-
-    const forwardReader = forwardStream.getReader()
-    const inlinedDataWriter = inlinedDataWritable.getWriter()
-
-    function process() {
-      forwardReader.read().then(({ done, value }) => {
-        if (!bootstrapped) {
-          bootstrapped = true
-          inlinedDataWriter.write(
-            encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([0, id])
-              )})</script>`
-            )
-          )
-        }
-        if (done) {
-          rscCache.delete(id)
-          inlinedDataWriter.close()
-        } else {
-          const decodedValue = decodeText(value)
-          inlinedDataWriter.write(
-            encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([1, id, decodedValue])
-              )})</script>`
-            )
-          )
-          if (pageData) {
-            pageData.current += decodedValue
-          }
-          process()
-        }
-      })
-    }
-    process()
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
   }
-  return entry
+
+  return {
+    name: err.name,
+    source,
+    message: stripAnsi(err.message),
+    stack: err.stack,
+  }
 }
 
-// Create the wrapper component for a Flight stream.
-function createServerComponentRenderer(
-  App: any,
-  Component: any,
-  {
-    cachePrefix,
-    pageData,
-    inlinedTransformStream,
-    serverComponentManifest,
-  }: {
-    cachePrefix: string
-    pageData: { current: string } | null
-    inlinedTransformStream: TransformStream<Uint8Array, Uint8Array>
-    serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
-  }
-) {
-  function ServerComponentWrapper({ router, ...props }: any) {
-    const id = (React as any).useId()
-
-    const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <App>
-        <Component {...props} />
-      </App>,
-      serverComponentManifest
-    )
-
-    const response = useFlightResponse({
-      id: cachePrefix + ',' + id,
-      req: reqStream,
-      pageData,
-      inlinedDataWritable: inlinedTransformStream.writable,
-    })
-
-    const root = response.readRoot()
-    rscCache.delete(id)
-    return root
+function serializeError(
+  dev: boolean | undefined,
+  err: Error
+): Error & {
+  statusCode?: number
+  source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+} {
+  if (dev) {
+    return errorToJSON(err)
   }
 
-  for (const methodName of Object.keys(Component)) {
-    const method = (Component as any)[methodName]
-    if (method) {
-      ;(ServerComponentWrapper as any)[methodName] = method
-    }
+  return {
+    name: 'Internal Server Error.',
+    message: '500 - Internal Server Error.',
+    statusCode: 500,
   }
-
-  return ServerComponentWrapper
 }
 
 export async function renderToHTML(
@@ -466,8 +385,7 @@ export async function renderToHTML(
     images,
     runtime: globalRuntime,
     ComponentMod,
-    AppMod,
-    AppServerMod,
+    App,
   } = renderOpts
 
   let Document = renderOpts.Document
@@ -483,46 +401,22 @@ export async function renderToHTML(
     renderOpts.Component
   const OriginComponent = Component
 
-  const App = interopDefault(isServerComponent ? AppServerMod : AppMod)
-
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
   > | null = null
 
-  const serverComponentsStaticPageData: { current: string } | null =
-    isServerComponent && process.env.NEXT_RUNTIME !== 'edge'
-      ? { current: '' }
-      : null
+  const isFallback = !!query.__nextFallback
+  const notFoundSrcPage = query.__nextNotFoundSrcPage
+
+  // next internal queries should be stripped out
+  stripInternalQueries(query)
 
   if (isServerComponent) {
-    serverComponentsInlinedTransformStream = new TransformStream()
-    const search = urlQueryToSearchParams(query).toString()
-    // We need to expose the `__webpack_require__` API globally for
-    // react-server-dom-webpack. This is a hack until we find a better way.
-    // @ts-ignore
-    globalThis.__webpack_require__ =
-      ComponentMod.__next_rsc__.__webpack_require__
-
-    Component = createServerComponentRenderer(App, Component, {
-      cachePrefix: pathname + (search ? `?${search}` : ''),
-      inlinedTransformStream: serverComponentsInlinedTransformStream,
-      pageData: serverComponentsStaticPageData,
-      serverComponentManifest,
-    })
+    throw new Error(
+      'Server Components are not supported from the pages/ directory.'
+    )
   }
-
-  let renderServerComponentData = isServerComponent
-    ? query.__flight__ !== undefined
-    : false
-
-  const serverComponentProps =
-    isServerComponent && query.__props__
-      ? JSON.parse(query.__props__ as string)
-      : undefined
-
-  delete query.__flight__
-  delete query.__props__
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -548,13 +442,6 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const isFallback = !!query.__nextFallback
-  const notFoundSrcPage = query.__nextNotFoundSrcPage
-  delete query.__nextFallback
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextIsNotFound
-
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
   const defaultAppGetInitialProps =
@@ -565,24 +452,29 @@ export async function renderToHTML(
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
+  const defaultErrorGetInitialProps =
+    pathname === '/_error' &&
+    (Component as any).getInitialProps ===
+      (Component as any).origGetInitialProps
+
+  if (
+    renderOpts.nextExport &&
+    hasPageGetInitialProps &&
+    !defaultErrorGetInitialProps
+  ) {
+    warn(
+      `Detected getInitialProps on page '${pathname}'` +
+        `while running "next export". It's recommended to use getStaticProps` +
+        `which has a more correct behavior for static exporting.` +
+        `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
+    )
+  }
+
   const isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSSG &&
-    !getServerSideProps &&
-    !isServerComponent
-
-  for (const methodName of [
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
-    if ((Component as any)?.[methodName]) {
-      throw new Error(
-        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
-      )
-    }
-  }
+    !getServerSideProps
 
   if (hasPageGetInitialProps && isSSG) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
@@ -669,6 +561,18 @@ export async function renderToHTML(
     }
   }
 
+  for (const methodName of [
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    if ((Component as any)?.[methodName]) {
+      throw new Error(
+        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
+      )
+    }
+  }
+
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   let isPreview
@@ -708,45 +612,9 @@ export async function renderToHTML(
     isPreview,
     getRequestMeta(req, '__nextIsLocaleDomain')
   )
+
+  let scriptLoader: any = {}
   const jsxStyleRegistry = createStyleRegistry()
-  const ctx = {
-    err,
-    req: isAutoExport ? undefined : req,
-    res: isAutoExport ? undefined : res,
-    pathname,
-    query,
-    asPath,
-    locale: renderOpts.locale,
-    locales: renderOpts.locales,
-    defaultLocale: renderOpts.defaultLocale,
-    AppTree: (props: any) => {
-      return (
-        <AppContainerWithIsomorphicFiberStructure>
-          {renderPageTree(
-            App,
-            OriginComponent,
-            { ...props, router },
-            isServerComponent
-          )}
-        </AppContainerWithIsomorphicFiberStructure>
-      )
-    },
-    defaultGetInitialProps: async (
-      docCtx: DocumentContext,
-      options: { nonce?: string } = {}
-    ): Promise<DocumentInitialProps> => {
-      const enhanceApp = (AppComp: any) => {
-        return (props: any) => <AppComp {...props} />
-      }
-
-      const { html, head } = await docCtx.renderPage({ enhanceApp })
-      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
-      jsxStyleRegistry.flush()
-      return { html, head, styles }
-    },
-  }
-  let props: any
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -755,10 +623,8 @@ export async function renderToHTML(
 
   // Disable AMP under the web environment
   const inAmpMode = process.env.NEXT_RUNTIME !== 'edge' && isInAmpMode(ampState)
-
-  const reactLoadableModules: string[] = []
-
   let head: JSX.Element[] = defaultHead(inAmpMode)
+  const reactLoadableModules: string[] = []
 
   let initialScripts: any = {}
   if (hasPageScripts) {
@@ -766,16 +632,6 @@ export async function renderToHTML(
       .concat(hasPageScripts())
       .filter((script: any) => script.props.strategy === 'beforeInteractive')
       .map((script: any) => script.props)
-  }
-
-  let scriptLoader: any = {}
-  const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
-
-  const styledJsxFlushEffect = () => {
-    const styles = jsxStyleRegistry.styles()
-    jsxStyleRegistry.flush()
-    return <>{styles}</>
   }
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
@@ -838,6 +694,50 @@ export async function renderToHTML(
         </AppContainer>
       </>
     )
+  }
+
+  const ctx = {
+    err,
+    req: isAutoExport ? undefined : req,
+    res: isAutoExport ? undefined : res,
+    pathname,
+    query,
+    asPath,
+    locale: renderOpts.locale,
+    locales: renderOpts.locales,
+    defaultLocale: renderOpts.defaultLocale,
+    AppTree: (props: any) => {
+      return (
+        <AppContainerWithIsomorphicFiberStructure>
+          {renderPageTree(App, OriginComponent, { ...props, router })}
+        </AppContainerWithIsomorphicFiberStructure>
+      )
+    },
+    defaultGetInitialProps: async (
+      docCtx: DocumentContext,
+      options: { nonce?: string } = {}
+    ): Promise<DocumentInitialProps> => {
+      const enhanceApp = (AppComp: any) => {
+        return (props: any) => <AppComp {...props} />
+      }
+
+      const { html, head: renderPageHead } = await docCtx.renderPage({
+        enhanceApp,
+      })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      jsxStyleRegistry.flush()
+      return { html, head: renderPageHead, styles }
+    },
+  }
+  let props: any
+
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+
+  const styledJsxFlushEffect = () => {
+    const styles = jsxStyleRegistry.styles()
+    jsxStyleRegistry.flush()
+    return <>{styles}</>
   }
 
   props = await loadGetInitialProps(App, {
@@ -1167,11 +1067,7 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    // For server components, we still need to render the page to get the flight
-    // data.
-    if (!serverComponentsStaticPageData) {
-      return RenderResult.fromStatic(JSON.stringify(props))
-    }
+    return RenderResult.fromStatic(JSON.stringify(props))
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -1180,30 +1076,8 @@ export async function renderToHTML(
     props.pageProps = {}
   }
 
-  // Pass router to the Server Component as a temporary workaround.
-  if (isServerComponent) {
-    props.pageProps = Object.assign({}, props.pageProps)
-  }
-
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
-
-  if (renderServerComponentData) {
-    return new RenderResult(
-      renderToReadableStream(
-        renderPageTree(
-          App,
-          OriginComponent,
-          {
-            ...props.pageProps,
-            ...serverComponentProps,
-          },
-          true
-        ),
-        serverComponentManifest
-      ).pipeThrough(createBufferedTransformStream())
-    )
-  }
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -1269,10 +1143,7 @@ export async function renderToHTML(
       }
     }
 
-    if (
-      (isServerComponent || process.env.NEXT_RUNTIME === 'edge') &&
-      Document.getInitialProps
-    ) {
+    if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       if (BuiltinFunctionalDocument) {
         Document = BuiltinFunctionalDocument
       } else {
@@ -1327,12 +1198,10 @@ export async function renderToHTML(
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderPageTree(
-                EnhancedApp,
-                EnhancedComponent,
-                { ...props, router },
-                false
-              )}
+              {renderPageTree(EnhancedApp, EnhancedComponent, {
+                ...props,
+                router,
+              })}
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
@@ -1367,13 +1236,10 @@ export async function renderToHTML(
       ) : (
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
-            {renderPageTree(
-              // AppServer is included in the EnhancedComponent in ServerComponentWrapper
-              isServerComponent ? React.Fragment : EnhancedApp,
-              EnhancedComponent,
-              { ...(isServerComponent ? props.pageProps : props), router },
-              isServerComponent
-            )}
+            {renderPageTree(EnhancedApp, EnhancedComponent, {
+              ...props,
+              router,
+            })}
           </AppContainerWithIsomorphicFiberStructure>
         </Body>
       )
@@ -1444,13 +1310,12 @@ export async function renderToHTML(
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
           flushEffectHandler,
+          flushEffectsToHead: false,
         })
       }
 
       const hasDocumentGetInitialProps = !(
-        isServerComponent ||
-        process.env.NEXT_RUNTIME === 'edge' ||
-        !Document.getInitialProps
+        process.env.NEXT_RUNTIME === 'edge' || !Document.getInitialProps
       )
 
       let bodyResult: (s: string) => Promise<ReadableStream<Uint8Array>>
@@ -1474,17 +1339,18 @@ export async function renderToHTML(
       }
 
       const { docProps } = (documentInitialPropsRes as any) || {}
-      const documentElement = () => {
-        if (isServerComponent || process.env.NEXT_RUNTIME === 'edge') {
+      const documentElement = (htmlProps: any) => {
+        if (process.env.NEXT_RUNTIME === 'edge') {
           return (Document as any)()
+        } else {
+          return <Document {...htmlProps} {...docProps} />
         }
-
-        return <Document {...htmlProps} {...docProps} />
       }
 
       let styles
       if (hasDocumentGetInitialProps) {
         styles = docProps.styles
+        head = docProps.head
       } else {
         styles = jsxStyleRegistry.styles()
         jsxStyleRegistry.flush()
@@ -1593,6 +1459,7 @@ export async function renderToHTML(
     optimizeFonts: renderOpts.optimizeFonts,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
+    largePageDataBytes: renderOpts.largePageDataBytes,
   }
 
   const document = (
@@ -1646,32 +1513,11 @@ export async function renderToHTML(
     await documentResult.bodyResult(renderTargetSuffix),
   ]
 
-  // After the page is fully rendered, we can assign the flight response to
-  // page data of `renderOpts` now.
-  function updateServerComponentPageData() {
-    if (serverComponentsStaticPageData) {
-      ;(renderOpts as any).pageData = {
-        ...(renderOpts as any).pageData,
-        __flight__: serverComponentsStaticPageData.current,
-      }
-    }
-  }
-
-  if (
-    serverComponentsStaticPageData &&
-    ((isDataReq && !isSSG) || (renderOpts as any).isRedirect)
-  ) {
-    await streamToString(streams[1])
-    updateServerComponentPageData()
-    return RenderResult.fromStatic((renderOpts as any).pageData)
-  }
-
   const postOptimize = (html: string) =>
     postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
 
   if (generateStaticHTML) {
     const html = await streamToString(chainStreams(streams))
-    updateServerComponentPageData()
     const optimizedHtml = await postOptimize(html)
     return new RenderResult(optimizedHtml)
   }
@@ -1681,28 +1527,4 @@ export async function renderToHTML(
       createBufferedTransformStream(postOptimize)
     )
   )
-}
-
-function errorToJSON(err: Error) {
-  return {
-    name: err.name,
-    message: stripAnsi(err.message),
-    stack: err.stack,
-    middleware: (err as any).middleware,
-  }
-}
-
-function serializeError(
-  dev: boolean | undefined,
-  err: Error
-): Error & { statusCode?: number } {
-  if (dev) {
-    return errorToJSON(err)
-  }
-
-  return {
-    name: 'Internal Server Error.',
-    message: '500 - Internal Server Error.',
-    statusCode: 500,
-  }
 }

@@ -90,6 +90,40 @@ If you need to use different Environment Variables across multiple environments,
 
 If you’d like to do a static HTML export of your Next.js app, follow the directions on our [Static HTML Export documentation](/docs/advanced-features/static-html-export.md).
 
+## Other Services
+
+The following services support Next.js `v12+`. Below, you’ll find examples or guides to deploy Next.js to each service.
+
+### Managed Server
+
+- [AWS Copilot](https://aws.github.io/copilot-cli/)
+- [Digital Ocean App Platform](https://docs.digitalocean.com/tutorials/app-nextjs-deploy/)
+- [Google Cloud Run](https://github.com/vercel/next.js/tree/canary/examples/with-docker)
+- [Heroku](https://elements.heroku.com/buildpacks/mars/heroku-nextjs)
+- [Railway](https://railway.app/new/starters/nextjs-prisma)
+- [Render](https://render.com/docs/deploy-nextjs-app)
+
+> **Note:** There are also managed platforms that allow you to use a Dockerfile as shown in the [example above](/docs/deployment.md#docker-image).
+
+### Static Only
+
+The following services support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
+
+- [Azure Static Web Apps](https://docs.microsoft.com/en-us/azure/static-web-apps/deploy-nextjs)
+- [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
+- [Firebase](https://github.com/vercel/next.js/tree/canary/examples/with-firebase-hosting)
+- [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
+
+You can also manually deploy the [`next export`](/docs/advanced-features/static-html-export.md) output to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
+
+### Serverless
+
+- [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
+- [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
+- [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
+
+> **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
+
 ## Automatic Updates
 
 When you deploy your Next.js application, you want to see the latest version without needing to reload.

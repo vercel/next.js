@@ -44,7 +44,7 @@ export const USE_SELENIUM = Boolean(
 
 /**
  *
- * @param appPort can either be the port or the full URL
+ * @param appPortOrUrl can either be the port or the full URL
  * @param url the path/query to append when using appPort
  * @param options.waitHydration whether to wait for react hydration to finish
  * @param options.retryWaitHydration allow retrying hydration wait if reload occurs

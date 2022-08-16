@@ -5,10 +5,6 @@ import type { NextRouter } from '../shared/lib/router/router'
 import { RouterContext } from '../shared/lib/router-context'
 import isError from '../lib/is-error'
 
-type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
-
-type RouterArgs = ClassArguments<typeof Router>
-
 type SingletonRouterBase = {
   router: Router | null
   readyCallbacks: Array<() => any>
@@ -75,6 +71,16 @@ Object.defineProperty(singletonRouter, 'events', {
   },
 })
 
+function getRouter(): Router {
+  if (!singletonRouter.router) {
+    const message =
+      'No router instance found.\n' +
+      'You should only use "next/router" on the client side of your app.\n'
+    throw new Error(message)
+  }
+  return singletonRouter.router
+}
+
 urlPropertyFields.forEach((field: string) => {
   // Here we need to use Object.defineProperty because we need to return
   // the property assigned to the actual router
@@ -117,16 +123,6 @@ routerEvents.forEach((event) => {
   })
 })
 
-function getRouter(): Router {
-  if (!singletonRouter.router) {
-    const message =
-      'No router instance found.\n' +
-      'You should only use "next/router" on the client side of your app.\n'
-    throw new Error(message)
-  }
-  return singletonRouter.router
-}
-
 // Export the singletonRouter and this is the public API.
 export default singletonRouter as SingletonRouter
 
@@ -141,10 +137,15 @@ export function useRouter(): NextRouter {
 // -------------
 // (do not use following exports inside the app)
 
-// Create a router and assign it as the singleton instance.
-// This is used in client side when we are initializing the app.
-// This should **not** be used inside the server.
-export function createRouter(...args: RouterArgs): Router {
+/**
+ * Create a router and assign it as the singleton instance.
+ * This is used in client side when we are initializing the app.
+ * This should **not** be used inside the server.
+ * @internal
+ */
+export function createRouter(
+  ...args: ConstructorParameters<typeof Router>
+): Router {
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach((cb) => cb())
   singletonRouter.readyCallbacks = []
@@ -152,7 +153,10 @@ export function createRouter(...args: RouterArgs): Router {
   return singletonRouter.router
 }
 
-// This function is used to create the `withRouter` router instance
+/**
+ * This function is used to create the `withRouter` router instance
+ * @internal
+ */
 export function makePublicRouterInstance(router: Router): NextRouter {
   const scopedRouter = router as any
   const instance = {} as any

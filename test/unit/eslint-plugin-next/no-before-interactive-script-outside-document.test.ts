@@ -124,7 +124,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       errors: [
         {
           message:
-            'next/script beforeInteractive strategy should only be used inside next/_document. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document',
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
         },
       ],
     },

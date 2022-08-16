@@ -9,11 +9,34 @@ import fs from 'fs-extra'
     )
     return
   }
+  let cwd = process.cwd()
+  const { version: nextVersion } = await fs.readJSON(
+    path.join(cwd, 'packages', 'next', 'package.json')
+  )
+
+  try {
+    // if installed swc package version matches monorepo version
+    // we can skip re-installing
+    for (const pkg of await fs.readdir(
+      path.join(cwd, 'node_modules', '@next')
+    )) {
+      if (
+        pkg.startsWith('swc-') &&
+        (
+          await fs.readJSON(
+            path.join(cwd, 'node_modules', '@next', pkg, 'package.json')
+          )
+        ).version === nextVersion
+      ) {
+        console.log(`@next/${pkg}@${nextVersion} already installed skipping`)
+        return
+      }
+    }
+  } catch (_) {}
 
   try {
     let tmpdir = path.join(os.tmpdir(), `next-swc-${Date.now()}`)
     await fs.ensureDir(tmpdir)
-    let cwd = process.cwd()
     let pkgJson = {
       name: 'dummy-package',
       version: '1.0.0',

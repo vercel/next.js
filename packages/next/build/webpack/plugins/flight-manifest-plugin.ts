@@ -5,21 +5,11 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { stringify } from 'querystring'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import {
-  MIDDLEWARE_FLIGHT_MANIFEST,
-  EDGE_RUNTIME_WEBPACK,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-} from '../../../shared/lib/constants'
+import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
-import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
-import {
-  getInvalidator,
-  entries,
-} from '../../../server/dev/on-demand-entry-handler'
-import { getPageStaticInfo } from '../../entries'
+import { relative } from 'path'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -28,36 +18,66 @@ import { getPageStaticInfo } from '../../entries'
 // you might want them.
 // const clientFileName = require.resolve('../');
 
-type Options = {
+interface Options {
   dev: boolean
+  appDir: boolean
   pageExtensions: string[]
-  isEdgeServer: boolean
+}
+
+/**
+ * Webpack module id
+ */
+// TODO-APP ensure `null` is included as it is used.
+type ModuleId = string | number /*| null*/
+
+export type ManifestChunks = Array<`${string}:${string}` | string>
+
+interface ManifestNode {
+  [moduleExport: string]: {
+    /**
+     * Webpack module id
+     */
+    id: ModuleId
+    /**
+     * Export name
+     */
+    name: string
+    /**
+     * Chunks for the module. JS and CSS.
+     */
+    chunks: ManifestChunks
+  }
+}
+
+export type FlightManifest = {
+  __ssr_module_mapping__: {
+    [moduleId: string]: ManifestNode
+  }
+} & {
+  [modulePath: string]: ManifestNode
+}
+
+export type FlightCSSManifest = {
+  [modulePath: string]: string[]
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
-let edgeFlightManifest = {}
-let nodeFlightManifest = {}
-
-export const injectedClientEntries = new Map()
-
 export class FlightManifestPlugin {
-  dev: boolean = false
-  pageExtensions: string[]
-  isEdgeServer: boolean
+  dev: Options['dev'] = false
+  pageExtensions: Options['pageExtensions']
+  appDir: Options['appDir'] = false
 
   constructor(options: Options) {
-    if (typeof options.dev === 'boolean') {
-      this.dev = options.dev
-    }
+    this.dev = options.dev
+    this.appDir = options.appDir
     this.pageExtensions = options.pageExtensions
-    this.isEdgeServer = options.isEdgeServer
   }
 
-  apply(compiler: any) {
+  apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
-      (compilation: any, { normalModuleFactory }: any) => {
+      (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
           (webpack as any).dependencies.ModuleDependency,
           normalModuleFactory
@@ -69,241 +89,242 @@ export class FlightManifestPlugin {
       }
     )
 
-    // Only for webpack 5
-    compiler.hooks.finishMake.tapAsync(
-      PLUGIN_NAME,
-      async (compilation: any, callback: any) => {
-        this.createClientEndpoints(compilation, callback)
-      }
-    )
-
-    compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
+    compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
+          // Have to be in the optimize stage to run after updating the CSS
+          // asset hash via extract mini css plugin.
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets: any) => this.createAsset(assets, compilation)
+        (assets) => this.createAsset(assets, compilation, compiler.context)
       )
     })
   }
 
-  async createClientEndpoints(compilation: any, callback: () => void) {
-    const context = (this as any).context
-    const promises: any = []
-
-    // For each SC server compilation entry, we need to create its corresponding
-    // client component entry.
-    for (const [name, entry] of compilation.entries.entries()) {
-      if (name === 'pages/_app.server') continue
-
-      // Check if the page entry is a server component or not.
-      const entryDependency = entry.dependencies?.[0]
-      const request = entryDependency?.request
-
-      if (request && entry.options?.layer === 'sc_server') {
-        const visited = new Set()
-        const clientComponentImports: string[] = []
-
-        function filterClientComponents(dependency: any) {
-          const module = compilation.moduleGraph.getResolvedModule(dependency)
-          if (!module) return
-
-          if (visited.has(module.userRequest)) return
-          visited.add(module.userRequest)
-
-          if (clientComponentRegex.test(module.userRequest)) {
-            clientComponentImports.push(module.userRequest)
-          }
-
-          compilation.moduleGraph
-            .getOutgoingConnections(module)
-            .forEach((connection: any) => {
-              filterClientComponents(connection.dependency)
-            })
-        }
-
-        // Traverse the module graph to find all client components.
-        filterClientComponents(entryDependency)
-
-        const entryModule =
-          compilation.moduleGraph.getResolvedModule(entryDependency)
-        const routeInfo = entryModule.buildInfo.route || {
-          page: denormalizePagePath(name.replace(/^pages/, '')),
-          absolutePagePath: entryModule.resource,
-        }
-
-        // Parse gSSP and gSP exports from the page source.
-        const pageStaticInfo = this.isEdgeServer
-          ? {}
-          : await getPageStaticInfo(routeInfo.absolutePagePath, {}, this.dev)
-
-        const clientLoader = `next-flight-client-entry-loader?${stringify({
-          modules: clientComponentImports,
-          runtime: this.isEdgeServer ? 'edge' : 'nodejs',
-          ssr: pageStaticInfo.ssr,
-          // Adding name here to make the entry key unique.
-          name,
-        })}!`
-
-        const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
-
-        // Inject the entry to the client compiler.
-        if (this.dev) {
-          const pageKey = 'client' + routeInfo.page
-          if (!entries[pageKey]) {
-            entries[pageKey] = {
-              bundlePath,
-              absolutePagePath: routeInfo.absolutePagePath,
-              clientLoader,
-              dispose: false,
-              lastActiveTime: Date.now(),
-            } as any
-            const invalidator = getInvalidator()
-            if (invalidator) {
-              invalidator.invalidate()
-            }
-          }
-        } else {
-          injectedClientEntries.set(
-            bundlePath,
-            `next-client-pages-loader?${stringify({
-              isServerComponent: true,
-              page: denormalizePagePath(bundlePath.replace(/^pages/, '')),
-              absolutePagePath: clientLoader,
-            })}!` + clientLoader
-          )
-        }
-
-        // Inject the entry to the server compiler.
-        const clientComponentEntryDep = (
-          webpack as any
-        ).EntryPlugin.createDependency(
-          clientLoader,
-          name + NEXT_CLIENT_SSR_ENTRY_SUFFIX
-        )
-        promises.push(
-          new Promise<void>((res, rej) => {
-            compilation.addEntry(
-              context,
-              clientComponentEntryDep,
-              this.isEdgeServer
-                ? {
-                    name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-                    library: {
-                      name: ['self._CLIENT_ENTRY'],
-                      type: 'assign',
-                    },
-                    runtime: EDGE_RUNTIME_WEBPACK,
-                    asyncChunks: false,
-                  }
-                : {
-                    name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-                    runtime: 'webpack-runtime',
-                  },
-              (err: any) => {
-                if (err) {
-                  rej(err)
-                } else {
-                  res()
-                }
-              }
-            )
-          })
-        )
-      }
+  createAsset(
+    assets: webpack5.Compilation['assets'],
+    compilation: webpack5.Compilation,
+    context: string
+  ) {
+    const manifest: FlightManifest = {
+      __ssr_module_mapping__: {},
     }
+    const appDir = this.appDir
+    const dev = this.dev
 
-    Promise.all(promises)
-      .then(() => callback())
-      .catch(callback)
-  }
+    compilation.chunkGroups.forEach((chunkGroup) => {
+      function recordModule(
+        chunk: webpack5.Chunk,
+        id: ModuleId,
+        mod: webpack5.NormalModule
+      ) {
+        // if appDir is enabled we shouldn't process chunks from
+        // the pages dir
+        if (chunk.name?.startsWith('pages/') && appDir) {
+          return
+        }
 
-  createAsset(assets: any, compilation: any) {
-    const manifest: any = {}
-    compilation.chunkGroups.forEach((chunkGroup: any) => {
-      function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource
+        const isCSSModule =
+          mod.type === 'css/mini-extract' ||
+          (mod.loaders &&
+            (dev
+              ? mod.loaders.some((item) =>
+                  item.loader.includes('next-style-loader/index.js')
+                )
+              : mod.loaders.some((item) =>
+                  item.loader.includes('mini-css-extract-plugin/loader.js')
+                )))
+
+        const resource =
+          mod.type === 'css/mini-extract'
+            ? // @ts-expect-error TODO: use `identifier()` instead.
+              mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            : mod.resource
+
+        if (!resource) return
+
+        const moduleExports = manifest[resource] || {}
+        const moduleIdMapping = manifest.__ssr_module_mapping__
+
+        // Note that this isn't that reliable as webpack is still possible to assign
+        // additional queries to make sure there's no conflict even using the `named`
+        // module ID strategy.
+        let ssrNamedModuleId = relative(
+          context,
+          mod.resourceResolveData?.path || resource
+        )
+        if (!ssrNamedModuleId.startsWith('.'))
+          ssrNamedModuleId = `./${ssrNamedModuleId}`
+
+        if (isCSSModule) {
+          if (!manifest[resource]) {
+            const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
+            manifest[resource] = {
+              default: {
+                id,
+                name: 'default',
+                chunks,
+              },
+            }
+            moduleIdMapping[id] = moduleIdMapping[id] || {}
+            moduleIdMapping[id]['default'] = {
+              id: ssrNamedModuleId,
+              name: 'default',
+              chunks,
+            }
+            manifest.__ssr_module_mapping__ = moduleIdMapping
+          }
+          return
+        }
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        if (
-          !resource ||
-          !clientComponentRegex.test(resource) ||
-          !clientComponentRegex.test(id)
-        ) {
+        if (!clientComponentRegex.test(resource)) {
           return
         }
 
-        const moduleExports: any = manifest[resource] || {}
-
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const moduleExportedKeys = ['', '*'].concat(
-          [...exportsInfo.exports]
-            .map((exportInfo) => {
-              if (exportInfo.provided) {
-                return exportInfo.name
+        const cjsExports = [
+          ...new Set([
+            ...mod.dependencies.map((dep) => {
+              // Match CommonJsSelfReferenceDependency
+              if (dep.type === 'cjs self exports reference') {
+                // `module.exports = ...`
+                // @ts-expect-error: TODO: Fix Dependency type
+                if (dep.base === 'module.exports') {
+                  return 'default'
+                }
+
+                // `exports.foo = ...`, `exports.default = ...`
+                // @ts-expect-error: TODO: Fix Dependency type
+                if (dep.base === 'exports') {
+                  // @ts-expect-error: TODO: Fix Dependency type
+                  return dep.names.filter((name: any) => name !== '__esModule')
+                }
               }
               return null
+            }),
+          ]),
+        ]
+
+        const moduleExportedKeys = ['', '*']
+          .concat(
+            [...exportsInfo.exports]
+              .filter((exportInfo) => exportInfo.provided)
+              .map((exportInfo) => exportInfo.name),
+            ...cjsExports
+          )
+          .filter((name) => name !== null)
+
+        // Get all CSS files imported from the module's dependencies.
+        const visitedModule = new Set()
+        const cssChunks: Set<string> = new Set()
+
+        function collectClientImportedCss(module: any) {
+          if (!module) return
+
+          const modRequest = module.userRequest
+          if (visitedModule.has(modRequest)) return
+          visitedModule.add(modRequest)
+
+          if (/\.css$/.test(modRequest)) {
+            // collect relative imported css chunks
+            compilation.chunkGraph.getModuleChunks(module).forEach((c) => {
+              ;[...c.files]
+                .filter((file) => file.endsWith('.css'))
+                .forEach((file) => cssChunks.add(file))
             })
-            .filter(Boolean)
-        )
+          }
+
+          const connections = Array.from(
+            compilation.moduleGraph.getOutgoingConnections(module)
+          )
+          connections.forEach((connection) => {
+            collectClientImportedCss(
+              compilation.moduleGraph.getResolvedModule(connection.dependency!)
+            )
+          })
+        }
+        collectClientImportedCss(mod)
 
         moduleExportedKeys.forEach((name) => {
+          let requiredChunks: ManifestChunks = []
           if (!moduleExports[name]) {
+            const isRelatedChunk = (c: webpack5.Chunk) =>
+              // If current chunk is a page, it should require the related page chunk;
+              // If current chunk is a component, it should filter out the related page chunk;
+              chunk.name?.startsWith('pages/') || !c.name?.startsWith('pages/')
+
+            if (appDir) {
+              requiredChunks = chunkGroup.chunks
+                .filter(isRelatedChunk)
+                .map((requiredChunk: webpack5.Chunk) => {
+                  return (
+                    requiredChunk.id +
+                    ':' +
+                    (requiredChunk.name || requiredChunk.id) +
+                    (dev ? '' : '-' + requiredChunk.hash)
+                  )
+                })
+            }
+
             moduleExports[name] = {
-              id: id.replace(/^\(sc_server\)\//, ''),
+              id,
               name,
-              chunks: [],
+              chunks: requiredChunks.concat([...cssChunks]),
+            }
+          }
+
+          moduleIdMapping[id] = moduleIdMapping[id] || {}
+          if (!moduleIdMapping[id][name]) {
+            moduleIdMapping[id][name] = {
+              ...moduleExports[name],
+              id: ssrNamedModuleId,
             }
           }
         })
+
         manifest[resource] = moduleExports
+        manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
-      chunkGroup.chunks.forEach((chunk: any) => {
-        const chunkModules =
-          compilation.chunkGraph.getChunkModulesIterable(chunk)
+      chunkGroup.chunks.forEach((chunk: webpack5.Chunk) => {
+        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+          chunk
+          // TODO: Update type so that it doesn't have to be cast.
+        ) as Iterable<webpack5.NormalModule>
         for (const mod of chunkModules) {
-          let modId = compilation.chunkGraph.getModuleId(mod)
+          const modId = compilation.chunkGraph.getModuleId(mod)
 
-          if (typeof modId !== 'string') continue
+          recordModule(chunk, modId, mod)
 
-          // Remove resource queries.
-          modId = modId.split('?')[0]
-          // Remove the loader prefix.
-          modId = modId.split('next-flight-client-loader.js!')[1] || modId
-
-          recordModule(modId, chunk, mod)
           // If this is a concatenation, register each child to the parent ID.
-          if (mod.modules) {
-            mod.modules.forEach((concatenatedMod: any) => {
-              recordModule(modId, chunk, concatenatedMod)
+          // TODO: remove any
+          const anyModule = mod as any
+          if (anyModule.modules) {
+            anyModule.modules.forEach((concatenatedMod: any) => {
+              recordModule(chunk, modId, concatenatedMod)
             })
           }
         }
       })
     })
 
-    // With switchable runtime, we need to emit the manifest files for both
-    // runtimes.
-    if (this.isEdgeServer) {
-      edgeFlightManifest = manifest
-    } else {
-      nodeFlightManifest = manifest
-    }
-    const mergedManifest = {
-      ...nodeFlightManifest,
-      ...edgeFlightManifest,
-    }
-    const file =
-      (!this.dev && !this.isEdgeServer ? '../' : '') +
-      MIDDLEWARE_FLIGHT_MANIFEST
-    const json = JSON.stringify(mergedManifest)
+    const file = 'server/' + FLIGHT_MANIFEST
+    const json = JSON.stringify(manifest)
 
-    assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
-    assets[file + '.json'] = new sources.RawSource(json)
+    assets[file + '.js'] = new sources.RawSource(
+      'self.__RSC_MANIFEST=' + json
+      // Work around webpack 4 type of RawSource being used
+      // TODO: use webpack 5 type by default
+    ) as unknown as webpack5.sources.RawSource
+    assets[file + '.json'] = new sources.RawSource(
+      json
+      // Work around webpack 4 type of RawSource being used
+      // TODO: use webpack 5 type by default
+    ) as unknown as webpack5.sources.RawSource
   }
 }

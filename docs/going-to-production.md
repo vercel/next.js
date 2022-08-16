@@ -91,6 +91,7 @@ To reduce the amount of JavaScript sent to the browser, you can use the followin
 - [Package Phobia](https://packagephobia.com/) – Find the cost of adding a new dev dependency to your project.
 - [Bundle Phobia](https://bundlephobia.com/) - Analyze how much a dependency can increase bundle sizes.
 - [Webpack Bundle Analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer) – Visualize size of webpack output files with an interactive, zoomable treemap.
+- [bundlejs](https://bundlejs.com/) - An online tool to quickly bundle & minify your projects, while viewing the compressed gzip/brotli bundle size, all running locally on your browser.
 
 Each file inside your `pages/` directory will automatically be code split into its own JavaScript bundle during `next build`. You can also use [Dynamic Imports](/docs/advanced-features/dynamic-import.md) to lazy-load components and libraries. For example, you might want to defer loading your modal code until a user clicks the open button.
 

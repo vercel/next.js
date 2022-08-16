@@ -106,21 +106,6 @@ describe('AMP Usage', () => {
         expect(result).toBeFalsy()
       })
 
-      it('should add link preload for amp script', async () => {
-        const html = await renderViaHTTP(appPort, '/?amp=1')
-        await validateAMP(html)
-        const $ = cheerio.load(html)
-        expect(
-          $(
-            $('link[rel=preload]')
-              .toArray()
-              .find(
-                (i) => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js'
-              )
-          ).attr('href')
-        ).toBe('https://cdn.ampproject.org/v0.js')
-      })
-
       it('should drop custom scripts', async () => {
         const html = await renderViaHTTP(appPort, '/custom-scripts')
         expect(html).not.toMatch(/src='\/im-not-allowed\.js'/)

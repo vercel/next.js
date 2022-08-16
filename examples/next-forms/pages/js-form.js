@@ -45,7 +45,7 @@ export default function PageWithJSbasedForm() {
 
       <p className={styles.description}>
         Get started by looking at{' '}
-        <code className={styles.code}>pages/js-from.js</code>
+        <code className={styles.code}>pages/js-form.js</code>
       </p>
 
       <form onSubmit={handleSubmit}>

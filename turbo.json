@@ -4,9 +4,17 @@
       "dependsOn": ["^build-native"],
       "outputs": ["native/*.node"]
     },
+    "build-native-no-plugin": {
+      "dependsOn": ["^build-native-no-plugin"],
+      "outputs": ["native/*.node"]
+    },
     "build-wasm": {
       "dependsOn": ["^build-wasm"],
       "outputs": ["crates/wasm/pkg/*"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
     }
   }
 }

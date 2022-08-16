@@ -18,7 +18,6 @@ export type ServerlessLoaderQuery = {
   distDir: string
   absolutePagePath: string
   absoluteAppPath: string
-  absoluteAppServerPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolute404Path: string
@@ -32,7 +31,6 @@ export type ServerlessLoaderQuery = {
   previewProps: string
   loadedEnvFiles: string
   i18n: string
-  reactRoot: string
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
@@ -54,7 +52,6 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
     previewProps,
     loadedEnvFiles,
     i18n,
-    reactRoot,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.slice(1)) : this.query
 
@@ -188,7 +185,6 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         canonicalBase: "${canonicalBase}",
         generateEtags: ${generateEtags || 'false'},
         poweredByHeader: ${poweredByHeader || 'false'},
-        reactRoot: ${reactRoot || 'false'},
 
         runtimeConfig,
         buildManifest,

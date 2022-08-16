@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default (()=><div >
 
     <style jsx>
@@ -9,5 +9,4 @@ export default (()=><div >
 
     </style>
 
-  </div>
-);
+  </div>);

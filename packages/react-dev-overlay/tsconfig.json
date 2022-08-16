@@ -8,7 +8,7 @@
     "lib": ["dom"],
     "downlevelIteration": true,
     "preserveWatchOutput": true,
-    "outDir": "lib",
+    "outDir": "dist",
     "jsx": "react",
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true

@@ -29,7 +29,7 @@ describe('AMP Custom Optimizer', () => {
     )
     expect(html).toContain('i-amphtml-version="001515617716922"')
     expect(html).toContain(
-      'script async src="https://cdn.ampproject.org/rtv/001515617716922/v0.js"'
+      'script async src="https://cdn.ampproject.org/rtv/001515617716922/v0.mjs"'
     )
   })
 
@@ -48,7 +48,7 @@ describe('AMP Custom Optimizer', () => {
     )
     expect(html).toContain('i-amphtml-version="001515617716922"')
     expect(html).toContain(
-      'script async src="https://cdn.ampproject.org/rtv/001515617716922/v0.js"'
+      'script async src="https://cdn.ampproject.org/rtv/001515617716922/v0.mjs"'
     )
   })
 })

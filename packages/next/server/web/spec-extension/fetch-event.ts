@@ -1,6 +1,32 @@
-import { DeprecationError } from '../error'
-import { FetchEvent } from '../spec-compliant/fetch-event'
+import { PageSignatureError } from '../error'
 import { NextRequest } from './request'
+
+const responseSymbol = Symbol('response')
+const passThroughSymbol = Symbol('passThrough')
+export const waitUntilSymbol = Symbol('waitUntil')
+
+class FetchEvent {
+  readonly [waitUntilSymbol]: Promise<any>[] = [];
+  [responseSymbol]?: Promise<Response>;
+  [passThroughSymbol] = false
+
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
+  constructor(_request: Request) {}
+
+  respondWith(response: Response | Promise<Response>): void {
+    if (!this[responseSymbol]) {
+      this[responseSymbol] = Promise.resolve(response)
+    }
+  }
+
+  passThroughOnException(): void {
+    this[passThroughSymbol] = true
+  }
+
+  waitUntil(promise: Promise<any>): void {
+    this[waitUntilSymbol].push(promise)
+  }
+}
 
 export class NextFetchEvent extends FetchEvent {
   sourcePage: string
@@ -16,7 +42,7 @@ export class NextFetchEvent extends FetchEvent {
    * Read more: https://nextjs.org/docs/messages/middleware-new-signature
    */
   get request() {
-    throw new DeprecationError({
+    throw new PageSignatureError({
       page: this.sourcePage,
     })
   }
@@ -27,7 +53,7 @@ export class NextFetchEvent extends FetchEvent {
    * Read more: https://nextjs.org/docs/messages/middleware-new-signature
    */
   respondWith() {
-    throw new DeprecationError({
+    throw new PageSignatureError({
       page: this.sourcePage,
     })
   }

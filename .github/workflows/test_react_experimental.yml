@@ -44,6 +44,8 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-react-experimental
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g pnpm@latest
+
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
 
       - run: node run-tests.js --timings -g ${{ matrix.group }}/6
