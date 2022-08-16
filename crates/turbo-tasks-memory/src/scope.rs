@@ -157,7 +157,7 @@ pub struct TaskScopeState {
     pub id: TaskScopeId,
     /// Number of active parents or tasks. Non-zero value means the scope is
     /// active
-    active: usize,
+    active: isize,
     /// When not active, this list contains all dirty tasks.
     /// When the scope becomes active, these need to be scheduled.
     dirty_tasks: HashSet<TaskId>,
@@ -438,7 +438,7 @@ impl TaskScopeState {
         more_jobs: &mut Vec<TaskScopeId>,
     ) -> Option<Vec<TaskId>> {
         let was_zero = self.active == 0;
-        self.active += count;
+        self.active += count as isize;
         if was_zero {
             more_jobs.extend(self.children.iter().copied());
             Some(self.dirty_tasks.iter().copied().collect())
