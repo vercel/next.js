@@ -774,7 +774,7 @@ export default class NextNodeServer extends BaseServer {
     const edgeFunctions = this.getEdgeFunctions()
 
     for (const item of edgeFunctions) {
-      if (item.match(ctx.pathname)) {
+      if (item.page === ctx.pathname) {
         await this.runEdgeFunction({
           req: ctx.req,
           res: ctx.res,
@@ -1623,15 +1623,11 @@ export default class NextNodeServer extends BaseServer {
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    try {
-      await this.ensureEdgeFunction(params.page)
-      middlewareInfo = this.getEdgeFunctionInfo({
-        page: params.page,
-        middleware: false,
-      })
-    } catch {
-      return null
-    }
+    await this.ensureEdgeFunction(params.page)
+    middlewareInfo = this.getEdgeFunctionInfo({
+      page: params.page,
+      middleware: false,
+    })
 
     if (!middlewareInfo) {
       return null
