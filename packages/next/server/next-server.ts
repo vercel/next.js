@@ -73,6 +73,7 @@ import BaseServer, {
   prepareServerlessUrl,
   RoutingItem,
   NoFallbackError,
+  RequestContext,
 } from './base-server'
 import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -95,7 +96,6 @@ import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
-import { getSortedRoutes } from '../shared/lib/router/utils/sorted-routes'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -673,16 +673,22 @@ export default class NextNodeServer extends BaseServer {
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
-    const handledAsEdgeFunction = await this.runEdgeFunction({
-      req,
-      res,
-      query,
-      params,
-      page,
-    })
+    const edgeFunctions = this.getEdgeFunctions()
 
-    if (handledAsEdgeFunction) {
-      return true
+    for (const item of edgeFunctions) {
+      if (item.page === page) {
+        const handledAsEdgeFunction = await this.runEdgeFunction({
+          req,
+          res,
+          query,
+          params,
+          page,
+        })
+
+        if (handledAsEdgeFunction) {
+          return true
+        }
+      }
     }
 
     const pageModule = await require(builtPagePath)
@@ -799,6 +805,28 @@ export default class NextNodeServer extends BaseServer {
       locales,
       this.nextConfig.experimental.appDir
     )
+  }
+
+  protected async renderPageComponent(
+    ctx: RequestContext,
+    bubbleNoFallback: boolean
+  ) {
+    const edgeFunctions = this.getEdgeFunctions()
+
+    for (const item of edgeFunctions) {
+      if (item.page === ctx.pathname) {
+        await this.runEdgeFunction({
+          req: ctx.req,
+          res: ctx.res,
+          query: ctx.query,
+          params: ctx.renderOpts.params,
+          page: ctx.pathname,
+        })
+        return null
+      }
+    }
+
+    return super.renderPageComponent(ctx, bubbleNoFallback)
   }
 
   protected async findPageComponents(
@@ -1452,20 +1480,16 @@ export default class NextNodeServer extends BaseServer {
     return manifest
   }
 
-  /**
-   * Return a list of middleware routing items. This method exists to be later
-   * overridden by the development server in order to use a different source
-   * to get the list.
-   */
+  /** Returns the middleware routing item if there is one. */
   protected getMiddleware(): RoutingItem | undefined {
     const manifest = this.getMiddlewareManifest()
-    const rootMiddleware = manifest?.middleware?.['/']
-    if (!rootMiddleware) {
+    const middleware = manifest?.middleware?.['/']
+    if (!middleware) {
       return
     }
 
     return {
-      match: getMiddlewareMatcher(rootMiddleware),
+      match: getMiddlewareMatcher(middleware),
       page: '/',
     }
   }
@@ -1476,13 +1500,10 @@ export default class NextNodeServer extends BaseServer {
       return []
     }
 
-    // Make sure to sort function routes too.
-    return getSortedRoutes(Object.keys(manifest.functions)).map((page) => {
-      return {
-        match: getMiddlewareMatcher(manifest.functions[page]),
-        page,
-      }
-    })
+    return Object.keys(manifest.functions).map((page) => ({
+      match: getMiddlewareMatcher(manifest.functions[page]),
+      page,
+    }))
   }
 
   /**
@@ -1857,45 +1878,6 @@ export default class NextNodeServer extends BaseServer {
 
         routes.push(middlewareCatchAllRoute)
       }
-      if (this.getEdgeFunctions().length) {
-        const edgeCatchAllRoute: Route = {
-          match: getPathMatch('/:path*'),
-          type: 'route',
-          name: 'edge functions catchall',
-          fn: async (req, res, _params, parsed) => {
-            const edgeFunctions = this.getEdgeFunctions()
-            if (!edgeFunctions.length) return { finished: false }
-
-            const { query, pathname } = parsed
-            const normalizedPathname = removeTrailingSlash(pathname || '')
-            let page = normalizedPathname
-            let params: Params | undefined = undefined
-
-            for (const edgeFunction of edgeFunctions) {
-              const matched = edgeFunction.match(page)
-              if (matched) {
-                params = matched
-                page = edgeFunction.page
-                break
-              }
-            }
-
-            const edgeSSRResult = await this.runEdgeFunction({
-              req,
-              res,
-              query,
-              params,
-              page,
-            })
-
-            return {
-              finished: !!edgeSSRResult,
-            }
-          },
-        }
-
-        routes.push(edgeCatchAllRoute)
-      }
     }
 
     return routes
@@ -1946,15 +1928,11 @@ export default class NextNodeServer extends BaseServer {
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    try {
-      await this.ensureEdgeFunction(params.page)
-      middlewareInfo = this.getEdgeFunctionInfo({
-        page: params.page,
-        middleware: false,
-      })
-    } catch {
-      return null
-    }
+    await this.ensureEdgeFunction(params.page)
+    middlewareInfo = this.getEdgeFunctionInfo({
+      page: params.page,
+      middleware: false,
+    })
 
     if (!middlewareInfo) {
       return null
