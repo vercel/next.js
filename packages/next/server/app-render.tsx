@@ -378,27 +378,27 @@ function getSegmentParam(segment: string): {
 /**
  * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
  */
-function getCssInlinedLinkTags(
-  serverComponentManifest: FlightManifest,
-  serverCSSManifest: FlightCSSManifest,
-  filePath: string
-): string[] {
-  const layoutOrPageCss = serverCSSManifest[filePath]
+// function getCssInlinedLinkTags(
+//   serverComponentManifest: FlightManifest,
+//   serverCSSManifest: FlightCSSManifest,
+//   filePath: string
+// ): string[] {
+//   const layoutOrPageCss = serverCSSManifest[filePath]
 
-  if (!layoutOrPageCss) {
-    return []
-  }
+//   if (!layoutOrPageCss) {
+//     return []
+//   }
 
-  const chunks = new Set<string>()
+//   const chunks = new Set<string>()
 
-  for (const css of layoutOrPageCss) {
-    for (const chunk of serverComponentManifest[css].default.chunks) {
-      chunks.add(chunk)
-    }
-  }
+//   for (const css of layoutOrPageCss) {
+//     for (const chunk of serverComponentManifest[css].default.chunks) {
+//       chunks.add(chunk)
+//     }
+//   }
 
-  return [...chunks]
-}
+//   return [...chunks]
+// }
 
 /**
  * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
