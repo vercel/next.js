@@ -5,7 +5,7 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 const regexLikeIndexModule = /(?<!pages[\\/])index\.module\.(scss|sass|css)$/
 
 export function getCssModuleLocalIdent(
-  context: webpack.loader.LoaderContext,
+  context: webpack.LoaderContext<{}>,
   _: any,
   exportName: string,
   options: object

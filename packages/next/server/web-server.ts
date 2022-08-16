@@ -5,7 +5,9 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import type { Options } from './base-server'
+import { NoFallbackError, Options } from './base-server'
+import type { DynamicRoutes, PageChecker, Route } from './router'
+import type { NextConfig } from './config-shared'
 
 import BaseServer from './base-server'
 import { renderToHTML } from './render'
@@ -13,6 +15,11 @@ import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
+import { getPathMatch } from '../shared/lib/router/utils/path-match'
+import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
+import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -33,14 +40,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected generateRewrites() {
-    // @TODO: assuming minimal mode right now
-    return {
-      beforeFiles: [],
-      afterFiles: [],
-      fallback: [],
-    }
-  }
   protected handleCompression() {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
@@ -48,7 +47,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getResponseCache() {
     return new WebResponseCache(this.minimalMode)
   }
-  protected getRoutesManifest() {
+  protected getCustomRoutes() {
     return {
       headers: [],
       rewrites: {
@@ -59,9 +58,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       redirects: [],
     }
   }
-  protected getPagePath() {
-    // @TODO
-    return ''
+  protected async hasPage() {
+    return false
   }
   protected getPublicDir() {
     // Public files are not handled by the web server.
@@ -79,21 +77,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected async getFallback() {
     return ''
-  }
-  protected generateImageRoutes() {
-    return []
-  }
-  protected generateStaticRoutes() {
-    return []
-  }
-  protected generateFsStaticRoutes() {
-    return []
-  }
-  protected generatePublicRoutes() {
-    return []
-  }
-  protected generateCatchAllMiddlewareRoute() {
-    return []
   }
   protected getFontManifest() {
     return undefined
@@ -137,6 +120,197 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getServerCSSManifest() {
     // TODO-APP: Support web server.
     return undefined
+  }
+
+  protected generateRoutes(): {
+    headers: Route[]
+    rewrites: {
+      beforeFiles: Route[]
+      afterFiles: Route[]
+      fallback: Route[]
+    }
+    fsRoutes: Route[]
+    redirects: Route[]
+    catchAllRoute: Route
+    catchAllMiddleware: Route[]
+    pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
+    dynamicRoutes: DynamicRoutes | undefined
+    nextConfig: NextConfig
+  } {
+    const fsRoutes: Route[] = [
+      {
+        match: getPathMatch('/_next/data/:path*'),
+        type: 'route',
+        name: '_next/data catchall',
+        check: true,
+        fn: async (req, res, params, _parsedUrl) => {
+          // Make sure to 404 for /_next/data/ itself and
+          // we also want to 404 if the buildId isn't correct
+          if (!params.path || params.path[0] !== this.buildId) {
+            await this.render404(req, res, _parsedUrl)
+            return {
+              finished: true,
+            }
+          }
+          // remove buildId from URL
+          params.path.shift()
+
+          const lastParam = params.path[params.path.length - 1]
+
+          // show 404 if it doesn't end with .json
+          if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
+            await this.render404(req, res, _parsedUrl)
+            return {
+              finished: true,
+            }
+          }
+
+          // re-create page's pathname
+          let pathname = `/${params.path.join('/')}`
+          pathname = getRouteFromAssetPath(pathname, '.json')
+
+          // ensure trailing slash is normalized per config
+          if (this.router.catchAllMiddleware[0]) {
+            if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
+              pathname += '/'
+            }
+            if (
+              !this.nextConfig.trailingSlash &&
+              pathname.length > 1 &&
+              pathname.endsWith('/')
+            ) {
+              pathname = pathname.substring(0, pathname.length - 1)
+            }
+          }
+
+          if (this.nextConfig.i18n) {
+            const { host } = req?.headers || {}
+            // remove port from host and remove port if present
+            const hostname = host?.split(':')[0].toLowerCase()
+            const localePathResult = normalizeLocalePath(
+              pathname,
+              this.nextConfig.i18n.locales
+            )
+            const { defaultLocale } =
+              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
+
+            let detectedLocale = ''
+
+            if (localePathResult.detectedLocale) {
+              pathname = localePathResult.pathname
+              detectedLocale = localePathResult.detectedLocale
+            }
+
+            _parsedUrl.query.__nextLocale = detectedLocale
+            _parsedUrl.query.__nextDefaultLocale =
+              defaultLocale || this.nextConfig.i18n.defaultLocale
+
+            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
+              _parsedUrl.query.__nextLocale =
+                _parsedUrl.query.__nextDefaultLocale
+              await this.render404(req, res, _parsedUrl)
+              return { finished: true }
+            }
+          }
+
+          return {
+            pathname,
+            query: { ..._parsedUrl.query, __nextDataReq: '1' },
+            finished: false,
+          }
+        },
+      },
+      {
+        match: getPathMatch('/_next/:path*'),
+        type: 'route',
+        name: '_next catchall',
+        // This path is needed because `render()` does a check for `/_next` and the calls the routing again
+        fn: async (req, res, _params, parsedUrl) => {
+          await this.render404(req, res, parsedUrl)
+          return {
+            finished: true,
+          }
+        },
+      },
+    ]
+
+    const catchAllRoute: Route = {
+      match: getPathMatch('/:path*'),
+      type: 'route',
+      matchesLocale: true,
+      name: 'Catchall render',
+      fn: async (req, res, _params, parsedUrl) => {
+        let { pathname, query } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+
+        // next.js core assumes page path without trailing slash
+        pathname = removeTrailingSlash(pathname)
+
+        if (this.nextConfig.i18n) {
+          const localePathResult = normalizeLocalePath(
+            pathname,
+            this.nextConfig.i18n?.locales
+          )
+
+          if (localePathResult.detectedLocale) {
+            pathname = localePathResult.pathname
+            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+          }
+        }
+        const bubbleNoFallback = !!query._nextBubbleNoFallback
+
+        if (pathname === '/api' || pathname.startsWith('/api/')) {
+          delete query._nextBubbleNoFallback
+        }
+
+        try {
+          await this.render(req, res, pathname, query, parsedUrl, true)
+
+          return {
+            finished: true,
+          }
+        } catch (err) {
+          if (err instanceof NoFallbackError && bubbleNoFallback) {
+            return {
+              finished: false,
+            }
+          }
+          throw err
+        }
+      },
+    }
+
+    const { useFileSystemPublicRoutes } = this.nextConfig
+
+    if (useFileSystemPublicRoutes) {
+      this.appPathRoutes = this.getAppPathRoutes()
+      this.dynamicRoutes = this.getDynamicRoutes()
+    }
+
+    return {
+      headers: [],
+      fsRoutes,
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      redirects: [],
+      catchAllRoute,
+      catchAllMiddleware: [],
+      useFileSystemPublicRoutes,
+      dynamicRoutes: this.dynamicRoutes,
+      pageChecker: this.hasPage.bind(this),
+      nextConfig: this.nextConfig,
+    }
+  }
+
+  // Edge API requests are handled separately in minimal mode.
+  protected async handleApiRequest() {
+    return false
   }
   protected async renderHTML(
     req: WebNextRequest,

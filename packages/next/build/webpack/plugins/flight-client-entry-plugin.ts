@@ -1,7 +1,6 @@
 import { stringify } from 'querystring'
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { clientComponentRegex } from '../loaders/utils'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
@@ -46,7 +45,7 @@ export class FlightClientEntryPlugin {
     this.isEdgeServer = options.isEdgeServer
   }
 
-  apply(compiler: webpack5.Compiler) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
@@ -91,7 +90,7 @@ export class FlightClientEntryPlugin {
       }
 
       // TODO-APP: create client-side entrypoint per layout/page.
-      // const entryModule: webpack5.NormalModule =
+      // const entryModule: webpack.NormalModule =
       //   compilation.moduleGraph.getResolvedModule(entryDependency)
 
       // for (const connection of compilation.moduleGraph.getOutgoingConnections(
@@ -148,10 +147,10 @@ export class FlightClientEntryPlugin {
         // @ts-ignore TODO: Remove ignore when webpack 5 is stable
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
-      (assets: webpack5.Compilation['assets']) => {
+      (assets: webpack.Compilation['assets']) => {
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           JSON.stringify(flightCSSManifest)
-        ) as unknown as webpack5.sources.RawSource
+        ) as unknown as webpack.sources.RawSource
       }
     )
 
@@ -181,7 +180,7 @@ export class FlightClientEntryPlugin {
       dependencyToFilter: any,
       segmentPath: string
     ): void => {
-      const mod: webpack5.NormalModule =
+      const mod: webpack.NormalModule =
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 

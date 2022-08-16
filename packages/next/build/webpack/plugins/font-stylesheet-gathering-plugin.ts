@@ -58,7 +58,7 @@ export class FontStylesheetGatheringPlugin {
   }
 
   private parserHandler = (
-    factory: webpack.compilation.NormalModuleFactory
+    factory: ReturnType<webpack.Compiler['createNormalModuleFactory']>
   ): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     // Do an extra walk per module and add interested visitors to the walk.
@@ -230,6 +230,7 @@ export class FontStylesheetGatheringPlugin {
             }
           }
 
+          // @ts-expect-error invalid assets type
           compilation.assets[FONT_MANIFEST] = new sources.RawSource(
             JSON.stringify(this.manifestContent, null, '  ')
           )
