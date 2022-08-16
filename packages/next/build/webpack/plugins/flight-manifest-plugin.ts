@@ -9,7 +9,6 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -24,9 +23,13 @@ interface Options {
   pageExtensions: string[]
 }
 
-type ModuleId = string | number
+/**
+ * Webpack module id
+ */
+// TODO-APP ensure `null` is included as it is used.
+type ModuleId = string | number /*| null*/
 
-type ManifestChunks = Array<`${string}:${string}` | string>
+export type ManifestChunks = Array<`${string}:${string}` | string>
 
 interface ManifestNode {
   [moduleExport: string]: {
@@ -45,12 +48,16 @@ interface ManifestNode {
   }
 }
 
-type FlightManifest = {
+export type FlightManifest = {
   __ssr_module_mapping__: {
     [moduleId: string]: ManifestNode
   }
 } & {
   [modulePath: string]: ManifestNode
+}
+
+export type FlightCSSManifest = {
+  [modulePath: string]: string[]
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
@@ -66,7 +73,7 @@ export class FlightManifestPlugin {
     this.pageExtensions = options.pageExtensions
   }
 
-  apply(compiler: webpack5.Compiler) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
@@ -96,8 +103,8 @@ export class FlightManifestPlugin {
   }
 
   createAsset(
-    assets: webpack5.Compilation['assets'],
-    compilation: webpack5.Compilation,
+    assets: webpack.Compilation['assets'],
+    compilation: webpack.Compilation,
     context: string
   ) {
     const manifest: FlightManifest = {
@@ -108,9 +115,9 @@ export class FlightManifestPlugin {
 
     compilation.chunkGroups.forEach((chunkGroup) => {
       function recordModule(
-        chunk: webpack5.Chunk,
+        chunk: webpack.Chunk,
         id: ModuleId,
-        mod: webpack5.NormalModule
+        mod: webpack.NormalModule
       ) {
         // if appDir is enabled we shouldn't process chunks from
         // the pages dir
@@ -139,7 +146,6 @@ export class FlightManifestPlugin {
 
         const moduleExports = manifest[resource] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
-        moduleIdMapping[id] = moduleIdMapping[id] || {}
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
@@ -161,6 +167,7 @@ export class FlightManifestPlugin {
                 chunks,
               },
             }
+            moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id]['default'] = {
               id: ssrNamedModuleId,
               name: 'default',
@@ -184,7 +191,6 @@ export class FlightManifestPlugin {
             ...mod.dependencies.map((dep) => {
               // Match CommonJsSelfReferenceDependency
               if (dep.type === 'cjs self exports reference') {
-                // `module.exports = ...`
                 // @ts-expect-error: TODO: Fix Dependency type
                 if (dep.base === 'module.exports') {
                   return 'default'
@@ -245,7 +251,7 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           let requiredChunks: ManifestChunks = []
           if (!moduleExports[name]) {
-            const isRelatedChunk = (c: webpack5.Chunk) =>
+            const isRelatedChunk = (c: webpack.Chunk) =>
               // If current chunk is a page, it should require the related page chunk;
               // If current chunk is a component, it should filter out the related page chunk;
               chunk.name?.startsWith('pages/') || !c.name?.startsWith('pages/')
@@ -253,7 +259,7 @@ export class FlightManifestPlugin {
             if (appDir) {
               requiredChunks = chunkGroup.chunks
                 .filter(isRelatedChunk)
-                .map((requiredChunk: webpack5.Chunk) => {
+                .map((requiredChunk: webpack.Chunk) => {
                   return (
                     requiredChunk.id +
                     ':' +
@@ -269,6 +275,8 @@ export class FlightManifestPlugin {
               chunks: requiredChunks.concat([...cssChunks]),
             }
           }
+
+          moduleIdMapping[id] = moduleIdMapping[id] || {}
           if (!moduleIdMapping[id][name]) {
             moduleIdMapping[id][name] = {
               ...moduleExports[name],
@@ -281,11 +289,11 @@ export class FlightManifestPlugin {
         manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
-      chunkGroup.chunks.forEach((chunk: webpack5.Chunk) => {
+      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
         const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
           chunk
           // TODO: Update type so that it doesn't have to be cast.
-        ) as Iterable<webpack5.NormalModule>
+        ) as Iterable<webpack.NormalModule>
         for (const mod of chunkModules) {
           const modId = compilation.chunkGraph.getModuleId(mod)
 
@@ -310,11 +318,11 @@ export class FlightManifestPlugin {
       'self.__RSC_MANIFEST=' + json
       // Work around webpack 4 type of RawSource being used
       // TODO: use webpack 5 type by default
-    ) as unknown as webpack5.sources.RawSource
+    ) as unknown as webpack.sources.RawSource
     assets[file + '.json'] = new sources.RawSource(
       json
       // Work around webpack 4 type of RawSource being used
       // TODO: use webpack 5 type by default
-    ) as unknown as webpack5.sources.RawSource
+    ) as unknown as webpack.sources.RawSource
   }
 }

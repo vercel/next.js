@@ -39,7 +39,8 @@ export type Route = {
     req: BaseNextRequest,
     res: BaseNextResponse,
     params: Params,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery,
+    upgradeHead?: any
   ) => Promise<RouteResult> | RouteResult
 }
 
@@ -130,7 +131,8 @@ export default class Router {
   async execute(
     req: BaseNextRequest,
     res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery,
+    upgradeHead?: any
   ): Promise<boolean> {
     if (this.seenRequests.has(req)) {
       throw new Error(
@@ -222,7 +224,14 @@ export default class Router {
         this.catchAllMiddleware
       const allRoutes = [
         ...(middlewareCatchAllRoute
-          ? this.fsRoutes.filter((r) => r.name === '_next/data catchall')
+          ? this.fsRoutes
+              .filter((r) => r.name === '_next/data catchall')
+              .map((r) => {
+                return {
+                  ...r,
+                  check: false,
+                }
+              })
           : []),
         ...this.headers,
         ...this.redirects,
@@ -299,6 +308,11 @@ export default class Router {
       ]
 
       for (const testRoute of allRoutes) {
+        // only process rewrites for upgrade request
+        if (upgradeHead && testRoute.type !== 'rewrite') {
+          continue
+        }
+
         const originalPathname = parsedUrlUpdated.pathname as string
         const pathnameInfo = getNextPathnameInfo(originalPathname, {
           nextConfig: this.nextConfig,
@@ -381,7 +395,8 @@ export default class Router {
             req,
             res,
             newParams,
-            parsedUrlUpdated
+            parsedUrlUpdated,
+            upgradeHead
           )
 
           if (result.finished) {

@@ -8,19 +8,6 @@ interface ICardProps {
   method: 'get' | 'post'
 }
 
-const Card: React.FC<ICardProps> = ({ content, url, method }): JSX.Element => (
-  <Container target="_blank" href={url}>
-    <Method $method={method}>{method.toUpperCase()}</Method>
-    <Content>{content}</Content>
-    <ImageContainer>
-      <Image src="/arrow.png" alt="Sketch arrow" width={20} height={20} />
-      <p>Try it out with our API!</p>
-    </ImageContainer>
-  </Container>
-)
-
-export default Card
-
 const Container = styled.a`
   border: 1px solid rgb(215, 219, 236);
   border-radius: 0.25rem;
@@ -59,3 +46,16 @@ const ImageContainer = styled.div`
     font-size: 0.5rem;
   }
 `
+
+const Card: React.FC<ICardProps> = ({ content, url, method }): JSX.Element => (
+  <Container target="_blank" href={url}>
+    <Method $method={method}>{method.toUpperCase()}</Method>
+    <Content>{content}</Content>
+    <ImageContainer>
+      <Image src="/arrow.png" alt="Sketch arrow" width={20} height={20} />
+      <p>Try it out with our API!</p>
+    </ImageContainer>
+  </Container>
+)
+
+export default Card

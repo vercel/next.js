@@ -21,9 +21,6 @@ describe('Requests not effected when middleware used', () => {
     })
   })
 
-  sendRequest('GET')
-  sendRequest('POST')
-
   function sendRequest(method) {
     const body = !['get', 'head'].includes(method.toLowerCase())
       ? JSON.stringify({
@@ -50,4 +47,7 @@ describe('Requests not effected when middleware used', () => {
       expect(data.headers).toEqual(expect.objectContaining(headers))
     })
   }
+
+  sendRequest('GET')
+  sendRequest('POST')
 })

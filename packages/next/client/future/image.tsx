@@ -130,6 +130,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   placeholder: PlaceholderValue
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
+  setShowAltText: (b: boolean) => void
   noscriptSizes: string | undefined
 }
 
@@ -318,6 +319,183 @@ function handleLoading(
   })
 }
 
+const ImageElement = ({
+  imgAttributes,
+  heightInt,
+  widthInt,
+  qualityInt,
+  className,
+  imgStyle,
+  blurStyle,
+  isLazy,
+  fill,
+  placeholder,
+  loading,
+  srcString,
+  config,
+  unoptimized,
+  loader,
+  onLoadingCompleteRef,
+  setBlurComplete,
+  setShowAltText,
+  onLoad,
+  onError,
+  noscriptSizes,
+  ...rest
+}: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
+  return (
+    <>
+      <img
+        {...rest}
+        {...imgAttributes}
+        width={widthInt}
+        height={heightInt}
+        decoding="async"
+        data-nimg={`future${fill ? '-fill' : ''}`}
+        className={className}
+        // @ts-ignore - TODO: upgrade to `@types/react@17`
+        loading={loading}
+        style={{ ...imgStyle, ...blurStyle }}
+        ref={useCallback(
+          (img: ImgElementWithDataProp) => {
+            if (process.env.NODE_ENV !== 'production') {
+              if (img && !srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+            }
+            if (img?.complete) {
+              handleLoading(
+                img,
+                srcString,
+                placeholder,
+                onLoadingCompleteRef,
+                setBlurComplete
+              )
+            }
+          },
+          [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
+        )}
+        onLoad={(event) => {
+          const img = event.currentTarget as ImgElementWithDataProp
+          handleLoading(
+            img,
+            srcString,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete
+          )
+          if (onLoad) {
+            onLoad(event)
+          }
+        }}
+        onError={(event) => {
+          // if the real image fails to load, this will ensure "alt" is visible
+          setShowAltText(true)
+          if (placeholder === 'blur') {
+            // If the real image fails to load, this will still remove the placeholder.
+            setBlurComplete(true)
+          }
+          if (onError) {
+            onError(event)
+          }
+        }}
+      />
+      {placeholder === 'blur' && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              config,
+              src: srcString,
+              unoptimized,
+              width: widthInt,
+              quality: qualityInt,
+              sizes: noscriptSizes,
+              loader,
+            })}
+            width={widthInt}
+            height={heightInt}
+            decoding="async"
+            data-nimg={`future${fill ? '-fill' : ''}`}
+            style={imgStyle}
+            className={className}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading}
+          />
+        </noscript>
+      )}
+    </>
+  )
+}
+
+function defaultLoader({
+  config,
+  src,
+  width,
+  quality,
+}: ImageLoaderPropsWithConfig): string {
+  if (process.env.NODE_ENV !== 'production') {
+    const missingValues = []
+
+    // these should always be provided but make sure they are
+    if (!src) missingValues.push('src')
+    if (!width) missingValues.push('width')
+
+    if (missingValues.length > 0) {
+      throw new Error(
+        `Next Image Optimization requires ${missingValues.join(
+          ', '
+        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
+          { src, width, quality }
+        )}`
+      )
+    }
+
+    if (src.startsWith('//')) {
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (
+      !src.startsWith('/') &&
+      (config.domains || experimentalRemotePatterns)
+    ) {
+      let parsedSrc: URL
+      try {
+        parsedSrc = new URL(src)
+      } catch (err) {
+        console.error(err)
+        throw new Error(
+          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+        )
+      }
+
+      if (process.env.NODE_ENV !== 'test') {
+        // We use dynamic require because this should only error in development
+        const { hasMatch } = require('../../shared/lib/match-remote-pattern')
+        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+          )
+        }
+      }
+    }
+  }
+
+  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
+  }
+
+  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
+    quality || 75
+  }`
+}
+
 export default function Image({
   src,
   sizes,
@@ -403,6 +581,7 @@ export default function Image({
   }
 
   const [blurComplete, setBlurComplete] = useState(false)
+  const [showAltText, setShowAltText] = useState(false)
   let widthInt = getInt(width)
   let heightInt = getInt(height)
   const qualityInt = getInt(quality)
@@ -574,11 +753,16 @@ export default function Image({
           position: 'absolute',
           height: '100%',
           width: '100%',
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
         }
       : {},
+    showAltText || placeholder === 'blur' ? {} : { color: 'transparent' },
     style
   )
-  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
+  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
@@ -655,6 +839,7 @@ export default function Image({
     srcString,
     onLoadingCompleteRef,
     setBlurComplete,
+    setShowAltText,
     noscriptSizes: sizes,
     ...rest,
   }
@@ -684,178 +869,4 @@ export default function Image({
       ) : null}
     </>
   )
-}
-
-const ImageElement = ({
-  imgAttributes,
-  heightInt,
-  widthInt,
-  qualityInt,
-  className,
-  imgStyle,
-  blurStyle,
-  isLazy,
-  fill,
-  placeholder,
-  loading,
-  srcString,
-  config,
-  unoptimized,
-  loader,
-  onLoadingCompleteRef,
-  setBlurComplete,
-  onLoad,
-  onError,
-  noscriptSizes,
-  ...rest
-}: ImageElementProps) => {
-  loading = isLazy ? 'lazy' : loading
-  return (
-    <>
-      <img
-        {...rest}
-        {...imgAttributes}
-        width={widthInt}
-        height={heightInt}
-        decoding="async"
-        data-nimg={`future${fill ? '-fill' : ''}`}
-        className={className}
-        // @ts-ignore - TODO: upgrade to `@types/react@17`
-        loading={loading}
-        style={{ ...imgStyle, ...blurStyle }}
-        ref={useCallback(
-          (img: ImgElementWithDataProp) => {
-            if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
-                console.error(`Image is missing required "src" property:`, img)
-              }
-            }
-            if (img?.complete) {
-              handleLoading(
-                img,
-                srcString,
-                placeholder,
-                onLoadingCompleteRef,
-                setBlurComplete
-              )
-            }
-          },
-          [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
-        )}
-        onLoad={(event) => {
-          const img = event.currentTarget as ImgElementWithDataProp
-          handleLoading(
-            img,
-            srcString,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete
-          )
-          if (onLoad) {
-            onLoad(event)
-          }
-        }}
-        onError={(event) => {
-          if (placeholder === 'blur') {
-            // If the real image fails to load, this will still remove the placeholder.
-            setBlurComplete(true)
-          }
-          if (onError) {
-            onError(event)
-          }
-        }}
-      />
-      {placeholder === 'blur' && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            width={widthInt}
-            height={heightInt}
-            decoding="async"
-            data-nimg={`future${fill ? '-fill' : ''}`}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
-      )}
-    </>
-  )
-}
-
-function defaultLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  if (process.env.NODE_ENV !== 'production') {
-    const missingValues = []
-
-    // these should always be provided but make sure they are
-    if (!src) missingValues.push('src')
-    if (!width) missingValues.push('width')
-
-    if (missingValues.length > 0) {
-      throw new Error(
-        `Next Image Optimization requires ${missingValues.join(
-          ', '
-        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
-          { src, width, quality }
-        )}`
-      )
-    }
-
-    if (src.startsWith('//')) {
-      throw new Error(
-        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
-      )
-    }
-
-    if (
-      !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
-    ) {
-      let parsedSrc: URL
-      try {
-        parsedSrc = new URL(src)
-      } catch (err) {
-        console.error(err)
-        throw new Error(
-          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
-        )
-      }
-
-      if (process.env.NODE_ENV !== 'test') {
-        // We use dynamic require because this should only error in development
-        const { hasMatch } = require('../../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
-          throw new Error(
-            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
-          )
-        }
-      }
-    }
-  }
-
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
-
-  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || 75
-  }`
 }
