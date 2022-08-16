@@ -673,16 +673,22 @@ export default class NextNodeServer extends BaseServer {
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
-    const handledAsEdgeFunction = await this.runEdgeFunction({
-      req,
-      res,
-      query,
-      params,
-      page,
-    })
+    const edgeFunctions = this.getEdgeFunctions()
 
-    if (handledAsEdgeFunction) {
-      return true
+    for (const item of edgeFunctions) {
+      if (item.page === page) {
+        const handledAsEdgeFunction = await this.runEdgeFunction({
+          req,
+          res,
+          query,
+          params,
+          page,
+        })
+
+        if (handledAsEdgeFunction) {
+          return true
+        }
+      }
     }
 
     const pageModule = await require(builtPagePath)
