@@ -3,7 +3,7 @@ import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { LoadedEnvFiles } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
@@ -231,7 +231,7 @@ export function getServerlessEntry(opts: {
   page: string
   previewMode: __ApiPreviewProps
   pages: { [page: string]: string }
-}): ObjectValue<webpack5.EntryObject> {
+}): ObjectValue<webpack.EntryObject> {
   const loaderParams: ServerlessLoaderQuery = {
     absolute404Path: opts.pages['/404'] || '',
     absoluteAppPath: opts.pages['/_app'],
@@ -284,6 +284,48 @@ export function getClientEntry(opts: {
     : pageLoader
 }
 
+export async function runDependingOnPageType<T>(params: {
+  onClient: () => T
+  onEdgeServer: () => T
+  onServer: () => T
+  page: string
+  pageRuntime: ServerRuntime
+}): Promise<void> {
+  if (isMiddlewareFile(params.page)) {
+    await params.onEdgeServer()
+    return
+  }
+  if (params.page.match(API_ROUTE)) {
+    if (params.pageRuntime === SERVER_RUNTIME.edge) {
+      await params.onEdgeServer()
+      return
+    }
+
+    await params.onServer()
+    return
+  }
+  if (params.page === '/_document') {
+    await params.onServer()
+    return
+  }
+  if (
+    params.page === '/_app' ||
+    params.page === '/_error' ||
+    params.page === '/404' ||
+    params.page === '/500'
+  ) {
+    await Promise.all([params.onClient(), params.onServer()])
+    return
+  }
+  if (params.pageRuntime === SERVER_RUNTIME.edge) {
+    await Promise.all([params.onClient(), params.onEdgeServer()])
+    return
+  }
+
+  await Promise.all([params.onClient(), params.onServer()])
+  return
+}
+
 export async function createEntrypoints(params: CreateEntrypointsParams) {
   const {
     config,
@@ -297,9 +339,9 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     appPaths,
     pageExtensions,
   } = params
-  const edgeServer: webpack5.EntryObject = {}
-  const server: webpack5.EntryObject = {}
-  const client: webpack5.EntryObject = {}
+  const edgeServer: webpack.EntryObject = {}
+  const server: webpack.EntryObject = {}
+  const client: webpack.EntryObject = {}
   const nestedMiddleware: string[] = []
   let middlewareRegex: string | undefined = undefined
 
@@ -439,48 +481,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   }
 }
 
-export async function runDependingOnPageType<T>(params: {
-  onClient: () => T
-  onEdgeServer: () => T
-  onServer: () => T
-  page: string
-  pageRuntime: ServerRuntime
-}): Promise<void> {
-  if (isMiddlewareFile(params.page)) {
-    await params.onEdgeServer()
-    return
-  }
-  if (params.page.match(API_ROUTE)) {
-    if (params.pageRuntime === SERVER_RUNTIME.edge) {
-      await params.onEdgeServer()
-      return
-    }
-
-    await params.onServer()
-    return
-  }
-  if (params.page === '/_document') {
-    await params.onServer()
-    return
-  }
-  if (
-    params.page === '/_app' ||
-    params.page === '/_error' ||
-    params.page === '/404' ||
-    params.page === '/500'
-  ) {
-    await Promise.all([params.onClient(), params.onServer()])
-    return
-  }
-  if (params.pageRuntime === SERVER_RUNTIME.edge) {
-    await Promise.all([params.onClient(), params.onEdgeServer()])
-    return
-  }
-
-  await Promise.all([params.onClient(), params.onServer()])
-  return
-}
-
 export function finalizeEntrypoint({
   name,
   compilerType,
@@ -490,10 +490,10 @@ export function finalizeEntrypoint({
 }: {
   compilerType?: CompilerNameValues
   name: string
-  value: ObjectValue<webpack5.EntryObject>
+  value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
   appDir?: boolean
-}): ObjectValue<webpack5.EntryObject> {
+}): ObjectValue<webpack.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
       ? { import: value }

@@ -46,13 +46,13 @@ function getOriginModuleFromDependency(
 function getChunkGroupFromBlock(
   compilation: any,
   block: any
-): webpack.compilation.ChunkGroup {
+): webpack.Compilation['chunkGroups'] {
   return compilation.chunkGraph.getBlockChunkGroup(block)
 }
 
 function buildManifest(
   _compiler: webpack.Compiler,
-  compilation: webpack.compilation.Compilation,
+  compilation: webpack.Compilation,
   pagesDir: string,
   dev: boolean
 ) {
@@ -109,7 +109,7 @@ function buildManifest(
         // the module id and no files
         if (chunkGroup) {
           for (const chunk of (chunkGroup as any)
-            .chunks as webpack.compilation.Chunk[]) {
+            .chunks as webpack.Compilation['chunks']) {
             chunk.files.forEach((file: string) => {
               if (
                 (file.endsWith('.js') || file.endsWith('.css')) &&

@@ -1,7 +1,6 @@
 import { stringify } from 'querystring'
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { clientComponentRegex } from '../loaders/utils'
 import {
   getInvalidator,
@@ -44,7 +43,7 @@ export class FlightClientEntryPlugin {
     this.isEdgeServer = options.isEdgeServer
   }
 
-  apply(compiler: webpack5.Compiler) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
@@ -162,10 +161,10 @@ export class FlightClientEntryPlugin {
         // @ts-ignore TODO: Remove ignore when webpack 5 is stable
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
-      (assets: webpack5.Compilation['assets']) => {
+      (assets: webpack.Compilation['assets']) => {
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           JSON.stringify(flightCSSManifest)
-        ) as unknown as webpack5.sources.RawSource
+        ) as unknown as webpack.sources.RawSource
       }
     )
 
