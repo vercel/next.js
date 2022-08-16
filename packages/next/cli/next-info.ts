@@ -9,6 +9,25 @@ import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
 
+function getPackageVersion(packageName: string) {
+  try {
+    return require(`${packageName}/package.json`).version
+  } catch {
+    return 'N/A'
+  }
+}
+
+function getBinaryVersion(binaryName: string) {
+  try {
+    return childProcess
+      .execFileSync(binaryName, ['--version'])
+      .toString()
+      .trim()
+  } catch {
+    return 'N/A'
+  }
+}
+
 const nextInfo: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
@@ -92,22 +111,3 @@ const nextInfo: cliCommand = async (argv) => {
 }
 
 export { nextInfo }
-
-function getPackageVersion(packageName: string) {
-  try {
-    return require(`${packageName}/package.json`).version
-  } catch {
-    return 'N/A'
-  }
-}
-
-function getBinaryVersion(binaryName: string) {
-  try {
-    return childProcess
-      .execFileSync(binaryName, ['--version'])
-      .toString()
-      .trim()
-  } catch {
-    return 'N/A'
-  }
-}

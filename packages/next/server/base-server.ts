@@ -28,14 +28,11 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 
-import { join } from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
 import {
   NEXT_BUILTIN_DOCUMENT,
-  SERVERLESS_DIRECTORY,
-  SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
@@ -46,7 +43,6 @@ import {
   checkIsManualRevalidate,
 } from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
-import { isTargetLikeServerless } from './utils'
 import Router from './router'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
@@ -158,6 +154,21 @@ type ResponsePayload = {
   type: 'html' | 'json'
   body: RenderResult
   revalidateOptions?: any
+}
+
+export function prepareServerlessUrl(
+  req: BaseNextRequest,
+  query: ParsedUrlQuery
+): void {
+  const curUrl = parseUrl(req.url!, true)
+  req.url = formatUrl({
+    ...curUrl,
+    search: undefined,
+    query: {
+      ...curUrl.query,
+      ...query,
+    },
+  })
 }
 
 export default abstract class Server<ServerOptions extends Options = Options> {
@@ -412,6 +423,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const urlParts = (req.url || '').split('?')
       const urlNoQuery = urlParts[0]
 
+      // this normalizes repeated slashes in the path e.g. hello//world ->
+      // hello/world or backslashes to forward slashes, this does not
+      // handle trailing slash as that is handled the same as a next.config.js
+      // redirect
       if (urlNoQuery?.match(/(\\|\/\/)/)) {
         const cleanUrl = normalizeRepeatedSlashes(req.url!)
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
@@ -2109,32 +2124,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
-
-  protected get _isLikeServerless(): boolean {
-    return isTargetLikeServerless(this.nextConfig.target)
-  }
-
-  protected get serverDistDir() {
-    return join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
-  }
-}
-
-export function prepareServerlessUrl(
-  req: BaseNextRequest,
-  query: ParsedUrlQuery
-): void {
-  const curUrl = parseUrl(req.url!, true)
-  req.url = formatUrl({
-    ...curUrl,
-    search: undefined,
-    query: {
-      ...curUrl.query,
-      ...query,
-    },
-  })
 }
 
 export { stringifyQuery } from './server-route-utils'
