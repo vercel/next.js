@@ -87,7 +87,6 @@ export class FlightClientEntryPlugin {
         continue
       }
 
-      // TODO-APP: create client-side entrypoint per layout/page.
       const entryModule: webpack.NormalModule =
         compilation.moduleGraph.getResolvedModule(entryDependency)
 
