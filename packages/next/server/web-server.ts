@@ -235,8 +235,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       },
     ]
 
-    // Headers come very first
-
     const catchAllRoute: Route = {
       match: getPathMatch('/:path*'),
       type: 'route',
