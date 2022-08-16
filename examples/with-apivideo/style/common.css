@@ -96,7 +96,8 @@ p > a {
   transform: scale(1.05);
 }
 
-button.upload {
+button.upload,
+a.button {
   background: -webkit-linear-gradient(
     45deg,
     rgb(250, 91, 48) 0%,

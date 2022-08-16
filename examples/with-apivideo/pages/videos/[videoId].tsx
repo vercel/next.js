@@ -8,13 +8,11 @@ import React, { ChangeEvent, useEffect, useState } from 'react'
 interface IVideoViewProps {
   children: React.ReactNode
   videoId: string
-  width: string
-  height: string
+  uploaded: string
 }
 const VideoView: NextPage<IVideoViewProps> = ({
   videoId,
-  width,
-  height,
+  uploaded,
 }): JSX.Element => {
   const [player, setPlayer] = useState<PlayerSdk | undefined>(undefined)
   const [playerSettings, setPlayerSettings] = useState<PlayerTheme>({
@@ -58,7 +56,15 @@ const VideoView: NextPage<IVideoViewProps> = ({
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <header>
-        <span>Already there</span> 🎉
+        {uploaded ? (
+          <>
+            <span>Already there</span> 🎉
+          </>
+        ) : (
+          <>
+            <span>Here's your player</span> 👀
+          </>
+        )}
       </header>
 
       <main>
@@ -110,8 +116,11 @@ const VideoView: NextPage<IVideoViewProps> = ({
         </div>
         <div id="player" />
 
-        <button className="upload" onClick={() => router.push('/')}>
-          Another video?
+        <button
+          className="upload"
+          onClick={() => router.push(uploaded ? '/uploader' : '/videos')}
+        >
+          {uploaded ? 'Another video?' : 'Videos list'}
         </button>
       </main>
 
@@ -138,6 +147,6 @@ const VideoView: NextPage<IVideoViewProps> = ({
 export default VideoView
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { videoId, w, h } = context.query
-  return { props: { videoId, width: w ?? null, height: h ?? null } }
+  const { videoId, uploaded } = context.query
+  return { props: { videoId, uploaded: uploaded ?? null } }
 }
