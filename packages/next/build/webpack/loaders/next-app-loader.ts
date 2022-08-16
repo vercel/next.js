@@ -12,7 +12,7 @@ async function createTreeCodeFromPath({
   removeExt: (pathToRemoveExtensions: string) => string
 }) {
   let tree: undefined | string
-  const splittedPath = pagePath.split('/')
+  const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
 
   const segments = ['', ...splittedPath.slice(1)]
@@ -25,7 +25,7 @@ async function createTreeCodeFromPath({
     // First item in the list is the page which can't have layouts by itself
     if (i === segments.length - 1) {
       // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-      tree = `['', {}, {page: () => require('${pagePath}')}]`
+      tree = `['', {}, {page: () => require(${JSON.stringify(pagePath)})}]`
       continue
     }
 
@@ -48,12 +48,12 @@ async function createTreeCodeFromPath({
     }, {
       ${
         resolvedLayoutPath
-          ? `layout: () => require('${resolvedLayoutPath}'),`
+          ? `layout: () => require(${JSON.stringify(resolvedLayoutPath)}),`
           : ''
       }
       ${
         resolvedLoadingPath
-          ? `loading: () => require('${resolvedLoadingPath}'),`
+          ? `loading: () => require(${JSON.stringify(resolvedLoadingPath)}),`
           : ''
       }
     }]`
