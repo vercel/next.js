@@ -1,7 +1,7 @@
 import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const chalk = new Chalk.constructor({ enabled: true })
 
@@ -46,7 +46,7 @@ function getModuleTrace(input: any, compilation: any) {
 }
 
 export async function getNotFoundError(
-  compilation: webpack5.Compilation,
+  compilation: webpack.Compilation,
   input: any,
   fileName: string
 ) {
