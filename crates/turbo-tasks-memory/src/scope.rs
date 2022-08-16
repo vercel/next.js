@@ -19,6 +19,13 @@ use crate::{
     MemoryBackend,
 };
 
+macro_rules! log_scope_update {
+    ($($args:expr),+) => {
+        #[cfg(feature = "print_scope_updates")]
+        println!($($args),+);
+    };
+}
+
 #[derive(Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TaskScopeId {
     id: usize,
@@ -131,6 +138,8 @@ impl<'a> Iterator for TaskScopesIterator<'a> {
 }
 
 pub struct TaskScope {
+    #[cfg(feature = "print_scope_updates")]
+    pub id: TaskScopeId,
     /// Total number of tasks
     tasks: AtomicUsize,
     /// Number of tasks that are not Done
@@ -144,7 +153,8 @@ pub struct TaskScope {
 }
 
 pub struct TaskScopeState {
-    id: TaskScopeId,
+    #[cfg(feature = "print_scope_updates")]
+    pub id: TaskScopeId,
     /// Number of active parents or tasks. Non-zero value means the scope is
     /// active
     active: usize,
@@ -162,13 +172,17 @@ pub struct TaskScopeState {
 }
 
 impl TaskScope {
+    #[allow(unused_variables)]
     pub fn new(id: TaskScopeId, tasks: usize) -> Self {
         Self {
+            #[cfg(feature = "print_scope_updates")]
+            id,
             tasks: AtomicUsize::new(tasks),
             unfinished_tasks: AtomicUsize::new(0),
             event: Event::new(),
             last_task_finish_generation: AtomicUsize::new(0),
             state: Mutex::new(TaskScopeState {
+                #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 0,
                 dirty_tasks: HashSet::new(),
@@ -179,13 +193,17 @@ impl TaskScope {
         }
     }
 
+    #[allow(unused_variables)]
     pub fn new_active(id: TaskScopeId, tasks: usize, unfinished: usize) -> Self {
         Self {
+            #[cfg(feature = "print_scope_updates")]
+            id,
             tasks: AtomicUsize::new(tasks),
             unfinished_tasks: AtomicUsize::new(unfinished),
             event: Event::new(),
             last_task_finish_generation: AtomicUsize::new(0),
             state: Mutex::new(TaskScopeState {
+                #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 1,
                 dirty_tasks: HashSet::new(),
@@ -266,26 +284,40 @@ impl TaskScope {
                 .children
                 .iter()
                 .copied()
+                .inspect(|i| {
+                    checked_scopes.insert(*i);
+                })
                 .collect::<Vec<_>>();
+            log_scope_update!("has_unfinished_tasks {} -> {:?}", *self.id, queue);
             while let Some(id) = queue.pop() {
                 match backend.with_scope(id, |scope| {
-                    if self.unfinished_tasks.load(Ordering::Acquire) != 0 {
+                    if scope.unfinished_tasks.load(Ordering::Acquire) != 0 {
                         let listener = scope.event.listen();
-                        if self.unfinished_tasks.load(Ordering::Relaxed) != 0 {
+                        if scope.unfinished_tasks.load(Ordering::Relaxed) != 0 {
                             return Ok(Some(listener));
                         }
                     }
-                    if self.last_task_finish_generation.load(Ordering::Relaxed) > start_generation {
+                    if scope.last_task_finish_generation.load(Ordering::Relaxed) > start_generation
+                    {
                         return Err(());
                     }
-                    checked_scopes.insert(id);
                     let scope = scope.state.lock().unwrap();
                     queue.extend(
                         scope
                             .children
                             .iter()
                             .copied()
-                            .filter(|i| !checked_scopes.contains(i)),
+                            .filter(|i| checked_scopes.insert(*i)),
+                    );
+                    log_scope_update!(
+                        "has_unfinished_tasks {} -> {:?}",
+                        *scope.id,
+                        scope
+                            .children
+                            .iter()
+                            .copied()
+                            .filter(|i| !checked_scopes.contains(i))
+                            .collect::<Vec<_>>()
                     );
                     Ok(None)
                 }) {
@@ -296,6 +328,7 @@ impl TaskScope {
                     Err(()) => continue 'restart,
                 }
             }
+            log_scope_update!("has_unfinished_tasks done {}", *self.id);
             return None;
         }
     }
@@ -438,9 +471,7 @@ impl TaskScopeState {
         count: usize,
     ) -> Option<ScopeChildChangeEffect> {
         if self.children.add_count(child, count) {
-            if cfg!(feature = "print_scope_updates") {
-                println!("add_child {} -> {}", *self.id, *child);
-            }
+            log_scope_update!("add_child {} -> {}", *self.id, *child);
             Some(ScopeChildChangeEffect {
                 notify: self.take_dependent_tasks(),
                 active: self.active > 0,
@@ -466,9 +497,7 @@ impl TaskScopeState {
         count: usize,
     ) -> Option<ScopeChildChangeEffect> {
         if self.children.remove_count(child, count) {
-            if cfg!(feature = "print_scope_updates") {
-                println!("remove_child {} -> {}", *self.id, *child);
-            }
+            log_scope_update!("remove_child {} -> {}", *self.id, *child);
             Some(ScopeChildChangeEffect {
                 notify: self.take_dependent_tasks(),
                 active: self.active > 0,
@@ -480,10 +509,12 @@ impl TaskScopeState {
 
     pub fn add_dirty_task(&mut self, id: TaskId) {
         self.dirty_tasks.insert(id);
+        log_scope_update!("add_dirty_task {} -> {}", *self.id, *id);
     }
 
     pub fn remove_dirty_task(&mut self, id: TaskId) {
         self.dirty_tasks.remove(&id);
+        log_scope_update!("remove_dirty_task {} -> {}", *self.id, *id);
     }
 
     /// Adds a colletible to the scope.
@@ -511,9 +542,7 @@ impl TaskScopeState {
     ) -> Option<ScopeCollectibleChangeEffect> {
         let (collectibles, dependent_tasks) = self.collectibles.entry(trait_id).or_default();
         if collectibles.add_count(collectible, count) {
-            if cfg!(feature = "print_scope_updates") {
-                println!("add_collectible {} -> {}", *self.id, collectible);
-            }
+            log_scope_update!("add_collectible {} -> {}", *self.id, collectible);
             Some(ScopeCollectibleChangeEffect {
                 notify: take(dependent_tasks),
             })
@@ -546,9 +575,7 @@ impl TaskScopeState {
     ) -> Option<ScopeCollectibleChangeEffect> {
         let (collectibles, dependent_tasks) = self.collectibles.entry(trait_id).or_default();
         if collectibles.remove_count(collectible, count) {
-            if cfg!(feature = "print_scope_updates") {
-                println!("remove_collectible {} -> {}", *self.id, collectible);
-            }
+            log_scope_update!("remove_collectible {} -> {}", *self.id, collectible);
             Some(ScopeCollectibleChangeEffect {
                 notify: take(dependent_tasks),
             })

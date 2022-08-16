@@ -11,22 +11,22 @@ use turbo_tasks::TurboTasksApi;
 use turbopack_core::version::Update;
 
 use super::stream::UpdateStream;
-use crate::source::ContentSourceVc;
+use crate::GetContentSource;
 
 /// A server that listens for updates and sends them to connected clients.
-pub(crate) struct UpdateServer {
+pub(crate) struct UpdateServer<S: GetContentSource> {
     ws: Option<HyperWebsocket>,
     streams: FuturesUnordered<StreamFuture<UpdateStream>>,
-    source: ContentSourceVc,
+    get_source: S,
 }
 
-impl UpdateServer {
+impl<S: GetContentSource> UpdateServer<S> {
     /// Create a new update server with the given websocket and content source.
-    pub fn new(ws: HyperWebsocket, source: ContentSourceVc) -> Self {
+    pub fn new(ws: HyperWebsocket, source: S) -> Self {
         Self {
             ws: Some(ws),
             streams: FuturesUnordered::new(),
-            source,
+            get_source: source,
         }
     }
 
@@ -41,6 +41,7 @@ impl UpdateServer {
     }
 
     async fn run_internal(mut self) -> Result<()> {
+        let source = (self.get_source)();
         let mut client: UpdateClient = self.ws.take().unwrap().await?.into();
 
         // TODO(alexkirsz) To avoid sending an empty update in the beginning, skip the
@@ -50,7 +51,7 @@ impl UpdateServer {
             select! {
                 message = client.recv() => {
                     if let Some(message) = message? {
-                        let content = self.source.get_by_id(&message.id);
+                        let content = source.get_by_id(&message.id);
                         let stream = UpdateStream::new(message.id, content).await?;
                         self.add_stream(stream);
                     } else {

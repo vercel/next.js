@@ -271,6 +271,34 @@ impl RawVc {
         }
     }
 
+    /// Resolve the reference until it points to a cell directly in a strongly
+    /// consistent way.
+    ///
+    /// Resolving will wait for task execution to be finished, so that the
+    /// returned Vc points to a cell that stores a value.
+    ///
+    /// Resolving is necessary to compare identities of Vcs.
+    ///
+    /// This is async and will rethrow any fatal error that happened during task
+    /// execution.
+    pub async fn resolve_strongly_consistent(self) -> Result<RawVc> {
+        let tt = turbo_tasks();
+        let mut current = self;
+        let mut notified = false;
+        loop {
+            match current {
+                RawVc::TaskOutput(task) => {
+                    if !notified {
+                        tt.notify_scheduled_tasks();
+                        notified = true;
+                    }
+                    current = read_task_output(&*tt, task, true).await?;
+                }
+                RawVc::TaskCell(_, _) => return Ok(current),
+            }
+        }
+    }
+
     pub fn is_resolved(&self) -> bool {
         match self {
             RawVc::TaskOutput(_) => false,

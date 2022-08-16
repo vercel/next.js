@@ -90,9 +90,9 @@ pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    invalidators: Arc<InvalidatorMap>,
+    invalidator_map: Arc<InvalidatorMap>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    dir_invalidators: Arc<InvalidatorMap>,
+    dir_invalidator_map: Arc<InvalidatorMap>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(with = "watcher_ser")]
     watcher: Mutex<Option<RecommendedWatcher>>,
@@ -100,11 +100,11 @@ pub struct DiskFileSystem {
 
 impl DiskFileSystem {
     pub fn invalidate(&self) {
-        for (_, invalidator) in take(&mut *self.invalidators.lock().unwrap()).into_iter() {
-            invalidator.invalidate();
+        for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+            invalidators.into_iter().for_each(|i| i.invalidate());
         }
-        for (_, invalidator) in take(&mut *self.dir_invalidators.lock().unwrap()).into_iter() {
-            invalidator.invalidate();
+        for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
+            invalidators.into_iter().for_each(|i| i.invalidate());
         }
     }
 
@@ -113,8 +113,8 @@ impl DiskFileSystem {
         if watcher_guard.is_some() {
             return Ok(());
         }
-        let invalidators = self.invalidators.clone();
-        let dir_invalidators = self.dir_invalidators.clone();
+        let invalidator_map = self.invalidator_map.clone();
+        let dir_invalidator_map = self.dir_invalidator_map.clone();
         let root = self.root.clone();
         // Create a channel to receive the events.
         let (tx, rx) = channel();
@@ -130,11 +130,11 @@ impl DiskFileSystem {
 
         // We need to invalidate all reads that happened before watching
         // Best is to start_watching before starting to read
-        for (_, invalidator) in take(&mut *invalidators.lock().unwrap()).into_iter() {
-            invalidator.invalidate();
+        for (_, invalidators) in take(&mut *invalidator_map.lock().unwrap()).into_iter() {
+            invalidators.into_iter().for_each(|i| i.invalidate());
         }
-        for (_, invalidator) in take(&mut *dir_invalidators.lock().unwrap()).into_iter() {
-            invalidator.invalidate();
+        for (_, invalidators) in take(&mut *dir_invalidator_map.lock().unwrap()).into_iter() {
+            invalidators.into_iter().for_each(|i| i.invalidate());
         }
 
         watcher_guard.replace(watcher);
@@ -211,39 +211,42 @@ impl DiskFileSystem {
                     event = rx.try_recv();
                 }
                 fn invalidate_path(
-                    invalidators: &mut HashMap<String, Invalidator>,
+                    invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
                     paths: impl Iterator<Item = String>,
                 ) {
                     for path in paths {
-                        if let Some(invalidator) = invalidators.remove(&path) {
-                            invalidator.invalidate()
+                        if let Some(invalidators) = invalidator_map.remove(&path) {
+                            invalidators.into_iter().for_each(|i| i.invalidate());
                         }
                     }
                 }
                 fn invalidate_path_and_children_execute(
-                    invalidators: &mut HashMap<String, Invalidator>,
+                    invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
                     paths: &mut HashSet<String>,
                 ) {
-                    for (_, invalidator) in invalidators.drain_filter(|key, _| {
+                    for (_, invalidators) in invalidator_map.drain_filter(|key, _| {
                         paths.iter().any(|path_key| key.starts_with(path_key))
                     }) {
-                        invalidator.invalidate()
+                        invalidators.into_iter().for_each(|i| i.invalidate());
                     }
                     paths.clear()
                 }
                 {
-                    let mut invalidators = invalidators.lock().unwrap();
-                    invalidate_path(&mut invalidators, batched_invalidate_path.drain());
+                    let mut invalidator_map = invalidator_map.lock().unwrap();
+                    invalidate_path(&mut invalidator_map, batched_invalidate_path.drain());
                     invalidate_path_and_children_execute(
-                        &mut invalidators,
+                        &mut invalidator_map,
                         &mut batched_invalidate_path_and_children,
                     );
                 }
                 {
-                    let mut dir_invalidators = dir_invalidators.lock().unwrap();
-                    invalidate_path(&mut dir_invalidators, batched_invalidate_path_dir.drain());
+                    let mut dir_invalidator_map = dir_invalidator_map.lock().unwrap();
+                    invalidate_path(
+                        &mut dir_invalidator_map,
+                        batched_invalidate_path_dir.drain(),
+                    );
                     invalidate_path_and_children_execute(
-                        &mut dir_invalidators,
+                        &mut dir_invalidator_map,
                         &mut batched_invalidate_path_and_children,
                     );
                 }
@@ -274,8 +277,8 @@ impl DiskFileSystemVc {
         let instance = DiskFileSystem {
             name,
             root,
-            invalidators: Arc::new(InvalidatorMap::new()),
-            dir_invalidators: Arc::new(InvalidatorMap::new()),
+            invalidator_map: Arc::new(InvalidatorMap::new()),
+            dir_invalidator_map: Arc::new(InvalidatorMap::new()),
             watcher: Mutex::new(None),
         };
 
@@ -334,7 +337,7 @@ impl FileSystem for DiskFileSystem {
         );
         {
             let invalidator = turbo_tasks::get_invalidator();
-            self.invalidators
+            self.invalidator_map
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
         Ok(match self
@@ -353,7 +356,7 @@ impl FileSystem for DiskFileSystem {
             Path::new(&self.root).join(&fs_path.path.replace('/', &MAIN_SEPARATOR.to_string()));
         {
             let invalidator = turbo_tasks::get_invalidator();
-            self.dir_invalidators
+            self.dir_invalidator_map
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
         let result = self
@@ -414,7 +417,7 @@ impl FileSystem for DiskFileSystem {
             Path::new(&self.root).join(&path.path.replace('/', &MAIN_SEPARATOR.to_string()));
         {
             let invalidator = turbo_tasks::get_invalidator();
-            self.invalidators
+            self.invalidator_map
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
         Ok(match self

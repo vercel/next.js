@@ -18,7 +18,7 @@ use crate::{
     manager::{read_task_cell, read_task_output},
     registry, turbo_tasks,
     util::try_join_all,
-    value::{TransientValue, Value},
+    value::{TransientInstance, TransientValue, Value},
     value_type::TypedForInput,
     RawVc, TaskId, TraitType, Typed, ValueTypeId,
 };
@@ -161,39 +161,31 @@ impl<'de> Deserialize<'de> for SharedReference {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct TransientSharedValue(pub Arc<dyn Any + Send + Sync>);
+#[derive(Debug, Clone, PartialOrd, Ord)]
+pub struct TransientSharedValue(pub Arc<dyn MagicAny>);
 
 impl TransientSharedValue {
-    pub fn downcast<T: Any + Send + Sync>(self) -> Option<Arc<T>> {
-        match Arc::downcast(self.0) {
+    pub fn downcast<T: MagicAny>(self) -> Option<Arc<T>> {
+        match Arc::downcast(self.0.magic_any_arc()) {
             Ok(data) => Some(data),
             Err(_) => None,
         }
     }
 }
 
+impl Hash for TransientSharedValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
 impl PartialEq for TransientSharedValue {
+    #[allow(clippy::op_ref)]
     fn eq(&self, other: &Self) -> bool {
-        PartialEq::eq(&Arc::as_ptr(&self.0), &Arc::as_ptr(&other.0))
+        &self.0 == &other.0
     }
 }
 impl Eq for TransientSharedValue {}
-impl PartialOrd for TransientSharedValue {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        PartialOrd::partial_cmp(&Arc::as_ptr(&self.0), &Arc::as_ptr(&other.0))
-    }
-}
-impl Ord for TransientSharedValue {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        Ord::cmp(&Arc::as_ptr(&self.0), &Arc::as_ptr(&other.0))
-    }
-}
-impl Hash for TransientSharedValue {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Hash::hash(&Arc::as_ptr(&self.0), state)
-    }
-}
 impl Serialize for TransientSharedValue {
     fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -600,10 +592,16 @@ where
     }
 }
 
-impl<T: Send + Sync + 'static> From<TransientValue<T>> for TaskInput {
+impl<T: MagicAny + 'static> From<TransientValue<T>> for TaskInput {
     fn from(v: TransientValue<T>) -> Self {
         let raw_value: T = v.into_value();
         TaskInput::TransientSharedValue(TransientSharedValue(Arc::new(raw_value)))
+    }
+}
+
+impl<T: Send + Sync + 'static> From<TransientInstance<T>> for TaskInput {
+    fn from(v: TransientInstance<T>) -> Self {
+        TaskInput::SharedReference(v.into())
     }
 }
 
@@ -747,7 +745,7 @@ where
     }
 }
 
-impl<T: Any + Clone + Send + Sync + 'static> FromTaskInput<'_> for TransientValue<T> {
+impl<T: MagicAny + Clone + 'static> FromTaskInput<'_> for TransientValue<T> {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
@@ -761,6 +759,30 @@ impl<T: Any + Clone + Send + Sync + 'static> FromTaskInput<'_> for TransientValu
                     )
                 })?;
                 Ok(TransientValue::new(v.clone()))
+            }
+            _ => Err(anyhow!(
+                "invalid task input type, expected {}",
+                type_name::<T>()
+            )),
+        }
+    }
+}
+
+impl<T: Send + Sync + 'static> FromTaskInput<'_> for TransientInstance<T> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::SharedReference(reference) => {
+                if let Ok(i) = reference.clone().try_into() {
+                    Ok(i)
+                } else {
+                    Err(anyhow!(
+                        "invalid task input type, expected {} got {:?}",
+                        type_name::<T>(),
+                        reference.0,
+                    ))
+                }
             }
             _ => Err(anyhow!(
                 "invalid task input type, expected {}",

@@ -19,7 +19,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use turbo_tasks::{
     backend::Backend, primitives::StringsVc, util::FormatDuration, NothingVc, TaskId,
-    TransientValue, TurboTasks, Value,
+    TransientInstance, TransientValue, TurboTasks, Value,
 };
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
@@ -367,7 +367,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         let dir = dir.clone();
         let args = args.clone();
         Box::pin(async move {
-            let output = main_operation(TransientValue::new(dir), TransientValue::new(args));
+            let output = main_operation(TransientValue::new(dir), args.into());
 
             // TODO only show max severity
             // TODO sort issues by (context.split("/").count(), context)
@@ -392,10 +392,10 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
 #[turbo_tasks::function]
 async fn main_operation(
     current_dir: TransientValue<PathBuf>,
-    args: TransientValue<Arc<Args>>,
+    args: TransientInstance<Args>,
 ) -> Result<StringsVc> {
     let dir = current_dir.into_value();
-    let args = args.into_value();
+    let args = &*args;
     let &CommonArgs {
         ref input,
         watch,

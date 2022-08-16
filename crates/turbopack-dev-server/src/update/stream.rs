@@ -3,14 +3,14 @@ use std::{pin::Pin, sync::Mutex};
 use anyhow::Result;
 use futures::{stream::unfold, Stream};
 use tokio::sync::mpsc::Sender;
-use turbo_tasks::{get_invalidator, Invalidator, RawVcReadResult, TransientValue};
+use turbo_tasks::{get_invalidator, Invalidator, RawVcReadResult, TransientInstance};
 use turbopack_core::version::{PartialUpdate, TotalUpdate, Update, VersionVc, VersionedContentVc};
 
 #[turbo_tasks::function]
 async fn compute_update_stream(
     from: VersionVc,
     content: VersionedContentVc,
-    sender: TransientValue<Sender<RawVcReadResult<Update>>>,
+    sender: TransientInstance<Sender<RawVcReadResult<Update>>>,
 ) -> Result<()> {
     let update = content.update(from);
     sender.send(update.await?).await?;
@@ -64,7 +64,7 @@ impl UpdateStream {
 
         let version_state = VersionStateVc::new(content.version()).await?;
 
-        compute_update_stream(version_state.get(), content, TransientValue::new(sx));
+        compute_update_stream(version_state.get(), content, TransientInstance::new(sx));
 
         Ok(UpdateStream {
             id,

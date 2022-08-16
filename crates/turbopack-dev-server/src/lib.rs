@@ -1,11 +1,12 @@
 #![feature(min_specialization)]
+#![feature(trait_alias)]
 
 pub mod fs;
 pub mod html;
 pub mod source;
 pub mod update;
 
-use std::{future::Future, net::SocketAddr, pin::Pin, time::Instant};
+use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc, time::Instant};
 
 use anyhow::{anyhow, Result};
 use hyper::{
@@ -13,42 +14,38 @@ use hyper::{
     Body, Request, Response, Server,
 };
 use mime_guess::mime;
-use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, TransientValue};
+use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, TurboTasksApi};
 use turbo_tasks_fs::FileContent;
 use turbopack_cli_utils::issue::issue_to_styled_string;
 use turbopack_core::issue::IssueVc;
 
 use self::{source::ContentSourceVc, update::UpdateServer};
 
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
+pub trait GetContentSource = Fn() -> ContentSourceVc + Send + Clone + 'static;
+
+#[derive(TraceRawVcs)]
 pub struct DevServer {
-    source: ContentSourceVc,
     #[turbo_tasks(trace_ignore)]
-    addr: SocketAddr,
+    pub addr: SocketAddr,
+    #[turbo_tasks(trace_ignore)]
+    pub future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
 }
 
-#[turbo_tasks::value_impl]
-impl DevServerVc {
-    #[turbo_tasks::function]
-    pub fn new(source: ContentSourceVc, addr: TransientValue<SocketAddr>) -> Self {
-        Self::cell(DevServer {
-            source,
-            addr: addr.into_value(),
-        })
-    }
-}
-
-impl DevServerVc {
-    pub async fn listen(self) -> Result<DevServerListening> {
-        let tt = turbo_tasks::turbo_tasks();
-        let this = self.await?;
-        let source = this.source;
+impl DevServer {
+    /// [get_source] argument must be from a single turbo-tasks function call
+    pub fn listen<S: GetContentSource>(
+        turbo_tasks: Arc<dyn TurboTasksApi>,
+        get_source: S,
+        addr: SocketAddr,
+    ) -> Self {
         let make_svc = make_service_fn(move |_| {
-            let tt = tt.clone();
+            let tt = turbo_tasks.clone();
+            let source = get_source.clone();
             async move {
                 let handler = move |request: Request<Body>| {
                     let start = Instant::now();
                     let tt = tt.clone();
+                    let source = source.clone();
                     let future = async move {
                         if hyper_tungstenite::is_upgrade_request(&request) {
                             let (response, websocket) = hyper_tungstenite::upgrade(request, None)?;
@@ -61,7 +58,12 @@ impl DevServerVc {
                             let uri = request.uri();
                             let path = uri.path();
                             let asset_path = path[1..].to_string();
-                            let file_content = source.get(&asset_path);
+                            let source = source();
+                            let source = source.resolve_strongly_consistent().await?;
+                            let file_content = source
+                                .get(&asset_path)
+                                .resolve_strongly_consistent()
+                                .await?;
                             if let FileContent::Content(content) =
                                 &*file_content.content().strongly_consistent().await?
                             {
@@ -147,28 +149,14 @@ impl DevServerVc {
                 Ok::<_, anyhow::Error>(service_fn(handler))
             }
         });
-        let server = Server::bind(&this.addr).serve(make_svc);
+        let server = Server::bind(&addr).serve(make_svc);
 
-        Ok(DevServerListening::new(this.addr, async move {
-            server.await?;
-            Ok(())
-        }))
-    }
-}
-
-#[derive(TraceRawVcs)]
-pub struct DevServerListening {
-    #[turbo_tasks(trace_ignore)]
-    pub addr: SocketAddr,
-    #[turbo_tasks(trace_ignore)]
-    pub future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-}
-
-impl DevServerListening {
-    fn new(addr: SocketAddr, future: impl Future<Output = Result<()>> + Send + 'static) -> Self {
         Self {
             addr,
-            future: Box::pin(future),
+            future: Box::pin(async move {
+                server.await?;
+                Ok(())
+            }),
         }
     }
 }

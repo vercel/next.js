@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{LockResult, Mutex, MutexGuard},
 };
 
@@ -9,7 +9,7 @@ use turbo_tasks::Invalidator;
 
 pub struct InvalidatorMap {
     queue: ConcurrentQueue<(String, Invalidator)>,
-    map: Mutex<HashMap<String, Invalidator>>,
+    map: Mutex<HashMap<String, HashSet<Invalidator>>>,
 }
 
 impl InvalidatorMap {
@@ -20,10 +20,10 @@ impl InvalidatorMap {
         }
     }
 
-    pub fn lock(&self) -> LockResult<MutexGuard<'_, HashMap<String, Invalidator>>> {
+    pub fn lock(&self) -> LockResult<MutexGuard<'_, HashMap<String, HashSet<Invalidator>>>> {
         let mut guard = self.map.lock()?;
         while let Ok((key, value)) = self.queue.pop() {
-            guard.insert(key, value);
+            guard.entry(key).or_default().insert(value);
         }
         Ok(guard)
     }

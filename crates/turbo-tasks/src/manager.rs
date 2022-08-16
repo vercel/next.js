@@ -836,6 +836,20 @@ pub struct Invalidator {
     handle: Handle,
 }
 
+impl Hash for Invalidator {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.task.hash(state);
+    }
+}
+
+impl PartialEq for Invalidator {
+    fn eq(&self, other: &Self) -> bool {
+        self.task == other.task
+    }
+}
+
+impl Eq for Invalidator {}
+
 impl Invalidator {
     pub fn invalidate(self) {
         let Invalidator {

@@ -488,10 +488,10 @@ impl Backend for MemoryBackend {
             TransientTaskType::Once(f) => Task::new_once(id, scope, f),
         };
         // SAFETY: We have a fresh task id where nobody knows about yet
+        #[allow(unused_variables)]
         let task = unsafe { self.memory_tasks.insert(*id, task) };
-        if cfg!(feature = "print_scope_updates") {
-            println!("new {scope} for {task}");
-        }
+        #[cfg(feature = "print_scope_updates")]
+        println!("new {scope} for {task}");
         id
     }
 }

@@ -22,6 +22,13 @@ use turbo_tasks::{
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
+macro_rules! log_scope_update {
+    ($($args:expr),+) => {
+        #[cfg(feature = "print_scope_updates")]
+        println!($($args),+);
+    };
+}
+
 #[derive(Hash, Copy, Clone, PartialEq, Eq)]
 pub enum TaskDependency {
     TaskOutput(TaskId),
@@ -577,6 +584,7 @@ impl Task {
                 for scope in state.scopes.iter() {
                     backend.with_scope(scope, |scope| {
                         scope.increment_unfinished_tasks();
+                        log_scope_update!("add unfinished task: {} -> {}", *scope.id, *self.id);
                         let mut scope = scope.state.lock().unwrap();
                         if scope.is_active() {
                             active = true;
@@ -690,6 +698,7 @@ impl Task {
             scope.increment_tasks();
             if !matches!(state.state_type, TaskStateType::Done) {
                 scope.increment_unfinished_tasks();
+                log_scope_update!("add unfinished task (added): {} -> {}", *scope.id, *self.id);
                 if state.state_type == TaskStateType::Dirty {
                     let mut scope = scope.state.lock().unwrap();
                     if scope.is_active() {
@@ -856,8 +865,7 @@ impl Task {
     ) {
         let mut state = self.state.write().unwrap();
         if let TaskScopes::Root(root) = state.scopes {
-            #[cfg(feature = "print_scope_updates")]
-            println!("removing root scope {root}");
+            log_scope_update!("removing root scope {root}");
             state.scopes = TaskScopes::default();
             turbo_tasks.schedule_backend_background_job(
                 backend.create_backend_job(Job::RemoveFromScope(state.children.clone(), root)),
@@ -902,8 +910,7 @@ impl Task {
         // Set the root scope of the current task
         if let TaskScopes::Inner(set) = replace(&mut state.scopes, TaskScopes::Root(root_scope)) {
             let scopes = set.into_counts().collect::<Vec<_>>();
-            #[cfg(feature = "print_scope_updates")]
-            println!(
+            log_scope_update!(
                 "new {root_scope} for {:?} as internal root scope (replacing {scopes:?})",
                 self.ty
             );

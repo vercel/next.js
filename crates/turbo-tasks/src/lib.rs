@@ -56,7 +56,7 @@ pub use raw_vc::{
 };
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait};
-pub use value::{TransientValue, Value};
+pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{
     TraitMethod, TraitType, Typed, TypedForInput, ValueTraitVc, ValueType, ValueVc,
 };
