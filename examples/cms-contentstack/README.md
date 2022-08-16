@@ -1,10 +1,10 @@
-# Create a Static Blog Site Using Next.js and Contentstack
+# Create a Static Website Using Next.js and Contentstack
 
-This example demonstrates how you can set up and run a server side example using Next.js and Contentstack with minimal steps. [SSR](https://nextjs.org/docs/basic-features/pages) and [Contentstack-CMS](https://www.contentstack.com/) as the data source.
+This example demonstrates how you can set up and run a server side example using Next.js and Contentstack with minimal steps. [SSG](https://nextjs.org/docs/basic-features/pages) and [CMS-Contentstack](https://www.contentstack.com/) as the data source.
 
 ## Demo
 
-[https://cms-contentstack-starter.vercel.app/](https://cms-contentstack-starter.vercel.app/)
+### [https://cms-contentstack-starter.vercel.app/](https://cms-contentstack-starter.vercel.app/)
 
 ## Deploy on Your Own
 
@@ -17,12 +17,15 @@ Once you have access to [the required environment variables](#step-4-set-up-envi
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the app:
 
 ```bash
-
 npx create-next-app --example cms-contentstack cms-contentstack-app
+```
 
-# or
-
+```bash
 yarn create next-app --example cms-contentstack cms-contentstack-app
+```
+
+```bash
+pnpm create next-app -- example cms-contentstack cms-contentstack-app
 ```
 
 ## Configuration
@@ -30,8 +33,7 @@ yarn create next-app --example cms-contentstack cms-contentstack-app
 ### Prerequisites
 
 - Contentstack Account
-- Node.js version 12 or later (recommended 14)
-- Contentstack CLI: npm install -g @contentstack/cli
+- Contentstack CLI: `npm install -g @contentstack/cli`
 - Enable Live Preview (https://www.contentstack.com/docs/content-managers/live-preview/) for your organization
 - Management token (https://www.contentstack.com/docs/developers/create-tokens/generate-a-management-token/) with read permission only
 
@@ -75,6 +77,7 @@ cp .env.local.example .env.local
 Then, set each variable on `.env.local` as follows:
 
 - `CONTENTSTACK_API_KEY` is your Stack API key.
+
 - `CONTENTSTACK_DELIVERY_TOKEN` is the publishing environment delivery token from step 3.
 
 - `CONTENTSTACK_ENVIRONMENT` is the name of your published environment for the delivery token.
@@ -82,12 +85,12 @@ Then, set each variable on `.env.local` as follows:
 - `CONTENTSTACK_MANAGEMENT_TOKEN` is the stack management token generated in step 3.
 
 - `CONTENTSTACK_API_HOST` is the api host URL.
-  For the NA region use `api.contentstack.io` and for the EU region use `eu-app.contentstack.com`.
+  For the NA region use `api.contentstack.io` and for the EU region use `eu-api.contentstack.com`.
 
 - `CONTENTSTACK_APP_HOST` is the app host URL of your stack
-  For the NA region use `app.contentstack.com` and for the EU region you can use ‘eu-app.contentstack.com’.
+  For the NA region use `app.contentstack.com` and for the EU region you can use `eu-app.contentstack.com`.
 
-- `CONTENTSTACK_LIVE_PREVIEW` is to enable and disable live preview from starter apps. For live preview features, always set this value to true.
+- `CONTENTSTACK_LIVE_PREVIEW` is to enable and disable live preview from starter apps. For live preview features.
 
 Your `.env.local` file should look like this:
 
@@ -109,9 +112,16 @@ CONTENTSTACK_LIVE_PREVIEW=true
 ```bash
 npm install
 npm run dev
-# or
+```
+
+```bash
 yarn install
 yarn dev
+```
+
+```bash
+pnpm install
+pnpm dev
 ```
 
 ### Step 6. Try the Preview Mode

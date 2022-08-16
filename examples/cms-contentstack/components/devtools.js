@@ -26,7 +26,7 @@ function filterObject(inputObject) {
   return inputObject
 }
 
-const DevTools = ({ response }) => {
+export default function DevTools({ response }) {
   const filteredJson = filterObject(response)
   const [forceUpdate, setForceUpdate] = useState(0)
 
@@ -63,7 +63,7 @@ const DevTools = ({ response }) => {
             </h2>
             <span
               className="json-copy"
-              onClick={(e) => copyObject(JSON.stringify(filteredJson))}
+              onClick={() => copyObject(JSON.stringify(filteredJson))}
               aria-hidden="true"
             >
               <Tooltip
@@ -115,4 +115,3 @@ const DevTools = ({ response }) => {
     </div>
   )
 }
-export default DevTools
