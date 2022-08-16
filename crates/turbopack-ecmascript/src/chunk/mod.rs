@@ -5,7 +5,7 @@ use std::{
     fmt::Write,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc},
@@ -13,7 +13,7 @@ use turbo_tasks::{
     util::try_join_all,
     ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{embed_file, File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
@@ -133,182 +133,6 @@ impl EcmascriptChunkContent {
             evaluate,
         })
     }
-
-    async fn file_content(&self) -> Result<FileContentVc> {
-        let mut code = format!(
-            "(self.TURBOPACK = self.TURBOPACK || []).push([{}, {{\n",
-            stringify_str(&self.chunk_id.await?)
-        );
-        for (id, factory) in &self.module_factories {
-            code = code + "\n" + &stringify_module_id(id) + ": " + factory + ",";
-        }
-        code += "\n}";
-        if let Some(evaluate) = &self.evaluate {
-            let evaluate = evaluate.await?;
-            let condition = evaluate
-                .chunks_ids
-                .await?
-                .iter()
-                .map(|id| format!(" && chunks.has({})", stringify_str(id)))
-                .collect::<Vec<_>>()
-                .join("");
-            let id = &&*evaluate.entry_module_id.await?;
-            let entry_id = stringify_module_id(id);
-            // Add a runnable to the chunk that requests the entry module to ensure it gets
-            // executed when the chunk is evaluated.
-            // The condition stops the entry module from being executed while chunks it
-            // depend on have not yet been registered.
-            // The runnable will run every time a new chunk is `.push`ed to TURBOPACK, until
-            // all dependent chunks have been evaluated.
-            let _ = write!(
-                code,
-                ", ({{ chunks, getModule }}) => {{
-    if(!(true{condition})) return true;
-    getModule(0, {entry_id})
-}}"
-            );
-        }
-        code += "]);\n";
-        if self.evaluate.is_some() {
-            // Add the turbopack runtime to the chunk.
-            code += r#"(() => {
-    if(Array.isArray(self.TURBOPACK)) {
-        var array = self.TURBOPACK;
-        var chunks = new Set();
-        var runnable = [];
-        var modules = { __proto__: null };
-        var cache = { __proto__: null };
-        var loading = { __proto__: null };
-        var hOP = Object.prototype.hasOwnProperty;
-        let socket;
-        // TODO: temporary solution
-        var _process = typeof process !== "undefined" ? process : { env: { NODE_ENV: "development" } };
-        function require(from, id) {
-            return getModule(from, id).exports;
-        }
-        var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
-        function defineProp(obj, name, options) {
-            if (!hOP.call(obj, name)) Object.defineProperty(obj, name, options);
-        }
-        function esm(exports, getters) {
-            defineProp(exports, "__esModule", { value: true });
-            if(toStringTag) defineProp(exports, toStringTag, { value: "Module" });
-            for(var key in getters) {
-                defineProp(exports, key, { get: getters[key], enumerable: true, });
-            }
-        }
-        function exportValue(module, value) {
-            module.exports = value;
-        }
-        function createGetter(obj, key) {
-            return () => obj[key];
-        }
-        function interopEsm(raw, ns, allowExportDefault) {
-            var getters = { __proto__: null };
-            if (typeof raw === "object") {
-                for (var key in raw) {
-                    getters[key] = createGetter(raw, key);
-                }
-            }
-            if (!(allowExportDefault && "default" in getters)) {
-                getters["default"] = () => raw;
-            }
-            esm(ns, getters);
-        }
-        function importModule(from, id, allowExportDefault) {
-            var module = getModule(from, id);
-            var raw = module.exports;
-            if(raw.__esModule) return raw;
-            if(module.interopNamespace) return module.interopNamespace;
-            var ns = module.interopNamespace = {};
-            interopEsm(raw, ns, allowExportDefault);
-            return ns;
-        }
-        function loadFile(id, path) {
-            if (chunks.has(id)) return;
-            if (loading[id]) return loading[id].promise;
-
-            var load = loading[id] = {};
-            load.promise = new Promise((resolve, reject) => {
-                load.resolve = resolve;
-                load.reject = reject;
-            }).catch(ev => {
-                delete loading[id];
-                throw ev;
-            });
-
-            var script = document.createElement('script');
-            script.src = path;
-            script.onerror = load.reject;
-            document.body.appendChild(script);
-            return load.promise;
-        }
-        function getModule(from, id) {
-            var cacheEntry = cache[id];
-            if(cacheEntry) {
-                return cacheEntry;
-            }
-            var module = { exports: {}, loaded: false, id, parents: new Set(), children: new Set(), interopNamespace: undefined };
-            cache[id] = module;
-            var moduleFactory = modules[id];
-            if(typeof moduleFactory != "function") {
-                throw new Error(`Module ${id} was imported from module ${from}, but the module factory is not available`);
-            }
-            moduleFactory.call(module.exports, {
-                e: module.exports,
-                r: require.bind(null, id),
-                i: importModule.bind(null, id),
-                s: esm.bind(null, module.exports),
-                v: exportValue.bind(null, module),
-                m: module,
-                c: cache,
-                l: loadFile,
-                p: _process
-            });
-            module.loaded = true;
-            if(module.interopNamespace) {
-                // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-                interopEsm(module.exports, module.interopNamespace);
-            }
-            return module;
-        }
-        var runtime = { chunks, modules, cache, getModule };
-        function op([id, chunkModules, ...run]) {
-            chunks.add(id);
-            if(loading[id]) {
-                loading[id].resolve();
-                delete loading[id];
-            }
-            if(socket) socket.send(JSON.stringify(id));
-            for(var m in chunkModules) {
-                if(!modules[m]) modules[m] = chunkModules[m];
-            }
-            runnable.push(...run);
-            runnable = runnable.filter(r => r(runtime))
-        }
-        if (typeof WebSocket !== "undefined") {
-            var connectingSocket = new WebSocket("ws" + location.origin.slice(4));
-            connectingSocket.onopen = () => {
-                socket = connectingSocket;
-                for(var chunk of chunks) {
-                    socket.send(JSON.stringify(chunk));
-                }
-                socket.onmessage = (event) => {
-                    var data = JSON.parse(event.data);
-                    if (data.type === "restart" || data.type === "partial") {
-                        location.reload();
-                    }
-                }
-            }
-        }
-        self.TURBOPACK = { push: op };
-        array.forEach(op);
-    }
-})();"#;
-        }
-
-        Ok(FileContent::Content(File::from_source(code)).into())
-    }
 }
 
 #[turbo_tasks::function]
@@ -346,7 +170,7 @@ struct EcmascriptChunkUpdate {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkContentVc {
     #[turbo_tasks::function]
-    async fn version_original(self) -> Result<EcmascriptChunkVersionVc> {
+    async fn version(self) -> Result<EcmascriptChunkVersionVc> {
         let module_factories_hashes = self
             .await?
             .module_factories
@@ -358,18 +182,69 @@ impl EcmascriptChunkContentVc {
         }
         .cell())
     }
+
+    #[turbo_tasks::function]
+    async fn content(self) -> Result<FileContentVc> {
+        let this = self.await?;
+        let mut code = format!(
+            "(self.TURBOPACK = self.TURBOPACK || []).push([{}, {{\n",
+            stringify_str(&this.chunk_id.await?)
+        );
+        for (id, factory) in &this.module_factories {
+            code = code + "\n" + &stringify_module_id(id) + ": " + factory + ",";
+        }
+        code += "\n}";
+        if let Some(evaluate) = &this.evaluate {
+            let evaluate = evaluate.await?;
+            let condition = evaluate
+                .chunks_ids
+                .await?
+                .iter()
+                .map(|id| format!(" && chunks.has({})", stringify_str(id)))
+                .collect::<Vec<_>>()
+                .join("");
+            let entry_id = &*evaluate.entry_module_id.await?;
+            let entry_id = stringify_module_id(entry_id);
+            // Add a runnable to the chunk that requests the entry module to ensure it gets
+            // executed when the chunk is evaluated.
+            // The condition stops the entry module from being executed while chunks it
+            // depend on have not yet been registered.
+            // The runnable will run every time a new chunk is `.push`ed to TURBOPACK, until
+            // all dependent chunks have been evaluated.
+            let _ = write!(
+                code,
+                ", ({{ chunks, getModule }}) => {{
+    if(!(true{condition})) return true;
+    getModule(0, {entry_id})
+}}"
+            );
+        }
+        code += "]);\n";
+        if let Some(evaluate) = &this.evaluate {
+            let runtime_code = evaluate.await?.runtime_code.await?;
+            let runtime_code = match &*runtime_code {
+                FileContent::NotFound => return Err(anyhow!("failed to read runtime code")),
+                FileContent::Content(file) => String::from_utf8(file.content().to_vec())
+                    .context("runtime code is invalid UTF-8")?,
+            };
+            // Add the turbopack runtime to the chunk.
+            code += runtime_code.as_str();
+        }
+
+        Ok(FileContent::Content(File::from_source(code)).into())
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl VersionedContent for EcmascriptChunkContent {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<FileContentVc> {
-        self.file_content().await
+    fn content(self_vc: EcmascriptChunkContentVc) -> FileContentVc {
+        self_vc.content()
     }
 
     #[turbo_tasks::function]
-    async fn version(self_vc: EcmascriptChunkContentVc) -> Result<VersionVc> {
-        Ok(self_vc.version_original().into())
+    fn version(self_vc: EcmascriptChunkContentVc) -> VersionVc {
+        self_vc.version().into()
     }
 
     #[turbo_tasks::function]
@@ -380,7 +255,7 @@ impl VersionedContent for EcmascriptChunkContent {
         let from_version = EcmascriptChunkVersionVc::resolve_from(from_version)
             .await?
             .expect("version must be an `EcmascriptChunkVersionVc`");
-        let to_version = self_vc.version_original();
+        let to_version = self_vc.version();
 
         let to = to_version.await?;
         let from = from_version.await?;
@@ -470,6 +345,7 @@ impl Version for EcmascriptChunkVersion {
 struct EcmascriptChunkEvaluate {
     chunks_ids: StringsVc,
     entry_module_id: ModuleIdVc,
+    runtime_code: FileContentVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -486,8 +362,10 @@ impl ValueToString for EcmascriptChunk {
     }
 }
 
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkVc {
-    async fn chunk_content(self) -> Result<EcmascriptChunkContent> {
+    #[turbo_tasks::function]
+    async fn chunk_content(self) -> Result<EcmascriptChunkContentVc> {
         let this = self.await?;
         let evaluate = if this.evaluate {
             let evaluate_chunks = ChunkGroupVc::from_chunk(self.into()).chunks().await?;
@@ -508,6 +386,7 @@ impl EcmascriptChunkVc {
             Some(EcmascriptChunkEvaluateVc::cell(EcmascriptChunkEvaluate {
                 chunks_ids: StringsVc::cell(chunks_ids),
                 entry_module_id,
+                runtime_code: embed_file!("runtime.js"),
             }))
         } else {
             None
@@ -516,7 +395,7 @@ impl EcmascriptChunkVc {
         let chunk_id = path.to_string();
         let content =
             EcmascriptChunkContent::new(this.context, this.entry, chunk_id, evaluate).await?;
-        Ok(content)
+        Ok(content.cell())
     }
 }
 
@@ -528,9 +407,8 @@ impl Asset for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn content(self_vc: EcmascriptChunkVc) -> Result<FileContentVc> {
-        let content = self_vc.chunk_content().await?;
-        content.file_content().await
+    fn content(self_vc: EcmascriptChunkVc) -> FileContentVc {
+        self_vc.chunk_content().content()
     }
 
     #[turbo_tasks::function]
@@ -550,9 +428,8 @@ impl Asset for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn versioned_content(self_vc: EcmascriptChunkVc) -> Result<VersionedContentVc> {
-        let content = self_vc.chunk_content().await?;
-        Ok(content.cell().into())
+    fn versioned_content(self_vc: EcmascriptChunkVc) -> VersionedContentVc {
+        self_vc.chunk_content().into()
     }
 }
 

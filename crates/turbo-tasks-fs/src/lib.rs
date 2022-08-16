@@ -3,6 +3,7 @@
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 
+pub mod embed;
 pub mod glob;
 mod invalidator_map;
 mod read_glob;
