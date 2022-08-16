@@ -57,8 +57,6 @@ declare module 'webpack4' {
   import { RawSourceMap } from 'source-map'
   import { ConcatSource } from 'webpack-sources1'
 
-  export = webpack
-
   function webpack(
     options: webpack.Configuration,
     handler: webpack.Compiler.Handler
@@ -74,6 +72,8 @@ declare module 'webpack4' {
   function webpack(
     options: webpack.Configuration | webpack.Configuration[]
   ): webpack.Compiler | webpack.MultiCompiler
+
+  export = webpack
 
   namespace webpack {
     /** Webpack package version. */

@@ -44,14 +44,11 @@ export async function copy_regenerator_runtime(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function copy_styled_jsx_assets(task, opts) {
-  // we copy the styled-jsx assets and types so that we can reference them
+  // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
   // package is hoisted out of Next.js' node_modules or not
   const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
   const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
-  const jsFiles = glob.sync('**/{index,style,babel,babel-test}.js', {
-    cwd: styledJsxPath,
-  })
   const outputDir = join(__dirname, 'dist/styled-jsx')
   // Separate type files into different folders to avoid conflicts between
   // dev dep `styled-jsx` and `next/dist/styled-jsx` for duplicated declare modules
@@ -61,13 +58,6 @@ export async function copy_styled_jsx_assets(task, opts) {
   for (const file of typeFiles) {
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
     await fs.writeFile(join(typesDir, file), content)
-  }
-
-  for (const file of jsFiles) {
-    const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
-    const distFile = join(outputDir, file)
-    await fs.ensureDir(dirname(distFile))
-    await fs.writeFile(distFile, content)
   }
 }
 
@@ -1749,7 +1739,6 @@ export async function ncc_webpack_bundle5(task, opts) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
       externals: bundleExternals,
-      minify: false,
       target: 'es5',
     })
     .target('compiled/webpack')
