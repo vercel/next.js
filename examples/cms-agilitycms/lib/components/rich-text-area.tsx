@@ -1,3 +1,7 @@
+const setHTML = (textblob) => {
+  return { __html: textblob }
+}
+
 export default function RichTextArea({ fields }) {
   const { textblob } = fields
   return (
@@ -6,8 +10,4 @@ export default function RichTextArea({ fields }) {
       dangerouslySetInnerHTML={setHTML(textblob)}
     />
   )
-}
-
-const setHTML = (textblob) => {
-  return { __html: textblob }
 }

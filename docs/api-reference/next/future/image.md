@@ -43,19 +43,9 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 
 ## Migration
 
-Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following code snippets compare the two components:
 
-<table>
-<thead>
-  <tr>
-    <th>next/image</th>
-    <th>next/future/image</th>
-  </tr>
-</thead>
-<tbody>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -66,8 +56,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -79,11 +68,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -94,8 +79,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -107,11 +91,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -122,8 +102,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -134,11 +113,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -149,8 +124,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -160,12 +134,6 @@ function Page() {
   return <Image src={img} />
 }
 ```
-
-</td>
-</tr>
-
-</tbody>
-</table>
 
 You can also use `className` instead of `style`.
 

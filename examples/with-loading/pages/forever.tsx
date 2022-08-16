@@ -1,5 +1,3 @@
-const ForeverPage = () => <p>This page was rendered for a while!</p>
-
 export async function getServerSideProps() {
   await new Promise((resolve) => {
     setTimeout(resolve, 3000)
@@ -7,4 +5,6 @@ export async function getServerSideProps() {
   return { props: {} }
 }
 
-export default ForeverPage
+export default function ForeverPage() {
+  return <p>This page was rendered for a while!</p>
+}
