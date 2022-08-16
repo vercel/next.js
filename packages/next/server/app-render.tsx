@@ -285,6 +285,7 @@ type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
   components: {
+    filePath: string
     layout?: () => any
     loading?: () => any
     page?: () => any
@@ -379,8 +380,33 @@ function getSegmentParam(segment: string): {
  */
 function getCssInlinedLinkTags(
   serverComponentManifest: FlightManifest,
+  serverCSSManifest: FlightCSSManifest,
+  filePath: string
+): string[] {
+  const layoutOrPageCss = serverCSSManifest[filePath]
+
+  if (!layoutOrPageCss) {
+    return []
+  }
+
+  const chunks = new Set<string>()
+
+  for (const css of layoutOrPageCss) {
+    for (const chunk of serverComponentManifest[css].default.chunks) {
+      chunks.add(chunk)
+    }
+  }
+
+  return [...chunks]
+}
+
+/**
+ * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
+ */
+function getAllCssInlinedLinkTags(
+  serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest
-) {
+): string[] {
   const chunks: { [file: string]: string[] } = {}
 
   // APP-TODO: Remove this once we have CSS injections at each level.
@@ -400,7 +426,7 @@ function getCssInlinedLinkTags(
     }
   }
 
-  return [chunks, [...allChunks]] as [{ [file: string]: string[] }, string[]]
+  return [...allChunks]
 }
 
 export async function renderToHTMLOrFlight(
@@ -592,11 +618,14 @@ export async function renderToHTMLOrFlight(
    */
   const createComponentTree = async ({
     createSegmentPath,
-    loaderTree: [segment, parallelRoutes, { layout, loading, page }],
+    loaderTree: [
+      segment,
+      parallelRoutes,
+      { /* filePath, */ layout, loading, page },
+    ],
     parentParams,
     firstItem,
     rootLayoutIncluded,
-    serverStylesheets,
   }: // parentSegmentPath,
   {
     createSegmentPath: CreateSegmentPath
@@ -604,9 +633,14 @@ export async function renderToHTMLOrFlight(
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
-    serverStylesheets: FlightCSSManifest
     // parentSegmentPath: string
   }): Promise<{ Component: React.ComponentType }> => {
+    // TODO-APP: enable stylesheet per layout/page
+    // const stylesheets = getCssInlinedLinkTags(
+    //   serverComponentManifest,
+    //   serverCSSManifest!,
+    //   filePath
+    // )
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
     const isPage = typeof page !== 'undefined'
@@ -624,10 +658,6 @@ export async function renderToHTMLOrFlight(
      */
     const rootLayoutIncludedAtThisLevelOrAbove =
       rootLayoutIncluded || rootLayoutAtThisLevel
-
-    // const cssSegmentPath =
-    //   !parentSegmentPath && !segment ? '' : parentSegmentPath + '/' + segment
-    // const stylesheets = serverStylesheets[cssSegmentPath]
 
     /**
      * Check if the current layout/page is a client component
@@ -689,7 +719,6 @@ export async function renderToHTMLOrFlight(
             loaderTree: parallelRoutes[parallelRouteKey],
             parentParams: currentParams,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            serverStylesheets,
             // parentSegmentPath: cssSegmentPath,
           })
 
@@ -911,7 +940,6 @@ export async function renderToHTMLOrFlight(
                   loaderTree: loaderTreeToFilter,
                   parentParams: currentParams,
                   firstItem: true,
-                  serverStylesheets: serverCSSManifest || {},
                   // parentSegmentPath: '',
                 }
               )
@@ -960,8 +988,9 @@ export async function renderToHTMLOrFlight(
 
   // Below this line is handling for rendering to HTML.
 
+  console.log({ serverCSSManifest })
   // Get all the server imported styles.
-  const [mappedServerCSSManifest, initialStylesheets] = getCssInlinedLinkTags(
+  const initialStylesheets = getAllCssInlinedLinkTags(
     serverComponentManifest,
     serverCSSManifest || {}
   )
@@ -972,7 +1001,6 @@ export async function renderToHTMLOrFlight(
     loaderTree: loaderTree,
     parentParams: {},
     firstItem: true,
-    serverStylesheets: mappedServerCSSManifest,
     // parentSegmentPath: '',
   })
 
