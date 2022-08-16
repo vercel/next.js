@@ -16,8 +16,8 @@ import {
   MutationCtx as GenericMutationCtx,
   DatabaseReader as GenericDatabaseReader,
   DatabaseWriter as GenericDatabaseWriter,
-} from "convex/server";
-import { DataModel } from "./dataModel.js";
+} from 'convex/server'
+import { DataModel } from './dataModel.js'
 
 /**
  * Define a query in this Convex app's public API.
@@ -27,7 +27,7 @@ import { DataModel } from "./dataModel.js";
  * @param func - The query function. It receives a {@link QueryCtx} as its first argument.
  * @returns The wrapped query. Include this as an `export` to name it and make it accessible.
  */
-export const query = makeQuery<DataModel>();
+export const query = makeQuery<DataModel>()
 
 /**
  * Define a mutation in this Convex app's public API.
@@ -37,7 +37,7 @@ export const query = makeQuery<DataModel>();
  * @param func - The mutation function. It receives a {@link MutationCtx} as its first argument.
  * @returns The wrapped mutation. Include this as an `export` to name it and make it accessible.
  */
-export const mutation = makeMutation<DataModel>();
+export const mutation = makeMutation<DataModel>()
 
 /**
  * A set of services for use within Convex query functions.
@@ -48,7 +48,7 @@ export const mutation = makeMutation<DataModel>();
  * This differs from the {@link MutationCtx} because all of the services are
  * read-only.
  */
-export type QueryCtx = GenericQueryCtx<DataModel>;
+export type QueryCtx = GenericQueryCtx<DataModel>
 
 /**
  * A set of services for use within Convex mutation functions.
@@ -56,7 +56,7 @@ export type QueryCtx = GenericQueryCtx<DataModel>;
  * The mutation context is passed as the first argument to any Convex mutation
  * function run on the server.
  */
-export type MutationCtx = GenericMutationCtx<DataModel>;
+export type MutationCtx = GenericMutationCtx<DataModel>
 
 /**
  * An interface to read from the database within Convex query functions.
@@ -65,7 +65,7 @@ export type MutationCtx = GenericMutationCtx<DataModel>;
  * document by its {@link Id}, or {@link DatabaseReader.table}, which starts
  * building a query.
  */
-export type DatabaseReader = GenericDatabaseReader<DataModel>;
+export type DatabaseReader = GenericDatabaseReader<DataModel>
 
 /**
  * An interface to read from and write to the database within Convex mutation
@@ -76,4 +76,4 @@ export type DatabaseReader = GenericDatabaseReader<DataModel>;
  * your data in an inconsistent state. See [the Convex Guide](https://docs.convex.dev/understanding/convex-fundamentals/functions#atomicity-and-optimistic-concurrency-control)
  * for the guarantees Convex provides your functions.
  */
-export type DatabaseWriter = GenericDatabaseWriter<DataModel>;
+export type DatabaseWriter = GenericDatabaseWriter<DataModel>

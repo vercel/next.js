@@ -9,10 +9,10 @@
  * @module
  */
 
-import type getCounter from "../getCounter";
-import type incrementCounter from "../incrementCounter";
-import type { OptimisticLocalStore as GenericOptimisticLocalStore } from "convex/browser";
-import type { ClientMutation, ClientQuery } from "convex/server";
+import type getCounter from '../getCounter'
+import type incrementCounter from '../incrementCounter'
+import type { OptimisticLocalStore as GenericOptimisticLocalStore } from 'convex/browser'
+import type { ClientMutation, ClientQuery } from 'convex/server'
 
 /**
  * A type describing your app's public Convex API.
@@ -25,14 +25,14 @@ import type { ClientMutation, ClientQuery } from "convex/server";
  */
 export type ConvexAPI = {
   queries: {
-    getCounter: ClientQuery<typeof getCounter>;
-  };
+    getCounter: ClientQuery<typeof getCounter>
+  }
   mutations: {
-    incrementCounter: ClientMutation<typeof incrementCounter>;
-  };
-};
+    incrementCounter: ClientMutation<typeof incrementCounter>
+  }
+}
 
-import { makeUseQuery, makeUseMutation, makeUseConvex } from "convex/react";
+import { makeUseQuery, makeUseMutation, makeUseConvex } from 'convex/react'
 
 /**
  * Load a reactive query within a React component.
@@ -46,7 +46,7 @@ import { makeUseQuery, makeUseMutation, makeUseConvex } from "convex/react";
  * @param args - The arguments to the query function.
  * @returns `undefined` if loading and the query's return value otherwise.
  */
-export const useQuery = makeUseQuery<ConvexAPI>();
+export const useQuery = makeUseQuery<ConvexAPI>()
 
 /**
  * Construct a new {@link ReactMutation}.
@@ -64,7 +64,7 @@ export const useQuery = makeUseQuery<ConvexAPI>();
  * @param name - The name of the mutation.
  * @returns The {@link ReactMutation} object with that name.
  */
-export const useMutation = makeUseMutation<ConvexAPI>();
+export const useMutation = makeUseMutation<ConvexAPI>()
 
 /**
  * Get the {@link ConvexReactClient} within a React component.
@@ -73,10 +73,10 @@ export const useMutation = makeUseMutation<ConvexAPI>();
  *
  * @returns The active {@link ConvexReactClient} object, or `undefined`.
  */
-export const useConvex = makeUseConvex<ConvexAPI>();
+export const useConvex = makeUseConvex<ConvexAPI>()
 
 /**
  * A view of the query results currently in the Convex client for use within
  * optimistic updates.
  */
-export type OptimisticLocalStore = GenericOptimisticLocalStore<ConvexAPI>;
+export type OptimisticLocalStore = GenericOptimisticLocalStore<ConvexAPI>

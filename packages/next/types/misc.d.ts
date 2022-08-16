@@ -335,7 +335,7 @@ declare module 'next/dist/compiled/@segment/ajv-human-errors' {
   export = m
 }
 
-declare module NodeJS {
+declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string
   }
