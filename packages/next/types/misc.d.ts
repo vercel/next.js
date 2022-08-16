@@ -343,7 +343,7 @@ declare module 'pnp-webpack-plugin' {
   export = PnpWebpackPlugin
 }
 
-declare module NodeJS {
+declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string
   }
