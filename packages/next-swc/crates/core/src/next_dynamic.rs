@@ -65,7 +65,7 @@ impl Fold for NextDynamicPatcher {
                     Expr::Lit(Lit::Str(Str { value, .. })) => {
                         self.dynamically_imported_specifier = Some(value.to_string());
                     }
-                    Expr::Tpl(Tpl { exprs, quasis, .. }) if exprs.len() == 0 => {
+                    Expr::Tpl(Tpl { exprs, quasis, .. }) if exprs.is_empty() => {
                         self.dynamically_imported_specifier = Some(quasis[0].raw.to_string());
                     }
                     _ => {}
