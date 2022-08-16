@@ -74,6 +74,11 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
 
+          - script: |
+              node run-tests.js -c 1 test/e2e/app-dir/
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Run app tests'
+
       - job: test_unit
         pool:
           vmImage: 'windows-2019'
@@ -107,3 +112,5 @@ stages:
           - script: node run-tests.js --type unit
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
+            variables:
+              NEXT_TEST_MODE: 'build'
