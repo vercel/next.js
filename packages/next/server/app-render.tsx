@@ -596,15 +596,15 @@ export async function renderToHTMLOrFlight(
     firstItem,
     rootLayoutIncluded,
     serverStylesheets,
-  }: // parentSegmentPath,
-  {
+    parentSegmentPath,
+  }: {
     createSegmentPath: CreateSegmentPath
     loaderTree: LoaderTree
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
     serverStylesheets: { [file: string]: string[] }
-    // parentSegmentPath: string
+    parentSegmentPath: string
   }): Promise<{ Component: React.ComponentType }> => {
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
@@ -624,9 +624,9 @@ export async function renderToHTMLOrFlight(
     const rootLayoutIncludedAtThisLevelOrAbove =
       rootLayoutIncluded || rootLayoutAtThisLevel
 
-    // const cssSegmentPath =
-    //   !parentSegmentPath && !segment ? '' : parentSegmentPath + '/' + segment
-    // const stylesheets = serverStylesheets[cssSegmentPath]
+    const cssSegmentPath =
+      !parentSegmentPath && !segment ? '' : parentSegmentPath + '/' + segment
+    const stylesheets = serverStylesheets[cssSegmentPath]
 
     /**
      * Check if the current layout/page is a client component
@@ -830,11 +830,11 @@ export async function renderToHTMLOrFlight(
 
         return (
           <>
-            {/* {stylesheets
+            {stylesheets
               ? stylesheets.map((href) => (
                   <link rel="stylesheet" href={`/_next/${href}`} key={href} />
                 ))
-              : null} */}
+              : null}
             <Component
               {...props}
               {...parallelRouteComponents}
@@ -960,7 +960,7 @@ export async function renderToHTMLOrFlight(
   // Below this line is handling for rendering to HTML.
 
   // Get all the server imported styles.
-  const [mappedServerCSSManifest, initialStylesheets] = getCssInlinedLinkTags(
+  const [mappedServerCSSManifest, _initialStylesheets] = getCssInlinedLinkTags(
     serverComponentManifest,
     serverCSSManifest
   )
@@ -1080,7 +1080,6 @@ export async function renderToHTMLOrFlight(
       generateStaticHTML: generateStaticHTML,
       flushEffectHandler,
       flushEffectsToHead: true,
-      initialStylesheets,
     })
   }
 
