@@ -1,14 +1,13 @@
 import os from 'os'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
   RemotePattern,
 } from '../shared/lib/image-config'
-
-export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
+import { ServerRuntime } from 'next/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -116,7 +115,7 @@ export interface ExperimentalConfig {
   runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
-  urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+  urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
     remotePatterns?: RemotePattern[]

@@ -43,19 +43,9 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 
 ## Migration
 
-Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following code snippets compare the two components:
 
-<table>
-<thead>
-  <tr>
-    <th>next/image</th>
-    <th>next/future/image</th>
-  </tr>
-</thead>
-<tbody>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -66,8 +56,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -79,11 +68,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -94,8 +79,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -107,11 +91,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -122,8 +102,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -134,11 +113,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -149,8 +124,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -160,12 +134,6 @@ function Page() {
   return <Image src={img} />
 }
 ```
-
-</td>
-</tr>
-
-</tbody>
-</table>
 
 You can also use `className` instead of `style`.
 
@@ -251,11 +219,37 @@ See also:
 
 ### sizes
 
-A string that provides information about how wide the image will be at different breakpoints.
+A string that provides information about how wide the image will be at different breakpoints. The value of `sizes` will greatly affect performance for images using [`fill`](#fill) or which are styled to have a responsive size.
 
-It's important to assign `sizes` for responsive images that takes up less than the full viewport width. For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+The `sizes` property serves two important purposes related to image performance:
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
+First, the value of `sizes` is used by the browser to determine which size of the image to download, from `next/future/image`'s automatically-generated source set. When the browser chooses, it does not yet know the size of the image on the page, so it selects an image that is the same size or larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen. If you don't specify a `sizes` value in an image with the `fill` property, a default value of `100vw` (full screen width) is used.
+
+Second, the `sizes` property configures how `next/future/image` automatically generates an image source set. If no `sizes` value is present, a small source set is generated, suitable for a fixed-size image. If `sizes` is defined, a large source set is generated, suitable for a responsive image. If the `sizes` property includes sizes such as `50vw`, which represent a percentage of the viewport width, then the source set is trimmed to not include any values which are too small to ever be necessary.
+
+For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
+
+```js
+import Image from 'next/image'
+const Example = () => (
+  <div className="grid-element">
+    <Image
+      src="/example.png"
+      layout="fill"
+      sizes="(min-width: 75em) 33vw,
+              (min-width: 48em) 50vw,
+              100vw"
+    />
+  </div>
+)
+```
+
+This example `sizes` could have a dramatic effect on performance metrics. Without the `33vw` sizes, the image selected from the server would be 3 times as wide as it needs to be. Because file size is proportional to the square of the width, without `sizes` the user would download an image that's 9 times larger than necessary.
+
+Learn more about `srcset` and `sizes`:
+
+- [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
+- [mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
 
 ### quality
 

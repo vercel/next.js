@@ -319,6 +319,10 @@ export function AmpIncludeAmpLinkRewriter() {
   return <AmpIncludeCustomElement name="amp-link-rewriter" version="0.1" />
 }
 
+export function AmpIncludeAmpMustache() {
+  return <AmpIncludeCustomTemplate name="amp-mustache" version="0.2" />
+}
+
 export function AmpIncludeAmpList() {
   return (
     <>
@@ -348,10 +352,6 @@ export function AmpIncludeAmpMinuteMediaPlayer() {
 
 export function AmpIncludeAmpMowplayer() {
   return <AmpIncludeCustomElement name="amp-mowplayer" version="0.1" />
-}
-
-export function AmpIncludeAmpMustache() {
-  return <AmpIncludeCustomTemplate name="amp-mustache" version="0.2" />
 }
 
 export function AmpIncludeAmpNextPage() {

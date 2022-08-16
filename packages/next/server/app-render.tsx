@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
-import type { ServerRuntime } from './config-shared'
+import type { ServerRuntime } from '../types'
 
 import React from 'react'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
@@ -22,6 +22,10 @@ import { htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
+import {
+  FlightCSSManifest,
+  FlightManifest,
+} from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
 
 // this needs to be required lazily so that `next-server` can set
@@ -33,7 +37,8 @@ const ReactDOMServer = shouldUseReactRoot
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
-  serverComponentManifest?: any
+  serverComponentManifest?: FlightManifest
+  serverCSSManifest?: FlightCSSManifest
   supportsDynamicHTML?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -61,6 +66,7 @@ const enum RecordStatus {
 
 type Record = {
   status: RecordStatus
+  // Could hold the existing promise or the resolved Promise
   value: any
 }
 
@@ -279,6 +285,7 @@ type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
   components: {
+    filePath: string
     layout?: () => any
     loading?: () => any
     page?: () => any
@@ -369,26 +376,57 @@ function getSegmentParam(segment: string): {
 }
 
 /**
- * Get inline <link> tags based on __next_rsc_css__ manifest. Only used when rendering to HTML.
+ * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
  */
-function getCssInlinedLinkTags(
-  ComponentMod: any,
-  serverComponentManifest: any
-) {
-  const importedServerCSSFiles: string[] =
-    ComponentMod.__client__?.__next_rsc_css__ || []
+// function getCssInlinedLinkTags(
+//   serverComponentManifest: FlightManifest,
+//   serverCSSManifest: FlightCSSManifest,
+//   filePath: string
+// ): string[] {
+//   const layoutOrPageCss = serverCSSManifest[filePath]
 
-  return Array.from(
-    new Set(
-      importedServerCSSFiles
-        .map((css) =>
-          css.endsWith('.css')
-            ? serverComponentManifest[css].default.chunks
-            : []
-        )
-        .flat()
-    )
-  )
+//   if (!layoutOrPageCss) {
+//     return []
+//   }
+
+//   const chunks = new Set<string>()
+
+//   for (const css of layoutOrPageCss) {
+//     for (const chunk of serverComponentManifest[css].default.chunks) {
+//       chunks.add(chunk)
+//     }
+//   }
+
+//   return [...chunks]
+// }
+
+/**
+ * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
+ */
+function getAllCssInlinedLinkTags(
+  serverComponentManifest: FlightManifest,
+  serverCSSManifest: FlightCSSManifest
+): string[] {
+  const chunks: { [file: string]: string[] } = {}
+
+  // APP-TODO: Remove this once we have CSS injections at each level.
+  const allChunks = new Set<string>()
+
+  for (const layoutOrPage in serverCSSManifest) {
+    const uniqueChunks = new Set<string>()
+    for (const css of serverCSSManifest[layoutOrPage]) {
+      for (const chunk of serverComponentManifest[css].default.chunks) {
+        if (!uniqueChunks.has(chunk)) {
+          uniqueChunks.add(chunk)
+          chunks[layoutOrPage] = chunks[layoutOrPage] || []
+          chunks[layoutOrPage].push(chunk)
+        }
+        allChunks.add(chunk)
+      }
+    }
+  }
+
+  return [...allChunks]
 }
 
 export async function renderToHTMLOrFlight(
@@ -412,6 +450,7 @@ export async function renderToHTMLOrFlight(
   const {
     buildManifest,
     serverComponentManifest,
+    serverCSSManifest,
     supportsDynamicHTML,
     ComponentMod,
   } = renderOpts
@@ -579,17 +618,29 @@ export async function renderToHTMLOrFlight(
    */
   const createComponentTree = async ({
     createSegmentPath,
-    loaderTree: [segment, parallelRoutes, { layout, loading, page }],
+    loaderTree: [
+      segment,
+      parallelRoutes,
+      { /* filePath, */ layout, loading, page },
+    ],
     parentParams,
     firstItem,
     rootLayoutIncluded,
-  }: {
+  }: // parentSegmentPath,
+  {
     createSegmentPath: CreateSegmentPath
     loaderTree: LoaderTree
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
+    // parentSegmentPath: string
   }): Promise<{ Component: React.ComponentType }> => {
+    // TODO-APP: enable stylesheet per layout/page
+    // const stylesheets = getCssInlinedLinkTags(
+    //   serverComponentManifest,
+    //   serverCSSManifest!,
+    //   filePath
+    // )
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
     const isPage = typeof page !== 'undefined'
@@ -668,6 +719,7 @@ export async function renderToHTMLOrFlight(
             loaderTree: parallelRoutes[parallelRouteKey],
             parentParams: currentParams,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+            // parentSegmentPath: cssSegmentPath,
           })
 
           const childSegment = parallelRoutes[parallelRouteKey][0]
@@ -807,16 +859,23 @@ export async function renderToHTMLOrFlight(
         }
 
         return (
-          <Component
-            {...props}
-            {...parallelRouteComponents}
-            // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
-            // Params are always the current params that apply to the layout
-            // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
-            params={currentParams}
-            // Query is only provided to page
-            {...(isPage ? { searchParams: query } : {})}
-          />
+          <>
+            {/* {stylesheets
+              ? stylesheets.map((href) => (
+                  <link rel="stylesheet" href={`/_next/${href}`} key={href} />
+                ))
+              : null} */}
+            <Component
+              {...props}
+              {...parallelRouteComponents}
+              // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+              // Params are always the current params that apply to the layout
+              // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
+              params={currentParams}
+              // Query is only provided to page
+              {...(isPage ? { searchParams: query } : {})}
+            />
+          </>
         )
       },
     }
@@ -881,6 +940,7 @@ export async function renderToHTMLOrFlight(
                   loaderTree: loaderTreeToFilter,
                   parentParams: currentParams,
                   firstItem: true,
+                  // parentSegmentPath: '',
                 }
               )
             ).Component
@@ -928,12 +988,19 @@ export async function renderToHTMLOrFlight(
 
   // Below this line is handling for rendering to HTML.
 
+  // Get all the server imported styles.
+  const initialStylesheets = getAllCssInlinedLinkTags(
+    serverComponentManifest,
+    serverCSSManifest || {}
+  )
+
   // Create full component tree from root to leaf.
   const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
     loaderTree: loaderTree,
     parentParams: {},
     firstItem: true,
+    // parentSegmentPath: '',
   })
 
   // AppRouter is provided by next-app-loader
@@ -947,10 +1014,6 @@ export async function renderToHTMLOrFlight(
 
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
-  const initialStylesheets: string[] = getCssInlinedLinkTags(
-    ComponentMod,
-    serverComponentManifest
-  )
 
   /**
    * A new React Component that renders the provided React Component
@@ -969,7 +1032,6 @@ export async function renderToHTMLOrFlight(
           }
           initialCanonicalUrl={initialCanonicalUrl}
           initialTree={initialTree}
-          initialStylesheets={initialStylesheets}
         >
           <ComponentTree />
         </AppRouter>
@@ -984,23 +1046,19 @@ export async function renderToHTMLOrFlight(
     }
   )
 
-  let flushEffectsHandler: (() => React.ReactNode) | null = null
+  const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
   function FlushEffects({ children }: { children: JSX.Element }) {
     // Reset flushEffectsHandler on each render
-    flushEffectsHandler = null
-    const setFlushEffectsHandler = React.useCallback(
+    flushEffectsCallbacks.clear()
+    const addFlushEffects = React.useCallback(
       (handler: () => React.ReactNode) => {
-        if (flushEffectsHandler)
-          throw new Error(
-            'The `useFlushEffects` hook cannot be used more than once.'
-          )
-        flushEffectsHandler = handler
+        flushEffectsCallbacks.add(handler)
       },
       []
     )
 
     return (
-      <FlushEffectsContext.Provider value={setFlushEffectsHandler}>
+      <FlushEffectsContext.Provider value={addFlushEffects}>
         {children}
       </FlushEffectsContext.Provider>
     )
@@ -1029,7 +1087,7 @@ export async function renderToHTMLOrFlight(
 
     const flushEffectHandler = (): string => {
       const flushed = ReactDOMServer.renderToString(
-        <>{flushEffectsHandler && flushEffectsHandler()}</>
+        <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
       )
       return flushed
     }

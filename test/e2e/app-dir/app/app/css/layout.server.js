@@ -1,4 +1,5 @@
 import './style.css'
+import './css-page/style.css'
 import styles from './style.module.css'
 
 export default function ServerLayout({ children }) {
