@@ -129,7 +129,7 @@ export interface BaseRequestHandler {
   ): Promise<void>
 }
 
-type RequestContext = {
+export type RequestContext = {
   req: BaseNextRequest
   res: BaseNextResponse
   pathname: string

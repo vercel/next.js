@@ -67,6 +67,7 @@ import BaseServer, {
   prepareServerlessUrl,
   stringifyQuery,
   RoutingItem,
+  RequestContext,
 } from './base-server'
 import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -765,6 +766,28 @@ export default class NextNodeServer extends BaseServer {
       locales,
       this.nextConfig.experimental.appDir
     )
+  }
+
+  protected async renderPageComponent(
+    ctx: RequestContext,
+    bubbleNoFallback: boolean
+  ) {
+    const edgeFunctions = this.getEdgeFunctions()
+
+    for (const item of edgeFunctions) {
+      if (item.match(ctx.pathname)) {
+        await this.runEdgeFunction({
+          req: ctx.req,
+          res: ctx.res,
+          query: ctx.query,
+          params: ctx.renderOpts.params,
+          page: ctx.pathname,
+        })
+        return null
+      }
+    }
+
+    return super.renderPageComponent(ctx, bubbleNoFallback)
   }
 
   protected async findPageComponents(
@@ -1550,45 +1573,6 @@ export default class NextNodeServer extends BaseServer {
         }
 
         routes.push(middlewareCatchAllRoute)
-      }
-      if (this.getEdgeFunctions().length) {
-        const edgeCatchAllRoute: Route = {
-          match: getPathMatch('/:path*'),
-          type: 'route',
-          name: 'edge functions catchall',
-          fn: async (req, res, _params, parsed) => {
-            const edgeFunctions = this.getEdgeFunctions()
-            if (!edgeFunctions.length) return { finished: false }
-
-            const { query, pathname } = parsed
-            const normalizedPathname = removeTrailingSlash(pathname || '')
-            let page = normalizedPathname
-            let params: Params | undefined = undefined
-
-            for (const edgeFunction of edgeFunctions) {
-              const matched = edgeFunction.match(page)
-              if (matched) {
-                params = matched
-                page = edgeFunction.page
-                break
-              }
-            }
-
-            const edgeSSRResult = await this.runEdgeFunction({
-              req,
-              res,
-              query,
-              params,
-              page,
-            })
-
-            return {
-              finished: !!edgeSSRResult,
-            }
-          },
-        }
-
-        routes.push(edgeCatchAllRoute)
       }
     }
 
