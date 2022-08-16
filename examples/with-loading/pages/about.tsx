@@ -1,5 +1,3 @@
-const AboutPage = () => <p>This is about Next.js!</p>
-
 export async function getServerSideProps() {
   await new Promise((resolve) => {
     setTimeout(resolve, 500)
@@ -7,4 +5,6 @@ export async function getServerSideProps() {
   return { props: {} }
 }
 
-export default AboutPage
+export default function AboutPage() {
+  return <p>This is about Next.js!</p>
+}
