@@ -112,5 +112,5 @@ stages:
           - script: node run-tests.js --type unit
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
-            variables:
+            env:
               NEXT_TEST_MODE: 'build'
