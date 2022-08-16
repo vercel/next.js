@@ -21,7 +21,7 @@ turbo-tasks = { path = "../turbo-tasks" }
 [dev-dependencies]
 serde = "1.0.136"
 tokio = { version = "1.11.0", features = ["full"] }
-turbo-tasks-test-utils = { path = "../turbo-tasks-test-utils" }
+turbo-tasks-testing = { path = "../turbo-tasks-testing" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

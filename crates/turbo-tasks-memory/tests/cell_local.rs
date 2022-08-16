@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use anyhow::Result;
 use turbo_tasks::{get_invalidator, Invalidator};
-use turbo_tasks_test_utils::{register, run};
+use turbo_tasks_testing::{register, run};
 
 register!();
 

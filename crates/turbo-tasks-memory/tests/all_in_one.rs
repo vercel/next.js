@@ -2,7 +2,7 @@
 
 use anyhow::{anyhow, Result};
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
-use turbo_tasks_test_utils::{register, run};
+use turbo_tasks_testing::{register, run};
 
 register!();
 

@@ -1,3 +1,9 @@
+//! Hashing and encoding functions for turbopack.
+//!
+//! An example use of this module is hashing a file's content for cache
+//! invalidation, and encoding the hash to an hexadecimal string for use in a
+//! file name.
+
 mod base16;
 mod hex;
 mod md4;

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use turbo_tasks::{emit, primitives::StringVc, CollectiblesSource, ValueToString, ValueToStringVc};
-use turbo_tasks_test_utils::{register, run};
+use turbo_tasks_testing::{register, run};
 register!();
 
 #[tokio::test]
