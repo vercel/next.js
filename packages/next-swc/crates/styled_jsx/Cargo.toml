@@ -11,7 +11,7 @@ version = "0.15.0"
 
 [dependencies]
 easy-error = "1.0.0"
-swc_common = { version = "0.27.8", features = ["concurrent", "sourcemap"] }
+swc_common = { version = "0.27.9", features = ["concurrent", "sourcemap"] }
 swc_css = "0.120.0"
 swc_css_prefixer = "0.117.0"
 swc_ecmascript = { version = "0.189.3", features = ["parser", "minifier", "utils", "visit"] }
