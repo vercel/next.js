@@ -74,7 +74,7 @@
     "@testing-library/react": "13.0.0",
     "@types/cheerio": "0.22.16",
     "@types/fs-extra": "8.1.0",
-    "@types/html-validator": "5.0.2",
+    "@types/html-validator": "5.0.3",
     "@types/http-proxy": "1.17.3",
     "@types/jest": "24.0.13",
     "@types/node": "13.11.0",

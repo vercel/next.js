@@ -97,7 +97,7 @@ export class BrowserInterface {
   async hasElementByCssSelector(selector: string): Promise<boolean> {
     return false
   }
-  async log(): Promise<any[]> {
+  async log(): Promise<{ message: string }[]> {
     return []
   }
   async websocketFrames(): Promise<any[]> {
