@@ -17,6 +17,26 @@ type RunnerFn = (params: {
   distDir: string
 }) => Promise<FetchEventResult>
 
+/**
+ * Decorates the runner function making sure all errors it can produce are
+ * tagged with `edge-server` so they can properly be rendered in dev.
+ */
+function withTaggedErrors(fn: RunnerFn): RunnerFn {
+  return (params) =>
+    fn(params)
+      .then((result) => ({
+        ...result,
+        waitUntil: result?.waitUntil?.catch((error) => {
+          // TODO: used COMPILER_NAMES.edgeServer instead. Verify that it does not increase the runtime size.
+          throw getServerError(error, 'edge-server')
+        }),
+      }))
+      .catch((error) => {
+        // TODO: used COMPILER_NAMES.edgeServer instead
+        throw getServerError(error, 'edge-server')
+      })
+}
+
 export const run = withTaggedErrors(async (params) => {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
@@ -64,23 +84,3 @@ export const run = withTaggedErrors(async (params) => {
     await params.request.body?.finalize()
   }
 })
-
-/**
- * Decorates the runner function making sure all errors it can produce are
- * tagged with `edge-server` so they can properly be rendered in dev.
- */
-function withTaggedErrors(fn: RunnerFn): RunnerFn {
-  return (params) =>
-    fn(params)
-      .then((result) => ({
-        ...result,
-        waitUntil: result?.waitUntil?.catch((error) => {
-          // TODO: used COMPILER_NAMES.edgeServer instead. Verify that it does not increase the runtime size.
-          throw getServerError(error, 'edge-server')
-        }),
-      }))
-      .catch((error) => {
-        // TODO: used COMPILER_NAMES.edgeServer instead
-        throw getServerError(error, 'edge-server')
-      })
-}

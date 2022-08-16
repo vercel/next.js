@@ -289,393 +289,6 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   return { assetPrefix: prefix }
 }
 
-const wrapApp =
-  (App: AppComponent) =>
-  (wrappedAppProps: Record<string, any>): JSX.Element => {
-    const appProps: AppProps = {
-      ...wrappedAppProps,
-      Component: CachedComponent,
-      err: initialData.err,
-      router,
-    }
-    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
-  }
-
-export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
-  let initialErr = initialData.err
-
-  try {
-    const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
-    if ('error' in appEntrypoint) {
-      throw appEntrypoint.error
-    }
-
-    const { component: app, exports: mod } = appEntrypoint
-    CachedApp = app as AppComponent
-    if (mod && mod.reportWebVitals) {
-      onPerfEntry = ({
-        id,
-        name,
-        startTime,
-        value,
-        duration,
-        entryType,
-        entries,
-      }: any): void => {
-        // Combines timestamp with random number for unique ID
-        const uniqueID: string = `${Date.now()}-${
-          Math.floor(Math.random() * (9e12 - 1)) + 1e12
-        }`
-        let perfStartEntry: string | undefined
-
-        if (entries && entries.length) {
-          perfStartEntry = entries[0].startTime
-        }
-
-        const webVitals: NextWebVitalsMetric = {
-          id: id || uniqueID,
-          name,
-          startTime: startTime || perfStartEntry,
-          value: value == null ? duration : value,
-          label:
-            entryType === 'mark' || entryType === 'measure'
-              ? 'custom'
-              : 'web-vital',
-        }
-        mod.reportWebVitals(webVitals)
-      }
-    }
-
-    const pageEntrypoint =
-      // The dev server fails to serve script assets when there's a hydration
-      // error, so we need to skip waiting for the entrypoint.
-      process.env.NODE_ENV === 'development' && initialData.err
-        ? { error: initialData.err }
-        : await pageLoader.routeLoader.whenEntrypoint(initialData.page)
-    if ('error' in pageEntrypoint) {
-      throw pageEntrypoint.error
-    }
-    CachedComponent = pageEntrypoint.component
-
-    if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('next/dist/compiled/react-is')
-      if (!isValidElementType(CachedComponent)) {
-        throw new Error(
-          `The default export is not a React Component in page: "${initialData.page}"`
-        )
-      }
-    }
-  } catch (error) {
-    // This catches errors like throwing in the top level of a module
-    initialErr = getProperError(error)
-  }
-
-  if (process.env.NODE_ENV === 'development') {
-    const {
-      getServerError,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
-    // Server-side runtime errors need to be re-thrown on the client-side so
-    // that the overlay is rendered.
-    if (initialErr) {
-      if (initialErr === initialData.err) {
-        setTimeout(() => {
-          let error
-          try {
-            // Generate a new error object. We `throw` it because some browsers
-            // will set the `stack` when thrown, and we want to ensure ours is
-            // not overridden when we re-throw it below.
-            throw new Error(initialErr!.message)
-          } catch (e) {
-            error = e as Error
-          }
-
-          error.name = initialErr!.name
-          error.stack = initialErr!.stack
-          throw getServerError(error, initialErr!.source)
-        })
-      }
-      // We replaced the server-side error with a client-side error, and should
-      // no longer rewrite the stack trace to a Node error.
-      else {
-        setTimeout(() => {
-          throw initialErr
-        })
-      }
-    }
-  }
-
-  if (window.__NEXT_PRELOADREADY) {
-    await window.__NEXT_PRELOADREADY(initialData.dynamicIds)
-  }
-
-  router = createRouter(initialData.page, initialData.query, asPath, {
-    initialProps: initialData.props,
-    pageLoader,
-    App: CachedApp,
-    Component: CachedComponent,
-    wrapApp,
-    err: initialErr,
-    isFallback: Boolean(initialData.isFallback),
-    subscription: (info, App, scroll) =>
-      render(
-        Object.assign<
-          {},
-          Omit<RenderRouteInfo, 'App' | 'scroll'>,
-          Pick<RenderRouteInfo, 'App' | 'scroll'>
-        >({}, info, {
-          App,
-          scroll,
-        }) as RenderRouteInfo
-      ),
-    locale: initialData.locale,
-    locales: initialData.locales,
-    defaultLocale,
-    domainLocales: initialData.domainLocales,
-    isPreview: initialData.isPreview,
-    isRsc: initialData.rsc,
-  })
-
-  initialMatchesMiddleware = await router._initialMatchesMiddlewarePromise
-
-  const renderCtx: RenderRouteInfo = {
-    App: CachedApp,
-    initial: true,
-    Component: CachedComponent,
-    props: initialData.props,
-    err: initialErr,
-  }
-
-  if (opts?.beforeRender) {
-    await opts.beforeRender()
-  }
-
-  render(renderCtx)
-}
-
-async function render(renderingProps: RenderRouteInfo): Promise<void> {
-  if (renderingProps.err) {
-    await renderError(renderingProps)
-    return
-  }
-
-  try {
-    await doRender(renderingProps)
-  } catch (err) {
-    const renderErr = getProperError(err)
-    // bubble up cancelation errors
-    if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
-      throw renderErr
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      // Ensure this error is displayed in the overlay in development
-      setTimeout(() => {
-        throw renderErr
-      })
-    }
-    await renderError({ ...renderingProps, err: renderErr })
-  }
-}
-
-// This method handles all runtime and debug errors.
-// 404 and 500 errors are special kind of errors
-// and they are still handle via the main render method.
-function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
-  let { App, err } = renderErrorProps
-
-  // In development runtime errors are caught by our overlay
-  // In production we catch runtime errors using componentDidCatch which will trigger renderError
-  if (process.env.NODE_ENV !== 'production') {
-    // A Next.js rendering runtime error is always unrecoverable
-    // FIXME: let's make this recoverable (error in GIP client-transition)
-    webpackHMR.onUnrecoverableError()
-
-    // We need to render an empty <App> so that the `<ReactDevOverlay>` can
-    // render itself.
-    return doRender({
-      App: () => null,
-      props: {},
-      Component: () => null,
-      styleSheets: [],
-    })
-  }
-
-  // Make sure we log the error to the console, otherwise users can't track down issues.
-  console.error(err)
-  console.error(
-    `A client-side exception has occurred, see here for more info: https://nextjs.org/docs/messages/client-side-exception-occurred`
-  )
-
-  return pageLoader
-    .loadPage('/_error')
-    .then(({ page: ErrorComponent, styleSheets }) => {
-      return lastAppProps?.Component === ErrorComponent
-        ? import('../pages/_error')
-            .then((errorModule) => {
-              return import('../pages/_app').then((appModule) => {
-                App = appModule.default as any as AppComponent
-                renderErrorProps.App = App
-                return errorModule
-              })
-            })
-            .then((m) => ({
-              ErrorComponent: m.default as React.ComponentType<{}>,
-              styleSheets: [],
-            }))
-        : { ErrorComponent, styleSheets }
-    })
-    .then(({ ErrorComponent, styleSheets }) => {
-      // In production we do a normal render with the `ErrorComponent` as component.
-      // If we've gotten here upon initial render, we can use the props from the server.
-      // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-      const AppTree = wrapApp(App)
-      const appCtx = {
-        Component: ErrorComponent,
-        AppTree,
-        router,
-        ctx: {
-          err,
-          pathname: initialData.page,
-          query: initialData.query,
-          asPath,
-          AppTree,
-        },
-      }
-      return Promise.resolve(
-        renderErrorProps.props?.err
-          ? renderErrorProps.props
-          : loadGetInitialProps(App, appCtx)
-      ).then((initProps) =>
-        doRender({
-          ...renderErrorProps,
-          err,
-          Component: ErrorComponent,
-          styleSheets,
-          props: initProps,
-        })
-      )
-    })
-}
-
-let reactRoot: any = null
-// On initial render a hydrate should always happen
-let shouldHydrate: boolean = true
-
-function renderReactElement(
-  domEl: HTMLElement,
-  fn: (cb: () => void) => JSX.Element
-): void {
-  // mark start of hydrate/render
-  if (ST) {
-    performance.mark('beforeRender')
-  }
-
-  const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
-  if (process.env.__NEXT_REACT_ROOT) {
-    if (!reactRoot) {
-      // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
-      // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
-      shouldHydrate = false
-    } else {
-      const startTransition = (React as any).startTransition
-      startTransition(() => {
-        reactRoot.render(reactEl)
-      })
-    }
-  } else {
-    // The check for `.hydrate` is there to support React alternatives like preact
-    if (shouldHydrate) {
-      ReactDOM.hydrate(reactEl, domEl)
-      shouldHydrate = false
-    } else {
-      ReactDOM.render(reactEl, domEl)
-    }
-  }
-}
-
-function markHydrateComplete(): void {
-  if (!ST) return
-
-  performance.mark('afterHydrate') // mark end of hydration
-
-  performance.measure(
-    'Next.js-before-hydration',
-    'navigationStart',
-    'beforeRender'
-  )
-  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
-
-  if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
-  }
-  clearMarks()
-}
-
-function markRenderComplete(): void {
-  if (!ST) return
-
-  performance.mark('afterRender') // mark end of render
-  const navStartEntries: PerformanceEntryList = performance.getEntriesByName(
-    'routeChange',
-    'mark'
-  )
-
-  if (!navStartEntries.length) return
-
-  performance.measure(
-    'Next.js-route-change-to-render',
-    navStartEntries[0].name,
-    'beforeRender'
-  )
-  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-  if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
-    performance
-      .getEntriesByName('Next.js-route-change-to-render')
-      .forEach(onPerfEntry)
-  }
-
-  clearMarks()
-  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
-    performance.clearMeasures(measure)
-  )
-}
-
-function clearMarks(): void {
-  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
-    (mark) => performance.clearMarks(mark)
-  )
-}
-
-function AppContainer({
-  children,
-}: React.PropsWithChildren<{}>): React.ReactElement {
-  return (
-    <Container
-      fn={(error) =>
-        renderError({ App: CachedApp, err: error }).catch((err) =>
-          console.error('Error rendering page: ', err)
-        )
-      }
-    >
-      <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={headManager}>
-          <ImageConfigContext.Provider
-            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
-          >
-            {children}
-          </ImageConfigContext.Provider>
-        </HeadManagerContext.Provider>
-      </RouterContext.Provider>
-    </Container>
-  )
-}
-
-function renderApp(App: AppComponent, appProps: AppProps) {
-  return <App {...appProps} />
-}
-
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
   const getCacheKey = () => {
@@ -817,6 +430,264 @@ if (process.env.__NEXT_RSC) {
     const { __flight__ } = props
     return <ServerRoot cacheKey={cacheKey} serialized={__flight__} />
   }
+}
+
+function renderApp(App: AppComponent, appProps: AppProps) {
+  return <App {...appProps} />
+}
+
+function AppContainer({
+  children,
+}: React.PropsWithChildren<{}>): React.ReactElement {
+  return (
+    <Container
+      fn={(error) =>
+        // TODO: Fix disabled eslint rule
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        renderError({ App: CachedApp, err: error }).catch((err) =>
+          console.error('Error rendering page: ', err)
+        )
+      }
+    >
+      <RouterContext.Provider value={makePublicRouterInstance(router)}>
+        <HeadManagerContext.Provider value={headManager}>
+          <ImageConfigContext.Provider
+            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+          >
+            {children}
+          </ImageConfigContext.Provider>
+        </HeadManagerContext.Provider>
+      </RouterContext.Provider>
+    </Container>
+  )
+}
+
+const wrapApp =
+  (App: AppComponent) =>
+  (wrappedAppProps: Record<string, any>): JSX.Element => {
+    const appProps: AppProps = {
+      ...wrappedAppProps,
+      Component: CachedComponent,
+      err: initialData.err,
+      router,
+    }
+    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
+  }
+
+// This method handles all runtime and debug errors.
+// 404 and 500 errors are special kind of errors
+// and they are still handle via the main render method.
+function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
+  let { App, err } = renderErrorProps
+
+  // In development runtime errors are caught by our overlay
+  // In production we catch runtime errors using componentDidCatch which will trigger renderError
+  if (process.env.NODE_ENV !== 'production') {
+    // A Next.js rendering runtime error is always unrecoverable
+    // FIXME: let's make this recoverable (error in GIP client-transition)
+    webpackHMR.onUnrecoverableError()
+
+    // We need to render an empty <App> so that the `<ReactDevOverlay>` can
+    // render itself.
+    // TODO: Fix disabled eslint rule
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    return doRender({
+      App: () => null,
+      props: {},
+      Component: () => null,
+      styleSheets: [],
+    })
+  }
+
+  // Make sure we log the error to the console, otherwise users can't track down issues.
+  console.error(err)
+  console.error(
+    `A client-side exception has occurred, see here for more info: https://nextjs.org/docs/messages/client-side-exception-occurred`
+  )
+
+  return pageLoader
+    .loadPage('/_error')
+    .then(({ page: ErrorComponent, styleSheets }) => {
+      return lastAppProps?.Component === ErrorComponent
+        ? import('../pages/_error')
+            .then((errorModule) => {
+              return import('../pages/_app').then((appModule) => {
+                App = appModule.default as any as AppComponent
+                renderErrorProps.App = App
+                return errorModule
+              })
+            })
+            .then((m) => ({
+              ErrorComponent: m.default as React.ComponentType<{}>,
+              styleSheets: [],
+            }))
+        : { ErrorComponent, styleSheets }
+    })
+    .then(({ ErrorComponent, styleSheets }) => {
+      // In production we do a normal render with the `ErrorComponent` as component.
+      // If we've gotten here upon initial render, we can use the props from the server.
+      // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+      const AppTree = wrapApp(App)
+      const appCtx = {
+        Component: ErrorComponent,
+        AppTree,
+        router,
+        ctx: {
+          err,
+          pathname: initialData.page,
+          query: initialData.query,
+          asPath,
+          AppTree,
+        },
+      }
+      return Promise.resolve(
+        renderErrorProps.props?.err
+          ? renderErrorProps.props
+          : loadGetInitialProps(App, appCtx)
+      ).then((initProps) =>
+        // TODO: Fix disabled eslint rule
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        doRender({
+          ...renderErrorProps,
+          err,
+          Component: ErrorComponent,
+          styleSheets,
+          props: initProps,
+        })
+      )
+    })
+}
+
+// Dummy component that we render as a child of Root so that we can
+// toggle the correct styles before the page is rendered.
+function Head({ callback }: { callback: () => void }): null {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
+  return null
+}
+
+let reactRoot: any = null
+// On initial render a hydrate should always happen
+let shouldHydrate: boolean = true
+
+function clearMarks(): void {
+  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
+    (mark) => performance.clearMarks(mark)
+  )
+}
+
+function markHydrateComplete(): void {
+  if (!ST) return
+
+  performance.mark('afterHydrate') // mark end of hydration
+
+  performance.measure(
+    'Next.js-before-hydration',
+    'navigationStart',
+    'beforeRender'
+  )
+  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+
+  if (onPerfEntry) {
+    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
+  }
+  clearMarks()
+}
+
+function markRenderComplete(): void {
+  if (!ST) return
+
+  performance.mark('afterRender') // mark end of render
+  const navStartEntries: PerformanceEntryList = performance.getEntriesByName(
+    'routeChange',
+    'mark'
+  )
+
+  if (!navStartEntries.length) return
+
+  performance.measure(
+    'Next.js-route-change-to-render',
+    navStartEntries[0].name,
+    'beforeRender'
+  )
+  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
+  if (onPerfEntry) {
+    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
+    performance
+      .getEntriesByName('Next.js-route-change-to-render')
+      .forEach(onPerfEntry)
+  }
+
+  clearMarks()
+  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
+    performance.clearMeasures(measure)
+  )
+}
+
+function renderReactElement(
+  domEl: HTMLElement,
+  fn: (cb: () => void) => JSX.Element
+): void {
+  // mark start of hydrate/render
+  if (ST) {
+    performance.mark('beforeRender')
+  }
+
+  const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
+  if (process.env.__NEXT_REACT_ROOT) {
+    if (!reactRoot) {
+      // Unlike with createRoot, you don't need a separate root.render() call here
+      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
+      // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
+      shouldHydrate = false
+    } else {
+      const startTransition = (React as any).startTransition
+      startTransition(() => {
+        reactRoot.render(reactEl)
+      })
+    }
+  } else {
+    // The check for `.hydrate` is there to support React alternatives like preact
+    if (shouldHydrate) {
+      ReactDOM.hydrate(reactEl, domEl)
+      shouldHydrate = false
+    } else {
+      ReactDOM.render(reactEl, domEl)
+    }
+  }
+}
+
+function Root({
+  callbacks,
+  children,
+}: React.PropsWithChildren<{
+  callbacks: Array<() => void>
+}>): React.ReactElement {
+  // We use `useLayoutEffect` to guarantee the callbacks are executed
+  // as soon as React flushes the update
+  React.useLayoutEffect(
+    () => callbacks.forEach((callback) => callback()),
+    [callbacks]
+  )
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+  }, [])
+
+  if (process.env.__NEXT_TEST_MODE) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }, [])
+  }
+
+  return children as React.ReactElement
 }
 
 function doRender(input: RenderRouteInfo): Promise<any> {
@@ -999,43 +870,178 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   return renderPromise
 }
 
-function Root({
-  callbacks,
-  children,
-}: React.PropsWithChildren<{
-  callbacks: Array<() => void>
-}>): React.ReactElement {
-  // We use `useLayoutEffect` to guarantee the callbacks are executed
-  // as soon as React flushes the update
-  React.useLayoutEffect(
-    () => callbacks.forEach((callback) => callback()),
-    [callbacks]
-  )
-  // We should ask to measure the Web Vitals after rendering completes so we
-  // don't cause any hydration delay:
-  React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
-  }, [])
-
-  if (process.env.__NEXT_TEST_MODE) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    React.useEffect(() => {
-      window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
-    }, [])
+async function render(renderingProps: RenderRouteInfo): Promise<void> {
+  if (renderingProps.err) {
+    await renderError(renderingProps)
+    return
   }
 
-  return children as React.ReactElement
+  try {
+    await doRender(renderingProps)
+  } catch (err) {
+    const renderErr = getProperError(err)
+    // bubble up cancelation errors
+    if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
+      throw renderErr
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      // Ensure this error is displayed in the overlay in development
+      setTimeout(() => {
+        throw renderErr
+      })
+    }
+    await renderError({ ...renderingProps, err: renderErr })
+  }
 }
 
-// Dummy component that we render as a child of Root so that we can
-// toggle the correct styles before the page is rendered.
-function Head({ callback }: { callback: () => void }): null {
-  // We use `useLayoutEffect` to guarantee the callback is executed
-  // as soon as React flushes the update.
-  React.useLayoutEffect(() => callback(), [callback])
-  return null
+export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
+  let initialErr = initialData.err
+
+  try {
+    const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
+    if ('error' in appEntrypoint) {
+      throw appEntrypoint.error
+    }
+
+    const { component: app, exports: mod } = appEntrypoint
+    CachedApp = app as AppComponent
+    if (mod && mod.reportWebVitals) {
+      onPerfEntry = ({
+        id,
+        name,
+        startTime,
+        value,
+        duration,
+        entryType,
+        entries,
+      }: any): void => {
+        // Combines timestamp with random number for unique ID
+        const uniqueID: string = `${Date.now()}-${
+          Math.floor(Math.random() * (9e12 - 1)) + 1e12
+        }`
+        let perfStartEntry: string | undefined
+
+        if (entries && entries.length) {
+          perfStartEntry = entries[0].startTime
+        }
+
+        const webVitals: NextWebVitalsMetric = {
+          id: id || uniqueID,
+          name,
+          startTime: startTime || perfStartEntry,
+          value: value == null ? duration : value,
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
+        }
+        mod.reportWebVitals(webVitals)
+      }
+    }
+
+    const pageEntrypoint =
+      // The dev server fails to serve script assets when there's a hydration
+      // error, so we need to skip waiting for the entrypoint.
+      process.env.NODE_ENV === 'development' && initialData.err
+        ? { error: initialData.err }
+        : await pageLoader.routeLoader.whenEntrypoint(initialData.page)
+    if ('error' in pageEntrypoint) {
+      throw pageEntrypoint.error
+    }
+    CachedComponent = pageEntrypoint.component
+
+    if (process.env.NODE_ENV !== 'production') {
+      const { isValidElementType } = require('next/dist/compiled/react-is')
+      if (!isValidElementType(CachedComponent)) {
+        throw new Error(
+          `The default export is not a React Component in page: "${initialData.page}"`
+        )
+      }
+    }
+  } catch (error) {
+    // This catches errors like throwing in the top level of a module
+    initialErr = getProperError(error)
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    const {
+      getServerError,
+    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    // Server-side runtime errors need to be re-thrown on the client-side so
+    // that the overlay is rendered.
+    if (initialErr) {
+      if (initialErr === initialData.err) {
+        setTimeout(() => {
+          let error
+          try {
+            // Generate a new error object. We `throw` it because some browsers
+            // will set the `stack` when thrown, and we want to ensure ours is
+            // not overridden when we re-throw it below.
+            throw new Error(initialErr!.message)
+          } catch (e) {
+            error = e as Error
+          }
+
+          error.name = initialErr!.name
+          error.stack = initialErr!.stack
+          throw getServerError(error, initialErr!.source)
+        })
+      }
+      // We replaced the server-side error with a client-side error, and should
+      // no longer rewrite the stack trace to a Node error.
+      else {
+        setTimeout(() => {
+          throw initialErr
+        })
+      }
+    }
+  }
+
+  if (window.__NEXT_PRELOADREADY) {
+    await window.__NEXT_PRELOADREADY(initialData.dynamicIds)
+  }
+
+  router = createRouter(initialData.page, initialData.query, asPath, {
+    initialProps: initialData.props,
+    pageLoader,
+    App: CachedApp,
+    Component: CachedComponent,
+    wrapApp,
+    err: initialErr,
+    isFallback: Boolean(initialData.isFallback),
+    subscription: (info, App, scroll) =>
+      render(
+        Object.assign<
+          {},
+          Omit<RenderRouteInfo, 'App' | 'scroll'>,
+          Pick<RenderRouteInfo, 'App' | 'scroll'>
+        >({}, info, {
+          App,
+          scroll,
+        }) as RenderRouteInfo
+      ),
+    locale: initialData.locale,
+    locales: initialData.locales,
+    defaultLocale,
+    domainLocales: initialData.domainLocales,
+    isPreview: initialData.isPreview,
+    isRsc: initialData.rsc,
+  })
+
+  initialMatchesMiddleware = await router._initialMatchesMiddlewarePromise
+
+  const renderCtx: RenderRouteInfo = {
+    App: CachedApp,
+    initial: true,
+    Component: CachedComponent,
+    props: initialData.props,
+    err: initialErr,
+  }
+
+  if (opts?.beforeRender) {
+    await opts.beforeRender()
+  }
+
+  render(renderCtx)
 }

@@ -68,7 +68,7 @@
         "@typescript-eslint/no-use-before-define": [
           "warn",
           {
-            "functions": false,
+            "functions": true,
             "classes": true,
             "variables": true,
             "enums": true,
