@@ -248,12 +248,12 @@ impl VisitMut for TranspileCssProp {
                                 .take()
                                 .into_iter()
                                 .fold(vec![], |mut acc, mut expr| {
-                                    if expr.is_fn_expr() || expr.is_arrow() {
-                                        acc.push(expr);
-                                        return acc;
-                                    } else if is_direct_access(&expr, &|id| {
-                                        self.is_top_level_ident(id)
-                                    }) {
+                                    if expr.is_fn_expr()
+                                        || expr.is_arrow()
+                                        || is_direct_access(&expr, &|id| {
+                                            self.is_top_level_ident(id)
+                                        })
+                                    {
                                         acc.push(expr);
                                         return acc;
                                     }
@@ -651,7 +651,7 @@ fn is_direct_access<F>(expr: &Expr, is_top_level_ident: &F) -> bool
 where
     F: Fn(&Ident) -> bool,
 {
-    if let Some(root) = trace_root_value(&expr) {
+    if let Some(root) = trace_root_value(expr) {
         match root {
             Expr::Lit(_) => true,
             Expr::Ident(id) if is_top_level_ident(id) => {
