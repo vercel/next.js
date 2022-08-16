@@ -1,4 +1,4 @@
-import type webpack from 'webpack5'
+import type webpack from 'webpack'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 
