@@ -6,7 +6,7 @@ import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
@@ -51,83 +51,259 @@ const middlewareManifest: MiddlewareManifest = {
   version: 1,
 }
 
-export default class MiddlewarePlugin {
-  dev: boolean
-
-  constructor({ dev }: { dev: boolean }) {
-    this.dev = dev
+/**
+ * Checks the value of usingIndirectEval and when it is a set of modules it
+ * check if any of the modules is actually being used. If the value is
+ * simply truthy it will return true.
+ */
+function isUsingIndirectEvalAndUsedByExports(args: {
+  entryModule: webpack.Module
+  moduleGraph: webpack.ModuleGraph
+  runtime: any
+  usingIndirectEval: true | Set<string>
+  wp: typeof webpack
+}): boolean {
+  const { moduleGraph, runtime, entryModule, usingIndirectEval, wp } = args
+  if (typeof usingIndirectEval === 'boolean') {
+    return usingIndirectEval
   }
 
-  apply(compiler: webpack5.Compiler) {
-    compiler.hooks.compilation.tap(NAME, (compilation, params) => {
-      const { hooks } = params.normalModuleFactory
-      /**
-       * This is the static code analysis phase.
-       */
-      const codeAnalyzer = getCodeAnalizer({
-        dev: this.dev,
-        compiler,
-        compilation,
-      })
-      hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
-      hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
-      hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
-
-      /**
-       * Extract all metadata for the entry points in a Map object.
-       */
-      const metadataByEntry = new Map<string, EntryMetadata>()
-      compilation.hooks.afterOptimizeModules.tap(
-        NAME,
-        getExtractMetadata({
-          compilation,
-          compiler,
-          dev: this.dev,
-          metadataByEntry,
-        })
-      )
-
-      /**
-       * Emit the middleware manifest.
-       */
-      compilation.hooks.processAssets.tap(
-        {
-          name: 'NextJsMiddlewareManifest',
-          stage: (webpack as any).Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-        },
-        getCreateAssets({ compilation, metadataByEntry })
-      )
-    })
-  }
-}
-
-export async function handleWebpackExtenalForEdgeRuntime({
-  request,
-  context,
-  contextInfo,
-  getResolve,
-}: {
-  request: string
-  context: string
-  contextInfo: any
-  getResolve: () => any
-}) {
-  if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
-    // allows user to provide and use their polyfills, as we do with buffer.
-    try {
-      await getResolve()(context, request)
-    } catch {
-      return `root  globalThis.__import_unsupported('${request}')`
+  const exportsInfo = moduleGraph.getExportsInfo(entryModule)
+  for (const exportName of usingIndirectEval) {
+    if (exportsInfo.getUsed(exportName, runtime) !== wp.UsageState.Unused) {
+      return true
     }
   }
+
+  return false
 }
 
-function getCodeAnalizer(params: {
-  dev: boolean
-  compiler: webpack5.Compiler
-  compilation: webpack5.Compilation
+function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
+  const files: string[] = []
+  if (meta.edgeSSR) {
+    if (meta.edgeSSR.isServerComponent) {
+      files.push(`server/${FLIGHT_MANIFEST}.js`)
+      files.push(
+        ...entryFiles
+          .filter(
+            (file) =>
+              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+          )
+          .map(
+            (file) =>
+              'server/' +
+              // TODO-APP: seems this should be removed.
+              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+          )
+      )
+    }
+
+    files.push(
+      `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
+      `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
+    )
+  }
+
+  files.push(
+    ...entryFiles
+      .filter((file) => !file.endsWith('.hot-update.js'))
+      .map((file) => 'server/' + file)
+  )
+  return files
+}
+
+function getCreateAssets(params: {
+  compilation: webpack.Compilation
+  metadataByEntry: Map<string, EntryMetadata>
 }) {
-  return (parser: webpack5.javascript.JavascriptParser) => {
+  const { compilation, metadataByEntry } = params
+  return (assets: any) => {
+    for (const entrypoint of compilation.entrypoints.values()) {
+      if (!entrypoint.name) {
+        continue
+      }
+
+      // There should always be metadata for the entrypoint.
+      const metadata = metadataByEntry.get(entrypoint.name)
+      const page =
+        metadata?.edgeMiddleware?.page ||
+        metadata?.edgeSSR?.page ||
+        metadata?.edgeApiFunction?.page
+      if (!page) {
+        continue
+      }
+
+      const { namedRegex } = getNamedMiddlewareRegex(page, {
+        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
+      })
+      const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
+
+      const edgeFunctionDefinition: EdgeFunctionDefinition = {
+        env: Array.from(metadata.env),
+        files: getEntryFiles(entrypoint.getFiles(), metadata),
+        name: entrypoint.name,
+        page: page,
+        regexp,
+        wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
+          name,
+          filePath,
+        })),
+        assets: Array.from(metadata.assetBindings, ([name, filePath]) => ({
+          name,
+          filePath,
+        })),
+      }
+
+      if (metadata.edgeApiFunction || metadata.edgeSSR) {
+        middlewareManifest.functions[page] = edgeFunctionDefinition
+      } else {
+        middlewareManifest.middleware[page] = edgeFunctionDefinition
+      }
+    }
+
+    middlewareManifest.sortedMiddleware = getSortedRoutes(
+      Object.keys(middlewareManifest.middleware)
+    )
+
+    assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
+      JSON.stringify(middlewareManifest, null, 2)
+    )
+  }
+}
+
+function buildWebpackError({
+  message,
+  loc,
+  compilation,
+  entryModule,
+  parser,
+}: {
+  message: string
+  loc?: any
+  compilation: webpack.Compilation
+  entryModule?: webpack.Module
+  parser?: webpack.javascript.JavascriptParser
+}) {
+  const error = new compilation.compiler.webpack.WebpackError(message)
+  error.name = NAME
+  const module = entryModule ?? parser?.state.current
+  if (module) {
+    error.module = module
+  }
+  error.loc = loc
+  return error
+}
+
+function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
+  return parser.state.module?.layer === 'middleware'
+}
+
+function isInMiddlewareFile(parser: webpack.javascript.JavascriptParser) {
+  return (
+    parser.state.current?.layer === 'middleware' &&
+    /middleware\.\w+$/.test(parser.state.current?.rawRequest)
+  )
+}
+
+function isNullLiteral(expr: any) {
+  return expr.value === null
+}
+
+function isUndefinedIdentifier(expr: any) {
+  return expr.name === 'undefined'
+}
+
+function isProcessEnvMemberExpression(memberExpression: any): boolean {
+  return (
+    memberExpression.object?.type === 'Identifier' &&
+    memberExpression.object.name === 'process' &&
+    ((memberExpression.property?.type === 'Literal' &&
+      memberExpression.property.value === 'env') ||
+      (memberExpression.property?.type === 'Identifier' &&
+        memberExpression.property.name === 'env'))
+  )
+}
+
+function isNodeJsModule(moduleName: string) {
+  return require('module').builtinModules.includes(moduleName)
+}
+
+function buildUnsupportedApiError({
+  apiName,
+  loc,
+  ...rest
+}: {
+  apiName: string
+  loc: any
+  compilation: webpack.Compilation
+  parser: webpack.javascript.JavascriptParser
+}) {
+  return buildWebpackError({
+    message: `A Node.js API is used (${apiName} at line: ${loc.start.line}) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`,
+    loc,
+    ...rest,
+  })
+}
+
+function registerUnsupportedApiHooks(
+  parser: webpack.javascript.JavascriptParser,
+  compilation: webpack.Compilation
+) {
+  for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
+    const warnForUnsupportedApi = (node: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+      compilation.warnings.push(
+        buildUnsupportedApiError({
+          compilation,
+          parser,
+          apiName: expression,
+          ...node,
+        })
+      )
+      return true
+    }
+    parser.hooks.call.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expression.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.callMemberChain
+      .for(expression)
+      .tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expressionMemberChain
+      .for(expression)
+      .tap(NAME, warnForUnsupportedApi)
+  }
+
+  const warnForUnsupportedProcessApi = (node: any, [callee]: string[]) => {
+    if (!isInMiddlewareLayer(parser) || callee === 'env') {
+      return
+    }
+    compilation.warnings.push(
+      buildUnsupportedApiError({
+        compilation,
+        parser,
+        apiName: `process.${callee}`,
+        ...node,
+      })
+    )
+    return true
+  }
+
+  parser.hooks.callMemberChain
+    .for('process')
+    .tap(NAME, warnForUnsupportedProcessApi)
+  parser.hooks.expressionMemberChain
+    .for('process')
+    .tap(NAME, warnForUnsupportedProcessApi)
+}
+
+function getCodeAnalyzer(params: {
+  dev: boolean
+  compiler: webpack.Compiler
+  compilation: webpack.Compilation
+}) {
+  return (parser: webpack.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
@@ -397,8 +573,8 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
 }
 
 function getExtractMetadata(params: {
-  compilation: webpack5.Compilation
-  compiler: webpack5.Compiler
+  compilation: webpack.Compilation
+  compiler: webpack.Compiler
   dev: boolean
   metadataByEntry: Map<string, EntryMetadata>
 }) {
@@ -414,7 +590,7 @@ function getExtractMetadata(params: {
       }
 
       const { moduleGraph } = compilation
-      const entryModules = new Set<webpack5.Module>()
+      const entryModules = new Set<webpack.Module>()
       const addEntriesFromDependency = (dependency: any) => {
         const module = moduleGraph.getModule(dependency)
         if (module) {
@@ -526,249 +702,73 @@ function getExtractMetadata(params: {
   }
 }
 
-/**
- * Checks the value of usingIndirectEval and when it is a set of modules it
- * check if any of the modules is actually being used. If the value is
- * simply truthy it will return true.
- */
-function isUsingIndirectEvalAndUsedByExports(args: {
-  entryModule: webpack5.Module
-  moduleGraph: webpack5.ModuleGraph
-  runtime: any
-  usingIndirectEval: true | Set<string>
-  wp: typeof webpack5
-}): boolean {
-  const { moduleGraph, runtime, entryModule, usingIndirectEval, wp } = args
-  if (typeof usingIndirectEval === 'boolean') {
-    return usingIndirectEval
+export default class MiddlewarePlugin {
+  dev: boolean
+
+  constructor({ dev }: { dev: boolean }) {
+    this.dev = dev
   }
 
-  const exportsInfo = moduleGraph.getExportsInfo(entryModule)
-  for (const exportName of usingIndirectEval) {
-    if (exportsInfo.getUsed(exportName, runtime) !== wp.UsageState.Unused) {
-      return true
-    }
-  }
-
-  return false
-}
-
-function getCreateAssets(params: {
-  compilation: webpack5.Compilation
-  metadataByEntry: Map<string, EntryMetadata>
-}) {
-  const { compilation, metadataByEntry } = params
-  return (assets: any) => {
-    for (const entrypoint of compilation.entrypoints.values()) {
-      if (!entrypoint.name) {
-        continue
-      }
-
-      // There should always be metadata for the entrypoint.
-      const metadata = metadataByEntry.get(entrypoint.name)
-      const page =
-        metadata?.edgeMiddleware?.page ||
-        metadata?.edgeSSR?.page ||
-        metadata?.edgeApiFunction?.page
-      if (!page) {
-        continue
-      }
-
-      const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
+  apply(compiler: webpack.Compiler) {
+    compiler.hooks.compilation.tap(NAME, (compilation, params) => {
+      const { hooks } = params.normalModuleFactory
+      /**
+       * This is the static code analysis phase.
+       */
+      const codeAnalyzer = getCodeAnalyzer({
+        dev: this.dev,
+        compiler,
+        compilation,
       })
-      const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
+      hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
+      hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
+      hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
 
-      const edgeFunctionDefinition: EdgeFunctionDefinition = {
-        env: Array.from(metadata.env),
-        files: getEntryFiles(entrypoint.getFiles(), metadata),
-        name: entrypoint.name,
-        page: page,
-        regexp,
-        wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
-          name,
-          filePath,
-        })),
-        assets: Array.from(metadata.assetBindings, ([name, filePath]) => ({
-          name,
-          filePath,
-        })),
-      }
-
-      if (metadata.edgeApiFunction || metadata.edgeSSR) {
-        middlewareManifest.functions[page] = edgeFunctionDefinition
-      } else {
-        middlewareManifest.middleware[page] = edgeFunctionDefinition
-      }
-    }
-
-    middlewareManifest.sortedMiddleware = getSortedRoutes(
-      Object.keys(middlewareManifest.middleware)
-    )
-
-    assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
-      JSON.stringify(middlewareManifest, null, 2)
-    )
-  }
-}
-
-function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
-  const files: string[] = []
-  if (meta.edgeSSR) {
-    if (meta.edgeSSR.isServerComponent) {
-      files.push(`server/${FLIGHT_MANIFEST}.js`)
-      files.push(
-        ...entryFiles
-          .filter(
-            (file) =>
-              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
-          )
-          .map(
-            (file) =>
-              'server/' +
-              // TODO-APP: seems this should be removed.
-              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
-          )
-      )
-    }
-
-    files.push(
-      `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
-      `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-    )
-  }
-
-  files.push(
-    ...entryFiles
-      .filter((file) => !file.endsWith('.hot-update.js'))
-      .map((file) => 'server/' + file)
-  )
-  return files
-}
-
-function registerUnsupportedApiHooks(
-  parser: webpack5.javascript.JavascriptParser,
-  compilation: webpack5.Compilation
-) {
-  for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
-    const warnForUnsupportedApi = (node: any) => {
-      if (!isInMiddlewareLayer(parser)) {
-        return
-      }
-      compilation.warnings.push(
-        buildUnsupportedApiError({
+      /**
+       * Extract all metadata for the entry points in a Map object.
+       */
+      const metadataByEntry = new Map<string, EntryMetadata>()
+      compilation.hooks.afterOptimizeModules.tap(
+        NAME,
+        getExtractMetadata({
           compilation,
-          parser,
-          apiName: expression,
-          ...node,
+          compiler,
+          dev: this.dev,
+          metadataByEntry,
         })
       )
-      return true
-    }
-    parser.hooks.call.for(expression).tap(NAME, warnForUnsupportedApi)
-    parser.hooks.expression.for(expression).tap(NAME, warnForUnsupportedApi)
-    parser.hooks.callMemberChain
-      .for(expression)
-      .tap(NAME, warnForUnsupportedApi)
-    parser.hooks.expressionMemberChain
-      .for(expression)
-      .tap(NAME, warnForUnsupportedApi)
-  }
 
-  const warnForUnsupportedProcessApi = (node: any, [callee]: string[]) => {
-    if (!isInMiddlewareLayer(parser) || callee === 'env') {
-      return
-    }
-    compilation.warnings.push(
-      buildUnsupportedApiError({
-        compilation,
-        parser,
-        apiName: `process.${callee}`,
-        ...node,
-      })
-    )
-    return true
+      /**
+       * Emit the middleware manifest.
+       */
+      compilation.hooks.processAssets.tap(
+        {
+          name: 'NextJsMiddlewareManifest',
+          stage: (webpack as any).Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+        },
+        getCreateAssets({ compilation, metadataByEntry })
+      )
+    })
   }
-
-  parser.hooks.callMemberChain
-    .for('process')
-    .tap(NAME, warnForUnsupportedProcessApi)
-  parser.hooks.expressionMemberChain
-    .for('process')
-    .tap(NAME, warnForUnsupportedProcessApi)
 }
 
-function buildUnsupportedApiError({
-  apiName,
-  loc,
-  ...rest
+export async function handleWebpackExtenalForEdgeRuntime({
+  request,
+  context,
+  contextInfo,
+  getResolve,
 }: {
-  apiName: string
-  loc: any
-  compilation: webpack5.Compilation
-  parser: webpack5.javascript.JavascriptParser
+  request: string
+  context: string
+  contextInfo: any
+  getResolve: () => any
 }) {
-  return buildWebpackError({
-    message: `A Node.js API is used (${apiName} at line: ${loc.start.line}) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime`,
-    loc,
-    ...rest,
-  })
-}
-
-function buildWebpackError({
-  message,
-  loc,
-  compilation,
-  entryModule,
-  parser,
-}: {
-  message: string
-  loc?: any
-  compilation: webpack5.Compilation
-  entryModule?: webpack5.Module
-  parser?: webpack5.javascript.JavascriptParser
-}) {
-  const error = new compilation.compiler.webpack.WebpackError(message)
-  error.name = NAME
-  const module = entryModule ?? parser?.state.current
-  if (module) {
-    error.module = module
+  if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
+    // allows user to provide and use their polyfills, as we do with buffer.
+    try {
+      await getResolve()(context, request)
+    } catch {
+      return `root  globalThis.__import_unsupported('${request}')`
+    }
   }
-  error.loc = loc
-  return error
-}
-
-function isInMiddlewareLayer(parser: webpack5.javascript.JavascriptParser) {
-  return parser.state.module?.layer === 'middleware'
-}
-
-function isInMiddlewareFile(parser: webpack5.javascript.JavascriptParser) {
-  return (
-    parser.state.current?.layer === 'middleware' &&
-    /middleware\.\w+$/.test(parser.state.current?.rawRequest)
-  )
-}
-
-function isNullLiteral(expr: any) {
-  return expr.value === null
-}
-
-function isUndefinedIdentifier(expr: any) {
-  return expr.name === 'undefined'
-}
-
-function isProcessEnvMemberExpression(memberExpression: any): boolean {
-  return (
-    memberExpression.object?.type === 'Identifier' &&
-    memberExpression.object.name === 'process' &&
-    ((memberExpression.property?.type === 'Literal' &&
-      memberExpression.property.value === 'env') ||
-      (memberExpression.property?.type === 'Identifier' &&
-        memberExpression.property.name === 'env'))
-  )
-}
-
-function isNodeJsModule(moduleName: string) {
-  return require('module').builtinModules.includes(moduleName)
 }

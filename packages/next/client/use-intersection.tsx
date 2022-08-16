@@ -25,6 +25,74 @@ type Observer = {
 
 const hasIntersectionObserver = typeof IntersectionObserver === 'function'
 
+const observers = new Map<Identifier, Observer>()
+const idList: Identifier[] = []
+
+function createObserver(options: UseIntersectionObserverInit): Observer {
+  const id = {
+    root: options.root || null,
+    margin: options.rootMargin || '',
+  }
+  const existing = idList.find(
+    (obj) => obj.root === id.root && obj.margin === id.margin
+  )
+  let instance: Observer | undefined
+
+  if (existing) {
+    instance = observers.get(existing)
+    if (instance) {
+      return instance
+    }
+  }
+
+  const elements = new Map<Element, ObserveCallback>()
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      const callback = elements.get(entry.target)
+      const isVisible = entry.isIntersecting || entry.intersectionRatio > 0
+      if (callback && isVisible) {
+        callback(isVisible)
+      }
+    })
+  }, options)
+  instance = {
+    id,
+    observer,
+    elements,
+  }
+
+  idList.push(id)
+  observers.set(id, instance)
+  return instance
+}
+
+function observe(
+  element: Element,
+  callback: ObserveCallback,
+  options: UseIntersectionObserverInit
+): () => void {
+  const { id, observer, elements } = createObserver(options)
+  elements.set(element, callback)
+
+  observer.observe(element)
+  return function unobserve(): void {
+    elements.delete(element)
+    observer.unobserve(element)
+
+    // Destroy observer when there's nothing left to watch:
+    if (elements.size === 0) {
+      observer.disconnect()
+      observers.delete(id)
+      const index = idList.findIndex(
+        (obj) => obj.root === id.root && obj.margin === id.margin
+      )
+      if (index > -1) {
+        idList.splice(index, 1)
+      }
+    }
+  }
+}
+
 export function useIntersection<T extends Element>({
   rootRef,
   rootMargin,
@@ -70,72 +138,4 @@ export function useIntersection<T extends Element>({
   }, [])
 
   return [setElement, visible, resetVisible]
-}
-
-const observers = new Map<Identifier, Observer>()
-const idList: Identifier[] = []
-
-function observe(
-  element: Element,
-  callback: ObserveCallback,
-  options: UseIntersectionObserverInit
-): () => void {
-  const { id, observer, elements } = createObserver(options)
-  elements.set(element, callback)
-
-  observer.observe(element)
-  return function unobserve(): void {
-    elements.delete(element)
-    observer.unobserve(element)
-
-    // Destroy observer when there's nothing left to watch:
-    if (elements.size === 0) {
-      observer.disconnect()
-      observers.delete(id)
-      const index = idList.findIndex(
-        (obj) => obj.root === id.root && obj.margin === id.margin
-      )
-      if (index > -1) {
-        idList.splice(index, 1)
-      }
-    }
-  }
-}
-
-function createObserver(options: UseIntersectionObserverInit): Observer {
-  const id = {
-    root: options.root || null,
-    margin: options.rootMargin || '',
-  }
-  const existing = idList.find(
-    (obj) => obj.root === id.root && obj.margin === id.margin
-  )
-  let instance: Observer | undefined
-
-  if (existing) {
-    instance = observers.get(existing)
-    if (instance) {
-      return instance
-    }
-  }
-
-  const elements = new Map<Element, ObserveCallback>()
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      const callback = elements.get(entry.target)
-      const isVisible = entry.isIntersecting || entry.intersectionRatio > 0
-      if (callback && isVisible) {
-        callback(isVisible)
-      }
-    })
-  }, options)
-  instance = {
-    id,
-    observer,
-    elements,
-  }
-
-  idList.push(id)
-  observers.set(id, instance)
-  return instance
 }
