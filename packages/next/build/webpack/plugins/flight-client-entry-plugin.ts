@@ -194,7 +194,7 @@ export class FlightClientEntryPlugin {
     const serverCSSImports: CssImports = {}
 
     const filterClientComponents = (dependencyToFilter: any): void => {
-      const mod: webpack5.NormalModule =
+      const mod: webpack.NormalModule =
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 
