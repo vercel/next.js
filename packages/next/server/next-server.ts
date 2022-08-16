@@ -13,7 +13,7 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
-import type { Rewrite } from '../lib/load-custom-routes'
+import type { CustomRoutes, Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
@@ -22,11 +22,14 @@ import type {
   Params,
   RouteMatch,
 } from '../shared/lib/router/utils/route-matcher'
+import type { NextConfig } from './config-shared'
+import type { DynamicRoutes, PageChecker } from './router'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
+import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -47,7 +50,10 @@ import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
 import HttpProxy from 'next/dist/compiled/http-proxy'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
+import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
+import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { run } from './web/sandbox'
+import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
@@ -65,8 +71,9 @@ import BaseServer, {
   Options,
   FindComponentsResult,
   prepareServerlessUrl,
-  stringifyQuery,
   RoutingItem,
+  NoFallbackError,
+  RequestContext,
 } from './base-server'
 import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -80,7 +87,7 @@ import { prepareDestination } from '../shared/lib/router/utils/prepare-destinati
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { loadEnvConfig } from '@next/env'
-import { getCustomRoute } from './server-route-utils'
+import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
@@ -89,7 +96,6 @@ import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
-import { getSortedRoutes } from '../shared/lib/router/utils/sorted-routes'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -245,6 +251,15 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  protected async hasPage(pathname: string): Promise<boolean> {
+    let found = false
+    try {
+      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
+    } catch (_) {}
+
+    return found
+  }
+
   protected getBuildId(): string {
     const buildIdFile = join(this.distDir, BUILD_ID_FILE)
     try {
@@ -258,6 +273,25 @@ export default class NextNodeServer extends BaseServer {
 
       throw err
     }
+  }
+
+  protected getCustomRoutes(): CustomRoutes {
+    const customRoutes = this.getRoutesManifest()
+    let rewrites: CustomRoutes['rewrites']
+
+    // rewrites can be stored as an array when an array is
+    // returned in next.config.js so massage them into
+    // the expected object format
+    if (Array.isArray(customRoutes.rewrites)) {
+      rewrites = {
+        beforeFiles: [],
+        afterFiles: customRoutes.rewrites,
+        fallback: [],
+      }
+    } else {
+      rewrites = customRoutes.rewrites
+    }
+    return Object.assign(customRoutes, { rewrites })
   }
 
   protected generateImageRoutes(): Route[] {
@@ -639,16 +673,22 @@ export default class NextNodeServer extends BaseServer {
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
-    const handledAsEdgeFunction = await this.runEdgeFunction({
-      req,
-      res,
-      query,
-      params,
-      page,
-    })
+    const edgeFunctions = this.getEdgeFunctions()
 
-    if (handledAsEdgeFunction) {
-      return true
+    for (const item of edgeFunctions) {
+      if (item.page === page) {
+        const handledAsEdgeFunction = await this.runEdgeFunction({
+          req,
+          res,
+          query,
+          params,
+          page,
+        })
+
+        if (handledAsEdgeFunction) {
+          return true
+        }
+      }
     }
 
     const pageModule = await require(builtPagePath)
@@ -767,6 +807,28 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
+  protected async renderPageComponent(
+    ctx: RequestContext,
+    bubbleNoFallback: boolean
+  ) {
+    const edgeFunctions = this.getEdgeFunctions()
+
+    for (const item of edgeFunctions) {
+      if (item.page === ctx.pathname) {
+        await this.runEdgeFunction({
+          req: ctx.req,
+          res: ctx.res,
+          query: ctx.query,
+          params: ctx.renderOpts.params,
+          page: ctx.pathname,
+        })
+        return null
+      }
+    }
+
+    return super.renderPageComponent(ctx, bubbleNoFallback)
+  }
+
   protected async findPageComponents(
     pathname: string,
     query: NextParsedUrlQuery = {},
@@ -857,6 +919,271 @@ export default class NextNodeServer extends BaseServer {
     page = normalizePagePath(page)
     const cacheFs = this.getCacheFilesystem()
     return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
+  }
+
+  protected generateRoutes(): {
+    headers: Route[]
+    rewrites: {
+      beforeFiles: Route[]
+      afterFiles: Route[]
+      fallback: Route[]
+    }
+    fsRoutes: Route[]
+    redirects: Route[]
+    catchAllRoute: Route
+    catchAllMiddleware: Route[]
+    pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
+    dynamicRoutes: DynamicRoutes | undefined
+    nextConfig: NextConfig
+  } {
+    const publicRoutes = this.generatePublicRoutes()
+    const imageRoutes = this.generateImageRoutes()
+    const staticFilesRoutes = this.generateStaticRoutes()
+
+    const fsRoutes: Route[] = [
+      ...this.generateFsStaticRoutes(),
+      {
+        match: getPathMatch('/_next/data/:path*'),
+        type: 'route',
+        name: '_next/data catchall',
+        check: true,
+        fn: async (req, res, params, _parsedUrl) => {
+          // Make sure to 404 for /_next/data/ itself and
+          // we also want to 404 if the buildId isn't correct
+          if (!params.path || params.path[0] !== this.buildId) {
+            await this.render404(req, res, _parsedUrl)
+            return {
+              finished: true,
+            }
+          }
+          // remove buildId from URL
+          params.path.shift()
+
+          const lastParam = params.path[params.path.length - 1]
+
+          // show 404 if it doesn't end with .json
+          if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
+            await this.render404(req, res, _parsedUrl)
+            return {
+              finished: true,
+            }
+          }
+
+          // re-create page's pathname
+          let pathname = `/${params.path.join('/')}`
+          pathname = getRouteFromAssetPath(pathname, '.json')
+
+          // ensure trailing slash is normalized per config
+          if (this.router.catchAllMiddleware[0]) {
+            if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
+              pathname += '/'
+            }
+            if (
+              !this.nextConfig.trailingSlash &&
+              pathname.length > 1 &&
+              pathname.endsWith('/')
+            ) {
+              pathname = pathname.substring(0, pathname.length - 1)
+            }
+          }
+
+          if (this.nextConfig.i18n) {
+            const { host } = req?.headers || {}
+            // remove port from host and remove port if present
+            const hostname = host?.split(':')[0].toLowerCase()
+            const localePathResult = normalizeLocalePath(
+              pathname,
+              this.nextConfig.i18n.locales
+            )
+            const { defaultLocale } =
+              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
+
+            let detectedLocale = ''
+
+            if (localePathResult.detectedLocale) {
+              pathname = localePathResult.pathname
+              detectedLocale = localePathResult.detectedLocale
+            }
+
+            _parsedUrl.query.__nextLocale = detectedLocale
+            _parsedUrl.query.__nextDefaultLocale =
+              defaultLocale || this.nextConfig.i18n.defaultLocale
+
+            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
+              _parsedUrl.query.__nextLocale =
+                _parsedUrl.query.__nextDefaultLocale
+              await this.render404(req, res, _parsedUrl)
+              return { finished: true }
+            }
+          }
+
+          return {
+            pathname,
+            query: { ..._parsedUrl.query, __nextDataReq: '1' },
+            finished: false,
+          }
+        },
+      },
+      ...imageRoutes,
+      {
+        match: getPathMatch('/_next/:path*'),
+        type: 'route',
+        name: '_next catchall',
+        // This path is needed because `render()` does a check for `/_next` and the calls the routing again
+        fn: async (req, res, _params, parsedUrl) => {
+          await this.render404(req, res, parsedUrl)
+          return {
+            finished: true,
+          }
+        },
+      },
+      ...publicRoutes,
+      ...staticFilesRoutes,
+    ]
+
+    const restrictedRedirectPaths = this.nextConfig.basePath
+      ? [`${this.nextConfig.basePath}/_next`]
+      : ['/_next']
+
+    // Headers come very first
+    const headers = this.minimalMode
+      ? []
+      : this.customRoutes.headers.map((rule) =>
+          createHeaderRoute({ rule, restrictedRedirectPaths })
+        )
+
+    const redirects = this.minimalMode
+      ? []
+      : this.customRoutes.redirects.map((rule) =>
+          createRedirectRoute({ rule, restrictedRedirectPaths })
+        )
+
+    const rewrites = this.generateRewrites({ restrictedRedirectPaths })
+    const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
+
+    const catchAllRoute: Route = {
+      match: getPathMatch('/:path*'),
+      type: 'route',
+      matchesLocale: true,
+      name: 'Catchall render',
+      fn: async (req, res, _params, parsedUrl) => {
+        let { pathname, query } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+
+        // next.js core assumes page path without trailing slash
+        pathname = removeTrailingSlash(pathname)
+
+        if (this.nextConfig.i18n) {
+          const localePathResult = normalizeLocalePath(
+            pathname,
+            this.nextConfig.i18n?.locales
+          )
+
+          if (localePathResult.detectedLocale) {
+            pathname = localePathResult.pathname
+            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+          }
+        }
+        const bubbleNoFallback = !!query._nextBubbleNoFallback
+
+        if (pathname === '/api' || pathname.startsWith('/api/')) {
+          delete query._nextBubbleNoFallback
+
+          const handled = await this.handleApiRequest(req, res, pathname, query)
+          if (handled) {
+            return { finished: true }
+          }
+        }
+
+        try {
+          await this.render(req, res, pathname, query, parsedUrl, true)
+
+          return {
+            finished: true,
+          }
+        } catch (err) {
+          if (err instanceof NoFallbackError && bubbleNoFallback) {
+            return {
+              finished: false,
+            }
+          }
+          throw err
+        }
+      },
+    }
+
+    const { useFileSystemPublicRoutes } = this.nextConfig
+
+    if (useFileSystemPublicRoutes) {
+      this.appPathRoutes = this.getAppPathRoutes()
+      this.dynamicRoutes = this.getDynamicRoutes()
+    }
+
+    return {
+      headers,
+      fsRoutes,
+      rewrites,
+      redirects,
+      catchAllRoute,
+      catchAllMiddleware,
+      useFileSystemPublicRoutes,
+      dynamicRoutes: this.dynamicRoutes,
+      pageChecker: this.hasPage.bind(this),
+      nextConfig: this.nextConfig,
+    }
+  }
+
+  // Used to build API page in development
+  protected async ensureApiPage(_pathname: string): Promise<void> {}
+
+  /**
+   * Resolves `API` request, in development builds on demand
+   * @param req http request
+   * @param res http response
+   * @param pathname path of request
+   */
+  protected async handleApiRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: ParsedUrlQuery
+  ): Promise<boolean> {
+    let page = pathname
+    let params: Params | undefined = undefined
+    let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
+
+    if (!pageFound && this.dynamicRoutes) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        params = dynamicRoute.match(pathname) || undefined
+        if (dynamicRoute.page.startsWith('/api') && params) {
+          page = dynamicRoute.page
+          pageFound = true
+          break
+        }
+      }
+    }
+
+    if (!pageFound) {
+      return false
+    }
+    // Make sure the page is built before getting the path
+    // or else it won't be in the manifest yet
+    await this.ensureApiPage(page)
+
+    let builtPagePath
+    try {
+      builtPagePath = this.getPagePath(page)
+    } catch (err) {
+      if (isError(err) && err.code === 'ENOENT') {
+        return false
+      }
+      throw err
+    }
+
+    return this.runApi(req, res, query, params, page, builtPagePath)
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1153,20 +1480,16 @@ export default class NextNodeServer extends BaseServer {
     return manifest
   }
 
-  /**
-   * Return a list of middleware routing items. This method exists to be later
-   * overridden by the development server in order to use a different source
-   * to get the list.
-   */
+  /** Returns the middleware routing item if there is one. */
   protected getMiddleware(): RoutingItem | undefined {
     const manifest = this.getMiddlewareManifest()
-    const rootMiddleware = manifest?.middleware?.['/']
-    if (!rootMiddleware) {
+    const middleware = manifest?.middleware?.['/']
+    if (!middleware) {
       return
     }
 
     return {
-      match: getMiddlewareMatcher(rootMiddleware),
+      match: getMiddlewareMatcher(middleware),
       page: '/',
     }
   }
@@ -1177,13 +1500,10 @@ export default class NextNodeServer extends BaseServer {
       return []
     }
 
-    // Make sure to sort function routes too.
-    return getSortedRoutes(Object.keys(manifest.functions)).map((page) => {
-      return {
-        match: getMiddlewareMatcher(manifest.functions[page]),
-        page,
-      }
-    })
+    return Object.keys(manifest.functions).map((page) => ({
+      match: getMiddlewareMatcher(manifest.functions[page]),
+      page,
+    }))
   }
 
   /**
@@ -1558,45 +1878,6 @@ export default class NextNodeServer extends BaseServer {
 
         routes.push(middlewareCatchAllRoute)
       }
-      if (this.getEdgeFunctions().length) {
-        const edgeCatchAllRoute: Route = {
-          match: getPathMatch('/:path*'),
-          type: 'route',
-          name: 'edge functions catchall',
-          fn: async (req, res, _params, parsed) => {
-            const edgeFunctions = this.getEdgeFunctions()
-            if (!edgeFunctions.length) return { finished: false }
-
-            const { query, pathname } = parsed
-            const normalizedPathname = removeTrailingSlash(pathname || '')
-            let page = normalizedPathname
-            let params: Params | undefined = undefined
-
-            for (const edgeFunction of edgeFunctions) {
-              const matched = edgeFunction.match(page)
-              if (matched) {
-                params = matched
-                page = edgeFunction.page
-                break
-              }
-            }
-
-            const edgeSSRResult = await this.runEdgeFunction({
-              req,
-              res,
-              query,
-              params,
-              page,
-            })
-
-            return {
-              finished: !!edgeSSRResult,
-            }
-          },
-        }
-
-        routes.push(edgeCatchAllRoute)
-      }
     }
 
     return routes
@@ -1647,15 +1928,11 @@ export default class NextNodeServer extends BaseServer {
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    try {
-      await this.ensureEdgeFunction(params.page)
-      middlewareInfo = this.getEdgeFunctionInfo({
-        page: params.page,
-        middleware: false,
-      })
-    } catch {
-      return null
-    }
+    await this.ensureEdgeFunction(params.page)
+    middlewareInfo = this.getEdgeFunctionInfo({
+      page: params.page,
+      middleware: false,
+    })
 
     if (!middlewareInfo) {
       return null
