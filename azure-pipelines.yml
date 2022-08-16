@@ -75,7 +75,7 @@ stages:
             displayName: 'Run tests'
 
           - script: |
-              node run-tests.js -c 1 test/e2e/app-dir/
+              node run-tests.js -c 1 test/e2e/app-dir/index.test.ts
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run app tests'
 
