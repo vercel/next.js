@@ -13,30 +13,22 @@ export interface RouteRegex {
 }
 
 /**
- * From a normalized route this function generates a regular expression and
- * a corresponding groups object inteded to be used to store matching groups
- * from the regular expression.
+ * Parses a given parameter from a route to a data structure that can be used
+ * to generate the parametrized route. Examples:
+ *   - `[...slug]` -> `{ name: 'slug', repeat: true, optional: true }`
+ *   - `[foo]` -> `{ name: 'foo', repeat: false, optional: true }`
+ *   - `bar` -> `{ name: 'bar', repeat: false, optional: false }`
  */
-export function getRouteRegex(normalizedRoute: string): RouteRegex {
-  const { parameterizedRoute, groups } = getParametrizedRoute(normalizedRoute)
-  return {
-    re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
-    groups: groups,
+function parseParameter(param: string) {
+  const optional = param.startsWith('[') && param.endsWith(']')
+  if (optional) {
+    param = param.slice(1, -1)
   }
-}
-
-/**
- * This function extends `getRouteRegex` generating also a named regexp where
- * each group is named along with a routeKeys object that indexes the assigned
- * named group with its corresponding key.
- */
-export function getNamedRouteRegex(normalizedRoute: string) {
-  const result = getNamedParametrizedRoute(normalizedRoute)
-  return {
-    ...getRouteRegex(normalizedRoute),
-    namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`,
-    routeKeys: result.routeKeys,
+  const repeat = param.startsWith('...')
+  if (repeat) {
+    param = param.slice(3)
   }
+  return { key: param, repeat, optional }
 }
 
 function getParametrizedRoute(route: string) {
@@ -56,6 +48,42 @@ function getParametrizedRoute(route: string) {
       })
       .join(''),
     groups,
+  }
+}
+
+/**
+ * From a normalized route this function generates a regular expression and
+ * a corresponding groups object inteded to be used to store matching groups
+ * from the regular expression.
+ */
+export function getRouteRegex(normalizedRoute: string): RouteRegex {
+  const { parameterizedRoute, groups } = getParametrizedRoute(normalizedRoute)
+  return {
+    re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
+    groups: groups,
+  }
+}
+
+/**
+ * Builds a function to generate a minimal routeKey using only a-z and minimal
+ * number of characters.
+ */
+function buildGetSafeRouteKey() {
+  let routeKeyCharCode = 97
+  let routeKeyCharLength = 1
+
+  return () => {
+    let routeKey = ''
+    for (let i = 0; i < routeKeyCharLength; i++) {
+      routeKey += String.fromCharCode(routeKeyCharCode)
+      routeKeyCharCode++
+
+      if (routeKeyCharCode > 122) {
+        routeKeyCharLength++
+        routeKeyCharCode = 97
+      }
+    }
+    return routeKey
   }
 }
 
@@ -102,44 +130,16 @@ function getNamedParametrizedRoute(route: string) {
 }
 
 /**
- * Parses a given parameter from a route to a data structure that can be used
- * to generate the parametrized route. Examples:
- *   - `[...slug]` -> `{ name: 'slug', repeat: true, optional: true }`
- *   - `[foo]` -> `{ name: 'foo', repeat: false, optional: true }`
- *   - `bar` -> `{ name: 'bar', repeat: false, optional: false }`
+ * This function extends `getRouteRegex` generating also a named regexp where
+ * each group is named along with a routeKeys object that indexes the assigned
+ * named group with its corresponding key.
  */
-function parseParameter(param: string) {
-  const optional = param.startsWith('[') && param.endsWith(']')
-  if (optional) {
-    param = param.slice(1, -1)
-  }
-  const repeat = param.startsWith('...')
-  if (repeat) {
-    param = param.slice(3)
-  }
-  return { key: param, repeat, optional }
-}
-
-/**
- * Builds a function to generate a minimal routeKey using only a-z and minimal
- * number of characters.
- */
-function buildGetSafeRouteKey() {
-  let routeKeyCharCode = 97
-  let routeKeyCharLength = 1
-
-  return () => {
-    let routeKey = ''
-    for (let i = 0; i < routeKeyCharLength; i++) {
-      routeKey += String.fromCharCode(routeKeyCharCode)
-      routeKeyCharCode++
-
-      if (routeKeyCharCode > 122) {
-        routeKeyCharLength++
-        routeKeyCharCode = 97
-      }
-    }
-    return routeKey
+export function getNamedRouteRegex(normalizedRoute: string) {
+  const result = getNamedParametrizedRoute(normalizedRoute)
+  return {
+    ...getRouteRegex(normalizedRoute),
+    namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`,
+    routeKeys: result.routeKeys,
   }
 }
 
