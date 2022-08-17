@@ -76,7 +76,7 @@ export type HistoryState =
   | null
   | { __NA: true; __N?: false }
   | { __N: false; __NA?: false }
-  | ({ __NA?: false; __N: true; key: string } & NextHistoryState)
+  | ({ __NA?: false; __N: true; key: string, userOptions: any } & NextHistoryState)
 
 function buildCancellationError() {
   return Object.assign(new Error('Route Cancelled'), {
@@ -1781,6 +1781,7 @@ export default class Router implements BaseRouter {
           options,
           __N: true,
           key: (this._key = method !== 'pushState' ? this._key : createKey()),
+          userOptions: window.history.state.userOptions || {},
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
