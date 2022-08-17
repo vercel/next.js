@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import execa from 'execa'
 import fs from 'fs-extra'
-import path, { resolve } from 'path'
+import path from 'path'
 import { useTempDir } from '../../lib/use-temp-dir'
 
 import {
@@ -94,7 +94,6 @@ describe('create next app', () => {
   it('valid example without package.json', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example-without-package-json'
-      const projectRoot = resolve(cwd, projectName)
 
       const res = await run(
         [projectName, '--js', '--example', 'with-docker-compose'],

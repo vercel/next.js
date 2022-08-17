@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import { resolve } from 'path'
 import {
   createNextApp,
   projectFilesShouldNotExist,
