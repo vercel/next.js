@@ -5,9 +5,9 @@ import parse from 'html-react-parser'
 import Image from 'next/image'
 
 function BlogList({ blogList }) {
-  let body = typeof blogList.body === 'string' && blogList.body.substr(0, 300)
+  let body = typeof blogList.body === 'string' && blogList.body.substring(0, 300)
   const stringLength = body.lastIndexOf(' ')
-  body = `${body.substr(0, Math.min(body.length, stringLength))}...`
+  body = `${body.substring(0, Math.min(body.length, stringLength))}...`
   return (
     <div className="blog-list">
       {blogList.featured_image && (
