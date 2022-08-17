@@ -21,7 +21,11 @@ export default async function transformSource(this: any): Promise<string> {
     requests
       // Filter out css files on the server
       .filter((request) => (isServer ? !request.endsWith('.css') : true))
-      .map((request) => `import(/* webpackMode: "eager" */ '${request}')`)
+      .map((request) =>
+        request.endsWith('.css')
+          ? `(() => import(/* webpackMode: "lazy" */ '${request}'))`
+          : `import(/* webpackMode: "eager" */ '${request}')`
+      )
       .join(';\n') +
     `
     export const __next_rsc__ = {

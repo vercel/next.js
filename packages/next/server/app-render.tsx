@@ -378,55 +378,26 @@ function getSegmentParam(segment: string): {
 /**
  * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
  */
-// function getCssInlinedLinkTags(
-//   serverComponentManifest: FlightManifest,
-//   serverCSSManifest: FlightCSSManifest,
-//   filePath: string
-// ): string[] {
-//   const layoutOrPageCss = serverCSSManifest[filePath]
-
-//   if (!layoutOrPageCss) {
-//     return []
-//   }
-
-//   const chunks = new Set<string>()
-
-//   for (const css of layoutOrPageCss) {
-//     for (const chunk of serverComponentManifest[css].default.chunks) {
-//       chunks.add(chunk)
-//     }
-//   }
-
-//   return [...chunks]
-// }
-
-/**
- * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
- */
-function getAllCssInlinedLinkTags(
+function getCssInlinedLinkTags(
   serverComponentManifest: FlightManifest,
-  serverCSSManifest: FlightCSSManifest
+  serverCSSManifest: FlightCSSManifest,
+  filePath: string
 ): string[] {
-  const chunks: { [file: string]: string[] } = {}
+  const layoutOrPageCss = serverCSSManifest[filePath]
 
-  // APP-TODO: Remove this once we have CSS injections at each level.
-  const allChunks = new Set<string>()
+  if (!layoutOrPageCss) {
+    return []
+  }
 
-  for (const layoutOrPage in serverCSSManifest) {
-    const uniqueChunks = new Set<string>()
-    for (const css of serverCSSManifest[layoutOrPage]) {
-      for (const chunk of serverComponentManifest[css].default.chunks) {
-        if (!uniqueChunks.has(chunk)) {
-          uniqueChunks.add(chunk)
-          chunks[layoutOrPage] = chunks[layoutOrPage] || []
-          chunks[layoutOrPage].push(chunk)
-        }
-        allChunks.add(chunk)
-      }
+  const chunks = new Set<string>()
+
+  for (const css of layoutOrPageCss) {
+    for (const chunk of serverComponentManifest[css].default.chunks) {
+      chunks.add(chunk)
     }
   }
 
-  return [...allChunks]
+  return [...chunks]
 }
 
 export async function renderToHTMLOrFlight(
@@ -618,29 +589,23 @@ export async function renderToHTMLOrFlight(
    */
   const createComponentTree = async ({
     createSegmentPath,
-    loaderTree: [
-      segment,
-      parallelRoutes,
-      { /* filePath, */ layout, loading, page },
-    ],
+    loaderTree: [segment, parallelRoutes, { filePath, layout, loading, page }],
     parentParams,
     firstItem,
     rootLayoutIncluded,
-  }: // parentSegmentPath,
-  {
+  }: {
     createSegmentPath: CreateSegmentPath
     loaderTree: LoaderTree
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
-    // parentSegmentPath: string
   }): Promise<{ Component: React.ComponentType }> => {
     // TODO-APP: enable stylesheet per layout/page
-    // const stylesheets = getCssInlinedLinkTags(
-    //   serverComponentManifest,
-    //   serverCSSManifest!,
-    //   filePath
-    // )
+    const stylesheets = getCssInlinedLinkTags(
+      serverComponentManifest,
+      serverCSSManifest!,
+      filePath
+    )
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
     const isPage = typeof page !== 'undefined'
@@ -719,7 +684,6 @@ export async function renderToHTMLOrFlight(
             loaderTree: parallelRoutes[parallelRouteKey],
             parentParams: currentParams,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            // parentSegmentPath: cssSegmentPath,
           })
 
           const childSegment = parallelRoutes[parallelRouteKey][0]
@@ -860,11 +824,20 @@ export async function renderToHTMLOrFlight(
 
         return (
           <>
-            {/* {stylesheets
+            {stylesheets
               ? stylesheets.map((href) => (
-                  <link rel="stylesheet" href={`/_next/${href}`} key={href} />
+                  <link
+                    rel="stylesheet"
+                    href={`/_next/${href}?ts=${Date.now()}`}
+                    // `Precedence` is an opt-in signal for React to handle
+                    // resource loading and deduplication, etc:
+                    // https://github.com/facebook/react/pull/25060
+                    // @ts-ignore
+                    precedence="high"
+                    key={href}
+                  />
                 ))
-              : null} */}
+              : null}
             <Component
               {...props}
               {...parallelRouteComponents}
@@ -988,19 +961,12 @@ export async function renderToHTMLOrFlight(
 
   // Below this line is handling for rendering to HTML.
 
-  // Get all the server imported styles.
-  const initialStylesheets = getAllCssInlinedLinkTags(
-    serverComponentManifest,
-    serverCSSManifest || {}
-  )
-
   // Create full component tree from root to leaf.
   const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
     loaderTree: loaderTree,
     parentParams: {},
     firstItem: true,
-    // parentSegmentPath: '',
   })
 
   // AppRouter is provided by next-app-loader
@@ -1108,7 +1074,6 @@ export async function renderToHTMLOrFlight(
       generateStaticHTML: generateStaticHTML,
       flushEffectHandler,
       flushEffectsToHead: true,
-      initialStylesheets,
     })
   }
 
