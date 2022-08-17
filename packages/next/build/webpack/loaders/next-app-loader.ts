@@ -26,7 +26,9 @@ async function createTreeCodeFromPath({
     if (i === segments.length - 1) {
       const resolvedPagePath = await resolve(pagePath)
       // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-      tree = `['', {}, {filePath: ${JSON.stringify(resolvedPagePath}, page: () => require(${JSON.stringify(resolvedPagePath})}]`
+      tree = `['', {}, {filePath: ${JSON.stringify(
+        resolvedPagePath
+      )}, page: () => require(${JSON.stringify(resolvedPagePath)}]`
       continue
     }
 
