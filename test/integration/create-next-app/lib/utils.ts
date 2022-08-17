@@ -18,6 +18,11 @@ interface ProjectFiles extends ProjectOptions {
   files: string[]
 }
 
+interface ProjectDeps extends ProjectOptions {
+  type: 'dependencies' | 'devDependencies'
+  deps: string[]
+}
+
 const cli = require.resolve('create-next-app/dist/index.js')
 
 /**
@@ -68,21 +73,21 @@ export const projectFilesShouldNotExist = ({
   }
 }
 
-export const projectDepsShouldBe = (
-  projectRoot: string,
-  depType: 'dependencies' | 'devDependencies',
-  value: any
-) => {
+export const projectDepsShouldBe = ({
+  cwd,
+  projectName,
+  type,
+  deps,
+}: ProjectDeps) => {
+  const projectRoot = resolve(cwd, projectName)
   const pkgJson = require(resolve(projectRoot, 'package.json'))
-  expect(Object.keys(pkgJson[depType])).toEqual(value)
+  expect(Object.keys(pkgJson[type])).toEqual(deps)
 }
 
 export const shouldBeJavascriptProject = ({
   cwd,
   projectName,
 }: ProjectOptions) => {
-  const projectRoot = resolve(cwd, projectName)
-
   projectFilesShouldExist({
     cwd,
     projectName,
@@ -95,16 +100,25 @@ export const shouldBeJavascriptProject = ({
     files: projectFiles.ts,
   })
 
-  projectDepsShouldBe(projectRoot, 'dependencies', projectDeps.js)
-  projectDepsShouldBe(projectRoot, 'devDependencies', projectDevDeps.js)
+  projectDepsShouldBe({
+    cwd,
+    projectName,
+    type: 'dependencies',
+    deps: projectDeps.js,
+  })
+
+  projectDepsShouldBe({
+    cwd,
+    projectName,
+    type: 'devDependencies',
+    deps: projectDevDeps.js,
+  })
 }
 
 export const shouldBeTypescriptProject = ({
   cwd,
   projectName,
 }: ProjectOptions) => {
-  const projectRoot = resolve(cwd, projectName)
-
   projectFilesShouldExist({
     cwd,
     projectName,
@@ -117,6 +131,17 @@ export const shouldBeTypescriptProject = ({
     files: projectFiles.js,
   })
 
-  projectDepsShouldBe(projectRoot, 'dependencies', projectDeps.ts)
-  projectDepsShouldBe(projectRoot, 'devDependencies', projectDevDeps.ts)
+  projectDepsShouldBe({
+    cwd,
+    projectName,
+    type: 'dependencies',
+    deps: projectDeps.ts,
+  })
+
+  projectDepsShouldBe({
+    cwd,
+    projectName,
+    type: 'devDependencies',
+    deps: projectDevDeps.ts,
+  })
 }
