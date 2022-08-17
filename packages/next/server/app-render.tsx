@@ -829,6 +829,9 @@ export async function renderToHTMLOrFlight(
                   <link
                     rel="stylesheet"
                     href={`/_next/${href}?ts=${Date.now()}`}
+                    // `Precedence` is an opt-in signal for React to handle
+                    // resource loading and deduplication, etc:
+                    // https://github.com/facebook/react/pull/25060
                     // @ts-ignore
                     precedence="high"
                     key={href}
