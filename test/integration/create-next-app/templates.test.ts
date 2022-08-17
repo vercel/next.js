@@ -3,16 +3,11 @@
 import { resolve } from 'path'
 import {
   createNextApp,
-  projectDepsShouldBe,
-  projectFilesShouldExist,
-  projectFilesShouldntExist,
+  projectFilesShouldNotExist,
+  shouldBeJavascriptProject,
+  shouldBeTypescriptProject,
   spawnExitPromise,
 } from './lib/utils'
-import {
-  allProjectFiles,
-  jsProjectFiles,
-  tsProjectFiles,
-} from './lib/projectFiles'
 
 import { useTempDir } from '../../../test/lib/use-temp-dir'
 
@@ -20,7 +15,6 @@ describe('create-next-app templates', () => {
   it('should prompt user to choose if --ts or --js is not provided', async () => {
     useTempDir(async (cwd) => {
       const projectName = 'choose-ts-js'
-      const projectRoot = resolve(cwd, projectName)
 
       /**
        * Start the create-next-app call.
@@ -38,7 +32,11 @@ describe('create-next-app templates', () => {
         /**
          * Verify it correctly emitted a TS project by looking for tsconfig.
          */
-        projectFilesShouldntExist(projectRoot, ['tsconfig.json'])
+        projectFilesShouldNotExist({
+          cwd,
+          projectName,
+          files: ['tsconfig.json'],
+        })
       })
       /**
        * Simulate "Y" for TypeScript.
@@ -50,60 +48,22 @@ describe('create-next-app templates', () => {
   it('should create TS projects with --ts, --typescript', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'typescript-test'
-      const projectRoot = resolve(cwd, projectName)
-
       const childProcess = createNextApp([projectName, '--ts'], { cwd })
       const exitCode = await spawnExitPromise(childProcess)
+
       expect(exitCode).toBe(0)
-
-      projectFilesShouldntExist(projectRoot, jsProjectFiles)
-      projectFilesShouldExist(projectRoot, [
-        ...allProjectFiles,
-        ...tsProjectFiles,
-      ])
-
-      projectDepsShouldBe(projectRoot, 'dependencies', [
-        'next',
-        'react',
-        'react-dom',
-      ])
-
-      projectDepsShouldBe(projectRoot, 'devDependencies', [
-        '@types/node',
-        '@types/react',
-        '@types/react-dom',
-        'eslint',
-        'eslint-config-next',
-        'typescript',
-      ])
+      shouldBeTypescriptProject({ cwd, projectName })
     })
   })
 
   it('should create JS projects with --js, --javascript', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'javascript-test'
-      const projectRoot = resolve(cwd, projectName)
-
       const childProcess = createNextApp([projectName, '--js'], { cwd })
       const exitCode = await spawnExitPromise(childProcess)
+
       expect(exitCode).toBe(0)
-
-      projectFilesShouldntExist(projectRoot, tsProjectFiles)
-      projectFilesShouldExist(projectRoot, [
-        ...allProjectFiles,
-        ...jsProjectFiles,
-      ])
-
-      projectDepsShouldBe(projectRoot, 'dependencies', [
-        'next',
-        'react',
-        'react-dom',
-      ])
-
-      projectDepsShouldBe(projectRoot, 'devDependencies', [
-        'eslint',
-        'eslint-config-next',
-      ])
+      shouldBeJavascriptProject({ cwd, projectName })
     })
   })
 })

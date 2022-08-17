@@ -7,6 +7,16 @@
 import { ChildProcess, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
+import { projectFiles, projectDeps, projectDevDeps } from './projectFiles'
+
+interface ProjectOptions {
+  cwd: string
+  projectName: string
+}
+
+interface ProjectFiles extends ProjectOptions {
+  files: string[]
+}
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
@@ -36,19 +46,23 @@ export const spawnExitPromise = (childProcess: ChildProcess) => {
   })
 }
 
-export const projectFilesShouldExist = (
-  projectRoot: string,
-  files: string[]
-) => {
+export const projectFilesShouldExist = ({
+  cwd,
+  projectName,
+  files,
+}: ProjectFiles) => {
+  const projectRoot = resolve(cwd, projectName)
   for (const file of files) {
     expect(existsSync(resolve(projectRoot, file))).toBe(true)
   }
 }
 
-export const projectFilesShouldntExist = (
-  projectRoot: string,
-  files: string[]
-) => {
+export const projectFilesShouldNotExist = ({
+  cwd,
+  projectName,
+  files,
+}: ProjectFiles) => {
+  const projectRoot = resolve(cwd, projectName)
   for (const file of files) {
     expect(existsSync(resolve(projectRoot, file))).toBe(false)
   }
@@ -61,4 +75,48 @@ export const projectDepsShouldBe = (
 ) => {
   const pkgJson = require(resolve(projectRoot, 'package.json'))
   expect(Object.keys(pkgJson[depType])).toEqual(value)
+}
+
+export const shouldBeJavascriptProject = ({
+  cwd,
+  projectName,
+}: ProjectOptions) => {
+  const projectRoot = resolve(cwd, projectName)
+
+  projectFilesShouldExist({
+    cwd,
+    projectName,
+    files: [...projectFiles.global, ...projectFiles.js],
+  })
+
+  projectFilesShouldNotExist({
+    cwd,
+    projectName,
+    files: projectFiles.ts,
+  })
+
+  projectDepsShouldBe(projectRoot, 'dependencies', projectDeps.js)
+  projectDepsShouldBe(projectRoot, 'devDependencies', projectDevDeps.js)
+}
+
+export const shouldBeTypescriptProject = ({
+  cwd,
+  projectName,
+}: ProjectOptions) => {
+  const projectRoot = resolve(cwd, projectName)
+
+  projectFilesShouldExist({
+    cwd,
+    projectName,
+    files: [...projectFiles.global, ...projectFiles.ts],
+  })
+
+  projectFilesShouldNotExist({
+    cwd,
+    projectName,
+    files: projectFiles.js,
+  })
+
+  projectDepsShouldBe(projectRoot, 'dependencies', projectDeps.ts)
+  projectDepsShouldBe(projectRoot, 'devDependencies', projectDevDeps.ts)
 }
