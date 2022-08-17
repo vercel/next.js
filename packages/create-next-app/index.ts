@@ -142,11 +142,12 @@ async function run(): Promise<void> {
    * not they'd like to use TypeScript.
    */
   if (!program.typescript && !program.javascript) {
+    const styledTypeScript = chalk.hex('#007acc')('TypeScript')
     const { typescript } = await prompts(
       {
         type: 'toggle',
         name: 'typescript',
-        message: 'Would you like to use TypeScript with this project?',
+        message: `Would you like to use ${styledTypeScript} with this project?`,
         initial: true,
         active: 'Yes',
         inactive: 'No',
