@@ -1,17 +1,6 @@
-import React, {
-  useRef,
-  useEffect,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from 'react'
+import React, { useRef, useEffect, useCallback, useState } from 'react'
 import Head from '../../shared/lib/head'
-import {
-  ImageConfigComplete,
-  imageConfigDefault,
-} from '../../shared/lib/image-future-config'
-import { ImageConfigContext } from '../../shared/lib/image-config-context'
+import { ImageConfigComplete } from '../../shared/lib/image-future-config'
 import { warnOnce } from '../../shared/lib/utils'
 
 const {
@@ -19,7 +8,6 @@ const {
   experimentalRemotePatterns = [],
   experimentalUnoptimized,
 } = (process.env.__NEXT_IMAGE_OPTS as any) || {}
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const allImgs = new Map<
   string,
   { src: string; priority: boolean; placeholder: string }
@@ -35,7 +23,7 @@ type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (p: ImageLoaderProps) => string
 type GlobalImageConfig = Omit<Partial<ImageConfigComplete>, 'path'>
-let globalImageConfig: GlobalImageConfig = {}
+let config = process.env.__NEXT_IMAGE_OPTS as any as ImageConfig
 
 export function setImageConfig(imageConfig: GlobalImageConfig) {
   // We are not using React Context because we want the
@@ -43,7 +31,14 @@ export function setImageConfig(imageConfig: GlobalImageConfig) {
   // as both a Client component and a Server component. In particular,
   // React Context might not work with Server components. Ideally, we would
   // have static dependency injection but it doesn't exist.
-  globalImageConfig = imageConfig
+  Object.assign(config, imageConfig)
+  const allSizes = [...config.deviceSizes, ...config.imageSizes].sort(
+    (a, b) => a - b
+  )
+  const deviceSizes = config.deviceSizes.sort((a, b) => a - b)
+
+  config.allSizes = allSizes
+  config.deviceSizes = deviceSizes
 }
 
 export type ImageLoaderProps = {
@@ -529,16 +524,6 @@ export default function Image({
       `The "next/future/image" component is experimental and may be subject to breaking changes. To enable this experiment, please include \`experimental: { images: { allowFutureImage: true } }\` in your next.config.js file.`
     )
   }
-  const configContext = useContext(ImageConfigContext)
-  const config: ImageConfig = useMemo(() => {
-    const c = Object.assign(
-      configEnv || configContext || imageConfigDefault,
-      globalImageConfig
-    )
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    return { ...c, allSizes, deviceSizes }
-  }, [configContext])
 
   let rest: Partial<ImageProps> = all
 
