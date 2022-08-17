@@ -124,7 +124,11 @@ const configSchema = {
                   type: 'boolean',
                 },
                 meaninglessFileNames: {
-                  type: 'boolean',
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                    minLength: 1,
+                  },
                 },
                 minify: {
                   type: 'boolean',
