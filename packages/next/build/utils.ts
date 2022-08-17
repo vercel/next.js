@@ -65,6 +65,209 @@ const fsStat = (file: string) => {
 
 loadRequireHook()
 
+export function unique<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
+  return [...new Set([...main, ...sub])]
+}
+
+export function difference<T>(
+  main: ReadonlyArray<T> | ReadonlySet<T>,
+  sub: ReadonlyArray<T> | ReadonlySet<T>
+): T[] {
+  const a = new Set(main)
+  const b = new Set(sub)
+  return [...a].filter((x) => !b.has(x))
+}
+
+/**
+ * Return an array of the items shared by both arrays.
+ */
+function intersect<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
+  const a = new Set(main)
+  const b = new Set(sub)
+  return [...new Set([...a].filter((x) => b.has(x)))]
+}
+
+function sum(a: ReadonlyArray<number>): number {
+  return a.reduce((size, stat) => size + stat, 0)
+}
+
+function denormalizeAppPagePath(page: string): string {
+  return page + '/page'
+}
+
+type ComputeFilesGroup = {
+  files: ReadonlyArray<string>
+  size: {
+    total: number
+  }
+}
+
+type ComputeFilesManifest = {
+  unique: ComputeFilesGroup
+  common: ComputeFilesGroup
+}
+
+type ComputeFilesManifestResult = {
+  router: {
+    pages: ComputeFilesManifest
+    app?: ComputeFilesManifest
+  }
+  sizes: Map<string, number>
+}
+
+let cachedBuildManifest: BuildManifest | undefined
+let cachedAppBuildManifest: AppBuildManifest | undefined
+
+let lastCompute: ComputeFilesManifestResult | undefined
+let lastComputePageInfo: boolean | undefined
+
+export async function computeFromManifest(
+  manifests: {
+    build: BuildManifest
+    app?: AppBuildManifest
+  },
+  distPath: string,
+  gzipSize: boolean = true,
+  pageInfos?: Map<string, PageInfo>
+): Promise<ComputeFilesManifestResult> {
+  if (
+    Object.is(cachedBuildManifest, manifests.build) &&
+    lastComputePageInfo === !!pageInfos &&
+    Object.is(cachedAppBuildManifest, manifests.app)
+  ) {
+    return lastCompute!
+  }
+
+  // Determine the files that are in pages and app and count them, this will
+  // tell us if they are unique or common.
+
+  const countBuildFiles = (
+    map: Map<string, number>,
+    key: string,
+    manifest: Record<string, ReadonlyArray<string>>
+  ) => {
+    for (const file of manifest[key]) {
+      if (key === '/_app') {
+        map.set(file, Infinity)
+      } else if (map.has(file)) {
+        map.set(file, map.get(file)! + 1)
+      } else {
+        map.set(file, 1)
+      }
+    }
+  }
+
+  const files: {
+    pages: {
+      each: Map<string, number>
+      expected: number
+    }
+    app?: {
+      each: Map<string, number>
+      expected: number
+    }
+  } = {
+    pages: { each: new Map(), expected: 0 },
+  }
+
+  for (const key in manifests.build.pages) {
+    if (pageInfos) {
+      const pageInfo = pageInfos.get(key)
+      // don't include AMP pages since they don't rely on shared bundles
+      // AMP First pages are not under the pageInfos key
+      if (pageInfo?.isHybridAmp) {
+        continue
+      }
+    }
+
+    files.pages.expected++
+    countBuildFiles(files.pages.each, key, manifests.build.pages)
+  }
+
+  // Collect the build files form the app manifest.
+  if (manifests.app?.pages) {
+    files.app = { each: new Map<string, number>(), expected: 0 }
+
+    for (const key in manifests.app.pages) {
+      files.app.expected++
+      countBuildFiles(files.app.each, key, manifests.app.pages)
+    }
+  }
+
+  const getSize = gzipSize ? fsStatGzip : fsStat
+  const stats = new Map<string, number>()
+
+  // For all of the files in the pages and app manifests, compute the file size
+  // at once.
+
+  await Promise.all(
+    [
+      ...new Set<string>([
+        ...files.pages.each.keys(),
+        ...(files.app?.each.keys() ?? []),
+      ]),
+    ].map(async (f) => {
+      try {
+        // Add the file size to the stats.
+        stats.set(f, await getSize(path.join(distPath, f)))
+      } catch {}
+    })
+  )
+
+  const groupFiles = async (listing: {
+    each: Map<string, number>
+    expected: number
+  }): Promise<ComputeFilesManifest> => {
+    const entries = [...listing.each.entries()]
+
+    const shapeGroup = (group: [string, number][]): ComputeFilesGroup =>
+      group.reduce(
+        (acc, [f]) => {
+          acc.files.push(f)
+
+          const size = stats.get(f)
+          if (typeof size === 'number') {
+            acc.size.total += size
+          }
+
+          return acc
+        },
+        {
+          files: [] as string[],
+          size: {
+            total: 0,
+          },
+        }
+      )
+
+    return {
+      unique: shapeGroup(entries.filter(([, len]) => len === 1)),
+      common: shapeGroup(
+        entries.filter(
+          ([, len]) => len === listing.expected || len === Infinity
+        )
+      ),
+    }
+  }
+
+  lastCompute = {
+    router: {
+      pages: await groupFiles(files.pages),
+      app: files.app ? await groupFiles(files.app) : undefined,
+    },
+    sizes: stats,
+  }
+
+  cachedBuildManifest = manifests.build
+  cachedAppBuildManifest = manifests.app
+  lastComputePageInfo = !!pageInfos
+  return lastCompute!
+}
+
+export function isMiddlewareFilename(file?: string) {
+  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
 export interface PageInfo {
   isHybridAmp?: boolean
   size: number
@@ -524,205 +727,6 @@ export function printCustomRoutes({
   if (combinedRewrites.length) {
     printRoutes(combinedRewrites, 'Rewrites')
   }
-}
-
-type ComputeFilesGroup = {
-  files: ReadonlyArray<string>
-  size: {
-    total: number
-  }
-}
-
-type ComputeFilesManifest = {
-  unique: ComputeFilesGroup
-  common: ComputeFilesGroup
-}
-
-type ComputeFilesManifestResult = {
-  router: {
-    pages: ComputeFilesManifest
-    app?: ComputeFilesManifest
-  }
-  sizes: Map<string, number>
-}
-
-let cachedBuildManifest: BuildManifest | undefined
-let cachedAppBuildManifest: AppBuildManifest | undefined
-
-let lastCompute: ComputeFilesManifestResult | undefined
-let lastComputePageInfo: boolean | undefined
-
-export async function computeFromManifest(
-  manifests: {
-    build: BuildManifest
-    app?: AppBuildManifest
-  },
-  distPath: string,
-  gzipSize: boolean = true,
-  pageInfos?: Map<string, PageInfo>
-): Promise<ComputeFilesManifestResult> {
-  if (
-    Object.is(cachedBuildManifest, manifests.build) &&
-    lastComputePageInfo === !!pageInfos &&
-    Object.is(cachedAppBuildManifest, manifests.app)
-  ) {
-    return lastCompute!
-  }
-
-  // Determine the files that are in pages and app and count them, this will
-  // tell us if they are unique or common.
-
-  const countBuildFiles = (
-    map: Map<string, number>,
-    key: string,
-    manifest: Record<string, ReadonlyArray<string>>
-  ) => {
-    for (const file of manifest[key]) {
-      if (key === '/_app') {
-        map.set(file, Infinity)
-      } else if (map.has(file)) {
-        map.set(file, map.get(file)! + 1)
-      } else {
-        map.set(file, 1)
-      }
-    }
-  }
-
-  const files: {
-    pages: {
-      each: Map<string, number>
-      expected: number
-    }
-    app?: {
-      each: Map<string, number>
-      expected: number
-    }
-  } = {
-    pages: { each: new Map(), expected: 0 },
-  }
-
-  for (const key in manifests.build.pages) {
-    if (pageInfos) {
-      const pageInfo = pageInfos.get(key)
-      // don't include AMP pages since they don't rely on shared bundles
-      // AMP First pages are not under the pageInfos key
-      if (pageInfo?.isHybridAmp) {
-        continue
-      }
-    }
-
-    files.pages.expected++
-    countBuildFiles(files.pages.each, key, manifests.build.pages)
-  }
-
-  // Collect the build files form the app manifest.
-  if (manifests.app?.pages) {
-    files.app = { each: new Map<string, number>(), expected: 0 }
-
-    for (const key in manifests.app.pages) {
-      files.app.expected++
-      countBuildFiles(files.app.each, key, manifests.app.pages)
-    }
-  }
-
-  const getSize = gzipSize ? fsStatGzip : fsStat
-  const stats = new Map<string, number>()
-
-  // For all of the files in the pages and app manifests, compute the file size
-  // at once.
-
-  await Promise.all(
-    [
-      ...new Set<string>([
-        ...files.pages.each.keys(),
-        ...(files.app?.each.keys() ?? []),
-      ]),
-    ].map(async (f) => {
-      try {
-        // Add the file size to the stats.
-        stats.set(f, await getSize(path.join(distPath, f)))
-      } catch {}
-    })
-  )
-
-  const groupFiles = async (listing: {
-    each: Map<string, number>
-    expected: number
-  }): Promise<ComputeFilesManifest> => {
-    const entries = [...listing.each.entries()]
-
-    const shapeGroup = (group: [string, number][]): ComputeFilesGroup =>
-      group.reduce(
-        (acc, [f]) => {
-          acc.files.push(f)
-
-          const size = stats.get(f)
-          if (typeof size === 'number') {
-            acc.size.total += size
-          }
-
-          return acc
-        },
-        {
-          files: [] as string[],
-          size: {
-            total: 0,
-          },
-        }
-      )
-
-    return {
-      unique: shapeGroup(entries.filter(([, len]) => len === 1)),
-      common: shapeGroup(
-        entries.filter(
-          ([, len]) => len === listing.expected || len === Infinity
-        )
-      ),
-    }
-  }
-
-  lastCompute = {
-    router: {
-      pages: await groupFiles(files.pages),
-      app: files.app ? await groupFiles(files.app) : undefined,
-    },
-    sizes: stats,
-  }
-
-  cachedBuildManifest = manifests.build
-  cachedAppBuildManifest = manifests.app
-  lastComputePageInfo = !!pageInfos
-  return lastCompute!
-}
-
-export function unique<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
-  return [...new Set([...main, ...sub])]
-}
-
-export function difference<T>(
-  main: ReadonlyArray<T> | ReadonlySet<T>,
-  sub: ReadonlyArray<T> | ReadonlySet<T>
-): T[] {
-  const a = new Set(main)
-  const b = new Set(sub)
-  return [...a].filter((x) => !b.has(x))
-}
-
-/**
- * Return an array of the items shared by both arrays.
- */
-function intersect<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
-  const a = new Set(main)
-  const b = new Set(sub)
-  return [...new Set([...a].filter((x) => b.has(x)))]
-}
-
-function sum(a: ReadonlyArray<number>): number {
-  return a.reduce((size, stat) => size + stat, 0)
-}
-
-function denormalizeAppPagePath(page: string): string {
-  return page + '/page'
 }
 
 export async function getJsPageSizeInKb(
@@ -1428,10 +1432,6 @@ export function isMiddlewareFile(file: string) {
   return (
     file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
   )
-}
-
-export function isMiddlewareFilename(file?: string) {
-  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
 }
 
 export function getPossibleMiddlewareFilenames(
