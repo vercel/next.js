@@ -155,7 +155,8 @@ export class FlightManifestPlugin {
           mod.resourceResolveData?.path || resource
         )
         if (!ssrNamedModuleId.startsWith('.'))
-          ssrNamedModuleId = `./${ssrNamedModuleId}`
+          // TODO use getModuleId instead
+          ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
           if (!manifest[resource]) {

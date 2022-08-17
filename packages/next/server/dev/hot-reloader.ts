@@ -4,7 +4,7 @@ import type { CustomRoutes } from '../../lib/load-custom-routes'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, relative, isAbsolute } from 'path'
+import { join, relative, isAbsolute, posix } from 'path'
 import { UrlObject } from 'url'
 import {
   createEntrypoints,
@@ -666,9 +666,12 @@ export default class HotReloader {
                     this.appDir && bundlePath.startsWith('app/')
                       ? getAppEntry({
                           name: bundlePath,
-                          pagePath: join(
+                          pagePath: posix.join(
                             APP_DIR_ALIAS,
-                            relative(this.appDir!, entryData.absolutePagePath)
+                            relative(
+                              this.appDir!,
+                              entryData.absolutePagePath
+                            ).replace(/\\/g, '/')
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
