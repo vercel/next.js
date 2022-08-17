@@ -3328,10 +3328,10 @@ module.exports = __toCommonJS(url_exports);
 init_define_process();
 var import_whatwg_url = __toESM(require_whatwg_url());
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.3/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.5/node_modules/urlpattern-polyfill/index.js
 init_define_process();
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.3/node_modules/urlpattern-polyfill/dist/urlpattern.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.5/node_modules/urlpattern-polyfill/dist/urlpattern.js
 init_define_process();
 var regexIdentifierStart = /[$_\p{ID_Start}]/u;
 var regexIdentifierPart = /[$_\u200C\u200D\p{ID_Continue}]/u;
@@ -4573,7 +4573,7 @@ var URLPattern = /* @__PURE__ */ __name(class {
   }
 }, "URLPattern");
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.3/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.5/node_modules/urlpattern-polyfill/index.js
 if (!globalThis.URLPattern) {
   globalThis.URLPattern = URLPattern;
 }

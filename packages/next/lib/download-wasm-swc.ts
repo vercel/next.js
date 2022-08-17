@@ -83,7 +83,7 @@ export async function downloadWasmSwc(
     try {
       const output = execSync('npm config get registry').toString().trim()
       if (output.startsWith('http')) {
-        registry = output
+        registry = output.endsWith('/') ? output : `${output}/`
       }
     } catch (_) {}
 

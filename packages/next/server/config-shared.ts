@@ -1,14 +1,13 @@
 import os from 'os'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
   RemotePattern,
 } from '../shared/lib/image-config'
-
-export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
+import { ServerRuntime } from 'next/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -79,6 +78,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
@@ -115,7 +115,7 @@ export interface ExperimentalConfig {
   runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
-  urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+  urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
     remotePatterns?: RemotePattern[]
@@ -147,11 +147,26 @@ export interface ExperimentalConfig {
   largePageDataBytes?: number
 }
 
+export type ExportPathMap = {
+  [path: string]: { page: string; query?: Record<string, string | string[]> }
+}
+
 /**
  * Next configuration object
  * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
+  exportPathMap?: (
+    defaultMap: ExportPathMap,
+    ctx: {
+      dev: boolean
+      dir: string
+      outDir: string | null
+      distDir: string
+      buildId: string
+    }
+  ) => Promise<ExportPathMap> | ExportPathMap
+
   /**
    * Internationalization configuration
    *
@@ -270,6 +285,15 @@ export interface NextConfig extends Record<string, any> {
 
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
+
+  /**
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
+   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   *
+   * @default ''
+   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   */
+  analyticsId?: string
 
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
@@ -508,6 +532,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    optimisticClientCache: true,
     runtime: undefined,
     manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)

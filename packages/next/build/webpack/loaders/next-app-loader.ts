@@ -1,4 +1,4 @@
-import type webpack from 'webpack5'
+import type webpack from 'webpack'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 
@@ -24,8 +24,9 @@ async function createTreeCodeFromPath({
 
     // First item in the list is the page which can't have layouts by itself
     if (i === segments.length - 1) {
+      const resolvedPagePath = await resolve(pagePath)
       // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-      tree = `['', {}, {page: () => require('${pagePath}')}]`
+      tree = `['', {}, {filePath: '${resolvedPagePath}', page: () => require('${resolvedPagePath}')}]`
       continue
     }
 
@@ -46,6 +47,7 @@ async function createTreeCodeFromPath({
         children ? `children: ${children},` : ''
       }
     }, {
+      filePath: '${resolvedLayoutPath}', 
       ${
         resolvedLayoutPath
           ? `layout: () => require('${resolvedLayoutPath}'),`
@@ -130,7 +132,6 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         ? `require('next/dist/client/components/hot-reloader.client.js').default`
         : 'null'
     }
-    export const hooksClientContext = require('next/dist/client/components/hooks-client-context.js')
 
     export const __next_app_webpack_require__ = __webpack_require__
   `

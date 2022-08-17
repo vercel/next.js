@@ -213,7 +213,7 @@ test('should navigate to the about page', async ({ page }) => {
   // Start from the index page (the baseURL is set via the webServer in the playwright.config.ts)
   await page.goto('http://localhost:3000/')
   // Find an element with the text 'About Page' and click on it
-  await page.click('text=About Page')
+  await page.click('text=About')
   // The new url should be "/about" (baseURL is used there)
   await expect(page).toHaveURL('http://localhost:3000/about')
   // The new page should contain an h1 with "About Page"
@@ -493,7 +493,6 @@ For further reading, you may find these resources helpful:
 
 The Next.js community has created packages and articles you may find helpful:
 
-- [next-page-tester](https://github.com/toomuchdesign/next-page-tester) for DOM Integration Testing.
 - [next-router-mock](https://github.com/scottrippey/next-router-mock) for Storybook.
 - [Test Preview Vercel Deploys with Cypress](https://glebbahmutov.com/blog/develop-preview-test/) by Gleb Bahmutov.
 
