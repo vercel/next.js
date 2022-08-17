@@ -23,8 +23,10 @@ export default async function transformSource(this: any): Promise<string> {
       .filter((request) => (isServer ? !request.endsWith('.css') : true))
       .map((request) =>
         request.endsWith('.css')
-          ? `(() => import(/* webpackMode: "lazy" */ '${request}'))`
-          : `import(/* webpackMode: "eager" */ '${request}')`
+          ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(
+              request
+            )}))`
+          : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
       )
       .join(';\n') +
     `
