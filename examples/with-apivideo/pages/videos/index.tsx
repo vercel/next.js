@@ -51,7 +51,7 @@ const Videos: NextPage = () => {
 
         {!data && !error && <div>Loading...</div>}
         {error && (
-          <div>
+          <div className="error">
             An error occured trying to fetch your videos. Be sure to have you
             API key set in your .env file this way: <i>API_KEY=YOUR_API_KEY</i>
           </div>

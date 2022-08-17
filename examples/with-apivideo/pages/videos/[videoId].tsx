@@ -1,9 +1,9 @@
-import { PlayerSdk, PlayerTheme } from '@api.video/player-sdk'
 import { GetServerSideProps, NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
-import React, { ChangeEvent, useEffect, useState } from 'react'
+import React, { ChangeEvent, useState } from 'react'
+import ApiVideoPlayer, { PlayerTheme } from '@api.video/react-player'
 
 interface IVideoViewProps {
   children: React.ReactNode
@@ -14,36 +14,18 @@ const VideoView: NextPage<IVideoViewProps> = ({
   videoId,
   uploaded,
 }): JSX.Element => {
-  const [player, setPlayer] = useState<PlayerSdk | undefined>(undefined)
-  const [playerSettings, setPlayerSettings] = useState<PlayerTheme>({
+  const [playerTheme, setPlayerTheme] = useState<PlayerTheme>({
     link: 'rgb(235, 137, 82)',
     linkHover: 'rgb(240, 95, 12)',
   })
   const [hideControls, setHideControls] = useState<boolean>(false)
   const router = useRouter()
 
-  useEffect(() => {
-    const player = new PlayerSdk('#player', {
-      id: videoId,
+  const handleChangeSetting = (e: ChangeEvent<HTMLInputElement>) =>
+    setPlayerTheme({
+      ...playerTheme,
+      [e.currentTarget.id]: e.currentTarget.value,
     })
-    player.setTheme({
-      link: 'rgb(235, 137, 82)',
-      linkHover: 'rgb(240, 95, 12)',
-    })
-    setPlayer(player)
-  }, [videoId])
-  useEffect(() => {
-    player && player?.loadConfig({ id: videoId, hideControls: hideControls })
-  }, [hideControls, player, videoId])
-
-  const handleChangeSetting = (
-    e: ChangeEvent<HTMLInputElement>,
-    prop: string
-  ) => {
-    const newSettings = { ...playerSettings, [prop]: e.currentTarget.value }
-    setPlayerSettings(newSettings)
-    player?.setTheme(newSettings)
-  }
 
   return (
     <div className="global-container">
@@ -74,9 +56,9 @@ const VideoView: NextPage<IVideoViewProps> = ({
             <a
               target="_blank"
               rel="noopener noreferrer"
-              href="https://github.com/apivideo/api.video-player-sdk"
+              href="https://github.com/apivideo/api.video-react-player"
             >
-              api.video's Player SDK
+              api.video's React player component
             </a>
             .<br />
             It provides multiple properties to customize your video player.
@@ -88,19 +70,21 @@ const VideoView: NextPage<IVideoViewProps> = ({
           <div>
             <label>Play button color</label>
             <input
+              id="link"
               type="text"
               placeholder="Play button color"
-              value={playerSettings.link}
-              onChange={(e) => handleChangeSetting(e, 'link')}
+              value={playerTheme.link}
+              onChange={handleChangeSetting}
             />
           </div>
           <div>
             <label>Buttons hover color</label>
             <input
+              id="linkHover"
               type="text"
               placeholder="Buttons hover color"
-              value={playerSettings.linkHover}
-              onChange={(e) => handleChangeSetting(e, 'linkHover')}
+              value={playerTheme.linkHover}
+              onChange={handleChangeSetting}
             />
           </div>
           <div>
@@ -114,7 +98,12 @@ const VideoView: NextPage<IVideoViewProps> = ({
             <label>Hide controls</label>
           </div>
         </div>
-        <div id="player" />
+        <ApiVideoPlayer
+          video={{ id: videoId }}
+          style={{ width: '75%', height: 300 }}
+          theme={playerTheme}
+          chromeless={hideControls}
+        />
 
         <button
           className="upload"

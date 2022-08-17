@@ -36,6 +36,10 @@ p {
 }
 p > a {
   font-weight: 700;
+  text-decoration: underline;
+}
+p > a:hover {
+  color: rgb(2, 2, 102);
 }
 
 .global-container {
@@ -145,10 +149,9 @@ a.button {
   align-self: flex-end;
 }
 
-#player {
-  width: 800px;
-  height: 250px;
+.error {
+  color: rgb(250, 91, 48);
 }
-#player > iframe {
-  height: 250px !important;
+.error i {
+  font-weight: 600;
 }

@@ -59,11 +59,11 @@ const Home: NextPage = () => (
           </a>{' '}
           and{' '}
           <a
-            href="https://github.com/apivideo/api.video-player-sdk"
             target="_blank"
             rel="noopener noreferrer"
+            href="https://github.com/apivideo/api.video-react-player"
           >
-            Player SDK
+            React player component
           </a>
           .
         </p>
