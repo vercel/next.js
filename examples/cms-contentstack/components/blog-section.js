@@ -5,7 +5,7 @@ import Image from 'next/image'
 
 export default function BlogSection({ fromBlog }) {
   function trimBody(string) {
-    const body = typeof string === 'string' && string.substr(0, 300)
+    const body = typeof string === 'string' && string.substring(0, 300)
     const stringLength = body.lastIndexOf(' ')
     return `${body.substring(0, Math.min(body.length, stringLength))}...`
   }
