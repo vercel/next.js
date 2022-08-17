@@ -107,7 +107,7 @@ describe('Unoptimized Image Tests', () => {
       await killApp(app)
     })
 
-    runTests('dev')
+    runTests()
   })
 
   describe('server mode', () => {
@@ -120,6 +120,6 @@ describe('Unoptimized Image Tests', () => {
       await killApp(app)
     })
 
-    runTests('server')
+    runTests()
   })
 })

@@ -1,5 +1,6 @@
 import type ws from 'ws'
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import * as Log from '../../build/output/log'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
@@ -514,6 +515,13 @@ export function onDemandEntryHandler({
 
   return {
     async ensurePage(page: string, clientOnly: boolean): Promise<void> {
+      const stalledTime = 60
+      const stalledEnsureTimeout = setTimeout(() => {
+        Log.warn(
+          `Ensuring ${page} has taken longer than ${stalledTime}s, if this continues to stall this may be a bug`
+        )
+      }, stalledTime * 1000)
+
       const pagePathData = await findPagePathData(
         rootDir,
         pagesDir,
@@ -630,6 +638,7 @@ export function onDemandEntryHandler({
         invalidator.invalidate([...added.keys()])
         await Promise.all(invalidatePromises)
       }
+      clearTimeout(stalledEnsureTimeout)
     },
 
     onHMR(client: ws) {

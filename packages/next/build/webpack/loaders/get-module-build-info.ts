@@ -1,10 +1,10 @@
-import { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 /**
  * A getter for module build info that casts to the type it should have.
  * We also expose here types to make easier to use it.
  */
-export function getModuleBuildInfo(webpackModule: webpack5.Module) {
+export function getModuleBuildInfo(webpackModule: webpack.Module) {
   return webpackModule.buildInfo as {
     nextEdgeMiddleware?: EdgeMiddlewareMeta
     nextEdgeApiFunction?: EdgeMiddlewareMeta

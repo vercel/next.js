@@ -308,16 +308,16 @@ function runTests(mode) {
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
       const delta = 150
-      const largeWidth = width + delta
-      const largeHeight = height + delta
+      const largeWidth = Number(width) + delta
+      const largeHeight = Number(height) + delta
       await browser.setDimensions({
         width: largeWidth,
         height: largeHeight,
       })
       expect(await getComputed(browser, id, 'width')).toBe(largeWidth)
       expect(await getComputed(browser, id, 'height')).toBe(largeHeight)
-      const smallWidth = width - delta
-      const smallHeight = height - delta
+      const smallWidth = Number(width) - delta
+      const smallHeight = Number(height) - delta
       await browser.setDimensions({
         width: smallWidth,
         height: smallHeight,
@@ -389,9 +389,7 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(false)
 
       await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
+        return (await browser.log()).map((log) => log.message).join('\n')
       }, /Image is missing required "src" property/gm)
     })
 

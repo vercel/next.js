@@ -1,17 +1,19 @@
+import type { AppProps } from 'next/app'
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import NProgress from 'nprogress'
-import '../public/nprogress.css'
+import 'nprogress/nprogress.css'
 
-export default function App({ Component, pageProps }) {
+export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter()
 
   useEffect(() => {
-    const handleStart = (url) => {
+    const handleStart = (url: string) => {
       console.log(`Loading: ${url}`)
       NProgress.start()
     }
+
     const handleStop = () => {
       NProgress.done()
     }
