@@ -220,8 +220,7 @@ export default class Router {
         - User rewrites (checking filesystem and pages each match)
       */
 
-      const [middlewareCatchAllRoute, edgeSSRCatchAllRoute] =
-        this.catchAllMiddleware
+      const [middlewareCatchAllRoute] = this.catchAllMiddleware
       const allRoutes = [
         ...(middlewareCatchAllRoute
           ? this.fsRoutes
@@ -244,7 +243,6 @@ export default class Router {
         // disabled
         ...(this.useFileSystemPublicRoutes
           ? [
-              ...(edgeSSRCatchAllRoute ? [edgeSSRCatchAllRoute] : []),
               {
                 type: 'route',
                 name: 'page checker',
@@ -299,12 +297,7 @@ export default class Router {
 
         // We only check the catch-all route if public page routes hasn't been
         // disabled
-        ...(this.useFileSystemPublicRoutes
-          ? [
-              ...(edgeSSRCatchAllRoute ? [edgeSSRCatchAllRoute] : []),
-              this.catchAllRoute,
-            ]
-          : []),
+        ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
       ]
 
       for (const testRoute of allRoutes) {

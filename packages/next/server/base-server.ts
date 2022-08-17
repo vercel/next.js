@@ -17,7 +17,6 @@ import type {
 } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
-  CacheFs,
   NormalizeError,
   DecodeError,
   normalizeRepeatedSlashes,
@@ -27,15 +26,13 @@ import type { PreviewData, ServerRuntime } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
+import type { PrerenderManifest } from '../build'
 
-import { join } from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
 import {
   NEXT_BUILTIN_DOCUMENT,
-  SERVERLESS_DIRECTORY,
-  SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
@@ -46,15 +43,13 @@ import {
   checkIsManualRevalidate,
 } from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
-import { isTargetLikeServerless } from './utils'
 import Router from './router'
-import { getPathMatch } from '../shared/lib/router/utils/path-match'
+
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
@@ -63,8 +58,7 @@ import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimit
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
-import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
-import { PrerenderManifest } from '../build'
+
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -133,7 +127,7 @@ export interface BaseRequestHandler {
   ): Promise<void>
 }
 
-type RequestContext = {
+export type RequestContext = {
   req: BaseNextRequest
   res: BaseNextResponse
   pathname: string
@@ -141,7 +135,7 @@ type RequestContext = {
   renderOpts: RenderOptsPartial
 }
 
-class NoFallbackError extends Error {}
+export class NoFallbackError extends Error {}
 
 // Internal wrapper around build errors at development
 // time, to prevent us from propagating or logging them
@@ -158,6 +152,21 @@ type ResponsePayload = {
   type: 'html' | 'json'
   body: RenderResult
   revalidateOptions?: any
+}
+
+export function prepareServerlessUrl(
+  req: BaseNextRequest,
+  query: ParsedUrlQuery
+): void {
+  const curUrl = parseUrl(req.url!, true)
+  req.url = formatUrl({
+    ...curUrl,
+    search: undefined,
+    query: {
+      ...curUrl.query,
+      ...query,
+    },
+  })
 }
 
 export default abstract class Server<ServerOptions extends Options = Options> {
@@ -219,20 +228,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
-  protected abstract generatePublicRoutes(): Route[]
-  protected abstract generateImageRoutes(): Route[]
-  protected abstract generateStaticRoutes(): Route[]
-  protected abstract generateFsStaticRoutes(): Route[]
-  protected abstract generateCatchAllMiddlewareRoute(): Route[]
-  protected abstract generateRewrites({
-    restrictedRedirectPaths,
-  }: {
-    restrictedRedirectPaths: string[]
-  }): {
-    beforeFiles: Route[]
-    afterFiles: Route[]
-    fallback: Route[]
-  }
+
   protected abstract getFilesystemPaths(): Set<string>
   protected abstract findPageComponents(
     pathname: string,
@@ -240,9 +236,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     params?: Params,
     isAppDir?: boolean
   ): Promise<FindComponentsResult | null>
-  protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
-  protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
   protected abstract getServerCSSManifest(): any
@@ -251,6 +245,25 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl: NextUrlWithParsedQuery
   ): void
   protected abstract getFallback(page: string): Promise<string>
+  protected abstract getCustomRoutes(): CustomRoutes
+  protected abstract hasPage(pathname: string): Promise<boolean>
+
+  protected abstract generateRoutes(): {
+    headers: Route[]
+    rewrites: {
+      beforeFiles: Route[]
+      afterFiles: Route[]
+      fallback: Route[]
+    }
+    fsRoutes: Route[]
+    redirects: Route[]
+    catchAllRoute: Route
+    catchAllMiddleware: Route[]
+    pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
+    dynamicRoutes: DynamicRoutes | undefined
+    nextConfig: NextConfig
+  }
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -412,6 +425,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const urlParts = (req.url || '').split('?')
       const urlNoQuery = urlParts[0]
 
+      // this normalizes repeated slashes in the path e.g. hello//world ->
+      // hello/world or backslashes to forward slashes, this does not
+      // handle trailing slash as that is handled the same as a next.config.js
+      // redirect
       if (urlNoQuery?.match(/(\\|\/\/)/)) {
         const cleanUrl = normalizeRepeatedSlashes(req.url!)
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
@@ -696,251 +713,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   // Backwards compatibility
   protected async close(): Promise<void> {}
 
-  protected getCustomRoutes(): CustomRoutes {
-    const customRoutes = this.getRoutesManifest()
-    let rewrites: CustomRoutes['rewrites']
-
-    // rewrites can be stored as an array when an array is
-    // returned in next.config.js so massage them into
-    // the expected object format
-    if (Array.isArray(customRoutes.rewrites)) {
-      rewrites = {
-        beforeFiles: [],
-        afterFiles: customRoutes.rewrites,
-        fallback: [],
-      }
-    } else {
-      rewrites = customRoutes.rewrites
-    }
-    return Object.assign(customRoutes, { rewrites })
-  }
-
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
-  }
-
-  protected generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  } {
-    const publicRoutes = this.generatePublicRoutes()
-    const imageRoutes = this.generateImageRoutes()
-    const staticFilesRoutes = this.generateStaticRoutes()
-
-    const fsRoutes: Route[] = [
-      ...this.generateFsStaticRoutes(),
-      {
-        match: getPathMatch('/_next/data/:path*'),
-        type: 'route',
-        name: '_next/data catchall',
-        check: true,
-        fn: async (req, res, params, _parsedUrl) => {
-          // Make sure to 404 for /_next/data/ itself and
-          // we also want to 404 if the buildId isn't correct
-          if (!params.path || params.path[0] !== this.buildId) {
-            await this.render404(req, res, _parsedUrl)
-            return {
-              finished: true,
-            }
-          }
-          // remove buildId from URL
-          params.path.shift()
-
-          const lastParam = params.path[params.path.length - 1]
-
-          // show 404 if it doesn't end with .json
-          if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
-            await this.render404(req, res, _parsedUrl)
-            return {
-              finished: true,
-            }
-          }
-
-          // re-create page's pathname
-          let pathname = `/${params.path.join('/')}`
-          pathname = getRouteFromAssetPath(pathname, '.json')
-
-          // ensure trailing slash is normalized per config
-          if (this.router.catchAllMiddleware[0]) {
-            if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
-              pathname += '/'
-            }
-            if (
-              !this.nextConfig.trailingSlash &&
-              pathname.length > 1 &&
-              pathname.endsWith('/')
-            ) {
-              pathname = pathname.substring(0, pathname.length - 1)
-            }
-          }
-
-          if (this.nextConfig.i18n) {
-            const { host } = req?.headers || {}
-            // remove port from host and remove port if present
-            const hostname = host?.split(':')[0].toLowerCase()
-            const localePathResult = normalizeLocalePath(
-              pathname,
-              this.nextConfig.i18n.locales
-            )
-            const { defaultLocale } =
-              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
-
-            let detectedLocale = ''
-
-            if (localePathResult.detectedLocale) {
-              pathname = localePathResult.pathname
-              detectedLocale = localePathResult.detectedLocale
-            }
-
-            _parsedUrl.query.__nextLocale = detectedLocale
-            _parsedUrl.query.__nextDefaultLocale =
-              defaultLocale || this.nextConfig.i18n.defaultLocale
-
-            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
-              _parsedUrl.query.__nextLocale =
-                _parsedUrl.query.__nextDefaultLocale
-              await this.render404(req, res, _parsedUrl)
-              return { finished: true }
-            }
-          }
-
-          return {
-            pathname,
-            query: { ..._parsedUrl.query, __nextDataReq: '1' },
-            finished: false,
-          }
-        },
-      },
-      ...imageRoutes,
-      {
-        match: getPathMatch('/_next/:path*'),
-        type: 'route',
-        name: '_next catchall',
-        // This path is needed because `render()` does a check for `/_next` and the calls the routing again
-        fn: async (req, res, _params, parsedUrl) => {
-          await this.render404(req, res, parsedUrl)
-          return {
-            finished: true,
-          }
-        },
-      },
-      ...publicRoutes,
-      ...staticFilesRoutes,
-    ]
-
-    const restrictedRedirectPaths = this.nextConfig.basePath
-      ? [`${this.nextConfig.basePath}/_next`]
-      : ['/_next']
-
-    // Headers come very first
-    const headers = this.minimalMode
-      ? []
-      : this.customRoutes.headers.map((rule) =>
-          createHeaderRoute({ rule, restrictedRedirectPaths })
-        )
-
-    const redirects = this.minimalMode
-      ? []
-      : this.customRoutes.redirects.map((rule) =>
-          createRedirectRoute({ rule, restrictedRedirectPaths })
-        )
-
-    const rewrites = this.generateRewrites({ restrictedRedirectPaths })
-    const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
-
-    const catchAllRoute: Route = {
-      match: getPathMatch('/:path*'),
-      type: 'route',
-      matchesLocale: true,
-      name: 'Catchall render',
-      fn: async (req, res, _params, parsedUrl) => {
-        let { pathname, query } = parsedUrl
-        if (!pathname) {
-          throw new Error('pathname is undefined')
-        }
-
-        // next.js core assumes page path without trailing slash
-        pathname = removeTrailingSlash(pathname)
-
-        if (this.nextConfig.i18n) {
-          const localePathResult = normalizeLocalePath(
-            pathname,
-            this.nextConfig.i18n?.locales
-          )
-
-          if (localePathResult.detectedLocale) {
-            pathname = localePathResult.pathname
-            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
-          }
-        }
-        const bubbleNoFallback = !!query._nextBubbleNoFallback
-
-        if (pathname === '/api' || pathname.startsWith('/api/')) {
-          delete query._nextBubbleNoFallback
-
-          const handled = await this.handleApiRequest(req, res, pathname, query)
-          if (handled) {
-            return { finished: true }
-          }
-        }
-
-        try {
-          await this.render(req, res, pathname, query, parsedUrl, true)
-
-          return {
-            finished: true,
-          }
-        } catch (err) {
-          if (err instanceof NoFallbackError && bubbleNoFallback) {
-            return {
-              finished: false,
-            }
-          }
-          throw err
-        }
-      },
-    }
-
-    const { useFileSystemPublicRoutes } = this.nextConfig
-
-    if (useFileSystemPublicRoutes) {
-      this.appPathRoutes = this.getAppPathRoutes()
-      this.dynamicRoutes = this.getDynamicRoutes()
-    }
-
-    return {
-      headers,
-      fsRoutes,
-      rewrites,
-      redirects,
-      catchAllRoute,
-      catchAllMiddleware,
-      useFileSystemPublicRoutes,
-      dynamicRoutes: this.dynamicRoutes,
-      pageChecker: this.hasPage.bind(this),
-      nextConfig: this.nextConfig,
-    }
-  }
-
-  protected async hasPage(pathname: string): Promise<boolean> {
-    let found = false
-    try {
-      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
-    } catch (_) {}
-
-    return found
   }
 
   protected async _beforeCatchAllRender(
@@ -950,56 +724,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     _parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     return false
-  }
-
-  // Used to build API page in development
-  protected async ensureApiPage(_pathname: string): Promise<void> {}
-
-  /**
-   * Resolves `API` request, in development builds on demand
-   * @param req http request
-   * @param res http response
-   * @param pathname path of request
-   */
-  private async handleApiRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    pathname: string,
-    query: ParsedUrlQuery
-  ): Promise<boolean> {
-    let page = pathname
-    let params: Params | undefined = undefined
-    let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
-
-    if (!pageFound && this.dynamicRoutes) {
-      for (const dynamicRoute of this.dynamicRoutes) {
-        params = dynamicRoute.match(pathname) || undefined
-        if (dynamicRoute.page.startsWith('/api') && params) {
-          page = dynamicRoute.page
-          pageFound = true
-          break
-        }
-      }
-    }
-
-    if (!pageFound) {
-      return false
-    }
-    // Make sure the page is built before getting the path
-    // or else it won't be in the manifest yet
-    await this.ensureApiPage(page)
-
-    let builtPagePath
-    try {
-      builtPagePath = this.getPagePath(page)
-    } catch (err) {
-      if (isError(err) && err.code === 'ENOENT') {
-        return false
-      }
-      throw err
-    }
-
-    return this.runApi(req, res, query, params, page, builtPagePath)
   }
 
   protected getDynamicRoutes(): Array<RoutingItem> {
@@ -2074,16 +1798,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
   }
 
-  protected getCacheFilesystem(): CacheFs {
-    return {
-      readFile: () => Promise.resolve(''),
-      readFileSync: () => '',
-      writeFile: () => Promise.resolve(),
-      mkdir: () => Promise.resolve(),
-      stat: () => Promise.resolve({ mtime: new Date() }),
-    }
-  }
-
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     // The development server will provide an implementation for this
     return null
@@ -2109,32 +1823,4 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
-
-  protected get _isLikeServerless(): boolean {
-    return isTargetLikeServerless(this.nextConfig.target)
-  }
-
-  protected get serverDistDir() {
-    return join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
-  }
 }
-
-export function prepareServerlessUrl(
-  req: BaseNextRequest,
-  query: ParsedUrlQuery
-): void {
-  const curUrl = parseUrl(req.url!, true)
-  req.url = formatUrl({
-    ...curUrl,
-    search: undefined,
-    query: {
-      ...curUrl.query,
-      ...query,
-    },
-  })
-}
-
-export { stringifyQuery } from './server-route-utils'
