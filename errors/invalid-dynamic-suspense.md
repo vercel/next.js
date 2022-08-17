@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-- You are using a React version older than 18 with `{ suspense: true }`.
+- You are using `{ suspense: true }` with React version older than 18.
 - You are using `{ suspense: true, ssr: false }`.
 
 #### Possible Ways to Fix It
