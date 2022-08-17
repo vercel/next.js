@@ -98,3 +98,4 @@ If you have a custom `Error` component be sure to import that one instead. `next
 ### Caveats
 
 - `Error` does not currently support Next.js [Data Fetching methods](/docs/basic-features/data-fetching.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
+- `/_error` is a reserved pathname and will render 404 when accessed directly via [routing](/docs/routing/introduction) or rendering in a [custom server](/docs/advanced-features/custom-server). You should create another page if you need.
