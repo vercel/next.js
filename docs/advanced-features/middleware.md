@@ -31,11 +31,11 @@ To begin using Middleware, follow the steps below:
 npm install next@latest
 ```
 
-2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` directory
-3. Export a middleware function from the `middleware.ts` file:
+2. Create a `_middleware.ts` (or `.js`) file at the same level as your `pages` directory
+3. Export a middleware function from the `_middleware.ts` file:
 
 ```typescript
-// middleware.ts
+// _middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -91,7 +91,7 @@ export const config = {
 ### Conditional Statements
 
 ```typescript
-// middleware.ts
+// _middleware.ts
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -123,7 +123,7 @@ To produce a response from Middleware, you should `rewrite` to a route ([Page](/
 The `cookies` API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) and allows you to `get`, `set`, and `delete` cookies. It also includes methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
 
 ```typescript
-// middleware.ts
+// _middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
