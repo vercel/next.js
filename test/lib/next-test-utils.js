@@ -114,6 +114,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
 
+/** @return {Promise<Response & {buffer: any} & {headers: any}>} */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
