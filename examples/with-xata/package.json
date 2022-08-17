@@ -1,0 +1,33 @@
+{
+  "name": "with-xata",
+  "description": "the minimal template to a Next.js project connected to a Xata database",
+  "version": "0.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "author": {
+    "name": "Xata",
+    "url": "https://xata.io"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "start:xata": "xata init --schema=schema.template.json --codegen=utils/xata.codegen.ts",
+    "poststart:xata": "xata codegen",
+    "xata": "xata codegen"
+  },
+  "devDependencies": {
+    "@types/node": "18.6.5",
+    "@types/react": "18.0.17",
+    "@types/react-dom": "18.0.6",
+    "@xata.io/cli": "0.8.1",
+    "eslint": "8.21.0",
+    "eslint-config-next": "12.2.4",
+    "typescript": "4.7.4"
+  },
+  "dependencies": {
+    "@xata.io/client": "^0.16.1",
+    "next": "^12.2.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

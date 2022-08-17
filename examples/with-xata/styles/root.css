@@ -1,0 +1,161 @@
+html {
+  --system-fonts: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol';
+  --xata-green: rgb(32, 198, 183);
+  --xata-faded-green: rgba(32, 198, 183, 0.4);
+  --transition-duration: 350ms;
+  --background-color: #000;
+  --text-color: #fff;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-family: 'Inter', var(--system-fonts);
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+h1 {
+  font-family: monospace;
+  font-size: 3rem;
+  text-align: center;
+}
+
+img {
+  width: 300px;
+}
+
+a,
+li {
+  transition: all var(--transition-duration) ease-in-out;
+}
+
+a {
+  color: var(--text-color);
+  font-size: 2rem;
+  text-decoration: none;
+}
+
+li a[target='_blank']::after {
+  content: '↗';
+  position: relative;
+  top: -1em;
+  left: 0.5em;
+  font-size: 1rem;
+}
+
+p {
+  color: var(--text-color);
+  font-size: 1.2rem;
+  line-height: 2;
+}
+
+main {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+header,
+footer {
+  display: grid;
+  place-items: center;
+}
+
+header {
+  height: clamp(4rem, 40rem, 55vh);
+}
+footer {
+  border-top: dashed 2px rgba(255, 255, 255, 0.4);
+  height: clamp(2rem, 5rem, 10vh);
+}
+
+section {
+  display: grid;
+  place-items: center;
+  max-width: 70vw;
+  padding: 5rem;
+  grid-gap: 2rem;
+  margin: 5rem auto;
+  border-radius: 30px/15px;
+  border: dashed 2px var(--xata-green);
+  font-size: 1.2rem;
+  text-align: center;
+  line-height: 2;
+}
+
+button {
+  background-color: transparent;
+  padding: 1rem 2rem;
+  border: solid 2px var(--xata-green);
+  color: var(--xata-green);
+  font-size: 2rem;
+  border-radius: 15px;
+  transition: all var(--transition-duration) ease-in-out;
+}
+
+button:hover,
+button:focus {
+  border-color: transparent;
+  color: var(--background-color);
+  background-color: var(--xata-green);
+}
+
+ul {
+  max-width: 120ch;
+  margin: 0 auto;
+  padding: 5rem 2rem;
+  display: grid;
+  grid-gap: 2rem;
+  list-style: none;
+}
+
+li {
+  padding: 1rem 2rem;
+  border: solid 2px var(--text-color);
+  border-radius: 10px/5px;
+}
+
+li:hover,
+li:focus-within {
+  border-color: var(--xata-green);
+  box-shadow: 0 5px 7px var(--xata-faded-green);
+}
+
+li:hover a,
+li:focus-within a {
+  text-decoration: underline dotted;
+  color: var(--xata-green);
+}
+
+object {
+  position: relative;
+  top: 10px;
+  width: 2rem;
+  margin-left: 0.5em;
+}
+
+@media (min-width: 420px) {
+  ul {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  html {
+    --background-color: #fff;
+    --text-color: #000;
+    --xata-green: rgb(10, 108, 63);
+    --xata-faded-green: rgba(32, 198, 183, 0.7);
+  }
+
+  @media (prefers-reduced-motion) {
+    html {
+      --transition-duration: 0;
+    }
+  }
+}
