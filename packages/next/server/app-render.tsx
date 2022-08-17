@@ -826,7 +826,13 @@ export async function renderToHTMLOrFlight(
           <>
             {stylesheets
               ? stylesheets.map((href) => (
-                  <link rel="stylesheet" href={`/_next/${href}`} key={href} />
+                  <link
+                    rel="stylesheet"
+                    href={`/_next/${href}?ts=${Date.now()}`}
+                    // @ts-ignore
+                    precedence="high"
+                    key={href}
+                  />
                 ))
               : null}
             <Component
