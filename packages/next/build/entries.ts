@@ -3,7 +3,7 @@ import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
   MiddlewareConfig,
   MiddlewareMatcher,
@@ -233,7 +233,7 @@ export function getServerlessEntry(opts: {
   page: string
   previewMode: __ApiPreviewProps
   pages: { [page: string]: string }
-}): ObjectValue<webpack5.EntryObject> {
+}): ObjectValue<webpack.EntryObject> {
   const loaderParams: ServerlessLoaderQuery = {
     absolute404Path: opts.pages['/404'] || '',
     absoluteAppPath: opts.pages['/_app'],
@@ -341,9 +341,9 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     appPaths,
     pageExtensions,
   } = params
-  const edgeServer: webpack5.EntryObject = {}
-  const server: webpack5.EntryObject = {}
-  const client: webpack5.EntryObject = {}
+  const edgeServer: webpack.EntryObject = {}
+  const server: webpack.EntryObject = {}
+  const client: webpack.EntryObject = {}
   const nestedMiddleware: string[] = []
   let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
 
@@ -494,10 +494,10 @@ export function finalizeEntrypoint({
 }: {
   compilerType?: CompilerNameValues
   name: string
-  value: ObjectValue<webpack5.EntryObject>
+  value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
   appDir?: boolean
-}): ObjectValue<webpack5.EntryObject> {
+}): ObjectValue<webpack.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
       ? { import: value }

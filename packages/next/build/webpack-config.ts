@@ -2,7 +2,6 @@ import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-ut
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
@@ -333,27 +332,29 @@ export function attachReactRefresh(
   const reactRefreshLoaderName =
     'next/dist/compiled/@next/react-refresh-utils/dist/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
-  webpackConfig.module?.rules.forEach((rule) => {
-    const curr = rule.use
-    // When the user has configured `defaultLoaders.babel` for a input file:
-    if (curr === targetLoader) {
-      ++injections
-      rule.use = [reactRefreshLoader, curr as webpack.RuleSetUseItem]
-    } else if (
-      Array.isArray(curr) &&
-      curr.some((r) => r === targetLoader) &&
-      // Check if loader already exists:
-      !curr.some(
-        (r) => r === reactRefreshLoader || r === reactRefreshLoaderName
-      )
-    ) {
-      ++injections
-      const idx = curr.findIndex((r) => r === targetLoader)
-      // Clone to not mutate user input
-      rule.use = [...curr]
+  webpackConfig.module?.rules?.forEach((rule) => {
+    if (rule && typeof rule === 'object' && 'use' in rule) {
+      const curr = rule.use
+      // When the user has configured `defaultLoaders.babel` for a input file:
+      if (curr === targetLoader) {
+        ++injections
+        rule.use = [reactRefreshLoader, curr as webpack.RuleSetUseItem]
+      } else if (
+        Array.isArray(curr) &&
+        curr.some((r) => r === targetLoader) &&
+        // Check if loader already exists:
+        !curr.some(
+          (r) => r === reactRefreshLoader || r === reactRefreshLoaderName
+        )
+      ) {
+        ++injections
+        const idx = curr.findIndex((r) => r === targetLoader)
+        // Clone to not mutate user input
+        rule.use = [...curr]
 
-      // inject / input: [other, babel] output: [other, refresh, babel]:
-      rule.use.splice(idx, 0, reactRefreshLoader)
+        // inject / input: [other, babel] output: [other, refresh, babel]:
+        rule.use.splice(idx, 0, reactRefreshLoader)
+      }
     }
   })
 
@@ -516,7 +517,7 @@ export default async function getBaseWebpackConfig(
     config: NextConfigComplete
     compilerType: CompilerNameValues
     dev?: boolean
-    entrypoints: webpack5.EntryObject
+    entrypoints: webpack.EntryObject
     hasReactRoot: boolean
     isDevFallback?: boolean
     pagesDir: string
@@ -1246,7 +1247,9 @@ export default async function getBaseWebpackConfig(
             moduleIds: isClient ? 'deterministic' : 'named',
           }
         : {}),
-      splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
+      splitChunks: (():
+        | Required<webpack.Configuration>['optimization']['splitChunks']
+        | false => {
         // For the edge runtime, we have to bundle all dependencies inside without dynamic `require`s.
         // To make some dependencies like `react` to be shared between entrypoints, we use a special
         // cache group here even under dev mode.
@@ -1294,12 +1297,13 @@ export default async function getBaseWebpackConfig(
           // as we don't need a separate vendor chunk from that
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
-          chunks: (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+          chunks: (chunk: any) =>
+            !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
           cacheGroups: {
             framework: {
               chunks: 'all',
               name: 'framework',
-              test(module) {
+              test(module: any) {
                 const resource = module.nameForCondition?.()
                 return resource
                   ? topLevelFrameworkPaths.some((pkgPath) =>
@@ -1834,7 +1838,7 @@ export default async function getBaseWebpackConfig(
     )
   }
 
-  const webpack5Config = webpackConfig as webpack5.Configuration
+  const webpack5Config = webpackConfig as webpack.Configuration
 
   if (isEdgeServer) {
     webpack5Config.module?.rules?.unshift({
@@ -2011,7 +2015,7 @@ export default async function getBaseWebpackConfig(
     }
 
     if (logDefault || profile) {
-      webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
+      webpack5Config.plugins!.push((compiler: webpack.Compiler) => {
         compiler.hooks.done.tap('next-webpack-logging', (stats) => {
           console.log(
             stats.toString({
@@ -2022,7 +2026,7 @@ export default async function getBaseWebpackConfig(
         })
       })
     } else if (summary) {
-      webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
+      webpack5Config.plugins!.push((compiler: webpack.Compiler) => {
         compiler.hooks.done.tap('next-webpack-logging', (stats) => {
           console.log(
             stats.toString({
@@ -2037,7 +2041,7 @@ export default async function getBaseWebpackConfig(
 
     if (profile) {
       const ProgressPlugin =
-        webpack.ProgressPlugin as unknown as typeof webpack5.ProgressPlugin
+        webpack.ProgressPlugin as unknown as typeof webpack.ProgressPlugin
       webpack5Config.plugins!.push(
         new ProgressPlugin({
           profile: true,
@@ -2099,7 +2103,7 @@ export default async function getBaseWebpackConfig(
     }
 
     // eslint-disable-next-line no-shadow
-    const webpack5Config = webpackConfig as webpack5.Configuration
+    const webpack5Config = webpackConfig as webpack.Configuration
 
     // disable lazy compilation of entries as next.js has it's own method here
     if (webpack5Config.experiments?.lazyCompilation === true) {
@@ -2124,15 +2128,23 @@ export default async function getBaseWebpackConfig(
     const rules = webpackConfig.module?.rules || []
     const hasCustomSvg = rules.some(
       (rule) =>
+        rule &&
+        typeof rule === 'object' &&
         rule.loader !== 'next-image-loader' &&
         'test' in rule &&
         rule.test instanceof RegExp &&
         rule.test.test('.svg')
     )
     const nextImageRule = rules.find(
-      (rule) => rule.loader === 'next-image-loader'
+      (rule) =>
+        rule && typeof rule === 'object' && rule.loader === 'next-image-loader'
     )
-    if (hasCustomSvg && nextImageRule) {
+    if (
+      hasCustomSvg &&
+      nextImageRule &&
+      nextImageRule &&
+      typeof nextImageRule === 'object'
+    ) {
       // Exclude svg if the user already defined it in custom
       // webpack config such as `@svgr/webpack` plugin or
       // the `babel-plugin-inline-react-svg` plugin.
@@ -2159,6 +2171,7 @@ export default async function getBaseWebpackConfig(
     const innerRules = []
 
     for (const rule of webpackConfig.module.rules) {
+      if (!rule || typeof rule !== 'object') continue
       if (rule.resolve) {
         topRules.push(rule)
       } else {
@@ -2231,8 +2244,8 @@ export default async function getBaseWebpackConfig(
   }
 
   const hasUserCssConfig =
-    webpackConfig.module?.rules.some(
-      (rule) => canMatchCss(rule.test) || canMatchCss(rule.include)
+    webpackConfig.module?.rules?.some(
+      (rule: any) => canMatchCss(rule.test) || canMatchCss(rule.include)
     ) ?? false
 
   if (hasUserCssConfig) {
@@ -2247,9 +2260,10 @@ export default async function getBaseWebpackConfig(
       )
     }
 
-    if (webpackConfig.module?.rules.length) {
+    if (webpackConfig.module?.rules?.length) {
       // Remove default CSS Loaders
       webpackConfig.module.rules.forEach((r) => {
+        if (!r || typeof r !== 'object') return
         if (Array.isArray(r.oneOf)) {
           r.oneOf = r.oneOf.filter(
             (o) => (o as any)[Symbol.for('__next_css_remove')] !== true
@@ -2287,6 +2301,7 @@ export default async function getBaseWebpackConfig(
 
     webpackConfig.module.rules = webpackConfig.module.rules.filter(
       (rule): boolean => {
+        if (!rule || typeof rule !== 'object') return true
         if (!(rule.test instanceof RegExp)) return true
         if ('noop.ts'.match(rule.test) && !'noop.js'.match(rule.test)) {
           // remove if it matches @zeit/next-typescript
@@ -2403,7 +2418,7 @@ export default async function getBaseWebpackConfig(
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     const updatedEntry = async () => {
-      const entry: webpack5.EntryObject =
+      const entry: webpack.EntryObject =
         typeof originalEntry === 'function'
           ? await originalEntry()
           : originalEntry
@@ -2438,9 +2453,9 @@ export default async function getBaseWebpackConfig(
     webpackConfig.entry = updatedEntry
   }
 
-  if (!dev) {
+  if (!dev && typeof webpackConfig.entry === 'function') {
     // entry is always a function
-    webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
+    webpackConfig.entry = await webpackConfig.entry()
   }
 
   return webpackConfig
