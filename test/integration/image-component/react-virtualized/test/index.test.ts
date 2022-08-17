@@ -16,7 +16,7 @@ import http from 'http'
 const appDir = join(__dirname, '../')
 let appPort
 let app
-let proxyServer
+let proxyServer: http.Server
 let cancelCount = 0
 describe('react-virtualized wrapping next/image', () => {
   describe('production', () => {
@@ -51,7 +51,7 @@ describe('react-virtualized wrapping next/image', () => {
         console.warn('Failed to proxy', err)
       })
 
-      await new Promise((resolve) => {
+      await new Promise<void>((resolve) => {
         proxyServer.listen(appPort, () => resolve())
       })
     })
