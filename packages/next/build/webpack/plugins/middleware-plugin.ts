@@ -244,14 +244,17 @@ function isNodeJsModule(moduleName: string) {
   return require('module').builtinModules.includes(moduleName)
 }
 
-function getEdgeEntryBuildInfo(module: webpack.Module) {
+function getEdgeEntryBuildInfo(
+  moduleGraph: webpack.ModuleGraph,
+  module: webpack.Module
+) {
   let currentModule: webpack.Module | null = module
   while (currentModule) {
     const buildInfo = getModuleBuildInfo(currentModule)
     if (buildInfo.edgeFunctionConfig) {
       return buildInfo
     }
-    currentModule = currentModule.issuer
+    currentModule = moduleGraph.getIssuer(currentModule)
   }
 }
 
@@ -357,7 +360,7 @@ function getCodeAnalyzer(params: {
     function allowDynamicCodeEvaluation() {
       return isDynamicCodeEvaluationAllowed(
         parser.state.module.resource,
-        getEdgeEntryBuildInfo(parser.state.current)
+        getEdgeEntryBuildInfo(compilation.moduleGraph, parser.state.current)
       )
     }
 

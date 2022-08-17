@@ -52,6 +52,65 @@ describe('Edge runtime configurable guards', () => {
     context.lib.restore()
   })
 
+  describe('Multiple functions with different configurations', () => {
+    beforeEach(() => {
+      context.middleware.write(`
+        import { NextResponse } from 'next/server'
+
+        export default () => {
+          eval('100')
+          return NextResponse.next()
+        }
+        export const config = {
+          allowDynamic: '/middleware.js'
+        }
+      `)
+      context.api.write(`
+        export default async function handler(request) {
+          eval('100')
+          return Response.json({ result: true })
+        }
+        export const config = {
+          runtime: 'experimental-edge',
+          allowDynamic: '/lib/**'
+        }
+      `)
+    })
+
+    it('does not warn in dev for allowed code', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, middlewareUrl)
+      await waitFor(500)
+      expect(res.status).toBe(200)
+      expect(context.logs.output).not.toContain(
+        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+      )
+    })
+
+    it('warns in dev for unallowed code', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, routeUrl)
+      await waitFor(500)
+      expect(res.status).toBe(200)
+      expect(context.logs.output).toContain(
+        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+      )
+    })
+
+    it('fails to build because of unallowed code', async () => {
+      const output = await nextBuild(context.appDir, undefined, {
+        stdout: true,
+        stderr: true,
+      })
+      expect(output.stderr).toContain(`Build failed`)
+      expect(output.stderr).toContain(`./pages/api/route.js`)
+      expect(output.stderr).toContain(
+        `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
+      )
+      expect(output.stderr).toContain(`Used by default`)
+    })
+  })
+
   describe.each([
     {
       title: 'Edge API',
@@ -75,7 +134,7 @@ describe('Edge runtime configurable guards', () => {
       init() {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-    
+
           export default () => {
             eval('100')
             return NextResponse.next()
