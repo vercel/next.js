@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react'
 
-const Tooltip = (props) => {
+export default function Tooltip(props) {
   let timeout
   const toolTipRef = useRef(null)
 
@@ -40,5 +40,3 @@ const Tooltip = (props) => {
     </div>
   )
 }
-
-export default Tooltip

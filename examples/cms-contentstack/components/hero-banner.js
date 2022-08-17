@@ -18,9 +18,7 @@ export default function HeroBanner({ banner, title }) {
         )}
         {banner.banner_description && (
           <p
-            className={`hero-description ${
-              title === 'about' && 'about-desc'
-            }`}
+            className={`hero-description ${title === 'about' && 'about-desc'}`}
             {...banner.$?.banner_description}
           >
             {banner?.banner_description}
