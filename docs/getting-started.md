@@ -24,7 +24,7 @@ everything automatically for you.
 
 ### Interactive
 
-You create a new project interactively by running:
+You can interactively create a new project interactively by running:
 
 ```bash
 npx create-next-app@latest
@@ -35,18 +35,17 @@ pnpm create next-app
 ```
 
 You will be asked for the name of your project, and then whether you want to
-configure it for use with **TypeScript**:
+create a TypeScript project:
 
 ```
 ✔ Would you like to use TypeScript with this project? … No / Yes
 ```
 
-Select **Yes** to install the necessary types and dependencies and configure
-your project for use with TS.
+Select **Yes** to install the necessary types/dependencies and create a new TS project.
 
 ### Non-interactive
 
-You can also pass command line arguments to setup a new project. See
+You can also pass command line arguments to setup a new project non-interactively. See
 `create-next-app --help`:
 
 ```
@@ -91,7 +90,7 @@ npx create-next-app@latest --ts my-project
 # or
 yarn create next-app --js my-project
 # or
-pnpm create next-app --typescript my-project
+pnpm create next-app --javascript my-project
 ```
 
 After the installation is complete:
