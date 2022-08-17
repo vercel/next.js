@@ -145,6 +145,37 @@ function Home() {
 export default Home
 ```
 
+## If the child is a functional component (solution without reactforwardref)
+
+If the child of `Link` is a functional component and the component is not a child of <a></a>, in addition to using `passHref` you must wrap it inside anchor tags in-place.
+
+```jsx
+import Link from 'next/link'
+
+// `onClick`, `href`, and `ref` need to be passed to the DOM element
+// for proper handling
+const MyComponent = ({title, description}) => {
+  return (
+    <div id="blogpost" style={{background:'black', color:'white'}}>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </div>
+  )
+}
+
+function Home() {
+  return (
+     <Link href="/blogpost" passHref>
+       <a>
+         <MyComponent title="Hello World" description="Lorem ipsum"/>
+       </a>
+     </Link>
+  )
+}
+
+export default Home
+```
+
 ## With URL Object
 
 `Link` can also receive a URL object and it will automatically format it to create the URL string. Here's how to do it:
