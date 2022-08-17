@@ -33,17 +33,17 @@ type ImageFormat = 'image/avif' | 'image/webp'
  * @see [Image configuration options](https://nextjs.org/docs/api-reference/next/image#configuration-options)
  */
 export type ImageConfigComplete = {
+  /** @private This is internal only */
+  path: string
+
   /** @see [Device sizes documentation](https://nextjs.org/docs/api-reference/next/image#device-sizes) */
   deviceSizes: number[]
 
   /** @see [Image sizing documentation](https://nextjs.org/docs/basic-features/image-optimization#image-sizing) */
   imageSizes: number[]
 
-  /** @see [Image loaders configuration](https://nextjs.org/docs/basic-features/image-optimization#loaders) */
+  /** @see [Image loaders prop](https://nextjs.org/docs/api-reference/next/future/image#loader) */
   loader: (() => string) | undefined
-
-  /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration) */
-  path: string
 
   /**
    * @see [Image domains configuration](https://nextjs.org/docs/api-reference/next/image#domains)

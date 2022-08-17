@@ -34,10 +34,10 @@ const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (p: ImageLoaderProps) => string
+type GlobalImageConfig = Omit<Partial<ImageConfigComplete>, 'path'>
+let globalImageConfig: GlobalImageConfig = {}
 
-let globalImageConfig: Partial<ImageConfigComplete> = {}
-
-export function setImageConfig(imageConfig: Partial<ImageConfigComplete>) {
+export function setImageConfig(imageConfig: GlobalImageConfig) {
   // We are not using React Context because we want the
   // `next/future/image` component to be a Shared component that will work
   // as both a Client component and a Server component. In particular,
