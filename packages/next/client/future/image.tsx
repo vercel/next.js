@@ -41,6 +41,8 @@ export function setImageConfig(imageConfig: GlobalImageConfig) {
   config.deviceSizes = deviceSizes
 }
 
+setImageConfig(config)
+
 export type ImageLoaderProps = {
   src: string
   width: number
