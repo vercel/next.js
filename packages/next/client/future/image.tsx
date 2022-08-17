@@ -10,7 +10,7 @@ import Head from '../../shared/lib/head'
 import {
   ImageConfigComplete,
   imageConfigDefault,
-} from '../../shared/lib/image-config'
+} from '../../shared/lib/image-future-config'
 import { ImageConfigContext } from '../../shared/lib/image-config-context'
 import { warnOnce } from '../../shared/lib/utils'
 
@@ -34,6 +34,17 @@ const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (p: ImageLoaderProps) => string
+
+let globalImageConfig: Partial<ImageConfigComplete> = {}
+
+export function setImageConfig(imageConfig: Partial<ImageConfigComplete>) {
+  // We are not using React Context because we want the
+  // `next/future/image` component to be a Shared component that will work
+  // as both a Client component and a Server component. In particular,
+  // React Context might not work with Server components. Ideally, we would
+  // have static dependency injection but it doesn't exist.
+  globalImageConfig = imageConfig
+}
 
 export type ImageLoaderProps = {
   src: string
@@ -520,7 +531,10 @@ export default function Image({
   }
   const configContext = useContext(ImageConfigContext)
   const config: ImageConfig = useMemo(() => {
-    const c = configEnv || configContext || imageConfigDefault
+    const c = Object.assign(
+      configEnv || configContext || imageConfigDefault,
+      globalImageConfig
+    )
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
     return { ...c, allSizes, deviceSizes }
