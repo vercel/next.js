@@ -11,8 +11,19 @@ import {
   ImageConfigComplete,
   imageConfigDefault,
 } from '../../shared/lib/image-config'
+import type {
+  ImageLoader,
+  ImageLoaderProps,
+} from '../../shared/lib/image-config'
 import { ImageConfigContext } from '../../shared/lib/image-config-context'
 import { warnOnce } from '../../shared/lib/utils'
+
+export const ImageConfigProvider = ImageConfigContext.Provider
+
+export type {
+  ImageConfigComplete,
+  imageConfigDefault,
+} from '../../shared/lib/image-config'
 
 const {
   experimentalFuture = false,
@@ -33,13 +44,6 @@ if (typeof window === 'undefined') {
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
-export type ImageLoader = (p: ImageLoaderProps) => string
-
-export type ImageLoaderProps = {
-  src: string
-  width: number
-  quality?: number
-}
 
 // Do not export - this is an internal type only
 // because `next.config.js` is only meant for the
@@ -529,6 +533,17 @@ export default function Image({
   let rest: Partial<ImageProps> = all
 
   let loader: ImageLoaderWithConfig = defaultLoader
+
+  if ('loader' in configContext) {
+    if (typeof configContext.loader === 'function') {
+      const contextLoader = configContext.loader
+      loader = (obj) => {
+        const { config: _, ...opts } = obj
+        return contextLoader(opts)
+      }
+    }
+    // TODO: default loader is not allowed for future/image
+  }
   if ('loader' in rest) {
     if (rest.loader) {
       const customImageLoader = rest.loader

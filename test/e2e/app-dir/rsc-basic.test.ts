@@ -257,11 +257,13 @@ describe('app dir - react server components', () => {
     expect(manipulated).toBe(undefined)
   })
 
-  it('should suspense next/image in server components', async () => {
+  it('should support image components in server components', async () => {
     const imageHTML = await renderViaHTTP(next.url, '/next-api/image')
-    const imageTag = getNodeBySelector(imageHTML, '#myimg')
+    const imageTag = getNodeBySelector(imageHTML, '#legacy-img')
+    const futureImageTag = getNodeBySelector(imageHTML, '#without-loader')
 
     expect(imageTag.attr('src')).toContain('data:image')
+    expect(futureImageTag.attr('src')).toBe('/test.svg?width=256')
   })
 
   // TODO: support esm import for RSC

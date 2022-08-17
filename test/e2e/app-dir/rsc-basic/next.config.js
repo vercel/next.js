@@ -6,5 +6,6 @@ module.exports = {
   experimental: {
     appDir: true,
     serverComponents: true,
+    images: { allowFutureImage: true },
   },
 }

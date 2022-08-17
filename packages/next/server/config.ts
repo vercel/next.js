@@ -18,6 +18,7 @@ import { loadWebpackHook } from './config-utils'
 import {
   ImageConfig,
   imageConfigDefault,
+  LoaderValue,
   VALID_LOADERS,
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
@@ -349,7 +350,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       images.loader = 'default'
     }
 
-    if (!VALID_LOADERS.includes(images.loader)) {
+    if (!VALID_LOADERS.includes(images.loader as LoaderValue)) {
       throw new Error(
         `Specified images.loader should be one of (${VALID_LOADERS.join(
           ', '

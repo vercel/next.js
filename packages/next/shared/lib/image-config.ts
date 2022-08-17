@@ -1,3 +1,11 @@
+export type ImageLoader = (p: ImageLoaderProps) => string
+
+export type ImageLoaderProps = {
+  src: string
+  width: number
+  quality?: number
+}
+
 export const VALID_LOADERS = [
   'default',
   'imgix',
@@ -50,7 +58,7 @@ export type ImageConfigComplete = {
   imageSizes: number[]
 
   /** @see [Image loaders configuration](https://nextjs.org/docs/basic-features/image-optimization#loaders) */
-  loader: LoaderValue
+  loader: LoaderValue | ImageLoader
 
   /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration) */
   path: string

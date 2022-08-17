@@ -400,7 +400,7 @@ function getInt(x: unknown): number | undefined {
 
 function defaultImageLoader(loaderProps: ImageLoaderPropsWithConfig) {
   const loaderKey = loaderProps.config?.loader || 'default'
-  const load = loaders.get(loaderKey)
+  const load = loaders.get(loaderKey as LoaderValue)
   if (load) {
     return load(loaderProps)
   }
