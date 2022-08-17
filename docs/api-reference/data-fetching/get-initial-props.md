@@ -68,6 +68,8 @@ For the initial page load, `getInitialProps` will run on the server only. `getIn
 - `getInitialProps` can **not** be used in children components, only in the default export of every page
 - If you are using server-side only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
 
+> Note that irrespective of rendering type, any `props` will be passed to the page component and can be viewed on the client-side in the initial HTML. This is to allow the page to be [hydrated](https://reactjs.org/docs/react-dom.html#hydrate) correctly. Make sure that you don't pass any sensitive information that shouldn't be available on the client in `props`.
+
 ## TypeScript
 
 If you're using TypeScript, you can use the `NextPage` type for function components:
@@ -119,7 +121,7 @@ export default class Page extends React.Component<Props> {
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>

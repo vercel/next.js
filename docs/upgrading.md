@@ -4,6 +4,10 @@ description: Learn how to upgrade Next.js.
 
 # Upgrade Guide
 
+## Upgrading to 12.2
+
+If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide) for more information.
+
 ## Upgrading from 11 to 12
 
 ### Minimum Node.js version
@@ -12,7 +16,7 @@ The minimum Node.js version has been bumped from 12.0.0 to 12.22.0 which is the 
 
 ### Upgrade React version to latest
 
-To upgrade you can run the following command:
+The minimum required React version is `17.0.2`. To upgrade you can run the following command in the terminal:
 
 ```
 npm install react@latest react-dom@latest

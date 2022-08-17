@@ -1,11 +1,11 @@
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { clearModuleContext } from '../../../server/web/sandbox'
 import { realpathSync } from 'fs'
 import path from 'path'
 import isError from '../../../lib/is-error'
 
-type Compiler = webpack5.Compiler
-type WebpackPluginInstance = webpack5.WebpackPluginInstance
+type Compiler = webpack.Compiler
+type WebpackPluginInstance = webpack.WebpackPluginInstance
 
 const originModules = [
   require.resolve('../../../server/require'),
@@ -20,22 +20,24 @@ function deleteCache(filePath: string) {
   } catch (e) {
     if (isError(e) && e.code !== 'ENOENT') throw e
   }
-  const module = require.cache[filePath]
-  if (module) {
+  const mod = require.cache[filePath]
+  if (mod) {
     // remove the child reference from the originModules
     for (const originModule of originModules) {
       const parent = require.cache[originModule]
       if (parent) {
-        const idx = parent.children.indexOf(module)
+        const idx = parent.children.indexOf(mod)
         if (idx >= 0) parent.children.splice(idx, 1)
       }
     }
     // remove parent references from external modules
-    for (const child of module.children) {
+    for (const child of mod.children) {
       child.parent = null
     }
+    delete require.cache[filePath]
+    return true
   }
-  delete require.cache[filePath]
+  return false
 }
 
 const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'
@@ -43,14 +45,16 @@ const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
 export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
   prevAssets: any = null
-  previousOutputPathsWebpack5: Set<string> = new Set()
-  currentOutputPathsWebpack5: Set<string> = new Set()
+  hasServerComponents: boolean
+
+  constructor(opts: { hasServerComponents: boolean }) {
+    this.hasServerComponents = opts.hasServerComponents
+  }
 
   apply(compiler: Compiler) {
     compiler.hooks.assetEmitted.tap(
       PLUGIN_NAME,
       (_file, { targetPath, content }) => {
-        this.currentOutputPathsWebpack5.add(targetPath)
         deleteCache(targetPath)
         clearModuleContext(targetPath, content.toString('utf-8'))
       }
@@ -68,8 +72,10 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       // we need to make sure to clear all server entries from cache
       // since they can have a stale webpack-runtime cache
       // which needs to always be in-sync
-      const entries = [...compilation.entries.keys()].filter((entry) =>
-        entry.toString().startsWith('pages/')
+      const entries = [...compilation.entries.keys()].filter(
+        (entry) =>
+          entry.toString().startsWith('pages/') ||
+          entry.toString().startsWith('app/')
       )
 
       entries.forEach((page) => {
@@ -80,8 +86,5 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
         deleteCache(outputPath)
       })
     })
-
-    this.previousOutputPathsWebpack5 = new Set(this.currentOutputPathsWebpack5)
-    this.currentOutputPathsWebpack5.clear()
   }
 }

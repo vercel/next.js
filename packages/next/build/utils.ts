@@ -1,3 +1,7 @@
+import type { NextConfigComplete } from '../server/config-shared'
+
+import '../server/node-polyfill-fetch'
+import loadRequireHook from '../build/webpack/require-hook'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -15,34 +19,33 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths, PageConfig } from 'next/types'
-import {
-  denormalizePagePath,
-  normalizePagePath,
-} from '../server/normalize-page-path'
+import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
 import { BuildManifest } from '../server/get-page-files'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
-import { NextConfigComplete } from '../server/config-shared'
-import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 
-const { builtinModules } = require('module')
+export type ROUTER_TYPE = 'pages' | 'app'
+
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
@@ -60,14 +63,209 @@ const fsStat = (file: string) => {
   return (fileStats[file] = fileSize(file))
 }
 
-export function collectPages(
-  directory: string,
-  pageExtensions: string[]
-): Promise<string[]> {
-  return recursiveReadDir(
-    directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
+loadRequireHook()
+
+export function unique<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
+  return [...new Set([...main, ...sub])]
+}
+
+export function difference<T>(
+  main: ReadonlyArray<T> | ReadonlySet<T>,
+  sub: ReadonlyArray<T> | ReadonlySet<T>
+): T[] {
+  const a = new Set(main)
+  const b = new Set(sub)
+  return [...a].filter((x) => !b.has(x))
+}
+
+/**
+ * Return an array of the items shared by both arrays.
+ */
+function intersect<T>(main: ReadonlyArray<T>, sub: ReadonlyArray<T>): T[] {
+  const a = new Set(main)
+  const b = new Set(sub)
+  return [...new Set([...a].filter((x) => b.has(x)))]
+}
+
+function sum(a: ReadonlyArray<number>): number {
+  return a.reduce((size, stat) => size + stat, 0)
+}
+
+function denormalizeAppPagePath(page: string): string {
+  return page + '/page'
+}
+
+type ComputeFilesGroup = {
+  files: ReadonlyArray<string>
+  size: {
+    total: number
+  }
+}
+
+type ComputeFilesManifest = {
+  unique: ComputeFilesGroup
+  common: ComputeFilesGroup
+}
+
+type ComputeFilesManifestResult = {
+  router: {
+    pages: ComputeFilesManifest
+    app?: ComputeFilesManifest
+  }
+  sizes: Map<string, number>
+}
+
+let cachedBuildManifest: BuildManifest | undefined
+let cachedAppBuildManifest: AppBuildManifest | undefined
+
+let lastCompute: ComputeFilesManifestResult | undefined
+let lastComputePageInfo: boolean | undefined
+
+export async function computeFromManifest(
+  manifests: {
+    build: BuildManifest
+    app?: AppBuildManifest
+  },
+  distPath: string,
+  gzipSize: boolean = true,
+  pageInfos?: Map<string, PageInfo>
+): Promise<ComputeFilesManifestResult> {
+  if (
+    Object.is(cachedBuildManifest, manifests.build) &&
+    lastComputePageInfo === !!pageInfos &&
+    Object.is(cachedAppBuildManifest, manifests.app)
+  ) {
+    return lastCompute!
+  }
+
+  // Determine the files that are in pages and app and count them, this will
+  // tell us if they are unique or common.
+
+  const countBuildFiles = (
+    map: Map<string, number>,
+    key: string,
+    manifest: Record<string, ReadonlyArray<string>>
+  ) => {
+    for (const file of manifest[key]) {
+      if (key === '/_app') {
+        map.set(file, Infinity)
+      } else if (map.has(file)) {
+        map.set(file, map.get(file)! + 1)
+      } else {
+        map.set(file, 1)
+      }
+    }
+  }
+
+  const files: {
+    pages: {
+      each: Map<string, number>
+      expected: number
+    }
+    app?: {
+      each: Map<string, number>
+      expected: number
+    }
+  } = {
+    pages: { each: new Map(), expected: 0 },
+  }
+
+  for (const key in manifests.build.pages) {
+    if (pageInfos) {
+      const pageInfo = pageInfos.get(key)
+      // don't include AMP pages since they don't rely on shared bundles
+      // AMP First pages are not under the pageInfos key
+      if (pageInfo?.isHybridAmp) {
+        continue
+      }
+    }
+
+    files.pages.expected++
+    countBuildFiles(files.pages.each, key, manifests.build.pages)
+  }
+
+  // Collect the build files form the app manifest.
+  if (manifests.app?.pages) {
+    files.app = { each: new Map<string, number>(), expected: 0 }
+
+    for (const key in manifests.app.pages) {
+      files.app.expected++
+      countBuildFiles(files.app.each, key, manifests.app.pages)
+    }
+  }
+
+  const getSize = gzipSize ? fsStatGzip : fsStat
+  const stats = new Map<string, number>()
+
+  // For all of the files in the pages and app manifests, compute the file size
+  // at once.
+
+  await Promise.all(
+    [
+      ...new Set<string>([
+        ...files.pages.each.keys(),
+        ...(files.app?.each.keys() ?? []),
+      ]),
+    ].map(async (f) => {
+      try {
+        // Add the file size to the stats.
+        stats.set(f, await getSize(path.join(distPath, f)))
+      } catch {}
+    })
   )
+
+  const groupFiles = async (listing: {
+    each: Map<string, number>
+    expected: number
+  }): Promise<ComputeFilesManifest> => {
+    const entries = [...listing.each.entries()]
+
+    const shapeGroup = (group: [string, number][]): ComputeFilesGroup =>
+      group.reduce(
+        (acc, [f]) => {
+          acc.files.push(f)
+
+          const size = stats.get(f)
+          if (typeof size === 'number') {
+            acc.size.total += size
+          }
+
+          return acc
+        },
+        {
+          files: [] as string[],
+          size: {
+            total: 0,
+          },
+        }
+      )
+
+    return {
+      unique: shapeGroup(entries.filter(([, len]) => len === 1)),
+      common: shapeGroup(
+        entries.filter(
+          ([, len]) => len === listing.expected || len === Infinity
+        )
+      ),
+    }
+  }
+
+  lastCompute = {
+    router: {
+      pages: await groupFiles(files.pages),
+      app: files.app ? await groupFiles(files.app) : undefined,
+    },
+    sizes: stats,
+  }
+
+  cachedBuildManifest = manifests.build
+  cachedAppBuildManifest = manifests.app
+  lastComputePageInfo = !!pageInfos
+  return lastCompute!
+}
+
+export function isMiddlewareFilename(file?: string) {
+  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
 }
 
 export interface PageInfo {
@@ -76,15 +274,18 @@ export interface PageInfo {
   totalSize: number
   static: boolean
   isSsg: boolean
-  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
+  runtime: ServerRuntime
 }
 
 export async function printTreeView(
-  list: readonly string[],
+  lists: {
+    pages: ReadonlyArray<string>
+    app?: ReadonlyArray<string>
+  },
   pageInfos: Map<string, PageInfo>,
   serverless: boolean,
   {
@@ -93,6 +294,8 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
+    appBuildManifest,
+    middlewareManifest,
     useStatic404,
     gzipSize = true,
   }: {
@@ -101,6 +304,8 @@ export async function printTreeView(
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
+    appBuildManifest?: AppBuildManifest
+    middlewareManifest: MiddlewareManifest
     useStatic404: boolean
     gzipSize?: boolean
   }
@@ -135,219 +340,267 @@ export async function printTreeView(
       // Remove file hash
       .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
-  const messages: [string, string, string][] = [
-    ['Page', 'Size', 'First Load JS'].map((entry) =>
-      chalk.underline(entry)
-    ) as [string, string, string],
-  ]
-
+  // Check if we have a custom app.
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+
+  const filterAndSortList = (list: ReadonlyArray<string>) =>
+    list
+      .slice()
+      .filter(
+        (e) =>
+          !(
+            e === '/_document' ||
+            e === '/_error' ||
+            (!hasCustomApp && e === '/_app')
+          )
+      )
+      .sort((a, b) => a.localeCompare(b))
+
+  // Collect all the symbols we use so we can print the icons out.
+  const usedSymbols = new Set()
+
+  const messages: [string, string, string][] = []
+
+  const stats = await computeFromManifest(
+    { build: buildManifest, app: appBuildManifest },
+    distPath,
+    gzipSize,
+    pageInfos
+  )
+
+  const printFileTree = async ({
+    list,
+    routerType,
+  }: {
+    list: ReadonlyArray<string>
+    routerType: ROUTER_TYPE
+  }) => {
+    messages.push(
+      [
+        routerType === 'app' ? 'Route (app)' : 'Route (pages)',
+        'Size',
+        'First Load JS',
+      ].map((entry) => chalk.underline(entry)) as [string, string, string]
+    )
+
+    filterAndSortList(list).forEach((item, i, arr) => {
+      const border =
+        i === 0
+          ? arr.length === 1
+            ? '─'
+            : '┌'
+          : i === arr.length - 1
+          ? '└'
+          : '├'
+
+      const pageInfo = pageInfos.get(item)
+      const ampFirst = buildManifest.ampFirstPages.includes(item)
+      const totalDuration =
+        (pageInfo?.pageDuration || 0) +
+        (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
+
+      const symbol =
+        routerType === 'app' || item === '/_app' || item === '/_app.server'
+          ? ' '
+          : pageInfo?.static
+          ? '○'
+          : pageInfo?.isSsg
+          ? '●'
+          : pageInfo?.runtime === SERVER_RUNTIME.edge
+          ? 'ℇ'
+          : 'λ'
+
+      usedSymbols.add(symbol)
+
+      if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
+
+      messages.push([
+        `${border} ${routerType === 'pages' ? `${symbol} ` : ''}${
+          pageInfo?.initialRevalidateSeconds
+            ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
+            : item
+        }${
+          totalDuration > MIN_DURATION
+            ? ` (${getPrettyDuration(totalDuration)})`
+            : ''
+        }`,
+        pageInfo
+          ? ampFirst
+            ? chalk.cyan('AMP')
+            : pageInfo.size >= 0
+            ? prettyBytes(pageInfo.size)
+            : ''
+          : '',
+        pageInfo
+          ? ampFirst
+            ? chalk.cyan('AMP')
+            : pageInfo.size >= 0
+            ? getPrettySize(pageInfo.totalSize)
+            : ''
+          : '',
+      ])
+
+      const uniqueCssFiles =
+        buildManifest.pages[item]?.filter(
+          (file) =>
+            file.endsWith('.css') &&
+            stats.router[routerType]?.unique.files.includes(file)
+        ) || []
+
+      if (uniqueCssFiles.length > 0) {
+        const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+        uniqueCssFiles.forEach((file, index, { length }) => {
+          const innerSymbol = index === length - 1 ? '└' : '├'
+          const size = stats.sizes.get(file)
+          messages.push([
+            `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
+            typeof size === 'number' ? prettyBytes(size) : '',
+            '',
+          ])
+        })
+      }
+
+      if (pageInfo?.ssgPageRoutes?.length) {
+        const totalRoutes = pageInfo.ssgPageRoutes.length
+        const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+        let routes: { route: string; duration: number; avgDuration?: number }[]
+        if (
+          pageInfo.ssgPageDurations &&
+          pageInfo.ssgPageDurations.some((d) => d > MIN_DURATION)
+        ) {
+          const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
+          const routesWithDuration = pageInfo.ssgPageRoutes
+            .map((route, idx) => ({
+              route,
+              duration: pageInfo.ssgPageDurations![idx] || 0,
+            }))
+            .sort(({ duration: a }, { duration: b }) =>
+              // Sort by duration
+              // keep too small durations in original order at the end
+              a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
+            )
+          routes = routesWithDuration.slice(0, previewPages)
+          const remainingRoutes = routesWithDuration.slice(previewPages)
+          if (remainingRoutes.length) {
+            const remaining = remainingRoutes.length
+            const avgDuration = Math.round(
+              remainingRoutes.reduce(
+                (total, { duration }) => total + duration,
+                0
+              ) / remainingRoutes.length
+            )
+            routes.push({
+              route: `[+${remaining} more paths]`,
+              duration: 0,
+              avgDuration,
+            })
+          }
+        } else {
+          const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
+          routes = pageInfo.ssgPageRoutes
+            .slice(0, previewPages)
+            .map((route) => ({ route, duration: 0 }))
+          if (totalRoutes > previewPages) {
+            const remaining = totalRoutes - previewPages
+            routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+          }
+        }
+
+        routes.forEach(
+          ({ route, duration, avgDuration }, index, { length }) => {
+            const innerSymbol = index === length - 1 ? '└' : '├'
+            messages.push([
+              `${contSymbol}   ${innerSymbol} ${route}${
+                duration > MIN_DURATION
+                  ? ` (${getPrettyDuration(duration)})`
+                  : ''
+              }${
+                avgDuration && avgDuration > MIN_DURATION
+                  ? ` (avg ${getPrettyDuration(avgDuration)})`
+                  : ''
+              }`,
+              '',
+              '',
+            ])
+          }
+        )
+      }
+    })
+
+    const sharedFilesSize = stats.router[routerType]?.common.size.total
+    const sharedFiles = stats.router[routerType]?.common.files ?? []
+
+    messages.push([
+      '+ First Load JS shared by all',
+      typeof sharedFilesSize === 'number' ? getPrettySize(sharedFilesSize) : '',
+      '',
+    ])
+    const sharedCssFiles: string[] = []
+    ;[
+      ...sharedFiles
+        .filter((file) => {
+          if (file.endsWith('.css')) {
+            sharedCssFiles.push(file)
+            return false
+          }
+          return true
+        })
+        .map((e) => e.replace(buildId, '<buildId>'))
+        .sort(),
+      ...sharedCssFiles.map((e) => e.replace(buildId, '<buildId>')).sort(),
+    ].forEach((fileName, index, { length }) => {
+      const innerSymbol = index === length - 1 ? '└' : '├'
+
+      const originalName = fileName.replace('<buildId>', buildId)
+      const cleanName = getCleanName(fileName)
+      const size = stats.sizes.get(originalName)
+
+      messages.push([
+        `  ${innerSymbol} ${cleanName}`,
+        typeof size === 'number' ? prettyBytes(size) : '',
+        '',
+      ])
+    })
+  }
+
+  // If enabled, then print the tree for the app directory.
+  if (lists.app && stats.router.app) {
+    await printFileTree({
+      routerType: 'app',
+      list: lists.app,
+    })
+
+    messages.push(['', '', ''])
+  }
 
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
     static: useStatic404,
   } as any)
 
-  if (!list.includes('/404')) {
-    list = [...list, '/404']
+  if (!lists.pages.includes('/404')) {
+    lists.pages = [...lists.pages, '/404']
   }
 
-  const sizeData = await computeFromManifest(
-    buildManifest,
-    distPath,
-    gzipSize,
-    pageInfos
-  )
+  // Print the tree view for the pages directory.
+  await printFileTree({
+    routerType: 'pages',
+    list: lists.pages,
+  })
 
-  const usedSymbols = new Set()
-
-  const pageList = list
-    .slice()
-    .filter(
-      (e) =>
-        !(
-          e === '/_document' ||
-          e === '/_error' ||
-          (!hasCustomApp && e === '/_app')
-        )
+  const middlewareInfo = middlewareManifest.middleware?.['/']
+  if (middlewareInfo?.files.length > 0) {
+    const middlewareSizes = await Promise.all(
+      middlewareInfo.files
+        .map((dep) => `${distPath}/${dep}`)
+        .map(gzipSize ? fsStatGzip : fsStat)
     )
-    .sort((a, b) => a.localeCompare(b))
 
-  pageList.forEach((item, i, arr) => {
-    const border =
-      i === 0
-        ? arr.length === 1
-          ? '─'
-          : '┌'
-        : i === arr.length - 1
-        ? '└'
-        : '├'
-
-    const pageInfo = pageInfos.get(item)
-    const ampFirst = buildManifest.ampFirstPages.includes(item)
-    const totalDuration =
-      (pageInfo?.pageDuration || 0) +
-      (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
-
-    const symbol =
-      item === '/_app'
-        ? ' '
-        : item.endsWith('/_middleware')
-        ? 'ƒ'
-        : pageInfo?.isWebSsr
-        ? 'ℇ'
-        : pageInfo?.static
-        ? '○'
-        : pageInfo?.isSsg
-        ? '●'
-        : 'λ'
-
-    usedSymbols.add(symbol)
-
-    if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
-
-    messages.push([
-      `${border} ${symbol} ${
-        pageInfo?.initialRevalidateSeconds
-          ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
-          : item
-      }${
-        totalDuration > MIN_DURATION
-          ? ` (${getPrettyDuration(totalDuration)})`
-          : ''
-      }`,
-      pageInfo
-        ? ampFirst
-          ? chalk.cyan('AMP')
-          : pageInfo.size >= 0
-          ? prettyBytes(pageInfo.size)
-          : ''
-        : '',
-      pageInfo
-        ? ampFirst
-          ? chalk.cyan('AMP')
-          : pageInfo.size >= 0
-          ? getPrettySize(pageInfo.totalSize)
-          : ''
-        : '',
-    ])
-
-    const uniqueCssFiles =
-      buildManifest.pages[item]?.filter(
-        (file) => file.endsWith('.css') && sizeData.uniqueFiles.includes(file)
-      ) || []
-
-    if (uniqueCssFiles.length > 0) {
-      const contSymbol = i === arr.length - 1 ? ' ' : '├'
-
-      uniqueCssFiles.forEach((file, index, { length }) => {
-        const innerSymbol = index === length - 1 ? '└' : '├'
-        messages.push([
-          `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
-          prettyBytes(sizeData.sizeUniqueFiles[file]),
-          '',
-        ])
-      })
-    }
-
-    if (pageInfo?.ssgPageRoutes?.length) {
-      const totalRoutes = pageInfo.ssgPageRoutes.length
-      const contSymbol = i === arr.length - 1 ? ' ' : '├'
-
-      let routes: { route: string; duration: number; avgDuration?: number }[]
-      if (
-        pageInfo.ssgPageDurations &&
-        pageInfo.ssgPageDurations.some((d) => d > MIN_DURATION)
-      ) {
-        const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
-        const routesWithDuration = pageInfo.ssgPageRoutes
-          .map((route, idx) => ({
-            route,
-            duration: pageInfo.ssgPageDurations![idx] || 0,
-          }))
-          .sort(({ duration: a }, { duration: b }) =>
-            // Sort by duration
-            // keep too small durations in original order at the end
-            a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
-          )
-        routes = routesWithDuration.slice(0, previewPages)
-        const remainingRoutes = routesWithDuration.slice(previewPages)
-        if (remainingRoutes.length) {
-          const remaining = remainingRoutes.length
-          const avgDuration = Math.round(
-            remainingRoutes.reduce(
-              (total, { duration }) => total + duration,
-              0
-            ) / remainingRoutes.length
-          )
-          routes.push({
-            route: `[+${remaining} more paths]`,
-            duration: 0,
-            avgDuration,
-          })
-        }
-      } else {
-        const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
-        routes = pageInfo.ssgPageRoutes
-          .slice(0, previewPages)
-          .map((route) => ({ route, duration: 0 }))
-        if (totalRoutes > previewPages) {
-          const remaining = totalRoutes - previewPages
-          routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
-        }
-      }
-
-      routes.forEach(({ route, duration, avgDuration }, index, { length }) => {
-        const innerSymbol = index === length - 1 ? '└' : '├'
-        messages.push([
-          `${contSymbol}   ${innerSymbol} ${route}${
-            duration > MIN_DURATION ? ` (${getPrettyDuration(duration)})` : ''
-          }${
-            avgDuration && avgDuration > MIN_DURATION
-              ? ` (avg ${getPrettyDuration(avgDuration)})`
-              : ''
-          }`,
-          '',
-          '',
-        ])
-      })
-    }
-  })
-
-  const sharedFilesSize = sizeData.sizeCommonFiles
-  const sharedFiles = sizeData.sizeCommonFile
-
-  messages.push([
-    '+ First Load JS shared by all',
-    getPrettySize(sharedFilesSize),
-    '',
-  ])
-  const sharedFileKeys = Object.keys(sharedFiles)
-  const sharedCssFiles: string[] = []
-  ;[
-    ...sharedFileKeys
-      .filter((file) => {
-        if (file.endsWith('.css')) {
-          sharedCssFiles.push(file)
-          return false
-        }
-        return true
-      })
-      .map((e) => e.replace(buildId, '<buildId>'))
-      .sort(),
-    ...sharedCssFiles.map((e) => e.replace(buildId, '<buildId>')).sort(),
-  ].forEach((fileName, index, { length }) => {
-    const innerSymbol = index === length - 1 ? '└' : '├'
-
-    const originalName = fileName.replace('<buildId>', buildId)
-    const cleanName = getCleanName(fileName)
-
-    messages.push([
-      `  ${innerSymbol} ${cleanName}`,
-      prettyBytes(sharedFiles[originalName]),
-      '',
-    ])
-  })
+    messages.push(['', '', ''])
+    messages.push(['ƒ Middleware', getPrettySize(sum(middlewareSizes)), ''])
+  }
 
   console.log(
     textTable(messages, {
@@ -360,11 +613,6 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        usedSymbols.has('ƒ') && [
-          'ƒ',
-          '(Middleware)',
-          `intercepts requests (uses ${chalk.cyan('_middleware')})`,
-        ],
         usedSymbols.has('ℇ') && [
           'ℇ',
           '(Streaming)',
@@ -481,165 +729,82 @@ export function printCustomRoutes({
   }
 }
 
-type ComputeManifestShape = {
-  commonFiles: string[]
-  uniqueFiles: string[]
-  sizeUniqueFiles: { [file: string]: number }
-  sizeCommonFile: { [file: string]: number }
-  sizeCommonFiles: number
-}
-
-let cachedBuildManifest: BuildManifest | undefined
-
-let lastCompute: ComputeManifestShape | undefined
-let lastComputePageInfo: boolean | undefined
-
-export async function computeFromManifest(
-  manifest: BuildManifest,
-  distPath: string,
-  gzipSize: boolean = true,
-  pageInfos?: Map<string, PageInfo>
-): Promise<ComputeManifestShape> {
-  if (
-    Object.is(cachedBuildManifest, manifest) &&
-    lastComputePageInfo === !!pageInfos
-  ) {
-    return lastCompute!
-  }
-
-  let expected = 0
-  const files = new Map<string, number>()
-  Object.keys(manifest.pages).forEach((key) => {
-    if (pageInfos) {
-      const pageInfo = pageInfos.get(key)
-      // don't include AMP pages since they don't rely on shared bundles
-      // AMP First pages are not under the pageInfos key
-      if (pageInfo?.isHybridAmp) {
-        return
-      }
-    }
-
-    ++expected
-    manifest.pages[key].forEach((file) => {
-      if (key === '/_app') {
-        files.set(file, Infinity)
-      } else if (files.has(file)) {
-        files.set(file, files.get(file)! + 1)
-      } else {
-        files.set(file, 1)
-      }
-    })
-  })
-
-  const getSize = gzipSize ? fsStatGzip : fsStat
-
-  const commonFiles = [...files.entries()]
-    .filter(([, len]) => len === expected || len === Infinity)
-    .map(([f]) => f)
-  const uniqueFiles = [...files.entries()]
-    .filter(([, len]) => len === 1)
-    .map(([f]) => f)
-
-  let stats: [string, number][]
-  try {
-    stats = await Promise.all(
-      commonFiles.map(
-        async (f) =>
-          [f, await getSize(path.join(distPath, f))] as [string, number]
-      )
-    )
-  } catch (_) {
-    stats = []
-  }
-
-  let uniqueStats: [string, number][]
-  try {
-    uniqueStats = await Promise.all(
-      uniqueFiles.map(
-        async (f) =>
-          [f, await getSize(path.join(distPath, f))] as [string, number]
-      )
-    )
-  } catch (_) {
-    uniqueStats = []
-  }
-
-  lastCompute = {
-    commonFiles,
-    uniqueFiles,
-    sizeUniqueFiles: uniqueStats.reduce(
-      (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
-      {}
-    ),
-    sizeCommonFile: stats.reduce(
-      (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
-      {}
-    ),
-    sizeCommonFiles: stats.reduce((size, [f, stat]) => {
-      if (f.endsWith('.css')) return size
-      return size + stat
-    }, 0),
-  }
-
-  cachedBuildManifest = manifest
-  lastComputePageInfo = !!pageInfos
-  return lastCompute!
-}
-
-export function difference<T>(main: T[] | Set<T>, sub: T[] | Set<T>): T[] {
-  const a = new Set(main)
-  const b = new Set(sub)
-  return [...a].filter((x) => !b.has(x))
-}
-
-function intersect<T>(main: T[], sub: T[]): T[] {
-  const a = new Set(main)
-  const b = new Set(sub)
-  return [...new Set([...a].filter((x) => b.has(x)))]
-}
-
-function sum(a: number[]): number {
-  return a.reduce((size, stat) => size + stat, 0)
-}
-
 export async function getJsPageSizeInKb(
+  routerType: ROUTER_TYPE,
   page: string,
   distPath: string,
   buildManifest: BuildManifest,
+  appBuildManifest?: AppBuildManifest,
   gzipSize: boolean = true,
-  computedManifestData?: ComputeManifestShape
+  cachedStats?: ComputeFilesManifestResult
 ): Promise<[number, number]> {
-  const data =
-    computedManifestData ||
-    (await computeFromManifest(buildManifest, distPath, gzipSize))
+  const pageManifest = routerType === 'pages' ? buildManifest : appBuildManifest
+  if (!pageManifest) {
+    throw new Error('expected appBuildManifest with an "app" pageType')
+  }
+
+  // If stats was not provided, then compute it again.
+  const stats =
+    cachedStats ??
+    (await computeFromManifest(
+      { build: buildManifest, app: appBuildManifest },
+      distPath,
+      gzipSize
+    ))
+
+  const pageData = stats.router[routerType]
+  if (!pageData) {
+    // This error shouldn't happen and represents an error in Next.js.
+    throw new Error('expected "app" manifest data with an "app" pageType')
+  }
+
+  const pagePath =
+    routerType === 'pages'
+      ? denormalizePagePath(page)
+      : denormalizeAppPagePath(page)
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
-  const pageFiles = (
-    buildManifest.pages[denormalizePagePath(page)] || []
-  ).filter(fnFilterJs)
-  const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterJs)
+  const pageFiles = (pageManifest.pages[pagePath] ?? []).filter(fnFilterJs)
+  const appFiles = (pageManifest.pages['/_app'] ?? []).filter(fnFilterJs)
 
   const fnMapRealPath = (dep: string) => `${distPath}/${dep}`
 
-  const allFilesReal = [...new Set([...pageFiles, ...appFiles])].map(
-    fnMapRealPath
-  )
+  const allFilesReal = unique(pageFiles, appFiles).map(fnMapRealPath)
   const selfFilesReal = difference(
-    intersect(pageFiles, data.uniqueFiles),
-    data.commonFiles
+    // Find the files shared by the pages files and the unique files...
+    intersect(pageFiles, pageData.unique.files),
+    // but without the common files.
+    pageData.common.files
   ).map(fnMapRealPath)
 
   const getSize = gzipSize ? fsStatGzip : fsStat
 
+  // Try to get the file size from the page data if available, otherwise do a
+  // raw compute.
+  const getCachedSize = async (file: string) => {
+    const key = file.slice(distPath.length + 1)
+    const size: number | undefined = stats.sizes.get(key)
+
+    // If the size wasn't in the stats bundle, then get it from the file
+    // directly.
+    if (typeof size !== 'number') {
+      return getSize(file)
+    }
+
+    return size
+  }
+
   try {
     // Doesn't use `Promise.all`, as we'd double compute duplicate files. This
     // function is memoized, so the second one will instantly resolve.
-    const allFilesSize = sum(await Promise.all(allFilesReal.map(getSize)))
-    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(getSize)))
+    const allFilesSize = sum(await Promise.all(allFilesReal.map(getCachedSize)))
+    const selfFilesSize = sum(
+      await Promise.all(selfFilesReal.map(getCachedSize))
+    )
 
     return [selfFilesSize, allFilesSize]
-  } catch (_) {}
+  } catch {}
   return [-1, -1]
 }
 
@@ -716,13 +881,13 @@ export async function buildStaticPaths(
     // For a string-provided path, we must make sure it matches the dynamic
     // route.
     if (typeof entry === 'string') {
-      entry = removePathTrailingSlash(entry)
+      entry = removeTrailingSlash(entry)
 
       const localePathResult = normalizeLocalePath(entry, locales)
       let cleanedEntry = entry
 
       if (localePathResult.detectedLocale) {
-        cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+        cleanedEntry = entry.slice(localePathResult.detectedLocale.length + 1)
       } else if (defaultLocale) {
         entry = `/${defaultLocale}${entry}`
       }
@@ -857,7 +1022,6 @@ export async function isPageStatic(
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
-  hasFlightData?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[]
@@ -868,8 +1032,8 @@ export async function isPageStatic(
   traceExcludes?: string[]
 }> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
-  return isPageStaticSpan.traceAsyncFn(async () => {
-    try {
+  return isPageStaticSpan
+    .traceAsyncFn(async () => {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
 
@@ -880,7 +1044,6 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
-      const hasFlightData = !!(Comp as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -968,11 +1131,7 @@ export async function isPageStatic(
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = mod.pageConfig
       return {
-        isStatic:
-          !hasStaticProps &&
-          !hasGetInitialProps &&
-          !hasServerProps &&
-          !hasFlightData,
+        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,
@@ -980,16 +1139,18 @@ export async function isPageStatic(
         encodedPrerenderRoutes,
         hasStaticProps,
         hasServerProps,
-        hasFlightData,
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
       }
-    } catch (err) {
-      if (isError(err) && err.code === 'MODULE_NOT_FOUND') return {}
-      throw err
-    }
-  })
+    })
+    .catch((err) => {
+      if (err.message === 'INVALID_DEFAULT_EXPORT') {
+        throw err
+      }
+      console.error(err)
+      throw new Error(`Failed to collect page data for ${page}`)
+    })
 }
 
 export async function hasCustomGetInitialProps(
@@ -1102,60 +1263,37 @@ export function detectConflictingPaths(
   }
 }
 
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
-      }
-    })
-  })
-
-  return [...cssFiles]
-}
-
-export function getRawPageExtensions(pageExtensions: string[]): string[] {
+/**
+ * With RSC we automatically add .server and .client to page extensions. This
+ * function allows to remove them for cases where we just need to strip out
+ * the actual extension keeping the .server and .client.
+ */
+export function withoutRSCExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
   )
 }
 
-export function isFlightPage(
+export function isServerComponentPage(
   nextConfig: NextConfigComplete,
-  pagePath: string
+  filePath: string
 ): boolean {
-  if (
-    !(
-      nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.concurrentFeatures
-    )
-  )
+  if (!nextConfig.experimental.serverComponents) {
     return false
+  }
 
-  const rawPageExtensions = getRawPageExtensions(
+  const rawPageExtensions = withoutRSCExtensions(
     nextConfig.pageExtensions || []
   )
-  const isRscPage = rawPageExtensions.some((ext) => {
-    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  return rawPageExtensions.some((ext) => {
+    return filePath.endsWith(`.server.${ext}`)
   })
-  return isRscPage
-}
-
-export function getUnresolvedModuleFromError(
-  error: string
-): string | undefined {
-  const moduleErrorRegex = new RegExp(
-    `Module not found: Can't resolve '(\\w+)'`
-  )
-  const [, moduleName] = error.match(moduleErrorRegex) || []
-  return builtinModules.find((item: string) => item === moduleName)
 }
 
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
-  pageKeys: string[],
+  pageKeys: ReadonlyArray<string>,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest
@@ -1188,11 +1326,7 @@ export async function copyTracedFiles(
           const symlink = await fs.readlink(tracedFilePath).catch(() => null)
 
           if (symlink) {
-            console.log('symlink', path.relative(tracingRoot, symlink))
-            await fs.symlink(
-              path.relative(tracingRoot, symlink),
-              fileOutputPath
-            )
+            await fs.symlink(symlink, fileOutputPath)
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
           }
@@ -1203,12 +1337,9 @@ export async function copyTracedFiles(
     )
   }
 
-  for (const page of pageKeys) {
-    if (MIDDLEWARE_ROUTE.test(page)) {
-      const { files } =
-        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
-
-      for (const file of files) {
+  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
+    if (isMiddlewareFilename(middleware.name)) {
+      for (const file of middleware.files) {
         const originalPath = path.join(distDir, file)
         const fileOutputPath = path.join(
           outputPath,
@@ -1218,9 +1349,10 @@ export async function copyTracedFiles(
         await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
         await fs.copyFile(originalPath, fileOutputPath)
       }
-      continue
     }
+  }
 
+  for (const page of pageKeys) {
     const pageFile = path.join(
       distDir,
       'server',
@@ -1245,6 +1377,13 @@ const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
 
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+// Allow the graceful termination to be manually configurable
+if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
+}
+
 let handler
 
 const server = http.createServer(async (req, res) => {
@@ -1263,12 +1402,12 @@ server.listen(currentPort, (err) => {
     console.error("Failed to start server", err)
     process.exit(1)
   }
-  const addr = server.address()
   const nextServer = new NextServer({
     hostname: 'localhost',
     port: currentPort,
     dir: path.join(__dirname),
     dev: false,
+    customServer: false,
     conf: ${JSON.stringify({
       ...serverConfig,
       distDir: `./${path.relative(dir, distDir)}`,
@@ -1287,4 +1426,44 @@ export function isReservedPage(page: string) {
 
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
+}
+
+export function isMiddlewareFile(file: string) {
+  return (
+    file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function getPossibleMiddlewareFilenames(
+  folder: string,
+  extensions: string[]
+) {
+  return extensions.map((extension) =>
+    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
+  )
+}
+
+export class MiddlewareInServerlessTargetError extends Error {
+  constructor() {
+    super(
+      'Next.js Middleware is not supported in the deprecated serverless target.\n' +
+        'Please remove `target: "serverless" from your next.config.js to use Middleware.'
+    )
+    this.name = 'MiddlewareInServerlessTargetError'
+  }
+}
+
+export class NestedMiddlewareError extends Error {
+  constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
+    super(
+      `Nested Middleware is not allowed, found:\n` +
+        `${nestedFileNames.map((file) => `pages${file}`).join('\n')}\n` +
+        `Please move your code to a single file at ${path.join(
+          path.posix.sep,
+          path.relative(mainDir, path.resolve(pagesDir, '..')),
+          'middleware'
+        )} instead.\n` +
+        `Read More - https://nextjs.org/docs/messages/nested-middleware`
+    )
+  }
 }

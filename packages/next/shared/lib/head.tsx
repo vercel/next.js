@@ -2,7 +2,8 @@ import React, { useContext } from 'react'
 import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
-import { isInAmpMode } from './amp'
+import { isInAmpMode } from './amp-mode'
+import { warnOnce } from './utils'
 
 type WithInAmpMode = {
   inAmpMode?: boolean
@@ -115,25 +116,16 @@ function unique() {
 
 /**
  *
- * @param headElements List of multiple <Head> instances
+ * @param headChildrenElements List of children of <Head>
  */
 function reduceComponents(
-  headElements: Array<React.ReactElement<any>>,
+  headChildrenElements: Array<React.ReactElement<any>>,
   props: WithInAmpMode
 ) {
-  return headElements
-    .reduce(
-      (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
-        const headElementChildren = React.Children.toArray(
-          headElement.props.children
-        )
-        return list.concat(headElementChildren)
-      },
-      []
-    )
+  return headChildrenElements
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(props.inAmpMode))
+    .concat(defaultHead(props.inAmpMode).reverse())
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -159,6 +151,24 @@ function reduceComponents(
           newProps['data-optimized-fonts'] = true
 
           return React.cloneElement(c, newProps)
+        }
+      }
+      if (
+        process.env.NODE_ENV === 'development' &&
+        process.env.__NEXT_REACT_ROOT
+      ) {
+        // omit JSON-LD structured data snippets from the warning
+        if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
+          const srcMessage = c.props['src']
+            ? `<script> tag with src="${c.props['src']}"`
+            : `inline <script>`
+          warnOnce(
+            `Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`
+          )
+        } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
+          warnOnce(
+            `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+          )
         }
       }
       return React.cloneElement(c, { key })

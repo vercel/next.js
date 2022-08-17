@@ -5,6 +5,7 @@ import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
 import { join } from 'path'
+import WebSocket from 'ws'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
@@ -39,6 +40,45 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should successfully rewrite a WebSocket request', async () => {
+    const messages = []
+    const ws = await new Promise((resolve, reject) => {
+      let socket = new WebSocket(`ws://localhost:${appPort}/to-websocket`)
+      socket.on('message', (data) => {
+        messages.push(data.toString())
+      })
+      socket.on('open', () => resolve(socket))
+      socket.on('error', (err) => {
+        console.error(err)
+        socket.close()
+        reject()
+      })
+    })
+
+    await check(
+      () => (messages.length > 0 ? 'success' : JSON.stringify(messages)),
+      'success'
+    )
+    ws.close()
+    expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
+  })
+
+  it('should not rewrite for _next/data route when a match is found', async () => {
+    const initial = await fetchViaHTTP(appPort, '/overridden/first')
+    expect(initial.status).toBe(200)
+    expect(await initial.text()).toContain('this page is overridden')
+
+    const nextData = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/overridden/first.json`
+    )
+    expect(nextData.status).toBe(200)
+    expect(await nextData.json()).toEqual({
+      pageProps: { params: { slug: 'first' } },
+      __N_SSG: true,
+    })
+  })
+
   it('should handle has query encoding correctly', async () => {
     for (const expected of [
       {
@@ -79,6 +119,76 @@ const runTests = (isDev = false) => {
         })
       }
     }
+  })
+
+  it('should handle external beforeFiles rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/overridden')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('Example Domain')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.elementByCss('#to-before-files-overridden').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Example Domain/
+    )
+  })
+
+  it('should handle beforeFiles rewrite to dynamic route correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/nfl')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('/_sport/[slug]')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-before-files-dynamic').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /_sport\/\[slug\]/
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'nfl',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe(
+      '/_sport/[slug]'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should handle beforeFiles rewrite to partly dynamic route correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/nfl')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('/_sport/[slug]')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-before-files-dynamic-again').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /_sport\/\[slug\]\/test/
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'nfl',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe(
+      '/_sport/[slug]/test'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should support long URLs for rewrites', async () => {
@@ -159,7 +269,7 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /auto-export hello/
+      /auto-export.*?hello/
     )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
@@ -690,6 +800,26 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('refresh')).toBe(`0;url=/`)
   })
 
+  it('should have correctly encoded query in location and refresh headers', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      // Query unencoded is ?テスト=あ
+      '/redirect4?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(308)
+
+    expect(res.headers.get('location').split('?')[1]).toBe(
+      '%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+    expect(res.headers.get('refresh')).toBe(
+      '0;url=/?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+  })
+
   it('should handle basic api rewrite successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello')
     expect(JSON.parse(data)).toEqual({ query: {} })
@@ -1177,6 +1307,18 @@ const runTests = (isDev = false) => {
               buildId
             )}/blog\\-catchall/(?<slug>.+?)\\.json$`,
             page: '/blog-catchall/[...slug]',
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/overridden\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/overridden/(?<slug>[^/]+?)\\.json$`,
+            page: '/overridden/[slug]',
             routeKeys: {
               slug: 'slug',
             },
@@ -1677,8 +1819,25 @@ const runTests = (isDev = false) => {
               ),
               source: '/old-blog/:path*',
             },
+            {
+              destination: 'https://example.vercel.sh',
+              regex: normalizeRegEx('^\\/overridden(?:\\/)?$'),
+              source: '/overridden',
+            },
+            {
+              destination: '/_sport/nfl/:path*',
+              regex: normalizeRegEx(
+                '^\\/nfl(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
+              ),
+              source: '/nfl/:path*',
+            },
           ],
           afterFiles: [
+            {
+              destination: `http://localhost:${externalServerPort}/_next/webpack-hmr?page=/about`,
+              regex: normalizeRegEx('^\\/to-websocket(?:\\/)?$'),
+              source: '/to-websocket',
+            },
             {
               destination: 'http://localhost:12233',
               regex: normalizeRegEx('^\\/to-nowhere(?:\\/)?$'),
@@ -1926,10 +2085,32 @@ const runTests = (isDev = false) => {
               regex: normalizeRegEx('^\\/blog\\/about(?:\\/)?$'),
               source: '/blog/about',
             },
+            {
+              destination: '/overridden',
+              regex:
+                '^\\/overridden(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$',
+              source: '/overridden/:path*',
+            },
           ],
           fallback: [],
         },
         dynamicRoutes: [
+          {
+            namedRegex: '^/_sport/(?<slug>[^/]+?)(?:/)?$',
+            page: '/_sport/[slug]',
+            regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            namedRegex: '^/_sport/(?<slug>[^/]+?)/test(?:/)?$',
+            page: '/_sport/[slug]/test',
+            regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)\\/test(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
           {
             namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
             page: '/another/[id]',
@@ -1970,6 +2151,14 @@ const runTests = (isDev = false) => {
               slug: 'slug',
             },
           },
+          {
+            namedRegex: '^/overridden/(?<slug>[^/]+?)(?:/)?$',
+            page: '/overridden/[slug]',
+            regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
         ],
         staticRoutes: [
           {
@@ -2006,6 +2195,12 @@ const runTests = (isDev = false) => {
             namedRegex: '^/nav(?:/)?$',
             page: '/nav',
             regex: '^/nav(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/overridden(?:/)?$',
+            page: '/overridden',
+            regex: '^/overridden(?:/)?$',
             routeKeys: {},
           },
           {
@@ -2069,6 +2264,14 @@ describe('Custom routes', () => {
       const externalHost = req.headers['host']
       res.end(`hi ${nextHost} from ${externalHost}`)
     })
+    const wsServer = new WebSocket.Server({ noServer: true })
+
+    externalServer.on('upgrade', (req, socket, head) => {
+      externalServerHits.add(req.url)
+      wsServer.handleUpgrade(req, socket, head, (client) => {
+        client.send('hello world')
+      })
+    })
     await new Promise((resolve, reject) => {
       externalServer.listen(externalServerPort, (error) => {
         if (error) return reject(error)
@@ -2078,7 +2281,7 @@ describe('Custom routes', () => {
     nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
     await fs.writeFile(
       nextConfigPath,
-      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/, externalServerPort)
+      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/g, externalServerPort)
     )
   })
   afterAll(async () => {
@@ -2132,7 +2335,7 @@ describe('Custom routes', () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
       await check(
         () => browser.eval(() => document.documentElement.innerHTML),
-        /auto-export my-slug/
+        /auto-export.*?my-slug/
       )
     })
   })

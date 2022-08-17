@@ -10,8 +10,6 @@ export type Events =
 
 const octokit = new Octokit()
 
-export default withIronSessionApiRoute(eventsRoute, sessionOptions)
-
 async function eventsRoute(req: NextApiRequest, res: NextApiResponse<Events>) {
   const user = req.session.user
 
@@ -31,3 +29,5 @@ async function eventsRoute(req: NextApiRequest, res: NextApiResponse<Events>) {
     res.status(200).json([])
   }
 }
+
+export default withIronSessionApiRoute(eventsRoute, sessionOptions)

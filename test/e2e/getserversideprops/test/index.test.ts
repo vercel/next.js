@@ -281,13 +281,21 @@ const navigateTest = () => {
   })
 }
 
-const runTests = (dev = false) => {
+const runTests = (isDev = false, isDeploy = false) => {
   navigateTest()
 
   it('should work with early request ending', async () => {
     const res = await fetchViaHTTP(next.url, '/early-request-end')
     expect(res.status).toBe(200)
     expect(await res.text()).toBe('hello from gssp')
+  })
+
+  it('should allow POST request for getServerSideProps page', async () => {
+    const res = await fetchViaHTTP(next.url, '/', undefined, {
+      method: 'POST',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toMatch(/hello.*?world/)
   })
 
   it('should render correctly when notFound is false (non-dynamic)', async () => {
@@ -360,11 +368,13 @@ const runTests = (dev = false) => {
     const res = await fetchViaHTTP(next.url, '/enoent')
     const html = await res.text()
 
-    if (dev) {
+    if (isDev) {
       expect(html).toContain('oof')
     } else {
       expect(res.status).toBe(500)
-      expect(html).toContain('Internal Server Error')
+      expect(html).toContain(
+        isDeploy ? 'FUNCTION_INVOCATION_FAILED' : 'Internal Server Error'
+      )
       expect(html).not.toContain('This page could not be found')
     }
   })
@@ -687,7 +697,7 @@ const runTests = (dev = false) => {
     expect(newHitCount).toBe('hit: 2')
   })
 
-  if (dev) {
+  if (isDev) {
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = 'pages/url-prop.js'
       await next.patchFile(
@@ -775,16 +785,18 @@ const runTests = (dev = false) => {
       expect(val).toBe(true)
     })
 
-    it('should output routes-manifest correctly', async () => {
-      const { dataRoutes } = JSON.parse(
-        await next.readFile('.next/routes-manifest.json')
-      )
-      for (const route of dataRoutes) {
-        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
-      }
+    if (!isDeploy) {
+      it('should output routes-manifest correctly', async () => {
+        const { dataRoutes } = JSON.parse(
+          await next.readFile('.next/routes-manifest.json')
+        )
+        for (const route of dataRoutes) {
+          route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+        }
 
-      expect(dataRoutes).toEqual(expectedManifestRoutes())
-    })
+        expect(dataRoutes).toEqual(expectedManifestRoutes())
+      })
+    }
 
     it('should set default caching header', async () => {
       const resPage = await fetchViaHTTP(next.url, `/something`)
@@ -849,5 +861,5 @@ describe('getServerSideProps', () => {
   })
   afterAll(() => next.destroy())
 
-  runTests((global as any).isNextDev)
+  runTests((global as any).isNextDev, (global as any).isNextDeploy)
 })

@@ -1,6 +1,19 @@
-import { isPlainObject, getObjectClassLabel } from './is-plain-object'
+import {
+  isPlainObject,
+  getObjectClassLabel,
+} from '../shared/lib/is-plain-object'
 
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+
+export class SerializableError extends Error {
+  constructor(page: string, method: string, path: string, message: string) {
+    super(
+      path
+        ? `Error serializing \`${path}\` returned from \`${method}\` in "${page}".\nReason: ${message}`
+        : `Error serializing props returned from \`${method}\` in "${page}".\nReason: ${message}`
+    )
+  }
+}
 
 export function isSerializableProps(
   page: string,
@@ -127,14 +140,4 @@ export function isSerializableProps(
   }
 
   return isSerializable(new Map(), input, '')
-}
-
-export class SerializableError extends Error {
-  constructor(page: string, method: string, path: string, message: string) {
-    super(
-      path
-        ? `Error serializing \`${path}\` returned from \`${method}\` in "${page}".\nReason: ${message}`
-        : `Error serializing props returned from \`${method}\` in "${page}".\nReason: ${message}`
-    )
-  }
 }

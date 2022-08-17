@@ -5,7 +5,6 @@ import * as Log from './output/log'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import { readFileSync } from 'fs'
 import isError from '../lib/is-error'
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 
 let TSCONFIG_WARNED = false
 
@@ -22,6 +21,7 @@ function parseJsonFile(filePath: string) {
     return JSON5.parse(contents)
   } catch (err) {
     if (!isError(err)) throw err
+    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
     const codeFrame = codeFrameColumns(
       String(contents),
       {
@@ -49,6 +49,7 @@ export default async function loadJsConfig(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
 
+  let implicitBaseurl
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
@@ -65,17 +66,24 @@ export default async function loadJsConfig(
     )) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
     jsConfig = { compilerOptions: tsConfig.options }
+    implicitBaseurl = path.dirname(tsConfigPath)
   }
 
   const jsConfigPath = path.join(dir, 'jsconfig.json')
   if (!useTypeScript && (await fileExists(jsConfigPath))) {
     jsConfig = parseJsonFile(jsConfigPath)
+    implicitBaseurl = path.dirname(jsConfigPath)
   }
 
   let resolvedBaseUrl
-  if (jsConfig?.compilerOptions?.baseUrl) {
-    resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
+  if (jsConfig) {
+    if (jsConfig.compilerOptions?.baseUrl) {
+      resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
+    } else {
+      resolvedBaseUrl = implicitBaseurl
+    }
   }
+
   return {
     useTypeScript,
     jsConfig,

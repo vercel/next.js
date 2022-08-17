@@ -13,6 +13,7 @@ import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../shared/lib/constants'
+import * as Log from '../../output/log'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([
@@ -29,6 +30,23 @@ function minifyCss(css: string): Promise<string> {
     .then((res) => res.css)
 }
 
+function isNodeCreatingLinkElement(node: any) {
+  const callee = node.callee as any
+  if (callee.type !== 'Identifier') {
+    return false
+  }
+  const componentNode = node.arguments[0] as any
+  if (componentNode.type !== 'Literal') {
+    return false
+  }
+  // React has pragma: _jsx.
+  // Next has pragma: __jsx.
+  return (
+    (callee.name === '_jsx' || callee.name === '__jsx') &&
+    componentNode.value === 'link'
+  )
+}
+
 export class FontStylesheetGatheringPlugin {
   compiler?: webpack.Compiler
   gatheredStylesheets: Array<string> = []
@@ -40,7 +58,7 @@ export class FontStylesheetGatheringPlugin {
   }
 
   private parserHandler = (
-    factory: webpack.compilation.NormalModuleFactory
+    factory: ReturnType<webpack.Compiler['createNormalModuleFactory']>
   ): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     // Do an extra walk per module and add interested visitors to the walk.
@@ -197,14 +215,22 @@ export class FontStylesheetGatheringPlugin {
             const css = await fontDefinitionPromises[promiseIndex]
 
             if (css) {
-              const content = await minifyCss(css)
-              this.manifestContent.push({
-                url: fontStylesheets[promiseIndex],
-                content,
-              })
+              try {
+                const content = await minifyCss(css)
+                this.manifestContent.push({
+                  url: fontStylesheets[promiseIndex],
+                  content,
+                })
+              } catch (err) {
+                Log.warn(
+                  `Failed to minify the stylesheet for ${fontStylesheets[promiseIndex]}. Skipped optimizing this font.`
+                )
+                console.error(err)
+              }
             }
           }
 
+          // @ts-expect-error invalid assets type
           compilation.assets[FONT_MANIFEST] = new sources.RawSource(
             JSON.stringify(this.manifestContent, null, '  ')
           )
@@ -231,21 +257,4 @@ export class FontStylesheetGatheringPlugin {
       )
     })
   }
-}
-
-function isNodeCreatingLinkElement(node: any) {
-  const callee = node.callee as any
-  if (callee.type !== 'Identifier') {
-    return false
-  }
-  const componentNode = node.arguments[0] as any
-  if (componentNode.type !== 'Literal') {
-    return false
-  }
-  // React has pragma: _jsx.
-  // Next has pragma: __jsx.
-  return (
-    (callee.name === '_jsx' || callee.name === '__jsx') &&
-    componentNode.value === 'link'
-  )
 }

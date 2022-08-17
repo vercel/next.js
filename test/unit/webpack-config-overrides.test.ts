@@ -28,7 +28,10 @@ describe('webpack-config attachReactRefresh', () => {
       module: {
         rules: [
           {
-            use: ['next/dist/compiled/@next/react-refresh-utils/loader', 'rr'],
+            use: [
+              'next/dist/compiled/@next/react-refresh-utils/dist/loader',
+              'rr',
+            ],
           },
         ],
       },
@@ -37,7 +40,10 @@ describe('webpack-config attachReactRefresh', () => {
       module: {
         rules: [
           {
-            use: ['next/dist/compiled/@next/react-refresh-utils/loader', 'rr'],
+            use: [
+              'next/dist/compiled/@next/react-refresh-utils/dist/loader',
+              'rr',
+            ],
           },
         ],
       },
@@ -54,7 +60,7 @@ describe('webpack-config attachReactRefresh', () => {
           {
             use: [
               require.resolve(
-                'next/dist/compiled/@next/react-refresh-utils/loader'
+                'next/dist/compiled/@next/react-refresh-utils/dist/loader'
               ),
               'rr',
             ],
@@ -68,7 +74,7 @@ describe('webpack-config attachReactRefresh', () => {
           {
             use: [
               require.resolve(
-                'next/dist/compiled/@next/react-refresh-utils/loader'
+                'next/dist/compiled/@next/react-refresh-utils/dist/loader'
               ),
               'rr',
             ],
@@ -94,7 +100,9 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
+              expect.stringMatching(
+                /react-refresh-utils[\\/]dist[\\/]loader\.js/
+              ),
               'rr',
             ],
           },
@@ -116,7 +124,9 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
+              expect.stringMatching(
+                /react-refresh-utils[\\/]dist[\\/]loader\.js/
+              ),
               'rr',
             ],
           },
@@ -139,7 +149,9 @@ describe('webpack-config attachReactRefresh', () => {
           {
             use: [
               'bla',
-              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
+              expect.stringMatching(
+                /react-refresh-utils[\\/]dist[\\/]loader\.js/
+              ),
               'rr',
             ],
           },
@@ -161,7 +173,9 @@ describe('webpack-config attachReactRefresh', () => {
         rules: [
           {
             use: [
-              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
+              expect.stringMatching(
+                /react-refresh-utils[\\/]dist[\\/]loader\.js/
+              ),
               'rr',
               'bla',
             ],
@@ -187,7 +201,9 @@ describe('webpack-config attachReactRefresh', () => {
               'hehe',
               'haha',
               'rawr',
-              expect.stringMatching(/react-refresh-utils[\\/]loader\.js/),
+              expect.stringMatching(
+                /react-refresh-utils[\\/]dist[\\/]loader\.js/
+              ),
               'rr',
               'lol',
               'bla',
@@ -206,7 +222,7 @@ describe('webpack-config attachReactRefresh', () => {
             use: [
               'hehe',
               'haha',
-              'next/dist/compiled/@next/react-refresh-utils/loader',
+              'next/dist/compiled/@next/react-refresh-utils/dist/loader',
               'rr',
               'lol',
               'bla',
@@ -224,7 +240,7 @@ describe('webpack-config attachReactRefresh', () => {
             use: [
               'hehe',
               'haha',
-              'next/dist/compiled/@next/react-refresh-utils/loader',
+              'next/dist/compiled/@next/react-refresh-utils/dist/loader',
               'rr',
               'lol',
               'bla',
@@ -245,7 +261,7 @@ describe('webpack-config attachReactRefresh', () => {
               'haha',
               'rr',
               'lol',
-              'next/dist/compiled/@next/react-refresh-utils/loader',
+              'next/dist/compiled/@next/react-refresh-utils/dist/loader',
               'bla',
             ],
           },
@@ -263,7 +279,7 @@ describe('webpack-config attachReactRefresh', () => {
               'haha',
               'rr',
               'lol',
-              'next/dist/compiled/@next/react-refresh-utils/loader',
+              'next/dist/compiled/@next/react-refresh-utils/dist/loader',
               'bla',
             ],
           },

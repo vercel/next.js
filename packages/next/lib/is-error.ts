@@ -1,4 +1,4 @@
-import { isPlainObject } from './is-plain-object'
+import { isPlainObject } from '../shared/lib/is-plain-object'
 
 // We allow some additional attached properties for Errors
 export interface NextError extends Error {

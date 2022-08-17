@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use swc_atoms::js_word;
 use swc_atoms::JsWord;
+use swc_common::Mark;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::transforms::optimization::simplify::dce::{dce, Config as DCEConfig};
 use swc_ecmascript::visit::{Fold, FoldWith};
@@ -26,9 +27,7 @@ struct ExportShaker {
 impl Fold for ExportShaker {
     fn fold_module(&mut self, module: Module) -> Module {
         let module = module.fold_children_with(self);
-        let module = module.fold_with(&mut dce(DCEConfig::default()));
-
-        module
+        module.fold_with(&mut dce(DCEConfig::default(), Mark::new()))
     }
 
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
