@@ -49,7 +49,13 @@ suite('dynamic with suspense', () => {
 
   it('should render client-side', async () => {
     const browser = await webdriver(next.url, '/')
+    const warnings = (await browser.log()).map((log) => log.message).join('\n')
+
     expect(await hasRedbox(browser)).toBe(false)
+    expect(warnings).toMatch(
+      /"ssr: false" is ignored by next\/dynamic because you can not enable "suspense" while disabling "ssr" at the same time/gim
+    )
+
     await browser.close()
   })
 })

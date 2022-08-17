@@ -2,11 +2,22 @@
 
 #### Why This Error Occurred
 
-`<Suspense>` is not allowed under legacy render mode when using React older than v18.
+- You are using a React version older than 18 with `{ suspense: true }`.
+- You are using `{ suspense: true, ssr: false }`.
 
 #### Possible Ways to Fix It
 
-Remove `suspense: true` option in `next/dynamic` usages.
+**If you are using `{ suspense: true }` with React version older than 18**
+
+- You can try upgrading to React 18 or newer
+- If upgrading React is not an option, remove `{ suspense: true }` from `next/dynamic` usages.
+
+**If you are using `{ suspense: true, ssr: false }`**
+
+Next.js will use `React.lazy` when `suspense` is set to true. React 18 or newer will always try to resolve the Suspense boundary on the server. This behavior can not be disabled, thus the `ssr: false` is ignored with `suspense: true`.
+
+- You should write code that works in both client-side and server-side.
+- If rewriting the code is not an option, remove `{ suspense: true }` from `next/dynamic` usages.
 
 ### Useful Links
 
