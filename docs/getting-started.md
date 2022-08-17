@@ -24,7 +24,7 @@ everything automatically for you.
 
 ### Interactive
 
-You can interactively create a new project interactively by running:
+You can create a new project interactively by running:
 
 ```bash
 npx create-next-app@latest
@@ -45,8 +45,8 @@ Select **Yes** to install the necessary types/dependencies and create a new TS p
 
 ### Non-interactive
 
-You can also pass command line arguments to setup a new project non-interactively. See
-`create-next-app --help`:
+You can also pass command line arguments to set up a new project
+non-interactively. See `create-next-app --help`:
 
 ```
 create-next-app <project-directory> [options]
