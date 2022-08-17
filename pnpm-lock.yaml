@@ -37,7 +37,7 @@ importers:
       '@testing-library/react': 13.0.0
       '@types/cheerio': 0.22.16
       '@types/fs-extra': 8.1.0
-      '@types/html-validator': 5.0.2
+      '@types/html-validator': 5.0.3
       '@types/http-proxy': 1.17.3
       '@types/jest': 24.0.13
       '@types/node': 13.11.0
@@ -191,7 +191,7 @@ importers:
       '@testing-library/react': 13.0.0_biqbaboplfbrettd7655fr4n2y
       '@types/cheerio': 0.22.16
       '@types/fs-extra': 8.1.0
-      '@types/html-validator': 5.0.2
+      '@types/html-validator': 5.0.3
       '@types/http-proxy': 1.17.3
       '@types/jest': 24.0.13
       '@types/node': 13.11.0
@@ -5635,8 +5635,8 @@ packages:
       '@types/unist': 2.0.3
     dev: true
 
-  /@types/html-validator/5.0.2:
-    resolution: {integrity: sha512-10KDAqGQ29BTEdOOWTYyJF6R1oSLDtFlSgDc6P02Y6CXo8kA0SHeRPoieX/EXiMOLpM1e6G1QlKgFCbhxrtxuQ==}
+  /@types/html-validator/5.0.3:
+    resolution: {integrity: sha512-QcKpR0cAWhLy7T3J24dwCuviRyS8xj/gVtFxcfZer9lfRgHdSAUFvE02nI/rsgIxSr71Z/2moXVYvWl2fTAzHQ==}
     dependencies:
       '@types/node': 17.0.21
     dev: true
