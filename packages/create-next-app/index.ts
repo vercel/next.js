@@ -136,6 +136,41 @@ async function run(): Promise<void> {
     : getPkgManager()
 
   const example = typeof program.example === 'string' && program.example.trim()
+
+  /**
+   * If the user does not provide a --js or --ts flag set, ask them whether or
+   * not they'd like to use TypeScript.
+   */
+  if (!program.typescript && !program.javascript) {
+    const { typescript } = await prompts(
+      {
+        type: 'toggle',
+        name: 'typescript',
+        message: 'Would you like to use TypeScript with this project?',
+        initial: true,
+        active: 'Yes',
+        inactive: 'No',
+      },
+      {
+        /**
+         * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
+         * process and not write to the file system.
+         */
+        onCancel: () => {
+          console.error('Exiting.')
+          process.exit(1)
+        },
+      }
+    )
+
+    if (typescript) {
+      program.typescript = true
+    } else {
+      program.javascript = false
+      program.javascript = true
+    }
+  }
+
   try {
     await createApp({
       appPath: resolvedProjectPath,
