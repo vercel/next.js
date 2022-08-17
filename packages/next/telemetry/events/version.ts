@@ -1,5 +1,6 @@
 import path from 'path'
 import { NextConfigComplete } from '../../server/config-shared'
+import type { LoaderValue } from '../../shared/lib/image-config'
 
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
 
@@ -106,7 +107,7 @@ export function eventCliSession(
       ? experimental.images.remotePatterns.length
       : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
-    imageLoader: images?.loader,
+    imageLoader: images?.loader as LoaderValue,
     imageFormats: images?.formats ? images.formats.join(',') : null,
     trailingSlashEnabled: !!nextConfig?.trailingSlash,
     reactStrictMode: !!nextConfig?.reactStrictMode,
