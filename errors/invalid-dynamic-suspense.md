@@ -4,6 +4,7 @@
 
 - You are using `{ suspense: true }` with React version older than 18.
 - You are using `{ suspense: true, ssr: false }`.
+- You are using `{ suspense: true, loading }`.
 
 #### Possible Ways to Fix It
 
@@ -18,6 +19,12 @@ Next.js will use `React.lazy` when `suspense` is set to true. React 18 or newer 
 
 - You should write code that works in both client-side and server-side.
 - If rewriting the code is not an option, remove `{ suspense: true }` from `next/dynamic` usages.
+
+**If you are using `{ suspense: true, loading }`**
+
+Next.js will use `React.lazy` when `suspense` is set to true, when your dynamic-imported component is loading, React will use the closest suspense boundary's fallback.
+
+You should remove `loading` from `next/dynamic` usages, and use `<Suspense />`'s `fallback` prop.
 
 ### Useful Links
 
