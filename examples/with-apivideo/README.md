@@ -4,7 +4,7 @@ This video uploader and playback app is built with Next.js and api.video, the vi
 
 ## Demo
 
-[https://apivideo-uploader.vercel.app/](https://apivideo-uploader.vercel.app/)
+[https://with-apivideo.vercel.app/videos](https://with-apivideo.vercel.app/videos)
 
 ## Deploy your own
 
