@@ -466,7 +466,10 @@ impl FileSystem for DiskFileSystem {
                 .replace('/', &MAIN_SEPARATOR.to_string()),
         );
         let content = content.await?;
-        let old_content = fs_path.read().await?;
+        let old_content = fs_path
+            .read()
+            .await
+            .with_context(|| format!("reading old content of {}", full_path.display()))?;
         if *content != *old_content {
             let create_directory = *old_content == FileContent::NotFound;
             self.execute(move || match &*content {
@@ -890,7 +893,7 @@ pub enum Permissions {
 
 impl Default for Permissions {
     fn default() -> Self {
-        Self::Readable
+        Self::Writable
     }
 }
 

@@ -4,7 +4,5 @@ use md4::Digest;
 ///
 /// Returns a 16-byte hash digest.
 pub fn hash_md4(content: &[u8]) -> [u8; 16] {
-    let mut hasher = md4::Md4::new();
-    hasher.update(content);
-    hasher.finalize().into()
+    md4::Md4::digest(content).into()
 }

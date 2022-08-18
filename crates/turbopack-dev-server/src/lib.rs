@@ -138,7 +138,7 @@ impl DevServer {
                         match future.await {
                             Ok(r) => Ok::<_, hyper::http::Error>(r),
                             Err(e) => {
-                                println!("[500] {:?} ({})", e, FormatDuration(start.elapsed()));
+                                println!("[500] {:#} ({})", e, FormatDuration(start.elapsed()));
                                 Ok(Response::builder()
                                     .status(500)
                                     .body(Body::from(format!("{:?}", e,)))?)
