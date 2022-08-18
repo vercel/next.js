@@ -1,13 +1,12 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
 import Head from '../../shared/lib/head'
-import { ImageConfigComplete } from '../../shared/lib/image-future-config'
+import {
+  ImageConfigComplete,
+  imageConfigDefault,
+  RemotePattern,
+} from '../../shared/lib/image-future-config'
 import { warnOnce } from '../../shared/lib/utils'
 
-const {
-  experimentalFuture = false,
-  experimentalRemotePatterns = [],
-  experimentalUnoptimized,
-} = (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const allImgs = new Map<
   string,
   { src: string; priority: boolean; placeholder: string }
@@ -20,10 +19,22 @@ if (typeof window === 'undefined') {
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
-type ImageConfig = ImageConfigComplete & { allSizes: number[] }
+type ImageConfig = ImageConfigComplete & {
+  allSizes: number[]
+  experimentalFuture: boolean
+  experimentalRemotePatterns: RemotePattern[]
+  experimentalUnoptimized: boolean
+}
 export type ImageLoader = (p: ImageLoaderProps) => string
 type GlobalImageConfig = Omit<Partial<ImageConfigComplete>, 'path'>
-let config = process.env.__NEXT_IMAGE_OPTS as any as ImageConfig
+const opts = (process.env.__NEXT_IMAGE_OPTS as any) || {}
+let config = {
+  ...imageConfigDefault,
+  experimentalFuture: false,
+  experimentalRemotePatterns: [],
+  experimentalUnoptimized: false,
+  ...opts,
+} as any as ImageConfig
 
 export function setImageConfig(imageConfig: GlobalImageConfig) {
   // We are not using React Context because we want the
@@ -468,7 +479,7 @@ function defaultLoader({
 
     if (
       !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
+      (config.domains || config.experimentalRemotePatterns)
     ) {
       let parsedSrc: URL
       try {
@@ -483,7 +494,13 @@ function defaultLoader({
       if (process.env.NODE_ENV !== 'test') {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+        if (
+          !hasMatch(
+            config.domains,
+            config.experimentalRemotePatterns,
+            parsedSrc
+          )
+        ) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -521,7 +538,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  if (!experimentalFuture && process.env.NODE_ENV !== 'test') {
+  if (!config.experimentalFuture && process.env.NODE_ENV !== 'test') {
     throw new Error(
       `The "next/future/image" component is experimental and may be subject to breaking changes. To enable this experiment, please include \`experimental: { images: { allowFutureImage: true } }\` in your next.config.js file.`
     )
@@ -577,7 +594,7 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (experimentalUnoptimized) {
+  if (config.experimentalUnoptimized) {
     unoptimized = true
   }
 

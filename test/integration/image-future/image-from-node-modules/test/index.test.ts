@@ -17,7 +17,7 @@ function runTests() {
   // This feature was added in PR #31065.
   // Skip this test until we promote `next/future/image` from
   // experimental to stable status.
-  it.skip('should apply image config for node_modules', async () => {
+  it('should apply image config for node_modules', async () => {
     const browser = await webdriver(appPort, '/')
     const src = await browser
       .elementById('image-from-node-modules')
