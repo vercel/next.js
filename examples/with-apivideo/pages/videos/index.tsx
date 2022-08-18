@@ -5,7 +5,7 @@ import React from 'react'
 import useSWR from 'swr'
 import VideosListResponse from '@api.video/nodejs-client/lib/model/VideosListResponse'
 
-export const fetcher = async (url: string): Promise<any> => {
+const fetcher = async (url: string): Promise<any> => {
   return fetch(url).then((res) => res.json())
 }
 

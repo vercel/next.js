@@ -1,16 +1,7 @@
 import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
-import React, { ChangeEvent, useEffect, useRef, useState } from 'react'
-import Card from '../components/Card'
-import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
-import Status from '../components/Status'
-import { useRouter } from 'next/router'
-import useSWR from 'swr'
-
-const fetcher = async (url: string): Promise<any> => {
-  return fetch(url).then((res) => res.json())
-}
+import React from 'react'
 
 const Home: NextPage = () => (
   <div className="global-container">
