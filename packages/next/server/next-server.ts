@@ -960,7 +960,8 @@ export default class NextNodeServer extends BaseServer {
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless,
           !!this.renderOpts.serverComponents,
-          isAppPath
+          isAppPath,
+          !!this.nextConfig.experimental.sri?.algorithm
         )
 
         if (
