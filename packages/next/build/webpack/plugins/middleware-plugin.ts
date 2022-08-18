@@ -249,7 +249,7 @@ function getEdgeEntryBuildInfo(
   module: webpack.Module
 ) {
   let currentModule: webpack.Module | null = module
-  while (currentModule) {
+  while (currentModule?.layer === 'middleware') {
     const buildInfo = getModuleBuildInfo(currentModule)
     if (buildInfo.edgeFunctionConfig) {
       return buildInfo
