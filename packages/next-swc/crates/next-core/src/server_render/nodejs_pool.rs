@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use turbo_tasks::spawn_blocking;
 
@@ -34,6 +34,10 @@ impl NodeJsPoolProcess {
         cmd.arg(entrypoint);
         cmd.arg(&END_OF_OPERATION[..END_OF_OPERATION.len() - 1]);
         cmd.env_clear();
+        cmd.env(
+            "PATH",
+            std::env::var("PATH").expect("PATH should always be set"),
+        );
         cmd.envs(env);
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
@@ -41,7 +45,7 @@ impl NodeJsPoolProcess {
     }
 
     fn start(mut cmd: Command) -> Result<Self> {
-        let mut child = cmd.spawn()?;
+        let mut child = cmd.spawn().with_context(|| format!("spawning node pool"))?;
         let stdin = child.stdin.take().unwrap();
         let mut stdout = BufReader::new(child.stdout.take().unwrap());
         let mut bootstrap_log = Vec::new();
