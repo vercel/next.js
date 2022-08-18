@@ -131,7 +131,6 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
   setShowAltText: (b: boolean) => void
-  noscriptSizes: string | undefined
 }
 
 function getWidths(
@@ -340,92 +339,65 @@ const ImageElement = ({
   setShowAltText,
   onLoad,
   onError,
-  noscriptSizes,
   ...rest
 }: ImageElementProps) => {
   loading = isLazy ? 'lazy' : loading
   return (
-    <>
-      <img
-        {...rest}
-        {...imgAttributes}
-        width={widthInt}
-        height={heightInt}
-        decoding="async"
-        data-nimg={`future${fill ? '-fill' : ''}`}
-        className={className}
-        // @ts-ignore - TODO: upgrade to `@types/react@17`
-        loading={loading}
-        style={{ ...imgStyle, ...blurStyle }}
-        ref={useCallback(
-          (img: ImgElementWithDataProp) => {
-            if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
-                console.error(`Image is missing required "src" property:`, img)
-              }
+    <img
+      {...rest}
+      {...imgAttributes}
+      width={widthInt}
+      height={heightInt}
+      decoding="async"
+      data-nimg={`future${fill ? '-fill' : ''}`}
+      className={className}
+      // @ts-ignore - TODO: upgrade to `@types/react@17`
+      loading={loading}
+      style={{ ...imgStyle, ...blurStyle }}
+      ref={useCallback(
+        (img: ImgElementWithDataProp) => {
+          if (process.env.NODE_ENV !== 'production') {
+            if (img && !srcString) {
+              console.error(`Image is missing required "src" property:`, img)
             }
-            if (img?.complete) {
-              handleLoading(
-                img,
-                srcString,
-                placeholder,
-                onLoadingCompleteRef,
-                setBlurComplete
-              )
-            }
-          },
-          [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
-        )}
-        onLoad={(event) => {
-          const img = event.currentTarget as ImgElementWithDataProp
-          handleLoading(
-            img,
-            srcString,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete
-          )
-          if (onLoad) {
-            onLoad(event)
           }
-        }}
-        onError={(event) => {
-          // if the real image fails to load, this will ensure "alt" is visible
-          setShowAltText(true)
-          if (placeholder === 'blur') {
-            // If the real image fails to load, this will still remove the placeholder.
-            setBlurComplete(true)
+          if (img?.complete) {
+            handleLoading(
+              img,
+              srcString,
+              placeholder,
+              onLoadingCompleteRef,
+              setBlurComplete
+            )
           }
-          if (onError) {
-            onError(event)
-          }
-        }}
-      />
-      {placeholder === 'blur' && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            width={widthInt}
-            height={heightInt}
-            decoding="async"
-            data-nimg={`future${fill ? '-fill' : ''}`}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
+        },
+        [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
       )}
-    </>
+      onLoad={(event) => {
+        const img = event.currentTarget as ImgElementWithDataProp
+        handleLoading(
+          img,
+          srcString,
+          placeholder,
+          onLoadingCompleteRef,
+          setBlurComplete
+        )
+        if (onLoad) {
+          onLoad(event)
+        }
+      }}
+      onError={(event) => {
+        // if the real image fails to load, this will ensure "alt" is visible
+        setShowAltText(true)
+        if (placeholder === 'blur') {
+          // If the real image fails to load, this will still remove the placeholder.
+          setBlurComplete(true)
+        }
+        if (onError) {
+          onError(event)
+        }
+      }}
+    />
   )
 }
 
@@ -773,7 +745,6 @@ export default function Image({
                 backgroundImage: svgBlurPlaceholder,
               }
             : {
-                filter: 'blur(20px)',
                 backgroundImage: `url("${blurDataURL}")`,
               }),
         }
@@ -840,7 +811,6 @@ export default function Image({
     onLoadingCompleteRef,
     setBlurComplete,
     setShowAltText,
-    noscriptSizes: sizes,
     ...rest,
   }
   return (
