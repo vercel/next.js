@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useCallback, useState } from 'react'
 import Head from '../../shared/lib/head'
 import {
   ImageConfigComplete,
-  imageConfigDefault,
   RemotePattern,
 } from '../../shared/lib/image-future-config'
 import { warnOnce } from '../../shared/lib/utils'
@@ -27,14 +26,7 @@ type ImageConfig = ImageConfigComplete & {
 }
 export type ImageLoader = (p: ImageLoaderProps) => string
 type GlobalImageConfig = Omit<Partial<ImageConfigComplete>, 'path'>
-const opts = (process.env.__NEXT_IMAGE_OPTS as any) || {}
-let config = {
-  ...imageConfigDefault,
-  experimentalFuture: false,
-  experimentalRemotePatterns: [],
-  experimentalUnoptimized: false,
-  ...opts,
-} as any as ImageConfig
+let config = {} as ImageConfig
 
 export function setImageConfig(imageConfig: GlobalImageConfig) {
   // We are not using React Context because we want the
@@ -52,7 +44,7 @@ export function setImageConfig(imageConfig: GlobalImageConfig) {
   config.deviceSizes = deviceSizes
 }
 
-setImageConfig(config)
+setImageConfig((process.env.__NEXT_IMAGE_OPTS as any) || {})
 
 export type ImageLoaderProps = {
   src: string

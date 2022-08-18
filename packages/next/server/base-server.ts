@@ -68,6 +68,7 @@ import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+import { imageConfigOpts } from '../shared/lib/image-config-opts'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -330,6 +331,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigComplete
+    process.env.__NEXT_IMAGE_OPTS = imageConfigOpts({
+      config: this.nextConfig,
+      dev,
+    }) as any
     this.hostname = hostname
     this.port = port
     this.distDir =

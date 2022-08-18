@@ -30,6 +30,7 @@ import {
   CompilerNameValues,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
+import { imageConfigOpts } from '../shared/lib/image-config-opts'
 import { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
@@ -93,7 +94,7 @@ export function getDefineEnv({
   middlewareRegex,
   hasServerComponents,
 }: {
-  dev?: boolean
+  dev: boolean
   distDir: string
   isClient?: boolean
   hasRewrites?: boolean
@@ -189,23 +190,9 @@ export function getDefineEnv({
     'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
       config.experimental.scrollRestoration
     ),
-    'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
-      deviceSizes: config.images.deviceSizes,
-      imageSizes: config.images.imageSizes,
-      path: config.images.path,
-      loader: config.images.loader,
-      dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
-      experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-      experimentalFuture: config.experimental?.images?.allowFutureImage,
-      ...(dev
-        ? {
-            // pass domains in development to allow validating on the client
-            domains: config.images.domains,
-            experimentalRemotePatterns:
-              config.experimental?.images?.remotePatterns,
-          }
-        : {}),
-    }),
+    'process.env.__NEXT_IMAGE_OPTS': JSON.stringify(
+      imageConfigOpts({ config, dev })
+    ),
     'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
     'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
