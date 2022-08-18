@@ -1,3 +1,4 @@
+import React from 'react'
 import Nav from '../components/nav'
 
 const envVar = process.env.ENV_VAR_TEST
@@ -9,6 +10,9 @@ export default function Index({ header }) {
       <h1>{`component:index.server`}</h1>
       <div>{'env:' + envVar}</div>
       <div>{'header:' + header}</div>
+      <div>{`createContext is ${
+        React.createContext ? 'defined' : 'unsupported'
+      } in server components`}</div>
       <Nav />
     </div>
   )

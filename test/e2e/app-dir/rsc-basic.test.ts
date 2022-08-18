@@ -74,12 +74,12 @@ describe('app dir - react server components', () => {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
-    // TODO: support next/head
-    // expect(homeHTML).toMatch('<meta name="rsc-title" content="index"/>')
     expect(homeHTML).toContain('component:index.server')
     // TODO: support env
-    // expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
+
+    // should opt-in into the react shared subset for RSC server components only
+    expect(homeHTML).toContain('createContext is unsupported')
 
     const inlineFlightContents = []
     const $ = cheerio.load(homeHTML)

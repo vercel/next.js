@@ -1,5 +1,6 @@
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
+import React from 'react'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
@@ -849,7 +850,7 @@ export default async function getBaseWebpackConfig(
     alias: {
       next: NEXT_PROJECT_ROOT,
 
-      react: `${reactDir}`,
+      react: reactDir,
       'react-dom$': `${reactDomDir}`,
       'react-dom/server$': `${reactDomDir}/server`,
       'react-dom/server.browser$': `${reactDomDir}/server.browser`,
@@ -980,6 +981,7 @@ export default async function getBaseWebpackConfig(
     context: string,
     request: string,
     dependencyType: string,
+    contextInfo: any,
     getResolve: (
       options: any
     ) => (
@@ -1002,6 +1004,18 @@ export default async function getBaseWebpackConfig(
     // in pages/components
     if (request === 'next') {
       return `commonjs next/dist/lib/import-next-warning`
+    }
+
+    // Alias react to react shared subset for server components server layer.
+    // This build will exclude certain unsupported APIs for server components.
+    // Only enable it for react experimental build for now before it's fully ready.
+    // x-ref: check `react-server` exports in react package.json
+    if (
+      React.version.includes('experimental') &&
+      request === 'react' &&
+      contextInfo.issuerLayer === WEBPACK_LAYERS.server
+    ) {
+      return `commonjs ${reactDir}/react.shared-subset`
     }
 
     // Relative requires don't need custom resolution, because they
@@ -1185,10 +1199,12 @@ export default async function getBaseWebpackConfig(
               request,
               dependencyType,
               getResolve,
+              contextInfo,
             }: {
               context: string
               request: string
               dependencyType: string
+              contextInfo: any
               getResolve: (
                 options: any
               ) => (
@@ -1201,24 +1217,31 @@ export default async function getBaseWebpackConfig(
                 ) => void
               ) => void
             }) =>
-              handleExternals(context, request, dependencyType, (options) => {
-                const resolveFunction = getResolve(options)
-                return (resolveContext: string, requestToResolve: string) =>
-                  new Promise((resolve, reject) => {
-                    resolveFunction(
-                      resolveContext,
-                      requestToResolve,
-                      (err, result, resolveData) => {
-                        if (err) return reject(err)
-                        if (!result) return resolve([null, false])
-                        const isEsm = /\.js$/i.test(result)
-                          ? resolveData?.descriptionFileData?.type === 'module'
-                          : /\.mjs$/i.test(result)
-                        resolve([result, isEsm])
-                      }
-                    )
-                  })
-              }),
+              handleExternals(
+                context,
+                request,
+                dependencyType,
+                contextInfo,
+                (options) => {
+                  const resolveFunction = getResolve(options)
+                  return (resolveContext: string, requestToResolve: string) =>
+                    new Promise((resolve, reject) => {
+                      resolveFunction(
+                        resolveContext,
+                        requestToResolve,
+                        (err, result, resolveData) => {
+                          if (err) return reject(err)
+                          if (!result) return resolve([null, false])
+                          const isEsm = /\.js$/i.test(result)
+                            ? resolveData?.descriptionFileData?.type ===
+                              'module'
+                            : /\.mjs$/i.test(result)
+                          resolve([result, isEsm])
+                        }
+                      )
+                    })
+                }
+              ),
           ]
         : [
             // When the 'serverless' target is used all node_modules will be compiled into the output bundles
