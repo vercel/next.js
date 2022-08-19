@@ -291,7 +291,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
-    
     if (images.deviceSizes) {
       const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {
