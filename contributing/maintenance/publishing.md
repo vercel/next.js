@@ -9,6 +9,7 @@ The stable release is what is installed when you `npm install next`. This channe
 This channel is published at a regular cadence and follows [semantic versioning](TODO).
 
 Repository maintainers can publish a new stable version using: `pnpm publish-stable`.
+The command will ask what version to publish `major`, `minor`, or `patch`.
 
 ## Canary
 
@@ -21,3 +22,4 @@ This channel is published early based on the `canary` branch. It holds all chang
 By installing `next@canary` from time to time you can check if your application is affected by any changes that have not been published yet.
 
 Repository maintainers can publish a new stable version using: `pnpm publish-stable`.
+The command will automatically decide the new version tag as it's an increment from the previous version.
