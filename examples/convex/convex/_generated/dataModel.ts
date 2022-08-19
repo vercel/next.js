@@ -9,8 +9,8 @@
  * @module
  */
 
-import { AnyDataModel } from 'convex/server'
-import { GenericId } from 'convex/values'
+import { AnyDataModel } from "convex/server";
+import { GenericId } from "convex/values";
 
 /**
  * No `schema.ts` file found!
@@ -26,12 +26,12 @@ import { GenericId } from 'convex/values'
 /**
  * The names of all of your Convex tables.
  */
-export type TableNames = string
+export type TableNames = string;
 
 /**
  * The type of a document stored in Convex.
  */
-export type Document = any
+export type Document = any;
 
 /**
  * An identifier for a document in Convex.
@@ -45,8 +45,8 @@ export type Document = any
  * Using `===` will not work because two different instances of `Id` can refer
  * to the same document.
  */
-export type Id = GenericId<string>
-export const Id = GenericId
+export type Id = GenericId<string>;
+export const Id = GenericId;
 
 /**
  * A type describing your Convex data model.
@@ -57,4 +57,4 @@ export const Id = GenericId
  * This type is used to parameterize methods like `queryGeneric` and
  * `mutationGeneric` to make them type-safe.
  */
-export type DataModel = AnyDataModel
+export type DataModel = AnyDataModel;
