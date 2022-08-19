@@ -731,8 +731,8 @@
           "path": "/errors/middleware-parse-user-agent.md"
         },
         {
-          "title": "nonce-contained-illegal-characters",
-          "path": "/errors/nonce-contained-illegal-characters.md"
+          "title": "nonce-contained-invalid-characters",
+          "path": "/errors/nonce-contained-invalid-characters.md"
         }
       ]
     }

@@ -1,4 +1,4 @@
-# nonce contained illegal characters
+# nonce contained invalid characters
 
 #### Why This Error Occurred
 

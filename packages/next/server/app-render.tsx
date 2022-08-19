@@ -1037,7 +1037,7 @@ export async function renderToHTMLOrFlight(
     // extra layer.
     if (nonce && ESCAPE_REGEX.test(nonce)) {
       throw new Error(
-        'Nonce value from Content-Security-Policy contained HTML escape characters.\nLearn more: https://nextjs.org/docs/messages/nonce-contained-illegal-characters.md'
+        'Nonce value from Content-Security-Policy contained HTML escape characters.\nLearn more: https://nextjs.org/docs/messages/nonce-contained-invalid-characters.md'
       )
     }
   }
