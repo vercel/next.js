@@ -62,13 +62,10 @@ describe('Middleware development errors', () => {
 
     it('sends response correctly', async () => {
       await assertMiddlewareFetch(false)
+      await assertMiddlewareRender(false)
 
       // assert no extra message on stderr
       expect(context.logs.stderr).toBe('')
-    })
-
-    it('renders correctly', async () => {
-      await assertMiddlewareRender(false)
     })
   })
 
@@ -82,16 +79,13 @@ describe('Middleware development errors', () => {
 
     it('sends response correctly', async () => {
       await assertMiddlewareFetch(true)
-    })
 
-    // FIXME: the test passes but an error occurs in browser
-    it.skip('renders correctly', async () => {
-      await assertMiddlewareRender(true)
+      // FIXME: the test passes but an error occurs in browser
+      // await assertMiddlewareRender(true)
     })
   })
 
-  // FIXME: it does not work since middleware is not called
-  describe.skip('when middleware is added', () => {
+  describe('when middleware is added', () => {
     beforeEach(async () => {
       context.middleware.delete()
       await assertMiddlewareFetch(false)
@@ -99,11 +93,9 @@ describe('Middleware development errors', () => {
     })
 
     it('sends response correctly', async () => {
-      await assertMiddlewareFetch(true)
-    })
-
-    it('renders correctly', async () => {
-      await assertMiddlewareRender(true)
+      await retry(() => assertMiddlewareFetch(true))
+      // FIXME: the test passes but an error occurs in browser
+      // assertMiddlewareRender(true)
     })
   })
 
@@ -132,11 +124,9 @@ describe('Middleware development errors', () => {
 
     it('sends response correctly', async () => {
       await retry(() => assertMiddlewareFetch(true, '/asdf'))
-    })
 
-    // FIXME: the test passes but an error occurs in browser
-    it.skip('renders correctly', async () => {
-      await retry(() => assertMiddlewareRender(true, '/asdf'))
+      // FIXME: the test passes but an error occurs in browser
+      // await retry(() => assertMiddlewareRender(true, '/asdf'))
     })
   })
 })
