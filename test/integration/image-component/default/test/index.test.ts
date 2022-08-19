@@ -151,7 +151,7 @@ function runTests(mode) {
         await browser.elementById('responsive2').getAttribute('loading')
       ).toBe(null)
 
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(warnings).not.toMatch(
@@ -607,16 +607,16 @@ function runTests(mode) {
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
       const delta = 150
-      const largeWidth = width + delta
-      const largeHeight = height + delta
+      const largeWidth = Number(width) + delta
+      const largeHeight = Number(height) + delta
       await browser.setDimensions({
         width: largeWidth,
         height: largeHeight,
       })
       expect(await getComputed(browser, id, 'width')).toBe(largeWidth)
       expect(await getComputed(browser, id, 'height')).toBe(largeHeight)
-      const smallWidth = width - delta
-      const smallHeight = height - delta
+      const smallWidth = Number(width) - delta
+      const smallHeight = Number(height) - delta
       await browser.setDimensions({
         width: smallWidth,
         height: smallHeight,
@@ -722,7 +722,7 @@ function runTests(mode) {
 
       if (mode === 'dev') {
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toMatch(
@@ -749,9 +749,7 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(false)
 
       await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
+        return (await browser.log()).map((log) => log.message).join('\n')
       }, /Image is missing required "src" property/gm)
     })
 
@@ -807,9 +805,7 @@ function runTests(mode) {
       const browser = await webdriver(appPort, '/layout-responsive-inside-flex')
       await browser.eval(`document.getElementById("img").scrollIntoView()`)
       await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
+        return (await browser.log()).map((log) => log.message).join('\n')
       }, /Image with src (.*)jpg(.*) may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width/gm)
       expect(await hasRedbox(browser)).toBe(false)
     })
@@ -821,7 +817,7 @@ function runTests(mode) {
       )
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
       await waitFor(1000)
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(warnings).toMatch(
@@ -842,7 +838,7 @@ function runTests(mode) {
     it('should warn when using a very small image with placeholder=blur', async () => {
       const browser = await webdriver(appPort, '/small-img-import')
 
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(await hasRedbox(browser)).toBe(false)
@@ -854,7 +850,7 @@ function runTests(mode) {
     it('should not warn when Image is child of p', async () => {
       const browser = await webdriver(appPort, '/inside-paragraph')
 
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(await hasRedbox(browser)).toBe(false)
@@ -879,7 +875,7 @@ function runTests(mode) {
           return 'done'
         }, 'done')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(await hasRedbox(browser)).toBe(false)
@@ -896,7 +892,7 @@ function runTests(mode) {
     it('should warn when loader is missing width', async () => {
       const browser = await webdriver(appPort, '/invalid-loader')
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(await hasRedbox(browser)).toBe(false)
@@ -920,7 +916,7 @@ function runTests(mode) {
     it('should warn when using sizes with incorrect layout', async () => {
       const browser = await webdriver(appPort, '/invalid-sizes')
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(await hasRedbox(browser)).toBe(false)
@@ -941,7 +937,7 @@ function runTests(mode) {
     it('should not warn when svg, even if with loader prop or without', async () => {
       const browser = await webdriver(appPort, '/loader-svg')
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(await hasRedbox(browser)).toBe(false)
@@ -981,7 +977,7 @@ function runTests(mode) {
         return 'done'
       }, 'done')
       await waitFor(1000)
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .filter((log) => log.startsWith('Image with src'))
       expect(warnings[0]).toMatch(
@@ -1397,12 +1393,12 @@ function runTests(mode) {
       await waitFor(1000)
       expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
       const url = await browser.url()
-      const result = await validateHTML({
+      const result = (await validateHTML({
         url,
         format: 'json',
         isLocal: true,
         validator: 'whatwg',
-      })
+      })) as any
       expect(result.isValid).toBe(true)
       expect(result.errors).toEqual([])
     } finally {
