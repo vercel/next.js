@@ -291,9 +291,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
-
+    
     if (images.deviceSizes) {
-      const { deviceSizes } = images
+    const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {
         throw new Error(
           `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
@@ -319,7 +319,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
     if (images.imageSizes) {
-      const { imageSizes } = images
+    const { imageSizes } = images
       if (!Array.isArray(imageSizes)) {
         throw new Error(
           `Specified images.imageSizes should be an Array received ${typeof imageSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
@@ -345,56 +345,58 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
-    if (!images.loader) {
-      images.loader = 'default'
+    let { loader, path } = images
+    if (!loader) {
+      loader = 'default'
     }
 
-    if (!VALID_LOADERS.includes(images.loader)) {
+    if (!VALID_LOADERS.includes(loader)) {
       throw new Error(
         `Specified images.loader should be one of (${VALID_LOADERS.join(
           ', '
         )}), received invalid value (${
-          images.loader
+          loader
         }).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
 
     if (
-      images.loader !== 'default' &&
-      images.loader !== 'custom' &&
-      images.path === imageConfigDefault.path
+      loader !== 'default' &&
+      loader !== 'custom' &&
+      path === imageConfigDefault.path
     ) {
       throw new Error(
-        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
+        `Specified images.loader property (${loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
       )
     }
 
     // Append trailing slash for non-default loaders and when trailingSlash is set
-    if (images.path) {
+    if (path) {
       if (
-        (images.loader !== 'default' &&
-          images.path[images.path.length - 1] !== '/') ||
+        (loader !== 'default' &&
+          path[path.length - 1] !== '/') ||
         result.trailingSlash
       ) {
-        images.path += '/'
+        path += '/'
       }
     }
 
-    if (images.path === imageConfigDefault.path && result.basePath) {
-      images.path = `${result.basePath}${images.path}`
+    if (path === imageConfigDefault.path && result.basePath) {
+      path = `${result.basePath}${path}`
     }
 
+    const { minimumCacheTTL } = images
     if (
-      images.minimumCacheTTL &&
-      (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
+      minimumCacheTTL &&
+      (!Number.isInteger(minimumCacheTTL) || minimumCacheTTL < 0)
     ) {
       throw new Error(
-        `Specified images.minimumCacheTTL should be an integer 0 or more received (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        `Specified images.minimumCacheTTL should be an integer 0 or more received (${minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
 
     if (images.formats) {
-      const { formats } = images
+    const { formats } = images
       if (!Array.isArray(formats)) {
         throw new Error(
           `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
