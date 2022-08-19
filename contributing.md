@@ -8,13 +8,20 @@
 - To contribute to [our examples](examples), please see [Adding examples](#adding-examples) below.
 - Before jumping into a PR be sure to search [existing PRs](https://github.com/vercel/next.js/pulls) or [issues](https://github.com/vercel/next.js/issues) for an open or closed item that relates to your submission.
 
+## Repository
+
+- [Pull Request Descriptions](./contributing/repository/pull-request-descriptions.md)
+- [Linting](./contributing/repository/linting.md)
+- [Publishing](./contributing/repository/publishing.md)
+- [Triaging](./contributing/repository/triaging.md)
+
 ## Core
 
-- [Adding Error Links](./contributing/core/adding-error-links.md)
-- [Building](./contributing/core/building.md)
-- [Developing Using Local App](./contributing/core/developing-using-local-app.md)
 - [Developing](./contributing/core/developing.md)
+- [Building](./contributing/core/building.md)
 - [Testing](./contributing/core/testing.md)
+- [Adding Error Links](./contributing/core/adding-error-links.md)
+- [Developing Using Local App](./contributing/core/developing-using-local-app.md)
 
 ## Documentation
 
@@ -24,9 +31,3 @@
 
 - [Adding Examples](./contributing/examples/adding-examples.md)
 - [Run Example Apps](./contributing/examples/run-example-apps.md)
-
-## Maintenance
-
-- [Linting](./contributing/maintenance/linting.md)
-- [Publishing](./contributing/maintenance/publishing.md)
-- [Triaging](./contributing/maintenance/triaging.md)
