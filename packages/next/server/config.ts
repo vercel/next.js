@@ -293,7 +293,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
     
     if (images.deviceSizes) {
-    const { deviceSizes } = images
+      const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {
         throw new Error(
           `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
@@ -319,7 +319,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
     if (images.imageSizes) {
-    const { imageSizes } = images
+      const { imageSizes } = images
       if (!Array.isArray(imageSizes)) {
         throw new Error(
           `Specified images.imageSizes should be an Array received ${typeof imageSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
@@ -396,7 +396,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (images.formats) {
-    const { formats } = images
+      const { formats } = images
       if (!Array.isArray(formats)) {
         throw new Error(
           `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
