@@ -2015,7 +2015,6 @@ export default class Router implements BaseRouter {
             : await fetchNextData({
                 dataHref: this.pageLoader.getDataHref({
                   href: formatWithValidation({ pathname, query }),
-                  skipInterpolation: true,
                   asPath: resolvedAs,
                   locale,
                 }),
@@ -2053,11 +2052,21 @@ export default class Router implements BaseRouter {
       // middleware can skip cache per request with
       // x-middleware-cache: no-cache as well
       if (routeInfo.__N_SSP && fetchNextDataParams.dataHref) {
-        const cacheKey = new URL(
-          fetchNextDataParams.dataHref,
-          window.location.href
-        ).href
-        delete this.sdc[cacheKey]
+        // The data cache can exist under two similar keys: one with
+        // interpolation and one without
+        delete this.sdc[
+          new URL(fetchNextDataParams.dataHref, window.location.href).href
+        ]
+        delete this.sdc[
+          new URL(
+            this.pageLoader.getDataHref({
+              href: formatWithValidation({ pathname, query }),
+              asPath: resolvedAs,
+              locale,
+            }),
+            window.location.href
+          ).href
+        ]
       }
 
       // we kick off a HEAD request in the background
