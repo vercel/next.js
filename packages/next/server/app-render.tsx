@@ -1036,7 +1036,9 @@ export async function renderToHTMLOrFlight(
     // Technically, the spec requires a base64'd value, but this is just an
     // extra layer.
     if (nonce && ESCAPE_REGEX.test(nonce)) {
-      nonce = undefined
+      throw new Error(
+        'nonce value from Content-Security-Policy contained HTML escape characters'
+      )
     }
   }
 
