@@ -6,22 +6,29 @@ const PLUGIN_NAME = 'SubresourceIntegrityPlugin'
 
 export type SubresourceIntegrityAlgorithm = 'sha256' | 'sha384' | 'sha512'
 
+export type CompilationAssets = Parameters<
+  Parameters<webpack.Compilation['hooks']['afterOptimizeAssets']['tap']>[1]
+>[0]
+
 export class SubresourceIntegrityPlugin {
   constructor(private readonly algorithm: SubresourceIntegrityAlgorithm) {}
 
-  public apply(compiler: any) {
-    compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
+  public apply(compiler: webpack.Compiler) {
+    compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.afterOptimizeAssets.tap(
         {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => this.createAsset(assets, compilation)
+        (assets) => this.createAsset(assets, compilation)
       )
     })
   }
 
-  private createAsset(assets: any, compilation: webpack.Compilation) {
+  private createAsset(
+    assets: CompilationAssets,
+    compilation: webpack.Compilation
+  ) {
     // Collect all the entrypoint files.
     let files = new Set<string>()
     for (const entrypoint of compilation.entrypoints.values()) {
@@ -39,12 +46,18 @@ export class SubresourceIntegrityPlugin {
     const hashes: Record<string, string> = {}
     for (const file of files.values()) {
       // Get the buffer for the asset.
-      const content = assets[file].buffer()
+      const asset = assets[file]
+      if (!asset) {
+        throw new Error(`could not get asset: ${file}`)
+      }
+
+      // Get the buffer for the asset.
+      const buffer = asset.buffer()
 
       // Create the hash for the content.
       const hash = crypto
         .createHash(this.algorithm)
-        .update(content)
+        .update(buffer)
         .digest()
         .toString('base64')
 
@@ -52,6 +65,6 @@ export class SubresourceIntegrityPlugin {
     }
 
     const json = JSON.stringify(hashes, null, 2)
-    assets[SUBRESOURCE_INTEGRITY_MANIFEST] = new sources.RawSource(json)
+    assets[SUBRESOURCE_INTEGRITY_MANIFEST] = new sources.RawSource(json) as any
   }
 }
