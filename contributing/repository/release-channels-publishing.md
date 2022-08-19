@@ -1,4 +1,4 @@
-# Publishing
+# Release Channels and Publishing
 
 Next.js has two release channels: `stable` and `canary`.
 

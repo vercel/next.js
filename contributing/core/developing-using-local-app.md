@@ -1,4 +1,4 @@
-# Developing With Your Local Version of Next.js
+# Developing Using Your Local Version of Next.js
 
 There are two options to develop with your local version of the codebase:
 
