@@ -10,7 +10,6 @@ import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { NextConfig } from './config-shared'
 
 import BaseServer from './base-server'
-import { renderToHTML } from './render'
 import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
@@ -29,6 +28,8 @@ interface WebServerOptions extends Options {
     ) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
+    pagesRenderToHTML?: typeof import('./render').renderToHTML
+    appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
   }
 }
 
@@ -114,12 +115,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
   }
   protected getServerComponentManifest() {
-    // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
-    return undefined
+    return this.serverOptions.webServerConfig.extendRenderOpts
+      .serverComponentManifest
   }
   protected getServerCSSManifest() {
-    // TODO-APP: Support web server.
-    return undefined
+    return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
   protected generateRoutes(): {
@@ -319,21 +319,30 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
-    return renderToHTML(
-      {
-        url: req.url,
-        cookies: req.cookies,
-        headers: req.headers,
-      } as any,
-      {} as any,
-      pathname,
-      query,
-      {
-        ...renderOpts,
-        disableOptimizedLoading: true,
-        runtime: 'experimental-edge',
-      }
-    )
+    const { pagesRenderToHTML, appRenderToHTML } =
+      this.serverOptions.webServerConfig
+    const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
+
+    if (curRenderToHTML) {
+      return curRenderToHTML(
+        {
+          url: req.url,
+          cookies: req.cookies,
+          headers: req.headers,
+        } as any,
+        {} as any,
+        pathname,
+        query,
+        {
+          ...renderOpts,
+          disableOptimizedLoading: true,
+          runtime: 'experimental-edge',
+        },
+        !!pagesRenderToHTML
+      )
+    } else {
+      throw new Error(`Invariant: curRenderToHTML is missing`)
+    }
   }
   protected async sendRenderResult(
     _req: WebNextRequest,

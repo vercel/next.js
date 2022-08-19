@@ -811,16 +811,23 @@ export default class NextNodeServer extends BaseServer {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const edgeFunctions = this.getEdgeFunctions()
+    const appPath = this.getOriginalAppPath(ctx.pathname)
+    let page = ctx.pathname
+
+    if (typeof appPath === 'string') {
+      page = appPath
+    }
+
+    const edgeFunctions = this.getEdgeFunctions() || []
 
     for (const item of edgeFunctions) {
-      if (item.page === ctx.pathname) {
+      if (item.page === page) {
         await this.runEdgeFunction({
           req: ctx.req,
           res: ctx.res,
           query: ctx.query,
           params: ctx.renderOpts.params,
-          page: ctx.pathname,
+          page,
         })
         return null
       }
@@ -1926,6 +1933,11 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
+    let appPath = this.getOriginalAppPath(params.page)
+
+    if (typeof appPath === 'string') {
+      params.page = appPath
+    }
 
     await this.ensureEdgeFunction(params.page)
     middlewareInfo = this.getEdgeFunctionInfo({
