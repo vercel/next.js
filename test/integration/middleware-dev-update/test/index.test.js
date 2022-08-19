@@ -5,10 +5,8 @@ import {
   killApp,
   launchApp,
   retry,
-  waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
-import stripAnsi from 'strip-ansi'
 import webdriver from 'next-webdriver'
 
 const context = {
