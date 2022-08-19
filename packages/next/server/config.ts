@@ -344,10 +344,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
-    let { loader, path } = images
-    if (!loader) {
-      loader = 'default'
-    }
+    let { loader = 'default', path } = images
 
     if (!VALID_LOADERS.includes(loader)) {
       throw new Error(
