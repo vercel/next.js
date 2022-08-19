@@ -17,10 +17,10 @@ export function imageConfigOpts({
   config,
   dev,
 }: {
-  config: NextConfigComplete
+  config: Pick<NextConfigComplete, 'images' | 'experimental'>
   dev: boolean
-}): ImageConfigOpts {
-  return {
+}): string {
+  const opts: ImageConfigOpts = {
     deviceSizes: config.images.deviceSizes,
     imageSizes: config.images.imageSizes,
     path: config.images.path,
@@ -35,4 +35,5 @@ export function imageConfigOpts({
       ? config.experimental?.images?.remotePatterns || []
       : [],
   }
+  return JSON.stringify(opts)
 }

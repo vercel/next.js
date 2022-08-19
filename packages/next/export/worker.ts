@@ -27,6 +27,7 @@ import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
+import { imageConfigOpts } from '../shared/lib/image-config-opts'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -76,7 +77,13 @@ interface ExportPageResults {
   duration: number
 }
 
-interface RenderOpts {
+export interface RenderOpts {
+  dir?: string
+  buildId?: string
+  nextExport?: boolean
+  assetPrefix?: string
+  distDir?: string
+  dev?: boolean
   runtimeConfig?: { [key: string]: any }
   params?: { [key: string]: string | string[] }
   ampPath?: string
@@ -92,6 +99,8 @@ interface RenderOpts {
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
   appDir?: boolean
+  configImages?: NextConfigComplete['images']
+  configImagesExperimental?: NextConfigComplete['experimental']['images']
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -119,6 +128,17 @@ export default async function exportPage({
   serverComponents,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpAgentOptions(httpAgentOptions)
+  /*
+  process.env.__NEXT_IMAGE_OPTS = imageConfigOpts({
+    config: {
+      images: renderOpts.configImages || {}, 
+      experimental: { 
+        images: renderOpts.configImagesExperimental
+      } 
+    },
+    dev: renderOpts.dev === true,
+  }) as any
+  */
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {

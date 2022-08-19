@@ -190,9 +190,7 @@ export function getDefineEnv({
     'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
       config.experimental.scrollRestoration
     ),
-    'process.env.__NEXT_IMAGE_OPTS': JSON.stringify(
-      imageConfigOpts({ config, dev })
-    ),
+    'process.env.__NEXT_IMAGE_OPTS': imageConfigOpts({ config, dev }),
     'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
     'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),

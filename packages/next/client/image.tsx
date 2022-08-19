@@ -22,9 +22,10 @@ function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
+const configEnv = (process.env.__NEXT_IMAGE_OPTS &&
+  JSON.parse(process.env.__NEXT_IMAGE_OPTS)) as ImageConfigComplete
 const { experimentalRemotePatterns = [], experimentalUnoptimized } =
-  (process.env.__NEXT_IMAGE_OPTS as any) || {}
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+  configEnv as any
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,

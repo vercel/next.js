@@ -22,6 +22,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
+import { imageConfigOpts } from '../shared/lib/image-config-opts'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -62,7 +63,7 @@ export function setHttpAgentOptions(
   ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
 }
 
-function assignDefaults(userConfig: { [key: string]: any }) {
+function assignDefaults(phase: string, userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
@@ -734,7 +735,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
-  return result
+  const nextConfigComplete = result as NextConfigComplete
+
+  process.env.__NEXT_IMAGE_OPTS = imageConfigOpts({
+    config: nextConfigComplete,
+    dev: phase === PHASE_DEVELOPMENT_SERVER,
+  })
+
+  return nextConfigComplete
 }
 
 export default async function loadConfig(
@@ -748,7 +756,7 @@ export default async function loadConfig(
   let configFileName = 'next.config.js'
 
   if (customConfig) {
-    return assignDefaults({
+    return assignDefaults(phase, {
       configOrigin: 'server',
       configFileName,
       ...customConfig,
@@ -839,7 +847,7 @@ export default async function loadConfig(
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
-    return assignDefaults({
+    return assignDefaults(phase, {
       configOrigin: relative(dir, path),
       configFile: path,
       configFileName,
@@ -867,7 +875,10 @@ export default async function loadConfig(
 
   // always call assignDefaults to ensure settings like
   // reactRoot can be updated correctly even with no next.config.js
-  const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
+  const completeConfig = assignDefaults(
+    phase,
+    defaultConfig
+  ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig

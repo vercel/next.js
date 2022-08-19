@@ -44,7 +44,11 @@ export function setImageConfig(imageConfig: GlobalImageConfig) {
   config.deviceSizes = deviceSizes
 }
 
-setImageConfig((process.env.__NEXT_IMAGE_OPTS as any) || {})
+setImageConfig(
+  typeof process.env.__NEXT_IMAGE_OPTS === 'string'
+    ? JSON.parse(process.env.__NEXT_IMAGE_OPTS)
+    : process.env.__NEXT_IMAGE_OPTS
+)
 
 export type ImageLoaderProps = {
   src: string

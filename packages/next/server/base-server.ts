@@ -334,7 +334,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     process.env.__NEXT_IMAGE_OPTS = imageConfigOpts({
       config: this.nextConfig,
       dev,
-    }) as any
+    })
     this.hostname = hostname
     this.port = port
     this.distDir =

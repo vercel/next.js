@@ -452,7 +452,9 @@ function AppContainer({
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
           <ImageConfigContext.Provider
-            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+            value={
+              JSON.parse(process.env.__NEXT_IMAGE_OPTS!) as ImageConfigComplete
+            }
           >
             {children}
           </ImageConfigContext.Provider>

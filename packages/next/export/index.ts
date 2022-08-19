@@ -41,6 +41,7 @@ import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
+import { RenderOpts } from './worker'
 
 const exists = promisify(existsOrig)
 
@@ -358,7 +359,7 @@ export default async function exportApp(
     }
 
     // Start the rendering process
-    const renderOpts = {
+    const renderOpts: any = {
       dir,
       buildId,
       nextExport: true,
@@ -385,12 +386,14 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
+      configImages: nextConfig.images,
+      configImagesExperimental: nextConfig.experimental.images,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
     if (Object.keys(publicRuntimeConfig).length > 0) {
-      ;(renderOpts as any).runtimeConfig = publicRuntimeConfig
+      renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
     // We need this for server rendering the Link component.
