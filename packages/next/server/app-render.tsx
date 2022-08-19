@@ -17,7 +17,7 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { htmlEscapeJsonString } from './htmlescape'
+import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
@@ -1031,6 +1031,13 @@ export async function renderToHTMLOrFlight(
       )
       // Grab the nonce by trimming the 'nonce-' prefix.
       ?.slice(7, -1)
+
+    // Don't accept the nonce value if it contains HTML escape characters.
+    // Technically, the spec requires a base64'd value, but this is just an
+    // extra layer.
+    if (nonce && ESCAPE_REGEX.test(nonce)) {
+      nonce = undefined
+    }
   }
 
   /**
