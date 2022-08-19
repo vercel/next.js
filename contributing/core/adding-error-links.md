@@ -1,8 +1,8 @@
 # Adding Warning and Error Descriptions
 
-In Next.js we have a system to add helpful links to warnings and errors.
+Next.js has a system to add helpful links to warnings and errors.
 
-This allows for the logged message to be short while giving a broader description and instructions on how to solve the warning/error.
+This allows the logged message to be short while giving a broader description and instructions on how to solve the warning/error on the documentation.
 
 In general, all warnings and errors added should have these links attached.
 
