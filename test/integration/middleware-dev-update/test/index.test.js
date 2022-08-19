@@ -77,9 +77,7 @@ describe('Middleware development errors', () => {
 
     it('sends response correctly', async () => {
       await assertMiddlewareFetch(true)
-
-      // FIXME: the test passes but an error occurs in browser
-      // await assertMiddlewareRender(true)
+      await assertMiddlewareRender(true)
     })
   })
 
@@ -92,8 +90,7 @@ describe('Middleware development errors', () => {
 
     it('sends response correctly', async () => {
       await retry(() => assertMiddlewareFetch(true))
-      // FIXME: the test passes but an error occurs in browser
-      // assertMiddlewareRender(true)
+      await assertMiddlewareRender(true)
     })
   })
 
@@ -122,9 +119,7 @@ describe('Middleware development errors', () => {
 
     it('sends response correctly', async () => {
       await retry(() => assertMiddlewareFetch(true, '/asdf'))
-
-      // FIXME: the test passes but an error occurs in browser
-      // await retry(() => assertMiddlewareRender(true, '/asdf'))
+      await retry(() => assertMiddlewareRender(true, '/asdf'))
     })
   })
 })
