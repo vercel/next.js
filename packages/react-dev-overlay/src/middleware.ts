@@ -355,8 +355,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         () => false
       )
       if (!fileExists) {
-        res.statusCode = 204
-        res.write('No Content')
+        res.statusCode = 404
+        res.write('Not Found')
         return res.end()
       }
 
