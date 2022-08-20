@@ -1636,7 +1636,6 @@ export default class NextNodeServer extends BaseServer {
       return { finished: false }
     }
     if (!(await this.hasMiddleware(middleware.page))) {
-      console.warn(`The Edge Function for ${middleware.page} was not found`)
       return { finished: false }
     }
 
