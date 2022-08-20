@@ -91,6 +91,7 @@ module.exports = function (plop) {
             return JSON.stringify(manifestData, null, 2)
           },
         },
+        `Url for the error: https://nextjs.org/docs/messages/${fileName}`,
       ]
     },
   })

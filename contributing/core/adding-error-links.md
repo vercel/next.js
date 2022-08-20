@@ -9,8 +9,4 @@ In general, all warnings and errors added should have these links attached.
 Below are the steps to add a new link:
 
 1. Run `pnpm new-error` which will create the error document and update the manifest automatically.
-2. Add the following url to your warning/error:
-   `https://nextjs.org/docs/messages/<file-path-without-dotmd>`.
-
-   For example, to link to `errors/api-routes-static-export.md` you use the url:
-   `https://nextjs.org/docs/messages/api-routes-static-export`
+2. At the end of the command the URL for the error will be provided, add that to your error.
