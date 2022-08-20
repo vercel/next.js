@@ -14,6 +14,8 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   onReady?: () => void | null
   onError?: (e: any) => void
   children?: React.ReactNode
+  dangerouslySetInnerHTML?: { __html: string }
+  src?: string
 }
 
 /**
