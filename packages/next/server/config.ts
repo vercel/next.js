@@ -350,9 +350,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       throw new Error(
         `Specified images.loader should be one of (${VALID_LOADERS.join(
           ', '
-        )}), received invalid value (${
-          loader
-        }).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )}), received invalid value (${loader}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
 
@@ -369,8 +367,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     // Append trailing slash for non-default loaders and when trailingSlash is set
     if (path) {
       if (
-        (loader !== 'default' &&
-          path[path.length - 1] !== '/') ||
+        (loader !== 'default' && path[path.length - 1] !== '/') ||
         result.trailingSlash
       ) {
         path += '/'
