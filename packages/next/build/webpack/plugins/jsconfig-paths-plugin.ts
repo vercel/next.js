@@ -169,23 +169,16 @@ type Paths = { [match: string]: string[] }
 export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
   paths: Paths
   resolvedBaseUrl: string
+  jsConfigPlugin: true
+
   constructor(paths: Paths, resolvedBaseUrl: string) {
     this.paths = paths
     this.resolvedBaseUrl = resolvedBaseUrl
+    this.jsConfigPlugin = true
     log('tsconfig.json or jsconfig.json paths: %O', paths)
     log('resolved baseUrl: %s', resolvedBaseUrl)
   }
   apply(resolver: any) {
-    const paths = this.paths
-    const pathsKeys = Object.keys(paths)
-
-    // If no aliases are added bail out
-    if (pathsKeys.length === 0) {
-      log('paths are empty, bailing out')
-      return
-    }
-
-    const baseDirectory = this.resolvedBaseUrl
     const target = resolver.ensureHook('resolve')
     resolver
       .getHook('described-resolve')
@@ -196,6 +189,15 @@ export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
           resolveContext: any,
           callback: (err?: any, result?: any) => void
         ) => {
+          const paths = this.paths
+          const pathsKeys = Object.keys(paths)
+
+          // If no aliases are added bail out
+          if (pathsKeys.length === 0) {
+            log('paths are empty, bailing out')
+            return callback()
+          }
+
           const moduleName = request.request
 
           // Exclude node_modules from paths support (speeds up resolving)
@@ -246,7 +248,7 @@ export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
                 // try next path candidate
                 return pathCallback()
               }
-              const candidate = path.join(baseDirectory, curPath)
+              const candidate = path.join(this.resolvedBaseUrl, curPath)
               const obj = Object.assign({}, request, {
                 request: candidate,
               })

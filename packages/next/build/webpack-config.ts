@@ -1831,11 +1831,14 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
-  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-    webpackConfig.resolve?.plugins?.unshift(
-      new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
+  // allows add JsConfigPathsPlugin to allow hot-reloading
+  // if the config is added/removed
+  webpackConfig.resolve?.plugins?.unshift(
+    new JsConfigPathsPlugin(
+      jsConfig?.compilerOptions?.paths || {},
+      resolvedBaseUrl || dir
     )
-  }
+  )
 
   const webpack5Config = webpackConfig as webpack.Configuration
 
