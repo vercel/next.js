@@ -10,7 +10,7 @@
 - [Triaging](./contributing/repository/triaging.md)
 - [Release Channels and Publishing](./contributing/repository/release-channels-publishing.md)
 - [Linting](./contributing/repository/linting.md)
-- [Pull Request Descriptions](./contributing/repository/pull-request-descriptions.md)
+<!-- TODO: - [Pull Request Descriptions](./contributing/repository/pull-request-descriptions.md) -->
 
 ## Core
 
