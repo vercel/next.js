@@ -759,7 +759,7 @@ export default function Image({
           bottom: 0,
         }
       : {},
-    showAltText || placeholder === 'blur' ? {} : { color: 'transparent' },
+    showAltText ? {} : { color: 'transparent' },
     style
   )
   const backgroundSize = imgStyle.objectFit || 'cover'
