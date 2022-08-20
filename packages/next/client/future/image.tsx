@@ -763,7 +763,7 @@ export default function Image({
     style
   )
   const backgroundSize = imgStyle.objectFit || 'cover'
-  const backgroundPosition = imgStyle.objectPosition || '0% 0%'
+  const backgroundPosition = imgStyle.objectPosition || '50% 50%'
   const preserveAspectRatio =
     backgroundSize === 'contain'
       ? 'xMidYMid'
@@ -777,7 +777,8 @@ export default function Image({
       ? {
           backgroundSize,
           backgroundPosition,
-          ...(blurDataURL.startsWith('data:image/jpeg') && widthInt && heightInt
+          backgroundRepeat: 'no-repeat',
+          ...(blurDataURL.startsWith('data:image/jpeg')
             ? {
                 backgroundImage: svgBlurPlaceholder,
               }
@@ -785,7 +786,6 @@ export default function Image({
                 // Fallback to CSS filter in any of the following cases:
                 // if blurDataURL might be transparent (never true for jpeg)
                 // or if blurDataURL is an external url (always true for `next dev`)
-                // or if width/height is missing (sometimes true for `fill` mode).
                 filter: 'blur(20px)',
                 backgroundImage: `url("${blurDataURL}")`,
               }),
