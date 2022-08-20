@@ -773,19 +773,19 @@ export default function Image({
   const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}' preserveAspectRatio='${preserveAspectRatio}' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
 
   const blurStyle =
-    placeholder === 'blur' && !blurComplete
+    placeholder === 'blur' && blurDataURL && !blurComplete
       ? {
           backgroundSize,
           backgroundPosition,
-          ...(blurDataURL?.startsWith('data:image/jpeg') &&
-          widthInt &&
-          heightInt
+          ...(blurDataURL.startsWith('data:image/jpeg') && widthInt && heightInt
             ? {
                 backgroundImage: svgBlurPlaceholder,
               }
             : {
-                // We fallback to CSS filter blur if blurDataURL is transparent
+                // Fallback to CSS filter in any of the following cases:
+                // if blurDataURL might be transparent (never true for jpeg)
                 // or if blurDataURL is an external url (always true for `next dev`)
+                // or if width/height is missing (sometimes true for `fill` mode).
                 filter: 'blur(20px)',
                 backgroundImage: `url("${blurDataURL}")`,
               }),
