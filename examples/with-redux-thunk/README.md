@@ -30,7 +30,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 ## Notes
 
-The Redux `Provider` is implemented in `pages/_app.js`. The `pageProps`  is wrapped in a `useStore` hook function, the redux `store` will be initialized in the function and then passed down to `Page Component` as `this.props.initialReduxState`, which will then be utilized by the `Provider` component.
+The Redux `Provider` is implemented in `pages/_app.js`. The `pageProps` is wrapped in a `useStore` hook function, the redux `store` will be initialized in the function and then passed down to `Page Component` as `this.props.initialReduxState`, which will then be utilized by the `Provider` component.
 
 Every initial server-side request will utilize a new `store`. However, every `Router` or `Link` action will persist the same `store` as a user navigates through the `pages`. To demonstrate this example, we can navigate back and forth to `/show-redux-state` using the provided `Link`s. However, if we navigate directly to `/show-redux-state` (or refresh the page), this will cause a server-side render, which will then utilize a new store.
 
