@@ -790,6 +790,7 @@ export default class DevServer extends Server {
         },
       })
     } catch (error) {
+      console.log('error', error)
       if (error instanceof DecodeError) {
         throw error
       }
@@ -882,6 +883,7 @@ export default class DevServer extends Server {
             ''
           )
 
+          console.log('err', err)
           const src = getErrorSource(err as Error)
           const compilation = (
             src === COMPILER_NAMES.edgeServer

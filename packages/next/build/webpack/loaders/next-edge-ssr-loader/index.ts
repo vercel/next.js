@@ -57,6 +57,11 @@ export default async function edgeSSRLoader(this: any) {
     ? stringifyRequest(this, absolute500Path)
     : null
 
+  const pageModPath = `${appDirLoader}${stringifiedPagePath.substring(
+    1,
+    stringifiedPagePath.length - 1
+  )}`
+
   const transformed = `
     import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
     import { getRender } from 'next/dist/build/webpack/loaders/next-edge-ssr-loader/render'
@@ -64,23 +69,24 @@ export default async function edgeSSRLoader(this: any) {
     import Document from ${stringifiedDocumentPath}
 
     enhanceGlobals()
-    
+
     ${
       isAppDir
         ? `
       const appRenderToHTML = require('next/dist/server/app-render').renderToHTMLOrFlight
       const pagesRenderToHTML = null
-      const pageMod = require("${appDirLoader}${stringifiedPagePath.substring(
-            1,
-            stringifiedPagePath.length - 1
-          )}")
-      pageMod.__client__ = self._CLIENT_ENTRY
+      let pageMod = require(${JSON.stringify(pageModPath)})
+      pageMod = pageMod.default || pageMod
     `
         : `
       const appRenderToHTML = null
       const pagesRenderToHTML = require('next/dist/server/render').renderToHTML
       const pageMod = require(${stringifiedPagePath})
     `
+    }
+
+    if (!pageMod) {
+      console.log("${pageModPath}")
     }
 
     const appMod = require(${stringifiedAppPath})
@@ -97,7 +103,7 @@ export default async function edgeSSRLoader(this: any) {
       dev: ${dev},
       page: ${JSON.stringify(page)},
       appMod,
-      pageMod,
+      pageMod: { default: pageMod },
       errorMod,
       error500Mod,
       Document,

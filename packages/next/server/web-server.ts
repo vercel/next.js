@@ -273,6 +273,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
             finished: true,
           }
         } catch (err) {
+          console.log('catch err', err)
           if (err instanceof NoFallbackError && bubbleNoFallback) {
             return {
               finished: false,
@@ -323,23 +324,35 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       this.serverOptions.webServerConfig
     const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
 
+    renderOpts.ComponentMod =
+      renderOpts.ComponentMod.default || renderOpts.ComponentMod
+    console.trace('renderOpts.err', renderOpts.err)
+    // console.log('ComponentMod', renderOpts.ComponentMod)
     if (curRenderToHTML) {
-      return curRenderToHTML(
-        {
-          url: req.url,
-          cookies: req.cookies,
-          headers: req.headers,
-        } as any,
-        {} as any,
-        pathname,
-        query,
-        {
-          ...renderOpts,
-          disableOptimizedLoading: true,
-          runtime: 'experimental-edge',
-        },
-        !!pagesRenderToHTML
-      )
+      let res
+      try {
+        res = await curRenderToHTML(
+          {
+            url: req.url,
+            cookies: req.cookies,
+            headers: req.headers,
+          } as any,
+          {} as any,
+          pathname,
+          query,
+          {
+            ...renderOpts,
+            disableOptimizedLoading: true,
+            runtime: 'experimental-edge',
+          },
+          !!pagesRenderToHTML
+        )
+        console.log('res', res)
+      } catch (e) {
+        console.error('render to html e', e)
+        throw e
+      }
+      return res
     } else {
       throw new Error(`Invariant: curRenderToHTML is missing`)
     }
