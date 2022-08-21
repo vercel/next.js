@@ -6,6 +6,12 @@ import { requestToBodyStream } from '../../body-streams'
 
 export const ErrorSource = Symbol('SandboxError')
 
+const FORBIDDEN_HEADERS = [
+  'content-length',
+  'content-encoding',
+  'transfer-encoding',
+]
+
 type RunnerFn = (params: {
   name: string
   env: string[]
@@ -74,12 +80,16 @@ export const run = withTaggedErrors(async (params) => {
     : undefined
 
   try {
-    return await edgeFunction({
+    const result = await edgeFunction({
       request: {
         ...params.request,
         body: cloned && requestToBodyStream(runtime.context, cloned),
       },
     })
+    for (const headerName of FORBIDDEN_HEADERS) {
+      result.response.headers.delete(headerName)
+    }
+    return result
   } finally {
     await params.request.body?.finalize()
   }
