@@ -39,7 +39,7 @@ export function buildExports(moduleExports: any, isESM: boolean) {
 export const clientComponentRegex = new RegExp(
   '(' +
     `\\.client(\\.(${defaultJsFileExtensions.join('|')}))?|` +
-    `next/(${nextClientComponents.join('|')})(\\.js)?|` +
+    `next[\\\\/](${nextClientComponents.join('|')})(\\.js)?|` +
     `\\.(${imageExtensions.join('|')})` +
     ')$'
 )

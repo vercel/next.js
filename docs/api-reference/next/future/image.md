@@ -41,6 +41,15 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Removes `loader` config in favor of [`loader`](#loader) prop
 - Note: the [`onError`](#onerror) prop might behave differently
 
+## Known Browser Bugs
+
+- [Safari 15+](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
+  - Use CSS `@media not all and (min-resolution:.001dpcm) { img[loading="lazy"] { clip-path: inset(0.5px) } }`
+  - Use [`priority`](#priority) if the image is above the fold
+- [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading progressive jpeg. Possible solutions:
+  - Enable [AVIF `formats`](#acceptable-formats)
+  - Use [`placeholder="blur"`](#blur)
+
 ## Migration
 
 Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following code snippets compare the two components:
