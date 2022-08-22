@@ -1025,4 +1025,30 @@ describe('CSS Support', () => {
       )
     })
   })
+
+  describe('Runtime CSS import error', () => {
+    const workDir = join(fixturesDir, 'runtime-css-import')
+
+    it('should not compile', async () => {
+      const { code, stderr } = await nextBuild(workDir, [], { stderr: true })
+
+      expect(code).toBe(1)
+      expect(stderr).toMatch(/Found runtime CSS import./)
+      expect(stderr).toMatch(/Build failed because of webpack errors/)
+    })
+  })
+
+  describe('Runtime CSS import error ignored', () => {
+    const workDir = join(fixturesDir, 'runtime-css-import-ignored')
+
+    it('should compile', async () => {
+      const { code, stderr } = await nextBuild(workDir, [], {
+        stderr: true,
+      })
+
+      expect(code).toBe(0)
+      expect(stderr).not.toMatch(/Found runtime CSS import./)
+      expect(stderr).not.toMatch(/Build failed because of webpack errors/)
+    })
+  })
 })

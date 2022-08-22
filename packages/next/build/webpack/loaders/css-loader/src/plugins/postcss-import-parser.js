@@ -160,7 +160,16 @@ const plugin = (options = {}) => {
                 const needKeep = await options.filter(url, media)
 
                 if (!needKeep) {
-                  return
+                  const prevNode = atRule.prev()
+                  if (
+                    prevNode?.type === 'comment' &&
+                    prevNode?.text === 'allow-dangerous-css-import'
+                  ) {
+                    return
+                  }
+                  throw parsedAtRule.atRule.error(
+                    'Found runtime CSS import. Read more: https://nextjs.org/docs/messages/runtime-css-import'
+                  )
                 }
               }
 
