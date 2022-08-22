@@ -359,7 +359,10 @@ const ImageElement = ({
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp | null) => {
-            if (img && onError) {
+            if (!img) {
+              return
+            }
+            if (onError) {
               // If the image has an error before react hydrates, then the error is lost.
               // The workaround is to wait until the image is mounted which is after hydration,
               // then we set the src again to trigger the error handler (if there was an error).
@@ -367,11 +370,29 @@ const ImageElement = ({
               img.src = img.src
             }
             if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
+              if (!srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
+              if (
+                img.getAttribute('objectFit') ||
+                img.getAttribute('objectfit')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
+              if (
+                img.getAttribute('objectPosition') ||
+                img.getAttribute('objectposition')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
             }
-            if (img?.complete) {
+            if (img.complete) {
               handleLoading(
                 img,
                 srcString,
@@ -663,17 +684,6 @@ export default function Image({
     if (priority && loading === 'lazy') {
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
-      )
-    }
-
-    if ('objectFit' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" property.`
-      )
-    }
-    if ('objectPosition' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" property.`
       )
     }
 
