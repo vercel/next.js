@@ -16,7 +16,7 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 The `next/future/image` component is an experiment to improve both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
 
-This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before [Chrome 79](https://chromestatus.com/feature/5695266130755584), [Firefox 69](https://bugzilla.mozilla.org/show_bug.cgi?id=1547231), and [Safari 14.2](https://bugs.webkit.org/show_bug.cgi?id=201641). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
+This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
 
 To use `next/future/image`, add the following to your `next.config.js` file:
 
@@ -34,10 +34,14 @@ module.exports = {
 
 Compared to `next/image`, the new `next/future/image` component has the following changes:
 
-- Renders a single `<img>` without `<div>` or `<span>` wrappers
+- Removes `<span>` wrapper around `<img>` in favor of [native computed aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes)
 - Adds support for canonical `style` prop
-- Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
+  - Removes `layout` prop in favor of `style` or `className`
+  - Removes `objectFit` prop in favor of `style` or `className`
+  - Removes `objectPosition` prop in favor of `style` or `className`
 - Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
+  - Removes `lazyBoundary` prop since there is no native equivalent
+  - Removes `lazyRoot` prop since there is no native equivalent
 - Removes `loader` config in favor of [`loader`](#loader) prop
 - Note: the [`onError`](#onerror) prop might behave differently
 

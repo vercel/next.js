@@ -19,7 +19,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.26
+      '@edge-runtime/jest-environment': 1.1.0-beta.27
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -173,7 +173,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.26
+      '@edge-runtime/jest-environment': 1.1.0-beta.27
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -416,7 +416,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.26
+      '@edge-runtime/primitives': 1.1.0-beta.27
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
@@ -497,7 +497,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.26
+      edge-runtime: 1.1.0-beta.27
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -609,7 +609,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.26
+      '@edge-runtime/primitives': 1.1.0-beta.27
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
@@ -687,7 +687,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.26
+      edge-runtime: 1.1.0-beta.27
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -1886,7 +1886,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
 
   /@babel/plugin-syntax-optional-catch-binding/7.8.3_@babel+core@7.18.0:
     resolution: {integrity: sha512-6VPD0Pc1lpTqw0aKoeRTMiB+kWhAoT24PA+ksWSBrFtl5SIRVpZlwN3NNPQjehA2E/91FV3RjLWoVTglWcSV3Q==}
@@ -3216,14 +3216,14 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/format/1.1.0-beta.26:
-    resolution: {integrity: sha512-05wywSsBZVE1iMezvYXW1ZMak6y2riJPVmEDK9RW9BECazykJtYOOQ+GG+oVaicNfxh2YtQTQD/WaI/4K3yKWA==}
+  /@edge-runtime/format/1.1.0-beta.27:
+    resolution: {integrity: sha512-67ig1yISH1M7OHxS/PxgXbrQ99X8c47GFqP6qrDx+uWw1gBnknNHIykL3OgeIt4yk1OPKKHtrLe/Gnrw9Lc9tQ==}
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.26:
-    resolution: {integrity: sha512-NnnYjF3Kaw83Vrkoy0lpuZCk49VjR5Ruo5XDjZ9dKqslA6lNVBkirTDvQrQBYSTaZM8lu3Ed39o50zH2Ua4lTw==}
+  /@edge-runtime/jest-environment/1.1.0-beta.27:
+    resolution: {integrity: sha512-zCKFLqhvQ3OWV2H1cvl6CD7pnRKR+hUtGaJU4fYVjHAOoIpv5R9W+qw+9rXu5CpZJ7F4k/+1vLicAxaXKVKJOg==}
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.26
+      '@edge-runtime/vm': 1.1.0-beta.27
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
@@ -3231,14 +3231,14 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.26:
-    resolution: {integrity: sha512-SsbXbw2+bAHbcjAmT+e5WoADmU/yDO5glNFkYd/971Zo26cJoW/1W3n4IMm5gOtyvLHbezSRKt8t5GteX0wYdA==}
+  /@edge-runtime/primitives/1.1.0-beta.27:
+    resolution: {integrity: sha512-9RLySRgIfNhPXzqprwk5jojUec4WmVRphXIGgXmqZs/22UPF50mKcmrstPVVutGiX0mt4YkHuUarLj0VtLjX1Q==}
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.26:
-    resolution: {integrity: sha512-hxWtmuO13zgNkM3zHvRENfMeavM+PAKSoHhvzt+sHjSothxGlA06XXN38t/NT6LD4ND8p8FmPJ70+fTptL4a/A==}
+  /@edge-runtime/vm/1.1.0-beta.27:
+    resolution: {integrity: sha512-1ua5EI3GXKDDdjF6+1CUi37rmpxXMSWItCCl5sIMLBaIaf2klgnVYzIFVXORvXp0fKh1N3jEcS+Ykkutg/uzaw==}
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.26
+      '@edge-runtime/primitives': 1.1.0-beta.27
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -4618,7 +4618,7 @@ packages:
   /@mdx-js/mdx/0.18.2_@babel+core@7.18.0:
     resolution: {integrity: sha512-7DqNBOGPV+36qpH8YZmKI5uvuXhrGZFhJ4C9+9uaQSpH2hQg9xAfdzjSSEO8FQhAlu6wJtUgb72J5/eWdc1HFw==}
     dependencies:
-      '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
+      '@babel/plugin-proposal-object-rest-spread': 7.18.0_@babel+core@7.18.0
       '@babel/plugin-syntax-jsx': 7.14.5_@babel+core@7.18.0
       change-case: 3.1.0
       detab: 2.0.4
@@ -9741,12 +9741,12 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.26:
-    resolution: {integrity: sha512-2JZlxpISnRv3p0yh6Oo9QZF06lWcgJH0RMxVbJ5Az0Grde7B1PLw34oCIcOu23Zu7Icn4Lh2wojA6riq3jyDqg==}
+  /edge-runtime/1.1.0-beta.27:
+    resolution: {integrity: sha512-6Epw2VvkgQKNCZf1LpFdzrEpsSgnVAkLI3zGW5V7VduB8eNz5We/bpcNnFJTjGPUshhW+C5WxY7QNyioucMpDQ==}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0-beta.26
-      '@edge-runtime/vm': 1.1.0-beta.26
+      '@edge-runtime/format': 1.1.0-beta.27
+      '@edge-runtime/vm': 1.1.0-beta.27
       exit-hook: 2.2.1
       http-status: 1.5.2
       mri: 1.2.0
@@ -11301,7 +11301,7 @@ packages:
     dev: true
 
   /get-stdin/4.0.1:
-    resolution: {integrity: sha1-uWjGsKBDhDJJAui/Gl3zJXmkUP4=}
+    resolution: {integrity: sha512-F5aQMywwJ2n85s4hJPTT9RPxGmubonuB10MNYo17/xph174n2MIR33HRguhzVag10O/npM7SPk73LMZNP+FaWw==}
     engines: {node: '>=0.10.0'}
     dev: true
 
@@ -11977,7 +11977,7 @@ packages:
     dev: true
 
   /header-case/1.0.1:
-    resolution: {integrity: sha1-lTWXMZfBRLCWE81l0xfvGZY70C0=}
+    resolution: {integrity: sha512-i0q9mkOeSuhXw6bGgiQCCBgY/jlZuV/7dZXyZ9c6LcBrqwvT8eT719E9uxE5LiZftdl+z81Ugbg/VvXV4OJOeQ==}
     dependencies:
       no-case: 2.3.2
       upper-case: 1.1.3
@@ -12219,7 +12219,7 @@ packages:
     dev: true
 
   /humanize-ms/1.2.1:
-    resolution: {integrity: sha1-xG4xWaKT9riW2ikxbYtv6Lt5u+0=}
+    resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
     dependencies:
       ms: 2.1.2
     dev: true
@@ -12815,11 +12815,11 @@ packages:
     dev: true
 
   /is-lambda/1.0.1:
-    resolution: {integrity: sha1-PZh3iZ5qU+/AFgUEzeFfgubwYdU=}
+    resolution: {integrity: sha512-z7CMFGNrENq5iFB9Bqo64Xk6Y9sg+epq1myIcdHaGnbMTYOxvzsEtdYqQUylB7LxfkvgrrjP32T6Ywciio9UIQ==}
     dev: true
 
   /is-lower-case/1.1.3:
-    resolution: {integrity: sha1-fhR75HaNxGbbO/shzGCzHmrWk5M=}
+    resolution: {integrity: sha512-+5A1e/WJpLLXZEDlgz4G//WYSHyQBD32qa4Jd3Lw06qQlv3fJHnp3YIHjTQSGzHMgzmVKz2ZP3rBxTHkPw/lxA==}
     dependencies:
       lower-case: 1.1.4
     dev: true
@@ -13050,7 +13050,7 @@ packages:
     dev: true
 
   /is-upper-case/1.1.2:
-    resolution: {integrity: sha1-jQsfp+eTOh5YSDYA7H2WYcuvdW8=}
+    resolution: {integrity: sha512-GQYSJMgfeAmVwh9ixyk888l7OIhNAGKtY6QA+IrWlu9MDTCaXmeozOZ2S9Knj7bQwBO/H6J2kb+pbyTUiMNbsw==}
     dependencies:
       upper-case: 1.1.3
     dev: true
@@ -14670,13 +14670,13 @@ packages:
     dev: true
 
   /lower-case-first/1.0.2:
-    resolution: {integrity: sha1-5dp8JvKacHO+AtUrrJmA5ZIq36E=}
+    resolution: {integrity: sha512-UuxaYakO7XeONbKrZf5FEgkantPf5DUqDayzP5VXZrtRPdH86s4kN47I8B3TW10S4QKiE3ziHNf3kRN//okHjA==}
     dependencies:
       lower-case: 1.1.4
     dev: true
 
   /lower-case/1.1.4:
-    resolution: {integrity: sha1-miyr0bno4K6ZOkv31YdcOcQujqw=}
+    resolution: {integrity: sha512-2Fgx1Ycm599x+WGpIYwJOvsjmXFzTSc34IwDWALRA/8AopUKAVPwfJ+h5+f85BCp0PWmmJcWzEpxOpoXycMpdA==}
     dev: true
 
   /lower-case/2.0.2:
@@ -14926,7 +14926,7 @@ packages:
     dev: true
 
   /mdurl/1.0.1:
-    resolution: {integrity: sha1-/oWy7HWlkDfyrf7BAP1sYBdhFS4=}
+    resolution: {integrity: sha512-/sKlQJCBYVY9Ers9hqzKou4H6V5UWc/M59TH2dvkt+84itfnq7uFOMLpOiOS4ujvHP4etln18fmIxA5R5fll0g==}
     dev: true
 
   /media-typer/0.3.0:
@@ -16419,7 +16419,7 @@ packages:
     dev: true
 
   /param-case/2.1.1:
-    resolution: {integrity: sha1-35T9jPZTHs915r75oIWPvHK+Ikc=}
+    resolution: {integrity: sha512-eQE845L6ot89sk2N8liD8HAuH4ca6Vvr7VWAWwt7+kvvG5aBcPmmphQ68JsEG2qa9n1TykS2DLeMt363AAH8/w==}
     dependencies:
       no-case: 2.3.2
     dev: true
@@ -16590,7 +16590,7 @@ packages:
     dev: true
 
   /pascal-case/2.0.1:
-    resolution: {integrity: sha1-LVeNNFX2YNpl7KGO+VtODekSdh4=}
+    resolution: {integrity: sha512-qjS4s8rBOJa2Xm0jmxXiyh1+OFf6ekCWOvUaRgAQSktzlTbMotS0nmG9gyYAybCWBcuP4fsBeRCKNwGBnMe2OQ==}
     dependencies:
       camel-case: 3.0.0
       upper-case-first: 1.1.2
@@ -16613,7 +16613,7 @@ packages:
     dev: true
 
   /path-case/2.1.1:
-    resolution: {integrity: sha1-lLgDfDctP+KQbkZbtF4l0ibo7qU=}
+    resolution: {integrity: sha512-Ou0N05MioItesaLr9q8TtHVWmJ6fxWdqKB2RohFmNWVyJ+2zeKIeDNWAN6B/Pe7wpzWChhZX6nONYmOnMeJQ/Q==}
     dependencies:
       no-case: 2.3.2
     dev: true
@@ -18794,7 +18794,7 @@ packages:
     dev: true
 
   /replace-ext/1.0.0:
-    resolution: {integrity: sha1-3mMSg3P8v3w8z6TeWkgMRaZ5WOs=}
+    resolution: {integrity: sha512-vuNYXC7gG7IeVNBC1xUllqCcZKRbJoSPOBhnTEcAIiKCsbuef6zO3F0Rve3isPMMoNoQRWjQwbAgAjHUHniyEA==}
     engines: {node: '>= 0.10'}
     dev: true
 
@@ -19352,7 +19352,7 @@ packages:
     dev: true
 
   /sentence-case/2.1.1:
-    resolution: {integrity: sha1-H24t2jnBaL+S0T+G1KkYkz9mftQ=}
+    resolution: {integrity: sha512-ENl7cYHaK/Ktwk5OTD+aDbQ3uC8IByu/6Bkg+HDv8Mm+XnBnppVNalcfJTNsp1ibstKh030/JKQQWglDvtKwEQ==}
     dependencies:
       no-case: 2.3.2
       upper-case-first: 1.1.2
@@ -19543,7 +19543,7 @@ packages:
     dev: true
 
   /snake-case/2.1.0:
-    resolution: {integrity: sha1-Qb2xtz8w7GagTU4srRt2OH1NbZ8=}
+    resolution: {integrity: sha512-FMR5YoPFwOLuh4rRz92dywJjyKYZNLpMn1R5ujVpIYkbA9p01fq8RMg0FkO4M+Yobt4MjHeLTJVm5xFFBHSV2Q==}
     dependencies:
       no-case: 2.3.2
     dev: true
@@ -20222,7 +20222,7 @@ packages:
     dev: true
 
   /swap-case/1.1.2:
-    resolution: {integrity: sha1-w5IDpFhzhfrTyFCgvRvK+ggZdOM=}
+    resolution: {integrity: sha512-BAmWG6/bx8syfc6qXPprof3Mn5vQgf5dwdUNJhsNqU9WdPt5P+ES/wQ5bxfijy8zwZgZZHslC3iAsxsuQMCzJQ==}
     dependencies:
       lower-case: 1.1.4
       upper-case: 1.1.3
@@ -20431,7 +20431,7 @@ packages:
       acorn:
         optional: true
     dependencies:
-      acorn: 8.6.0
+      acorn: 8.8.0
       commander: 2.20.3
       source-map: 0.7.3
       source-map-support: 0.5.20
@@ -20546,7 +20546,7 @@ packages:
     dev: true
 
   /title-case/2.1.1:
-    resolution: {integrity: sha1-PhJyFtpY0rxb7PE3q5Ha46fNj6o=}
+    resolution: {integrity: sha512-EkJoZ2O3zdCz3zJsYCsxyq2OC5hrxR9mfdd5I+w8h/tmFfeOxJ+vvkxsKxdmN0WtS9zLdHEgfgVOiMVgv+Po4Q==}
     dependencies:
       no-case: 2.3.2
       upper-case: 1.1.3
@@ -20620,7 +20620,7 @@ packages:
       safe-regex: 1.1.0
 
   /to-style/1.3.3:
-    resolution: {integrity: sha1-Y6K3Cm9KfU/cLtV6C+TnI1y2aZw=}
+    resolution: {integrity: sha512-9K8KYegr9hrdm8yPpu5iZjJp5t6RPAp4gFDU5hD9zR8hwqgF4fsoSitMtkRKQG2qkP5j/uG3wajbgV09rjmIqg==}
     dev: true
 
   /to-vfile/6.1.0:
@@ -20705,7 +20705,7 @@ packages:
     dev: true
 
   /trim/0.0.1:
-    resolution: {integrity: sha1-WFhUf2spB1fulczMZm+1AITEYN0=}
+    resolution: {integrity: sha512-YzQV+TZg4AxpKxaTHK3c3D+kRDCGVEE7LemdlQZoQXn0iennk10RsIoY6ikzAqJTc9Xjl9C1/waHom/J86ziAQ==}
     dev: true
 
   /trough/1.0.4:
@@ -21136,6 +21136,7 @@ packages:
   /unified/9.2.1:
     resolution: {integrity: sha512-juWjuI8Z4xFg8pJbnEZ41b5xjGUWGHqXALmBZ3FC3WX0PIx1CZBIIJ6mXbYMcf6Yw4Fi0rFUTA1cdz/BglbOhA==}
     dependencies:
+      '@types/unist': 2.0.3
       bail: 1.0.4
       extend: 3.0.2
       is-buffer: 2.0.4
@@ -21380,7 +21381,7 @@ packages:
     dev: true
 
   /upper-case-first/1.1.2:
-    resolution: {integrity: sha1-XXm+3P8UQZUY/S7bCgUHybaFkRU=}
+    resolution: {integrity: sha512-wINKYvI3Db8dtjikdAqoBbZoP6Q+PZUyfMR7pmwHzjC2quzSkUq5DmPrTtPEqHaz8AGtmsB4TqwapMTM1QAQOQ==}
     dependencies:
       upper-case: 1.1.3
     dev: true
@@ -21392,7 +21393,7 @@ packages:
     dev: true
 
   /upper-case/1.1.3:
-    resolution: {integrity: sha1-9rRQHC7EzdJrp4vnIilh3ndiFZg=}
+    resolution: {integrity: sha512-WRbjgmYzgXkCV7zNVpy5YgrHgbBv126rMALQQMrmzOVC4GM2waQ9x7xtm8VU+1yF2kWyPzI9zbZ48n4vSxwfSA==}
     dev: true
 
   /upper-case/2.0.2:
@@ -21532,7 +21533,7 @@ packages:
     dev: true
 
   /verror/1.10.0:
-    resolution: {integrity: sha1-OhBcoXBTr1XW4nDB+CiGguGNpAA=}
+    resolution: {integrity: sha512-ZZKSmDAEFOijERBLkmYfJ+vmk3w+7hOLYDNkRCuRuMJGEmqYNCNLyBBFwWKVMhfwaEF3WOd0Zlw86U/WC/+nYw==}
     engines: {'0': node >=0.6.0}
     dependencies:
       assert-plus: 1.0.0
@@ -22015,7 +22016,7 @@ packages:
     dev: true
 
   /x-is-string/0.1.0:
-    resolution: {integrity: sha1-R0tQhlrzpJqcRlfwWs0UVFj3fYI=}
+    resolution: {integrity: sha512-GojqklwG8gpzOVEVki5KudKNoq7MbbjYZCbyWzEz7tyPA7eleiE0+ePwOWQQRb5fm86rD3S8Tc0tSFf3AOv50w==}
     dev: true
 
   /xdg-basedir/3.0.0:

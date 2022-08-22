@@ -111,11 +111,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 topLevelImportPaths: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                    minLength: 1,
-                  },
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 ssr: {
                   type: 'boolean',
@@ -124,7 +129,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 meaninglessFileNames: {
-                  type: 'boolean',
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 minify: {
                   type: 'boolean',
