@@ -1069,23 +1069,49 @@ export async function renderToHTMLOrFlight(
       return flushed
     }
 
-    const renderStream = await renderToInitialStream({
-      ReactDOMServer,
-      element: content,
-      streamOptions: {
-        // Include hydration scripts in the HTML
-        bootstrapScripts: buildManifest.rootMainFiles.map(
-          (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-        ),
-      },
-    })
+    try {
+      const renderStream = await renderToInitialStream({
+        ReactDOMServer,
+        element: content,
+        streamOptions: {
+          // Include hydration scripts in the HTML
+          bootstrapScripts: buildManifest.rootMainFiles.map(
+            (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+          ),
+        },
+      })
 
-    return await continueFromInitialStream(renderStream, {
-      dataStream: serverComponentsInlinedTransformStream?.readable,
-      generateStaticHTML: generateStaticHTML,
-      flushEffectHandler,
-      flushEffectsToHead: true,
-    })
+      return await continueFromInitialStream(renderStream, {
+        dataStream: serverComponentsInlinedTransformStream?.readable,
+        generateStaticHTML: generateStaticHTML,
+        flushEffectHandler,
+        flushEffectsToHead: true,
+      })
+    } catch (err) {
+      // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
+      const renderStream = await renderToInitialStream({
+        ReactDOMServer,
+        element: (
+          <html>
+            <head></head>
+            <body></body>
+          </html>
+        ),
+        streamOptions: {
+          // Include hydration scripts in the HTML
+          bootstrapScripts: buildManifest.rootMainFiles.map(
+            (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+          ),
+        },
+      })
+
+      return await continueFromInitialStream(renderStream, {
+        dataStream: serverComponentsInlinedTransformStream?.readable,
+        generateStaticHTML: generateStaticHTML,
+        flushEffectHandler,
+        flushEffectsToHead: true,
+      })
+    }
   }
 
   return new RenderResult(await bodyResult())
