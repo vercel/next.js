@@ -61,7 +61,7 @@ pnpm build
 pnpm prepublishOnly
 ```
 
-By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `pnpm --filter=@next/swc build-native`.
+By default, the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `pnpm --filter=@next/swc build-native`.
 
 If you want to test out the wasm build locally, you will need to [install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Run `pnpm --filter=@next/swc build-wasm --target <wasm_target>` to build and `node ./scripts/setup-wasm.mjs` to copy it into your `node_modules`. Run next with `NODE_OPTIONS='--no-addons'` to force it to use the wasm binary.
 
@@ -164,7 +164,7 @@ There are two options to develop with your local version of the codebase:
 
    to re-install all of the dependencies.
 
-   Note that Next will be copied from the locally compiled version as opposed to from being downloaded from the NPM registry.
+   Note that Next will be copied from the locally compiled version as opposed to being downloaded from the NPM registry.
 
 4. Run your application as you normally would.
 
@@ -263,7 +263,7 @@ Below are the steps to add a new link:
 
 ## Adding examples
 
-When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high quality examples:
+When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high-quality examples:
 
 - TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred)
 - Examples should not add custom ESLint configuration (we have specific templates for ESLint)
@@ -277,7 +277,7 @@ When you add an example to the [examples](examples) directory, please follow the
 - Example directories should not be prefixed with `with-`
 - Make sure linting passes (you can run `pnpm lint-fix`)
 
-Also don’t forget to add a `README.md` file with the following format:
+Also, don’t forget to add a `README.md` file with the following format:
 
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.
@@ -333,7 +333,7 @@ Issues are opened with one of these labels:
 - `template: bug` - unverified issue with Next.js itself, or one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
 - `template: documentation` - feedback for improvement or an unverified issue with the Next.js documentation
 
-In case of a bug report, a maintainer looks at the provided reproduction. If the reproduction is missing or insufficient, a `please add a complete reproduction` label is added. If a reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, the `please add a complete reproduction` label is removed and the issue will not become stale anymore.
+In the case of a bug report, a maintainer looks at the provided reproduction. If the reproduction is missing or insufficient, a `please add a complete reproduction` label is added. If a reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, the `please add a complete reproduction` label is removed and the issue will not become stale anymore.
 
 Bug reports must be verified against the `next@canary` release. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue. Issues not verified against `next@canary` will be closed after 30 days.
 
@@ -341,6 +341,6 @@ If the issue is specific to the project and not to Next.js itself, it might be c
 
 If the bug is verified, it will receive the `kind: bug` label and will be tracked by the maintainers. An `area:` label can be added to indicate which part of Next.js is affected.
 
-Confirmed issues never become stale or be closed before resolution.
+Confirmed issues never become stale or are closed before resolution.
 
 All **closed** PRs and Issues will be locked after 30 days of inactivity (eg.: comment, referencing from elsewhere).

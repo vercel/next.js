@@ -12,7 +12,7 @@ async function createTreeCodeFromPath({
   removeExt: (pathToRemoveExtensions: string) => string
 }) {
   let tree: undefined | string
-  const splittedPath = pagePath.split('/')
+  const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
 
   const segments = ['', ...splittedPath.slice(1)]
@@ -26,7 +26,9 @@ async function createTreeCodeFromPath({
     if (i === segments.length - 1) {
       const resolvedPagePath = await resolve(pagePath)
       // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-      tree = `['', {}, {filePath: '${resolvedPagePath}', page: () => require('${resolvedPagePath}')}]`
+      tree = `['', {}, {filePath: ${JSON.stringify(
+        resolvedPagePath
+      )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
       continue
     }
 
@@ -47,15 +49,15 @@ async function createTreeCodeFromPath({
         children ? `children: ${children},` : ''
       }
     }, {
-      filePath: '${resolvedLayoutPath}', 
+      filePath: '${resolvedLayoutPath}',
       ${
         resolvedLayoutPath
-          ? `layout: () => require('${resolvedLayoutPath}'),`
+          ? `layout: () => require(${JSON.stringify(resolvedLayoutPath)}),`
           : ''
       }
       ${
         resolvedLoadingPath
-          ? `loading: () => require('${resolvedLoadingPath}'),`
+          ? `loading: () => require(${JSON.stringify(resolvedLoadingPath)}),`
           : ''
       }
     }]`
