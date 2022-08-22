@@ -14,9 +14,9 @@ use hyper::{
     Body, Request, Response, Server,
 };
 use mime_guess::mime;
-use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, TurboTasksApi};
+use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, TurboTasksApi};
 use turbo_tasks_fs::FileContent;
-use turbopack_cli_utils::issue::issue_to_styled_string;
+use turbopack_cli_utils::issue::{group_and_display_issues, LogOptions, LogOptionsVc};
 use turbopack_core::issue::IssueVc;
 
 use self::{source::ContentSourceVc, update::UpdateServer};
@@ -31,18 +31,35 @@ pub struct DevServer {
     pub future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
 }
 
+// Just print issues to console for now...
+async fn handle_issues<T: CollectiblesSource + Copy>(
+    source: T,
+    path: &str,
+    options: LogOptionsVc,
+) -> Result<()> {
+    let issues = IssueVc::peek_issues_with_path(source).await?;
+    if !*issues.is_empty().await? {
+        println!("{path} has some issues:\n");
+        group_and_display_issues(options, issues);
+    }
+    Ok(())
+}
+
 impl DevServer {
     /// [get_source] argument must be from a single turbo-tasks function call
     pub fn listen<S: GetContentSource>(
         turbo_tasks: Arc<dyn TurboTasksApi>,
         get_source: S,
         addr: SocketAddr,
+        log_options: LogOptions,
     ) -> Self {
         let make_svc = make_service_fn(move |_| {
             let tt = turbo_tasks.clone();
             let source = get_source.clone();
+            let log_options = log_options.clone();
             async move {
                 let handler = move |request: Request<Body>| {
+                    let log_options = log_options.clone();
                     let start = Instant::now();
                     let tt = tt.clone();
                     let source = source.clone();
@@ -96,26 +113,8 @@ impl DevServer {
                                         .body(Body::from(bytes))?,
                                 )
                                 .map_err(|_| anyhow!("receiver dropped"))?;
-                                let elapsed = start.elapsed();
 
-                                // Just print issues to console for now...
-                                let issues = IssueVc::peek_issues_with_path(file_content).await?;
-                                let issues = issues.await?;
-                                if !issues.is_empty() {
-                                    println!(
-                                        "[200] {} ({}) has some issues:\n",
-                                        path,
-                                        FormatDuration(elapsed)
-                                    );
-                                    for (issue, path) in issues.iter_with_shortest_path() {
-                                        println!(
-                                            "{}\n",
-                                            &*issue_to_styled_string(issue, path)
-                                                .strongly_consistent()
-                                                .await?
-                                        );
-                                    }
-                                }
+                                handle_issues(file_content, path, log_options.cell()).await?;
 
                                 return Ok(());
                             }

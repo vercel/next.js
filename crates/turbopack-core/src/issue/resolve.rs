@@ -25,8 +25,9 @@ impl Issue for ResolvingIssue {
             )))
         } else {
             Ok(StringVc::cell(format!(
-                "unable to resolve {request_type}",
+                "unable to resolve {request_type} {module_name}",
                 request_type = self.request_type,
+                module_name = self.request.to_string().await?
             )))
         }
     }

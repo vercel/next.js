@@ -6,15 +6,18 @@ use std::{cmp::Ordering, fmt::Display, future::IntoFuture};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    emit, primitives::StringVc, trace::TraceRawVcs, util::try_join_all, CollectiblesSource,
-    ValueToString, ValueToStringVc,
+    emit,
+    primitives::{BoolVc, StringVc},
+    trace::TraceRawVcs,
+    util::try_join_all,
+    CollectiblesSource, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{FileLine, FileLinesContent, FileSystemPathVc};
 
 use crate::asset::AssetVc;
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Copy, Clone)]
+#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug)]
 pub enum IssueSeverity {
     Bug,
     Fatal,
@@ -26,18 +29,37 @@ pub enum IssueSeverity {
     Info,
 }
 
+impl IssueSeverity {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            IssueSeverity::Bug => "bug",
+            IssueSeverity::Fatal => "fatal",
+            IssueSeverity::Error => "error",
+            IssueSeverity::Warning => "warning",
+            IssueSeverity::Hint => "hint",
+            IssueSeverity::Note => "note",
+            IssueSeverity::Suggestions => "suggestions",
+            IssueSeverity::Info => "info",
+        }
+    }
+
+    pub fn as_help_str(&self) -> &'static str {
+        match self {
+            IssueSeverity::Bug => "bug in implementation",
+            IssueSeverity::Fatal => "unrecoverable problem",
+            IssueSeverity::Error => "problem that cause a broken result",
+            IssueSeverity::Warning => "problem should be adressed in short term",
+            IssueSeverity::Hint => "idea for improvement",
+            IssueSeverity::Note => "detail that is worth mentioning",
+            IssueSeverity::Suggestions => "change proposal for improvement",
+            IssueSeverity::Info => "detail that is worth telling",
+        }
+    }
+}
+
 impl Display for IssueSeverity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            IssueSeverity::Bug => f.write_str("bug"),
-            IssueSeverity::Fatal => f.write_str("fatal"),
-            IssueSeverity::Error => f.write_str("error"),
-            IssueSeverity::Warning => f.write_str("warning"),
-            IssueSeverity::Hint => f.write_str("hint"),
-            IssueSeverity::Note => f.write_str("note"),
-            IssueSeverity::Suggestions => f.write_str("suggestions"),
-            IssueSeverity::Info => f.write_str("info"),
-        }
+        f.write_str(self.as_str())
     }
 }
 
@@ -254,6 +276,14 @@ pub struct CapturedIssues {
 
 #[turbo_tasks::value(transparent)]
 pub struct Issues(Vec<IssueVc>);
+
+#[turbo_tasks::value_impl]
+impl CapturedIssuesVc {
+    #[turbo_tasks::function]
+    pub async fn is_empty(self) -> Result<BoolVc> {
+        Ok(BoolVc::cell(self.await?.is_empty()))
+    }
+}
 
 impl CapturedIssues {
     pub fn is_empty(&self) -> bool {

@@ -27,12 +27,12 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbopack::{emit, rebase::RebasedAssetVc, ModuleAssetContextVc};
-use turbopack_cli_utils::issue::issue_to_styled_string;
+use turbopack_cli_utils::issue::{group_and_display_issues, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
     asset::{AssetVc, AssetsVc},
     context::AssetContextVc,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    issue::IssueVc,
+    issue::{IssueSeverity, IssueVc},
     reference::all_assets,
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
@@ -70,6 +70,18 @@ struct CommonArgs {
 
     #[clap(short, long)]
     watch: bool,
+
+    #[clap(short, long)]
+    /// Filter by issue severity.
+    log_level: Option<IssueSeverityCliOption>,
+
+    #[clap(long)]
+    /// Show all log messages without limit.
+    show_all: bool,
+
+    #[clap(long)]
+    /// Expand the log details.
+    log_detail: bool,
 
     /// Whether to skip the glob logic
     /// assume the provided input is not glob even if it contains `*` and `[]`
@@ -367,17 +379,27 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         let dir = dir.clone();
         let args = args.clone();
         Box::pin(async move {
-            let output = main_operation(TransientValue::new(dir), args.into());
+            let common_args = args.common();
+            let context = common_args
+                .context_directory
+                .clone()
+                .unwrap_or_else(|| dir.to_string_lossy().to_string());
+            let output = main_operation(TransientValue::new(dir), args.clone().into());
 
-            // TODO only show max severity
-            // TODO sort issues by (context.split("/").count(), context)
-            // TODO limit number of issues per category
-            // TODO show info when hiding issues based on severity or limit
             let issues = IssueVc::peek_issues_with_path(output).await?;
-
-            for (issue, path) in issues.await?.iter_with_shortest_path() {
-                println!("{}\n", &*issue_to_styled_string(issue, path).await?);
-            }
+            group_and_display_issues(
+                LogOptions {
+                    show_all: common_args.show_all,
+                    log_detail: common_args.log_detail,
+                    project_dir: context,
+                    log_level: common_args
+                        .log_level
+                        .map_or_else(|| IssueSeverity::Error, |l| l.0),
+                }
+                .cell(),
+                issues,
+            )
+            .await?;
 
             for line in output.await?.iter() {
                 println!("{line}");
