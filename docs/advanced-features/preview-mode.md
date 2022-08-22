@@ -173,6 +173,8 @@ https://<your-site>/api/preview?secret=<token>&slug=<path>
 
 ## More Details
 
+> **Note**: during rendering `next/router` exposes an `isPreview` flag, see the [router object docs](/docs/api-reference/next/router.md#router-object) for more info.
+
 ### Clear the Preview Mode cookies
 
 By default, no expiration date is set for Preview Mode cookies, so the preview session ends when the browser is closed.
@@ -222,10 +224,6 @@ export default function myApiRoute(req, res) {
   // ...
 }
 ```
-
-### Works with the router
-
-The `useRouter` hook returns an `isPreview` boolean.
 
 ### Unique per `next build`
 
