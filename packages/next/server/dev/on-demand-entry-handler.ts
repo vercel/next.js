@@ -1,5 +1,5 @@
 import type ws from 'ws'
-import * as Log from '../../build/output/log'
+import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import { EventEmitter } from 'events'
@@ -22,6 +22,8 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
 } from '../../shared/lib/constants'
+
+const debug = origDebug('next:on-demand-entry-handler')
 
 /**
  * Returns object keys with type inferred from the object key
@@ -517,7 +519,7 @@ export function onDemandEntryHandler({
     async ensurePage(page: string, clientOnly: boolean): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
-        Log.warn(
+        debug(
           `Ensuring ${page} has taken longer than ${stalledTime}s, if this continues to stall this may be a bug`
         )
       }, stalledTime * 1000)
