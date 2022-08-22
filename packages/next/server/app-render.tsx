@@ -1092,7 +1092,7 @@ export async function renderToHTMLOrFlight(
       const renderStream = await renderToInitialStream({
         ReactDOMServer,
         element: (
-          <html>
+          <html id="__next_error__">
             <head></head>
             <body></body>
           </html>
