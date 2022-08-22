@@ -865,15 +865,11 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(false)
 
       await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
+        return (await browser.log()).map((log) => log.message).join('\n')
       }, /Image has unknown prop "objectFit"/gm)
 
       await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
+        return (await browser.log()).map((log) => log.message).join('\n')
       }, /Image has unknown prop "objectPosition"/gm)
     })
   } else {
