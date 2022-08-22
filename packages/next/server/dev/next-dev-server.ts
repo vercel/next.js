@@ -11,7 +11,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { RoutingItem } from '../base-server'
 
-import crypto from 'crypto'
+import crypto, { verify } from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
@@ -108,6 +108,8 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private middleware?: RoutingItem
   private edgeFunctions?: RoutingItem[]
+  private verifyingTypeScript?: boolean
+  private usingTypeScript?: boolean
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -301,6 +303,7 @@ export default class DevServer extends Server {
 
       wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
+      let enabledTypeScript = this.usingTypeScript
 
       wp.on('aggregated', async () => {
         let middlewareMatcher: RegExp | undefined
@@ -331,6 +334,9 @@ export default class DevServer extends Server {
           }
 
           if (tsconfigPaths.includes(fileName)) {
+            if (fileName.endsWith('tsconfig.json')) {
+              enabledTypeScript = true
+            }
             if (watchTimeChange) {
               tsconfigChange = true
             }
@@ -368,6 +374,10 @@ export default class DevServer extends Server {
               staticInfo.middleware?.pathMatcher || new RegExp('.*')
             edgeRoutesSet.add('/')
             continue
+          }
+
+          if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
+            enabledTypeScript = true
           }
 
           let pageName = absolutePathToPage(fileName, {
@@ -412,14 +422,30 @@ export default class DevServer extends Server {
           })
         }
 
+        if (!this.usingTypeScript && enabledTypeScript) {
+          // we tolerate the error here as this is best effort
+          // and the manual install command will be shown
+          await this.verifyTypeScript()
+            .then(() => {
+              tsconfigChange = true
+            })
+            .catch(() => {})
+        }
+
         if (envChange || tsconfigChange) {
           if (envChange) {
             this.loadEnvConfig({ dev: true, forceReload: true })
           }
-          let tsconfigResult: UnwrapPromise<ReturnType<typeof loadJsConfig>>
+          let tsconfigResult:
+            | UnwrapPromise<ReturnType<typeof loadJsConfig>>
+            | undefined
 
           if (tsconfigChange) {
-            tsconfigResult = await loadJsConfig(this.dir, this.nextConfig)
+            try {
+              tsconfigResult = await loadJsConfig(this.dir, this.nextConfig)
+            } catch (_) {
+              /* do we want to log if there are syntax errors in tsconfig  while editing? */
+            }
           }
 
           this.hotReloader?.activeConfigs?.forEach((config, idx) => {
@@ -435,7 +461,7 @@ export default class DevServer extends Server {
               config.resolve?.plugins?.forEach((plugin: any) => {
                 // look for the JsConfigPathsPlugin and update with
                 // the latest paths/baseUrl config
-                if (plugin && plugin.jsConfigPlugin) {
+                if (plugin && plugin.jsConfigPlugin && tsconfigResult) {
                   const { resolvedBaseUrl, jsConfig } = tsconfigResult
                   const currentResolvedBaseUrl = plugin.resolvedBaseUrl
                   const resolvedUrlIndex = config.resolve?.modules?.findIndex(
@@ -578,17 +604,33 @@ export default class DevServer extends Server {
     this.webpackWatcher = null
   }
 
+  private async verifyTypeScript() {
+    if (this.verifyingTypeScript) {
+      return
+    }
+    try {
+      this.verifyingTypeScript = true
+      const verifyResult = await verifyTypeScriptSetup({
+        dir: this.dir,
+        intentDirs: [this.pagesDir!, this.appDir].filter(Boolean) as string[],
+        typeCheckPreflight: false,
+        tsconfigPath: this.nextConfig.typescript.tsconfigPath,
+        disableStaticImages: this.nextConfig.images.disableStaticImages,
+      })
+
+      if (verifyResult.version) {
+        this.usingTypeScript = true
+      }
+    } finally {
+      this.verifyingTypeScript = false
+    }
+  }
+
   async prepare(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-    await verifyTypeScriptSetup(
-      this.dir,
-      [this.pagesDir!, this.appDir].filter(Boolean) as string[],
-      false,
-      this.nextConfig.typescript.tsconfigPath,
-      this.nextConfig.images.disableStaticImages
-    )
 
+    await this.verifyTypeScript()
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     // reload router
