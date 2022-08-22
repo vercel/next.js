@@ -142,8 +142,6 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     removeExt: (p) => removeExtensions(extensions, p),
   })
 
-  console.log(treeCode)
-
   const result = `
     export ${treeCode}
 
