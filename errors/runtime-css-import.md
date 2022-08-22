@@ -29,9 +29,16 @@ If possible put the CSS directly into a CSS file and import it. Otherwise use `<
 
 #### Ignoring the error
 
-If you are certain you want to use it, even though it's bad for performance, you can allow runtime CSS imports.
+If you are certain you want to use it, even though it's bad for performance, you can allow runtime CSS imports by adding a comment at the top of you CSS file.
 
 ```css
-/* allow-dangerous-css-import */
+/* allow-dangerous-css-imports */
+@import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
+```
+
+Or SCSS file
+
+```scss
+/*! allow-dangerous-css-imports */
 @import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
 ```

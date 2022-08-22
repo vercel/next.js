@@ -128,8 +128,14 @@ const plugin = (options = {}) => {
     postcssPlugin: 'postcss-import-parser',
     prepare(result) {
       const parsedAtRules = []
+      let allowDangerousImports = false
 
       return {
+        Comment(comment) {
+          if (comment.text.split(' ').includes('allow-dangerous-css-imports')) {
+            allowDangerousImports = true
+          }
+        },
         AtRule: {
           import(atRule) {
             let parsedAtRule
@@ -160,11 +166,7 @@ const plugin = (options = {}) => {
                 const needKeep = await options.filter(url, media)
 
                 if (!needKeep) {
-                  const prevNode = atRule.prev()
-                  if (
-                    prevNode?.type === 'comment' &&
-                    prevNode?.text === 'allow-dangerous-css-import'
-                  ) {
+                  if (allowDangerousImports) {
                     return
                   }
                   throw parsedAtRule.atRule.error(
