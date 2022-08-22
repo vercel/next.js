@@ -608,8 +608,10 @@ export async function renderToHTMLOrFlight(
           layoutOrPagePath
         )
       : []
-    const Template = template ? await interopDefault(template()) : undefined
-    const ErrorComponent = error ? await interopDefault(error()) : undefined
+    const Template = template
+      ? await interopDefault(template())
+      : React.Fragment
+    // const ErrorComponent = error ? await interopDefault(error()) : undefined
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
     const isPage = typeof page !== 'undefined'
