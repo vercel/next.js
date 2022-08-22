@@ -524,123 +524,126 @@ export function onDemandEntryHandler({
         )
       }, stalledTime * 1000)
 
-      const pagePathData = await findPagePathData(
-        rootDir,
-        pagesDir,
-        page,
-        nextConfig.pageExtensions,
-        appDir
-      )
+      try {
+        const pagePathData = await findPagePathData(
+          rootDir,
+          pagesDir,
+          page,
+          nextConfig.pageExtensions,
+          appDir
+        )
 
-      const isServerComponent = serverComponentRegex.test(
-        pagePathData.absolutePagePath
-      )
-      const isInsideAppDir =
-        appDir && pagePathData.absolutePagePath.startsWith(appDir)
+        const isServerComponent = serverComponentRegex.test(
+          pagePathData.absolutePagePath
+        )
+        const isInsideAppDir =
+          appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-      const addEntry = (
-        compilerType: CompilerNameValues
-      ): {
-        entryKey: string
-        newEntry: boolean
-        shouldInvalidate: boolean
-      } => {
-        const entryKey = `${compilerType}${pagePathData.page}`
+        const addEntry = (
+          compilerType: CompilerNameValues
+        ): {
+          entryKey: string
+          newEntry: boolean
+          shouldInvalidate: boolean
+        } => {
+          const entryKey = `${compilerType}${pagePathData.page}`
 
-        if (entries[entryKey]) {
-          entries[entryKey].dispose = false
-          entries[entryKey].lastActiveTime = Date.now()
-          if (entries[entryKey].status === BUILT) {
+          if (entries[entryKey]) {
+            entries[entryKey].dispose = false
+            entries[entryKey].lastActiveTime = Date.now()
+            if (entries[entryKey].status === BUILT) {
+              return {
+                entryKey,
+                newEntry: false,
+                shouldInvalidate: false,
+              }
+            }
+
             return {
               entryKey,
               newEntry: false,
-              shouldInvalidate: false,
+              shouldInvalidate: true,
             }
           }
 
+          entries[entryKey] = {
+            type: EntryTypes.ENTRY,
+            absolutePagePath: pagePathData.absolutePagePath,
+            request: pagePathData.absolutePagePath,
+            bundlePath: pagePathData.bundlePath,
+            dispose: false,
+            lastActiveTime: Date.now(),
+            status: ADDED,
+          }
+
           return {
-            entryKey,
-            newEntry: false,
+            entryKey: entryKey,
+            newEntry: true,
             shouldInvalidate: true,
           }
         }
 
-        entries[entryKey] = {
-          type: EntryTypes.ENTRY,
-          absolutePagePath: pagePathData.absolutePagePath,
-          request: pagePathData.absolutePagePath,
-          bundlePath: pagePathData.bundlePath,
-          dispose: false,
-          lastActiveTime: Date.now(),
-          status: ADDED,
-        }
+        const staticInfo = await getPageStaticInfo({
+          pageFilePath: pagePathData.absolutePagePath,
+          nextConfig,
+        })
 
-        return {
-          entryKey: entryKey,
-          newEntry: true,
-          shouldInvalidate: true,
-        }
-      }
+        const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
 
-      const staticInfo = await getPageStaticInfo({
-        pageFilePath: pagePathData.absolutePagePath,
-        nextConfig,
-      })
+        await runDependingOnPageType({
+          page: pagePathData.page,
+          pageRuntime: staticInfo.runtime,
+          onClient: () => {
+            // Skip adding the client entry for app / Server Components.
+            if (isServerComponent || isInsideAppDir) {
+              return
+            }
+            added.set(COMPILER_NAMES.client, addEntry(COMPILER_NAMES.client))
+          },
+          onServer: () => {
+            added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
+          },
+          onEdgeServer: () => {
+            added.set(
+              COMPILER_NAMES.edgeServer,
+              addEntry(COMPILER_NAMES.edgeServer)
+            )
+          },
+        })
 
-      const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
+        const addedValues = [...added.values()]
+        const entriesThatShouldBeInvalidated = addedValues.filter(
+          (entry) => entry.shouldInvalidate
+        )
+        const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
-      await runDependingOnPageType({
-        page: pagePathData.page,
-        pageRuntime: staticInfo.runtime,
-        onClient: () => {
-          // Skip adding the client entry for app / Server Components.
-          if (isServerComponent || isInsideAppDir) {
-            return
-          }
-          added.set(COMPILER_NAMES.client, addEntry(COMPILER_NAMES.client))
-        },
-        onServer: () => {
-          added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
-        },
-        onEdgeServer: () => {
-          added.set(
-            COMPILER_NAMES.edgeServer,
-            addEntry(COMPILER_NAMES.edgeServer)
+        if (hasNewEntry) {
+          reportTrigger(
+            !clientOnly && hasNewEntry
+              ? `${pagePathData.page} (client and server)`
+              : pagePathData.page
           )
-        },
-      })
+        }
 
-      const addedValues = [...added.values()]
-      const entriesThatShouldBeInvalidated = addedValues.filter(
-        (entry) => entry.shouldInvalidate
-      )
-      const hasNewEntry = addedValues.some((entry) => entry.newEntry)
-
-      if (hasNewEntry) {
-        reportTrigger(
-          !clientOnly && hasNewEntry
-            ? `${pagePathData.page} (client and server)`
-            : pagePathData.page
-        )
-      }
-
-      if (entriesThatShouldBeInvalidated.length > 0) {
-        const invalidatePromises = entriesThatShouldBeInvalidated.map(
-          ({ entryKey }) => {
-            return new Promise<void>((resolve, reject) => {
-              doneCallbacks!.once(entryKey, (err: Error) => {
-                if (err) {
-                  return reject(err)
-                }
-                resolve()
+        if (entriesThatShouldBeInvalidated.length > 0) {
+          const invalidatePromises = entriesThatShouldBeInvalidated.map(
+            ({ entryKey }) => {
+              return new Promise<void>((resolve, reject) => {
+                doneCallbacks!.once(entryKey, (err: Error) => {
+                  if (err) {
+                    return reject(err)
+                  }
+                  resolve()
+                })
               })
-            })
-          }
-        )
-        invalidator.invalidate([...added.keys()])
-        await Promise.all(invalidatePromises)
+            }
+          )
+          invalidator.invalidate([...added.keys()])
+          await Promise.all(invalidatePromises)
+        }
+      } finally {
+        clearTimeout(stalledEnsureTimeout)
       }
-      clearTimeout(stalledEnsureTimeout)
     },
 
     onHMR(client: ws) {
