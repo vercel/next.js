@@ -398,10 +398,10 @@ export default class Router {
 
           // since the fs route didn't finish routing we need to re-add the
           // basePath to continue checking with the basePath present
-          parsedUrlUpdated.pathname = originalPathname
+          parsedUrlUpdated.pathname = decodeURIComponent(originalPathname)
 
           if (result.pathname) {
-            parsedUrlUpdated.pathname = result.pathname
+            parsedUrlUpdated.pathname = decodeURIComponent(result.pathname)
           }
 
           if (result.query) {
