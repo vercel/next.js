@@ -37,7 +37,7 @@ lazy_static! {
 }
 
 #[test_resources("crates/next-dev/tests/integration/*/*/*")]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn test(resource: &str) {
     if resource.ends_with("__skipped__") {
         // "Skip" directories named `__skipped__`, which include test directories to
