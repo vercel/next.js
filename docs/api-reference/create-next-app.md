@@ -19,9 +19,9 @@ You can create a [TypeScript project](https://github.com/vercel/next.js/blob/can
 ```bash
 npx create-next-app@latest --ts
 # or
-yarn create next-app --typescript
+yarn create-next-app --typescript
 # or
-pnpm create next-app --ts
+pnpm create-next-app --ts
 ```
 
 ### Options
