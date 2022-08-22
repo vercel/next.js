@@ -166,7 +166,7 @@ type Paths = { [match: string]: string[] }
  * Largely based on how the TypeScript compiler handles it:
  * https://github.com/microsoft/TypeScript/blob/1a9c8197fffe3dace5f8dca6633d450a88cba66d/src/compiler/moduleNameResolver.ts#L1362
  */
-export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
+export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
   paths: Paths
   resolvedBaseUrl: string
   constructor(paths: Paths, resolvedBaseUrl: string) {

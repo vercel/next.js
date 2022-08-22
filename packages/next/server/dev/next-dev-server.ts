@@ -399,6 +399,7 @@ export default class DevServer extends Server {
               routedPages.push(pageName)
             },
             onEdgeServer: () => {
+              routedPages.push(pageName)
               edgeRoutesSet.add(pageName)
             },
           })

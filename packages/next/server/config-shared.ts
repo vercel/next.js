@@ -1,5 +1,5 @@
 import os from 'os'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -115,7 +115,7 @@ export interface ExperimentalConfig {
   runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
-  urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+  urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
     remotePatterns?: RemotePattern[]

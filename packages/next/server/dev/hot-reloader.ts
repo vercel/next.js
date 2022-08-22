@@ -1,12 +1,11 @@
-import { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, relative, isAbsolute } from 'path'
+import { join, relative, isAbsolute, posix } from 'path'
 import { UrlObject } from 'url'
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -49,6 +48,10 @@ import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { UnwrapPromise } from '../../lib/coalesced-function'
+
+function diff(a: Set<any>, b: Set<any>) {
+  return new Set([...a].filter((v) => !b.has(v)))
+}
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -111,7 +114,7 @@ const matchNextPageBundleRequest = getPathMatch(
 
 // Recursively look up the issuer till it ends up at the root
 function findEntryModule(
-  compilation: webpack5.Compilation,
+  compilation: webpack.Compilation,
   issuerModule: any
 ): any {
   const issuer = compilation.moduleGraph.getIssuer(issuerModule)
@@ -122,7 +125,7 @@ function findEntryModule(
   return issuerModule
 }
 
-function erroredPages(compilation: webpack5.Compilation) {
+function erroredPages(compilation: webpack.Compilation) {
   const failedPages: { [page: string]: any[] } = {}
   for (const error of compilation.errors) {
     if (!error.module) {
@@ -162,9 +165,9 @@ export default class HotReloader {
   private config: NextConfigComplete
   public hasServerComponents: boolean
   public hasReactRoot: boolean
-  public clientStats: webpack5.Stats | null
-  public serverStats: webpack5.Stats | null
-  public edgeServerStats: webpack5.Stats | null
+  public clientStats: webpack.Stats | null
+  public serverStats: webpack.Stats | null
+  public edgeServerStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
@@ -177,7 +180,7 @@ export default class HotReloader {
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
-  public multiCompiler?: webpack5.MultiCompiler
+  public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
@@ -663,9 +666,12 @@ export default class HotReloader {
                     this.appDir && bundlePath.startsWith('app/')
                       ? getAppEntry({
                           name: bundlePath,
-                          pagePath: join(
+                          pagePath: posix.join(
                             APP_DIR_ALIAS,
-                            relative(this.appDir!, entryData.absolutePagePath)
+                            relative(
+                              this.appDir!,
+                              entryData.absolutePagePath
+                            ).replace(/\\/g, '/')
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
@@ -688,7 +694,7 @@ export default class HotReloader {
 
     this.multiCompiler = webpack(
       this.activeConfigs
-    ) as unknown as webpack5.MultiCompiler
+    ) as unknown as webpack.MultiCompiler
 
     watchCompilers(
       this.multiCompiler.compilers[0],
@@ -707,7 +713,7 @@ export default class HotReloader {
 
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
-      (stats: webpack5.Compilation) => {
+      (stats: webpack.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
             if (
@@ -982,7 +988,7 @@ export default class HotReloader {
   }
 
   public async getCompilationErrors(page: string) {
-    const getErrors = ({ compilation }: webpack5.Stats) => {
+    const getErrors = ({ compilation }: webpack.Stats) => {
       const failedPages = erroredPages(compilation)
       const normalizedPage = normalizePathSep(page)
       // If there is an error related to the requesting page we display it instead of the first error
@@ -1026,8 +1032,4 @@ export default class HotReloader {
     }
     return this.onDemandEntries?.ensurePage(page, clientOnly) as any
   }
-}
-
-function diff(a: Set<any>, b: Set<any>) {
-  return new Set([...a].filter((v) => !b.has(v)))
 }

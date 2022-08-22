@@ -6,6 +6,17 @@ import { promises } from 'fs'
 import { warn } from '../../build/output/log'
 import chalk from '../../lib/chalk'
 
+async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
+  const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
+  const segmentExistsPromises = pageSegments.map(async (segment, i) => {
+    const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i))
+    const parentDirEntries = await promises.readdir(segmentParentDir)
+    return parentDirEntries.includes(segment)
+  })
+
+  return (await Promise.all(segmentExistsPromises)).every(Boolean)
+}
+
 /**
  * Finds a page file with the given parameters. If the page is duplicated with
  * multiple extensions it will throw, otherwise it will return the *relative*
@@ -48,15 +59,4 @@ export async function findPageFile(
   }
 
   return existingPath
-}
-
-async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
-  const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
-  const segmentExistsPromises = pageSegments.map(async (segment, i) => {
-    const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i))
-    const parentDirEntries = await promises.readdir(segmentParentDir)
-    return parentDirEntries.includes(segment)
-  })
-
-  return (await Promise.all(segmentExistsPromises)).every(Boolean)
 }
