@@ -58,8 +58,12 @@ function getDesiredCompilerOptions(
       // All of these values work:
       parsedValues: [
         ts.ModuleResolutionKind.NodeJs,
+        ts.ModuleResolutionKind.Node12,
+        // only newer TypeScript versions have this field, it
+        // will be filtered for older ones
+        (ts.ModuleResolutionKind as any).Node16,
         ts.ModuleResolutionKind.NodeNext,
-      ].filter(Boolean),
+      ].filter((val) => typeof val !== 'undefined'),
       value: 'node',
       reason: 'to match webpack resolution',
     },
