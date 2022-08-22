@@ -303,9 +303,60 @@ function LoadingBoundary({
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
-}) {
+}): JSX.Element {
   if (loading) {
     return <React.Suspense fallback={loading}>{children}</React.Suspense>
+  }
+
+  return <>{children}</>
+}
+
+type ErrorComponent = React.ComponentType<{ error: Error; reset: () => void }>
+
+interface ErrorBoundaryProps {
+  errorComponent: ErrorComponent
+}
+class ErrorBoundaryHandler extends React.Component<
+  ErrorBoundaryProps,
+  { error: Error | null }
+> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  reset = () => {
+    this.setState({ error: null })
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <this.props.errorComponent
+          error={this.state.error}
+          reset={this.reset}
+        />
+      )
+    }
+
+    return this.props.children
+  }
+}
+
+function ErrorBoundary({
+  errorComponent,
+  children,
+}: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
+  if (errorComponent) {
+    return (
+      <ErrorBoundaryHandler errorComponent={errorComponent}>
+        {children}
+      </ErrorBoundaryHandler>
+    )
   }
 
   return <>{children}</>
@@ -319,12 +370,14 @@ export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
   childProp,
+  error,
   loading,
   rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
   childProp: ChildProp
+  error: ErrorComponent
   loading: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
@@ -362,23 +415,32 @@ export default function OuterLayoutRouter({
     <>
       {preservedSegments.map((preservedSegment) => {
         return (
-          // Loading boundary is render for each segment to ensure they have their own loading state.
-          // The loading boundary is passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
-          <LoadingBoundary loading={loading} key={preservedSegment}>
-            <InnerLayoutRouter
-              parallelRouterKey={parallelRouterKey}
-              url={url}
-              tree={tree}
-              childNodes={childNodesForParallelRouter!}
-              childProp={
-                childPropSegment === preservedSegment ? childProp : null
-              }
-              segmentPath={segmentPath}
-              path={preservedSegment}
-              isActive={currentChildSegment === preservedSegment}
-              rootLayoutIncluded={rootLayoutIncluded}
-            />
-          </LoadingBoundary>
+          /*
+            - Error boundary
+              - Only renders error boundary if error component is provided.
+              - Rendered for each segment to ensure they have their own error state.
+            - Loading boundary
+              - Only renders suspense boundary if loading components is provided.
+              - Rendered for each segment to ensure they have their own loading state.
+              - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
+          */
+          <ErrorBoundary errorComponent={error} key={preservedSegment}>
+            <LoadingBoundary loading={loading}>
+              <InnerLayoutRouter
+                parallelRouterKey={parallelRouterKey}
+                url={url}
+                tree={tree}
+                childNodes={childNodesForParallelRouter!}
+                childProp={
+                  childPropSegment === preservedSegment ? childProp : null
+                }
+                segmentPath={segmentPath}
+                path={preservedSegment}
+                isActive={currentChildSegment === preservedSegment}
+                rootLayoutIncluded={rootLayoutIncluded}
+              />
+            </LoadingBoundary>
+          </ErrorBoundary>
         )
       })}
     </>
