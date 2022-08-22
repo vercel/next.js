@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
 export default function middleware(request) {
-  const res = NextResponse.rewrite(new URL('/', request.url))
+  request.nextUrl.pathname = '/'
+  const res = NextResponse.rewrite(request.nextUrl)
   res.headers.set('X-From-Middleware', 'true')
   return res
 }
