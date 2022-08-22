@@ -39,14 +39,15 @@ function minDistance(a, b) {
   return previousRow[previousRow.length - 1]
 }
 
+/* eslint-disable eslint-plugin/require-meta-docs-url */
 module.exports = {
   meta: {
     docs: {
-      description: 'Prevent common typos',
-      category: 'Stylistic Issues',
+      description: 'Prevent common typos in Next.js data fetching functions.',
       recommended: true,
     },
-    fixable: null,
+    type: 'problem',
+    schema: [],
   },
 
   create: function (context) {

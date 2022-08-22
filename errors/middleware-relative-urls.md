@@ -2,11 +2,11 @@
 
 #### Why This Error Occurred
 
-You are using a Middleware function that uses `Response.redirect(url)`, `NextResponse.redirect(url)` or `NextResponse.rewrite(url)` where `url` is a relative or an invalid URL. Currently this will work, but building a request with `new Request(url)` or running `fetch(url)` when `url` is a relative URL will **not** work. For this reason and to bring consistency to Next.js Middleware, this behavior will be deprecated soon in favor of always using absolute URLs.
+You are using a Middleware function that uses `Response.redirect(url)`, `NextResponse.redirect(url)` or `NextResponse.rewrite(url)` where `url` is a relative or an invalid URL. Prior to Next.js 12.1, we allowed passing relative URLs. However, constructing a request with `new Request(url)` or running `fetch(url)` when `url` is a relative URL **does not** work. For this reason and to bring consistency to Next.js Middleware, this behavior has been deprecated and now removed.
 
 #### Possible Ways to Fix It
 
-To fix this warning you must always pass absolute URL for redirecting and rewriting. There are several ways to get the absolute URL but the recommended way is to clone `NextURL` and mutate it:
+To fix this error you must always pass absolute URL for redirecting and rewriting. There are several ways to get the absolute URL but the recommended way is to clone `NextURL` and mutate it:
 
 ```typescript
 import type { NextRequest } from 'next/server'

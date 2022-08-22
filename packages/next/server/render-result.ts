@@ -1,15 +1,9 @@
 import type { ServerResponse } from 'http'
-import type { Writable } from 'stream'
-
-export type NodeWritablePiper = (
-  res: Writable,
-  next: (err?: Error) => void
-) => void
 
 export default class RenderResult {
-  _result: string | NodeWritablePiper
+  _result: string | ReadableStream<Uint8Array>
 
-  constructor(response: string | NodeWritablePiper) {
+  constructor(response: string | ReadableStream<Uint8Array>) {
     this._result = response
   }
 
@@ -29,9 +23,35 @@ export default class RenderResult {
       )
     }
     const response = this._result
-    return new Promise((resolve, reject) => {
-      response(res, (err) => (err ? reject(err) : resolve()))
-    })
+    const flush =
+      typeof (res as any).flush === 'function'
+        ? () => (res as any).flush()
+        : () => {}
+
+    return (async () => {
+      const reader = response.getReader()
+      let fatalError = false
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+
+          if (done) {
+            res.end()
+            return
+          }
+
+          fatalError = true
+          res.write(value)
+          flush()
+        }
+      } catch (err) {
+        if (fatalError) {
+          res.destroy(err as any)
+        }
+        throw err
+      }
+    })()
   }
 
   isDynamic(): boolean {

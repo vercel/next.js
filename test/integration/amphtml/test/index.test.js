@@ -10,10 +10,8 @@ import {
   killApp,
   launchApp,
   nextBuild,
-  nextServer,
+  nextStart,
   renderViaHTTP,
-  startApp,
-  stopApp,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -21,7 +19,6 @@ import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 let appPort
-let server
 let app
 
 const context = {}
@@ -41,21 +38,15 @@ describe('AMP Usage', () => {
       })
       output = result.stdout + result.stderr
 
-      app = nextServer({
-        dir: join(__dirname, '../'),
-        dev: false,
-        quiet: true,
-      })
-
-      server = await startApp(app)
-      context.appPort = appPort = server.address().port
+      appPort = context.appPort = await findPort()
+      app = await nextStart(appDir, context.appPort)
     })
     afterAll(async () => {
       await rename(
         join(appDir, 'pages/invalid-amp.js.bak'),
         join(appDir, 'pages/invalid-amp.js')
       )
-      return stopApp(server)
+      return killApp(app)
     })
 
     it('should have amp optimizer in trace', async () => {
@@ -113,21 +104,6 @@ describe('AMP Usage', () => {
         const result = await browser.eval('window.NAV_PAGE_LOADED')
 
         expect(result).toBeFalsy()
-      })
-
-      it('should add link preload for amp script', async () => {
-        const html = await renderViaHTTP(appPort, '/?amp=1')
-        await validateAMP(html)
-        const $ = cheerio.load(html)
-        expect(
-          $(
-            $('link[rel=preload]')
-              .toArray()
-              .find(
-                (i) => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js'
-              )
-          ).attr('href')
-        ).toBe('https://cdn.ampproject.org/v0.js')
       })
 
       it('should drop custom scripts', async () => {

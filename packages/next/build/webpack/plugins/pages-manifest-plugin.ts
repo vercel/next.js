@@ -1,27 +1,56 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { PAGES_MANIFEST } from '../../../shared/lib/constants'
+import {
+  PAGES_MANIFEST,
+  APP_PATHS_MANIFEST,
+} from '../../../shared/lib/constants'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
 export type PagesManifest = { [page: string]: string }
+
+let edgeServerPages = {}
+let nodeServerPages = {}
+let edgeServerAppPaths = {}
+let nodeServerAppPaths = {}
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
-export default class PagesManifestPlugin implements webpack.Plugin {
+export default class PagesManifestPlugin
+  implements webpack.WebpackPluginInstance
+{
   serverless: boolean
   dev: boolean
+  isEdgeRuntime: boolean
+  appDirEnabled: boolean
 
-  constructor({ serverless, dev }: { serverless: boolean; dev: boolean }) {
+  constructor({
+    serverless,
+    dev,
+    isEdgeRuntime,
+    appDirEnabled,
+  }: {
+    serverless: boolean
+    dev: boolean
+    isEdgeRuntime: boolean
+    appDirEnabled: boolean
+  }) {
     this.serverless = serverless
     this.dev = dev
+    this.isEdgeRuntime = isEdgeRuntime
+    this.appDirEnabled = appDirEnabled
   }
 
   createAssets(compilation: any, assets: any) {
     const entrypoints = compilation.entrypoints
     const pages: PagesManifest = {}
+    const appPaths: PagesManifest = {}
 
     for (const entrypoint of entrypoints.values()) {
-      const pagePath = getRouteFromEntrypoint(entrypoint.name)
+      const pagePath = getRouteFromEntrypoint(
+        entrypoint.name,
+        this.appDirEnabled
+      )
 
       if (!pagePath) {
         continue
@@ -36,17 +65,64 @@ export default class PagesManifestPlugin implements webpack.Plugin {
             file.endsWith('.js')
         )
 
+      // Skip entries which are empty
+      if (!files.length) {
+        continue
+      }
       // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-      pages[pagePath] = files[files.length - 1]
+      let file = files[files.length - 1]
 
       if (!this.dev) {
-        pages[pagePath] = pages[pagePath].slice(3)
+        if (!this.isEdgeRuntime) {
+          file = file.slice(3)
+        }
       }
-      pages[pagePath] = pages[pagePath].replace(/\\/g, '/')
+      file = normalizePathSep(file)
+
+      if (entrypoint.name.startsWith('app/')) {
+        appPaths[pagePath] = file
+      } else {
+        pages[pagePath] = file
+      }
     }
 
-    assets[`${!this.dev ? '../' : ''}` + PAGES_MANIFEST] =
-      new sources.RawSource(JSON.stringify(pages, null, 2))
+    // This plugin is used by both the Node server and Edge server compilers,
+    // we need to merge both pages to generate the full manifest.
+    if (this.isEdgeRuntime) {
+      edgeServerPages = pages
+      edgeServerAppPaths = appPaths
+    } else {
+      nodeServerPages = pages
+      nodeServerAppPaths = appPaths
+    }
+
+    assets[
+      `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + PAGES_MANIFEST
+    ] = new sources.RawSource(
+      JSON.stringify(
+        {
+          ...edgeServerPages,
+          ...nodeServerPages,
+        },
+        null,
+        2
+      )
+    )
+
+    if (this.appDirEnabled) {
+      assets[
+        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + APP_PATHS_MANIFEST
+      ] = new sources.RawSource(
+        JSON.stringify(
+          {
+            ...edgeServerAppPaths,
+            ...nodeServerAppPaths,
+          },
+          null,
+          2
+        )
+      )
+    }
   }
 
   apply(compiler: webpack.Compiler): void {

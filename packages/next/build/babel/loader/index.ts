@@ -45,7 +45,7 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
       nextBabelLoader.call(this, loaderSpan, inputSource, inputSourceMap)
     )
     .then(
-      ([transformedSource, outputSourceMap]) =>
+      ([transformedSource, outputSourceMap]: any) =>
         callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
       (err) => {
         callback?.(err)

@@ -132,8 +132,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gsp-blog/redirect-dest-_gsp-blog_first`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.waitForElementByCss('#gsp')
@@ -154,8 +155,9 @@ const runTests = (isDev) => {
       const browser = await webdriver(
         appPort,
         `${basePath}/gsp-blog/redirect-dest-_gsp-blog_first`,
-        true,
-        true
+        {
+          retryWaitHydration: true,
+        }
       )
 
       await browser.waitForElementByCss('#gsp')
@@ -178,8 +180,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gsp-blog/redirect-dest-_`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.waitForElementByCss('#index')
@@ -194,8 +197,9 @@ const runTests = (isDev) => {
       const browser = await webdriver(
         appPort,
         `${basePath}/gsp-blog/redirect-dest-_`,
-        true,
-        true
+        {
+          retryWaitHydration: true,
+        }
       )
 
       await browser.waitForElementByCss('#index')
@@ -210,8 +214,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gsp-blog/redirect-dest-_missing`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await check(
@@ -231,8 +236,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gsp-blog/redirect-dest-external`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await check(
@@ -248,8 +254,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gssp-blog/redirect-dest-external`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await check(
@@ -279,8 +286,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/gssp-blog/redirect-dest-_gssp-blog_first`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.waitForElementByCss('#gssp')
@@ -294,7 +302,9 @@ const runTests = (isDev) => {
   })
 
   it('should apply redirect when GSSP page is navigated to client-side (internal normal)', async () => {
-    const browser = await webdriver(appPort, `${basePath}`, true, true)
+    const browser = await webdriver(appPort, `${basePath}`, {
+      retryWaitHydration: true,
+    })
 
     await browser.eval(`(function () {
       window.next.router.push('/gssp-blog/redirect-dest-_another')
@@ -307,7 +317,9 @@ const runTests = (isDev) => {
   })
 
   it('should apply redirect when GSSP page is navigated to client-side (external)', async () => {
-    const browser = await webdriver(appPort, `${basePath}`, true, true)
+    const browser = await webdriver(appPort, `${basePath}`, {
+      retryWaitHydration: true,
+    })
 
     await browser.eval(`(function () {
       window.next.router.push('/gssp-blog/redirect-dest-_gssp-blog_first')
@@ -324,7 +336,9 @@ const runTests = (isDev) => {
   })
 
   it('should apply redirect when GSP page is navigated to client-side (internal)', async () => {
-    const browser = await webdriver(appPort, `${basePath}`, true, true)
+    const browser = await webdriver(appPort, `${basePath}`, {
+      retryWaitHydration: true,
+    })
 
     await browser.eval(`(function () {
       window.next.router.push('/gsp-blog/redirect-dest-_another')
@@ -337,7 +351,9 @@ const runTests = (isDev) => {
   })
 
   it('should apply redirect when GSP page is navigated to client-side (external)', async () => {
-    const browser = await webdriver(appPort, `${basePath}`, true, true)
+    const browser = await webdriver(appPort, `${basePath}`, {
+      retryWaitHydration: true,
+    })
 
     await browser.eval(`(function () {
       window.next.router.push('/gsp-blog/redirect-dest-_gsp-blog_first')
@@ -357,8 +373,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -384,8 +401,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -411,8 +429,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -438,8 +457,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {

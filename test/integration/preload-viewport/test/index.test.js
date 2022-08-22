@@ -67,7 +67,7 @@ describe('Prefetching Links in viewport', () => {
     expect(
       nextDataRequests.filter((reqUrl) => reqUrl.includes('/ssg/slow.json'))
         .length
-    ).toBe(1)
+    ).toBe(2)
   })
 
   it('should handle timed out prefetch correctly', async () => {

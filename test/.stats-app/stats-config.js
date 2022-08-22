@@ -9,7 +9,7 @@ const imagePageData = fs.readFileSync(
 
 const clientGlobs = [
   {
-    name: 'Client Bundles (main, webpack, commons)',
+    name: 'Client Bundles (main, webpack)',
     globs: [
       '.next/static/runtime/+(main|webpack)-*',
       '.next/static/chunks/!(polyfills*)',
@@ -30,6 +30,17 @@ const clientGlobs = [
   {
     name: 'Rendered Page Sizes',
     globs: ['fetched-pages/**/*.html'],
+  },
+  {
+    name: 'Edge SSR Page bundle Size',
+    globs: ['.next/server/pages/edge-ssr.js'],
+  },
+  {
+    name: 'Middleware size',
+    globs: [
+      '.next/server/middleware*.js',
+      '.next/server/edge-runtime-webpack.js',
+    ],
   },
 ]
 
@@ -61,6 +72,7 @@ module.exports = {
   commentReleaseHeading: 'Stats from current release',
   appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next build',
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
+  appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next --port $PORT',
   mainRepo: 'vercel/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,

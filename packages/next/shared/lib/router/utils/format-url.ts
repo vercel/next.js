@@ -20,8 +20,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import { UrlObject } from 'url'
-import { ParsedUrlQuery } from 'querystring'
+import type { UrlObject } from 'url'
+import type { ParsedUrlQuery } from 'querystring'
 import * as querystring from './querystring'
 
 const slashedProtocols = /https?|ftp|gopher|file/
@@ -51,7 +51,7 @@ export function formatUrl(urlObj: UrlObject) {
 
   let search = urlObj.search || (query && `?${query}`) || ''
 
-  if (protocol && protocol.substr(-1) !== ':') protocol += ':'
+  if (protocol && !protocol.endsWith(':')) protocol += ':'
 
   if (
     urlObj.slashes ||
@@ -70,4 +70,35 @@ export function formatUrl(urlObj: UrlObject) {
   search = search.replace('#', '%23')
 
   return `${protocol}${host}${pathname}${search}${hash}`
+}
+
+export const urlObjectKeys = [
+  'auth',
+  'hash',
+  'host',
+  'hostname',
+  'href',
+  'path',
+  'pathname',
+  'port',
+  'protocol',
+  'query',
+  'search',
+  'slashes',
+]
+
+export function formatWithValidation(url: UrlObject): string {
+  if (process.env.NODE_ENV === 'development') {
+    if (url !== null && typeof url === 'object') {
+      Object.keys(url).forEach((key) => {
+        if (urlObjectKeys.indexOf(key) === -1) {
+          console.warn(
+            `Unknown key passed via urlObject into url.format: ${key}`
+          )
+        }
+      })
+    }
+  }
+
+  return formatUrl(url)
 }

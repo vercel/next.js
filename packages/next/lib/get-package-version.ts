@@ -8,9 +8,9 @@ type PackageJsonDependencies = {
   devDependencies: Record<string, string>
 }
 
-let cachedDeps: PackageJsonDependencies
+let cachedDeps: Promise<PackageJsonDependencies>
 
-async function getDependencies({
+function getDependencies({
   cwd,
 }: {
   cwd: string
@@ -19,18 +19,20 @@ async function getDependencies({
     return cachedDeps
   }
 
-  const configurationPath: string | undefined = await findUp('package.json', {
-    cwd,
-  })
-  if (!configurationPath) {
-    return (cachedDeps = { dependencies: {}, devDependencies: {} })
-  }
+  return (cachedDeps = (async () => {
+    const configurationPath: string | undefined = await findUp('package.json', {
+      cwd,
+    })
+    if (!configurationPath) {
+      return { dependencies: {}, devDependencies: {} }
+    }
 
-  const content = await fs.readFile(configurationPath, 'utf-8')
-  const packageJson: any = JSON5.parse(content)
+    const content = await fs.readFile(configurationPath, 'utf-8')
+    const packageJson: any = JSON5.parse(content)
 
-  const { dependencies = {}, devDependencies = {} } = packageJson || {}
-  return (cachedDeps = { dependencies, devDependencies })
+    const { dependencies = {}, devDependencies = {} } = packageJson || {}
+    return { dependencies, devDependencies }
+  })())
 }
 
 export async function getPackageVersion({

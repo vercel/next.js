@@ -9,7 +9,7 @@
     "@builder.io/react": "^1.1.47",
     "@builder.io/widgets": "^1.2.21",
     "classnames": "2.3.1",
-    "date-fns": "2.22.1",
+    "date-fns": "2.28.0",
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"

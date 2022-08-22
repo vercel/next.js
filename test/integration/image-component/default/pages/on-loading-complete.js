@@ -84,6 +84,7 @@ const Page = () => {
         idToCount={idToCount}
         setIdToCount={setIdToCount}
       />
+
       <button id="toggle" onClick={() => setClicked(!clicked)}>
         Toggle
       </button>

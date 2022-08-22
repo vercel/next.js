@@ -2,6 +2,7 @@ import type { I18NConfig } from '../config-shared'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { NextFetchEvent } from '../web/spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'
+import type { ClonableBody } from '../body-streams'
 
 export interface NodeHeaders {
   [header: string]: string | string[] | undefined
@@ -39,6 +40,11 @@ export interface RequestData {
     params?: { [key: string]: string }
   }
   url: string
+  body?: ReadableStream<Uint8Array>
+}
+
+export type NodejsRequestData = Omit<RequestData, 'body'> & {
+  body?: ClonableBody
 }
 
 export interface FetchEventResult {
@@ -46,7 +52,12 @@ export interface FetchEventResult {
   waitUntil: Promise<any>
 }
 
-export type NextMiddlewareResult = NextResponse | Response | null | undefined
+export type NextMiddlewareResult =
+  | NextResponse
+  | Response
+  | null
+  | undefined
+  | void
 
 export type NextMiddleware = (
   request: NextRequest,

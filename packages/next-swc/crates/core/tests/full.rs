@@ -30,10 +30,11 @@ fn test(input: &Path, minify: bool) {
             let options = TransformOptions {
                 swc: swc::config::Options {
                     swcrc: true,
-                    is_module: swc::config::IsModule::Bool(true),
-                    output_path: Some(output.to_path_buf()),
+                    output_path: Some(output.clone()),
 
                     config: swc::config::Config {
+                        is_module: swc::config::IsModule::Bool(true),
+
                         jsc: swc::config::JscConfig {
                             minify: if minify {
                                 Some(assert_json("{ \"compress\": true, \"mangle\": true }"))
@@ -59,7 +60,10 @@ fn test(input: &Path, minify: bool) {
                 styled_components: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
+                relay: None,
                 shake_exports: None,
+                emotion: Some(assert_json("{}")),
+                modularize_imports: None,
             };
 
             let options = options.patch(&fm);
@@ -69,8 +73,16 @@ fn test(input: &Path, minify: bool) {
                 None,
                 &handler,
                 &options.swc,
-                |_| custom_before_pass(cm.clone(), fm.clone(), &options),
-                |_| noop(),
+                |_, comments| {
+                    custom_before_pass(
+                        cm.clone(),
+                        fm.clone(),
+                        &options,
+                        comments.clone(),
+                        Default::default(),
+                    )
+                },
+                |_, _| noop(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)

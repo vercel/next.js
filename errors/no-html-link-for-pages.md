@@ -1,8 +1,10 @@
 # No HTML link for pages
 
+> Prevent usage of `<a>` elements to navigate to internal Next.js pages.
+
 ### Why This Error Occurred
 
-An HTML anchor element, `<a>`, was used to navigate to a page route without using the `Link` component.
+An `<a>` element was used to navigate to a page route without using the `next/link` component, causing unnecessary full page refreshes.
 
 The `Link` component is required in order to enable client-side route transitions between pages and provide a single-page app experience.
 
@@ -53,7 +55,7 @@ In some cases, you may also need to configure this rule directly by providing a 
 ```json
 {
   "rules": {
-    "@next/next/no-html-link-for-pages": ["error", "/my-app/pages/"]
+    "@next/next/no-html-link-for-pages": ["error", "packages/my-app/pages/"]
   }
 }
 ```

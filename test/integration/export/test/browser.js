@@ -18,7 +18,7 @@ export default function (context) {
         .elementByCss('#about-via-link')
         .getAttribute('href')
 
-      expect(link.substr(link.length - 1)).toBe('/')
+      expect(link.slice(-1)).toBe('/')
     })
 
     it('should not add any slash on hash Link', async () => {
@@ -52,7 +52,7 @@ export default function (context) {
         .elementByCss('#about-via-link')
         .getAttribute('href')
 
-      expect(link.substr(link.length - 1)).not.toBe('/')
+      expect(link.slice(-1)).not.toBe('/')
     })
 
     it('should do navigations via Link', async () => {

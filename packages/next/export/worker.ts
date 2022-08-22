@@ -2,8 +2,12 @@ import type { ComponentType } from 'react'
 import type { FontManifest } from '../server/font-utils'
 import type { GetStaticProps } from '../types'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextConfigComplete } from '../server/config-shared'
+import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
+
+import '../server/node-polyfill-fetch'
+import loadRequireHook from '../build/webpack/require-hook'
+
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../server/render'
@@ -13,17 +17,18 @@ import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { normalizePagePath } from '../server/normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
-import '../server/node-polyfill-fetch'
 import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
+import { addRequestMeta } from '../server/request-meta'
 
+loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
 
 ;(global as any).__NEXT_DATA__ = {
@@ -55,11 +60,12 @@ interface ExportPageInput {
   subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
-  optimizeImages?: boolean
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  serverComponents?: boolean
+  appDir?: boolean
 }
 
 interface ExportPageResults {
@@ -77,14 +83,15 @@ interface RenderOpts {
   ampValidatorPath?: string
   ampSkipValidation?: boolean
   optimizeFonts?: boolean
-  optimizeImages?: boolean
   disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
   locales?: string[]
   locale?: string
   defaultLocale?: string
+  domainLocales?: DomainLocale[]
   trailingSlash?: boolean
+  appDir?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -98,6 +105,7 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
+  appDir,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -105,10 +113,10 @@ export default async function exportPage({
   subFolders,
   serverless,
   optimizeFonts,
-  optimizeImages,
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
+  serverComponents,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpAgentOptions(httpAgentOptions)
   const exportPageSpan = trace('export-page-worker', parentSpanId)
@@ -206,6 +214,18 @@ export default async function exportPage({
         req.url += '/'
       }
 
+      if (
+        locale &&
+        buildExport &&
+        renderOpts.domainLocales &&
+        renderOpts.domainLocales.some(
+          (dl) =>
+            dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+        )
+      ) {
+        addRequestMeta(req, '__nextIsLocaleDomain', true)
+      }
+
       envConfig.setConfig({
         serverRuntimeConfig,
         publicRuntimeConfig: renderOpts.runtimeConfig,
@@ -219,8 +239,13 @@ export default async function exportPage({
       // extension of `.slug]`
       const pageExt = isDynamic ? '' : extname(page)
       const pathExt = isDynamic ? '' : extname(path)
+
+      // force output 404.html for backwards compat
+      if (path === '/404.html') {
+        htmlFilename = path
+      }
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
-      if (pageExt !== pathExt && pathExt !== '') {
+      else if (pageExt !== pathExt && pathExt !== '') {
         const isBuiltinPaths = ['/500', '/404'].some(
           (p) => p === path || p === path + '.html'
         )
@@ -263,7 +288,13 @@ export default async function exportPage({
           getServerSideProps,
           getStaticProps,
           pageConfig,
-        } = await loadComponents(distDir, page, serverless)
+        } = await loadComponents(
+          distDir,
+          page,
+          serverless,
+          serverComponents,
+          appDir
+        )
         const ampState = {
           ampFirst: pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -304,8 +335,6 @@ export default async function exportPage({
               /// @ts-ignore
               optimizeFonts,
               /// @ts-ignore
-              optimizeImages,
-              /// @ts-ignore
               optimizeCss,
               disableOptimizedLoading,
               distDir,
@@ -326,7 +355,12 @@ export default async function exportPage({
           throw new Error(`Failed to render serverless page`)
         }
       } else {
-        const components = await loadComponents(distDir, page, serverless)
+        const components = await loadComponents(
+          distDir,
+          page,
+          serverless,
+          serverComponents
+        )
         const ampState = {
           ampFirst: components.pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -367,9 +401,6 @@ export default async function exportPage({
           if (optimizeFonts) {
             process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
           }
-          if (optimizeImages) {
-            process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
-          }
           if (optimizeCss) {
             process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
           }
@@ -379,7 +410,6 @@ export default async function exportPage({
             ampPath: renderAmpPath,
             params,
             optimizeFonts,
-            optimizeImages,
             optimizeCss,
             disableOptimizedLoading,
             fontManifest: optimizeFonts

@@ -2,7 +2,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "lint": "next lint",
     "build": "next build",
     "start": "next start",
     "test": "jest --watch",
@@ -10,20 +9,18 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "5.16.1",
-    "@testing-library/react": "12.1.2",
-    "@testing-library/user-event": "13.5.0",
-    "@types/react": "17.0.37",
-    "babel-jest": "27.4.5",
-    "eslint": "8.5.0",
-    "eslint-config-next": "latest",
-    "eslint-plugin-testing-library": "5.0.1",
+    "@testing-library/jest-dom": "5.16.4",
+    "@testing-library/react": "13.2.0",
+    "@testing-library/user-event": "14.2.0",
+    "@types/react": "18.0.9",
+    "babel-jest": "28.1.0",
     "identity-obj-proxy": "3.0.0",
-    "jest": "27.4.5",
-    "typescript": "4.5.4"
+    "jest": "28.1.0",
+    "jest-environment-jsdom": "28.1.0",
+    "typescript": "4.6.4"
   }
 }

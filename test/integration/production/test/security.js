@@ -5,12 +5,7 @@ import { readFileSync } from 'fs'
 import http from 'http'
 import url from 'url'
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  getBrowserBodyText,
-  waitFor,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { getBrowserBodyText, waitFor, fetchViaHTTP } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 
@@ -73,8 +68,10 @@ module.exports = (context) => {
       ]
 
       for (const path of pathsToCheck) {
-        const data = await renderViaHTTP(context.appPort, path)
+        const res = await fetchViaHTTP(context.appPort, path)
+        const data = await res.text()
         expect(data.includes('cool-version')).toBeFalsy()
+        expect([400, 404].includes(res.status)).toBeTruthy()
       }
     })
 
@@ -319,14 +316,13 @@ module.exports = (context) => {
     })
 
     if (browserName !== 'internet explorer') {
-      it('should not execute script embedded inside svg image', async () => {
+      it('should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true', async () => {
         let browser
         try {
           browser = await webdriver(context.appPort, '/svg-image')
           await browser.eval(`document.getElementById("img").scrollIntoView()`)
-          expect(
-            await browser.elementById('img').getAttribute('src')
-          ).toContain('xss.svg')
+          const src = await browser.elementById('img').getAttribute('src')
+          expect(src).toMatch(/_next\/image\?.*xss\.svg/)
           expect(await browser.elementById('msg').text()).toBe('safe')
           browser = await webdriver(
             context.appPort,

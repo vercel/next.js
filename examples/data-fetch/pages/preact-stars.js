@@ -12,7 +12,7 @@ function PreactStars({ stars }) {
 }
 
 export async function getStaticProps() {
-  const res = await fetch('https://api.github.com/repos/developit/preact')
+  const res = await fetch('https://api.github.com/repos/preactjs/preact')
   const json = await res.json()
 
   return {
