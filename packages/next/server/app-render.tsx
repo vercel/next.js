@@ -383,7 +383,9 @@ function getCssInlinedLinkTags(
   serverCSSManifest: FlightCSSManifest,
   filePath: string
 ): string[] {
-  const layoutOrPageCss = serverCSSManifest[filePath]
+  const layoutOrPageCss =
+    serverCSSManifest[filePath] ||
+    serverComponentManifest.__client_css_manifest__?.[filePath]
 
   if (!layoutOrPageCss) {
     return []

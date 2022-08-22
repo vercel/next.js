@@ -858,6 +858,20 @@ function runTests(mode) {
       )
       expect(warnings.length).toBe(1)
     })
+
+    it('should show console error for objectFit and objectPosition', async () => {
+      const browser = await webdriver(appPort, '/invalid-objectfit')
+
+      expect(await hasRedbox(browser)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log()).map((log) => log.message).join('\n')
+      }, /Image has unknown prop "objectFit"/gm)
+
+      await check(async () => {
+        return (await browser.log()).map((log) => log.message).join('\n')
+      }, /Image has unknown prop "objectPosition"/gm)
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
