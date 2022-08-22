@@ -223,6 +223,10 @@ export default function myApiRoute(req, res) {
 }
 ```
 
+### Works with the router
+
+The `useRouter` hook returns an `isPreview` boolean.
+
 ### Unique per `next build`
 
 Both the bypass cookie value and the private key for encrypting the `previewData` change when `next build` is completed.
