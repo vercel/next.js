@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use anyhow::Result;
 use swc_ecma_ast::{Expr, Lit};
 use swc_ecma_quote::quote;
-use turbo_tasks::{Value, ValueToString};
+use turbo_tasks::{debug::ValueDebug, primitives::StringVc, Value, ValueToString};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     chunk::ModuleId,
+    issue::{code_gen::CodeGenerationIssue, IssueSeverity},
     resolve::{ResolveResult, ResolveResultVc, SpecialType},
 };
 
@@ -89,6 +91,7 @@ impl PatternMappingVc {
     // impl.
     #[turbo_tasks::function]
     pub async fn resolve_request(
+        issue_context_path: FileSystemPathVc,
         chunk_context: EcmascriptChunkContextVc,
         resolve_result: ResolveResultVc,
         resolve_type: Value<ResolveType>,
@@ -111,11 +114,20 @@ impl PatternMappingVc {
             }
             _ => {
                 // TODO implement mapping
-                println!(
-                    "the reference resolves to a non-trivial result, which is not supported yet: \
-                     {:?}",
-                    &*result
-                );
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Bug.into(),
+                    code: None,
+                    title: StringVc::cell("not implemented result for pattern mapping".to_string()),
+                    message: StringVc::cell(format!(
+                        "the reference resolves to a non-trivial result, which is not supported \
+                         yet: {:?}",
+                        resolve_result.dbg().await?
+                    )),
+                    path: issue_context_path,
+                }
+                .cell()
+                .as_issue()
+                .emit();
                 return Ok(PatternMappingVc::cell(PatternMapping::Invalid));
             }
         };
@@ -129,10 +141,19 @@ impl PatternMappingVc {
             .await?;
             Ok(PatternMappingVc::cell(PatternMapping::Single(name.clone())))
         } else {
-            println!(
-                "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
-                asset.path().to_string().await?
-            );
+            CodeGenerationIssue {
+                severity: IssueSeverity::Bug.into(),
+                code: None,
+                title: StringVc::cell("non-ecmascript placeable asset".to_string()),
+                message: StringVc::cell(format!(
+                    "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
+                    asset.path().to_string().await?
+                )),
+                path: issue_context_path,
+            }
+            .cell()
+            .as_issue()
+            .emit();
             Ok(PatternMappingVc::cell(PatternMapping::Invalid))
         }
     }

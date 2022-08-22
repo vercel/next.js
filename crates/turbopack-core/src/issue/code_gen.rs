@@ -2,20 +2,19 @@ use anyhow::Result;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::FileSystemPathVc;
 
-use super::{Issue, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc};
+use super::{Issue, IssueSeverityVc, IssueVc};
 
 #[turbo_tasks::value(shared)]
-pub struct AnalyzeIssue {
+pub struct CodeGenerationIssue {
     pub severity: IssueSeverityVc,
     pub path: FileSystemPathVc,
     pub title: StringVc,
     pub message: StringVc,
     pub code: Option<String>,
-    pub source: Option<IssueSourceVc>,
 }
 
 #[turbo_tasks::value_impl]
-impl Issue for AnalyzeIssue {
+impl Issue for CodeGenerationIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> IssueSeverityVc {
         self.severity
@@ -32,7 +31,7 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     fn category(&self) -> StringVc {
-        StringVc::cell("analyze".to_string())
+        StringVc::cell("code generation".to_string())
     }
 
     #[turbo_tasks::function]
@@ -43,10 +42,5 @@ impl Issue for AnalyzeIssue {
     #[turbo_tasks::function]
     fn description(&self) -> StringVc {
         self.message
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> OptionIssueSourceVc {
-        OptionIssueSourceVc::cell(self.source)
     }
 }

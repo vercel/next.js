@@ -11,8 +11,16 @@ use swc_ecma_ast::{
     ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Str,
 };
 use swc_ecma_quote::quote;
-use turbo_tasks::{primitives::StringsVc, trace::TraceRawVcs, ValueToString};
-use turbopack_core::chunk::ChunkingContextVc;
+use turbo_tasks::{
+    primitives::{StringVc, StringsVc},
+    trace::TraceRawVcs,
+    ValueToString,
+};
+use turbopack_core::{
+    asset::Asset,
+    chunk::ChunkingContextVc,
+    issue::{analyze::AnalyzeIssue, IssueSeverity},
+};
 
 use super::{
     base::{get_ident, ReferencedAsset},
@@ -51,32 +59,53 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
                     }
                 }
             }
-            EcmascriptExports::None => {
-                // TODO show parent
-                println!(
+            EcmascriptExports::None => AnalyzeIssue {
+                code: None,
+                message: StringVc::cell(format!(
                     "export * used with module {} which has no exports\nTypescipt only: Did you \
                      want to import only types with `export type * from \"...\"`?",
                     asset.to_string().await?
-                );
+                )),
+                path: asset.path(),
+                severity: IssueSeverity::Warning.into(),
+                source: None,
+                title: StringVc::cell("unexpected export *".to_string()),
             }
-            EcmascriptExports::Value => {
-                // TODO show parent
-                println!(
+            .cell()
+            .as_issue()
+            .emit(),
+            EcmascriptExports::Value => AnalyzeIssue {
+                code: None,
+                message: StringVc::cell(format!(
                     "export * used with module {} which only has a default export (default export \
                      is not exported with export *)\nDid you want to use `export {{ default }} \
                      from \"...\";` instead?",
                     asset.to_string().await?
-                );
+                )),
+                path: asset.path(),
+                severity: IssueSeverity::Warning.into(),
+                source: None,
+                title: StringVc::cell("unexpected export *".to_string()),
             }
-            EcmascriptExports::CommonJs => {
-                // TODO show parent
-                println!(
+            .cell()
+            .as_issue()
+            .emit(),
+            EcmascriptExports::CommonJs => AnalyzeIssue {
+                code: None,
+                message: StringVc::cell(format!(
                     "export * used with module {} which is a CommonJs module with exports only \
                      available at runtime\nList all export names manually (`export {{ a, b, c }} \
                      from \"...\") or rewrite the module to ESM.`",
                     asset.to_string().await?
-                );
+                )),
+                path: asset.path(),
+                severity: IssueSeverity::Warning.into(),
+                source: None,
+                title: StringVc::cell("unexpected export *".to_string()),
             }
+            .cell()
+            .as_issue()
+            .emit(),
         }
     }
     Ok(StringsVc::cell(set.into_iter().collect()))

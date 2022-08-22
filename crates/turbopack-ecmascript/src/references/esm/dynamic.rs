@@ -85,6 +85,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
+            self.context.context_path(),
             chunk_context,
             esm_resolve(self.request, self.context),
             Value::new(EsmAsync),

@@ -113,6 +113,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
+            self.context.context_path(),
             chunk_context,
             cjs_resolve(self.request, self.context),
             Value::new(Cjs),
@@ -196,6 +197,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
+            self.context.context_path(),
             chunk_context,
             cjs_resolve(self.request, self.context),
             Value::new(Cjs),

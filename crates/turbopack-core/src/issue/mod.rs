@@ -1,4 +1,5 @@
 pub mod analyze;
+pub mod code_gen;
 pub mod resolve;
 
 use std::{cmp::Ordering, fmt::Display, future::IntoFuture};

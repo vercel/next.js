@@ -96,6 +96,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
         let dependencies_pms: Vec<_> =
             try_join_all(self.dependencies_requests.iter().map(|request| async move {
                 PatternMappingVc::resolve_request(
+                    self.context.context_path(),
                     chunk_context,
                     cjs_resolve(*request, self.context),
                     Value::new(Cjs),
