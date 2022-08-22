@@ -387,6 +387,14 @@ function runTests(mode) {
     )
   })
 
+  it('should callback native onError even when error before hydration', async () => {
+    let browser = await webdriver(appPort, '/on-error-before-hydration')
+    await check(
+      () => browser.eval(`document.getElementById("msg").textContent`),
+      'error state'
+    )
+  })
+
   it('should work with image with blob src', async () => {
     let browser
     try {
