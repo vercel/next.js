@@ -359,6 +359,12 @@ const ImageElement = ({
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
+            if (onError) {
+              // If the image has an error before react hydrates, then the error is lost.
+              // The workaround is to wait until the image is mounted which is after hydration,
+              // then we set the src again to trigger the error handler (if there was an error).
+              img.src = img.src
+            }
             if (process.env.NODE_ENV !== 'production') {
               if (img && !srcString) {
                 console.error(`Image is missing required "src" property:`, img)

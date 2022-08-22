@@ -39,7 +39,6 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
 - Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
 - Removes `loader` config in favor of [`loader`](#loader) prop
-- Note: the [`onError`](#onerror) prop might behave differently
 
 ## Known Browser Bugs
 
@@ -312,15 +311,13 @@ The callback function will be called with one argument, an object with the follo
 
 A callback function that is invoked when the image is loaded.
 
-Note that the load event might occur before client-side hydration completes, so this callback might not be invoked in that case.
+Note that the load event might occur before the placeholder is removed and the image is fully decoded.
 
 Instead, use [`onLoadingComplete`](#onloadingcomplete).
 
 ### onError
 
 A callback function that is invoked if the image fails to load.
-
-Note that the error might occur before client-side hydration completes, so this callback might not be invoked in that case.
 
 ### loading
 
