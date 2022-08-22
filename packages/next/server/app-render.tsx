@@ -27,6 +27,7 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
+import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -284,12 +285,7 @@ export type Segment =
 type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: {
-    filePath: string
-    layout?: () => any
-    loading?: () => any
-    page?: () => any
-  }
+  components: ComponentsType
 ]
 
 /**
@@ -589,7 +585,11 @@ export async function renderToHTMLOrFlight(
    */
   const createComponentTree = async ({
     createSegmentPath,
-    loaderTree: [segment, parallelRoutes, { filePath, layout, loading, page }],
+    loaderTree: [
+      segment,
+      parallelRoutes,
+      { layoutOrPagePath, layout, template, error, loading, page },
+    ],
     parentParams,
     firstItem,
     rootLayoutIncluded,
@@ -601,11 +601,15 @@ export async function renderToHTMLOrFlight(
     firstItem?: boolean
   }): Promise<{ Component: React.ComponentType }> => {
     // TODO-APP: enable stylesheet per layout/page
-    const stylesheets = getCssInlinedLinkTags(
-      serverComponentManifest,
-      serverCSSManifest!,
-      filePath
-    )
+    const stylesheets: string[] = layoutOrPagePath
+      ? getCssInlinedLinkTags(
+          serverComponentManifest,
+          serverCSSManifest!,
+          layoutOrPagePath
+        )
+      : []
+    const Template = template ? await interopDefault(template()) : undefined
+    const ErrorComponent = error ? await interopDefault(error()) : undefined
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
     const isPage = typeof page !== 'undefined'
@@ -695,16 +699,22 @@ export async function renderToHTMLOrFlight(
               : childSegment,
           }
 
+          const segmentPath = createSegmentPath(currentSegmentPath)
+
           // This is turned back into an object below.
           return [
             parallelRouteKey,
-            <LayoutRouter
-              parallelRouterKey={parallelRouteKey}
-              segmentPath={createSegmentPath(currentSegmentPath)}
-              loading={Loading ? <Loading /> : undefined}
-              childProp={childProp}
-              rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
-            />,
+            <Template key={parallelRouteKey + childProp.segment}>
+              {/* <ErrorBoundary fallback={<ErrorComponent />}> */}
+              <LayoutRouter
+                parallelRouterKey={parallelRouteKey}
+                segmentPath={segmentPath}
+                loading={Loading ? <Loading /> : undefined}
+                childProp={childProp}
+                rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
+              />
+              {/* </ErrorBoundary> */}
+            </Template>,
           ]
         }
       )

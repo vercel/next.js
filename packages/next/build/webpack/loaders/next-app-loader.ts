@@ -1,6 +1,23 @@
 import type webpack from 'webpack'
+import { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
+
+export const FILE_TYPES = {
+  layout: 'layout',
+  template: 'template',
+  error: 'error',
+  loading: 'loading',
+} as const
+
+// TODO-APP: check if this can be narrowed.
+type ComponentModule = () => any
+export type ComponentsType = {
+  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ComponentModule
+} & {
+  readonly layoutOrPagePath?: string
+  readonly page?: ComponentModule
+}
 
 async function createTreeCodeFromPath({
   pagePath,
@@ -32,13 +49,15 @@ async function createTreeCodeFromPath({
       continue
     }
 
-    // For segmentPath === '' avoid double `/`
-    const layoutPath = `${appDirPrefix}${segmentPath}/layout`
-    // For segmentPath === '' avoid double `/`
-    const loadingPath = `${appDirPrefix}${segmentPath}/loading`
-
-    const resolvedLayoutPath = await resolve(layoutPath)
-    const resolvedLoadingPath = await resolve(loadingPath)
+    // `page` is not included here as it's added above.
+    const filePaths = await Promise.all(
+      Object.values(FILE_TYPES).map(async (file) => {
+        return [
+          file,
+          await resolve(`${appDirPrefix}${segmentPath}/${file}`),
+        ] as const
+      })
+    )
 
     // Existing tree are the children of the current segment
     const children = tree
@@ -49,17 +68,17 @@ async function createTreeCodeFromPath({
         children ? `children: ${children},` : ''
       }
     }, {
-      filePath: '${resolvedLayoutPath}',
-      ${
-        resolvedLayoutPath
-          ? `layout: () => require(${JSON.stringify(resolvedLayoutPath)}),`
-          : ''
-      }
-      ${
-        resolvedLoadingPath
-          ? `loading: () => require(${JSON.stringify(resolvedLoadingPath)}),`
-          : ''
-      }
+      ${filePaths
+        .filter(([, filePath]) => filePath !== undefined)
+        .map(([file, filePath]) => {
+          if (filePath === undefined) {
+            return ''
+          }
+          return `${
+            file === FILE_TYPES.layout ? `layoutOrPagePath: '${filePath}',` : ''
+          }${file}: () => require(${JSON.stringify(filePath)}),`
+        })
+        .join('\n')}
     }]`
   }
 
@@ -122,6 +141,8 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     resolve: resolver,
     removeExt: (p) => removeExtensions(extensions, p),
   })
+
+  console.log(treeCode)
 
   const result = `
     export ${treeCode}
