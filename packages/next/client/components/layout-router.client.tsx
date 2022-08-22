@@ -312,10 +312,14 @@ function LoadingBoundary({
 }
 
 type ErrorComponent = React.ComponentType<{ error: Error; reset: () => void }>
-
 interface ErrorBoundaryProps {
   errorComponent: ErrorComponent
 }
+
+/**
+ * Handles errors through `getDerivedStateFromError`.
+ * Renders the provided error component and provides a way to `reset` the error boundary state.
+ */
 class ErrorBoundaryHandler extends React.Component<
   ErrorBoundaryProps,
   { error: Error | null }
@@ -347,6 +351,10 @@ class ErrorBoundaryHandler extends React.Component<
   }
 }
 
+/**
+ * Renders error boundary with the provided "errorComponent" property as the fallback.
+ * If no "errorComponent" property is provided it renders the children without an error boundary.
+ */
 function ErrorBoundary({
   errorComponent,
   children,
