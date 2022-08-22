@@ -358,8 +358,8 @@ const ImageElement = ({
         loading={loading}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
-          (img: ImgElementWithDataProp) => {
-            if (onError) {
+          (img: ImgElementWithDataProp | null) => {
+            if (img && onError) {
               // If the image has an error before react hydrates, then the error is lost.
               // The workaround is to wait until the image is mounted which is after hydration,
               // then we set the src again to trigger the error handler (if there was an error).
