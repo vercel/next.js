@@ -2,6 +2,9 @@
 
 [![TypeScript](https://badgen.net/badge/icon/typescript?icon=typescript&label)](https://typescriptlang.org)
 
+
+🌎 Check it live at [nextjs-with-xata.vercel.app](https://nextjs-with-xata.vercel.app)
+
 ## Features ⚡️
 
 - API Route to connect to your Xata database

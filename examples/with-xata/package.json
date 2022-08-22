@@ -11,6 +11,8 @@
   },
   "scripts": {
     "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "start:xata": "xata init --schema=schema.template.json --codegen=utils/xata.codegen.ts",
     "poststart:xata": "xata codegen",
     "xata": "xata codegen"
