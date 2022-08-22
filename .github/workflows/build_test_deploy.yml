@@ -1060,7 +1060,7 @@ jobs:
 
   build-native-test:
     name: Build native binary for tests and metrics
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -1092,14 +1092,14 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
-          key: stable-ubuntu-18.04-cargo-registry
+          key: stable-ubuntu-latest-cargo-registry
 
       - name: Cache cargo index
         uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
-          key: stable-ubuntu-18.04-cargo-index
+          key: stable-ubuntu-latest-cargo-index
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
@@ -1125,9 +1125,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-dev-ubuntu-18.04-${{ hashFiles('**/Cargo.lock') }}
+          key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-dev-ubuntu-18.04
+            next-swc-cargo-cache-dev-ubuntu-latest
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
@@ -1152,7 +1152,7 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
@@ -1176,7 +1176,7 @@ jobs:
 
   test-wasm:
     name: Test the wasm build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     needs: [build, build-native-test, build-wasm-dev]
 
     steps:
@@ -1294,7 +1294,7 @@ jobs:
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-18.04
+          - host: ubuntu-latest
             target: 'armv7-unknown-linux-gnueabihf'
             setup: |
               sudo apt-get update
@@ -1357,7 +1357,7 @@ jobs:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.settings.host == 'ubuntu-18.04' }}
+        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
         if: ${{ matrix.settings.host == 'ubuntu-latest' }}

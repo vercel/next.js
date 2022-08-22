@@ -13,7 +13,7 @@ env:
 jobs:
   build-native-dev:
     name: Build dev binary for tests
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -46,14 +46,14 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
-          key: stable-ubuntu-18.04-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+          key: stable-ubuntu-latest-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
         uses: actions/cache@v1
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
-          key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+          key: stable-ubuntu-latest-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
@@ -78,9 +78,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./packages/next-target
-          key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
+          key: next-swc-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-ubuntu-18.04
+            next-swc-cargo-cache-ubuntu-latest
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
