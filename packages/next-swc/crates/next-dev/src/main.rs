@@ -14,6 +14,8 @@ use clap::Parser;
 use next_dev::{register, NextDevServerBuilder};
 use turbo_tasks::{util::FormatDuration, TurboTasks};
 use turbo_tasks_memory::MemoryBackend;
+use turbopack_cli_utils::issue::IssueSeverityCliOption;
+use turbopack_core::issue::IssueSeverity;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -39,6 +41,18 @@ struct Cli {
     /// Don't open the browser automatically when the dev server has started.
     #[clap(long)]
     no_open: bool,
+
+    #[clap(short, long)]
+    /// Filter by issue severity.
+    log_level: Option<IssueSeverityCliOption>,
+
+    #[clap(long)]
+    /// Show all log messages without limit.
+    show_all: bool,
+
+    #[clap(long)]
+    /// Expand the log details.
+    log_detail: bool,
 }
 
 #[tokio::main]
@@ -71,6 +85,9 @@ async fn main() {
         .eager_compile(args.eager_compile)
         .hostname(args.hostname)
         .port(args.port)
+        .log_detail(args.log_detail)
+        .show_all(args.show_all)
+        .log_level(args.log_level.map_or_else(|| IssueSeverity::Error, |l| l.0))
         .build()
         .await
         .unwrap();

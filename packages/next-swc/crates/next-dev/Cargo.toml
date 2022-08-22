@@ -22,7 +22,7 @@ tokio_console = [
 
 [dependencies]
 anyhow = "1.0.47"
-clap = { version = "3.1.3", features = ["derive"] }
+clap = { version = "3", features = ["derive"] }
 console-subscriber = { version = "0.1.6", optional = true }
 futures = "0.3.21"
 json = "0.12.4"

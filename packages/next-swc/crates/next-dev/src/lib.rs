@@ -8,7 +8,7 @@ use next_core::{create_server_rendered_source, create_web_entry_source};
 use turbo_tasks::{CollectiblesSource, TransientInstance, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
-use turbopack_cli_utils::issue::issue_to_styled_string;
+use turbopack_cli_utils::issue::{group_and_display_issues, LogOptions, LogOptionsVc};
 use turbopack_core::issue::{IssueSeverity, IssueVc};
 use turbopack_dev_server::{
     fs::DevServerFileSystemVc,
@@ -25,6 +25,9 @@ pub struct NextDevServerBuilder {
     eager_compile: bool,
     hostname: Option<IpAddr>,
     port: Option<u16>,
+    log_level: IssueSeverity,
+    show_all: bool,
+    log_detail: bool,
 }
 
 impl Default for NextDevServerBuilder {
@@ -42,6 +45,9 @@ impl NextDevServerBuilder {
             eager_compile: false,
             hostname: None,
             port: None,
+            log_level: IssueSeverity::Error,
+            show_all: false,
+            log_detail: false,
         }
     }
 
@@ -75,12 +81,36 @@ impl NextDevServerBuilder {
         self
     }
 
+    pub fn log_level(mut self, log_level: IssueSeverity) -> NextDevServerBuilder {
+        self.log_level = log_level;
+        self
+    }
+
+    pub fn show_all(mut self, show_all: bool) -> NextDevServerBuilder {
+        self.show_all = show_all;
+        self
+    }
+
+    pub fn log_detail(mut self, log_detail: bool) -> NextDevServerBuilder {
+        self.log_detail = log_detail;
+        self
+    }
+
     pub async fn build(self) -> Result<DevServer> {
         let turbo_tasks = self.turbo_tasks.context("turbo_tasks must be set")?;
 
         let project_dir = self.project_dir.context("project_dir must be set")?;
         let entry_assets = self.entry_assets;
         let eager_compile = self.eager_compile;
+        let show_all = self.show_all;
+        let log_detail = self.log_detail;
+        let log_options = LogOptions {
+            project_dir: project_dir.clone(),
+            show_all,
+            log_detail,
+            log_level: self.log_level,
+        };
+        let log_options_to_dev_server = log_options.clone();
 
         let server = DevServer::listen(
             turbo_tasks.clone(),
@@ -90,6 +120,7 @@ impl NextDevServerBuilder {
                     entry_assets.clone(),
                     eager_compile,
                     turbo_tasks.clone().into(),
+                    log_options.clone().cell(),
                 )
             },
             (
@@ -97,22 +128,19 @@ impl NextDevServerBuilder {
                 self.port.context("port must be set")?,
             )
                 .into(),
+            log_options_to_dev_server,
         );
 
         Ok(server)
     }
 }
 
-async fn handle_issues<T: CollectiblesSource + Copy>(source: T) -> Result<()> {
+async fn handle_issues<T: CollectiblesSource + Copy>(
+    source: T,
+    options: LogOptionsVc,
+) -> Result<()> {
     let issues = IssueVc::peek_issues_with_path(source).await?;
-    let issues = issues.await?;
-    let mut fatal = false;
-    for (issue, path) in issues.iter_with_shortest_path() {
-        println!("{}\n", &*issue_to_styled_string(issue, path).await?);
-        if *issue.severity().await? >= IssueSeverity::Fatal {
-            fatal = true;
-        }
-    }
+    let fatal = *group_and_display_issues(options, issues).await?;
 
     if fatal {
         Err(anyhow!("Fatal issue(s) occurred"))
@@ -122,20 +150,20 @@ async fn handle_issues<T: CollectiblesSource + Copy>(source: T) -> Result<()> {
 }
 
 #[turbo_tasks::function]
-async fn project_fs(project_dir: &str) -> Result<FileSystemVc> {
+async fn project_fs(project_dir: &str, log_options: LogOptionsVc) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new("project".to_string(), project_dir.to_string());
-    handle_issues(disk_fs).await?;
+    handle_issues(disk_fs, log_options).await?;
     disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
 
 #[turbo_tasks::function]
-async fn output_fs(project_dir: &str) -> Result<FileSystemVc> {
+async fn output_fs(project_dir: &str, log_options: LogOptionsVc) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new(
         "output".to_string(),
         format!("{project_dir}{s}.next{s}server", s = MAIN_SEPARATOR),
     );
-    handle_issues(disk_fs).await?;
+    handle_issues(disk_fs, log_options).await?;
     disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
@@ -146,9 +174,10 @@ async fn source(
     entry_assets: Vec<String>,
     eager_compile: bool,
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
+    log_options: LogOptionsVc,
 ) -> Result<ContentSourceVc> {
-    let output_fs = output_fs(&project_dir);
-    let fs = project_fs(&project_dir);
+    let output_fs = output_fs(&project_dir, log_options);
+    let fs = project_fs(&project_dir, log_options);
 
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     let web_source = create_web_entry_source(
@@ -181,9 +210,9 @@ async fn source(
     .cell()
     .into();
 
-    handle_issues(dev_server_fs).await?;
-    handle_issues(web_source).await?;
-    handle_issues(rendered_source).await?;
+    handle_issues(dev_server_fs, log_options).await?;
+    handle_issues(web_source, log_options).await?;
+    handle_issues(rendered_source, log_options).await?;
 
     Ok(source)
 }
