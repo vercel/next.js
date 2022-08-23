@@ -40,7 +40,7 @@ module.exports = {
             child.openingElement &&
             child.openingElement.name &&
             child.openingElement.name.type === 'JSXIdentifier' &&
-            child.openingElement.name.name != 'title'
+            child.openingElement.name.name !== 'title'
           ) {
             child.openingElement.attributes.forEach((attribute) => {
               // Early return if we already have a non-checkable spread attribute, for better performance
