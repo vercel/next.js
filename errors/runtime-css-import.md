@@ -2,16 +2,35 @@
 
 #### Why This Error Occurred
 
-Runtime CSS imports are bad for perfomance since the request can't start until the stylesheet containing the `@import` is downloaded and parsed. This means they can't be fetched in parallel.
+Runtime CSS imports are bad for perfomance because the browser can't know about the `@import` until the stylesheet is downloaded. This means the stylesheets can't be fetched in parallel.
 
 #### Possible Ways to Fix It
 
-If possible put the CSS directly into a CSS file and import it. Otherwise use `<link>` instead of `@import`.
+Import the CSS file in a JavaScript module or use a relative `@import` in your CSS.
 
 **Before**
 
 ```css
-/* styles.css */
+@import url('/styles.css');
+```
+
+**After**
+
+```jsx
+// pages/_app.js
+import './styles.css'
+```
+
+```css
+/* Will be inlined at build time */
+@import url('./styles.css');
+```
+
+If it's a remote stylesheet, use `<link>` instead of `@import`.
+
+**Before**
+
+```css
 @import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
 ```
 
