@@ -1,0 +1,10 @@
+{
+  "locales": ["en-US", "ja", "pt-BR"],
+  "defaultLocale": "en-US",
+  "pages": {
+    "*": ["common"],
+    "/": ["home"],
+    "/about": ["about"]
+  },
+  "localeDetection": false
+}
