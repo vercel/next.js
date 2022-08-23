@@ -121,6 +121,7 @@ You can also manually deploy the [`next export`](/docs/advanced-features/static-
 - [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
 - [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
 - [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
+- [Fastly Compute@Edge](https://github.com/fastly/next-compute-js)
 
 > **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
 
