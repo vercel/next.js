@@ -387,6 +387,14 @@ function runTests(mode) {
     )
   })
 
+  it('should callback native onError even when error before hydration', async () => {
+    let browser = await webdriver(appPort, '/on-error-before-hydration')
+    await check(
+      () => browser.eval(`document.getElementById("msg").textContent`),
+      'error state'
+    )
+  })
+
   it('should work with image with blob src', async () => {
     let browser
     try {
@@ -849,6 +857,20 @@ function runTests(mode) {
         'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
       )
       expect(warnings.length).toBe(1)
+    })
+
+    it('should show console error for objectFit and objectPosition', async () => {
+      const browser = await webdriver(appPort, '/invalid-objectfit')
+
+      expect(await hasRedbox(browser)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log()).map((log) => log.message).join('\n')
+      }, /Image has unknown prop "objectFit"/gm)
+
+      await check(async () => {
+        return (await browser.log()).map((log) => log.message).join('\n')
+      }, /Image has unknown prop "objectPosition"/gm)
     })
   } else {
     //server-only tests
