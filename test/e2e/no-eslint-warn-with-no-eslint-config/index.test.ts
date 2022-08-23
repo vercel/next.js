@@ -5,6 +5,11 @@ import { renderViaHTTP } from 'next-test-utils'
 describe('no-eslint-warn-with-no-eslint-config', () => {
   let next: NextInstance
 
+  if ((global as any).isNextDeploy) {
+    it('should skip for deploy', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -30,4 +35,35 @@ describe('no-eslint-warn-with-no-eslint-config', () => {
     )
     expect(next.cliOutput).not.toBe('warn')
   })
+
+  if (!(global as any).isNextDev) {
+    it('should warn with empty eslintrc', async () => {
+      await next.stop()
+      await next.patchFile('.eslintrc.json', '{}')
+      await next.start()
+
+      expect(next.cliOutput).toContain(
+        'No ESLint configuration detected. Run next lint to begin setup'
+      )
+    })
+
+    it('should warn with empty eslint config in package.json', async () => {
+      await next.stop()
+      await next.deleteFile('.eslintrc.json')
+      const origPkgJson = await next.readFile('package.json')
+      const pkgJson = JSON.parse(origPkgJson)
+      pkgJson.eslintConfig = {}
+
+      try {
+        await next.patchFile('package.json', JSON.stringify(pkgJson))
+        await next.start()
+
+        expect(next.cliOutput).toContain(
+          'No ESLint configuration detected. Run next lint to begin setup'
+        )
+      } finally {
+        await next.patchFile('package.json', origPkgJson)
+      }
+    })
+  }
 })

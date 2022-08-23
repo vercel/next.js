@@ -38,9 +38,6 @@ export async function hasEslintConfiguration(
         emptyPkgJsonConfig: true,
       }
     }
-  } else {
-    return configObject
   }
-
-  return { ...configObject, exists: true }
+  return configObject
 }
