@@ -84,7 +84,7 @@ impl CodeGenerateable for UrlAssetReference {
     ) -> Result<CodeGenerationVc> {
         let this = self_vc.await?;
         let chunk_path = context.chunk_path(this.context.context_path(), ".css");
-        let context_path = chunk_path.fs().parent_path(chunk_path).await?;
+        let context_path = chunk_path.parent().await?;
 
         let mut visitors = Vec::new();
 

@@ -39,20 +39,6 @@ impl FileSystem for DevServerFileSystem {
     }
 
     #[turbo_tasks::function]
-    async fn parent_path(&self, fs_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
-        let fs_path_value = fs_path.await?;
-        if fs_path_value.path.is_empty() {
-            return Ok(fs_path);
-        }
-        let mut p: String = fs_path_value.path.clone();
-        match str::rfind(&p, '/') {
-            Some(index) => p.replace_range(index.., ""),
-            None => p.clear(),
-        }
-        Ok(FileSystemPathVc::new(fs_path_value.fs, &p))
-    }
-
-    #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
         StringVc::cell("root of the dev server".to_string())
     }

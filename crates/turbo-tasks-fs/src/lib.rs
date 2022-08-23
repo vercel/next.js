@@ -46,7 +46,6 @@ pub trait FileSystem {
     fn read(&self, fs_path: FileSystemPathVc) -> FileContentVc;
     fn read_link(&self, fs_path: FileSystemPathVc) -> LinkContentVc;
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
-    fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
     fn to_string(&self) -> StringVc;
 }
@@ -495,19 +494,6 @@ impl FileSystem for DiskFileSystem {
         Ok(CompletionVc::new())
     }
     #[turbo_tasks::function]
-    async fn parent_path(&self, fs_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
-        let fs_path_value = fs_path.await?;
-        if fs_path_value.path.is_empty() {
-            return Ok(fs_path);
-        }
-        let mut p: String = fs_path_value.path.clone();
-        match str::rfind(&p, '/') {
-            Some(index) => p.replace_range(index.., ""),
-            None => p.clear(),
-        }
-        Ok(FileSystemPathVc::new_normalized(fs_path_value.fs, p))
-    }
-    #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
         StringVc::cell(self.name.clone())
     }
@@ -791,7 +777,15 @@ impl FileSystemPathVc {
     #[turbo_tasks::function]
     pub async fn parent(self) -> Result<FileSystemPathVc> {
         let this = self.await?;
-        Ok(this.fs.parent_path(self))
+        let path = &this.path;
+        if path.is_empty() {
+            return Ok(self);
+        }
+        let p = match str::rfind(path, '/') {
+            Some(index) => path[..index].to_string(),
+            None => "".to_string(),
+        };
+        Ok(FileSystemPathVc::new_normalized(this.fs, p))
     }
 
     #[turbo_tasks::function]
@@ -1362,11 +1356,6 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn read_dir(&self, _fs_path: FileSystemPathVc) -> DirectoryContentVc {
         DirectoryContentVc::not_found()
-    }
-
-    #[turbo_tasks::function]
-    fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc {
-        FileSystemPathVc::new_normalized(fs_path.fs(), "".to_string())
     }
 
     #[turbo_tasks::function]
