@@ -591,8 +591,11 @@ export default function Image({
     blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
 
-    height = height || staticImageData.height
-    width = width || staticImageData.width
+    // Ignore width and height (come from the bundler) when "fill" is used
+    if (!fill) {
+      height = height || staticImageData.height
+      width = width || staticImageData.width
+    }
     if (!staticImageData.height || !staticImageData.width) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
