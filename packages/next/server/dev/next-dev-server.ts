@@ -11,7 +11,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { RoutingItem } from '../base-server'
 
-import crypto, { verify } from 'crypto'
+import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
