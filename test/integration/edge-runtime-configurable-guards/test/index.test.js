@@ -77,12 +77,12 @@ describe('Edge runtime configurable guards', () => {
       `)
     })
 
-    it('does not warn in dev for allowed code', async () => {
+    it('warns in dev for allowed code', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, middlewareUrl)
       await waitFor(500)
       expect(res.status).toBe(200)
-      expect(context.logs.output).not.toContain(
+      expect(context.logs.output).toContain(
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
@@ -191,15 +191,15 @@ describe('Edge runtime configurable guards', () => {
         `)
       },
     },
-  ])('$title with allowed dynamic code', ({ init, url }) => {
+  ])('$title with allowed, used dynamic code', ({ init, url }) => {
     beforeEach(() => init())
 
-    it('does not warn in dev at runtime', async () => {
+    it('still warns in dev at runtime', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       await waitFor(500)
       expect(res.status).toBe(200)
-      expect(context.logs.output).not.toContain(
+      expect(context.logs.output).toContain(
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
@@ -292,7 +292,7 @@ describe('Edge runtime configurable guards', () => {
         `)
       },
     },
-  ])('$title with allowed unused dynamic code', ({ init, url }) => {
+  ])('$title with allowed, unused dynamic code', ({ init, url }) => {
     beforeEach(() => init())
 
     it('build and does not warn at runtime', async () => {
@@ -334,7 +334,29 @@ describe('Edge runtime configurable guards', () => {
         `)
       },
     },
-  ])('$title with dynamic code', ({ init, url }) => {
+    {
+      title: 'Middleware using lib',
+      url: middlewareUrl,
+      init() {
+        context.middleware.write(`
+          import { NextResponse } from 'next/server'
+          import { hasDynamic } from './lib'
+          export default async function () {
+            await hasDynamic()
+            return NextResponse.next()
+          }
+          export const config = {
+            allowDynamic: '/pages/**'
+          }
+        `)
+        context.lib.write(`
+          export async function hasDynamic() {
+            eval('100')
+          }
+        `)
+      },
+    },
+  ])('$title with unallowed, used dynamic code', ({ init, url }) => {
     beforeEach(() => init())
 
     it('warns in dev at runtime', async () => {

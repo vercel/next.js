@@ -1,6 +1,5 @@
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 
 /**
  * A getter for module build info that casts to the type it should have.
@@ -17,7 +16,6 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
     importLocByPath?: Map<string, any>
-    edgeFunctionConfig?: Partial<MiddlewareConfig>
     rootDir?: string
   }
 }

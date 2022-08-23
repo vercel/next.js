@@ -1,6 +1,5 @@
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
-import { loadEdgeFunctionConfigFromFile } from './utils'
 
 export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
@@ -8,7 +7,7 @@ export type EdgeFunctionLoaderOptions = {
   rootDir: string
 }
 
-export default async function middlewareLoader(this: any) {
+export default function middlewareLoader(this: any) {
   const { absolutePagePath, page, rootDir }: EdgeFunctionLoaderOptions =
     this.getOptions()
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
@@ -16,10 +15,6 @@ export default async function middlewareLoader(this: any) {
   buildInfo.nextEdgeApiFunction = {
     page: page || '/',
   }
-  buildInfo.edgeFunctionConfig = await loadEdgeFunctionConfigFromFile(
-    absolutePagePath,
-    this.getResolve()
-  )
   buildInfo.rootDir = rootDir
 
   return `
