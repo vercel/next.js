@@ -21,7 +21,7 @@ let $
 
 const indexPage = new File(join(appDir, 'pages/static-img.js'))
 
-const runTests = (isDev = false) => {
+const runTests = (isDev) => {
   it('Should allow an image with a static src to omit height and width', async () => {
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
