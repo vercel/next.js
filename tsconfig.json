@@ -7,7 +7,11 @@
     "importHelpers": false,
     "noEmitHelpers": false,
     "skipLibCheck": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "baseUrl": "./packages",
+    "paths": {
+      "@vercel/webpack-node-module-trace": ["webpack-nmt/src/index.ts"]
+    }
   },
   "exclude": ["node_modules", "crates", ".yarn", "target"]
 }

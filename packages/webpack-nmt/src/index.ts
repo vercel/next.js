@@ -9,6 +9,21 @@ export interface NodeModuleTracePluginOptions {
   contextDirectory?: string
   // additional PATH environment variable to use for spawning the `node-file-trace` process
   path?: string
+  // log options
+  log?: {
+    all?: boolean
+    detail?: boolean
+    // Default is `error`
+    level?:
+      | 'bug'
+      | 'fatal'
+      | 'error'
+      | 'warning'
+      | 'hint'
+      | 'note'
+      | 'suggestions'
+      | 'info'
+  }
 }
 
 export class NodeModuleTracePlugin implements WebpackPluginInstance {
@@ -63,25 +78,54 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
   }
 
   private runTrace() {
-    spawnSync(
-      'node-file-trace',
-      [
-        'annotate',
-        '--context-directory',
-        this.options?.contextDirectory ?? '.',
-        '--exact',
-        ...this.chunksToTrace,
-      ],
-      {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          PATH: `${this.options?.path ?? ''}${
-            process.platform === 'win32' ? ';' : ':'
-          }${process.env.PATH}`,
-        },
-        cwd: this.options?.cwd ?? process.cwd(),
+    process.stdout.write('\n')
+    const args = [
+      'annotate',
+      '--context-directory',
+      this.options?.contextDirectory ?? '.',
+      '--exact',
+    ]
+    if (this.options?.log?.detail) {
+      args.push('--log-detail')
+    }
+    if (this.options?.log?.all) {
+      args.push('--show-all')
+    }
+    const logLevel = this.options?.log?.level
+    if (logLevel) {
+      args.push(`--log-level ${logLevel}`)
+    }
+    let turboTracingPackagePath = ''
+    let turboTracingBinPath = ''
+    try {
+      turboTracingPackagePath = require.resolve('@vercel/node-module-trace')
+    } catch (e) {
+      // ignore
+    }
+    if (turboTracingPackagePath) {
+      try {
+        turboTracingBinPath = require.resolve(
+          `@vercel/node-module-trace-${process.platform}-${process.arch}`,
+          {
+            paths: [turboTracingPackagePath],
+          },
+        )
+      } catch (e) {
+        // ignore
+      }
+    }
+    const pathSep = process.platform === 'win32' ? ';' : ':'
+    let paths = `${this.options?.path ?? ''}${pathSep}${process.env.PATH}`
+    if (turboTracingBinPath) {
+      paths = `${turboTracingBinPath}${pathSep}${paths}`
+    }
+    spawnSync('node-file-trace', [...args, ...this.chunksToTrace], {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        PATH: paths,
       },
-    )
+      cwd: this.options?.cwd ?? process.cwd(),
+    })
   }
 }

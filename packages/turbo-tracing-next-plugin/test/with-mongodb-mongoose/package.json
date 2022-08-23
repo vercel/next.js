@@ -1,5 +1,5 @@
 {
-  "name": "@vercel/nmt-test-app",
+  "name": "@vercel/turbo-tracing-test-app",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,7 +14,7 @@
     "swr": "^1.3.0"
   },
   "devDependencies": {
-    "@vercel/node-module-trace": "0.0.1",
+    "@vercel/turbo-tracing-next-plugin": "0.0.0",
     "cross-env": "^7.0.3"
   }
 }
