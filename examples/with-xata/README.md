@@ -2,10 +2,7 @@
 
 [![TypeScript](https://badgen.net/badge/icon/typescript?icon=typescript&label)](https://typescriptlang.org)
 
-
 🌎 Check it live at [nextjs-with-xata.vercel.app](https://nextjs-with-xata.vercel.app)
-
-## Features ⚡️
 
 - API Route to connect to your Xata database
 - Type-safe Codegen
@@ -13,7 +10,7 @@
   - Dark/Light mode
   - Respects `prefers-reduce-motion` for CSS Transitions
 
-## Setup & Usage 🐣
+## How to use
 
 ### Clone the Example
 
@@ -64,7 +61,9 @@ Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
 > 💡 the template will prompt you to create a dummy new table (`nextjs_with_xata_example`) with some useful resources.
 
-## Hot Tip 🔥
+## Notes
+
+Some tips that may help you develop your app.
 
 - The Xata [VS Code Extension](https://marketplace.visualstudio.com/items?itemName=xata.xata) will make managing your data more comfortable
 - Prefer fetching data from `getServerSideProps()` or `getStaticProps()`

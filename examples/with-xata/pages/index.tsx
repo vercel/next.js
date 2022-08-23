@@ -38,7 +38,7 @@ const IndexPage = ({
         <ul>
           {links.map(({ id, title, url, description }) => (
             <li key={url}>
-              <a href={url} rel="noopener" target="_blank">
+              <a href={url} rel="noopener noreferrer" target="_blank">
                 {title}
               </a>
               <p>{description}</p>
@@ -77,7 +77,7 @@ const IndexPage = ({
     <footer>
       <span>
         Made by{' '}
-        <a href="https://xata.io" rel="noopener" target="_blank">
+        <a href="https://xata.io" rel="noopener noreferrer" target="_blank">
           <object data="/xatafly.svg" />
         </a>
       </span>
