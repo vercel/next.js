@@ -1705,14 +1705,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       // use static 404 page if available and is 404 response
-      if (is404) {
+      if (is404 && (await this.hasPage('/404'))) {
         result = await this.findPageComponents('/404', query)
         using404Page = result !== null
       }
       let statusPage = `/${res.statusCode}`
 
       if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
-        result = await this.findPageComponents(statusPage, query)
+        // skip ensuring /500 in dev mode as it isn't used and the
+        // dev overlay is used instead
+        if (statusPage !== '/500' || !this.renderOpts.dev) {
+          result = await this.findPageComponents(statusPage, query)
+        }
       }
 
       if (!result) {
