@@ -31,6 +31,7 @@ export async function hasEslintConfiguration(
     ) {
       return { ...configObject, emptyEslintrc: true }
     }
+    return { ...configObject, exists: true }
   } else if (packageJsonConfig?.eslintConfig) {
     if (Object.entries(packageJsonConfig?.eslintConfig).length === 0) {
       return {
