@@ -75,18 +75,13 @@ export default async function edgeSSRLoader(this: any) {
         ? `
       const appRenderToHTML = require('next/dist/server/app-render').renderToHTMLOrFlight
       const pagesRenderToHTML = null
-      let pageMod = require(${JSON.stringify(pageModPath)})
-      pageMod = pageMod.default || pageMod
+      const pageMod = require(${JSON.stringify(pageModPath)})
     `
         : `
       const appRenderToHTML = null
       const pagesRenderToHTML = require('next/dist/server/render').renderToHTML
       const pageMod = require(${stringifiedPagePath})
     `
-    }
-
-    if (!pageMod) {
-      console.log("${pageModPath}")
     }
 
     const appMod = require(${stringifiedAppPath})

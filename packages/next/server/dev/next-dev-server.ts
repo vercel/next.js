@@ -790,7 +790,6 @@ export default class DevServer extends Server {
         },
       })
     } catch (error) {
-      console.log('error', error)
       if (error instanceof DecodeError) {
         throw error
       }

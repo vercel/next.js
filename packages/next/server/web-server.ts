@@ -326,8 +326,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     renderOpts.ComponentMod =
       renderOpts.ComponentMod.default || renderOpts.ComponentMod
-    console.trace('renderOpts.err', renderOpts.err)
-    // console.log('ComponentMod', renderOpts.ComponentMod)
+
     if (curRenderToHTML) {
       let res
       try {
@@ -347,9 +346,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           },
           !!pagesRenderToHTML
         )
-        console.log('res', res)
-      } catch (e) {
-        console.error('render to html e', e)
+      } catch (e: any) {
+        console.error('render to html e', e.stack)
         throw e
       }
       return res

@@ -457,14 +457,12 @@ export async function renderToHTMLOrFlight(
 
   stripInternalQueries(query)
 
-  console.log('0 stripInternalQueries')
   const pageIsDynamic = isDynamicRoute(pathname)
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
   const HotReloader = ComponentMod.HotReloader as
     | typeof import('../client/components/hot-reloader.client').default
     | null
-  console.log('1 stripInternalQueries')
 
   const headers = req.headers
   // TODO-APP: fix type of req
@@ -475,7 +473,6 @@ export async function renderToHTMLOrFlight(
    * The tree created in next-app-loader that holds component segments and modules
    */
   const loaderTree: LoaderTree = ComponentMod.tree
-  console.trace('ComponentMod', ComponentMod)
 
   const tryGetPreviewData =
     process.env.NEXT_RUNTIME === 'edge'
@@ -686,14 +683,20 @@ export async function renderToHTMLOrFlight(
             : [actualSegment, parallelRouteKey]
 
           // Create the child component
-          const { Component: ChildComponent } = await createComponentTree({
-            createSegmentPath: (child) => {
-              return createSegmentPath([...currentSegmentPath, ...child])
-            },
-            loaderTree: parallelRoutes[parallelRouteKey],
-            parentParams: currentParams,
-            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-          })
+          let res: any
+          try {
+            res = await createComponentTree({
+              createSegmentPath: (child) => {
+                return createSegmentPath([...currentSegmentPath, ...child])
+              },
+              loaderTree: parallelRoutes[parallelRouteKey],
+              parentParams: currentParams,
+              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+            })
+          } catch (e: any) {
+            console.error('des', e?.stack)
+          }
+          const { Component: ChildComponent } = res
 
           const childSegment = parallelRoutes[parallelRouteKey][0]
           const childSegmentParam = getDynamicParamFromSegment(childSegment)
@@ -876,7 +879,6 @@ export async function renderToHTMLOrFlight(
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
     ): Promise<FlightDataPath> => {
-      console.log('loaderTreeToFilter', loaderTreeToFilter)
       const [segment, parallelRoutes] = loaderTreeToFilter
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
@@ -934,7 +936,6 @@ export async function renderToHTMLOrFlight(
       // Walk through all parallel routes.
       for (const parallelRouteKey of parallelRoutesKeys) {
         const parallelRoute = parallelRoutes[parallelRouteKey]
-        console.log('parallelRoute', parallelRoute, 'from ->', parallelRouteKey)
         const path = await walkTreeWithFlightRouterState(
           parallelRoute,
           currentParams,
@@ -952,7 +953,6 @@ export async function renderToHTMLOrFlight(
 
     // Flight data that is going to be passed to the browser.
     // Currently a single item array but in the future multiple patches might be combined in a single request.
-    console.log('loaderTree', loaderTree)
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
       (
