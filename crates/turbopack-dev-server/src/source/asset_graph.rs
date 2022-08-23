@@ -60,25 +60,33 @@ impl AssetGraphContentSourceVc {
         }
         let mut map = HashMap::new();
         let root_path = this.root_path.await?;
-        let mut queue = VecDeque::new();
-        queue.push_back(all_referenced_assets(this.root_asset));
-        let mut assets_set = HashSet::new();
         let mut assets = Vec::new();
-        assets_set.insert(this.root_asset);
         assets.push((this.root_asset.path(), this.root_asset));
-        while let Some(references) = queue.pop_front() {
-            for asset in references.await?.iter() {
-                if assets_set.insert(*asset) {
-                    let expanded = if let Some(state) = &this.state {
-                        let state = state.lock().unwrap();
-                        state.expanded.contains(asset)
-                    } else {
-                        true
-                    };
-                    if expanded {
-                        queue.push_back(all_referenced_assets(*asset));
+        let expanded = if let Some(state) = &this.state {
+            let state = state.lock().unwrap();
+            state.expanded.contains(&this.root_asset)
+        } else {
+            true
+        };
+        if expanded {
+            let mut queue = VecDeque::new();
+            queue.push_back(all_referenced_assets(this.root_asset));
+            let mut assets_set = HashSet::new();
+            assets_set.insert(this.root_asset);
+            while let Some(references) = queue.pop_front() {
+                for asset in references.await?.iter() {
+                    if assets_set.insert(*asset) {
+                        let expanded = if let Some(state) = &this.state {
+                            let state = state.lock().unwrap();
+                            state.expanded.contains(asset)
+                        } else {
+                            true
+                        };
+                        if expanded {
+                            queue.push_back(all_referenced_assets(*asset));
+                        }
+                        assets.push((asset.path(), *asset));
                     }
-                    assets.push((asset.path(), *asset));
                 }
             }
         }
