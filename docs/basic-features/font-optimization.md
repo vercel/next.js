@@ -53,7 +53,13 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-Note that we don't recommend adding fonts with `next/head`, as this only applies the font to the particular page and won't work with a streaming architecture.
+Although it's possible to add fonts in a page with [`next/head`](/docs/api-reference/next/head) it comes with some drawbacks:
+
+- It only applies the font to that particular page.
+- The font optimization will only work on page load, not on client side navigation.
+- It won't work with a streaming architecture.
+
+Thus it's highly recommended to add the font in a [Custom `Document`](/docs/advanced-features/custom-document.md), like in the code snippet above.
 
 Automatic Webfont Optimization currently supports Google Fonts and Typekit with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values.
 

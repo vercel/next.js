@@ -360,13 +360,41 @@ const ImageElement = ({
         loading={loading}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
-          (img: ImgElementWithDataProp) => {
+          (img: ImgElementWithDataProp | null) => {
+            if (!img) {
+              return
+            }
+            if (onError) {
+              // If the image has an error before react hydrates, then the error is lost.
+              // The workaround is to wait until the image is mounted which is after hydration,
+              // then we set the src again to trigger the error handler (if there was an error).
+              // eslint-disable-next-line no-self-assign
+              img.src = img.src
+            }
             if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
+              if (!srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
+              if (
+                img.getAttribute('objectFit') ||
+                img.getAttribute('objectfit')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
+              if (
+                img.getAttribute('objectPosition') ||
+                img.getAttribute('objectposition')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
             }
-            if (img?.complete) {
+            if (img.complete) {
               handleLoading(
                 img,
                 srcString,
@@ -376,7 +404,13 @@ const ImageElement = ({
               )
             }
           },
-          [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
+          [
+            srcString,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete,
+            onError,
+          ]
         )}
         onLoad={(event) => {
           const img = event.currentTarget as ImgElementWithDataProp
@@ -563,8 +597,11 @@ export default function Image({
     blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
 
-    height = height || staticImageData.height
-    width = width || staticImageData.width
+    // Ignore width and height (come from the bundler) when "fill" is used
+    if (!fill) {
+      height = height || staticImageData.height
+      width = width || staticImageData.width
+    }
     if (!staticImageData.height || !staticImageData.width) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
@@ -656,17 +693,6 @@ export default function Image({
     if (priority && loading === 'lazy') {
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
-      )
-    }
-
-    if ('objectFit' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" property.`
-      )
-    }
-    if ('objectPosition' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" property.`
       )
     }
 
