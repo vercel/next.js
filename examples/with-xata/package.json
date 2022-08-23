@@ -1,12 +1,6 @@
 {
-  "description": "the minimal template to a Next.js project connected to a Xata database",
   "main": "index.js",
-  "license": "MIT",
   "private": true,
-  "author": {
-    "name": "Xata",
-    "url": "https://xata.io"
-  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
