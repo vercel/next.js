@@ -71,11 +71,6 @@ export class FlightClientEntryPlugin {
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
     for (const [name, entry] of compilation.entries.entries()) {
-      // If the request is not for `app` directory entry skip it.
-      // if (!entry.request || !entry.request.startsWith('next-app-loader')) {
-      //   continue
-      // }
-
       // Check if the page entry is a server component or not.
       const entryDependency = entry.dependencies?.[0]
       // Ensure only next-app-loader entries are handled.
@@ -193,7 +188,10 @@ export class FlightClientEntryPlugin {
     const clientComponentImports: ClientComponentImports = []
     const serverCSSImports: CssImports = {}
 
-    const filterClientComponents = (dependencyToFilter: any): void => {
+    const filterClientComponents = (
+      dependencyToFilter: any,
+      inClientComponentBoundary: boolean
+    ): void => {
       const mod: webpack.NormalModule =
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
@@ -236,7 +234,7 @@ export class FlightClientEntryPlugin {
       }
 
       // Check if request is for css file.
-      if (isClientComponent || isCSS) {
+      if ((!inClientComponentBoundary && isClientComponent) || isCSS) {
         clientComponentImports.push(modRequest)
         return
       }
@@ -244,12 +242,15 @@ export class FlightClientEntryPlugin {
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
-          filterClientComponents(connection.dependency)
+          filterClientComponents(
+            connection.dependency,
+            inClientComponentBoundary || isClientComponent
+          )
         })
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(dependency)
+    filterClientComponents(dependency, false)
 
     return [clientComponentImports, serverCSSImports]
   }
