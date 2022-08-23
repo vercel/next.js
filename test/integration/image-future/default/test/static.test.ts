@@ -6,6 +6,7 @@ import {
   renderViaHTTP,
   File,
   waitFor,
+  launchApp,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -29,6 +30,10 @@ const runTests = () => {
     expect(await browser.elementById('static-gif')).toBeTruthy()
     expect(await browser.elementById('static-bmp')).toBeTruthy()
     expect(await browser.elementById('static-ico')).toBeTruthy()
+    expect(await browser.elementById('static-svg-fill')).toBeTruthy()
+    expect(await browser.elementById('static-gif-fill')).toBeTruthy()
+    expect(await browser.elementById('static-bmp-fill')).toBeTruthy()
+    expect(await browser.elementById('static-ico-fill')).toBeTruthy()
     expect(await browser.elementById('static-unoptimized')).toBeTruthy()
   })
   it('Should use immutable cache-control header for static import', async () => {
@@ -90,15 +95,30 @@ describe('Build Error Tests', () => {
   })
 })
 describe('Future Static Image Component Tests', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-    html = await renderViaHTTP(appPort, '/static-img')
-    browser = await webdriver(appPort, '/static-img')
+  describe('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      html = await renderViaHTTP(appPort, '/static-img')
+      browser = await webdriver(appPort, '/static-img')
+    })
+    afterAll(() => {
+      killApp(app)
+    })
+    runTests()
   })
-  afterAll(() => {
-    killApp(app)
+
+  describe('dev mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+      html = await renderViaHTTP(appPort, '/static-img')
+      browser = await webdriver(appPort, '/static-img')
+    })
+    afterAll(() => {
+      killApp(app)
+    })
+    runTests()
   })
-  runTests()
 })
