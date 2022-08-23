@@ -38,6 +38,7 @@ const runTests = (isDev = false) => {
   })
 
   if (!isDev) {
+    // cache-control is set to "0, no-store" in dev mode
     it('Should use immutable cache-control header for static import', async () => {
       await browser.eval(
         `document.getElementById("basic-static").scrollIntoView()`
@@ -72,10 +73,19 @@ const runTests = (isDev = false) => {
   it('Should allow provided width and height to override intrinsic', async () => {
     expect(html).toContain('width="150" height="150"')
   })
+
   it('Should add a blur to a statically imported image in "raw" mode', async () => {
-    expect(html).toContain(
-      `style="background-size:cover;background-position:0% 0%;background-image:url(&quot;data:image/svg+xml;charset=utf-8,%3Csvg xmlns=&#x27;http%3A//www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 400 300&#x27;%3E%3Cfilter id=&#x27;b&#x27; color-interpolation-filters=&#x27;sRGB&#x27;%3E%3CfeGaussianBlur stdDeviation=&#x27;50&#x27;/%3E%3C/filter%3E%3Cimage filter=&#x27;url(%23b)&#x27; x=&#x27;0&#x27; y=&#x27;0&#x27; height=&#x27;100%25&#x27; width=&#x27;100%25&#x27; href=&#x27;data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/sBCgoKCgoKCwwMCw8QDhAPFhQTExQWIhgaGBoYIjMgJSAgJSAzLTcsKSw3LVFAODhAUV5PSk9ecWVlcY+Ij7u7+//CABEIAAYACAMBIgACEQEDEQH/xAAnAAEBAAAAAAAAAAAAAAAAAAAABwEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEAMQAAAAmgP/xAAcEAACAQUBAAAAAAAAAAAAAAASFBMAAQMFERX/2gAIAQEAAT8AZ1HjrKZX55JysIc4Ff/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Af//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Af//Z&#x27;/%3E%3C/svg%3E&quot;)`
-    )
+    // next-image-loader uses different blur behavior for dev/prod mode
+    // See next/build/webpack/loaders/next-image-loader
+    if (isDev) {
+      expect(html).toContain(
+        `style="background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(&quot;/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect.f323a148.jpg&amp;w=8&amp;q=70&quot;)"`
+      )
+    } else {
+      expect(html).toContain(
+        `style="background-size:cover;background-position:0% 0%;background-image:url(&quot;data:image/svg+xml;charset=utf-8,%3Csvg xmlns=&#x27;http%3A//www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 400 300&#x27;%3E%3Cfilter id=&#x27;b&#x27; color-interpolation-filters=&#x27;sRGB&#x27;%3E%3CfeGaussianBlur stdDeviation=&#x27;50&#x27;/%3E%3C/filter%3E%3Cimage filter=&#x27;url(%23b)&#x27; x=&#x27;0&#x27; y=&#x27;0&#x27; height=&#x27;100%25&#x27; width=&#x27;100%25&#x27; href=&#x27;data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/sBCgoKCgoKCwwMCw8QDhAPFhQTExQWIhgaGBoYIjMgJSAgJSAzLTcsKSw3LVFAODhAUV5PSk9ecWVlcY+Ij7u7+//CABEIAAYACAMBIgACEQEDEQH/xAAnAAEBAAAAAAAAAAAAAAAAAAAABwEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEAMQAAAAmgP/xAAcEAACAQUBAAAAAAAAAAAAAAASFBMAAQMFERX/2gAIAQEAAT8AZ1HjrKZX55JysIc4Ff/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Af//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Af//Z&#x27;/%3E%3C/svg%3E&quot;)`
+      )
+    }
   })
 }
 
