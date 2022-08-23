@@ -167,8 +167,12 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
+        const manifest = JSON.stringify(flightCSSManifest)
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
-          JSON.stringify(flightCSSManifest)
+          manifest
+        ) as unknown as webpack.sources.RawSource
+        assets[FLIGHT_SERVER_CSS_MANIFEST + '.js'] = new sources.RawSource(
+          'self.__RSC_CSS_MANIFEST=' + manifest
         ) as unknown as webpack.sources.RawSource
       }
     )

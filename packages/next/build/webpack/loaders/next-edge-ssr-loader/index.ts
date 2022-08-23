@@ -93,6 +93,7 @@ export default async function edgeSSRLoader(this: any) {
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
+    const rscCssManifest = self.__RSC_CSS_MANIFEST
 
     const render = getRender({
       dev: ${dev},
@@ -107,6 +108,7 @@ export default async function edgeSSRLoader(this: any) {
       pagesRenderToHTML,
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
+      serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
     })
