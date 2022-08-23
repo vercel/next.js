@@ -141,25 +141,32 @@ async fn create_server_rendered_source_for_directory(
         for (name, entry) in entries.iter() {
             match entry {
                 DirectoryEntry::File(file) => {
-                    if let Some((name, _extension)) = name.rsplit_once('.') {
-                        let (target_path, intermediate_output_path) = if name == "index" {
-                            (target_path.join("index.html"), intermediate_output_path)
-                        } else {
-                            (
-                                target_path.join(name).join("index.html"),
-                                intermediate_output_path.join(name),
-                            )
-                        };
-                        sources.push(
-                            create_server_rendered_source_for_file(
-                                context,
-                                *file,
-                                target_root,
-                                target_path,
-                                intermediate_output_path,
-                            )
-                            .into(),
-                        );
+                    if let Some((name, extension)) = name.rsplit_once('.') {
+                        match extension {
+                            // pageExtensions option from next.js
+                            // defaults: https://github.com/vercel/next.js/blob/611e13f5159457fedf96d850845650616a1f75dd/packages/next/server/config-shared.ts#L499
+                            "js" | "ts" | "jsx" | "tsx" => {
+                                let (target_path, intermediate_output_path) = if name == "index" {
+                                    (target_path.join("index.html"), intermediate_output_path)
+                                } else {
+                                    (
+                                        target_path.join(name).join("index.html"),
+                                        intermediate_output_path.join(name),
+                                    )
+                                };
+                                sources.push(
+                                    create_server_rendered_source_for_file(
+                                        context,
+                                        *file,
+                                        target_root,
+                                        target_path,
+                                        intermediate_output_path,
+                                    )
+                                    .into(),
+                                );
+                            }
+                            _ => {}
+                        }
                     }
                 }
                 DirectoryEntry::Directory(dir) => {
