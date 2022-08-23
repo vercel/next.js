@@ -871,7 +871,7 @@ impl ValueToString for FileSystemPath {
         Ok(StringVc::cell(format!(
             "[{}]/{}",
             self.fs.to_string().await?,
-            self.path
+            self.path.replace('\\', "/")
         )))
     }
 }

@@ -1,9 +1,12 @@
 #![feature(min_specialization)]
 
+mod helpers;
+use helpers::print_changeset;
+
 /// Explicit extern crate to use allocator.
 extern crate turbo_malloc;
 use anyhow::{anyhow, Context, Result};
-use difference::{Changeset, Difference};
+use difference::Changeset;
 use lazy_static::lazy_static;
 use regex::Regex;
 use rstest::*;
@@ -12,9 +15,9 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "bench_against_node_nft")]
 use std::time::Instant;
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     env::temp_dir,
-    fmt::{Display, Write as _},
+    fmt::Display,
     fs::{self, remove_dir_all},
     io::{ErrorKind, Write as _},
     path::{Path, PathBuf},
@@ -544,51 +547,7 @@ fn diff(expected: &str, actual: &str) -> String {
     {
         return String::new();
     }
-    let Changeset { diffs, .. } = Changeset::new(expected.trim(), actual.trim(), "\n");
-    let mut result = String::new();
-    const CONTEXT_LINES: usize = 3;
-    let mut context = VecDeque::new();
-    let mut need_context = 0;
-    let mut has_spacing = false;
-    for diff in diffs {
-        match diff {
-            Difference::Same(line) => {
-                if need_context > 0 {
-                    writeln!(result, "  {line}").unwrap();
-                    need_context -= 1;
-                } else {
-                    if context.len() == CONTEXT_LINES {
-                        has_spacing = true;
-                        context.pop_front();
-                    }
-                    context.push_back(line);
-                }
-            }
-            Difference::Add(line) => {
-                if has_spacing {
-                    writeln!(result, "...").unwrap();
-                    has_spacing = false;
-                }
-                while let Some(line) = context.pop_front() {
-                    writeln!(result, "  {line}").unwrap();
-                }
-                writeln!(result, "+ {line}").unwrap();
-                need_context = CONTEXT_LINES;
-            }
-            Difference::Rem(line) => {
-                if has_spacing {
-                    writeln!(result, "...").unwrap();
-                    has_spacing = false;
-                }
-                while let Some(line) = context.pop_front() {
-                    writeln!(result, "  {line}").unwrap();
-                }
-                writeln!(result, "- {line}").unwrap();
-                need_context = CONTEXT_LINES;
-            }
-        }
-    }
-    result
+    print_changeset(&Changeset::new(expected.trim(), actual.trim(), "\n"))
 }
 
 #[allow(unused)]

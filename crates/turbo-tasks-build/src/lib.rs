@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env::{self, current_dir},
     fmt::{Display, Write},
     fs::read_dir,
@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use glob::glob;
 use syn::{
     Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, Path,
     PathArguments, PathSegment, TraitItem, TraitItemMethod, Type, TypePath,
@@ -142,6 +143,22 @@ pub fn generate_register() {
         // for line in code.lines() {
         //     println!("cargo:warning={line}");
         // }
+    }
+}
+
+pub fn rerun_if_glob(globs: &str) {
+    let cwd = env::current_dir().unwrap();
+    let globs = cwd.join(globs);
+    let mut seen = HashSet::from([cwd.as_path().to_owned()]);
+    for entry in glob(globs.to_str().unwrap()).unwrap() {
+        let path = entry.unwrap();
+        for ancestor in path.ancestors() {
+            if seen.insert(ancestor.to_owned()) {
+                println!("cargo:rerun-if-changed={}", ancestor.display());
+            } else {
+                break;
+            }
+        }
     }
 }
 
