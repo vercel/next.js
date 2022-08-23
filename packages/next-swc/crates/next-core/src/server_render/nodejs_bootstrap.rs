@@ -33,7 +33,9 @@ impl Asset for NodeJsBootstrapAsset {
         for chunk in self.chunk_group.chunks().await?.iter() {
             let path = &*chunk.path().await?;
             if let Some(p) = context_path.get_relative_path_to(path) {
-                writeln!(&mut output, "require({});", stringify_str(&p))?;
+                if p.ends_with(".js") {
+                    writeln!(&mut output, "require({});", stringify_str(&p))?;
+                }
             }
         }
 
