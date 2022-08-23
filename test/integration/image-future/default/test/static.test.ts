@@ -19,7 +19,7 @@ let html
 
 const indexPage = new File(join(appDir, 'pages/static-img.js'))
 
-const runTests = () => {
+const runTests = (isDev = false) => {
   it('Should allow an image with a static src to omit height and width', async () => {
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
@@ -36,32 +36,36 @@ const runTests = () => {
     expect(await browser.elementById('static-ico-fill')).toBeTruthy()
     expect(await browser.elementById('static-unoptimized')).toBeTruthy()
   })
-  it('Should use immutable cache-control header for static import', async () => {
-    await browser.eval(
-      `document.getElementById("basic-static").scrollIntoView()`
-    )
-    await waitFor(1000)
-    const url = await browser.eval(
-      `document.getElementById("basic-static").src`
-    )
-    const res = await fetch(url)
-    expect(res.headers.get('cache-control')).toBe(
-      'public, max-age=315360000, immutable'
-    )
-  })
-  it('Should use immutable cache-control header even when unoptimized', async () => {
-    await browser.eval(
-      `document.getElementById("static-unoptimized").scrollIntoView()`
-    )
-    await waitFor(1000)
-    const url = await browser.eval(
-      `document.getElementById("static-unoptimized").src`
-    )
-    const res = await fetch(url)
-    expect(res.headers.get('cache-control')).toBe(
-      'public, max-age=31536000, immutable'
-    )
-  })
+
+  if (!isDev) {
+    it('Should use immutable cache-control header for static import', async () => {
+      await browser.eval(
+        `document.getElementById("basic-static").scrollIntoView()`
+      )
+      await waitFor(1000)
+      const url = await browser.eval(
+        `document.getElementById("basic-static").src`
+      )
+      const res = await fetch(url)
+      expect(res.headers.get('cache-control')).toBe(
+        'public, max-age=315360000, immutable'
+      )
+    })
+
+    it('Should use immutable cache-control header even when unoptimized', async () => {
+      await browser.eval(
+        `document.getElementById("static-unoptimized").scrollIntoView()`
+      )
+      await waitFor(1000)
+      const url = await browser.eval(
+        `document.getElementById("static-unoptimized").src`
+      )
+      const res = await fetch(url)
+      expect(res.headers.get('cache-control')).toBe(
+        'public, max-age=31536000, immutable'
+      )
+    })
+  }
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width="400" height="300"')
   })
@@ -106,7 +110,7 @@ describe('Future Static Image Component Tests', () => {
     afterAll(() => {
       killApp(app)
     })
-    runTests()
+    runTests(false)
   })
 
   describe('dev mode', () => {
@@ -119,6 +123,6 @@ describe('Future Static Image Component Tests', () => {
     afterAll(() => {
       killApp(app)
     })
-    runTests()
+    runTests(true)
   })
 })
