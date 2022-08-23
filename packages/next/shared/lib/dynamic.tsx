@@ -25,7 +25,7 @@ export type DynamicOptionsLoadingProps = {
 }
 
 export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
-  loading?: (loadingProps: DynamicOptionsLoadingProps) => JSX.Element | null
+  loading?: (loadingProps: DynamicOptionsLoadingProps) => React.ReactNode
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean
