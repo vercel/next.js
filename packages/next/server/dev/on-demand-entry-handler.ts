@@ -453,65 +453,83 @@ export function onDemandEntryHandler({
     tree: FlightRouterState
   ): { success: true } | { invalid: true } {
     const pages = getEntrypointsFromTree(tree, true)
+    let toSend: { invalid: true } | { success: true } = { invalid: true }
 
     for (const page of pages) {
-      const pageKey = `server/${page}`
+      for (const compilerType of [
+        COMPILER_NAMES.client,
+        COMPILER_NAMES.server,
+        COMPILER_NAMES.edgeServer,
+      ]) {
+        const pageKey = `${compilerType}/${page}`
+        const entryInfo = entries[pageKey]
+
+        // If there's no entry, it may have been invalidated and needs to be re-built.
+        if (!entryInfo) {
+          // if (page !== lastEntry) client pings, but there's no entry for page
+          continue
+        }
+
+        // We don't need to maintain active state of anything other than BUILT entries
+        if (entryInfo.status !== BUILT) continue
+
+        // If there's an entryInfo
+        if (!lastServerAccessPagesForAppDir.includes(pageKey)) {
+          lastServerAccessPagesForAppDir.unshift(pageKey)
+
+          // Maintain the buffer max length
+          // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
+          if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
+            lastServerAccessPagesForAppDir.pop()
+          }
+        }
+        entryInfo.lastActiveTime = Date.now()
+        entryInfo.dispose = false
+        toSend = { success: true }
+      }
+    }
+    return toSend
+  }
+
+  function handlePing(pg: string) {
+    const page = normalizePathSep(pg)
+    let toSend: { invalid: true } | { success: true } = { invalid: true }
+
+    for (const compilerType of [
+      COMPILER_NAMES.client,
+      COMPILER_NAMES.server,
+      COMPILER_NAMES.edgeServer,
+    ]) {
+      const pageKey = `${compilerType}${page}`
       const entryInfo = entries[pageKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.
       if (!entryInfo) {
         // if (page !== lastEntry) client pings, but there's no entry for page
-        return { invalid: true }
+        if (compilerType === COMPILER_NAMES.client) {
+          return { invalid: true }
+        }
+        continue
       }
+
+      // 404 is an on demand entry but when a new page is added we have to refresh the page
+      toSend = page === '/_error' ? { invalid: true } : { success: true }
 
       // We don't need to maintain active state of anything other than BUILT entries
       if (entryInfo.status !== BUILT) continue
 
       // If there's an entryInfo
-      if (!lastServerAccessPagesForAppDir.includes(pageKey)) {
-        lastServerAccessPagesForAppDir.unshift(pageKey)
+      if (!lastClientAccessPages.includes(pageKey)) {
+        lastClientAccessPages.unshift(pageKey)
 
         // Maintain the buffer max length
-        // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
-        if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
-          lastServerAccessPagesForAppDir.pop()
+        if (lastClientAccessPages.length > pagesBufferLength) {
+          lastClientAccessPages.pop()
         }
       }
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
     }
-
-    return { success: true }
-  }
-
-  function handlePing(pg: string) {
-    const page = normalizePathSep(pg)
-    const pageKey = `client${page}`
-    const entryInfo = entries[pageKey]
-
-    // If there's no entry, it may have been invalidated and needs to be re-built.
-    if (!entryInfo) {
-      // if (page !== lastEntry) client pings, but there's no entry for page
-      return { invalid: true }
-    }
-
-    // 404 is an on demand entry but when a new page is added we have to refresh the page
-    const toSend = page === '/_error' ? { invalid: true } : { success: true }
-
-    // We don't need to maintain active state of anything other than BUILT entries
-    if (entryInfo.status !== BUILT) return
-
-    // If there's an entryInfo
-    if (!lastClientAccessPages.includes(pageKey)) {
-      lastClientAccessPages.unshift(pageKey)
-
-      // Maintain the buffer max length
-      if (lastClientAccessPages.length > pagesBufferLength) {
-        lastClientAccessPages.pop()
-      }
-    }
-    entryInfo.lastActiveTime = Date.now()
-    entryInfo.dispose = false
     return toSend
   }
 
