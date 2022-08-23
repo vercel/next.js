@@ -32,14 +32,21 @@ const Page = () => {
       <Image id="blur-jpg" src={testJPG} placeholder="blur" />
       <Image id="blur-webp" src={testWEBP} placeholder="blur" />
       <Image id="blur-avif" src={testAVIF} placeholder="blur" />
+      <br />
       <Image id="static-svg" src={testSVG} />
       <Image id="static-gif" src={testGIF} />
       <Image id="static-bmp" src={testBMP} />
       <Image id="static-ico" src={testICO} />
+      <br />
       <Image id="static-svg-fill" src={testSVG} fill />
       <Image id="static-gif-fill" src={testGIF} fill />
       <Image id="static-bmp-fill" src={testBMP} fill />
       <Image id="static-ico-fill" src={testICO} fill />
+      <br />
+      <Image id="blur-png-fill" src={testPNG} placeholder="blur" fill />
+      <Image id="blur-jpg-fill" src={testJPG} placeholder="blur" fill />
+      <Image id="blur-webp-fill" src={testWEBP} placeholder="blur" fill />
+      <Image id="blur-avif-fill" src={testAVIF} placeholder="blur" fill />
       <br />
       <Image id="static-unoptimized" src={testJPG} unoptimized />
     </div>
