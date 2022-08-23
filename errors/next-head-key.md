@@ -1,10 +1,10 @@
 # Inline head key
 
-> Enforce `key` attribute on `next/head` components with inline content.
+> Enforce `key` attribute on children components of `next/head`.
 
 ## Why This Error Occurred
 
-`next/head` components with inline content require an `key` attribute to be defined to track and optimize the head.
+`next/head` children components require an `key` attribute to be defined to track and optimize the head.
 
 ## Possible Ways to Fix It
 
