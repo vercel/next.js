@@ -53,7 +53,7 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-Altough it's possible to add fonts in a page with [`next/head`](/docs/api-reference/next/head) it comes with some drawbacks:
+Although it's possible to add fonts in a page with [`next/head`](/docs/api-reference/next/head) it comes with some drawbacks:
 
 - It only applies the font to that particular page.
 - The font optimization will only work on page load, not on client side navigation.
