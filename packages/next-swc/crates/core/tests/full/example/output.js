@@ -1,47 +1,41 @@
-function n(n, t) {
-    (null == t || t > n.length) && (t = n.length);
-    for(var r = 0, e = new Array(t); r < t; r++)e[r] = n[r];
+function r(r, t) {
+    (null == t || t > r.length) && (t = r.length);
+    for(var n = 0, e = new Array(t); n < t; n++)e[n] = r[n];
     return e;
 }
 import t from "other";
-(function(t, r) {
-    return function(n) {
-        if (Array.isArray(n)) return n;
-    }(t) || function(n, t) {
-        var r, e, o = null == n ? null : "undefined" != typeof Symbol && n[Symbol.iterator] || n["@@iterator"];
-        if (null != o) {
-            var u = [], l = !0, f = !1;
+(function(t, n) {
+    return function(r) {
+        if (Array.isArray(r)) return r;
+    }(t) || function(r, t) {
+        var n, e, l = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
+        if (null != l) {
+            var u = [], o = !0, f = !1;
             try {
-                for(o = o.call(n); !(l = (r = o.next()).done) && (u.push(r.value), !t || u.length !== t); l = !0);
+                for(l = l.call(r); !(o = (n = l.next()).done) && (u.push(n.value), !t || u.length !== t); o = !0);
             } catch (i) {
                 f = !0, e = i;
             } finally{
                 try {
-                    l || null == o.return || o.return();
+                    o || null == l.return || l.return();
                 } finally{
                     if (f) throw e;
                 }
             }
             return u;
         }
-    }(t, r) || function t(r, e) {
-        if (r) {
-            if ("string" == typeof r) return n(r, e);
-            var o = Object.prototype.toString.call(r).slice(8, -1);
-            if ("Object" === o && r.constructor && (o = r.constructor.name), "Map" === o || "Set" === o) return Array.from(o);
-            if ("Arguments" === o || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(o)) return n(r, e);
+    }(t, n) || function t(n, e) {
+        if (n) {
+            if ("string" == typeof n) return r(n, e);
+            var l = Object.prototype.toString.call(n).slice(8, -1);
+            if ("Object" === l && n.constructor && (l = n.constructor.name), "Map" === l || "Set" === l) return Array.from(l);
+            if ("Arguments" === l || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(l)) return r(n, e);
         }
-    }(t, r) || function() {
+    }(t, n) || function() {
         throw new TypeError("Invalid attempt to destructure non-iterable instance.\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
     }();
 })(t, 1)[0];
-var r = function() {
-    "use strict";
-    !function(n, t) {
-        if (!(n instanceof t)) throw new TypeError("Cannot call a class as a function");
-    }(this, r);
-};
 export var __N_SSG = !0;
-export default function e() {
+export default function n() {
     return React.createElement("div", null);
 };
