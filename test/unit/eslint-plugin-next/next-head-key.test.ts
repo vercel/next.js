@@ -10,9 +10,8 @@ import { RuleTester } from 'eslint'
     },
   },
 })
-
-const errorMessage =
-  '`next/head` components with inline content must specify an `key` attribute. See: https://nextjs.org/docs/messages/next-head-key'
+const url = 'https://nextjs.org/docs/messages/next-head-key'
+const errorMessage = `Children components of \`next/head\` must specify a \`key\` attribute. See: ${url}`
 
 const ruleTester = new RuleTester()
 ruleTester.run('next-head-key', rule, {
@@ -158,53 +157,10 @@ ruleTester.run('next-head-key', rule, {
         export default function TestPage() {
           return (
             <Head>
-              <>
               <title>Blah Blah</title>
               <meta charSet="utf-8" />
-              </>
+              <meta key="test-key" charSet="utf-8" />
             </Head>
-          )
-        }`,
-      errors: [
-        {
-          message: errorMessage,
-          type: 'JSXElement',
-        },
-      ],
-    },
-    {
-      code: `import Head from 'next/head';
-
-        export default function TestPage() {
-          return (
-            <Head
-              dangerouslySetInnerHTML={{
-                __html: \`<Head>
-                <meta charSet="utf-8" />
-                <meta charSet="utf-8" />
-                </Head>\`
-              }}
-            />
-          )
-        }`,
-      errors: [
-        {
-          message: errorMessage,
-          type: 'JSXElement',
-        },
-      ],
-    },
-    {
-      code: `import MyHead from 'next/head';
-
-        export default function TestPage() {
-          return (
-            <MyHead>
-              <>
-                <meta charSet="utf-8" />
-                <meta charSet="utf-8" />
-              </>
-            </MyHead>
           )
         }`,
       errors: [

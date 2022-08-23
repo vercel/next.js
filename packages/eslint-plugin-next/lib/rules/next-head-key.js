@@ -4,7 +4,7 @@ module.exports = {
   meta: {
     docs: {
       description:
-        'Enforce `key` attribute on `next/head` components with inline content.',
+        'Enforce `key` attribute in all the children components of `next/head`.',
       recommended: true,
       url,
     },
@@ -33,40 +33,37 @@ module.exports = {
 
         const attributeNames = new Set()
 
-        let hasNonCheckableSpreadAttribute = false
-        node.openingElement.attributes.forEach((attribute) => {
-          // Early return if we already have a non-checkable spread attribute, for better performance
-          if (hasNonCheckableSpreadAttribute) return
+        node.children.forEach((child) => {
+          attributeNames.clear()
 
-          if (attribute.type === 'JSXAttribute') {
-            attributeNames.add(attribute.name.name)
-          } else if (attribute.type === 'JSXSpreadAttribute') {
-            if (attribute.argument && attribute.argument.properties) {
-              attribute.argument.properties.forEach((property) => {
-                attributeNames.add(property.key.name)
+          if (
+            child.openingElement &&
+            child.openingElement.name &&
+            child.openingElement.name.type === 'JSXIdentifier' &&
+            child.openingElement.name.name != 'title'
+          ) {
+            child.openingElement.attributes.forEach((attribute) => {
+              // Early return if we already have a non-checkable spread attribute, for better performance
+
+              if (attribute.type === 'JSXAttribute') {
+                attributeNames.add(attribute.name.name)
+              } else if (attribute.type === 'JSXSpreadAttribute') {
+                if (attribute.argument && attribute.argument.properties) {
+                  attribute.argument.properties.forEach((property) => {
+                    attributeNames.add(property.key.name)
+                  })
+                }
+              }
+            })
+
+            if (attributeNames.size > 0 && !attributeNames.has('key')) {
+              context.report({
+                node,
+                message: `Children components of \`next/head\` must specify a \`key\` attribute. See: ${url}`,
               })
-            } else {
-              // JSXSpreadAttribute without properties is not checkable
-              hasNonCheckableSpreadAttribute = true
             }
           }
         })
-
-        // https://github.com/vercel/next.js/issues/34030
-        // If there is a non-checkable spread attribute, we simply ignore them
-        if (hasNonCheckableSpreadAttribute) return
-
-        if (
-          node.children.length > 0 ||
-          attributeNames.has('dangerouslySetInnerHTML')
-        ) {
-          if (!attributeNames.has('key')) {
-            context.report({
-              node,
-              message: `\`next/head\` components with inline content must specify an \`key\` attribute. See: ${url}`,
-            })
-          }
-        }
       },
     }
   },
