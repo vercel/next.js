@@ -147,6 +147,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
     export const AppRouter = require('next/dist/client/components/app-router.client.js').default
     export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
+    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.client.js').default
     export const HotReloader = ${
       // Disable HotReloader component in production
       this.mode === 'development'

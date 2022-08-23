@@ -455,6 +455,8 @@ export async function renderToHTMLOrFlight(
   const pageIsDynamic = isDynamicRoute(pathname)
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+  const RenderFromTemplateContext =
+    ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context.client').default
   const HotReloader = ComponentMod.HotReloader as
     | typeof import('../client/components/hot-reloader.client').default
     | null
@@ -706,16 +708,19 @@ export async function renderToHTMLOrFlight(
           // This is turned back into an object below.
           return [
             parallelRouteKey,
-            <Template key={parallelRouteKey + childProp.segment}>
-              <LayoutRouter
-                parallelRouterKey={parallelRouteKey}
-                segmentPath={segmentPath}
-                error={ErrorComponent}
-                loading={Loading ? <Loading /> : undefined}
-                childProp={childProp}
-                rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
-              />
-            </Template>,
+            <LayoutRouter
+              parallelRouterKey={parallelRouteKey}
+              segmentPath={segmentPath}
+              error={ErrorComponent}
+              loading={Loading ? <Loading /> : undefined}
+              template={
+                <Template>
+                  <RenderFromTemplateContext />
+                </Template>
+              }
+              childProp={childProp}
+              rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
+            />,
           ]
         }
       )

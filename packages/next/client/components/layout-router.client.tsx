@@ -9,6 +9,7 @@ import type {
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
+  TemplateContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
 import { matchSegment } from './match-segments'
@@ -380,12 +381,14 @@ export default function OuterLayoutRouter({
   childProp,
   error,
   loading,
+  template,
   rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
   childProp: ChildProp
   error: ErrorComponent
+  template: React.ReactNode
   loading: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
@@ -433,21 +436,27 @@ export default function OuterLayoutRouter({
               - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
           */
           <ErrorBoundary errorComponent={error} key={preservedSegment}>
-            <LoadingBoundary loading={loading}>
-              <InnerLayoutRouter
-                parallelRouterKey={parallelRouterKey}
-                url={url}
-                tree={tree}
-                childNodes={childNodesForParallelRouter!}
-                childProp={
-                  childPropSegment === preservedSegment ? childProp : null
-                }
-                segmentPath={segmentPath}
-                path={preservedSegment}
-                isActive={currentChildSegment === preservedSegment}
-                rootLayoutIncluded={rootLayoutIncluded}
-              />
-            </LoadingBoundary>
+            <TemplateContext.Provider
+              value={
+                <LoadingBoundary loading={loading}>
+                  <InnerLayoutRouter
+                    parallelRouterKey={parallelRouterKey}
+                    url={url}
+                    tree={tree}
+                    childNodes={childNodesForParallelRouter!}
+                    childProp={
+                      childPropSegment === preservedSegment ? childProp : null
+                    }
+                    segmentPath={segmentPath}
+                    path={preservedSegment}
+                    isActive={currentChildSegment === preservedSegment}
+                    rootLayoutIncluded={rootLayoutIncluded}
+                  />
+                </LoadingBoundary>
+              }
+            >
+              {template}
+            </TemplateContext.Provider>
           </ErrorBoundary>
         )
       })}
