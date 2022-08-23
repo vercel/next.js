@@ -172,7 +172,7 @@ async function loadWasm(importPath = '') {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      Log.info('Using experimental wasm build of next-swc')
+      Log.info('Using wasm build of next-swc')
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
