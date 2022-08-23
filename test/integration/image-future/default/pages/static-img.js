@@ -36,6 +36,10 @@ const Page = () => {
       <Image id="static-gif" src={testGIF} />
       <Image id="static-bmp" src={testBMP} />
       <Image id="static-ico" src={testICO} />
+      <Image id="static-svg-fill" src={testSVG} fill />
+      <Image id="static-gif-fill" src={testGIF} fill />
+      <Image id="static-bmp-fill" src={testBMP} fill />
+      <Image id="static-ico-fill" src={testICO} fill />
       <br />
       <Image id="static-unoptimized" src={testJPG} unoptimized />
     </div>

@@ -321,8 +321,13 @@ export async function runLintCheck(
         outputFile
       )
     } else {
-      // Display warning if no ESLint configuration is present during "next build"
-      if (lintDuringBuild) {
+      // Display warning if no ESLint configuration is present inside
+      // config file during "next build", no warning is shown when
+      // no eslintrc file is present
+      if (
+        lintDuringBuild &&
+        (config.emptyPkgJsonConfig || config.emptyEslintrc)
+      ) {
         Log.warn(
           `No ESLint configuration detected. Run ${chalk.bold.cyan(
             'next lint'
