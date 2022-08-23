@@ -17,7 +17,7 @@ use swc_common::{
 use swc_ecma_ast::{EsVersion, Program};
 use swc_ecma_parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig};
 use swc_ecma_transforms_base::{helpers::Helpers, resolver};
-use swc_ecma_transforms_react::jsx;
+use swc_ecma_transforms_react::react;
 use swc_ecma_visit::VisitMutWith;
 use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::FileContent;
@@ -222,7 +222,7 @@ pub async fn parse(
                                             for transform in transforms.iter() {
                                                 match transform {
                                                     EcmascriptInputTransform::JSX => {
-                                                        parsed_program.visit_mut_with(&mut jsx(
+                                                        parsed_program.visit_mut_with(&mut react(
                                                             cm.clone(),
                                                             Some(comments.clone()),
                                                             swc_ecma_transforms_react::Options {

@@ -41,7 +41,7 @@ version = "0.27.3"
 
 [dependencies.swc_ecmascript]
 features = ["parser", "utils", "visit"]
-version = "0.188.1"
+version = "0.192.0"
 
 [dependencies.num-bigint]
 version = "0.4"

@@ -22,13 +22,13 @@ serde_json = "1.0.81"
 serde_regex = "1.1.0"
 swc_atoms = "0.4.2"
 swc_ecma_ast = "0.90.4"
-swc_ecma_codegen = "0.121.1"
-swc_ecma_parser = "0.117.1"
-swc_ecma_quote = "0.32.1"
-swc_ecma_transforms_base = "0.103.3"
-swc_ecma_transforms_module = "0.138.1"
-swc_ecma_transforms_react = "0.140.1"
-swc_ecma_utils = "0.99.1"
+swc_ecma_codegen = "0.122.0"
+swc_ecma_parser = "0.118.0"
+swc_ecma_quote = "0.33.0"
+swc_ecma_transforms_base = "0.104.1"
+swc_ecma_transforms_module = "0.141.0"
+swc_ecma_transforms_react = "0.143.0"
+swc_ecma_utils = "0.100.2"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
@@ -42,7 +42,7 @@ version = "0.27.3"
 
 [dependencies.swc_core]
 features = ["ast", "quote"]
-version = "0.6.5"
+version = "0.11.6"
 
 [dependencies.swc_ecma_visit]
 features = ["path"]
