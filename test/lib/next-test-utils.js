@@ -119,7 +119,7 @@ export function renderViaAPI(app, pathname, query) {
 /**
  * @param {string} appPort
  * @param {string} pathname
- * @param {Record<string, any> | undefined} [query]
+ * @param {Record<string, any> | string | undefined} [query]
  * @param {import('node-fetch').RequestInit} [opts]
  * @returns {Promise<string>}
  */
@@ -128,9 +128,9 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 }
 
 /**
- * @param {string} appPort
+ * @param {string | number} appPort
  * @param {string} pathname
- * @param {Record<string, any> | undefined} [query]
+ * @param {Record<string, any> | string | undefined} [query]
  * @param {import('node-fetch').RequestInit} [opts]
  * @returns {Promise<Response & {buffer: any} & {headers: any}>}
  */
