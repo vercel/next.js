@@ -813,9 +813,6 @@ export default function Image({
                 backgroundImage: svgBlurPlaceholder,
               }
             : {
-                // Fallback to CSS filter in any of the following cases:
-                // if blurDataURL might be transparent (never true for jpeg)
-                // or if blurDataURL is an external url (always true for `next dev`)
                 filter: 'blur(20px)',
                 backgroundImage: `url("${blurDataURL}")`,
               }),

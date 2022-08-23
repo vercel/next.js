@@ -559,7 +559,9 @@ function runTests(mode) {
       'lazy'
     )
     expect(await browser.elementById('blur1').getAttribute('sizes')).toBeNull()
-    expect(await browser.elementById('blur1').getAttribute('style')).toMatch('')
+    expect(await browser.elementById('blur1').getAttribute('style')).toBe(
+      'color: transparent;'
+    )
     expect(await browser.elementById('blur1').getAttribute('height')).toBe(
       '400'
     )
@@ -604,7 +606,9 @@ function runTests(mode) {
     expect(await browser.elementById('blur2').getAttribute('loading')).toBe(
       'lazy'
     )
-    expect(await browser.elementById('blur2').getAttribute('style')).toBe('')
+    expect(await browser.elementById('blur2').getAttribute('style')).toBe(
+      'color: transparent;'
+    )
     expect(await browser.elementById('blur2').getAttribute('height')).toBe(
       '400'
     )
