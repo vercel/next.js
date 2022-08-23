@@ -39,7 +39,7 @@ use turbo_tasks::{
     primitives::StringVc, spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc,
     Invalidator, ValueToString, ValueToStringVc,
 };
-use util::{join_path, normalize_path};
+use util::{join_path, normalize_path, sys_to_unix, unix_to_sys};
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem {
@@ -330,12 +330,7 @@ impl fmt::Debug for DiskFileSystem {
 impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
-        let full_path = Path::new(&self.root).join(
-            &fs_path
-                .await?
-                .path
-                .replace('/', &MAIN_SEPARATOR.to_string()),
-        );
+        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
         {
             let invalidator = turbo_tasks::get_invalidator();
             self.invalidator_map
@@ -353,8 +348,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn read_dir(&self, fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
         let fs_path = fs_path.await?;
-        let full_path =
-            Path::new(&self.root).join(&fs_path.path.replace('/', &MAIN_SEPARATOR.to_string()));
+        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.path));
         {
             let invalidator = turbo_tasks::get_invalidator();
             self.dir_invalidator_map
@@ -373,14 +367,13 @@ impl FileSystem for DiskFileSystem {
                         Ok(e) => {
                             let path = e.path();
                             let filename = path.file_name()?.to_str()?.to_string();
-                            let path_to_root = path.strip_prefix(&self.root).ok()?.to_str()?;
-                            let path_to_root = if MAIN_SEPARATOR != '/' {
-                                path_to_root.replace(MAIN_SEPARATOR, "/")
-                            } else {
-                                path_to_root.to_string()
-                            };
+                            let path_to_root =
+                                sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
                             Some(Ok((filename, {
-                                let fs_path = FileSystemPathVc::new(fs_path.fs, &path_to_root);
+                                let fs_path = FileSystemPathVc::new_normalized(
+                                    fs_path.fs,
+                                    path_to_root.to_string(),
+                                );
                                 let file_type = match e.file_type() {
                                     Err(e) => {
                                         return Some(Err(e.into()));
@@ -414,8 +407,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn read_link(&self, fs_path: FileSystemPathVc) -> Result<LinkContentVc> {
         let path = fs_path.await?;
-        let full_path =
-            Path::new(&self.root).join(&path.path.replace('/', &MAIN_SEPARATOR.to_string()));
+        let full_path = Path::new(&self.root).join(&*unix_to_sys(&path.path));
         {
             let invalidator = turbo_tasks::get_invalidator();
             self.invalidator_map
@@ -434,12 +426,10 @@ impl FileSystem for DiskFileSystem {
                 match result {
                     Ok(file) => {
                         if let Some(s) = file.to_str() {
-                            let s = if MAIN_SEPARATOR != '/' {
-                                s.replace(MAIN_SEPARATOR, "/")
-                            } else {
-                                s.to_string()
-                            };
-                            LinkContent::Link(FileSystemPathVc::new_normalized(path.fs, s))
+                            LinkContent::Link(FileSystemPathVc::new_normalized(
+                                path.fs,
+                                sys_to_unix(s).to_string(),
+                            ))
                         } else {
                             LinkContent::Invalid
                         }
@@ -453,18 +443,12 @@ impl FileSystem for DiskFileSystem {
     }
 
     #[turbo_tasks::function]
-    #[allow(unreachable_code)]
     async fn write(
         &self,
         fs_path: FileSystemPathVc,
         content: FileContentVc,
     ) -> Result<CompletionVc> {
-        let full_path = Path::new(&self.root).join(
-            &fs_path
-                .await?
-                .path
-                .replace('/', &MAIN_SEPARATOR.to_string()),
-        );
+        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
         let content = content.await?;
         let old_content = fs_path
             .read()
@@ -521,7 +505,7 @@ impl FileSystem for DiskFileSystem {
             Some(index) => p.replace_range(index.., ""),
             None => p.clear(),
         }
-        Ok(FileSystemPathVc::new(fs_path_value.fs, &p))
+        Ok(FileSystemPathVc::new_normalized(fs_path_value.fs, p))
     }
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
@@ -611,9 +595,16 @@ pub struct FileSystemPathOption(Option<FileSystemPathVc>);
 
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
+    /// Create a new FileSystemPathVc from a path withing a FileSystem. The
+    /// /-separated path will be normalized.
     #[turbo_tasks::function]
     pub fn new(fs: FileSystemVc, path: &str) -> Result<Self> {
-        if let Some(path) = normalize_path(path) {
+        // Callers can create the path from anything (eg, a PathBuf or similar disk
+        // access), so we're not guaranteed to have a unix path. Internally, we
+        // represent all paths as unix, and will convert back to Windows when necessary
+        // necessary.
+        let path = sys_to_unix(path);
+        if let Some(path) = normalize_path(&path) {
             Ok(FileSystemPathVc::new_normalized(fs, path))
         } else {
             bail!(
@@ -623,11 +614,30 @@ impl FileSystemPathVc {
         }
     }
 
+    /// Create a new FileSystemPathVc from a path withing a FileSystem. The
+    /// /-separated path is expected to be already normalized (this is asserted
+    /// in dev mode).
     #[turbo_tasks::function]
-    pub fn new_normalized(fs: FileSystemVc, path: String) -> Self {
+    fn new_normalized(fs: FileSystemVc, path: String) -> Self {
+        // On Windows, the path must be converted to a unix path before creating. But on
+        // Unix, backslashes are a valid char in file names, and the path can be
+        // provided by the user, so we allow it.
+        debug_assert!(
+            MAIN_SEPARATOR != '\\' || !path.contains('\\'),
+            "path {} must not contain a Windows directory '\\', it must be normalized to Unix '/'",
+            path,
+        );
+        debug_assert!(
+            normalize_path(&path).as_ref() == Some(&path),
+            "path {} must be normalized",
+            path,
+        );
         Self::cell(FileSystemPath { fs, path })
     }
 
+    /// Adds a subpath to the current path. The /-separate path argument might
+    /// contain ".." or "." seqments, but it must not leave the root of the
+    /// filesystem.
     #[turbo_tasks::function]
     pub async fn join(self, path: &str) -> Result<Self> {
         let this = self.await?;
@@ -659,6 +669,8 @@ impl FileSystemPathVc {
         ))
     }
 
+    /// Similar to [FileSystemPathVc::join], but returns an Option that will be
+    /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
     pub async fn try_join(self, path: &str) -> Result<FileSystemPathOptionVc> {
         let this = self.await?;
@@ -671,6 +683,8 @@ impl FileSystemPathVc {
         }
     }
 
+    /// Similar to [FileSystemPathVc::join], but returns an Option that will be
+    /// None when the joined path would leave the current path.
     #[turbo_tasks::function]
     pub async fn try_join_inside(self, path: &str) -> Result<FileSystemPathOptionVc> {
         let this = self.await?;

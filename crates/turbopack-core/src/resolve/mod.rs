@@ -15,7 +15,7 @@ use turbo_tasks::{
     Value, ValueToString,
 };
 use turbo_tasks_fs::{
-    util::{join_path, normalize_path, normalize_request},
+    util::{normalize_path, normalize_request},
     FileJsonContent, FileJsonContentVc, FileSystemEntryType, FileSystemPathVc,
 };
 
@@ -359,11 +359,9 @@ pub async fn find_context_file(
 ) -> Result<FindContextFileResultVc> {
     let mut refs = Vec::new();
     let context_value = context.await?;
-    if let Some(new_path) = join_path(&context_value.path, name) {
-        let fs_path = FileSystemPathVc::new_normalized(context_value.fs, new_path);
-        if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path, refs).into());
-        }
+    let fs_path = context.join(name);
+    if let Some(fs_path) = exists(fs_path, &mut refs).await? {
+        return Ok(FindContextFileResult::Found(fs_path, refs).into());
     }
     if context_value.is_root() {
         return Ok(FindContextFileResult::NotFound(refs).into());
@@ -410,14 +408,11 @@ async fn find_package(
                 let root = &*root_vc.await?;
                 while context_value.is_inside(root) {
                     for name in names.iter() {
-                        if let Some(nested_path) = join_path(&context_value.path, name) {
-                            let fs_path =
-                                FileSystemPathVc::new_normalized(context_value.fs, nested_path);
+                        let fs_path = context.join(name);
+                        if let Some(fs_path) = dir_exists(fs_path, &mut refs).await? {
+                            let fs_path = fs_path.join(&package_name);
                             if let Some(fs_path) = dir_exists(fs_path, &mut refs).await? {
-                                let fs_path = fs_path.join(&package_name);
-                                if let Some(fs_path) = dir_exists(fs_path, &mut refs).await? {
-                                    return Ok(FindPackageResult::Package(fs_path, refs).into());
-                                }
+                                return Ok(FindPackageResult::Package(fs_path, refs).into());
                             }
                         }
                     }
@@ -605,7 +600,8 @@ pub async fn resolve(
 
     async fn resolve_into_folder(
         package_path: FileSystemPathVc,
-        package_json: Option<(FileJsonContentVc, FileSystemPathVc)>,
+        package_json: FileJsonContentVc,
+        package_json_path: FileSystemPathVc,
         options: ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
         let options_value = options.await?;
@@ -623,24 +619,21 @@ pub async fn resolve(
                     return Ok(resolve(package_path, request, options));
                 }
                 ResolveIntoPackage::MainField(name) => {
-                    if let Some((package_json, package_json_path)) = package_json {
-                        if let FileJsonContent::Content(package_json) = &*package_json.await? {
-                            if let Some(field_value) = package_json[name].as_str() {
-                                let request = RequestVc::parse(Value::new(
-                                    normalize_request(field_value).into(),
-                                ));
+                    if let FileJsonContent::Content(package_json) = &*package_json.await? {
+                        if let Some(field_value) = package_json[name].as_str() {
+                            let request =
+                                RequestVc::parse(Value::new(normalize_request(field_value).into()));
 
-                                let result = resolve(package_path, request, options).await?;
-                                // we are not that strict when a main field fails to resolve
-                                // we continue to try other alternatives
-                                if !result.is_unresolveable() {
-                                    let mut result = result.clone();
-                                    result.add_reference(
-                                        AffectingResolvingAssetReferenceVc::new(package_json_path)
-                                            .into(),
-                                    );
-                                    return Ok(result.into());
-                                }
+                            let result = resolve(package_path, request, options).await?;
+                            // we are not that strict when a main field fails to resolve
+                            // we continue to try other alternatives
+                            if !result.is_unresolveable() {
+                                let mut result = result.clone();
+                                result.add_reference(
+                                    AffectingResolvingAssetReferenceVc::new(package_json_path)
+                                        .into(),
+                                );
+                                return Ok(result.into());
                             }
                         }
                     }
@@ -650,21 +643,19 @@ pub async fn resolve(
                     conditions,
                     unspecified_conditions,
                 } => {
-                    if let Some((package_json, package_json_path)) = package_json {
-                        if let ExportsFieldResult::Some(exports_field) =
-                            &*exports_field(package_json, field).await?
-                        {
-                            // other options do not apply anymore when an exports field exist
-                            return handle_exports_field(
-                                package_path,
-                                package_json_path,
-                                options,
-                                exports_field,
-                                ".",
-                                conditions,
-                                unspecified_conditions,
-                            );
-                        }
+                    if let ExportsFieldResult::Some(exports_field) =
+                        &*exports_field(package_json, field).await?
+                    {
+                        // other options do not apply anymore when an exports field exist
+                        return handle_exports_field(
+                            package_path,
+                            package_json_path,
+                            options,
+                            exports_field,
+                            ".",
+                            conditions,
+                            unspecified_conditions,
+                        );
                     }
                 }
             }
@@ -713,17 +704,12 @@ pub async fn resolve(
                         results.push(resolved(*path, options_value.resolved_map, options).await?);
                     }
                     PatternMatch::Directory(_, path) => {
-                        let path_value = path.await?;
-                        let package_json = {
-                            if let Some(new_path) = join_path(&path_value.path, "package.json") {
-                                let fs_path =
-                                    FileSystemPathVc::new_normalized(path_value.fs, new_path);
-                                Some((fs_path.read_json(), fs_path))
-                            } else {
-                                None
-                            }
-                        };
-                        results.push(resolve_into_folder(*path, package_json, options).await?);
+                        let package_json_path = path.join("package.json");
+                        let package_json = package_json_path.read_json();
+                        results.push(
+                            resolve_into_folder(*path, package_json, package_json_path, options)
+                                .await?,
+                        );
                     }
                 }
             }
@@ -751,21 +737,19 @@ pub async fn resolve(
             let package = find_package(context, module.clone(), resolve_modules_options(options));
             match &*package.await? {
                 FindPackageResult::Package(package_path, refs) => {
-                    let package_path_value = package_path.await?;
-                    let package_json = {
-                        if let Some(new_path) = join_path(&package_path_value.path, "package.json")
-                        {
-                            let fs_path =
-                                FileSystemPathVc::new_normalized(package_path_value.fs, new_path);
-                            Some((fs_path.read_json(), fs_path))
-                        } else {
-                            None
-                        }
-                    };
+                    let package_json_path = package_path.join("package.json");
+                    let package_json = package_json_path.read_json();
                     let mut results = Vec::new();
                     if path.is_match("") {
-                        results
-                            .push(resolve_into_folder(*package_path, package_json, options).await?);
+                        results.push(
+                            resolve_into_folder(
+                                *package_path,
+                                package_json,
+                                package_json_path,
+                                options,
+                            )
+                            .await?,
+                        );
                     }
                     if path.could_match_others("") {
                         for resolve_into_package in options_value.into_package.iter() {
@@ -778,6 +762,7 @@ pub async fn resolve(
                                             resolve_into_folder(
                                                 *package_path,
                                                 package_json,
+                                                package_json_path,
                                                 options,
                                             )
                                             .await?,
@@ -789,30 +774,28 @@ pub async fn resolve(
                                     conditions,
                                     unspecified_conditions,
                                 } => {
-                                    if let Some((package_json, package_json_path)) = package_json {
-                                        if let ExportsFieldResult::Some(exports_field) =
-                                            &*exports_field(package_json, field).await?
-                                        {
-                                            if let Some(path) = path.clone().into_string() {
-                                                results.push(handle_exports_field(
-                                                    *package_path,
-                                                    package_json_path,
-                                                    options,
-                                                    exports_field,
-                                                    &format!(".{path}"),
-                                                    conditions,
-                                                    unspecified_conditions,
-                                                )?);
-                                            } else {
-                                                todo!(
-                                                    "pattern into an exports field is not \
-                                                     implemented yet"
-                                                );
-                                            }
-                                            // other options do not apply anymore when an exports
-                                            // field exist
-                                            break;
+                                    if let ExportsFieldResult::Some(exports_field) =
+                                        &*exports_field(package_json, field).await?
+                                    {
+                                        if let Some(path) = path.clone().into_string() {
+                                            results.push(handle_exports_field(
+                                                *package_path,
+                                                package_json_path,
+                                                options,
+                                                exports_field,
+                                                &format!(".{path}"),
+                                                conditions,
+                                                unspecified_conditions,
+                                            )?);
+                                        } else {
+                                            todo!(
+                                                "pattern into an exports field is not implemented \
+                                                 yet"
+                                            );
                                         }
+                                        // other options do not apply anymore when an exports
+                                        // field exist
+                                        break;
                                     }
                                 }
                             }

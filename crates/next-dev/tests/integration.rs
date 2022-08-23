@@ -127,7 +127,7 @@ async fn run_test(resource: &str) -> JestRunResult {
                 .unwrap()
                 .to_str()
                 .unwrap()
-                .replace('\\', "/"),
+                .to_string(),
         )
         .eager_compile(false)
         .hostname(requested_addr.ip())
