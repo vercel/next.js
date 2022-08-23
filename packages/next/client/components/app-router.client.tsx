@@ -12,6 +12,7 @@ import type {
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
+  ACTION_PREFETCH,
   ACTION_RELOAD,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
@@ -106,6 +107,7 @@ export default function AppRouter({
         parallelRoutes:
           typeof window === 'undefined' ? new Map() : initialParallelRoutes,
       },
+      prefetchCache: new Map(),
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusAndScrollRef: { apply: false },
       canonicalUrl:
@@ -179,7 +181,15 @@ export default function AppRouter({
 
     const routerInstance: AppRouterInstance = {
       // TODO-APP: implement prefetching of flight
-      prefetch: (_href) => Promise.resolve(),
+      prefetch: (href) => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          dispatch({
+            type: ACTION_PREFETCH,
+            url: new URL(href, location.origin),
+          })
+        })
+      },
       replace: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {

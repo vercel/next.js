@@ -52,7 +52,7 @@ export type AppRouterInstance = {
   /**
    * Soft prefetch the provided href. Does not fetch data from the server if it was already fetched.
    */
-  prefetch(href: string): Promise<void>
+  prefetch(href: string): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance>(

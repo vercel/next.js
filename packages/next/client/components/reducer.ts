@@ -327,6 +327,7 @@ export const ACTION_RELOAD = 'reload'
 export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
+export const ACTION_PREFETCH = 'prefetch'
 
 /**
  * Reload triggers a reload of the full page data.
@@ -405,6 +406,11 @@ interface ServerPatchAction {
   cache: CacheNode
 }
 
+interface PrefetchAction {
+  type: typeof ACTION_PREFETCH
+  url: URL
+}
+
 interface PushRef {
   /**
    * If the app-router should push a new history entry in app-router's useEffect()
@@ -433,6 +439,10 @@ type AppRouterState = {
    */
   cache: CacheNode
   /**
+   * Cache that holds prefetched Flight responses keyed by url
+   */
+  prefetchCache: Map<string, ReturnType<typeof fetchServerResponse>>
+  /**
    * Decides if the update should create a new history entry and if the navigation can't be handled by app-router.
    */
   pushRef: PushRef
@@ -452,7 +462,11 @@ type AppRouterState = {
 export function reducer(
   state: Readonly<AppRouterState>,
   action: Readonly<
-    ReloadAction | NavigateAction | RestoreAction | ServerPatchAction
+    | ReloadAction
+    | NavigateAction
+    | RestoreAction
+    | ServerPatchAction
+    | PrefetchAction
   >
 ): AppRouterState {
   switch (action.type) {
@@ -466,6 +480,7 @@ export function reducer(
         pushRef: state.pushRef,
         focusAndScrollRef: state.focusAndScrollRef,
         cache: state.cache,
+        prefetchCache: state.prefetchCache,
         // Restore provided tree
         tree: tree,
       }
@@ -500,6 +515,7 @@ export function reducer(
           focusAndScrollRef: { apply: true },
           // Existing cache is used for soft navigation.
           cache: state.cache,
+          prefetchCache: state.prefetchCache,
           // Optimistic tree is applied.
           tree: optimisticTree,
         }
@@ -523,6 +539,7 @@ export function reducer(
             focusAndScrollRef: { apply: true },
             // Apply cache.
             cache: cache,
+            prefetchCache: state.prefetchCache,
             // Apply patched router state.
             tree: mutable.patchedTree,
           }
@@ -572,6 +589,7 @@ export function reducer(
               focusAndScrollRef: { apply: true },
               // Apply patched cache.
               cache: cache,
+              prefetchCache: state.prefetchCache,
               // Apply optimistic tree.
               tree: optimisticTree,
             }
@@ -597,6 +615,7 @@ export function reducer(
             // Don't apply scroll and focus management.
             focusAndScrollRef: { apply: false },
             cache: state.cache,
+            prefetchCache: state.prefetchCache,
             tree: state.tree,
           }
         }
@@ -638,6 +657,7 @@ export function reducer(
           focusAndScrollRef: { apply: true },
           // Apply patched cache.
           cache: cache,
+          prefetchCache: state.prefetchCache,
           // Apply patched tree.
           tree: newTree,
         }
@@ -669,6 +689,7 @@ export function reducer(
           focusAndScrollRef: { apply: false },
           // Other state is kept as-is.
           cache: state.cache,
+          prefetchCache: state.prefetchCache,
           tree: state.tree,
         }
       }
@@ -700,6 +721,7 @@ export function reducer(
         focusAndScrollRef: state.focusAndScrollRef,
         // Apply patched router state
         tree: newTree,
+        prefetchCache: state.prefetchCache,
         // Apply patched cache
         cache: cache,
       }
@@ -724,6 +746,7 @@ export function reducer(
           // TODO-APP: might need to disable this for Fast Refresh.
           focusAndScrollRef: { apply: true },
           cache: cache,
+          prefetchCache: state.prefetchCache,
           tree: mutable.patchedTree,
         }
       }
@@ -746,6 +769,7 @@ export function reducer(
           pushRef: { pendingPush: true, mpaNavigation: true },
           focusAndScrollRef: { apply: false },
           cache: state.cache,
+          prefetchCache: state.prefetchCache,
           tree: state.tree,
         }
       }
@@ -787,9 +811,30 @@ export function reducer(
         focusAndScrollRef: { apply: false },
         // Apply patched cache.
         cache: cache,
+        prefetchCache: state.prefetchCache,
         // Apply patched router state.
         tree: newTree,
       }
+    }
+    case ACTION_PREFETCH: {
+      const { url } = action
+      const href = url.pathname + url.search + url.hash
+      // url is already prefetched.
+      if (state.prefetchCache.has(href)) {
+        return state
+      }
+
+      // state.prefetchCache.set(
+      //   href,
+      //   fetchServerResponse(url, [
+      //     state.tree[0],
+      //     state.tree[1],
+      //     state.tree[2],
+      //     'refetch',
+      //   ])
+      // )
+
+      return state
     }
     // This case should never be hit as dispatch is strongly typed.
     default:
