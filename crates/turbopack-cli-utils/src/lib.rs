@@ -1,4 +1,5 @@
 #![feature(min_specialization)]
+#![feature(round_char_boundary)]
 
 pub mod issue;
 

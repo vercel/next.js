@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cmp::{min, Ordering},
     collections::HashMap,
     fmt::Write as _,
@@ -73,15 +74,28 @@ async fn format_source_content(source: &IssueSource, formatted_issue: &mut Strin
             let n = i + 1;
             fn safe_split_at(s: &str, i: usize) -> (&str, &str) {
                 if i < s.len() {
-                    s.split_at(i)
+                    s.split_at(s.floor_char_boundary(i))
                 } else {
                     (s, "")
                 }
             }
+            fn limit_len(s: &str) -> Cow<'_, str> {
+                if s.len() < 200 {
+                    return Cow::Borrowed(s);
+                }
+                let (a, b) = s.split_at(s.floor_char_boundary(98));
+                let (_, c) = b.split_at(b.ceil_char_boundary(b.len() - 99));
+                Cow::Owned(format!("{}...{}", a, c))
+            }
             match (i.cmp(&source.start.line), i.cmp(&source.end.line)) {
                 // outside
                 (Ordering::Less, _) | (_, Ordering::Greater) => {
-                    writeln!(formatted_issue, "{:>6}   {}", n.dimmed(), l.dimmed())?;
+                    writeln!(
+                        formatted_issue,
+                        "{:>6}   {}",
+                        n.dimmed(),
+                        limit_len(l).dimmed()
+                    )?;
                 }
                 // start line
                 (Ordering::Equal, Ordering::Less) => {
@@ -90,21 +104,22 @@ async fn format_source_content(source: &IssueSource, formatted_issue: &mut Strin
                         formatted_issue,
                         "{:>6} + {}{}",
                         n,
-                        before.dimmed(),
-                        marked.bold()
+                        limit_len(before).dimmed(),
+                        limit_len(marked).bold()
                     )?;
                 }
                 // start and end line
                 (Ordering::Equal, Ordering::Equal) => {
-                    let (before, temp) = safe_split_at(l, source.start.column);
-                    let (middle, after) = safe_split_at(temp, source.end.column);
+                    let real_start = l.floor_char_boundary(source.start.column);
+                    let (before, temp) = safe_split_at(l, real_start);
+                    let (middle, after) = safe_split_at(temp, source.end.column - real_start);
                     writeln!(
                         formatted_issue,
                         "{:>6} > {}{}{}",
                         n,
-                        before.dimmed(),
-                        middle.bold(),
-                        after.dimmed()
+                        limit_len(before).dimmed(),
+                        limit_len(middle).bold(),
+                        limit_len(after).dimmed()
                     )?;
                 }
                 // end line
@@ -114,13 +129,13 @@ async fn format_source_content(source: &IssueSource, formatted_issue: &mut Strin
                         formatted_issue,
                         "{:>6} + {}{}",
                         n,
-                        marked.bold(),
-                        after.dimmed()
+                        limit_len(marked).bold(),
+                        limit_len(after).dimmed()
                     )?;
                 }
                 // middle line
                 (Ordering::Greater, Ordering::Less) => {
-                    writeln!(formatted_issue, "{:>6} | {}", n, l.bold())?
+                    writeln!(formatted_issue, "{:>6} | {}", n, limit_len(l).bold())?
                 }
             }
         }
