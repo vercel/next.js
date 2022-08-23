@@ -17,6 +17,8 @@ describe('typescript-auto-install', () => {
           } 
         `,
       },
+      startCommand: 'yarn next dev',
+      installCommand: 'yarn',
       dependencies: {},
     })
   })
@@ -31,10 +33,10 @@ describe('typescript-auto-install', () => {
     const browser = await webdriver(next.url, '/')
     const pageContent = await next.readFile('pages/index.js')
 
-    expect(await browser.eval('document.documentElement.innerHTML')).toContain(
-      'hello world'
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /hello world/
     )
-
     await next.renameFile('pages/index.js', 'pages/index.tsx')
 
     await check(
@@ -42,8 +44,9 @@ describe('typescript-auto-install', () => {
       /We detected TypeScript in your project and created a tsconfig\.json file for you/i
     )
 
-    expect(await browser.eval('document.documentElement.innerHTML')).toContain(
-      'hello world'
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /hello world/
     )
     await next.patchFile(
       'pages/index.tsx',

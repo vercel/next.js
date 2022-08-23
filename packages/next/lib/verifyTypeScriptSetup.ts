@@ -80,7 +80,7 @@ export async function verifyTypeScriptSetup({
           '\n'
       )
       await installDependencies(dir, deps.missing, true).catch((err) => {
-        if (isError(err) && 'command' in err) {
+        if (err && typeof err === 'object' && 'command' in err) {
           console.error(
             `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
               (err as any).command

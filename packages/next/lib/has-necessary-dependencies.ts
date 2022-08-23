@@ -1,5 +1,7 @@
-import { join, relative } from 'path'
+import { promises as fs } from 'fs'
 import { fileExists } from './file-exists'
+import { resolveFrom } from './resolve-from'
+import { dirname, join, relative } from 'path'
 
 export interface MissingDependency {
   file: string
@@ -22,17 +24,17 @@ export async function hasNecessaryDependencies(
   await Promise.all(
     requiredPackages.map(async (p) => {
       try {
-        const paths = require.resolve.paths(baseDir) || [baseDir]
+        const pkgPath = await fs.realpath(
+          resolveFrom(baseDir, `${p.pkg}/package.json`)
+        )
+        const pkgDir = dirname(pkgPath)
 
         if (p.exportsRestrict) {
-          const pkgPath = require.resolve(`${p.pkg}/package.json`, {
-            paths,
-          })
           const fileNameToVerify = relative(p.pkg, p.file)
           if (fileNameToVerify) {
-            const fileToVerify = join(pkgPath, '..', fileNameToVerify)
+            const fileToVerify = join(pkgDir, fileNameToVerify)
             if (await fileExists(fileToVerify)) {
-              resolutions.set(p.pkg, join(pkgPath, '..'))
+              resolutions.set(p.pkg, fileToVerify)
             } else {
               return missingPackages.push(p)
             }
@@ -40,7 +42,7 @@ export async function hasNecessaryDependencies(
             resolutions.set(p.pkg, pkgPath)
           }
         } else {
-          resolutions.set(p.pkg, require.resolve(p.file, { paths }))
+          resolutions.set(p.pkg, resolveFrom(baseDir, p.file))
         }
       } catch (_) {
         return missingPackages.push(p)
