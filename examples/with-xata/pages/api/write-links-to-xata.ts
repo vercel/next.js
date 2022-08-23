@@ -1,4 +1,4 @@
-import type { NextApiHandler } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { getXataClient } from '../../utils/xata.codegen'
 
 const LINKS = [
@@ -27,11 +27,21 @@ const LINKS = [
 
 const xata = getXataClient()
 
-const writeLinksToXata: NextApiHandler = async (_req, res) => {
+export default async function writeLinksToXata(
+  _req: NextApiRequest,
+  res: NextApiResponse
+) {
   await xata.db.nextjs_with_xata_example.create(LINKS)
   res.json({
     ok: true,
   })
 }
 
-export default writeLinksToXata
+// const writeLinksToXata: NextApiHandler = async (_req, res) => {
+//   await xata.db.nextjs_with_xata_example.create(LINKS)
+//   res.json({
+//     ok: true,
+//   })
+// }
+
+// export default writeLinksToXata

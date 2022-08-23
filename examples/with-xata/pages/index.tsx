@@ -23,67 +23,69 @@ const removeDummyItem = async (id: string) => {
   }
 }
 
-const IndexPage = ({
+export default function IndexPage({
   links,
-}: InferGetServerSidePropsType<typeof getServerSideProps>) => (
-  <main>
-    <header>
-      <img src="/flap.gif" />
-      <h1>
-        Next.js with<span aria-hidden>&#8209;</span>xata
-      </h1>
-    </header>
-    <article>
-      {links.length ? (
-        <ul>
-          {links.map(({ id, title, url, description }) => (
-            <li key={url}>
-              <a href={url} rel="noopener noreferrer" target="_blank">
-                {title}
-              </a>
-              <p>{description}</p>
+}: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  return (
+    <main>
+      <header>
+        <img src="/flap.gif" />
+        <h1>
+          Next.js with<span aria-hidden>&#8209;</span>xata
+        </h1>
+      </header>
+      <article>
+        {links.length ? (
+          <ul>
+            {links.map(({ id, title, url, description }) => (
+              <li key={url}>
+                <a href={url} rel="noopener noreferrer" target="_blank">
+                  {title}
+                </a>
+                <p>{description}</p>
 
-              <button
-                type="button"
-                onClick={() => {
-                  removeDummyItem(id)
-                }}
-              >
-                <span role="img" aria-label="delete item">
-                  🗑
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <section>
-          <h2>No records found.</h2>
-          <strong>
-            Create a `nextjs_with_xata_example` and push some useful links to
-            see them here.
-          </strong>
-          <button
-            type="button"
-            onClick={() => {
-              pushDummyData()
-            }}
-          >
-            Push records to Xata
-          </button>
-        </section>
-      )}
-    </article>
-    <footer>
-      <span>
-        Made by{' '}
-        <a href="https://xata.io" rel="noopener noreferrer" target="_blank">
-          <object data="/xatafly.svg" />
-        </a>
-      </span>
-    </footer>
-  </main>
-)
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeDummyItem(id)
+                  }}
+                >
+                  <span role="img" aria-label="delete item">
+                    🗑
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <section>
+            <h2>No records found.</h2>
+            <strong>
+              Create a `nextjs_with_xata_example` and push some useful links to
+              see them here.
+            </strong>
+            <button
+              type="button"
+              onClick={() => {
+                pushDummyData()
+              }}
+            >
+              Push records to Xata
+            </button>
+          </section>
+        )}
+      </article>
+      <footer>
+        <span>
+          Made by{' '}
+          <a href="https://xata.io" rel="noopener noreferrer" target="_blank">
+            <object data="/xatafly.svg" />
+          </a>
+        </span>
+      </footer>
+    </main>
+  )
+}
 
 export const getServerSideProps = async () => {
   const xata = await getXataClient()
@@ -94,5 +96,3 @@ export const getServerSideProps = async () => {
     },
   }
 }
-
-export default IndexPage
