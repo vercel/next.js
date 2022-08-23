@@ -1,5 +1,7 @@
-import { InferGetServerSidePropsType } from 'next'
+import type { InferGetServerSidePropsType } from 'next'
+import Image from 'next/image'
 import { getXataClient } from '../utils/xata.codegen'
+import xatafly from '../public/xatafly.gif'
 
 const pushDummyData = async () => {
   const response = await fetch('/api/write-links-to-xata')
@@ -29,7 +31,7 @@ export default function IndexPage({
   return (
     <main>
       <header>
-        <img src="/flap.gif" />
+        <Image src={xatafly} priority />
         <h1>
           Next.js with<span aria-hidden>&#8209;</span>xata
         </h1>
