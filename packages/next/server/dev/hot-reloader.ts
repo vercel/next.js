@@ -864,13 +864,17 @@ export default class HotReloader {
       const serverComponentChanges = serverOnlyChanges
         .filter((key) => key.startsWith('app/'))
         .concat(Array.from(changedCSSImportPages))
-
       const pageChanges = serverOnlyChanges.filter((key) =>
         key.startsWith('pages/')
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
         (name) => isMiddlewareFilename(name)
       )
+
+      changedClientPages.clear()
+      changedServerPages.clear()
+      changedEdgeServerPages.clear()
+      changedCSSImportPages.clear()
 
       if (middlewareChanges.length > 0) {
         this.send({
