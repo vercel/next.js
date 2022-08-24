@@ -1,10 +1,12 @@
-use swc_atoms::JsWord;
-use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::{
-    ArrayPat, Callee, Decl, Expr, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
-    ObjectPat, ObjectPatProp, Pat, PropName, VarDecl, VarDeclarator,
+use swc_core::{
+    ast::{
+        ArrayPat, Callee, Decl, Expr, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
+        ObjectPat, ObjectPatProp, Pat, PropName, VarDecl, VarDeclarator,
+    },
+    atoms::JsWord,
+    common::DUMMY_SP,
+    visit::{Fold, FoldWith},
 };
-use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn hook_optimizer() -> impl Fold {
     HookOptimizer::default()

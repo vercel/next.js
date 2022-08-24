@@ -1,4 +1,4 @@
-use swc_ecmascript::{
+use swc_core::{
     ast::*,
     visit::{Visit, VisitWith},
 };

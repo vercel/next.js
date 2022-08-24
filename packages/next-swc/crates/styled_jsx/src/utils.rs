@@ -1,7 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
-use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::*;
+use swc_core::{ast::*, common::DUMMY_SP};
 
 use super::{ExternalStyle, JSXStyle, LocalStyle};
 

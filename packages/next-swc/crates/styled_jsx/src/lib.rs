@@ -3,16 +3,17 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::Arc;
-use swc_common::errors::HANDLER;
-use swc_common::{collections::AHashSet, FileName, SourceMap, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::minifier::{
-    eval::{EvalResult, Evaluator},
-    marks::Marks,
+
+use swc_core::{
+    ast::*,
+    common::{collections::AHashSet, errors::HANDLER, FileName, SourceMap, Span, DUMMY_SP},
+    minifier::{
+        eval::{EvalResult, Evaluator},
+        marks::Marks,
+    },
+    utils::{collect_decls, drop_span, prepend_stmt, private_ident},
+    visit::{Fold, FoldWith},
 };
-use swc_ecmascript::utils::{collect_decls, prepend_stmt};
-use swc_ecmascript::utils::{drop_span, private_ident};
-use swc_ecmascript::visit::{Fold, FoldWith};
 
 //use external::external_styles;
 use transform_css::transform_css;

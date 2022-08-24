@@ -2,10 +2,10 @@
 
 use std::{fs::read_to_string, path::PathBuf};
 use styled_components::{styled_components, Config};
-use swc_common::{chain, Mark};
-use swc_ecma_transforms_testing::test_fixture;
-use swc_ecmascript::{
+use swc_core::{
+    common::{chain, Mark},
     parser::{EsConfig, Syntax},
+    testing_transform::test_fixture,
     transforms::resolver,
 };
 

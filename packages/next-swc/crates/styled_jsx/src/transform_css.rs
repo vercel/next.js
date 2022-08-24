@@ -1,21 +1,26 @@
 use easy_error::{bail, Error};
 use std::panic;
 use std::sync::Arc;
-use swc_common::errors::HANDLER;
-use swc_common::util::take::Take;
-use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
-use swc_common::{SourceMap, Spanned};
-use swc_css::ast::*;
-use swc_css::codegen::{
-    writer::basic::{BasicCssWriter, BasicCssWriterConfig},
-    CodeGenerator, CodegenConfig, Emit,
-};
-use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
-use swc_css::visit::{VisitMut, VisitMutWith};
-use swc_css_prefixer::prefixer;
-use swc_ecmascript::ast::{Expr, Tpl, TplElement};
-use swc_ecmascript::parser::StringInput;
 use tracing::{debug, trace};
+
+use swc_core::{
+    ast::{Expr, Tpl, TplElement},
+    common::{
+        errors::HANDLER, source_map::Pos, util::take::Take, BytePos, SourceMap, Span, Spanned,
+        SyntaxContext, DUMMY_SP,
+    },
+    css::{
+        ast::*,
+        codegen::{
+            writer::basic::{BasicCssWriter, BasicCssWriterConfig},
+            CodeGenerator, CodegenConfig, Emit,
+        },
+        parser::{parse_str, parse_tokens, parser::ParserConfig},
+        visit::{VisitMut, VisitMutWith},
+    },
+    css_prefixer::prefixer,
+    parser::StringInput,
+};
 
 use super::{hash_string, string_literal_expr, LocalStyle};
 
@@ -501,7 +506,7 @@ where
     }
 
     let span = node.span();
-    let lexer = swc_css::parser::lexer::Lexer::new(
+    let lexer = swc_core::css::parser::lexer::Lexer::new(
         StringInput::new(&s, span.lo, span.hi),
         ParserConfig {
             allow_wrong_line_comments: true,

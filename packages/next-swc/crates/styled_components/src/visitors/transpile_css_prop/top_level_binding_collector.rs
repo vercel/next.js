@@ -1,9 +1,9 @@
-use swc_common::collections::AHashSet;
-use swc_ecmascript::{
+use swc_core::{
     ast::{
         ArrowExpr, ClassDecl, FnDecl, Function, Id, ImportDefaultSpecifier, ImportNamedSpecifier,
         ImportStarAsSpecifier, ObjectPatProp, Pat, VarDeclarator,
     },
+    common::collections::AHashSet,
     visit::{noop_visit_type, Visit, VisitWith},
 };
 

@@ -1,10 +1,11 @@
 use std::hash::Hash;
-use swc_common::{collections::AHashSet, SyntaxContext};
-use swc_ecmascript::{
+
+use swc_core::{
     ast::{
         ClassDecl, FnDecl, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
         ImportStarAsSpecifier, ModuleItem, ObjectPatProp, Param, Pat, Stmt, VarDeclarator,
     },
+    common::{collections::AHashSet, SyntaxContext},
     utils::ident::IdentLike,
     visit::{noop_visit_type, Visit, VisitWith},
 };

@@ -8,14 +8,14 @@ use crate::State;
 use inflector::Inflector;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use swc_atoms::{js_word, JsWord};
-use swc_common::{
-    collections::{AHashMap, AHashSet},
-    util::take::Take,
-    Spanned, DUMMY_SP,
-};
-use swc_ecmascript::{
+use swc_core::{
     ast::*,
+    atoms::{js_word, JsWord},
+    common::{
+        collections::{AHashMap, AHashSet},
+        util::take::Take,
+        Spanned, DUMMY_SP,
+    },
     utils::{prepend_stmt, private_ident, quote_ident, ExprFactory},
     visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };

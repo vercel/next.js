@@ -1,8 +1,10 @@
 pub use self::analyzer::{analyze, analyzer};
 use std::{borrow::Cow, cell::RefCell};
-use swc_atoms::js_word;
-use swc_common::{collections::AHashMap, SyntaxContext};
-use swc_ecmascript::ast::*;
+use swc_core::{
+    ast::*,
+    atoms::js_word,
+    common::{collections::AHashMap, SyntaxContext},
+};
 
 mod analyzer;
 
