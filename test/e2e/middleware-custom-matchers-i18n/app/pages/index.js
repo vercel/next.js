@@ -8,7 +8,7 @@ export default (props) => (
 export async function getServerSideProps({ res }) {
   return {
     props: {
-      fromMiddleware: res.getHeader('x-from-middleware'),
+      fromMiddleware: res.getHeader('x-from-middleware') || null,
     },
   }
 }

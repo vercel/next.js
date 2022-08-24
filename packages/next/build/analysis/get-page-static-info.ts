@@ -119,7 +119,14 @@ function getMiddlewareMatchers(
       source = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : source}`
     }
 
-    source = `/:nextData(_next/data/[^/]{1,})?${source}${
+    // when `basePath: false`, we don't add the basePath to the route
+    // but still required to do that for data path
+    const dataPathPrefix =
+      nextConfig.basePath && r.basePath === false
+        ? nextConfig.basePath + '/'
+        : ''
+
+    source = `/:nextData(${dataPathPrefix}_next/data/[^/]{1,})?${source}${
       isRoot
         ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
         : '(.json)?'
