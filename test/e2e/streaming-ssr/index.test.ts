@@ -16,7 +16,7 @@ const react18Deps = {
 
 const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
 
-describe('react 18 streaming SSR in minimal mode', () => {
+describe('react 18 streaming SSR in minimal mode with node runtime', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -26,7 +26,13 @@ describe('react 18 streaming SSR in minimal mode', () => {
 
     next = await createNext({
       files: {
-        pages: new FileRef(join(__dirname, './streaming-ssr/pages')),
+        'pages/index.js': `
+        export default function Page() {
+          return <p>streaming</p>
+        }
+        export async function getServerSideProps() {
+          return { props: {} }
+        }`,
       },
       nextConfig: {
         experimental: {
@@ -60,13 +66,6 @@ describe('react 18 streaming SSR in minimal mode', () => {
     next.destroy()
   })
 
-  it('should match more specific route along with dynamic routes', async () => {
-    const res1 = await fetchViaHTTP(next.url, '/api/user/login')
-    const res2 = await fetchViaHTTP(next.url, '/api/user/any')
-    expect(await res1.text()).toBe('login')
-    expect(await res2.text()).toBe('[id]')
-  })
-
   it('should pass correct nextRuntime values', async () => {
     const content = await next.readFile('runtimes.txt')
     expect(content.split('\n').sort()).toEqual(['client', 'edge', 'nodejs'])
@@ -74,7 +73,7 @@ describe('react 18 streaming SSR in minimal mode', () => {
 
   it('should generate html response by streaming correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('index')
+    expect(html).toContain('streaming')
   })
 
   if (isNextProd) {
@@ -102,6 +101,13 @@ describe('react 18 streaming SSR with custom next configs', () => {
     })
   })
   afterAll(() => next.destroy())
+
+  it('should match more specific route along with dynamic routes', async () => {
+    const res1 = await fetchViaHTTP(next.url, '/api/user/login')
+    const res2 = await fetchViaHTTP(next.url, '/api/user/any')
+    expect(await res1.text()).toBe('login')
+    expect(await res2.text()).toBe('[id]')
+  })
 
   it('should render styled-jsx styles in streaming', async () => {
     const html = await renderViaHTTP(next.url, '/')
