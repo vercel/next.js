@@ -27,10 +27,6 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
-import {
-  CONTEXT_NAMES,
-  DynamicServerError,
-} from '../client/components/hooks-server-context'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -415,6 +411,9 @@ export async function renderToHTMLOrFlight(
   isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
+  const { CONTEXT_NAMES, DynamicServerError } =
+    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+
   // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
   if (typeof React.createServerContext === 'undefined') {
     throw new Error(
