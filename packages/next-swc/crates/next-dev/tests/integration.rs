@@ -119,6 +119,7 @@ async fn run_test(resource: &str) -> JestRunResult {
     let requested_addr = get_free_local_addr().unwrap();
     let server = NextDevServerBuilder::new()
         .turbo_tasks(TurboTasks::new(MemoryBackend::new()))
+        .root_dir("tests".into())
         .project_dir("tests".into())
         .entry_asset("harness.js".into())
         .entry_asset(
