@@ -249,6 +249,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -282,7 +283,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: node run-tests.js --type development
+      - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -304,6 +305,10 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       NEXT_TEST_REACT_VERSION: ^17
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -337,7 +342,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: node run-tests.js --type development
+      - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -363,7 +368,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -397,7 +402,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -423,7 +428,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -457,7 +462,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -482,6 +487,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -515,7 +521,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: node run-tests.js --type production
+      - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -527,6 +533,10 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       NEXT_TEST_REACT_VERSION: ^17
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -560,7 +570,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: node run-tests.js --type production
+      - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -576,7 +586,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -610,7 +620,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -626,7 +636,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -660,7 +670,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -675,7 +685,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        group:
+          [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+          ]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -709,7 +741,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - name: Upload test trace
