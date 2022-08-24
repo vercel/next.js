@@ -97,12 +97,12 @@ function MyApp({ Component, pageProps }) {
 export default MyApp
 ```
 
-If your ErrorBoundary component contains CSS, the ErrorBoundary's CSS will be concatenated with any CSS files imported in your `_app.js` file. The order that the CSS is concatenated will match the order the CSS is imported into the `_app.js` file; see [Adding a Global Stylesheet](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet).
+If your ErrorBoundary component contains CSS, the ErrorBoundary's CSS will be concatenated with any global CSS files imported in your `_app.js` file. The order that the CSS is concatenated will match the order the CSS and components are imported into the `_app.js` file; see [Adding a Global Stylesheet](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet).
 
 ```jsx
 import '../styles.css'
-// The CSS in ErrorBoundary depends on the global CSS in styles.css,
-// so we import ErrorBoundary after styles.css.
+// The CSS in ErrorBoundary depends on the global CSS in
+// styles.css, so we import ErrorBoundary after styles.css.
 import ErrorBoundary from '../components/ErrorBoundary'
 
 export default function MyApp({ Component, pageProps }) {
