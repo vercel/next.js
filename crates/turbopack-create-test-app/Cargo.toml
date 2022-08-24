@@ -13,4 +13,5 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
+clap = { version = "3", features = ["derive"] }
 tempfile = "3.3.0"
