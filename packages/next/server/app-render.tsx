@@ -27,7 +27,6 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
-import { DynamicServerError } from '../client/components/hooks-server-context'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -637,6 +636,9 @@ export async function renderToHTMLOrFlight(
       layoutOrPageMod?.getServerSideProps &&
       process.env.NEXT_PHASE === 'phase-production-build'
     ) {
+      const { DynamicServerError } =
+        require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+
       throw new DynamicServerError(`getServerSideProps ${segment || 'root'}`)
     }
 

@@ -384,6 +384,7 @@ export default async function exportPage({
         // during build we attempt rendering app dir paths
         // and bail when dynamic dependencies are detected
         // only fully static paths are fully generated here
+        console.error({ isAppDir })
         if (isAppDir) {
           const { renderToHTMLOrFlight } =
             require('../server/app-render') as typeof import('../server/app-render')
@@ -408,9 +409,9 @@ export default async function exportPage({
               })
               let streamResolve: any
               let streamReject: any
-              let streamPromise = new Promise<void>((res, rej) => {
-                streamResolve = res
-                streamReject = rej
+              let streamPromise = new Promise<void>((resolve, reject) => {
+                streamResolve = resolve
+                streamReject = reject
               })
               stream.on('finish', () => streamResolve())
               stream.on('error', (err) => streamReject(err))
