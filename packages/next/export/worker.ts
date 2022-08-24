@@ -431,7 +431,7 @@ export default async function exportPage({
 
             await promises.writeFile(htmlFilepath, html, 'utf8')
             await promises.writeFile(
-              htmlFilepath.replace(/\.html$/, '.flight.json'),
+              htmlFilepath.replace(/\.html$/, '.rsc'),
               flightData
             )
           } catch (err) {
