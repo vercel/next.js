@@ -300,7 +300,7 @@ describe('Prerender Preview Mode', () => {
       expect(cookies.length).toBe(2)
     })
 
-    /** @type import('next-webdriver').Chain */
+    /** @type {import('next-webdriver').Chain} */
     let browser
     it('should start the client-side browser', async () => {
       browser = await webdriver(
