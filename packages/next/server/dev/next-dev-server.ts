@@ -46,7 +46,10 @@ import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
-import { withCoalescedInvoke } from '../../lib/coalesced-function'
+import {
+  UnwrapPromise,
+  withCoalescedInvoke,
+} from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import {
@@ -73,6 +76,7 @@ import {
   NestedMiddlewareError,
 } from '../../build/utils'
 import { getDefineEnv } from '../../build/webpack-config'
+import loadJsConfig from '../../build/load-jsconfig'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -104,6 +108,8 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private middleware?: RoutingItem
   private edgeFunctions?: RoutingItem[]
+  private verifyingTypeScript?: boolean
+  private usingTypeScript?: boolean
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -287,8 +293,17 @@ export default class DevServer extends Server {
       ].map((file) => pathJoin(this.dir, file))
 
       files.push(...envFiles)
+
+      // tsconfig/jsonfig paths hot-reloading
+      const tsconfigPaths = [
+        pathJoin(this.dir, 'tsconfig.json'),
+        pathJoin(this.dir, 'jsconfig.json'),
+      ]
+      files.push(...tsconfigPaths)
+
       wp.watch({ directories: [this.dir], startTime: 0 })
-      const envFileTimes = new Map()
+      const fileWatchTimes = new Map()
+      let enabledTypeScript = this.usingTypeScript
 
       wp.on('aggregated', async () => {
         let middlewareMatcher: RegExp | undefined
@@ -297,6 +312,7 @@ export default class DevServer extends Server {
         const appPaths: Record<string, string> = {}
         const edgeRoutesSet = new Set<string>()
         let envChange = false
+        let tsconfigChange = false
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -306,14 +322,24 @@ export default class DevServer extends Server {
             continue
           }
 
+          const watchTime = fileWatchTimes.get(fileName)
+          const watchTimeChange = watchTime && watchTime !== meta?.timestamp
+          fileWatchTimes.set(fileName, meta.timestamp)
+
           if (envFiles.includes(fileName)) {
-            if (
-              envFileTimes.get(fileName) &&
-              envFileTimes.get(fileName) !== meta.timestamp
-            ) {
+            if (watchTimeChange) {
               envChange = true
             }
-            envFileTimes.set(fileName, meta.timestamp)
+            continue
+          }
+
+          if (tsconfigPaths.includes(fileName)) {
+            if (fileName.endsWith('tsconfig.json')) {
+              enabledTypeScript = true
+            }
+            if (watchTimeChange) {
+              tsconfigChange = true
+            }
             continue
           }
 
@@ -348,6 +374,10 @@ export default class DevServer extends Server {
               staticInfo.middleware?.pathMatcher || new RegExp('.*')
             edgeRoutesSet.add('/')
             continue
+          }
+
+          if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
+            enabledTypeScript = true
           }
 
           let pageName = absolutePathToPage(fileName, {
@@ -392,8 +422,31 @@ export default class DevServer extends Server {
           })
         }
 
-        if (envChange) {
-          this.loadEnvConfig({ dev: true, forceReload: true })
+        if (!this.usingTypeScript && enabledTypeScript) {
+          // we tolerate the error here as this is best effort
+          // and the manual install command will be shown
+          await this.verifyTypeScript()
+            .then(() => {
+              tsconfigChange = true
+            })
+            .catch(() => {})
+        }
+
+        if (envChange || tsconfigChange) {
+          if (envChange) {
+            this.loadEnvConfig({ dev: true, forceReload: true })
+          }
+          let tsconfigResult:
+            | UnwrapPromise<ReturnType<typeof loadJsConfig>>
+            | undefined
+
+          if (tsconfigChange) {
+            try {
+              tsconfigResult = await loadJsConfig(this.dir, this.nextConfig)
+            } catch (_) {
+              /* do we want to log if there are syntax errors in tsconfig  while editing? */
+            }
+          }
 
           this.hotReloader?.activeConfigs?.forEach((config, idx) => {
             const isClient = idx === 0
@@ -404,34 +457,69 @@ export default class DevServer extends Server {
               this.customRoutes.rewrites.beforeFiles.length > 0 ||
               this.customRoutes.rewrites.fallback.length > 0
 
-            config.plugins?.forEach((plugin: any) => {
-              // we look for the DefinePlugin definitions so we can
-              // update them on the active compilers
-              if (
-                plugin &&
-                typeof plugin.definitions === 'object' &&
-                plugin.definitions.__NEXT_DEFINE_ENV
-              ) {
-                const newDefine = getDefineEnv({
-                  dev: true,
-                  config: this.nextConfig,
-                  distDir: this.distDir,
-                  isClient,
-                  hasRewrites,
-                  hasReactRoot: this.hotReloader?.hasReactRoot,
-                  isNodeServer,
-                  isEdgeServer,
-                  hasServerComponents: this.hotReloader?.hasServerComponents,
-                })
+            if (tsconfigChange) {
+              config.resolve?.plugins?.forEach((plugin: any) => {
+                // look for the JsConfigPathsPlugin and update with
+                // the latest paths/baseUrl config
+                if (plugin && plugin.jsConfigPlugin && tsconfigResult) {
+                  const { resolvedBaseUrl, jsConfig } = tsconfigResult
+                  const currentResolvedBaseUrl = plugin.resolvedBaseUrl
+                  const resolvedUrlIndex = config.resolve?.modules?.findIndex(
+                    (item) => item === currentResolvedBaseUrl
+                  )
 
-                Object.keys(plugin.definitions).forEach((key) => {
-                  if (!(key in newDefine)) {
-                    delete plugin.definitions[key]
+                  if (
+                    resolvedBaseUrl &&
+                    resolvedBaseUrl !== currentResolvedBaseUrl
+                  ) {
+                    // remove old baseUrl and add new one
+                    if (resolvedUrlIndex && resolvedUrlIndex > -1) {
+                      config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                    }
+                    config.resolve?.modules?.push(resolvedBaseUrl)
                   }
-                })
-                Object.assign(plugin.definitions, newDefine)
-              }
-            })
+
+                  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
+                    Object.keys(plugin.paths).forEach((key) => {
+                      delete plugin.paths[key]
+                    })
+                    Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
+                    plugin.resolvedBaseUrl = resolvedBaseUrl
+                  }
+                }
+              })
+            }
+
+            if (envChange) {
+              config.plugins?.forEach((plugin: any) => {
+                // we look for the DefinePlugin definitions so we can
+                // update them on the active compilers
+                if (
+                  plugin &&
+                  typeof plugin.definitions === 'object' &&
+                  plugin.definitions.__NEXT_DEFINE_ENV
+                ) {
+                  const newDefine = getDefineEnv({
+                    dev: true,
+                    config: this.nextConfig,
+                    distDir: this.distDir,
+                    isClient,
+                    hasRewrites,
+                    hasReactRoot: this.hotReloader?.hasReactRoot,
+                    isNodeServer,
+                    isEdgeServer,
+                    hasServerComponents: this.hotReloader?.hasServerComponents,
+                  })
+
+                  Object.keys(plugin.definitions).forEach((key) => {
+                    if (!(key in newDefine)) {
+                      delete plugin.definitions[key]
+                    }
+                  })
+                  Object.assign(plugin.definitions, newDefine)
+                }
+              })
+            }
           })
           this.hotReloader?.invalidate()
         }
@@ -516,17 +604,33 @@ export default class DevServer extends Server {
     this.webpackWatcher = null
   }
 
+  private async verifyTypeScript() {
+    if (this.verifyingTypeScript) {
+      return
+    }
+    try {
+      this.verifyingTypeScript = true
+      const verifyResult = await verifyTypeScriptSetup({
+        dir: this.dir,
+        intentDirs: [this.pagesDir!, this.appDir].filter(Boolean) as string[],
+        typeCheckPreflight: false,
+        tsconfigPath: this.nextConfig.typescript.tsconfigPath,
+        disableStaticImages: this.nextConfig.images.disableStaticImages,
+      })
+
+      if (verifyResult.version) {
+        this.usingTypeScript = true
+      }
+    } finally {
+      this.verifyingTypeScript = false
+    }
+  }
+
   async prepare(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-    await verifyTypeScriptSetup(
-      this.dir,
-      [this.pagesDir!, this.appDir].filter(Boolean) as string[],
-      false,
-      this.nextConfig.typescript.tsconfigPath,
-      this.nextConfig.images.disableStaticImages
-    )
 
+    await this.verifyTypeScript()
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     // reload router

@@ -187,14 +187,14 @@ function verifyTypeScriptSetup(
   typeCheckWorker.getStderr().pipe(process.stderr)
 
   return typeCheckWorker
-    .verifyTypeScriptSetup(
+    .verifyTypeScriptSetup({
       dir,
       intentDirs,
       typeCheckPreflight,
       tsconfigPath,
       disableStaticImages,
-      cacheDir
-    )
+      cacheDir,
+    })
     .then((result) => {
       typeCheckWorker.end()
       return result
