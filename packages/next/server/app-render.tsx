@@ -408,7 +408,8 @@ export async function renderToHTMLOrFlight(
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  isPagesDir: boolean
+  isPagesDir: boolean,
+  isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
   // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
   if (typeof React.createServerContext === 'undefined') {
@@ -494,6 +495,7 @@ export async function renderToHTMLOrFlight(
     ['HeadersContext', headers],
     ['CookiesContext', cookies],
     ['PreviewDataContext', previewData],
+    ['StaticGenerationContext', isStaticGeneration],
   ]
 
   /**

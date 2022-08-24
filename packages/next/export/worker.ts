@@ -397,7 +397,8 @@ export default async function exportPage({
                 page,
                 query,
                 curRenderOpts as any,
-                false
+                false,
+                true
               )
               const chunks: any = []
               const stream = new Writable({

@@ -4,25 +4,26 @@ import {
   PreviewDataContext,
   CookiesContext,
   DynamicServerError,
+  StaticGenerationContext,
 } from './hooks-server-context'
 
-export function useHeaders() {
-  if (process.env.PHASE === 'phase-production-build') {
+function useStaticGenerationBailout() {
+  if (useContext(StaticGenerationContext)) {
     throw new DynamicServerError('useHeader')
   }
+}
+
+export function useHeaders() {
+  useStaticGenerationBailout()
   return useContext(HeadersContext)
 }
 
 export function usePreviewData() {
-  if (process.env.PHASE === 'phase-production-build') {
-    throw new DynamicServerError('usePreviewData')
-  }
+  useStaticGenerationBailout()
   return useContext(PreviewDataContext)
 }
 
 export function useCookies() {
-  if (process.env.PHASE === 'phase-production-build') {
-    throw new DynamicServerError('useCookies')
-  }
+  useStaticGenerationBailout()
   return useContext(CookiesContext)
 }
