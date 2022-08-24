@@ -986,7 +986,6 @@ export default class DevServer extends Server {
             ''
           )
 
-          console.log('err', err)
           const src = getErrorSource(err as Error)
           const compilation = (
             src === COMPILER_NAMES.edgeServer

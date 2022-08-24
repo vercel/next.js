@@ -683,9 +683,9 @@ export async function renderToHTMLOrFlight(
             : [actualSegment, parallelRouteKey]
 
           // Create the child component
-          let res: any
+          let treeRes: any
           try {
-            res = await createComponentTree({
+            treeRes = await createComponentTree({
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
               },
@@ -696,7 +696,7 @@ export async function renderToHTMLOrFlight(
           } catch (e: any) {
             throw e
           }
-          const { Component: ChildComponent } = res
+          const { Component: ChildComponent } = treeRes
 
           const childSegment = parallelRoutes[parallelRouteKey][0]
           const childSegmentParam = getDynamicParamFromSegment(childSegment)

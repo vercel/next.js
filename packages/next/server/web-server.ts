@@ -283,7 +283,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
             finished: true,
           }
         } catch (err) {
-          console.log('catch err', err)
           if (err instanceof NoFallbackError && bubbleNoFallback) {
             return {
               finished: false,
@@ -357,7 +356,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           !!pagesRenderToHTML
         )
       } catch (e: any) {
-        console.error('render to html e', e.stack)
         throw e
       }
       return res

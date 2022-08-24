@@ -649,7 +649,6 @@ export function onDemandEntryHandler({
               return new Promise<void>((resolve, reject) => {
                 doneCallbacks!.once(entryKey, (err: Error) => {
                   if (err) {
-                    console.error('doneCallbacks:err', err)
                     return reject(err)
                   }
                   resolve()
