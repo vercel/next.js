@@ -634,10 +634,7 @@ export async function renderToHTMLOrFlight(
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
 
-    if (
-      layoutOrPageMod?.getServerSideProps &&
-      process.env.NEXT_PHASE === 'phase-production-build'
-    ) {
+    if (isStaticGeneration && layoutOrPageMod?.getServerSideProps) {
       const { DynamicServerError } =
         require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
 
