@@ -384,7 +384,6 @@ export default async function exportPage({
         // during build we attempt rendering app dir paths
         // and bail when dynamic dependencies are detected
         // only fully static paths are fully generated here
-        console.error({ isAppDir })
         if (isAppDir) {
           const { renderToHTMLOrFlight } =
             require('../server/app-render') as typeof import('../server/app-render')
@@ -421,7 +420,9 @@ export default async function exportPage({
               await streamPromise
               return Buffer.concat(chunks).toString()
             }
-
+            // TODO: collect revalidate information from renderOpts,
+            // initial revalidate can be for lowest revalidate for entire
+            // tree until props are cached at segment level
             const html = await getResult()
             query.__flight__ = '1'
 
