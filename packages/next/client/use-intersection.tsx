@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import {
   requestIdleCallback,
   cancelIdleCallback,
@@ -10,8 +10,8 @@ type UseIntersectionObserverInit = Pick<
 >
 
 type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
-    rootRef?: React.RefObject<HTMLElement> | null
-  }
+  rootRef?: React.RefObject<HTMLElement> | null
+}
 type ObserveCallback = (isVisible: boolean) => void
 type Identifier = {
   root: Element | Document | null
@@ -128,5 +128,5 @@ export function useIntersection<T extends Element>({
     setVisible(false)
   }, [])
 
-  return [setElement, visible, resetVisible]
+  return useMemo(() => [setElement, visible, resetVisible], [visible, resetVisible])
 }
