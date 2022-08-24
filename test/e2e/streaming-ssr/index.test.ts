@@ -14,22 +14,19 @@ const react18Deps = {
   'react-dom': '^18.0.0',
 }
 
+const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
+
 describe('react 18 streaming SSR in minimal mode', () => {
   let next: NextInstance
 
   beforeAll(async () => {
-    process.env.NEXT_PRIVATE_MINIMAL_MODE = '1'
+    if (isNextProd) {
+      process.env.NEXT_PRIVATE_MINIMAL_MODE = '1'
+    }
 
     next = await createNext({
       files: {
-        'pages/index.js': `
-          export default function Page() {
-            return <p>streaming</p>
-          }
-          export async function getServerSideProps() {
-            return { props: {} }
-          }
-        `,
+        pages: new FileRef(join(__dirname, './streaming-ssr/pages')),
       },
       nextConfig: {
         experimental: {
@@ -57,8 +54,17 @@ describe('react 18 streaming SSR in minimal mode', () => {
     })
   })
   afterAll(() => {
-    delete process.env.NEXT_PRIVATE_MINIMAL_MODE
+    if (isNextProd) {
+      delete process.env.NEXT_PRIVATE_MINIMAL_MODE
+    }
     next.destroy()
+  })
+
+  it('should match more specific route along with dynamic routes', async () => {
+    const res1 = await fetchViaHTTP(next.url, '/api/user/login')
+    const res2 = await fetchViaHTTP(next.url, '/api/user/any')
+    expect(await res1.text()).toBe('login')
+    expect(await res2.text()).toBe('[id]')
   })
 
   it('should pass correct nextRuntime values', async () => {
@@ -68,16 +74,18 @@ describe('react 18 streaming SSR in minimal mode', () => {
 
   it('should generate html response by streaming correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('streaming')
+    expect(html).toContain('index')
   })
 
-  it('should have generated a static 404 page', async () => {
-    expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
+  if (isNextProd) {
+    it('should have generated a static 404 page', async () => {
+      expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
 
-    const res = await fetchViaHTTP(next.url, '/non-existent')
-    expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
-  })
+      const res = await fetchViaHTTP(next.url, '/non-existent')
+      expect(res.status).toBe(404)
+      expect(await res.text()).toContain('This page could not be found')
+    })
+  }
 })
 
 describe('react 18 streaming SSR with custom next configs', () => {
@@ -123,42 +131,44 @@ describe('react 18 streaming SSR with custom next configs', () => {
   })
 })
 
-describe('react 18 streaming SSR with custom server', () => {
-  let next
-  let server
-  let appPort
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'custom-server/pages')),
-        'server.js': new FileRef(join(__dirname, 'custom-server/server.js')),
-      },
-      nextConfig: require(join(__dirname, 'custom-server/next.config.js')),
-      dependencies: react18Deps,
-    })
-    await next.stop()
+if (isNextProd) {
+  describe('react 18 streaming SSR with custom server', () => {
+    let next
+    let server
+    let appPort
+    beforeAll(async () => {
+      next = await createNext({
+        files: {
+          pages: new FileRef(join(__dirname, 'custom-server/pages')),
+          'server.js': new FileRef(join(__dirname, 'custom-server/server.js')),
+        },
+        nextConfig: require(join(__dirname, 'custom-server/next.config.js')),
+        dependencies: react18Deps,
+      })
+      await next.stop()
 
-    const testServer = join(next.testDir, 'server.js')
-    appPort = await findPort()
-    server = await initNextServerScript(
-      testServer,
-      /Listening/,
-      {
-        ...process.env,
-        PORT: appPort,
-      },
-      undefined,
-      {
-        cwd: next.testDir,
-      }
-    )
+      const testServer = join(next.testDir, 'server.js')
+      appPort = await findPort()
+      server = await initNextServerScript(
+        testServer,
+        /Listening/,
+        {
+          ...process.env,
+          PORT: appPort,
+        },
+        undefined,
+        {
+          cwd: next.testDir,
+        }
+      )
+    })
+    afterAll(async () => {
+      await next.destroy()
+      if (server) await killApp(server)
+    })
+    it('should render page correctly under custom server', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toContain('streaming')
+    })
   })
-  afterAll(async () => {
-    await next.destroy()
-    if (server) await killApp(server)
-  })
-  it('should render page correctly under custom server', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toContain('streaming')
-  })
-})
+}
