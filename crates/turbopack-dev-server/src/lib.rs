@@ -151,7 +151,7 @@ impl DevServer {
         let server = Server::bind(&addr).serve(make_svc);
 
         Self {
-            addr,
+            addr: server.local_addr(),
             future: Box::pin(async move {
                 server.await?;
                 Ok(())

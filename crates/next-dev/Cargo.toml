@@ -11,6 +11,10 @@ bench = false
 [lib]
 bench = false
 
+[[bench]]
+name = "mod"
+harness = false
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
@@ -40,13 +44,16 @@ turbopack-dev-server = { path = "../turbopack-dev-server" }
 webbrowser = "0.7.1"
 
 [dev-dependencies]
-tungstenite = "0.17.3" # For matching on errors from chromiumoxide. Keep in 
-# sync with chromiumoxide's tungstenite requirement.
 chromiumoxide = { version = "0.3.5", features = [
   "tokio-runtime",
 ], default-features = false }
+criterion = { version = "0.3.5", features = ["async_tokio"] }
 lazy_static = "1.4.0"
+regex = "1.6.0"
 test-generator = "0.3.0"
+# sync with chromiumoxide's tungstenite requirement.
+tungstenite = "0.17.3"                                                # For matching on errors from chromiumoxide. Keep in 
+turbopack-create-test-app = { path = "../turbopack-create-test-app" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

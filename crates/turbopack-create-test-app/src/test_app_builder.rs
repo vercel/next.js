@@ -18,12 +18,22 @@ fn decide(remaining: usize, min_remaining_decisions: usize) -> bool {
     }
 }
 
-#[derive(Default)]
 pub struct TestAppBuilder {
     pub target: Option<PathBuf>,
     pub module_count: usize,
     pub directories_count: usize,
     pub flatness: usize,
+}
+
+impl Default for TestAppBuilder {
+    fn default() -> Self {
+        Self {
+            target: None,
+            module_count: 1000,
+            directories_count: 50,
+            flatness: 5,
+        }
+    }
 }
 
 impl TestAppBuilder {
