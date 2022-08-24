@@ -21,6 +21,7 @@ mod turbo_tasks_viz;
 pub struct NextDevServerBuilder {
     turbo_tasks: Option<Arc<TurboTasks<MemoryBackend>>>,
     project_dir: Option<String>,
+    root_dir: Option<String>,
     entry_assets: Vec<String>,
     eager_compile: bool,
     hostname: Option<IpAddr>,
@@ -41,6 +42,7 @@ impl NextDevServerBuilder {
         NextDevServerBuilder {
             turbo_tasks: None,
             project_dir: None,
+            root_dir: None,
             entry_assets: vec![],
             eager_compile: false,
             hostname: None,
@@ -58,6 +60,11 @@ impl NextDevServerBuilder {
 
     pub fn project_dir(mut self, project_dir: String) -> NextDevServerBuilder {
         self.project_dir = Some(project_dir);
+        self
+    }
+
+    pub fn root_dir(mut self, root_dir: String) -> NextDevServerBuilder {
+        self.root_dir = Some(root_dir);
         self
     }
 
@@ -100,6 +107,7 @@ impl NextDevServerBuilder {
         let turbo_tasks = self.turbo_tasks.context("turbo_tasks must be set")?;
 
         let project_dir = self.project_dir.context("project_dir must be set")?;
+        let root_dir = self.root_dir.context("root_dir must be set")?;
         let entry_assets = self.entry_assets;
         let eager_compile = self.eager_compile;
         let show_all = self.show_all;
@@ -116,6 +124,7 @@ impl NextDevServerBuilder {
             turbo_tasks.clone(),
             move || {
                 source(
+                    root_dir.clone(),
                     project_dir.clone(),
                     entry_assets.clone(),
                     eager_compile,
@@ -170,6 +179,7 @@ async fn output_fs(project_dir: &str, log_options: LogOptionsVc) -> Result<FileS
 
 #[turbo_tasks::function]
 async fn source(
+    root_dir: String,
     project_dir: String,
     entry_assets: Vec<String>,
     eager_compile: bool,
@@ -177,20 +187,22 @@ async fn source(
     log_options: LogOptionsVc,
 ) -> Result<ContentSourceVc> {
     let output_fs = output_fs(&project_dir, log_options);
-    let fs = project_fs(&project_dir, log_options);
+    let fs = project_fs(&root_dir, log_options);
+    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
+    let project_relative = project_relative
+        .strip_prefix(MAIN_SEPARATOR)
+        .unwrap_or(project_relative);
+    let project_path = FileSystemPathVc::new(fs, project_relative);
 
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     let web_source = create_web_entry_source(
-        FileSystemPathVc::new(fs, ""),
-        entry_assets
-            .iter()
-            .map(|a| FileSystemPathVc::new(fs, a))
-            .collect(),
+        project_path,
+        entry_assets.iter().map(|a| project_path.join(a)).collect(),
         dev_server_fs,
         eager_compile,
     );
     let rendered_source = create_server_rendered_source(
-        FileSystemPathVc::new(fs, ""),
+        project_path,
         FileSystemPathVc::new(output_fs, ""),
         FileSystemPathVc::new(dev_server_fs, ""),
     );

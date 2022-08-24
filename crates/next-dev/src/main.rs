@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use clap::Parser;
 use next_dev::{register, NextDevServerBuilder};
 use turbo_tasks::{util::FormatDuration, TurboTasks};
@@ -24,6 +24,12 @@ struct Cli {
     /// If no directory is provided, the current directory will be used.
     #[clap(value_parser)]
     dir: Option<PathBuf>,
+
+    /// The root directory of the project. Nothing outside of this directory can
+    /// be accessed. e. g. the monorepo root.
+    /// If no directory is provided, `dir` will be used.
+    #[clap(long, value_parser)]
+    root: Option<PathBuf>,
 
     /// The port number on which to start the application
     #[clap(short, long, value_parser, default_value_t = 3000)]
@@ -56,7 +62,7 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let start = Instant::now();
 
     #[cfg(feature = "tokio_console")]
@@ -68,12 +74,20 @@ async fn main() {
     let dir = args
         .dir
         .map(|dir| dir.canonicalize())
-        .unwrap_or_else(current_dir)
-        .unwrap()
+        .unwrap_or_else(current_dir)?
         .to_str()
-        .context("current directory contains invalid characters")
-        .unwrap()
+        .context("current directory contains invalid characters")?
         .to_string();
+
+    let root_dir = if let Some(root) = args.root {
+        root.canonicalize()
+            .unwrap()
+            .to_str()
+            .context("current directory contains invalid characters")?
+            .to_string()
+    } else {
+        dir.clone()
+    };
 
     let tt = TurboTasks::new(MemoryBackend::new());
     let tt_clone = tt.clone();
@@ -81,6 +95,7 @@ async fn main() {
     let server = NextDevServerBuilder::new()
         .turbo_tasks(tt)
         .project_dir(dir)
+        .root_dir(root_dir)
         .entry_asset("src/index.js".into())
         .eager_compile(args.eager_compile)
         .hostname(args.hostname)
@@ -89,8 +104,7 @@ async fn main() {
         .show_all(args.show_all)
         .log_level(args.log_level.map_or_else(|| IssueSeverity::Error, |l| l.0))
         .build()
-        .await
-        .unwrap();
+        .await?;
 
     {
         let index_uri = if server.addr.ip().is_loopback() {
@@ -120,4 +134,6 @@ async fn main() {
         }
     }
     .await;
+
+    Ok(())
 }
