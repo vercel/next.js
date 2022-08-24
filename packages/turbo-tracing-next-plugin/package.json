@@ -1,6 +1,6 @@
 {
   "name": "@vercel/turbo-tracing-next-plugin",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "UNLICENSED",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
     "access": "restricted"
   },
   "dependencies": {
-    "@vercel/webpack-node-module-trace": "0.0.3"
+    "@vercel/webpack-node-module-trace": "0.0.4"
   },
   "peerDependencies": {
     "next": ">= 12"
