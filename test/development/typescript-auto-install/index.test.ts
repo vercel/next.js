@@ -17,6 +17,16 @@ describe('typescript-auto-install', () => {
           } 
         `,
       },
+      env: {
+        // unset CI env as this skips the auto-install behavior
+        // being tested
+        CI: '',
+        CIRCLECI: '',
+        GITHUB_ACTIONS: '',
+        CONTINUOUS_INTEGRATION: '',
+        RUN_ID: '',
+        BUILD_NUMBER: '',
+      },
       startCommand: 'yarn next dev',
       installCommand: 'yarn',
       dependencies: {},
