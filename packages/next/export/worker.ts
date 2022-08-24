@@ -27,6 +27,7 @@ import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
+import { Writable } from 'stream'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -130,6 +131,7 @@ export default async function exportPage({
     try {
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
+      const isAppDir = (pathMap as any)._isAppDir
       const filePath = normalizePagePath(path)
       const isDynamic = isDynamicRoute(page)
       const ampPath = `${filePath}.amp`
@@ -137,6 +139,9 @@ export default async function exportPage({
       let query = { ...originalQuery }
       let params: { [key: string]: string | string[] } | undefined
 
+      if (isAppDir) {
+        outDir = join(distDir, 'server/app')
+      }
       let updatedPath = query.__nextSsgPath || path
       let locale = query.__nextLocale || renderOpts.locale
       delete query.__nextLocale
@@ -359,8 +364,79 @@ export default async function exportPage({
           distDir,
           page,
           serverless,
-          serverComponents
+          serverComponents,
+          isAppDir
         )
+        curRenderOpts = {
+          ...components,
+          ...renderOpts,
+          ampPath: renderAmpPath,
+          params,
+          optimizeFonts,
+          optimizeCss,
+          disableOptimizedLoading,
+          fontManifest: optimizeFonts
+            ? requireFontManifest(distDir, serverless)
+            : null,
+          locale: locale as string,
+        }
+
+        // during build we attempt rendering app dir paths
+        // and bail when dynamic dependencies are detected
+        // only fully static paths are fully generated here
+        if (isAppDir) {
+          const { renderToHTMLOrFlight } =
+            require('../server/app-render') as typeof import('../server/app-render')
+
+          try {
+            curRenderOpts.params ||= {}
+            const getResult = async () => {
+              const result = await renderToHTMLOrFlight(
+                req as any,
+                res as any,
+                page,
+                query,
+                curRenderOpts as any,
+                false
+              )
+              const chunks: any = []
+              const stream = new Writable({
+                write(chunk, _encoding, callback) {
+                  chunks.push(chunk)
+                  callback()
+                },
+              })
+              let streamResolve: any
+              let streamReject: any
+              let streamPromise = new Promise<void>((res, rej) => {
+                streamResolve = res
+                streamReject = rej
+              })
+              stream.on('finish', () => streamResolve())
+              stream.on('error', (err) => streamReject(err))
+
+              result?.pipe(stream as any)
+
+              await streamPromise
+              return Buffer.concat(chunks).toString()
+            }
+
+            const html = await getResult()
+            query.__flight__ = '1'
+
+            const flightData = await getResult()
+
+            await promises.writeFile(htmlFilepath, html, 'utf8')
+            await promises.writeFile(
+              htmlFilepath.replace(/\.html$/, '.flight.json'),
+              flightData
+            )
+          } catch (err) {
+            // TODO: only tolerate dynamic data errors
+          }
+          return { ...results, duration: Date.now() - start }
+        }
+
         const ampState = {
           ampFirst: components.pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -403,19 +479,6 @@ export default async function exportPage({
           }
           if (optimizeCss) {
             process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
-          }
-          curRenderOpts = {
-            ...components,
-            ...renderOpts,
-            ampPath: renderAmpPath,
-            params,
-            optimizeFonts,
-            optimizeCss,
-            disableOptimizedLoading,
-            fontManifest: optimizeFonts
-              ? requireFontManifest(distDir, serverless)
-              : null,
-            locale: locale as string,
           }
           renderResult = await renderMethod(
             req,

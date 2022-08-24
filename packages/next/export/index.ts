@@ -17,11 +17,14 @@ import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
+  APP_PATHS_MANIFEST,
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  FLIGHT_MANIFEST,
+  FLIGHT_SERVER_CSS_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -385,6 +388,7 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
+      serverComponents: nextConfig.experimental.serverComponents,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -403,15 +407,48 @@ export default async function exportApp(
     }
     const exportPathMap = await nextExportSpan
       .traceChild('run-export-path-map')
-      .traceAsyncFn(() =>
-        nextConfig.exportPathMap(defaultPathMap, {
+      .traceAsyncFn(async () => {
+        const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
           dev: false,
           dir,
           outDir,
           distDir,
           buildId,
         })
-      )
+
+        if (options.buildExport && nextConfig.experimental.appDir) {
+          // @ts-expect-error untyped
+          renderOpts.serverComponentManifest = require(join(
+            distDir,
+            SERVER_DIRECTORY,
+            `${FLIGHT_MANIFEST}.json`
+          )) as PagesManifest
+          // @ts-expect-error untyped
+          renderOpts.serverCSSManifest = require(join(
+            distDir,
+            SERVER_DIRECTORY,
+            FLIGHT_SERVER_CSS_MANIFEST
+          )) as PagesManifest
+
+          const appPathsManifest = require(join(
+            distDir,
+            SERVER_DIRECTORY,
+            APP_PATHS_MANIFEST
+          )) as PagesManifest
+
+          for (const normalizedPath of Object.keys(appPathsManifest)) {
+            exportMap[normalizedPath] = {
+              page: appPathsManifest[normalizedPath]
+                .replace(/^app\//, '/')
+                .replace(/\.js$/, ''),
+              // @ts-expect-error internal flag signaling appDir
+              _isAppDir: true,
+            }
+          }
+        }
+
+        return exportMap
+      })
 
     // only add missing 404 page when `buildExport` is false
     if (!options.buildExport) {

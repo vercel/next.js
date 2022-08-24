@@ -1845,7 +1845,16 @@ export default async function build(
 
       const combinedPages = [...staticPages, ...ssgPages]
 
-      if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
+      // we need to trigger automatic exporting when we have
+      // - static 404/500
+      // - getStaticProps paths
+      // - experimental app is enabled
+      if (
+        combinedPages.length > 0 ||
+        useStatic404 ||
+        useDefaultStatic500 ||
+        config.experimental.appDir
+      ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
         await staticGenerationSpan.traceAsyncFn(async () => {

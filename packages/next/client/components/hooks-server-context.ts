@@ -1,6 +1,12 @@
 // @ts-expect-error createServerContext exists on experimental channel
 import { createServerContext } from 'react'
 
+export class DynamicServerError extends Error {
+  constructor(type: string) {
+    super(`Dynamic server usage: ${type}`)
+  }
+}
+
 // Ensure serverContext is not created more than once as React will throw when creating it more than once
 // https://github.com/facebook/react/blob/dd2d6522754f52c70d02c51db25eb7cbd5d1c8eb/packages/react/src/ReactServerContext.js#L101
 const createContext = (name: string) => {

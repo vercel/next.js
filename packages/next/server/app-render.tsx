@@ -27,6 +27,7 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
+import { DynamicServerError } from '../client/components/hooks-server-context'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -631,6 +632,13 @@ export async function renderToHTMLOrFlight(
      */
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
+
+    if (
+      layoutOrPageMod?.getServerSideProps &&
+      process.env.NEXT_PHASE === 'phase-production-build'
+    ) {
+      throw new DynamicServerError(`getServerSideProps ${segment || 'root'}`)
+    }
 
     // Only server components can have getServerSideProps / getStaticProps
     // TODO-APP: friendly error with correct stacktrace. Potentially this can be part of the compiler instead.
