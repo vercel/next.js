@@ -1410,7 +1410,7 @@ server.listen(currentPort, (err) => {
     customServer: false,
     conf: ${JSON.stringify({
       ...serverConfig,
-      distDir: `./${path.relative(dir, distDir)}`,
+      distDir: `./${path.relative(dir, distDir)}`.split("\\").join("/"),
     })},
   })
   handler = nextServer.getRequestHandler()
