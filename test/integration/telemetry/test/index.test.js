@@ -502,6 +502,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"locales": "en,nl,fr"/)
     expect(event1).toMatch(/"localeDomainsCount": 2/)
     expect(event1).toMatch(/"localeDetectionEnabled": true/)
+    expect(event1).toMatch(/"imageEnabled": true/)
+    expect(event1).toMatch(/"imageFutureEnabled": false/)
     expect(event1).toMatch(/"imageDomainsCount": 2/)
     expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
@@ -572,11 +574,11 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(`"nextRulesEnabled": {`)
     expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
 
-    const event2 = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr)
-      .pop()
-    expect(event2).toContain(`"featureName": "build-lint"`)
-    expect(event2).toContain(`"invocationCount": 1`)
+    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'build-lint',
+      invocationCount: 1,
+    })
   })
 
   it(`emits telemetry for lint during build when '--no-lint' is specified`, async () => {
@@ -584,13 +586,11 @@ describe('Telemetry CLI', () => {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-
-    const event1 = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr)
-      .pop()
-
-    expect(event1).toContain(`"featureName": "build-lint"`)
-    expect(event1).toContain(`"invocationCount": 0`)
+    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    expect(events).toContainEqual({
+      featureName: 'build-lint',
+      invocationCount: 0,
+    })
   })
 
   it(`emits telemetry for lint during build when 'ignoreDuringBuilds' is specified`, async () => {
@@ -605,12 +605,11 @@ describe('Telemetry CLI', () => {
     })
     await fs.remove(nextConfig)
 
-    const event1 = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr)
-      .pop()
-
-    expect(event1).toContain(`"featureName": "build-lint"`)
-    expect(event1).toContain(`"invocationCount": 0`)
+    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    expect(events).toContainEqual({
+      featureName: 'build-lint',
+      invocationCount: 0,
+    })
   })
 
   it('emits telemetry for `next lint`', async () => {
@@ -640,49 +639,32 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
   })
 
-  it('emits telemery for usage of image, script & dynamic', async () => {
+  it('emits telemery for usage of optimizeFonts, image, script & dynamic', async () => {
     const { stderr } = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
-    regex.exec(stderr).pop() // optimizeCss
-    regex.exec(stderr).pop() // nextScriptWorkers
-    regex.exec(stderr).pop() // build-lint
-    const optimizeFonts = regex.exec(stderr).pop()
-    expect(optimizeFonts).toContain(`"featureName": "optimizeFonts"`)
-    expect(optimizeFonts).toContain(`"invocationCount": 1`)
-    regex.exec(stderr).pop() // swcLoader
-    regex.exec(stderr).pop() // swcMinify
-    regex.exec(stderr).pop() // swcRelay
-    regex.exec(stderr).pop() // swcStyledComponents
-    regex.exec(stderr).pop() // swcExperimentalDecorators
-    regex.exec(stderr).pop() // swcReactRemoveProperties
-    regex.exec(stderr).pop() // swcRemoveConsole
-    regex.exec(stderr).pop() // swcImportSource
-    regex.exec(stderr).pop() // swcEmotion
-    regex.exec(stderr).pop() // swc/targets/*
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    regex.exec(stderr).pop()
-    const image = regex.exec(stderr).pop()
-    expect(image).toContain(`"featureName": "next/image"`)
-    expect(image).toContain(`"invocationCount": 1`)
-    const script = regex.exec(stderr).pop()
-    expect(script).toContain(`"featureName": "next/script"`)
-    expect(script).toContain(`"invocationCount": 1`)
-    const dynamic = regex.exec(stderr).pop()
-    expect(dynamic).toContain(`"featureName": "next/dynamic"`)
-    expect(dynamic).toContain(`"invocationCount": 1`)
+    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    expect(featureUsageEvents).toEqual(
+      expect.arrayContaining([
+        {
+          featureName: 'optimizeFonts',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'next/image',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'next/script',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'next/dynamic',
+          invocationCount: 1,
+        },
+      ])
+    )
   })
 
   it('emits telemetry for usage of swc', async () => {
@@ -702,42 +684,43 @@ describe('Telemetry CLI', () => {
     })
     await fs.remove(path.join(appDir, 'next.config.js'))
     await fs.remove(path.join(appDir, 'jsconfig.json'))
-
-    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
-    regex.exec(stderr).pop() // optimizeCss
-    regex.exec(stderr).pop() // nextScriptWorkers
-    regex.exec(stderr).pop() // build-lint
-    regex.exec(stderr).pop() // optimizeFonts
-    const swcLoader = regex.exec(stderr).pop()
-    expect(swcLoader).toContain(`"featureName": "swcLoader"`)
-    expect(swcLoader).toContain(`"invocationCount": 1`)
-    const swcMinify = regex.exec(stderr).pop()
-    expect(swcMinify).toContain(`"featureName": "swcMinify"`)
-    expect(swcMinify).toContain(`"invocationCount": 1`)
-    const swcRelay = regex.exec(stderr).pop()
-    expect(swcRelay).toContain(`"featureName": "swcRelay"`)
-    expect(swcRelay).toContain(`"invocationCount": 1`)
-    const swcStyledComponents = regex.exec(stderr).pop()
-    expect(swcStyledComponents).toContain(
-      `"featureName": "swcStyledComponents"`
+    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    expect(featureUsageEvents).toEqual(
+      expect.arrayContaining([
+        {
+          featureName: 'swcLoader',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'swcMinify',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'swcRelay',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'swcStyledComponents',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'swcReactRemoveProperties',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'swcExperimentalDecorators',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'swcRemoveConsole',
+          invocationCount: 1,
+        },
+        {
+          featureName: 'swcImportSource',
+          invocationCount: 0,
+        },
+      ])
     )
-    expect(swcStyledComponents).toContain(`"invocationCount": 1`)
-    const swcReactRemoveProperties = regex.exec(stderr).pop()
-    expect(swcReactRemoveProperties).toContain(
-      `"featureName": "swcReactRemoveProperties"`
-    )
-    expect(swcReactRemoveProperties).toContain(`"invocationCount": 1`)
-    const swcExperimentalDecorators = regex.exec(stderr).pop()
-    expect(swcExperimentalDecorators).toContain(
-      `"featureName": "swcExperimentalDecorators"`
-    )
-    expect(swcExperimentalDecorators).toContain(`"invocationCount": 1`)
-    const swcRemoveConsole = regex.exec(stderr).pop()
-    expect(swcRemoveConsole).toContain(`"featureName": "swcRemoveConsole"`)
-    expect(swcRemoveConsole).toContain(`"invocationCount": 1`)
-    const swcImportSource = regex.exec(stderr).pop()
-    expect(swcImportSource).toContain(`"featureName": "swcImportSource"`)
-    expect(swcImportSource).toContain(`"invocationCount": 0`)
   })
 
   it('emits telemetry for usage of `optimizeCss`', async () => {
@@ -756,11 +739,11 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'next.config.optimize-css')
     )
 
-    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
-    regex.exec(stderr).pop() // build-lint
-    const optimizeCss = regex.exec(stderr).pop()
-    expect(optimizeCss).toContain(`"featureName": "experimental/optimizeCss"`)
-    expect(optimizeCss).toContain(`"invocationCount": 1`)
+    const events = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    expect(events).toContainEqual({
+      featureName: 'experimental/optimizeCss',
+      invocationCount: 1,
+    })
   })
 
   it('emits telemetry for usage of `nextScriptWorkers`', async () => {
@@ -779,14 +762,11 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'next.config.next-script-workers')
     )
 
-    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
-    regex.exec(stderr).pop() // build-lint
-    regex.exec(stderr).pop() // optimizeCss
-    const nextScriptWorkers = regex.exec(stderr).pop()
-    expect(nextScriptWorkers).toContain(
-      `"featureName": "experimental/nextScriptWorkers"`
-    )
-    expect(nextScriptWorkers).toContain(`"invocationCount": 1`)
+    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'experimental/nextScriptWorkers',
+      invocationCount: 1,
+    })
   })
 
   it('emits telemetry for usage of middleware', async () => {
@@ -802,8 +782,86 @@ describe('Telemetry CLI', () => {
 
     await fs.remove(path.join(appDir, 'middleware.js'))
 
-    const regex = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-    const optimizedEvt = regex.exec(stderr).pop()
-    expect(optimizedEvt).toContain(`"middlewareCount": 1`)
+    const buildOptimizedEvents = findAllEvents(stderr, 'NEXT_BUILD_OPTIMIZED')
+    expect(buildOptimizedEvents).toContainEqual(
+      expect.objectContaining({
+        middlewareCount: 1,
+      })
+    )
+  })
+
+  it('emits telemetry for usage of swc plugins', async () => {
+    await fs.remove(path.join(appDir, 'next.config.js'))
+    await fs.remove(path.join(appDir, 'package.json'))
+
+    await fs.rename(
+      path.join(appDir, 'next.config.swc-plugins'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    await fs.rename(
+      path.join(appDir, 'package.swc-plugins'),
+      path.join(appDir, 'package.json')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.swc-plugins')
+    )
+
+    await fs.rename(
+      path.join(appDir, 'package.json'),
+      path.join(appDir, 'package.swc-plugins')
+    )
+
+    const pluginDetectedEvents = findAllEvents(
+      stderr,
+      'NEXT_SWC_PLUGIN_DETECTED'
+    )
+    expect(pluginDetectedEvents).toEqual([
+      {
+        pluginName: 'swc-plugin-coverage-instrument',
+        pluginVersion: '0.0.6',
+      },
+      {
+        pluginName: '@swc/plugin-relay',
+        pluginVersion: '0.2.0',
+      },
+      {
+        pluginName: '/test/absolute_path/plugin.wasm',
+      },
+    ])
+  })
+
+  it('emits telemetry for usage of next/future/image', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+    const featureUsageEvents = findAllEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'next/future/image',
+      invocationCount: 1,
+    })
   })
 })
+
+/**
+ * Parse the output and return all entries that match the provided `eventName`
+ * @param {string} output output of the console
+ * @param {string} eventName
+ * @returns {Array<{}>}
+ */
+function findAllEvents(output, eventName) {
+  const regex = /\[telemetry\] ({.+?^})/gms
+  // Pop the last element of each entry to retrieve contents of the capturing group
+  const events = [...output.matchAll(regex)].map((entry) =>
+    JSON.parse(entry.pop())
+  )
+  return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
+}

@@ -1,65 +1,25 @@
-import type { PageRuntime } from '../../server/config-shared'
+import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
-import { tryToExtractExportedConstValue } from './extract-const-value'
+import {
+  extractExportedConstValue,
+  UnsupportedValueError,
+} from './extract-const-value'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
+import { SERVER_RUNTIME } from '../../lib/constants'
+import { ServerRuntime } from '../../types'
 
 interface MiddlewareConfig {
   pathMatcher: RegExp
 }
 
 export interface PageStaticInfo {
-  runtime?: PageRuntime
+  runtime?: ServerRuntime
   ssg?: boolean
   ssr?: boolean
   middleware?: Partial<MiddlewareConfig>
-}
-
-/**
- * For a given pageFilePath and nextConfig, if the config supports it, this
- * function will read the file and return the runtime that should be used.
- * It will look into the file content only if the page *requires* a runtime
- * to be specified, that is, when gSSP or gSP is used.
- * Related discussion: https://github.com/vercel/next.js/discussions/34179
- */
-export async function getPageStaticInfo(params: {
-  nextConfig: Partial<NextConfig>
-  pageFilePath: string
-  isDev?: boolean
-  page?: string
-}): Promise<PageStaticInfo> {
-  const { isDev, pageFilePath, nextConfig } = params
-
-  const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
-    const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr } = checkExports(swcAST)
-    const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
-
-    let runtime = ['experimental-edge', 'edge'].includes(config?.runtime)
-      ? 'edge'
-      : ssr || ssg
-      ? config?.runtime || nextConfig.experimental?.runtime
-      : undefined
-
-    if (runtime === 'experimental-edge' || runtime === 'edge') {
-      warnAboutExperimentalEdgeApiFunctions()
-      runtime = 'edge'
-    }
-
-    const middlewareConfig = getMiddlewareConfig(config)
-
-    return {
-      ssr,
-      ssg,
-      ...(middlewareConfig && { middleware: middlewareConfig }),
-      ...(runtime && { runtime }),
-    }
-  }
-
-  return { ssr: false, ssg: false }
 }
 
 /**
@@ -121,28 +81,16 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
-function getMiddlewareConfig(config: any): Partial<MiddlewareConfig> {
-  const result: Partial<MiddlewareConfig> = {}
-
-  if (config.matcher) {
-    result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matcher).join('|')
-    )
-
-    if (result.pathMatcher.source.length > 4096) {
-      throw new Error(
-        `generated matcher config must be less than 4096 characters.`
-      )
-    }
-  }
-
-  return result
-}
-
-function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
+function getMiddlewareRegExpStrings(
+  matcherOrMatchers: unknown,
+  nextConfig: NextConfig
+): string[] {
   if (Array.isArray(matcherOrMatchers)) {
-    return matcherOrMatchers.flatMap((x) => getMiddlewareRegExpStrings(x))
+    return matcherOrMatchers.flatMap((matcher) =>
+      getMiddlewareRegExpStrings(matcher, nextConfig)
+    )
   }
+  const { i18n } = nextConfig
 
   if (typeof matcherOrMatchers !== 'string') {
     throw new Error(
@@ -155,8 +103,23 @@ function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
   if (!matcher.startsWith('/')) {
     throw new Error('`matcher`: path matcher must start with /')
   }
+  const isRoot = matcher === '/'
 
+  if (i18n?.locales) {
+    matcher = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : matcher}`
+  }
+
+  matcher = `/:nextData(_next/data/[^/]{1,})?${matcher}${
+    isRoot
+      ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
+      : '(.json)?'
+  }`
+
+  if (nextConfig.basePath) {
+    matcher = `${nextConfig.basePath}${matcher}`
+  }
   const parsedPage = tryToParsePath(matcher)
+
   if (parsedPage.error) {
     throw new Error(`Invalid path matcher: ${matcher}`)
   }
@@ -169,6 +132,28 @@ function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
   }
 }
 
+function getMiddlewareConfig(
+  config: any,
+  nextConfig: NextConfig
+): Partial<MiddlewareConfig> {
+  const result: Partial<MiddlewareConfig> = {}
+
+  if (config.matcher) {
+    result.pathMatcher = new RegExp(
+      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
+    )
+
+    if (result.pathMatcher.source.length > 4096) {
+      throw new Error(
+        `generated matcher config must be less than 4096 characters.`
+      )
+    }
+  }
+
+  return result
+}
+
+let warnedAboutExperimentalEdgeApiFunctions = false
 function warnAboutExperimentalEdgeApiFunctions() {
   if (warnedAboutExperimentalEdgeApiFunctions) {
     return
@@ -177,4 +162,99 @@ function warnAboutExperimentalEdgeApiFunctions() {
   warnedAboutExperimentalEdgeApiFunctions = true
 }
 
-let warnedAboutExperimentalEdgeApiFunctions = false
+const warnedUnsupportedValueMap = new Map<string, boolean>()
+function warnAboutUnsupportedValue(
+  pageFilePath: string,
+  page: string | undefined,
+  error: UnsupportedValueError
+) {
+  if (warnedUnsupportedValueMap.has(pageFilePath)) {
+    return
+  }
+
+  Log.warn(
+    `Next.js can't recognize the exported \`config\` field in ` +
+      (page ? `route "${page}"` : `"${pageFilePath}"`) +
+      ':\n' +
+      error.message +
+      (error.path ? ` at "${error.path}"` : '') +
+      '.\n' +
+      'The default config will be used instead.\n' +
+      'Read More - https://nextjs.org/docs/messages/invalid-page-config'
+  )
+
+  warnedUnsupportedValueMap.set(pageFilePath, true)
+}
+
+/**
+ * For a given pageFilePath and nextConfig, if the config supports it, this
+ * function will read the file and return the runtime that should be used.
+ * It will look into the file content only if the page *requires* a runtime
+ * to be specified, that is, when gSSP or gSP is used.
+ * Related discussion: https://github.com/vercel/next.js/discussions/34179
+ */
+export async function getPageStaticInfo(params: {
+  nextConfig: Partial<NextConfig>
+  pageFilePath: string
+  isDev?: boolean
+  page?: string
+}): Promise<PageStaticInfo> {
+  const { isDev, pageFilePath, nextConfig, page } = params
+
+  const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
+  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
+    const swcAST = await parseModule(pageFilePath, fileContent)
+    const { ssg, ssr } = checkExports(swcAST)
+
+    // default / failsafe value for config
+    let config: any = {}
+    try {
+      config = extractExportedConstValue(swcAST, 'config')
+    } catch (e) {
+      if (e instanceof UnsupportedValueError) {
+        warnAboutUnsupportedValue(pageFilePath, page, e)
+      }
+      // `export config` doesn't exist, or other unknown error throw by swc, silence them
+    }
+
+    if (
+      typeof config.runtime !== 'string' &&
+      typeof config.runtime !== 'undefined'
+    ) {
+      throw new Error(`Provided runtime `)
+    } else if (!isServerRuntime(config.runtime)) {
+      const options = Object.values(SERVER_RUNTIME).join(', ')
+      if (typeof config.runtime !== 'string') {
+        throw new Error(
+          `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
+        )
+      } else {
+        throw new Error(
+          `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
+        )
+      }
+    }
+
+    let runtime =
+      SERVER_RUNTIME.edge === config?.runtime
+        ? SERVER_RUNTIME.edge
+        : ssr || ssg
+        ? config?.runtime || nextConfig.experimental?.runtime
+        : undefined
+
+    if (runtime === SERVER_RUNTIME.edge) {
+      warnAboutExperimentalEdgeApiFunctions()
+    }
+
+    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
+
+    return {
+      ssr,
+      ssg,
+      ...(middlewareConfig && { middleware: middlewareConfig }),
+      ...(runtime && { runtime }),
+    }
+  }
+
+  return { ssr: false, ssg: false, runtime: nextConfig.experimental?.runtime }
+}

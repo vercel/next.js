@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig } from 'next/types'
 import {
+  checkIsManualRevalidate,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   __ApiPreviewProps,
 } from '.'
@@ -12,7 +13,7 @@ import type { PreviewData } from 'next/types'
 import bytes from 'next/dist/compiled/bytes'
 import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
 import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
-import generateETag from 'next/dist/compiled/etag'
+import { generateETag } from '../lib/etag'
 import { sendEtagResponse } from '../send-payload'
 import { Stream } from 'stream'
 import { parse } from 'next/dist/compiled/content-type'
@@ -41,6 +42,12 @@ export function tryGetPreviewData(
   res: ServerResponse | BaseNextResponse,
   options: __ApiPreviewProps
 ): PreviewData {
+  // if an On-Demand revalidation is being done preview mode
+  // is disabled
+  if (options && checkIsManualRevalidate(req, options).isManualRevalidate) {
+    return false
+  }
+
   // Read cached preview data if present
   if (SYMBOL_PREVIEW_DATA in req) {
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
@@ -111,6 +118,23 @@ export function tryGetPreviewData(
 }
 
 /**
+ * Parse `JSON` and handles invalid `JSON` strings
+ * @param str `JSON` string
+ */
+function parseJson(str: string): object {
+  if (str.length === 0) {
+    // special-case empty json body, as it's a common client-side mistake
+    return {}
+  }
+
+  try {
+    return JSON.parse(str)
+  } catch (e) {
+    throw new ApiError(400, 'Invalid JSON')
+  }
+}
+
+/**
  * Parse incoming message like `json` or `urlencoded`
  * @param req request object
  */
@@ -158,216 +182,11 @@ type ApiContext = __ApiPreviewProps & {
   revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
 }
 
-export async function apiResolver(
-  req: IncomingMessage,
-  res: ServerResponse,
-  query: any,
-  resolverModule: any,
-  apiContext: ApiContext,
-  propagateError: boolean,
-  dev?: boolean,
-  page?: string
-): Promise<void> {
-  const apiReq = req as NextApiRequest
-  const apiRes = res as NextApiResponse
-
-  try {
-    if (!resolverModule) {
-      res.statusCode = 404
-      res.end('Not Found')
-      return
-    }
-    const config: PageConfig = resolverModule.config || {}
-    const bodyParser = config.api?.bodyParser !== false
-    const responseLimit = config.api?.responseLimit ?? true
-    const externalResolver = config.api?.externalResolver || false
-
-    // Parsing of cookies
-    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
-    // Parsing query string
-    apiReq.query = query
-    // Parsing preview data
-    setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext)
-    )
-    // Checking if preview mode is enabled
-    setLazyProp({ req: apiReq }, 'preview', () =>
-      apiReq.previewData !== false ? true : undefined
-    )
-
-    // Parsing of body
-    if (bodyParser && !apiReq.body) {
-      apiReq.body = await parseBody(
-        apiReq,
-        config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
-          ? config.api.bodyParser.sizeLimit
-          : '1mb'
-      )
-    }
-
-    let contentLength = 0
-    const maxContentLength = getMaxContentLength(responseLimit)
-    const writeData = apiRes.write
-    const endResponse = apiRes.end
-    apiRes.write = (...args: any[2]) => {
-      contentLength += Buffer.byteLength(args[0] || '')
-      return writeData.apply(apiRes, args)
-    }
-    apiRes.end = (...args: any[2]) => {
-      if (args.length && typeof args[0] !== 'function') {
-        contentLength += Buffer.byteLength(args[0] || '')
-      }
-
-      if (responseLimit && contentLength >= maxContentLength) {
-        console.warn(
-          `API response for ${req.url} exceeds ${bytes.format(
-            maxContentLength
-          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
-        )
-      }
-
-      endResponse.apply(apiRes, args)
-    }
-    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
-    apiRes.send = (data) => sendData(apiReq, apiRes, data)
-    apiRes.json = (data) => sendJson(apiRes, data)
-    apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
-      redirect(apiRes, statusOrUrl, url)
-    apiRes.setPreviewData = (data, options = {}) =>
-      setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
-    apiRes.clearPreviewData = () => clearPreviewData(apiRes)
-    apiRes.unstable_revalidate = (
-      urlPath: string,
-      opts?: {
-        unstable_onlyGenerated?: boolean
-      }
-    ) => unstable_revalidate(urlPath, opts || {}, req, apiContext)
-
-    const resolver = interopDefault(resolverModule)
-    let wasPiped = false
-
-    if (process.env.NODE_ENV !== 'production') {
-      // listen for pipe event and don't show resolve warning
-      res.once('pipe', () => (wasPiped = true))
-    }
-
-    // Call API route method
-    await resolver(req, res)
-
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      !externalResolver &&
-      !isResSent(res) &&
-      !wasPiped
-    ) {
-      console.warn(
-        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
-      )
-    }
-  } catch (err) {
-    if (err instanceof ApiError) {
-      sendError(apiRes, err.statusCode, err.message)
-    } else {
-      if (dev) {
-        if (isError(err)) {
-          err.page = page
-        }
-        throw err
-      }
-
-      console.error(err)
-      if (propagateError) {
-        throw err
-      }
-      sendError(apiRes, 500, 'Internal Server Error')
-    }
+function getMaxContentLength(responseLimit?: number | string | boolean) {
+  if (responseLimit && typeof responseLimit !== 'boolean') {
+    return bytes.parse(responseLimit)
   }
-}
-
-async function unstable_revalidate(
-  urlPath: string,
-  opts: {
-    unstable_onlyGenerated?: boolean
-  },
-  req: IncomingMessage,
-  context: ApiContext
-) {
-  if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
-    throw new Error(
-      `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
-    )
-  }
-  const revalidateHeaders = {
-    [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
-    ...(opts.unstable_onlyGenerated
-      ? {
-          [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
-        }
-      : {}),
-  }
-
-  try {
-    if (context.trustHostHeader) {
-      const res = await fetch(`https://${req.headers.host}${urlPath}`, {
-        headers: {
-          ...revalidateHeaders,
-          cookie: req.headers.cookie || '',
-        },
-      })
-      // we use the cache header to determine successful revalidate as
-      // a non-200 status code can be returned from a successful revalidate
-      // e.g. notFound: true returns 404 status code but is successful
-      const cacheHeader =
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-
-      if (
-        cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
-        !(res.status === 404 && opts.unstable_onlyGenerated)
-      ) {
-        throw new Error(`Invalid response ${res.status}`)
-      }
-    } else if (context.revalidate) {
-      const {
-        req: mockReq,
-        res: mockRes,
-        streamPromise,
-      } = mockRequest(urlPath, revalidateHeaders, 'GET')
-      await context.revalidate(mockReq, mockRes)
-      await streamPromise
-
-      if (
-        mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-        !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)
-      ) {
-        throw new Error(`Invalid response ${mockRes.statusCode}`)
-      }
-    } else {
-      throw new Error(
-        `Invariant: required internal revalidate method not passed to api-utils`
-      )
-    }
-  } catch (err: unknown) {
-    throw new Error(
-      `Failed to revalidate ${urlPath}: ${isError(err) ? err.message : err}`
-    )
-  }
-}
-
-/**
- * Parse `JSON` and handles invalid `JSON` strings
- * @param str `JSON` string
- */
-function parseJson(str: string): object {
-  if (str.length === 0) {
-    // special-case empty json body, as it's a common client-side mistake
-    return {}
-  }
-
-  try {
-    return JSON.parse(str)
-  } catch (e) {
-    throw new ApiError(400, 'Invalid JSON')
-  }
+  return RESPONSE_LIMIT_DEFAULT
 }
 
 /**
@@ -454,6 +273,7 @@ function setPreviewData<T>(
   data: object | string, // TODO: strict runtime type checking
   options: {
     maxAge?: number
+    path?: string
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
   if (isNotValidData(options.previewModeId)) {
@@ -507,6 +327,9 @@ function setPreviewData<T>(
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
         : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
@@ -516,14 +339,213 @@ function setPreviewData<T>(
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
         : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
     }),
   ])
   return res
 }
 
-function getMaxContentLength(responseLimit?: number | string | boolean) {
-  if (responseLimit && typeof responseLimit !== 'boolean') {
-    return bytes.parse(responseLimit)
+async function revalidate(
+  urlPath: string,
+  opts: {
+    unstable_onlyGenerated?: boolean
+  },
+  req: IncomingMessage,
+  context: ApiContext
+) {
+  if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
+    throw new Error(
+      `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
+    )
   }
-  return RESPONSE_LIMIT_DEFAULT
+  const revalidateHeaders = {
+    [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+    ...(opts.unstable_onlyGenerated
+      ? {
+          [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
+        }
+      : {}),
+  }
+
+  try {
+    if (context.trustHostHeader) {
+      const res = await fetch(`https://${req.headers.host}${urlPath}`, {
+        method: 'HEAD',
+        headers: {
+          ...revalidateHeaders,
+          cookie: req.headers.cookie || '',
+        },
+      })
+      // we use the cache header to determine successful revalidate as
+      // a non-200 status code can be returned from a successful revalidate
+      // e.g. notFound: true returns 404 status code but is successful
+      const cacheHeader =
+        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
+
+      if (
+        cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
+        !(res.status === 404 && opts.unstable_onlyGenerated)
+      ) {
+        throw new Error(`Invalid response ${res.status}`)
+      }
+    } else if (context.revalidate) {
+      const {
+        req: mockReq,
+        res: mockRes,
+        streamPromise,
+      } = mockRequest(urlPath, revalidateHeaders, 'GET')
+      await context.revalidate(mockReq, mockRes)
+      await streamPromise
+
+      if (
+        mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+        !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)
+      ) {
+        throw new Error(`Invalid response ${mockRes.statusCode}`)
+      }
+    } else {
+      throw new Error(
+        `Invariant: required internal revalidate method not passed to api-utils`
+      )
+    }
+  } catch (err: unknown) {
+    throw new Error(
+      `Failed to revalidate ${urlPath}: ${isError(err) ? err.message : err}`
+    )
+  }
+}
+
+export async function apiResolver(
+  req: IncomingMessage,
+  res: ServerResponse,
+  query: any,
+  resolverModule: any,
+  apiContext: ApiContext,
+  propagateError: boolean,
+  dev?: boolean,
+  page?: string
+): Promise<void> {
+  const apiReq = req as NextApiRequest
+  const apiRes = res as NextApiResponse
+
+  try {
+    if (!resolverModule) {
+      res.statusCode = 404
+      res.end('Not Found')
+      return
+    }
+    const config: PageConfig = resolverModule.config || {}
+    const bodyParser = config.api?.bodyParser !== false
+    const responseLimit = config.api?.responseLimit ?? true
+    const externalResolver = config.api?.externalResolver || false
+
+    // Parsing of cookies
+    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
+    // Parsing query string
+    apiReq.query = query
+    // Parsing preview data
+    setLazyProp({ req: apiReq }, 'previewData', () =>
+      tryGetPreviewData(req, res, apiContext)
+    )
+    // Checking if preview mode is enabled
+    setLazyProp({ req: apiReq }, 'preview', () =>
+      apiReq.previewData !== false ? true : undefined
+    )
+
+    // Parsing of body
+    if (bodyParser && !apiReq.body) {
+      apiReq.body = await parseBody(
+        apiReq,
+        config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
+          ? config.api.bodyParser.sizeLimit
+          : '1mb'
+      )
+    }
+
+    let contentLength = 0
+    const maxContentLength = getMaxContentLength(responseLimit)
+    const writeData = apiRes.write
+    const endResponse = apiRes.end
+    apiRes.write = (...args: any[2]) => {
+      contentLength += Buffer.byteLength(args[0] || '')
+      return writeData.apply(apiRes, args)
+    }
+    apiRes.end = (...args: any[2]) => {
+      if (args.length && typeof args[0] !== 'function') {
+        contentLength += Buffer.byteLength(args[0] || '')
+      }
+
+      if (responseLimit && contentLength >= maxContentLength) {
+        console.warn(
+          `API response for ${req.url} exceeds ${bytes.format(
+            maxContentLength
+          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
+        )
+      }
+
+      endResponse.apply(apiRes, args)
+    }
+    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
+    apiRes.send = (data) => sendData(apiReq, apiRes, data)
+    apiRes.json = (data) => sendJson(apiRes, data)
+    apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
+      redirect(apiRes, statusOrUrl, url)
+    apiRes.setPreviewData = (data, options = {}) =>
+      setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
+    apiRes.clearPreviewData = () => clearPreviewData(apiRes)
+    apiRes.revalidate = (
+      urlPath: string,
+      opts?: {
+        unstable_onlyGenerated?: boolean
+      }
+    ) => revalidate(urlPath, opts || {}, req, apiContext)
+
+    // TODO: remove in next minor (current v12.2)
+    apiRes.unstable_revalidate = () => {
+      throw new Error(
+        `"unstable_revalidate" has been renamed to "revalidate" see more info here: https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration#on-demand-revalidation`
+      )
+    }
+
+    const resolver = interopDefault(resolverModule)
+    let wasPiped = false
+
+    if (process.env.NODE_ENV !== 'production') {
+      // listen for pipe event and don't show resolve warning
+      res.once('pipe', () => (wasPiped = true))
+    }
+
+    // Call API route method
+    await resolver(req, res)
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      !externalResolver &&
+      !isResSent(res) &&
+      !wasPiped
+    ) {
+      console.warn(
+        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
+      )
+    }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      sendError(apiRes, err.statusCode, err.message)
+    } else {
+      if (dev) {
+        if (isError(err)) {
+          err.page = page
+        }
+        throw err
+      }
+
+      console.error(err)
+      if (propagateError) {
+        throw err
+      }
+      sendError(apiRes, 500, 'Internal Server Error')
+    }
+  }
 }

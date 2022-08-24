@@ -18,10 +18,6 @@ describe('Middleware Responses', () => {
       },
     })
   })
-
-  testsWithLocale()
-  testsWithLocale('/fr')
-
   function testsWithLocale(locale = '') {
     const label = locale ? `${locale} ` : ``
 
@@ -38,9 +34,7 @@ describe('Middleware Responses', () => {
       expect(res.status).toBe(500)
 
       if ((global as any).isNextDeploy) {
-        expect(await res.text()).toContain(
-          'INTERNAL_EDGE_FUNCTION_INVOCATION_FAILED'
-        )
+        expect(await res.text()).toContain('EDGE_FUNCTION_INVOCATION_FAILED')
       } else {
         expect(await res.text()).toEqual('Internal Server Error')
         expect(next.cliOutput).toContain(
@@ -54,9 +48,7 @@ describe('Middleware Responses', () => {
       expect(res.status).toBe(500)
 
       if ((global as any).isNextDeploy) {
-        expect(await res.text()).toContain(
-          'INTERNAL_EDGE_FUNCTION_INVOCATION_FAILED'
-        )
+        expect(await res.text()).toContain('EDGE_FUNCTION_INVOCATION_FAILED')
       } else {
         expect(await res.text()).toEqual('Internal Server Error')
         expect(next.cliOutput).toContain(
@@ -96,4 +88,6 @@ describe('Middleware Responses', () => {
       expect(res.headers.raw()['set-cookie']).toEqual(['bar=chocochip'])
     })
   }
+  testsWithLocale()
+  testsWithLocale('/fr')
 })

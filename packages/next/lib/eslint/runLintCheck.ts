@@ -9,16 +9,17 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import { LintResult, formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { hasEslintConfiguration } from './hasEslintConfiguration'
+import { writeOutputFile } from './writeOutputFile'
 
 import { ESLINT_PROMPT_VALUES } from '../constants'
 import { existsSync, findPagesDir } from '../find-pages-dir'
 import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
-import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
 import isError, { getProperError } from '../is-error'
+import { getPkgManager } from '../helpers/get-pkg-manager'
 
 type Config = {
   plugins: string[]
@@ -86,7 +87,8 @@ async function lint(
   eslintOptions: any = null,
   reportErrorsOnly: boolean = false,
   maxWarnings: number = -1,
-  formatter: string | null = null
+  formatter: string | null = null,
+  outputFile: string | null = null
 ): Promise<
   | string
   | null
@@ -99,15 +101,18 @@ async function lint(
   try {
     // Load ESLint after we're sure it exists:
     const deps = await hasNecessaryDependencies(baseDir, requiredPackages)
+    const packageManager = getPkgManager(baseDir)
 
     if (deps.missing.some((dep) => dep.pkg === 'eslint')) {
       Log.error(
         `ESLint must be installed${
           lintDuringBuild ? ' in order to run during builds:' : ':'
         } ${chalk.bold.cyan(
-          (await isYarn(baseDir))
-            ? 'yarn add --dev eslint'
-            : 'npm install --save-dev eslint'
+          (packageManager === 'yarn'
+            ? 'yarn add --dev'
+            : packageManager === 'pnpm'
+            ? 'pnpm install --save-dev'
+            : 'npm install --save-dev') + ' eslint'
         )}`
       )
       return null
@@ -221,8 +226,10 @@ async function lint(
       0
     )
 
+    if (outputFile) await writeOutputFile(outputFile, formattedResult.output)
+
     return {
-      output: formattedResult.output,
+      output: formattedResult.outputWithMessages,
       isError:
         ESLint.getErrorResults(results)?.length > 0 ||
         (maxWarnings >= 0 && totalWarnings > maxWarnings),
@@ -266,6 +273,7 @@ export async function runLintCheck(
   reportErrorsOnly: boolean = false,
   maxWarnings: number = -1,
   formatter: string | null = null,
+  outputFile: string | null = null,
   strict: boolean = false
 ): ReturnType<typeof lint> {
   try {
@@ -309,16 +317,21 @@ export async function runLintCheck(
         eslintOptions,
         reportErrorsOnly,
         maxWarnings,
-        formatter
+        formatter,
+        outputFile
       )
     } else {
-      // Display warning if no ESLint configuration is present during "next build"
+      // Display warning if no ESLint configuration is present inside
+      // config file during "next build", no warning is shown when
+      // no eslintrc file is present
       if (lintDuringBuild) {
-        Log.warn(
-          `No ESLint configuration detected. Run ${chalk.bold.cyan(
-            'next lint'
-          )} to begin setup`
-        )
+        if (config.emptyPkgJsonConfig || config.emptyEslintrc) {
+          Log.warn(
+            `No ESLint configuration detected. Run ${chalk.bold.cyan(
+              'next lint'
+            )} to begin setup`
+          )
+        }
         return null
       } else {
         // Ask user what config they would like to start with for first time "next lint" setup

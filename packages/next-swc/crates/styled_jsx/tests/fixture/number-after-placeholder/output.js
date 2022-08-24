@@ -1,17 +1,17 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 import Link from "next/link";
 export default function IndexPage() {
-    return <div className={"jsx-2339e3d61ab4470c"}>
+    return <div className={"jsx-9a4b3442d519aae9"}>
 
       Hello World.{" "}
 
       <Link href="/about">
 
-        <a className={"jsx-2339e3d61ab4470c"}>Abound</a>
+        <a className={"jsx-9a4b3442d519aae9"}>Abound</a>
 
       </Link>
 
-      <_JSXStyle id={"2339e3d61ab4470c"}>{`a.jsx-2339e3d61ab4470c{color:${"#abcdef"}12}`}</_JSXStyle>
+      <_JSXStyle id={"9a4b3442d519aae9"}>{`a.jsx-9a4b3442d519aae9{color:${"#abcdef"}12}`}</_JSXStyle>
 
     </div>;
 };

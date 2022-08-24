@@ -1,10 +1,11 @@
+import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfigComplete } from '../config-shared'
+import type { CustomRoutes } from '../../lib/load-custom-routes'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, relative, isAbsolute } from 'path'
+import { join, relative, isAbsolute, posix } from 'path'
 import { UrlObject } from 'url'
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -15,16 +16,19 @@ import {
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
+import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
+import { APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
-import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import { BLOCKED_PAGES, COMPILER_NAMES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
   entries,
+  EntryTypes,
+  getInvalidator,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
@@ -36,8 +40,6 @@ import {
   withoutRSCExtensions,
   isMiddlewareFilename,
 } from '../../build/utils'
-import { NextConfigComplete } from '../config-shared'
-import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
@@ -45,7 +47,11 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
-import { stringify } from 'querystring'
+import { UnwrapPromise } from '../../lib/coalesced-function'
+
+function diff(a: Set<any>, b: Set<any>) {
+  return new Set([...a].filter((v) => !b.has(v)))
+}
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -74,9 +80,8 @@ export async function renderScriptError(
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
-  const isApiRoute = req.url!.match(API_ROUTE)
-  // API routes handle their own CORS headers
-  if (isApiRoute) {
+  // Only rewrite CORS handling when URL matches a hot-reloader middleware
+  if (!req.url!.startsWith('/__next')) {
     return { preflight: false }
   }
 
@@ -109,7 +114,7 @@ const matchNextPageBundleRequest = getPathMatch(
 
 // Recursively look up the issuer till it ends up at the root
 function findEntryModule(
-  compilation: webpack5.Compilation,
+  compilation: webpack.Compilation,
   issuerModule: any
 ): any {
   const issuer = compilation.moduleGraph.getIssuer(issuerModule)
@@ -120,7 +125,7 @@ function findEntryModule(
   return issuerModule
 }
 
-function erroredPages(compilation: webpack5.Compilation) {
+function erroredPages(compilation: webpack.Compilation) {
   const failedPages: { [page: string]: any[] } = {}
   for (const error of compilation.errors) {
     if (!error.module) {
@@ -153,16 +158,16 @@ function erroredPages(compilation: webpack5.Compilation) {
 export default class HotReloader {
   private dir: string
   private buildId: string
-  private middlewares: any[]
+  private interceptors: any[]
   private pagesDir: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  private hasServerComponents: boolean
-  private hasReactRoot: boolean
-  public clientStats: webpack5.Stats | null
-  public serverStats: webpack5.Stats | null
-  public edgeServerStats: webpack5.Stats | null
+  public hasServerComponents: boolean
+  public hasReactRoot: boolean
+  public clientStats: webpack.Stats | null
+  public serverStats: webpack.Stats | null
+  public edgeServerStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
@@ -175,6 +180,10 @@ export default class HotReloader {
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
+  public multiCompiler?: webpack.MultiCompiler
+  public activeConfigs?: Array<
+    UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
+  >
 
   constructor(
     dir: string,
@@ -198,7 +207,7 @@ export default class HotReloader {
   ) {
     this.buildId = buildId
     this.dir = dir
-    this.middlewares = []
+    this.interceptors = []
     this.pagesDir = pagesDir
     this.appDir = appDir
     this.distDir = distDir
@@ -281,7 +290,7 @@ export default class HotReloader {
 
     const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
-    for (const fn of this.middlewares) {
+    for (const fn of this.interceptors) {
       await new Promise<void>((resolve, reject) => {
         fn(req, res, (err: Error) => {
           if (err) return reject(err)
@@ -348,6 +357,15 @@ export default class HotReloader {
               traceChild = {
                 name: payload.event,
                 attrs: { page: payload.page || '' },
+              }
+              break
+            }
+            case 'client-full-reload': {
+              Log.warn(
+                'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+              )
+              if (payload.stackTrace) {
+                console.warn(payload.stackTrace)
               }
               break
             }
@@ -442,19 +460,20 @@ export default class HotReloader {
         .traceChild('generate-webpack-config')
         .traceAsyncFn(() =>
           Promise.all([
+            // order is important here
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'client',
+              compilerType: COMPILER_NAMES.client,
               entrypoints: entrypoints.client,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'server',
+              compilerType: COMPILER_NAMES.server,
               entrypoints: entrypoints.server,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
-              compilerType: 'edge-server',
+              compilerType: COMPILER_NAMES.edgeServer,
               entrypoints: entrypoints.edgeServer,
             }),
           ])
@@ -468,7 +487,7 @@ export default class HotReloader {
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
       runWebpackSpan: this.hotReloaderSpan,
       dev: true,
-      compilerType: 'client',
+      compilerType: COMPILER_NAMES.client,
       config: this.config,
       buildId: this.buildId,
       pagesDir: this.pagesDir,
@@ -515,73 +534,98 @@ export default class HotReloader {
     })
   }
 
-  public async start(): Promise<void> {
+  public async start(initial?: boolean): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    await this.clean(startSpan)
+    if (initial) {
+      await this.clean(startSpan)
+      // Ensure distDir exists before writing package.json
+      await fs.mkdir(this.distDir, { recursive: true })
 
-    // Ensure distDir exists before writing package.json
-    await fs.mkdir(this.distDir, { recursive: true })
+      const distPackageJsonPath = join(this.distDir, 'package.json')
+      // Ensure commonjs handling is used for files in the distDir (generally .next)
+      // Files outside of the distDir can be "type": "module"
+      await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
+    }
+    this.activeConfigs = await this.getWebpackConfig(startSpan)
 
-    const distPackageJsonPath = join(this.distDir, 'package.json')
-
-    // Ensure commonjs handling is used for files in the distDir (generally .next)
-    // Files outside of the distDir can be "type": "module"
-    await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
-
-    const configs = await this.getWebpackConfig(startSpan)
-
-    for (const config of configs) {
+    for (const config of this.activeConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
-        const isClientCompilation = config.name === 'client'
-        const isNodeServerCompilation = config.name === 'server'
-        const isEdgeServerCompilation = config.name === 'edge-server'
+        const isClientCompilation = config.name === COMPILER_NAMES.client
+        const isNodeServerCompilation = config.name === COMPILER_NAMES.server
+        const isEdgeServerCompilation =
+          config.name === COMPILER_NAMES.edgeServer
 
         await Promise.all(
-          Object.keys(entries).map(async (pageKey) => {
-            const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+          Object.keys(entries).map(async (entryKey) => {
+            const entryData = entries[entryKey]
+            const { bundlePath, dispose } = entryData
 
-            // @FIXME
-            const { clientLoader } = entries[pageKey] as any
-
-            const result = /^(client|server|edge-server)(.*)/g.exec(pageKey)
+            const result = /^(client|server|edge-server)(.*)/g.exec(entryKey)
             const [, key, page] = result! // this match should always happen
-            if (key === 'client' && !isClientCompilation) return
-            if (key === 'server' && !isNodeServerCompilation) return
-            if (key === 'edge-server' && !isEdgeServerCompilation) return
+            if (key === COMPILER_NAMES.client && !isClientCompilation) return
+            if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
+              return
+            if (key === COMPILER_NAMES.edgeServer && !isEdgeServerCompilation)
+              return
+
+            const isEntry = entryData.type === EntryTypes.ENTRY
+            const isChildEntry = entryData.type === EntryTypes.CHILD_ENTRY
 
             // Check if the page was removed or disposed and remove it
-            const pageExists = !dispose && (await fileExists(absolutePagePath))
-            if (!pageExists) {
-              delete entries[pageKey]
-              return
+            if (isEntry) {
+              const pageExists =
+                !dispose && (await fileExists(entryData.absolutePagePath))
+              if (!pageExists) {
+                delete entries[entryKey]
+                return
+              }
             }
 
-            const isServerComponent =
-              serverComponentRegex.test(absolutePagePath)
-            const isInsideAppDir =
-              this.appDir && absolutePagePath.startsWith(this.appDir)
+            const isServerComponent = isEntry
+              ? serverComponentRegex.test(entryData.absolutePagePath)
+              : false
 
-            const staticInfo = await getPageStaticInfo({
-              pageFilePath: absolutePagePath,
-              nextConfig: this.config,
-            })
+            const staticInfo = isEntry
+              ? await getPageStaticInfo({
+                  pageFilePath: entryData.absolutePagePath,
+                  nextConfig: this.config,
+                })
+              : {}
 
-            runDependingOnPageType({
+            await runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
               onEdgeServer: () => {
-                if (!isEdgeServerCompilation) return
-                entries[pageKey].status = BUILDING
+                // TODO-APP: verify if child entry should support.
+                if (!isEdgeServerCompilation || !isEntry) return
+                const isApp = this.appDir && bundlePath.startsWith('app/')
+                const appDirLoader =
+                  isApp && this.appDir
+                    ? getAppEntry({
+                        name: bundlePath,
+                        pagePath: posix.join(
+                          APP_DIR_ALIAS,
+                          relative(
+                            this.appDir!,
+                            entryData.absolutePagePath
+                          ).replace(/\\/g, '/')
+                        ),
+                        appDir: this.appDir!,
+                        pageExtensions: this.config.pageExtensions,
+                      }).import
+                    : undefined
+
+                entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
-                  compilerType: 'edge-server',
+                  compilerType: COMPILER_NAMES.edgeServer,
                   name: bundlePath,
                   value: getEdgeServerEntry({
-                    absolutePagePath,
+                    absolutePagePath: entryData.absolutePagePath,
                     buildId: this.buildId,
                     bundlePath,
                     config: this.config,
@@ -589,34 +633,29 @@ export default class HotReloader {
                     page,
                     pages: this.pagesMapping,
                     isServerComponent,
+                    appDirLoader,
+                    pagesType: isApp ? 'app' : undefined,
                   }),
                   appDir: this.config.experimental.appDir,
                 })
               },
               onClient: () => {
                 if (!isClientCompilation) return
-                if (isServerComponent || isInsideAppDir) {
-                  entries[pageKey].status = BUILDING
+                if (isChildEntry) {
+                  entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: 'client',
-                    value:
-                      `next-client-pages-loader?${stringify({
-                        isServerComponent,
-                        page: denormalizePagePath(
-                          bundlePath.replace(/^pages/, '')
-                        ),
-                        absolutePagePath: clientLoader,
-                      })}!` + clientLoader,
+                    compilerType: COMPILER_NAMES.client,
+                    value: entryData.request,
                     appDir: this.config.experimental.appDir,
                   })
                 } else {
-                  entries[pageKey].status = BUILDING
+                  entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
-                    compilerType: 'client',
+                    compilerType: COMPILER_NAMES.client,
                     value: getClientEntry({
-                      absolutePagePath,
+                      absolutePagePath: entryData.absolutePagePath,
                       page,
                     }),
                     appDir: this.config.experimental.appDir,
@@ -624,11 +663,18 @@ export default class HotReloader {
                 }
               },
               onServer: () => {
-                if (!isNodeServerCompilation) return
-                entries[pageKey].status = BUILDING
-                let request = relative(config.context!, absolutePagePath)
-                if (!isAbsolute(request) && !request.startsWith('../')) {
-                  request = `./${request}`
+                // TODO-APP: verify if child entry should support.
+                if (!isNodeServerCompilation || !isEntry) return
+                entries[entryKey].status = BUILDING
+                let relativeRequest = relative(
+                  config.context!,
+                  entryData.absolutePagePath
+                )
+                if (
+                  !isAbsolute(relativeRequest) &&
+                  !relativeRequest.startsWith('../')
+                ) {
+                  relativeRequest = `./${relativeRequest}`
                 }
 
                 entrypoints[bundlePath] = finalizeEntrypoint({
@@ -639,14 +685,17 @@ export default class HotReloader {
                     this.appDir && bundlePath.startsWith('app/')
                       ? getAppEntry({
                           name: bundlePath,
-                          pagePath: join(
+                          pagePath: posix.join(
                             APP_DIR_ALIAS,
-                            relative(this.appDir!, absolutePagePath)
+                            relative(
+                              this.appDir!,
+                              entryData.absolutePagePath
+                            ).replace(/\\/g, '/')
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
                         })
-                      : request,
+                      : relativeRequest,
                   appDir: this.config.experimental.appDir,
                 })
               },
@@ -660,14 +709,16 @@ export default class HotReloader {
 
     // Enable building of client compilation before server compilation in development
     // @ts-ignore webpack 5
-    configs.parallelism = 1
+    this.activeConfigs.parallelism = 1
 
-    const multiCompiler = webpack(configs) as unknown as webpack5.MultiCompiler
+    this.multiCompiler = webpack(
+      this.activeConfigs
+    ) as unknown as webpack.MultiCompiler
 
     watchCompilers(
-      multiCompiler.compilers[0],
-      multiCompiler.compilers[1],
-      multiCompiler.compilers[2]
+      this.multiCompiler.compilers[0],
+      this.multiCompiler.compilers[1],
+      this.multiCompiler.compilers[2]
     )
 
     // Watch for changes to client/server page files so we can tell when just
@@ -681,10 +732,14 @@ export default class HotReloader {
 
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
-      (stats: webpack5.Compilation) => {
+      (stats: webpack.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
-            if (key.startsWith('pages/') || isMiddlewareFilename(key)) {
+            if (
+              key.startsWith('pages/') ||
+              key.startsWith('app/') ||
+              isMiddlewareFilename(key)
+            ) {
               // TODO this doesn't handle on demand loaded chunks
               entry.chunks.forEach((chunk) => {
                 if (chunk.id === key) {
@@ -734,21 +789,21 @@ export default class HotReloader {
         }
       }
 
-    multiCompiler.compilers[0].hooks.emit.tap(
+    this.multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',
       trackPageChanges(prevClientPageHashes, changedClientPages)
     )
-    multiCompiler.compilers[1].hooks.emit.tap(
+    this.multiCompiler.compilers[1].hooks.emit.tap(
       'NextjsHotReloaderForServer',
       trackPageChanges(prevServerPageHashes, changedServerPages)
     )
-    multiCompiler.compilers[2].hooks.emit.tap(
+    this.multiCompiler.compilers[2].hooks.emit.tap(
       'NextjsHotReloaderForServer',
       trackPageChanges(prevEdgeServerPageHashes, changedEdgeServerPages)
     )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
-    multiCompiler.compilers[1].hooks.failed.tap(
+    this.multiCompiler.compilers[1].hooks.failed.tap(
       'NextjsHotReloaderForServer',
       (err: Error) => {
         this.serverError = err
@@ -756,7 +811,7 @@ export default class HotReloader {
       }
     )
 
-    multiCompiler.compilers[2].hooks.done.tap(
+    this.multiCompiler.compilers[2].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
         this.serverError = null
@@ -764,7 +819,7 @@ export default class HotReloader {
       }
     )
 
-    multiCompiler.compilers[1].hooks.done.tap(
+    this.multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
         this.serverError = null
@@ -797,10 +852,16 @@ export default class HotReloader {
         this.serverPrevDocumentHash = documentChunk.hash || null
       }
     )
-    multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
+    this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
       const serverOnlyChanges = difference<string>(
         changedServerPages,
         changedClientPages
+      )
+      const serverComponentChanges = serverOnlyChanges.filter((key) =>
+        key.startsWith('app/')
+      )
+      const pageChanges = serverOnlyChanges.filter((key) =>
+        key.startsWith('pages/')
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
         (name) => isMiddlewareFilename(name)
@@ -814,7 +875,8 @@ export default class HotReloader {
           event: 'middlewareChanges',
         })
       }
-      if (serverOnlyChanges.length > 0) {
+
+      if (pageChanges.length > 0) {
         this.send({
           event: 'serverOnlyChanges',
           pages: serverOnlyChanges.map((pg) =>
@@ -822,16 +884,24 @@ export default class HotReloader {
           ),
         })
       }
+
+      if (serverComponentChanges.length > 0) {
+        this.send({
+          action: 'serverComponentChanges',
+          // TODO: granular reloading of changes
+          // entrypoints: serverComponentChanges,
+        })
+      }
     })
 
-    multiCompiler.compilers[0].hooks.failed.tap(
+    this.multiCompiler.compilers[0].hooks.failed.tap(
       'NextjsHotReloaderForClient',
       (err: Error) => {
         this.clientError = err
         this.clientStats = null
       }
     )
-    multiCompiler.compilers[0].hooks.done.tap(
+    this.multiCompiler.compilers[0].hooks.done.tap(
       'NextjsHotReloaderForClient',
       (stats) => {
         this.clientError = null
@@ -870,15 +940,15 @@ export default class HotReloader {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      multiCompiler.compilers
+      this.multiCompiler.compilers
     )
 
     let booted = false
 
     this.watcher = await new Promise((resolve) => {
-      const watcher = multiCompiler.watch(
+      const watcher = this.multiCompiler?.watch(
         // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
-        configs.map((config) => config.watchOptions!),
+        this.activeConfigs.map((config) => config.watchOptions!),
         // Errors are handled separately
         (_err: any) => {
           if (!booted) {
@@ -890,8 +960,7 @@ export default class HotReloader {
     })
 
     this.onDemandEntries = onDemandEntryHandler({
-      multiCompiler,
-      watcher: this.watcher,
+      multiCompiler: this.multiCompiler,
       pagesDir: this.pagesDir,
       appDir: this.appDir,
       rootDir: this.dir,
@@ -902,7 +971,7 @@ export default class HotReloader {
       }),
     })
 
-    this.middlewares = [
+    this.interceptors = [
       getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.clientStats,
@@ -910,6 +979,16 @@ export default class HotReloader {
         edgeServerStats: () => this.edgeServerStats,
       }),
     ]
+
+    // trigger invalidation to ensure any previous callbacks
+    // are handled in the on-demand-entry-handler
+    if (!initial) {
+      this.invalidate()
+    }
+  }
+
+  public invalidate() {
+    return getInvalidator()?.invalidate()
   }
 
   public async stop(): Promise<void> {
@@ -924,10 +1003,11 @@ export default class HotReloader {
         )
       })
     }
+    this.multiCompiler = undefined
   }
 
   public async getCompilationErrors(page: string) {
-    const getErrors = ({ compilation }: webpack5.Stats) => {
+    const getErrors = ({ compilation }: webpack.Stats) => {
       const failedPages = erroredPages(compilation)
       const normalizedPage = normalizePathSep(page)
       // If there is an error related to the requesting page we display it instead of the first error
@@ -955,7 +1035,10 @@ export default class HotReloader {
     )
   }
 
-  public async ensurePage(page: string, clientOnly: boolean = false) {
+  public async ensurePage(
+    page: string,
+    clientOnly: boolean = false
+  ): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
@@ -968,8 +1051,4 @@ export default class HotReloader {
     }
     return this.onDemandEntries?.ensurePage(page, clientOnly) as any
   }
-}
-
-function diff(a: Set<any>, b: Set<any>) {
-  return new Set([...a].filter((v) => !b.has(v)))
 }

@@ -26,6 +26,14 @@ let mode
 let app
 
 function runTests(dev = false) {
+  it('should respond from /api/auth/[...nextauth] correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/auth/signin', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ from: 'auth' })
+  })
+
   it('should handle 204 status correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/api/status-204', undefined, {
       redirect: 'manual',

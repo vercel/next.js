@@ -1,3 +1,6 @@
+import '../styles/global.css'
+import './style.css'
+
 export async function getServerSideProps() {
   return {
     props: {
@@ -6,7 +9,7 @@ export async function getServerSideProps() {
   }
 }
 
-export default function Root({ children, world }) {
+export default function Root({ children, custom, world }) {
   return (
     <html className="this-is-the-document-html">
       <head>

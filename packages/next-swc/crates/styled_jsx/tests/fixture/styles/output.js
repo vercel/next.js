@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 import colors, { size } from './constants';
 const color = 'red';
 const bar = new String("div.jsx-aaed0341accea8f{font-size:3em}");
@@ -6,34 +6,34 @@ bar.__hash = "aaed0341accea8f";
 const baz = new String("div{font-size:3em}");
 baz.__hash = "aaed0341accea8f";
 const a = new String(`div{font-size:${size}em}`);
-a.__hash = "3066b487d298d78f";
+a.__hash = "b6966e11ccb637f2";
 export const uh = bar;
-export const foo = new String(`div.jsx-67354fc16554bdab{color:${color}}`);
-foo.__hash = "67354fc16554bdab";
+export const foo = new String(`div.jsx-dbfc29cedbb5f49b{color:${color}}`);
+foo.__hash = "dbfc29cedbb5f49b";
 ({
-    styles: <_JSXStyle id={"ef44b0e76b4e59a2"}>{`div.jsx-ef44b0e76b4e59a2{color:${colors.green.light}}a.jsx-ef44b0e76b4e59a2{color:red}`}</_JSXStyle>,
-    className: "jsx-ef44b0e76b4e59a2"
+    styles: <_JSXStyle id={"38ae14c4ec5e0907"}>{`div.jsx-38ae14c4ec5e0907{color:${colors.green.light}}a.jsx-38ae14c4ec5e0907{color:red}`}</_JSXStyle>,
+    className: "jsx-38ae14c4ec5e0907"
 });
 const b = {
-    styles: <_JSXStyle id={"ef44b0e76b4e59a2"}>{`div.jsx-ef44b0e76b4e59a2{color:${colors.green.light}}a.jsx-ef44b0e76b4e59a2{color:red}`}</_JSXStyle>,
-    className: "jsx-ef44b0e76b4e59a2"
+    styles: <_JSXStyle id={"38ae14c4ec5e0907"}>{`div.jsx-38ae14c4ec5e0907{color:${colors.green.light}}a.jsx-38ae14c4ec5e0907{color:red}`}</_JSXStyle>,
+    className: "jsx-38ae14c4ec5e0907"
 };
-const dynamic = (colors1)=>{
+const dynamic = (colors)=>{
     const b = {
-        styles: <_JSXStyle id={"d1249fb76dde6727"} dynamic={[
-            colors1.green.light
-        ]}>{`div.__jsx-style-dynamic-selector{color:${colors1.green.light}}a.__jsx-style-dynamic-selector{color:red}`}</_JSXStyle>,
+        styles: <_JSXStyle id={"b68d3b38146e2a7d"} dynamic={[
+            colors.green.light
+        ]}>{`div.__jsx-style-dynamic-selector{color:${colors.green.light}}a.__jsx-style-dynamic-selector{color:red}`}</_JSXStyle>,
         className: _JSXStyle.dynamic([
             [
-                "d1249fb76dde6727",
+                "b68d3b38146e2a7d",
                 [
-                    colors1.green.light
+                    colors.green.light
                 ]
             ]
         ])
     };
 };
 export default {
-    styles: <_JSXStyle id={"d85f88350ca31aae"}>{`div.jsx-d85f88350ca31aae{font-size:3em}p.jsx-d85f88350ca31aae{color:${color}}`}</_JSXStyle>,
-    className: "jsx-d85f88350ca31aae"
+    styles: <_JSXStyle id={"a300397bb1f6c7cd"}>{`div.jsx-a300397bb1f6c7cd{font-size:3em}p.jsx-a300397bb1f6c7cd{color:${color}}`}</_JSXStyle>,
+    className: "jsx-a300397bb1f6c7cd"
 };

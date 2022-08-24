@@ -25,8 +25,8 @@ describe('standalone mode and optimizeCss', () => {
       nextConfig: {
         experimental: {
           optimizeCss: true,
-          outputStandalone: true,
         },
+        output: 'standalone',
       },
       dependencies: {
         critters: 'latest',

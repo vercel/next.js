@@ -15,6 +15,16 @@ interface Options {
   }
 }
 
+const REGEX_LOCALHOST_HOSTNAME =
+  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
+
+function parseURL(url: string | URL, base?: string | URL) {
+  return new URL(
+    String(url).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost'),
+    base && String(base).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
+  )
+}
+
 const Internal = Symbol('NextURLInternal')
 
 export class NextURL {
@@ -25,6 +35,7 @@ export class NextURL {
     domainLocale?: DomainLocale
     locale?: string
     options: Options
+    trailingSlash?: boolean
     url: URL
   }
 
@@ -77,6 +88,7 @@ export class NextURL {
     this[Internal].basePath = pathnameInfo.basePath ?? ''
     this[Internal].buildId = pathnameInfo.buildId
     this[Internal].locale = pathnameInfo.locale ?? defaultLocale
+    this[Internal].trailingSlash = pathnameInfo.trailingSlash
   }
 
   private formatPathname() {
@@ -88,6 +100,7 @@ export class NextURL {
         : undefined,
       locale: this[Internal].locale,
       pathname: this[Internal].url.pathname,
+      trailingSlash: this[Internal].trailingSlash,
     })
   }
 
@@ -250,14 +263,4 @@ export class NextURL {
   clone() {
     return new NextURL(String(this), this[Internal].options)
   }
-}
-
-const REGEX_LOCALHOST_HOSTNAME =
-  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
-
-function parseURL(url: string | URL, base?: string | URL) {
-  return new URL(
-    String(url).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost'),
-    base && String(base).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
-  )
 }

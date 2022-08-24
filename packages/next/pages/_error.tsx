@@ -1,6 +1,6 @@
 import React from 'react'
 import Head from '../shared/lib/head'
-import { NextPageContext } from '../shared/lib/utils'
+import type { NextPageContext } from '../shared/lib/utils'
 
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
@@ -22,6 +22,46 @@ function _getInitialProps({
   const statusCode =
     res && res.statusCode ? res.statusCode : err ? err.statusCode! : 404
   return { statusCode }
+}
+
+const styles: { [k: string]: React.CSSProperties } = {
+  error: {
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
+    height: '100vh',
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  desc: {
+    display: 'inline-block',
+    textAlign: 'left',
+    lineHeight: '49px',
+    height: '49px',
+    verticalAlign: 'middle',
+  },
+
+  h1: {
+    display: 'inline-block',
+    margin: 0,
+    marginRight: '20px',
+    padding: '0 23px 0 0',
+    fontSize: '24px',
+    fontWeight: 500,
+    verticalAlign: 'top',
+    lineHeight: '49px',
+  },
+
+  h2: {
+    fontSize: '14px',
+    fontWeight: 'normal',
+    lineHeight: '49px',
+    margin: 0,
+    padding: 0,
+  },
 }
 
 /**
@@ -57,7 +97,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                 .next-error-h1 {
                   border-right: 1px solid rgba(0, 0, 0, .3);
                 }
-                
+
                 ${
                   withDarkMode
                     ? `@media (prefers-color-scheme: dark) {
@@ -93,43 +133,4 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
       </div>
     )
   }
-}
-
-const styles: { [k: string]: React.CSSProperties } = {
-  error: {
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
-    height: '100vh',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  desc: {
-    display: 'inline-block',
-    textAlign: 'left',
-    lineHeight: '49px',
-    height: '49px',
-    verticalAlign: 'middle',
-  },
-
-  h1: {
-    display: 'inline-block',
-    margin: 0,
-    marginRight: '20px',
-    padding: '10px 23px 10px 0',
-    fontSize: '24px',
-    fontWeight: 500,
-    verticalAlign: 'top',
-  },
-
-  h2: {
-    fontSize: '14px',
-    fontWeight: 'normal',
-    lineHeight: 'inherit',
-    margin: 0,
-    padding: 0,
-  },
 }

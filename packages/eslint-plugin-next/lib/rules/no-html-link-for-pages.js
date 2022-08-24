@@ -30,7 +30,7 @@ module.exports = {
       recommended: true,
       url,
     },
-    fixable: null, // or "code" or "whitespace"
+    type: 'problem',
     schema: [
       {
         oneOf: [

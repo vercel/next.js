@@ -1,10 +1,9 @@
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
-import type { MiddlewareSSRLoaderQuery } from './webpack/loaders/next-middleware-ssr-loader'
+import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
-import type { PageRuntime } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { LoadedEnvFiles } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
@@ -15,12 +14,17 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
+  SERVER_RUNTIME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CompilerNameValues,
+  COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -31,11 +35,13 @@ import {
   isMiddlewareFilename,
   isServerComponentPage,
   NestedMiddlewareError,
+  MiddlewareInServerlessTargetError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { serverComponentRegex } from './webpack/loaders/utils'
+import { ServerRuntime } from '../types'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -158,19 +164,25 @@ export function getEdgeServerEntry(opts: {
   page: string
   pages: { [page: string]: string }
   middleware?: { pathMatcher?: RegExp }
+  pagesType?: 'app' | 'pages' | 'root'
+  appDirLoader?: string
 }) {
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
-      matcherRegexp:
-        opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source,
+      // pathMatcher can have special characters that break the loader params
+      // parsing so we base64 encode/decode the string
+      matcherRegexp: Buffer.from(
+        (opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source) ||
+          ''
+      ).toString('base64'),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
   }
 
-  if (opts.page.startsWith('/api/')) {
+  if (opts.page.startsWith('/api/') || opts.page === '/api') {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
@@ -179,7 +191,7 @@ export function getEdgeServerEntry(opts: {
     return `next-edge-function-loader?${stringify(loaderParams)}!`
   }
 
-  const loaderParams: MiddlewareSSRLoaderQuery = {
+  const loaderParams: EdgeSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
     absoluteDocumentPath: opts.pages['/_document'],
@@ -193,11 +205,13 @@ export function getEdgeServerEntry(opts: {
     ),
     page: opts.page,
     stringifiedConfig: JSON.stringify(opts.config),
+    pagesType: opts.pagesType,
+    appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
   }
 
   return {
-    import: `next-middleware-ssr-loader?${stringify(loaderParams)}!`,
-    layer: opts.isServerComponent ? 'sc_server' : undefined,
+    import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
+    layer: opts.isServerComponent ? WEBPACK_LAYERS.server : undefined,
   }
 }
 
@@ -209,7 +223,7 @@ export function getAppEntry(opts: {
 }) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
-    layer: 'sc_server',
+    layer: WEBPACK_LAYERS.server,
   }
 }
 
@@ -221,7 +235,7 @@ export function getServerlessEntry(opts: {
   page: string
   previewMode: __ApiPreviewProps
   pages: { [page: string]: string }
-}): ObjectValue<webpack5.EntryObject> {
+}): ObjectValue<webpack.EntryObject> {
   const loaderParams: ServerlessLoaderQuery = {
     absolute404Path: opts.pages['/404'] || '',
     absoluteAppPath: opts.pages['/_app'],
@@ -242,7 +256,6 @@ export function getServerlessEntry(opts: {
     page: opts.page,
     poweredByHeader: opts.config.poweredByHeader ? 'true' : '',
     previewProps: JSON.stringify(opts.previewMode),
-    reactRoot: !!opts.config.experimental.reactRoot ? 'true' : '',
     runtimeConfig:
       Object.keys(opts.config.publicRuntimeConfig).length > 0 ||
       Object.keys(opts.config.serverRuntimeConfig).length > 0
@@ -275,6 +288,48 @@ export function getClientEntry(opts: {
     : pageLoader
 }
 
+export async function runDependingOnPageType<T>(params: {
+  onClient: () => T
+  onEdgeServer: () => T
+  onServer: () => T
+  page: string
+  pageRuntime: ServerRuntime
+}): Promise<void> {
+  if (isMiddlewareFile(params.page)) {
+    await params.onEdgeServer()
+    return
+  }
+  if (params.page.match(API_ROUTE)) {
+    if (params.pageRuntime === SERVER_RUNTIME.edge) {
+      await params.onEdgeServer()
+      return
+    }
+
+    await params.onServer()
+    return
+  }
+  if (params.page === '/_document') {
+    await params.onServer()
+    return
+  }
+  if (
+    params.page === '/_app' ||
+    params.page === '/_error' ||
+    params.page === '/404' ||
+    params.page === '/500'
+  ) {
+    await Promise.all([params.onClient(), params.onServer()])
+    return
+  }
+  if (params.pageRuntime === SERVER_RUNTIME.edge) {
+    await Promise.all([params.onClient(), params.onEdgeServer()])
+    return
+  }
+
+  await Promise.all([params.onClient(), params.onServer()])
+  return
+}
+
 export async function createEntrypoints(params: CreateEntrypointsParams) {
   const {
     config,
@@ -288,9 +343,9 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     appPaths,
     pageExtensions,
   } = params
-  const edgeServer: webpack5.EntryObject = {}
-  const server: webpack5.EntryObject = {}
-  const client: webpack5.EntryObject = {}
+  const edgeServer: webpack.EntryObject = {}
+  const server: webpack.EntryObject = {}
+  const client: webpack.EntryObject = {}
   const nestedMiddleware: string[] = []
   let middlewareRegex: string | undefined = undefined
 
@@ -298,7 +353,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
     async (page: string) => {
       const bundleFile = normalizePagePath(page)
-      const clientBundlePath = posix.join('pages', bundleFile)
+      const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =
         pagesType === 'pages'
           ? posix.join('pages', bundleFile)
@@ -348,9 +403,13 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       if (isMiddlewareFile(page)) {
         middlewareRegex = staticInfo.middleware?.pathMatcher?.source || '.*'
+
+        if (target === 'serverless') {
+          throw new MiddlewareInServerlessTargetError()
+        }
       }
 
-      runDependingOnPageType({
+      await runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
         onClient: () => {
@@ -384,12 +443,22 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             server[serverBundlePath] = isServerComponent
               ? {
                   import: mappings[page],
-                  layer: 'sc_server',
+                  layer: WEBPACK_LAYERS.server,
                 }
               : [mappings[page]]
           }
         },
         onEdgeServer: () => {
+          const appDirLoader =
+            pagesType === 'app'
+              ? getAppEntry({
+                  name: serverBundlePath,
+                  pagePath: mappings[page],
+                  appDir: appDir!,
+                  pageExtensions,
+                }).import
+              : ''
+
           edgeServer[serverBundlePath] = getEdgeServerEntry({
             ...params,
             absolutePagePath: mappings[page],
@@ -398,6 +467,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             isServerComponent,
             page,
             middleware: staticInfo?.middleware,
+            pagesType,
+            appDirLoader,
           })
         },
       })
@@ -426,36 +497,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   }
 }
 
-export function runDependingOnPageType<T>(params: {
-  onClient: () => T
-  onEdgeServer: () => T
-  onServer: () => T
-  page: string
-  pageRuntime: PageRuntime
-}) {
-  if (isMiddlewareFile(params.page)) {
-    return [params.onEdgeServer()]
-  } else if (params.page.match(API_ROUTE)) {
-    return params.pageRuntime === 'edge'
-      ? [params.onEdgeServer()]
-      : [params.onServer()]
-  } else if (params.page === '/_document') {
-    return [params.onServer()]
-  } else if (
-    params.page === '/_app' ||
-    params.page === '/_error' ||
-    params.page === '/404' ||
-    params.page === '/500'
-  ) {
-    return [params.onClient(), params.onServer()]
-  } else {
-    return [
-      params.onClient(),
-      params.pageRuntime === 'edge' ? params.onEdgeServer() : params.onServer(),
-    ]
-  }
-}
-
 export function finalizeEntrypoint({
   name,
   compilerType,
@@ -463,30 +504,37 @@ export function finalizeEntrypoint({
   isServerComponent,
   appDir,
 }: {
-  compilerType?: 'client' | 'server' | 'edge-server'
+  compilerType?: CompilerNameValues
   name: string
-  value: ObjectValue<webpack5.EntryObject>
+  value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
   appDir?: boolean
-}): ObjectValue<webpack5.EntryObject> {
+}): ObjectValue<webpack.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
       ? { import: value }
       : value
 
-  if (compilerType === 'server') {
-    const isApi = name.startsWith('pages/api/')
+  const isApi = name.startsWith('pages/api/')
+  if (compilerType === COMPILER_NAMES.server) {
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-      layer: isApi ? 'api' : isServerComponent ? 'sc_server' : undefined,
+      layer: isApi
+        ? WEBPACK_LAYERS.api
+        : isServerComponent
+        ? WEBPACK_LAYERS.server
+        : undefined,
       ...entry,
     }
   }
 
-  if (compilerType === 'edge-server') {
+  if (compilerType === COMPILER_NAMES.edgeServer) {
     return {
-      layer: isMiddlewareFilename(name) ? 'middleware' : undefined,
+      layer:
+        isMiddlewareFilename(name) || isApi
+          ? WEBPACK_LAYERS.middleware
+          : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,
@@ -496,16 +544,16 @@ export function finalizeEntrypoint({
 
   if (
     // Client special cases
-    name !== 'polyfills' &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
     name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
-    // TODO: this is a temporary fix. @shuding is going to change the handling of server components
+    // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
     if (appDir && entry.import.includes('flight')) {
       return {
-        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
         ...entry,
       }
     }

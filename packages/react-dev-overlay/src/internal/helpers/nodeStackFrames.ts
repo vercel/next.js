@@ -25,10 +25,18 @@ export function getErrorSource(error: Error): 'server' | 'edge-server' | null {
   return (error as any)[symbolError] || null
 }
 
-export function getServerError(
-  error: Error,
-  type: 'edge-server' | 'server'
-): Error {
+type ErrorType = 'edge-server' | 'server'
+
+export function decorateServerError(error: Error, type: ErrorType) {
+  Object.defineProperty(error, symbolError, {
+    writable: false,
+    enumerable: false,
+    configurable: false,
+    value: type,
+  })
+}
+
+export function getServerError(error: Error, type: ErrorType): Error {
   let n: Error
   try {
     throw new Error(error.message)
@@ -38,7 +46,7 @@ export function getServerError(
 
   n.name = error.name
   try {
-    n.stack = parse(error.stack!)
+    n.stack = `${n.toString()}\n${parse(error.stack!)
       .map(getFilesystemFrame)
       .map((f) => {
         let str = `    at ${f.methodName}`
@@ -54,16 +62,11 @@ export function getServerError(
         }
         return str
       })
-      .join('\n')
+      .join('\n')}`
   } catch {
     n.stack = error.stack
   }
 
-  Object.defineProperty(n, symbolError, {
-    writable: false,
-    enumerable: false,
-    configurable: false,
-    value: type,
-  })
+  decorateServerError(n, type)
   return n
 }
