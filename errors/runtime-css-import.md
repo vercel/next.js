@@ -11,6 +11,7 @@ Import the CSS file in a JavaScript module or use a relative `@import` in your C
 **Before**
 
 ```css
+/* url() starts with `/`, will be interpreted as a URL */
 @import url('/styles.css');
 ```
 
