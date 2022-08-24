@@ -22,16 +22,13 @@ describe('Middleware custom matchers basePath', () => {
 
   // FIXME
   // See https://linear.app/vercel/issue/EC-170/middleware-rewrite-of-nextjs-with-basepath-does-not-work-on-vercel
-  itif(!isModeDeploy).each(['/docs/hello', '/docs/about'])(
-    'should match',
-    async (path) => {
-      const res = await fetchViaHTTP(next.url, path)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('x-from-middleware')).toBeDefined()
-    }
-  )
+  itif(!isModeDeploy)('should match', async () => {
+    const res = await fetchViaHTTP(next.url, '/docs/hello')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-from-middleware')).toBeDefined()
+  })
 
-  it.each(['/hello', '/about', '/invalid/docs/hello'])(
+  it.each(['/hello', '/invalid/docs/hello'])(
     'should not match',
     async (path) => {
       const res = await fetchViaHTTP(next.url, path)
@@ -41,16 +38,13 @@ describe('Middleware custom matchers basePath', () => {
 
   // FIXME:
   // See https://linear.app/vercel/issue/EC-160/header-value-set-on-middleware-is-not-propagated-on-client-request-of
-  itif(!isModeDeploy).each(['hello', 'about'])(
-    'should match has query on client routing',
-    async (id) => {
-      const browser = await webdriver(next.url, '/docs/routes')
-      await browser.eval('window.__TEST_NO_RELOAD = true')
-      await browser.elementById(id).click()
-      const fromMiddleware = await browser.elementById('from-middleware').text()
-      expect(fromMiddleware).toBe('true')
-      const noReload = await browser.eval('window.__TEST_NO_RELOAD')
-      expect(noReload).toBe(true)
-    }
-  )
+  itif(!isModeDeploy)('should match has query on client routing', async () => {
+    const browser = await webdriver(next.url, '/docs/routes')
+    await browser.eval('window.__TEST_NO_RELOAD = true')
+    await browser.elementById('hello').click()
+    const fromMiddleware = await browser.elementById('from-middleware').text()
+    expect(fromMiddleware).toBe('true')
+    const noReload = await browser.eval('window.__TEST_NO_RELOAD')
+    expect(noReload).toBe(true)
+  })
 })

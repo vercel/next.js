@@ -54,7 +54,6 @@ export type Redirect = {
 
 export type Middleware = {
   source: string
-  basePath?: false
   locale?: false
   has?: RouteHas[]
 }
@@ -134,17 +133,20 @@ export function checkCustomRoutes(
   let hadInvalidStatus = false
   let hadInvalidHas = false
 
-  const allowedKeys = new Set<string>(['source', 'basePath', 'locale', 'has'])
+  const allowedKeys = new Set<string>(['source', 'locale', 'has'])
 
   if (type === 'rewrite') {
+    allowedKeys.add('basePath')
     allowedKeys.add('destination')
   }
   if (type === 'redirect') {
+    allowedKeys.add('basePath')
     allowedKeys.add('statusCode')
     allowedKeys.add('permanent')
     allowedKeys.add('destination')
   }
   if (type === 'header') {
+    allowedKeys.add('basePath')
     allowedKeys.add('headers')
   }
 
@@ -184,7 +186,11 @@ export function checkCustomRoutes(
     const invalidKeys = keys.filter((key) => !allowedKeys.has(key))
     const invalidParts: string[] = []
 
-    if (typeof route.basePath !== 'undefined' && route.basePath !== false) {
+    if (
+      'basePath' in route &&
+      typeof route.basePath !== 'undefined' &&
+      route.basePath !== false
+    ) {
       invalidParts.push('`basePath` must be undefined or false')
     }
 

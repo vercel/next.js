@@ -7,10 +7,5 @@ export default (props) => (
         <a id="hello">/hello</a>
       </Link>
     </li>
-    <li>
-      <Link href="/about">
-        <a id="about">/about</a>
-      </Link>
-    </li>
   </ul>
 )

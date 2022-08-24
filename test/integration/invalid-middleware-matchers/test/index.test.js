@@ -78,7 +78,7 @@ const runTests = () => {
       },
       {
         source: '/hello',
-        basePath: true,
+        basePath: false,
       },
       {
         source: '/hello',
@@ -125,7 +125,7 @@ const runTests = () => {
     )
     expect(stderr).toContain(`Valid \`has\` object shape is {`)
     expect(stderr).toContain(
-      '`basePath` must be undefined or false for route {"source":"/hello","basePath":true}'
+      `invalid field: basePath for route {"source":"/hello","basePath":false}`
     )
     expect(stderr).toContain(
       '`locale` must be undefined or false for route {"source":"/hello","locale":true}'

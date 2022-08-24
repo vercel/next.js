@@ -13,9 +13,5 @@ export const config = {
     {
       source: '/hello',
     },
-    {
-      source: '/docs/about',
-      basePath: false,
-    },
   ],
 }
