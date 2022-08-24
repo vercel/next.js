@@ -82,7 +82,10 @@ The `ErrorBoundary` component keeps track of an `hasError` state. The value of t
 After creating an `ErrorBoundary` component, import it in the `pages/_app.js` file to wrap the `Component` prop in your Next.js application.
 
 ```jsx
-// Import the ErrorBoundary component
+import '../styles.css'
+// If the ErrorBoundary includes CSS that depends on the
+// global styles.css, the styles.css must be imported before
+// we import the ErrorBoundary component
 import ErrorBoundary from '../components/ErrorBoundary'
 
 function MyApp({ Component, pageProps }) {
