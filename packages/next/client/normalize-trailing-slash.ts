@@ -11,7 +11,7 @@ export const normalizePathTrailingSlash = (path: string) => {
   }
 
   const { pathname, query, hash } = parsePath(path)
-  if (process.env.__NEXT_TRAILING_SLASH) {
+  if (process.env.__NEXT_TRAILING_SLASH === 'true') {
     if (/\.[^/]+\/?$/.test(pathname)) {
       return `${removeTrailingSlash(pathname)}${query}${hash}`
     } else if (pathname.endsWith('/')) {
