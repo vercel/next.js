@@ -694,7 +694,7 @@ export async function renderToHTMLOrFlight(
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
             })
           } catch (e: any) {
-            console.error('des', e?.stack)
+            throw e
           }
           const { Component: ChildComponent } = res
 

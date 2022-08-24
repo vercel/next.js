@@ -19,6 +19,8 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { UrlWithParsedQuery } from 'url'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -59,8 +61,16 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       redirects: [],
     }
   }
-  protected async hasPage() {
-    return false
+  protected async run(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<void> {
+    parsedUrl.pathname = this.serverOptions.webServerConfig.page
+    super.run(req, res, parsedUrl)
+  }
+  protected async hasPage(page: string) {
+    return page === this.serverOptions.webServerConfig.page
   }
   protected getPublicDir() {
     // Public files are not handled by the web server.
