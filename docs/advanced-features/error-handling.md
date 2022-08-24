@@ -82,10 +82,7 @@ The `ErrorBoundary` component keeps track of an `hasError` state. The value of t
 After creating an `ErrorBoundary` component, import it in the `pages/_app.js` file to wrap the `Component` prop in your Next.js application.
 
 ```jsx
-import '../styles.css'
-// If the ErrorBoundary includes CSS that depends on the
-// global styles.css file, the styles.css must be imported
-// before importing the ErrorBoundary component.
+// Import the ErrorBoundary component
 import ErrorBoundary from '../components/ErrorBoundary'
 
 function MyApp({ Component, pageProps }) {
@@ -98,6 +95,23 @@ function MyApp({ Component, pageProps }) {
 }
 
 export default MyApp
+```
+
+If your ErrorBoundary component contains CSS, the ErrorBoundary's CSS will be concatenated with any CSS files imported in your `_app.js` file. The order that the CSS is concatenated will match the order the CSS is imported into the `_app.js` file; see [Adding a Global Stylesheet](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet).
+
+```jsx
+import '../styles.css'
+// The CSS in ErrorBoundary depends on the global CSS in styles.css,
+// so we import ErrorBoundary after styles.css.
+import ErrorBoundary from '../components/ErrorBoundary'
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <ErrorBoundary>
+      <Component {...pageProps} />
+    </ErrorBoundary>
+  )
+}
 ```
 
 You can learn more about [Error Boundaries](https://reactjs.org/docs/error-boundaries.html) in React's documentation.
