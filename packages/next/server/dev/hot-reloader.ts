@@ -603,6 +603,23 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
+                const isApp = this.appDir && bundlePath.startsWith('app/')
+                const appDirLoader =
+                  isApp && this.appDir
+                    ? getAppEntry({
+                        name: bundlePath,
+                        pagePath: posix.join(
+                          APP_DIR_ALIAS,
+                          relative(
+                            this.appDir!,
+                            entryData.absolutePagePath
+                          ).replace(/\\/g, '/')
+                        ),
+                        appDir: this.appDir!,
+                        pageExtensions: this.config.pageExtensions,
+                      }).import
+                    : undefined
+
                 entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.edgeServer,
@@ -616,6 +633,8 @@ export default class HotReloader {
                     page,
                     pages: this.pagesMapping,
                     isServerComponent,
+                    appDirLoader,
+                    pagesType: isApp ? 'app' : undefined,
                   }),
                   appDir: this.config.experimental.appDir,
                 })
