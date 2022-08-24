@@ -94,7 +94,6 @@ export class FlightManifestPlugin {
           name: PLUGIN_NAME,
           // Have to be in the optimize stage to run after updating the CSS
           // asset hash via extract mini css plugin.
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
         (assets) => this.createAsset(assets, compilation, compiler.context)
@@ -114,6 +113,9 @@ export class FlightManifestPlugin {
     const dev = this.dev
 
     compilation.chunkGroups.forEach((chunkGroup) => {
+      const cssResourcesInChunkGroup: string[] = []
+      let entryFilepath: string = ''
+
       function recordModule(
         chunk: webpack.Chunk,
         id: ModuleId,
@@ -155,7 +157,8 @@ export class FlightManifestPlugin {
           mod.resourceResolveData?.path || resource
         )
         if (!ssrNamedModuleId.startsWith('.'))
-          ssrNamedModuleId = `./${ssrNamedModuleId}`
+          // TODO use getModuleId instead
+          ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
           if (!manifest[resource]) {
@@ -175,6 +178,11 @@ export class FlightManifestPlugin {
             }
             manifest.__ssr_module_mapping__ = moduleIdMapping
           }
+
+          if (chunkGroup.name) {
+            cssResourcesInChunkGroup.push(resource)
+          }
+
           return
         }
 
@@ -183,6 +191,10 @@ export class FlightManifestPlugin {
         // It also resolves conflicts when the same module is in multiple chunks.
         if (!clientComponentRegex.test(resource)) {
           return
+        }
+
+        if (/\/(page|layout)\.client\.(ts|js)x?$/.test(resource)) {
+          entryFilepath = resource
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
@@ -217,44 +229,17 @@ export class FlightManifestPlugin {
           )
           .filter((name) => name !== null)
 
-        // Get all CSS files imported from the module's dependencies.
-        const visitedModule = new Set()
-        const cssChunks: Set<string> = new Set()
-
-        function collectClientImportedCss(module: any) {
-          if (!module) return
-
-          const modRequest = module.userRequest
-          if (visitedModule.has(modRequest)) return
-          visitedModule.add(modRequest)
-
-          if (/\.css$/.test(modRequest)) {
-            // collect relative imported css chunks
-            compilation.chunkGraph.getModuleChunks(module).forEach((c) => {
-              ;[...c.files]
-                .filter((file) => file.endsWith('.css'))
-                .forEach((file) => cssChunks.add(file))
-            })
-          }
-
-          const connections = Array.from(
-            compilation.moduleGraph.getOutgoingConnections(module)
-          )
-          connections.forEach((connection) => {
-            collectClientImportedCss(
-              compilation.moduleGraph.getResolvedModule(connection.dependency!)
-            )
-          })
-        }
-        collectClientImportedCss(mod)
-
         moduleExportedKeys.forEach((name) => {
           let requiredChunks: ManifestChunks = []
           if (!moduleExports[name]) {
-            const isRelatedChunk = (c: webpack.Chunk) =>
+            const isRelatedChunk = (c: webpack.Chunk) => {
               // If current chunk is a page, it should require the related page chunk;
               // If current chunk is a component, it should filter out the related page chunk;
-              chunk.name?.startsWith('pages/') || !c.name?.startsWith('pages/')
+              return (
+                chunk.name?.startsWith('pages/') ||
+                !c.name?.startsWith('pages/')
+              )
+            }
 
             if (appDir) {
               requiredChunks = chunkGroup.chunks
@@ -272,7 +257,7 @@ export class FlightManifestPlugin {
             moduleExports[name] = {
               id,
               name,
-              chunks: requiredChunks.concat([...cssChunks]),
+              chunks: requiredChunks,
             }
           }
 
@@ -309,6 +294,12 @@ export class FlightManifestPlugin {
           }
         }
       })
+
+      const clientCSSManifest: any = manifest.__client_css_manifest__ || {}
+      if (entryFilepath) {
+        clientCSSManifest[entryFilepath] = cssResourcesInChunkGroup
+      }
+      manifest.__client_css_manifest__ = clientCSSManifest
     })
 
     const file = 'server/' + FLIGHT_MANIFEST

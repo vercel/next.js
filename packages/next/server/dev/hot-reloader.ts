@@ -4,7 +4,7 @@ import type { CustomRoutes } from '../../lib/load-custom-routes'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, relative, isAbsolute } from 'path'
+import { join, relative, isAbsolute, posix } from 'path'
 import { UrlObject } from 'url'
 import {
   createEntrypoints,
@@ -603,6 +603,23 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
+                const isApp = this.appDir && bundlePath.startsWith('app/')
+                const appDirLoader =
+                  isApp && this.appDir
+                    ? getAppEntry({
+                        name: bundlePath,
+                        pagePath: posix.join(
+                          APP_DIR_ALIAS,
+                          relative(
+                            this.appDir!,
+                            entryData.absolutePagePath
+                          ).replace(/\\/g, '/')
+                        ),
+                        appDir: this.appDir!,
+                        pageExtensions: this.config.pageExtensions,
+                      }).import
+                    : undefined
+
                 entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.edgeServer,
@@ -616,6 +633,8 @@ export default class HotReloader {
                     page,
                     pages: this.pagesMapping,
                     isServerComponent,
+                    appDirLoader,
+                    pagesType: isApp ? 'app' : undefined,
                   }),
                   appDir: this.config.experimental.appDir,
                 })
@@ -666,9 +685,12 @@ export default class HotReloader {
                     this.appDir && bundlePath.startsWith('app/')
                       ? getAppEntry({
                           name: bundlePath,
-                          pagePath: join(
+                          pagePath: posix.join(
                             APP_DIR_ALIAS,
-                            relative(this.appDir!, entryData.absolutePagePath)
+                            relative(
+                              this.appDir!,
+                              entryData.absolutePagePath
+                            ).replace(/\\/g, '/')
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,

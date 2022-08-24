@@ -164,6 +164,8 @@ export function getEdgeServerEntry(opts: {
   page: string
   pages: { [page: string]: string }
   middleware?: { pathMatcher?: RegExp }
+  pagesType?: 'app' | 'pages' | 'root'
+  appDirLoader?: string
 }) {
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
@@ -203,6 +205,8 @@ export function getEdgeServerEntry(opts: {
     ),
     page: opts.page,
     stringifiedConfig: JSON.stringify(opts.config),
+    pagesType: opts.pagesType,
+    appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
   }
 
   return {
@@ -445,6 +449,16 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           }
         },
         onEdgeServer: () => {
+          const appDirLoader =
+            pagesType === 'app'
+              ? getAppEntry({
+                  name: serverBundlePath,
+                  pagePath: mappings[page],
+                  appDir: appDir!,
+                  pageExtensions,
+                }).import
+              : ''
+
           edgeServer[serverBundlePath] = getEdgeServerEntry({
             ...params,
             absolutePagePath: mappings[page],
@@ -453,6 +467,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             isServerComponent,
             page,
             middleware: staticInfo?.middleware,
+            pagesType,
+            appDirLoader,
           })
         },
       })

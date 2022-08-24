@@ -275,16 +275,31 @@ export const css = curry(async function css(
   }
 
   if (ctx.isServer) {
-    fns.push(
-      loader({
-        oneOf: [
-          markRemovable({
-            test: [regexCssGlobal, regexSassGlobal],
-            use: require.resolve('next/dist/compiled/ignore-loader'),
-          }),
-        ],
-      })
-    )
+    if (ctx.experimental.appDir && !ctx.isProduction) {
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              test: [regexCssGlobal, regexSassGlobal],
+              use: require.resolve(
+                '../../../loaders/next-flight-css-dev-loader'
+              ),
+            }),
+          ],
+        })
+      )
+    } else {
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              test: [regexCssGlobal, regexSassGlobal],
+              use: require.resolve('next/dist/compiled/ignore-loader'),
+            }),
+          ],
+        })
+      )
+    }
   } else {
     fns.push(
       loader({

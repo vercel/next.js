@@ -531,10 +531,7 @@ export default async function getBaseWebpackConfig(
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
-  const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
-    dir,
-    config
-  )
+  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
 
   const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
 
@@ -832,22 +829,8 @@ export default async function getBaseWebpackConfig(
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
-      ? [
-          '.js',
-          '.mjs',
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
-          '.jsx',
-          '.json',
-          '.wasm',
-        ]
-      : [
-          '.mjs',
-          '.js',
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
-          '.jsx',
-          '.json',
-          '.wasm',
-        ],
+      ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
+      : ['.mjs', '.js', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
@@ -1831,11 +1814,14 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
-  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-    webpackConfig.resolve?.plugins?.unshift(
-      new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
+  // allows add JsConfigPathsPlugin to allow hot-reloading
+  // if the config is added/removed
+  webpackConfig.resolve?.plugins?.unshift(
+    new JsConfigPathsPlugin(
+      jsConfig?.compilerOptions?.paths || {},
+      resolvedBaseUrl || dir
     )
-  }
+  )
 
   const webpack5Config = webpackConfig as webpack.Configuration
 
