@@ -84,8 +84,8 @@ After creating an `ErrorBoundary` component, import it in the `pages/_app.js` fi
 ```jsx
 import '../styles.css'
 // If the ErrorBoundary includes CSS that depends on the
-// global styles.css, the styles.css must be imported before
-// we import the ErrorBoundary component
+// global styles.css file, the styles.css must be imported
+// before importing the ErrorBoundary component.
 import ErrorBoundary from '../components/ErrorBoundary'
 
 function MyApp({ Component, pageProps }) {
