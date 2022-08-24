@@ -6,13 +6,16 @@ use tokio::sync::mpsc::Sender;
 use turbo_tasks::{get_invalidator, Invalidator, RawVcReadResult, TransientInstance};
 use turbopack_core::version::{PartialUpdate, TotalUpdate, Update, VersionVc, VersionedContentVc};
 
+#[turbo_tasks::value(transparent)]
+struct UnresolvedVersionedContent(VersionedContentVc);
+
 #[turbo_tasks::function]
 async fn compute_update_stream(
-    from: VersionVc,
-    content: VersionedContentVc,
+    from: VersionStateVc,
+    content: UnresolvedVersionedContentVc,
     sender: TransientInstance<Sender<RawVcReadResult<Update>>>,
 ) -> Result<()> {
-    let update = content.update(from);
+    let update = content.await?.update(from.get());
     sender.send(update.await?).await?;
     Ok(())
 }
@@ -64,7 +67,11 @@ impl UpdateStream {
 
         let version_state = VersionStateVc::new(content.version()).await?;
 
-        compute_update_stream(version_state.get(), content, TransientInstance::new(sx));
+        compute_update_stream(
+            version_state,
+            UnresolvedVersionedContentVc::cell(content),
+            TransientInstance::new(sx),
+        );
 
         Ok(UpdateStream {
             id,
