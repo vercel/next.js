@@ -27,6 +27,10 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
+import {
+  CONTEXT_NAMES,
+  DynamicServerError,
+} from '../client/components/hooks-server-context'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -492,10 +496,10 @@ export async function renderToHTMLOrFlight(
    */
   const serverContexts: Array<[string, any]> = [
     ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
-    ['HeadersContext', headers],
-    ['CookiesContext', cookies],
-    ['PreviewDataContext', previewData],
-    ['StaticGenerationContext', isStaticGeneration],
+    [CONTEXT_NAMES.HeadersContext, headers],
+    [CONTEXT_NAMES.CookiesContext, cookies],
+    [CONTEXT_NAMES.PreviewDataContext, previewData],
+    [CONTEXT_NAMES.StaticGenerationContext, isStaticGeneration],
   ]
 
   /**
@@ -635,9 +639,6 @@ export async function renderToHTMLOrFlight(
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
 
     if (isStaticGeneration && layoutOrPageMod?.getServerSideProps) {
-      const { DynamicServerError } =
-        require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
-
       throw new DynamicServerError(`getServerSideProps ${segment || 'root'}`)
     }
 

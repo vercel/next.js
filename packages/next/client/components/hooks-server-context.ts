@@ -29,10 +29,19 @@ const createContext = <T>(name: string, defaultValue: T | null = null) => {
   return global.__NEXT_DEV_SERVER_CONTEXT__[name]
 }
 
-export const HeadersContext = createContext('HeadersContext')
-export const PreviewDataContext = createContext('PreviewDataContext')
-export const CookiesContext = createContext('CookiesContext')
+export const CONTEXT_NAMES = {
+  HeadersContext: 'HeadersContext',
+  PreviewDataContext: 'PreviewDataContext',
+  CookiesContext: 'CookiesContext',
+  StaticGenerationContext: 'StaticGenerationContext',
+} as const
+
+export const HeadersContext = createContext(CONTEXT_NAMES.HeadersContext)
+export const PreviewDataContext = createContext(
+  CONTEXT_NAMES.PreviewDataContext
+)
+export const CookiesContext = createContext(CONTEXT_NAMES.CookiesContext)
 export const StaticGenerationContext = createContext(
-  'StaticGenerationContext',
+  CONTEXT_NAMES.StaticGenerationContext,
   false
 )
