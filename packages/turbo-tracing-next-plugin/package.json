@@ -1,6 +1,6 @@
 {
   "name": "@vercel/turbo-tracing-next-plugin",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "UNLICENSED",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
