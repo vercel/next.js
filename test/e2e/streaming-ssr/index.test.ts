@@ -16,77 +16,6 @@ const react18Deps = {
 
 const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
 
-describe('react 18 streaming SSR in minimal mode with node runtime', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    if (isNextProd) {
-      process.env.NEXT_PRIVATE_MINIMAL_MODE = '1'
-    }
-
-    next = await createNext({
-      files: {
-        'pages/index.js': `
-        export default function Page() {
-          return <p>streaming</p>
-        }
-        export async function getServerSideProps() {
-          return { props: {} }
-        }`,
-      },
-      nextConfig: {
-        experimental: {
-          runtime: 'nodejs',
-        },
-        webpack(config, { nextRuntime }) {
-          const path = require('path')
-          const fs = require('fs')
-
-          const runtimeFilePath = path.join(__dirname, 'runtimes.txt')
-          let runtimeContent = ''
-
-          try {
-            runtimeContent = fs.readFileSync(runtimeFilePath, 'utf8')
-            runtimeContent += '\n'
-          } catch (_) {}
-
-          runtimeContent += nextRuntime || 'client'
-
-          fs.writeFileSync(runtimeFilePath, runtimeContent)
-          return config
-        },
-      },
-      dependencies: react18Deps,
-    })
-  })
-  afterAll(() => {
-    if (isNextProd) {
-      delete process.env.NEXT_PRIVATE_MINIMAL_MODE
-    }
-    next.destroy()
-  })
-
-  it('should pass correct nextRuntime values', async () => {
-    const content = await next.readFile('runtimes.txt')
-    expect(content.split('\n').sort()).toEqual(['client', 'edge', 'nodejs'])
-  })
-
-  it('should generate html response by streaming correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('streaming')
-  })
-
-  if (isNextProd) {
-    it('should have generated a static 404 page', async () => {
-      expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
-
-      const res = await fetchViaHTTP(next.url, '/non-existent')
-      expect(res.status).toBe(404)
-      expect(await res.text()).toContain('This page could not be found')
-    })
-  }
-})
-
 describe('react 18 streaming SSR with custom next configs', () => {
   let next: NextInstance
 
@@ -176,5 +105,76 @@ if (isNextProd) {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toContain('streaming')
     })
+  })
+
+  describe('react 18 streaming SSR in minimal mode with node runtime', () => {
+    let next: NextInstance
+
+    beforeAll(async () => {
+      if (isNextProd) {
+        process.env.NEXT_PRIVATE_MINIMAL_MODE = '1'
+      }
+
+      next = await createNext({
+        files: {
+          'pages/index.js': `
+          export default function Page() {
+            return <p>streaming</p>
+          }
+          export async function getServerSideProps() {
+            return { props: {} }
+          }`,
+        },
+        nextConfig: {
+          experimental: {
+            runtime: 'nodejs',
+          },
+          webpack(config, { nextRuntime }) {
+            const path = require('path')
+            const fs = require('fs')
+
+            const runtimeFilePath = path.join(__dirname, 'runtimes.txt')
+            let runtimeContent = ''
+
+            try {
+              runtimeContent = fs.readFileSync(runtimeFilePath, 'utf8')
+              runtimeContent += '\n'
+            } catch (_) {}
+
+            runtimeContent += nextRuntime || 'client'
+
+            fs.writeFileSync(runtimeFilePath, runtimeContent)
+            return config
+          },
+        },
+        dependencies: react18Deps,
+      })
+    })
+    afterAll(() => {
+      if (isNextProd) {
+        delete process.env.NEXT_PRIVATE_MINIMAL_MODE
+      }
+      next.destroy()
+    })
+
+    it('should pass correct nextRuntime values', async () => {
+      const content = await next.readFile('runtimes.txt')
+      expect(content.split('\n').sort()).toEqual(['client', 'edge', 'nodejs'])
+    })
+
+    it('should generate html response by streaming correctly', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      expect(html).toContain('streaming')
+    })
+
+    if (isNextProd) {
+      it('should have generated a static 404 page', async () => {
+        expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
+
+        const res = await fetchViaHTTP(next.url, '/non-existent')
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
+      })
+    }
   })
 }
