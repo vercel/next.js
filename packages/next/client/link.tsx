@@ -79,7 +79,7 @@ function prefetch(
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  router.prefetch(href, as, options).catch((err) => {
+  Promise.resolve(router.prefetch(href, as, options)).catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
