@@ -536,7 +536,13 @@ export default class DevServer extends Server {
         this.edgeFunctions = []
         const edgeRoutes = Array.from(edgeRoutesSet)
         getSortedRoutes(edgeRoutes).forEach((page) => {
+          let appPath = this.getOriginalAppPath(page)
+
+          if (typeof appPath === 'string') {
+            page = appPath
+          }
           const isRootMiddleware = page === '/' && !!middlewareMatcher
+
           const middlewareRegex = isRootMiddleware
             ? { re: middlewareMatcher!, groups: {} }
             : getMiddlewareRegex(page, { catchAll: false })
@@ -545,7 +551,6 @@ export default class DevServer extends Server {
             page,
             re: middlewareRegex.re,
           }
-
           if (isRootMiddleware) {
             this.middleware = routeItem
           } else {
