@@ -334,28 +334,22 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
 
     if (curRenderToHTML) {
-      let res
-      try {
-        res = await curRenderToHTML(
-          {
-            url: req.url,
-            cookies: req.cookies,
-            headers: req.headers,
-          } as any,
-          {} as any,
-          pathname,
-          query,
-          {
-            ...renderOpts,
-            disableOptimizedLoading: true,
-            runtime: 'experimental-edge',
-          },
-          !!pagesRenderToHTML
-        )
-      } catch (e: any) {
-        throw e
-      }
-      return res
+      return await curRenderToHTML(
+        {
+          url: req.url,
+          cookies: req.cookies,
+          headers: req.headers,
+        } as any,
+        {} as any,
+        pathname,
+        query,
+        {
+          ...renderOpts,
+          disableOptimizedLoading: true,
+          runtime: 'experimental-edge',
+        },
+        !!pagesRenderToHTML
+      )
     } else {
       throw new Error(`Invariant: curRenderToHTML is missing`)
     }

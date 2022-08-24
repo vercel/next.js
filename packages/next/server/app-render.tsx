@@ -683,20 +683,14 @@ export async function renderToHTMLOrFlight(
             : [actualSegment, parallelRouteKey]
 
           // Create the child component
-          let treeRes: any
-          try {
-            treeRes = await createComponentTree({
-              createSegmentPath: (child) => {
-                return createSegmentPath([...currentSegmentPath, ...child])
-              },
-              loaderTree: parallelRoutes[parallelRouteKey],
-              parentParams: currentParams,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            })
-          } catch (e: any) {
-            throw e
-          }
-          const { Component: ChildComponent } = treeRes
+          const { Component: ChildComponent } = await createComponentTree({
+            createSegmentPath: (child) => {
+              return createSegmentPath([...currentSegmentPath, ...child])
+            },
+            loaderTree: parallelRoutes[parallelRouteKey],
+            parentParams: currentParams,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+          })
 
           const childSegment = parallelRoutes[parallelRouteKey][0]
           const childSegmentParam = getDynamicParamFromSegment(childSegment)
