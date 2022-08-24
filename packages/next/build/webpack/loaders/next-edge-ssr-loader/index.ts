@@ -99,7 +99,7 @@ export default async function edgeSSRLoader(this: any) {
       dev: ${dev},
       page: ${JSON.stringify(page)},
       appMod,
-      pageMod: { default: pageMod },
+      pageMod,
       errorMod,
       error500Mod,
       Document,

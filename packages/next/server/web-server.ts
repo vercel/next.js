@@ -333,9 +333,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       this.serverOptions.webServerConfig
     const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
 
-    renderOpts.ComponentMod =
-      renderOpts.ComponentMod.default || renderOpts.ComponentMod
-
     if (curRenderToHTML) {
       let res
       try {
