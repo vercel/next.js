@@ -93,6 +93,7 @@ export interface Options extends ServerOptions {
    * Tells of Next.js is running from the `next dev` command
    */
   isNextDevCommand?: boolean
+  versionInfo?: { canary: string; latest: string }
 }
 
 export default class DevServer extends Server {
@@ -151,7 +152,8 @@ export default class DevServer extends Server {
   constructor(options: Options) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
-    ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
+    ;(this.renderOpts as any).ErrorDebug = (props: any) =>
+      ReactDevOverlay({ ...props, versionInfo: options.versionInfo })
     this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
     })

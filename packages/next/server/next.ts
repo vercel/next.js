@@ -128,6 +128,8 @@ export class NextServer {
   private async createServer(options: DevServerOptions): Promise<Server> {
     if (options.dev) {
       const DevServer = require('./dev/next-dev-server').default
+      const { getVersionInfo } = require('../lib/helpers/get-version-info')
+      options.versionInfo = await getVersionInfo()
       return new DevServer(options)
     }
     const ServerImplementation = await getServerImpl()

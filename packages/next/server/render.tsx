@@ -26,6 +26,7 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { Options as DevServerOptions } from './dev/next-dev-server'
 
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -244,6 +245,7 @@ export type RenderOptsPartial = {
   crossOrigin?: string
   images: ImageConfigComplete
   largePageDataBytes?: number
+  versionInfo: DevServerOptions['versionInfo']
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -386,6 +388,7 @@ export async function renderToHTML(
     runtime: globalRuntime,
     ComponentMod,
     App,
+    versionInfo,
   } = renderOpts
 
   let Document = renderOpts.Document
