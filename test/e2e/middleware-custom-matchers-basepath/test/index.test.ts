@@ -23,9 +23,14 @@ describe('Middleware custom matchers basePath', () => {
   // FIXME
   // See https://linear.app/vercel/issue/EC-170/middleware-rewrite-of-nextjs-with-basepath-does-not-work-on-vercel
   itif(!isModeDeploy)('should match', async () => {
-    const res = await fetchViaHTTP(next.url, '/docs/hello')
-    expect(res.status).toBe(200)
-    expect(res.headers.get('x-from-middleware')).toBeDefined()
+    for (const path of [
+      '/docs/hello',
+      `/docs/_next/data/${next.buildId}/hello.json`,
+    ]) {
+      const res = await fetchViaHTTP(next.url, path)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-from-middleware')).toBeDefined()
+    }
   })
 
   it.each(['/hello', '/invalid/docs/hello'])(
