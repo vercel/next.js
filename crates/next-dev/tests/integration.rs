@@ -15,6 +15,7 @@ use test_generator::test_resources;
 use tokio::{net::TcpSocket, task::JoinHandle};
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbo_tasks::TurboTasks;
+use turbo_tasks_fs::util::sys_to_unix;
 use turbo_tasks_memory::MemoryBackend;
 
 #[derive(Debug, Deserialize)]
@@ -123,12 +124,7 @@ async fn run_test(resource: &str) -> JestRunResult {
         .project_dir("tests".into())
         .entry_asset("harness.js".into())
         .entry_asset(
-            test_entry
-                .strip_prefix("tests")
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string(),
+            sys_to_unix(test_entry.strip_prefix("tests").unwrap().to_str().unwrap()).to_string(),
         )
         .eager_compile(false)
         .hostname(requested_addr.ip())
