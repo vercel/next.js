@@ -38,7 +38,7 @@ describe('app dir - react server components', () => {
     const appDir = path.join(__dirname, './rsc-basic')
     next = await createNext({
       files: {
-        node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
+        node_modules: new FileRef(path.join(appDir, 'node_modules')),
         pages: new FileRef(path.join(appDir, 'pages')),
         public: new FileRef(path.join(appDir, 'public')),
         components: new FileRef(path.join(appDir, 'components')),
@@ -50,16 +50,17 @@ describe('app dir - react server components', () => {
         react: 'experimental',
         'react-dom': 'experimental',
       },
+      installCommand: `mv ./node_modules ./node_modules_bak; pnpm install --strict-peer-dependencies=false`,
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/non-isomorphic-text ./node_modules; cp -r ./node_modules_bak/random-module-instance ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          setup: `cp -r ./node_modules_bak/ ./node_modules/`,
+          build: 'pnpm setup && next build',
+          dev: 'pnpm setup && next dev',
           start: 'next start',
         },
       },
-      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-      buildCommand: 'yarn build',
+      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+      buildCommand: 'pnpm build',
     })
     distDir = path.join(next.testDir, '.next')
   })
@@ -269,27 +270,13 @@ describe('app dir - react server components', () => {
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
-  // TODO: support esm import for RSC
-  if (isNextDev) {
-    // For prod build, the directory contains the build ID so it's not deterministic.
-    // Only enable it for dev for now.
-    it.skip('should not bundle external imports into client builds for RSC', async () => {
-      const html = await renderViaHTTP(next.url, '/external-imports')
-      expect(html).toContain('date:')
-
-      const distServerDir = path.join(distDir, 'static', 'chunks', 'pages')
-      const bundle = fs
-        .readFileSync(path.join(distServerDir, 'external-imports.js'))
-        .toString()
-
-      expect(bundle).not.toContain('non-isomorphic-text')
-    })
-  }
-
-  // TODO: support esm import for RSC
-  it.skip('should not pick browser field from package.json for external libraries', async () => {
+  it('should handle external async module libraries correctly', async () => {
     const html = await renderViaHTTP(next.url, '/external-imports')
-    expect(html).toContain('isomorphic-export')
+    expect(html).toContain('module type:esm-export')
+    expect(html).toContain('export named:named')
+    expect(html).toContain('export value:123')
+    expect(html).toContain('export array:4,5,6')
+    expect(html).toContain('export object:{x:1}')
   })
 
   it('should handle various kinds of exports correctly', async () => {
