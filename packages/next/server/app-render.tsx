@@ -393,8 +393,11 @@ function getCssInlinedLinkTags(
   const chunks = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    for (const chunk of serverComponentManifest[css].default.chunks) {
-      chunks.add(chunk)
+    const mod = serverComponentManifest[css]
+    if (mod) {
+      for (const chunk of mod.default.chunks) {
+        chunks.add(chunk)
+      }
     }
   }
 

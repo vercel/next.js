@@ -201,59 +201,121 @@ export const css = curry(async function css(
 
   // CSS Modules support must be enabled on the server and client so the class
   // names are available for SSR or Prerendering.
-  fns.push(
-    loader({
-      oneOf: [
-        markRemovable({
-          // CSS Modules should never have side effects. This setting will
-          // allow unused CSS to be removed from the production build.
-          // We ensure this by disallowing `:global()` CSS at the top-level
-          // via the `pure` mode in `css-loader`.
-          sideEffects: false,
-          // CSS Modules are activated via this specific extension.
-          test: regexCssModules,
-          // CSS Modules are only supported in the user's application. We're
-          // not yet allowing CSS imports _within_ `node_modules`.
-          issuer: {
-            and: [
-              {
-                or: [ctx.rootDirectory, regexClientEntry],
-              },
+  if (ctx.experimental.appDir && !ctx.isProduction) {
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            // CSS Modules should never have side effects. This setting will
+            // allow unused CSS to be removed from the production build.
+            // We ensure this by disallowing `:global()` CSS at the top-level
+            // via the `pure` mode in `css-loader`.
+            sideEffects: false,
+            // CSS Modules are activated via this specific extension.
+            test: regexCssModules,
+            // CSS Modules are only supported in the user's application. We're
+            // not yet allowing CSS imports _within_ `node_modules`.
+            issuer: {
+              and: [
+                {
+                  or: [ctx.rootDirectory, regexClientEntry],
+                },
+              ],
+              not: [/node_modules/],
+            },
+            use: [
+              require.resolve('../../../loaders/next-flight-css-dev-loader'),
+              ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
             ],
-            not: [/node_modules/],
-          },
-          use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
-        }),
-      ],
-    })
-  )
-  fns.push(
-    loader({
-      oneOf: [
-        // Opt-in support for Sass (using .scss or .sass extensions).
-        markRemovable({
-          // Sass Modules should never have side effects. This setting will
-          // allow unused Sass to be removed from the production build.
-          // We ensure this by disallowing `:global()` Sass at the top-level
-          // via the `pure` mode in `css-loader`.
-          sideEffects: false,
-          // Sass Modules are activated via this specific extension.
-          test: regexSassModules,
-          // Sass Modules are only supported in the user's application. We're
-          // not yet allowing Sass imports _within_ `node_modules`.
-          issuer: {
-            and: [ctx.rootDirectory],
-            not: [/node_modules/],
-          },
-          use: getCssModuleLoader(
-            ctx,
-            lazyPostCSSInitializer,
-            sassPreprocessors
-          ),
-        }),
-      ],
-    })
-  )
+          }),
+        ],
+      })
+    )
+    fns.push(
+      loader({
+        oneOf: [
+          // Opt-in support for Sass (using .scss or .sass extensions).
+          markRemovable({
+            // Sass Modules should never have side effects. This setting will
+            // allow unused Sass to be removed from the production build.
+            // We ensure this by disallowing `:global()` Sass at the top-level
+            // via the `pure` mode in `css-loader`.
+            sideEffects: false,
+            // Sass Modules are activated via this specific extension.
+            test: regexSassModules,
+            // Sass Modules are only supported in the user's application. We're
+            // not yet allowing Sass imports _within_ `node_modules`.
+            issuer: {
+              and: [ctx.rootDirectory],
+              not: [/node_modules/],
+            },
+            use: [
+              require.resolve('../../../loaders/next-flight-css-dev-loader'),
+              ...getCssModuleLoader(
+                ctx,
+                lazyPostCSSInitializer,
+                sassPreprocessors
+              ),
+            ],
+          }),
+        ],
+      })
+    )
+  } else {
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            // CSS Modules should never have side effects. This setting will
+            // allow unused CSS to be removed from the production build.
+            // We ensure this by disallowing `:global()` CSS at the top-level
+            // via the `pure` mode in `css-loader`.
+            sideEffects: false,
+            // CSS Modules are activated via this specific extension.
+            test: regexCssModules,
+            // CSS Modules are only supported in the user's application. We're
+            // not yet allowing CSS imports _within_ `node_modules`.
+            issuer: {
+              and: [
+                {
+                  or: [ctx.rootDirectory, regexClientEntry],
+                },
+              ],
+              not: [/node_modules/],
+            },
+            use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
+          }),
+        ],
+      })
+    )
+    fns.push(
+      loader({
+        oneOf: [
+          // Opt-in support for Sass (using .scss or .sass extensions).
+          markRemovable({
+            // Sass Modules should never have side effects. This setting will
+            // allow unused Sass to be removed from the production build.
+            // We ensure this by disallowing `:global()` Sass at the top-level
+            // via the `pure` mode in `css-loader`.
+            sideEffects: false,
+            // Sass Modules are activated via this specific extension.
+            test: regexSassModules,
+            // Sass Modules are only supported in the user's application. We're
+            // not yet allowing Sass imports _within_ `node_modules`.
+            issuer: {
+              and: [ctx.rootDirectory],
+              not: [/node_modules/],
+            },
+            use: getCssModuleLoader(
+              ctx,
+              lazyPostCSSInitializer,
+              sassPreprocessors
+            ),
+          }),
+        ],
+      })
+    )
+  }
 
   if (!ctx.experimental.appDir) {
     // Throw an error for CSS Modules used outside their supported scope
@@ -280,6 +342,7 @@ export const css = curry(async function css(
         loader({
           oneOf: [
             markRemovable({
+              sideEffects: true,
               test: [regexCssGlobal, regexSassGlobal],
               use: require.resolve(
                 '../../../loaders/next-flight-css-dev-loader'
@@ -301,76 +364,6 @@ export const css = curry(async function css(
       )
     }
   } else {
-    fns.push(
-      loader({
-        oneOf: [
-          markRemovable({
-            // A global CSS import always has side effects. Webpack will tree
-            // shake the CSS without this option if the issuer claims to have
-            // no side-effects.
-            // See https://github.com/webpack/webpack/issues/6571
-            sideEffects: true,
-            test: regexCssGlobal,
-            // We only allow Global CSS to be imported anywhere in the
-            // application if it comes from node_modules. This is a best-effort
-            // heuristic that makes a safety trade-off for better
-            // interoperability with npm packages that require CSS. Without
-            // this ability, the component's CSS would have to be included for
-            // the entire app instead of specific page where it's required.
-            include: { and: [/node_modules/] },
-            // Global CSS is only supported in the user's application, not in
-            // node_modules.
-            issuer: ctx.experimental.craCompat
-              ? undefined
-              : {
-                  and: [ctx.rootDirectory],
-                  not: [/node_modules/],
-                },
-            use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
-          }),
-        ],
-      })
-    )
-
-    if (ctx.customAppFile) {
-      fns.push(
-        loader({
-          oneOf: [
-            markRemovable({
-              // A global CSS import always has side effects. Webpack will tree
-              // shake the CSS without this option if the issuer claims to have
-              // no side-effects.
-              // See https://github.com/webpack/webpack/issues/6571
-              sideEffects: true,
-              test: regexCssGlobal,
-              issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
-            }),
-          ],
-        })
-      )
-      fns.push(
-        loader({
-          oneOf: [
-            markRemovable({
-              // A global Sass import always has side effects. Webpack will tree
-              // shake the Sass without this option if the issuer claims to have
-              // no side-effects.
-              // See https://github.com/webpack/webpack/issues/6571
-              sideEffects: true,
-              test: regexSassGlobal,
-              issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(
-                ctx,
-                lazyPostCSSInitializer,
-                sassPreprocessors
-              ),
-            }),
-          ],
-        })
-      )
-    }
-
     if (ctx.experimental.appDir) {
       fns.push(
         loader({
@@ -382,17 +375,10 @@ export const css = curry(async function css(
               // See https://github.com/webpack/webpack/issues/6571
               sideEffects: true,
               test: regexCssGlobal,
-              issuer: {
-                and: [
-                  {
-                    or: [
-                      { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
-                      regexClientEntry,
-                    ],
-                  },
-                ],
-              },
-              use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+              use: [
+                require.resolve('../../../loaders/next-flight-css-dev-loader'),
+                ...getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+              ],
             }),
           ],
         })
@@ -403,15 +389,84 @@ export const css = curry(async function css(
             markRemovable({
               sideEffects: false,
               test: regexCssModules,
-              issuer: {
-                and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/],
-                or: [regexClientEntry],
-              },
-              use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
+              use: [
+                require.resolve('../../../loaders/next-flight-css-dev-loader'),
+                ...getCssModuleLoader(ctx, lazyPostCSSInitializer),
+              ],
             }),
           ],
         })
       )
+    } else {
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              // A global CSS import always has side effects. Webpack will tree
+              // shake the CSS without this option if the issuer claims to have
+              // no side-effects.
+              // See https://github.com/webpack/webpack/issues/6571
+              sideEffects: true,
+              test: regexCssGlobal,
+              // We only allow Global CSS to be imported anywhere in the
+              // application if it comes from node_modules. This is a best-effort
+              // heuristic that makes a safety trade-off for better
+              // interoperability with npm packages that require CSS. Without
+              // this ability, the component's CSS would have to be included for
+              // the entire app instead of specific page where it's required.
+              include: { and: [/node_modules/] },
+              // Global CSS is only supported in the user's application, not in
+              // node_modules.
+              issuer: ctx.experimental.craCompat
+                ? undefined
+                : {
+                    and: [ctx.rootDirectory],
+                    not: [/node_modules/],
+                  },
+              use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+            }),
+          ],
+        })
+      )
+
+      if (ctx.customAppFile) {
+        fns.push(
+          loader({
+            oneOf: [
+              markRemovable({
+                // A global CSS import always has side effects. Webpack will tree
+                // shake the CSS without this option if the issuer claims to have
+                // no side-effects.
+                // See https://github.com/webpack/webpack/issues/6571
+                sideEffects: true,
+                test: regexCssGlobal,
+                issuer: { and: [ctx.customAppFile] },
+                use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+              }),
+            ],
+          })
+        )
+        fns.push(
+          loader({
+            oneOf: [
+              markRemovable({
+                // A global Sass import always has side effects. Webpack will tree
+                // shake the Sass without this option if the issuer claims to have
+                // no side-effects.
+                // See https://github.com/webpack/webpack/issues/6571
+                sideEffects: true,
+                test: regexSassGlobal,
+                issuer: { and: [ctx.customAppFile] },
+                use: getGlobalCssLoader(
+                  ctx,
+                  lazyPostCSSInitializer,
+                  sassPreprocessors
+                ),
+              }),
+            ],
+          })
+        )
+      }
     }
   }
 
