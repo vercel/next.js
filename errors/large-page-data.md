@@ -6,7 +6,7 @@ One of your pages includes a large amount of page data (>= 128kB). This can nega
 
 #### Possible Ways to Fix It
 
-Reduce the amount of data returned from `getStaticProps`, `getServerSideProps`, or `getInitialProps` to only the essential data to render the page. The default threshold of 128kB can be configured in `largePageDataBytes`.
+Reduce the amount of data returned from `getStaticProps`, `getServerSideProps`, or `getInitialProps` to only the essential data to render the page. The default threshold of 128kB can be configured in `largePageDataBytes` if absolutely necessary and the performance implications are understood.
 
 ### Useful Links
 
