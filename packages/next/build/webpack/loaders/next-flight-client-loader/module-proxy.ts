@@ -11,7 +11,7 @@ const MODULE_REFERENCE = Symbol.for('react.module.reference')
 const PROMISE_PROTOTYPE = Promise.prototype
 
 const proxyHandlers: ProxyHandler<object> = {
-  get: function (target: any, name: string, receiver: any) {
+  get: function (target: any, name: string, _receiver: any) {
     switch (name) {
       // These names are read by the Flight runtime if you end up using the exports object.
       case '$$typeof':
@@ -47,7 +47,7 @@ const proxyHandlers: ProxyHandler<object> = {
           // the client.
           const then = function then(
             resolve: (res: any) => void,
-            reject: (err: any) => void
+            _reject: (err: any) => void
           ) {
             const moduleReference: Record<string, any> = {
               $$typeof: MODULE_REFERENCE,
@@ -67,6 +67,13 @@ const proxyHandlers: ProxyHandler<object> = {
           // This will break if it's minified though.
           return then
         }
+      case 'getStaticProps':
+        return undefined
+      case 'getServerSideProps':
+        return undefined
+
+      default:
+        break
     }
     let cachedReference = target[name]
     if (!cachedReference) {
@@ -79,7 +86,7 @@ const proxyHandlers: ProxyHandler<object> = {
     }
     return cachedReference
   },
-  getPrototypeOf(target: object) {
+  getPrototypeOf(_target: object) {
     // Pretend to be a Promise in case anyone asks.
     return PROMISE_PROTOTYPE
   },
