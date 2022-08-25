@@ -8,7 +8,7 @@ import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
-import { stripInternalSearchParams } from '../utils'
+import { stripInternalSearchParams } from '../internal-utils'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string

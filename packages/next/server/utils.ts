@@ -1,4 +1,3 @@
-import type { NextParsedUrlQuery } from './request-meta'
 import React from 'react'
 import { BLOCKED_PAGES } from '../shared/lib/constants'
 
@@ -27,32 +26,6 @@ export function isTargetLikeServerless(target: string) {
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
   return isServerless || isServerlessTrace
-}
-
-const INTERNAL_QUERY_NAMES = [
-  '__nextFallback',
-  '__nextLocale',
-  '__nextDefaultLocale',
-  '__nextIsNotFound',
-  // RSC
-  '__flight__',
-  '__props__',
-  // Routing
-  '__flight_router_state_tree__',
-] as const
-
-export function stripInternalQueries(query: NextParsedUrlQuery) {
-  for (const name of INTERNAL_QUERY_NAMES) {
-    delete query[name]
-  }
-}
-
-export function stripInternalSearchParams(searchParams: URLSearchParams) {
-  for (const name of INTERNAL_QUERY_NAMES) {
-    searchParams.delete(name)
-  }
-
-  return searchParams
 }
 
 // When react version is >= 18 opt-in using reactRoot
