@@ -19,7 +19,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.27
+      '@edge-runtime/jest-environment': 1.1.0-beta.31
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -173,7 +173,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.27
+      '@edge-runtime/jest-environment': 1.1.0-beta.31
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -416,7 +416,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.27
+      '@edge-runtime/primitives': 1.1.0-beta.31
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
@@ -497,7 +497,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.27
+      edge-runtime: 1.1.0-beta.31
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -609,7 +609,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.27
+      '@edge-runtime/primitives': 1.1.0-beta.31
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
@@ -687,7 +687,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.27
+      edge-runtime: 1.1.0-beta.31
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -3216,14 +3216,14 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/format/1.1.0-beta.27:
-    resolution: {integrity: sha512-67ig1yISH1M7OHxS/PxgXbrQ99X8c47GFqP6qrDx+uWw1gBnknNHIykL3OgeIt4yk1OPKKHtrLe/Gnrw9Lc9tQ==}
+  /@edge-runtime/format/1.1.0-beta.31:
+    resolution: {integrity: sha512-tUZy+LMls1TivqVb7dbC0C0IMNjwP55co6vSkTgXCl9xFos3v43bCwAzivMaJ3NR8ZuihvK1gEj8CmvoqvOt0g==}
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.27:
-    resolution: {integrity: sha512-zCKFLqhvQ3OWV2H1cvl6CD7pnRKR+hUtGaJU4fYVjHAOoIpv5R9W+qw+9rXu5CpZJ7F4k/+1vLicAxaXKVKJOg==}
+  /@edge-runtime/jest-environment/1.1.0-beta.31:
+    resolution: {integrity: sha512-a65LVlCMkwkMxg8RjhEY5o3OZFHzMnLZcGqL234h3HO7Ri1Vriorj330BcPSh2GUt4zFqTS/3+XmWE6ueJwAZg==}
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.27
+      '@edge-runtime/vm': 1.1.0-beta.31
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
@@ -3231,14 +3231,14 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.27:
-    resolution: {integrity: sha512-9RLySRgIfNhPXzqprwk5jojUec4WmVRphXIGgXmqZs/22UPF50mKcmrstPVVutGiX0mt4YkHuUarLj0VtLjX1Q==}
+  /@edge-runtime/primitives/1.1.0-beta.31:
+    resolution: {integrity: sha512-OO1x32aJoxgME1k77RVxVNsazs5NY/SNwYEN8ptlZ6DKUXn0eesXftDsmlypX/OU0ZeJc61/xNVUuoeyDGJDVA==}
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.27:
-    resolution: {integrity: sha512-1ua5EI3GXKDDdjF6+1CUi37rmpxXMSWItCCl5sIMLBaIaf2klgnVYzIFVXORvXp0fKh1N3jEcS+Ykkutg/uzaw==}
+  /@edge-runtime/vm/1.1.0-beta.31:
+    resolution: {integrity: sha512-D3JW32u7LSTt0KbphGWx2F41jId7BY8H0Awr25PTRFWroqohfWo1C2huOh7/Yyn4qeyJOVEuxWeTzvbSkTyyTg==}
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.27
+      '@edge-runtime/primitives': 1.1.0-beta.31
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -9741,12 +9741,12 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.27:
-    resolution: {integrity: sha512-6Epw2VvkgQKNCZf1LpFdzrEpsSgnVAkLI3zGW5V7VduB8eNz5We/bpcNnFJTjGPUshhW+C5WxY7QNyioucMpDQ==}
+  /edge-runtime/1.1.0-beta.31:
+    resolution: {integrity: sha512-Uoq0Mt7u/MInAlyj81dPrbmn5HQacYqIGMqjTO7GQQBGS7K0ZgErucKYTNhKnRfnVacH3Msze+2D863rSCvERA==}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0-beta.27
-      '@edge-runtime/vm': 1.1.0-beta.27
+      '@edge-runtime/format': 1.1.0-beta.31
+      '@edge-runtime/vm': 1.1.0-beta.31
       exit-hook: 2.2.1
       http-status: 1.5.2
       mri: 1.2.0
