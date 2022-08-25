@@ -1,5 +1,6 @@
+import type { CookieSerializeOptions } from '../types'
+
 import cookie from 'next/dist/compiled/cookie'
-import { CookieSerializeOptions } from '../types'
 
 type GetWithOptionsOutput = {
   value: string | undefined
@@ -54,6 +55,9 @@ export class Cookies extends Map<string, string> {
         normalizeCookieOptions(options)
       )
     )
+  }
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return Object.fromEntries(this.entries())
   }
 }
 

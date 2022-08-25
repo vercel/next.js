@@ -7,10 +7,11 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 # Omit --production flag for TypeScript devDependencies
 RUN \
-  [ -f yarn.lock ] && yarn install --frozen-lockfile || \
-  [ -f package-lock.json ] && npm ci || \
-  [ -f pnpm-lock.yaml ] && yarn global add pnpm && pnpm fetch && pnpm i -r --offline || \
-  (echo "Lockfile not found." && exit 1)
+  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
 
 
 COPY src ./src
@@ -41,10 +42,8 @@ RUN adduser --system --uid 1001 nextjs
 USER nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.js .
-COPY --from=builder /app/package.json .
 
-# Automatically leverage output traces to reduce image size 
+# Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static

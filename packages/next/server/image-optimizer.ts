@@ -4,7 +4,6 @@ import { promises } from 'fs'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
-// @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
@@ -56,6 +55,85 @@ export interface ImageParamsResult {
   mimeType: string
   sizes: number[]
   minimumCacheTTL: number
+}
+
+function getSupportedMimeType(options: string[], accept = ''): string {
+  const mimeType = mediaType(accept, options)
+  return accept.includes(mimeType) ? mimeType : ''
+}
+
+export function getHash(items: (string | number | Buffer)[]) {
+  const hash = createHash('sha256')
+  for (let item of items) {
+    if (typeof item === 'number') hash.update(String(item))
+    else {
+      hash.update(item)
+    }
+  }
+  // See https://en.wikipedia.org/wiki/Base64#Filenames
+  return hash.digest('base64').replace(/\//g, '-')
+}
+
+async function writeToCacheDir(
+  dir: string,
+  extension: string,
+  maxAge: number,
+  expireAt: number,
+  buffer: Buffer,
+  etag: string
+) {
+  const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
+
+  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
+  // attempt cleaning up existing stale cache
+  if ((promises as any).rm) {
+    await (promises as any)
+      .rm(dir, { force: true, recursive: true })
+      .catch(() => {})
+  } else {
+    await promises.rmdir(dir, { recursive: true }).catch(() => {})
+  }
+  await promises.mkdir(dir, { recursive: true })
+  await promises.writeFile(filename, buffer)
+}
+
+/**
+ * Inspects the first few bytes of a buffer to determine if
+ * it matches the "magic number" of known file signatures.
+ * https://en.wikipedia.org/wiki/List_of_file_signatures
+ */
+export function detectContentType(buffer: Buffer) {
+  if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
+    return JPEG
+  }
+  if (
+    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
+      (b, i) => buffer[i] === b
+    )
+  ) {
+    return PNG
+  }
+  if ([0x47, 0x49, 0x46, 0x38].every((b, i) => buffer[i] === b)) {
+    return GIF
+  }
+  if (
+    [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return WEBP
+  }
+  if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
+    return SVG
+  }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return AVIF
+  }
+  return null
 }
 
 export class ImageOptimizerCache {
@@ -269,6 +347,37 @@ export class ImageError extends Error {
       this.statusCode = 500
     }
   }
+}
+
+function parseCacheControl(str: string | null): Map<string, string> {
+  const map = new Map<string, string>()
+  if (!str) {
+    return map
+  }
+  for (let directive of str.split(',')) {
+    let [key, value] = directive.trim().split('=')
+    key = key.toLowerCase()
+    if (value) {
+      value = value.toLowerCase()
+    }
+    map.set(key, value)
+  }
+  return map
+}
+
+export function getMaxAge(str: string | null): number {
+  const map = parseCacheControl(str)
+  if (map) {
+    let age = map.get('s-maxage') || map.get('max-age') || ''
+    if (age.startsWith('"') && age.endsWith('"')) {
+      age = age.slice(1, -1)
+    }
+    const n = parseInt(age, 10)
+    if (!isNaN(n)) {
+      return n
+    }
+  }
+  return 0
 }
 
 export async function imageOptimizer(
@@ -511,34 +620,11 @@ export async function imageOptimizer(
       }
     } else {
       throw new ImageError(
-        500,
+        400,
         'Unable to optimize image and unable to fallback to upstream image'
       )
     }
   }
-}
-
-async function writeToCacheDir(
-  dir: string,
-  extension: string,
-  maxAge: number,
-  expireAt: number,
-  buffer: Buffer,
-  etag: string
-) {
-  const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
-
-  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
-  // attempt cleaning up existing stale cache
-  if ((promises as any).rm) {
-    await (promises as any)
-      .rm(dir, { force: true, recursive: true })
-      .catch(() => {})
-  } else {
-    await promises.rmdir(dir, { recursive: true }).catch(() => {})
-  }
-  await promises.mkdir(dir, { recursive: true })
-  await promises.writeFile(filename, buffer)
 }
 
 function getFileNameWithExtension(
@@ -631,102 +717,17 @@ export function sendResponse(
   }
 }
 
-function getSupportedMimeType(options: string[], accept = ''): string {
-  const mimeType = mediaType(accept, options)
-  return accept.includes(mimeType) ? mimeType : ''
-}
-
-export function getHash(items: (string | number | Buffer)[]) {
-  const hash = createHash('sha256')
-  for (let item of items) {
-    if (typeof item === 'number') hash.update(String(item))
-    else {
-      hash.update(item)
-    }
-  }
-  // See https://en.wikipedia.org/wiki/Base64#Filenames
-  return hash.digest('base64').replace(/\//g, '-')
-}
-
-function parseCacheControl(str: string | null): Map<string, string> {
-  const map = new Map<string, string>()
-  if (!str) {
-    return map
-  }
-  for (let directive of str.split(',')) {
-    let [key, value] = directive.trim().split('=')
-    key = key.toLowerCase()
-    if (value) {
-      value = value.toLowerCase()
-    }
-    map.set(key, value)
-  }
-  return map
-}
-
-/**
- * Inspects the first few bytes of a buffer to determine if
- * it matches the "magic number" of known file signatures.
- * https://en.wikipedia.org/wiki/List_of_file_signatures
- */
-export function detectContentType(buffer: Buffer) {
-  if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
-    return JPEG
-  }
-  if (
-    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
-      (b, i) => buffer[i] === b
-    )
-  ) {
-    return PNG
-  }
-  if ([0x47, 0x49, 0x46, 0x38].every((b, i) => buffer[i] === b)) {
-    return GIF
-  }
-  if (
-    [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
-    return WEBP
-  }
-  if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
-    return SVG
-  }
-  if (
-    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
-    return AVIF
-  }
-  return null
-}
-
-export function getMaxAge(str: string | null): number {
-  const map = parseCacheControl(str)
-  if (map) {
-    let age = map.get('s-maxage') || map.get('max-age') || ''
-    if (age.startsWith('"') && age.endsWith('"')) {
-      age = age.slice(1, -1)
-    }
-    const n = parseInt(age, 10)
-    if (!isNaN(n)) {
-      return n
-    }
-  }
-  return 0
-}
-
 export async function resizeImage(
   content: Buffer,
-  dimension: 'width' | 'height',
-  size: number,
+  width: number,
+  height: number,
   // Should match VALID_BLUR_EXT
   extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
-  if (sharp) {
+  if (isAnimated(content)) {
+    return content
+  } else if (sharp) {
     const transformer = sharp(content)
 
     if (extension === 'avif') {
@@ -747,18 +748,11 @@ export async function resizeImage(
     } else if (extension === 'jpeg') {
       transformer.jpeg({ quality })
     }
-    if (dimension === 'width') {
-      transformer.resize(size)
-    } else {
-      transformer.resize(null, size)
-    }
+    transformer.resize(width, height)
     const buf = await transformer.toBuffer()
     return buf
   } else {
-    const resizeOperationOpts: Operation =
-      dimension === 'width'
-        ? { type: 'resize', width: size }
-        : { type: 'resize', height: size }
+    const resizeOperationOpts: Operation = { type: 'resize', width, height }
     const buf = await processBuffer(
       content,
       [resizeOperationOpts],

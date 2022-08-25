@@ -40,8 +40,6 @@ export function stripInternalQueries(query: NextParsedUrlQuery) {
   delete query.__props__
   // routing
   delete query.__flight_router_state_tree__
-
-  return query
 }
 
 // When react version is >= 18 opt-in using reactRoot

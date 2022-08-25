@@ -11,6 +11,8 @@ module.exports = {
       recommended: true,
       url,
     },
+    type: 'problem',
+    schema: [],
   },
   create: function (context) {
     let scriptImportName = null

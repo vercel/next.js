@@ -13,7 +13,6 @@ import type { RoutingItem } from '../base-server'
 
 import crypto from 'crypto'
 import fs from 'fs'
-import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
@@ -31,6 +30,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
+  COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
@@ -46,7 +46,10 @@ import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
-import { withCoalescedInvoke } from '../../lib/coalesced-function'
+import {
+  UnwrapPromise,
+  withCoalescedInvoke,
+} from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import {
@@ -72,6 +75,8 @@ import {
   isMiddlewareFile,
   NestedMiddlewareError,
 } from '../../build/utils'
+import { getDefineEnv } from '../../build/webpack-config'
+import loadJsConfig from '../../build/load-jsconfig'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -84,10 +89,6 @@ const ReactDevOverlay = (props: any) => {
 }
 
 export interface Options extends ServerOptions {
-  /**
-   * The HTTP Server that Next.js is running behind
-   */
-  httpServer?: HTTPServer
   /**
    * Tells of Next.js is running from the `next dev` command
    */
@@ -105,14 +106,10 @@ export default class DevServer extends Server {
   private pagesDir: string
   private appDir?: string
   private actualMiddlewareFile?: string
-
-  /**
-   * Since the dev server is stateful and middleware routes can be added and
-   * removed over time, we need to keep a list of all of the middleware
-   * routing items to be returned in `getMiddleware()`
-   */
-  private middleware?: RoutingItem[]
+  private middleware?: RoutingItem
   private edgeFunctions?: RoutingItem[]
+  private verifyingTypeScript?: boolean
+  private usingTypeScript?: boolean
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -263,7 +260,7 @@ export default class DevServer extends Server {
     )
 
     let resolved = false
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       // Watchpack doesn't emit an event for an empty directory
       fs.readdir(this.pagesDir, (_, files) => {
         if (files?.length) {
@@ -276,7 +273,9 @@ export default class DevServer extends Server {
         }
       })
 
-      const wp = (this.webpackWatcher = new Watchpack())
+      const wp = (this.webpackWatcher = new Watchpack({
+        ignored: /([/\\]node_modules[/\\]|[/\\]\.next[/\\]|[/\\]\.git[/\\])/,
+      }))
       const pages = [this.pagesDir]
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
@@ -286,17 +285,64 @@ export default class DevServer extends Server {
       )
       let nestedMiddleware: string[] = []
 
-      wp.watch(files, directories, 0)
+      const envFiles = [
+        '.env.development.local',
+        '.env.local',
+        '.env.development',
+        '.env',
+      ].map((file) => pathJoin(this.dir, file))
+
+      files.push(...envFiles)
+
+      // tsconfig/jsonfig paths hot-reloading
+      const tsconfigPaths = [
+        pathJoin(this.dir, 'tsconfig.json'),
+        pathJoin(this.dir, 'jsconfig.json'),
+      ]
+      files.push(...tsconfigPaths)
+
+      wp.watch({ directories: [this.dir], startTime: 0 })
+      const fileWatchTimes = new Map()
+      let enabledTypeScript = this.usingTypeScript
 
       wp.on('aggregated', async () => {
-        const routedMiddleware: string[] = []
         let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
-        const ssrMiddleware = new Set<string>()
+        const edgeRoutesSet = new Set<string>()
+        let envChange = false
+        let tsconfigChange = false
 
         for (const [fileName, meta] of knownFiles) {
+          if (
+            !files.includes(fileName) &&
+            !directories.some((dir) => fileName.startsWith(dir))
+          ) {
+            continue
+          }
+
+          const watchTime = fileWatchTimes.get(fileName)
+          const watchTimeChange = watchTime && watchTime !== meta?.timestamp
+          fileWatchTimes.set(fileName, meta.timestamp)
+
+          if (envFiles.includes(fileName)) {
+            if (watchTimeChange) {
+              envChange = true
+            }
+            continue
+          }
+
+          if (tsconfigPaths.includes(fileName)) {
+            if (fileName.endsWith('tsconfig.json')) {
+              enabledTypeScript = true
+            }
+            if (watchTimeChange) {
+              tsconfigChange = true
+            }
+            continue
+          }
+
           if (
             meta?.accuracy === undefined ||
             !regexPageExtension.test(fileName)
@@ -326,8 +372,12 @@ export default class DevServer extends Server {
             this.actualMiddlewareFile = rootFile
             middlewareMatcher =
               staticInfo.middleware?.pathMatcher || new RegExp('.*')
-            routedMiddleware.push('/')
+            edgeRoutesSet.add('/')
             continue
+          }
+
+          if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
+            enabledTypeScript = true
           }
 
           let pageName = absolutePathToPage(fileName, {
@@ -358,19 +408,120 @@ export default class DevServer extends Server {
             continue
           }
 
-          runDependingOnPageType({
+          await runDependingOnPageType({
             page: pageName,
             pageRuntime: staticInfo.runtime,
             onClient: () => {},
-            onServer: () => {},
+            onServer: () => {
+              routedPages.push(pageName)
+            },
             onEdgeServer: () => {
-              if (!pageName.startsWith('/api/')) {
-                routedMiddleware.push(pageName)
-              }
-              ssrMiddleware.add(pageName)
+              routedPages.push(pageName)
+              edgeRoutesSet.add(pageName)
             },
           })
-          routedPages.push(pageName)
+        }
+
+        if (!this.usingTypeScript && enabledTypeScript) {
+          // we tolerate the error here as this is best effort
+          // and the manual install command will be shown
+          await this.verifyTypeScript()
+            .then(() => {
+              tsconfigChange = true
+            })
+            .catch(() => {})
+        }
+
+        if (envChange || tsconfigChange) {
+          if (envChange) {
+            this.loadEnvConfig({ dev: true, forceReload: true })
+          }
+          let tsconfigResult:
+            | UnwrapPromise<ReturnType<typeof loadJsConfig>>
+            | undefined
+
+          if (tsconfigChange) {
+            try {
+              tsconfigResult = await loadJsConfig(this.dir, this.nextConfig)
+            } catch (_) {
+              /* do we want to log if there are syntax errors in tsconfig  while editing? */
+            }
+          }
+
+          this.hotReloader?.activeConfigs?.forEach((config, idx) => {
+            const isClient = idx === 0
+            const isNodeServer = idx === 1
+            const isEdgeServer = idx === 2
+            const hasRewrites =
+              this.customRoutes.rewrites.afterFiles.length > 0 ||
+              this.customRoutes.rewrites.beforeFiles.length > 0 ||
+              this.customRoutes.rewrites.fallback.length > 0
+
+            if (tsconfigChange) {
+              config.resolve?.plugins?.forEach((plugin: any) => {
+                // look for the JsConfigPathsPlugin and update with
+                // the latest paths/baseUrl config
+                if (plugin && plugin.jsConfigPlugin && tsconfigResult) {
+                  const { resolvedBaseUrl, jsConfig } = tsconfigResult
+                  const currentResolvedBaseUrl = plugin.resolvedBaseUrl
+                  const resolvedUrlIndex = config.resolve?.modules?.findIndex(
+                    (item) => item === currentResolvedBaseUrl
+                  )
+
+                  if (
+                    resolvedBaseUrl &&
+                    resolvedBaseUrl !== currentResolvedBaseUrl
+                  ) {
+                    // remove old baseUrl and add new one
+                    if (resolvedUrlIndex && resolvedUrlIndex > -1) {
+                      config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                    }
+                    config.resolve?.modules?.push(resolvedBaseUrl)
+                  }
+
+                  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
+                    Object.keys(plugin.paths).forEach((key) => {
+                      delete plugin.paths[key]
+                    })
+                    Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
+                    plugin.resolvedBaseUrl = resolvedBaseUrl
+                  }
+                }
+              })
+            }
+
+            if (envChange) {
+              config.plugins?.forEach((plugin: any) => {
+                // we look for the DefinePlugin definitions so we can
+                // update them on the active compilers
+                if (
+                  plugin &&
+                  typeof plugin.definitions === 'object' &&
+                  plugin.definitions.__NEXT_DEFINE_ENV
+                ) {
+                  const newDefine = getDefineEnv({
+                    dev: true,
+                    config: this.nextConfig,
+                    distDir: this.distDir,
+                    isClient,
+                    hasRewrites,
+                    hasReactRoot: this.hotReloader?.hasReactRoot,
+                    isNodeServer,
+                    isEdgeServer,
+                    hasServerComponents: this.hotReloader?.hasServerComponents,
+                  })
+
+                  Object.keys(plugin.definitions).forEach((key) => {
+                    if (!(key in newDefine)) {
+                      delete plugin.definitions[key]
+                    }
+                  })
+                  Object.assign(plugin.definitions, newDefine)
+                }
+              })
+            }
+          })
+          this.hotReloader?.invalidate()
         }
 
         if (nestedMiddleware.length > 0) {
@@ -382,24 +533,27 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = []
         this.edgeFunctions = []
-        getSortedRoutes(routedMiddleware).forEach((page) => {
+        const edgeRoutes = Array.from(edgeRoutesSet)
+        getSortedRoutes(edgeRoutes).forEach((page) => {
+          let appPath = this.getOriginalAppPath(page)
+
+          if (typeof appPath === 'string') {
+            page = appPath
+          }
           const isRootMiddleware = page === '/' && !!middlewareMatcher
+
           const middlewareRegex = isRootMiddleware
             ? { re: middlewareMatcher!, groups: {} }
-            : getMiddlewareRegex(page, {
-                catchAll: !ssrMiddleware.has(page),
-              })
+            : getMiddlewareRegex(page, { catchAll: false })
           const routeItem = {
             match: getRouteMatcher(middlewareRegex),
             page,
             re: middlewareRegex.re,
-            ssr: !isRootMiddleware,
           }
-
-          this.middleware!.push(routeItem)
-          if (!isRootMiddleware) {
+          if (isRootMiddleware) {
+            this.middleware = routeItem
+          } else {
             this.edgeFunctions!.push(routeItem)
           }
         })
@@ -455,17 +609,33 @@ export default class DevServer extends Server {
     this.webpackWatcher = null
   }
 
+  private async verifyTypeScript() {
+    if (this.verifyingTypeScript) {
+      return
+    }
+    try {
+      this.verifyingTypeScript = true
+      const verifyResult = await verifyTypeScriptSetup({
+        dir: this.dir,
+        intentDirs: [this.pagesDir!, this.appDir].filter(Boolean) as string[],
+        typeCheckPreflight: false,
+        tsconfigPath: this.nextConfig.typescript.tsconfigPath,
+        disableStaticImages: this.nextConfig.images.disableStaticImages,
+      })
+
+      if (verifyResult.version) {
+        this.usingTypeScript = true
+      }
+    } finally {
+      this.verifyingTypeScript = false
+    }
+  }
+
   async prepare(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-    await verifyTypeScriptSetup(
-      this.dir,
-      [this.pagesDir!, this.appDir].filter(Boolean) as string[],
-      false,
-      this.nextConfig.typescript.tsconfigPath,
-      this.nextConfig.images.disableStaticImages
-    )
 
+    await this.verifyTypeScript()
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     // reload router
@@ -492,7 +662,7 @@ export default class DevServer extends Server {
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
-    await this.hotReloader.start()
+    await this.hotReloader.start(true)
     await this.startWatcher()
     this.setDevReady!()
 
@@ -642,6 +812,8 @@ export default class DevServer extends Server {
             )
           ) {
             this.hotReloader?.onHMR(req, socket, head)
+          } else {
+            this.handleUpgrade(req, socket, head)
           }
         })
       }
@@ -714,7 +886,12 @@ export default class DevServer extends Server {
     page: string
   }) {
     try {
-      return super.runEdgeFunction(params)
+      return super.runEdgeFunction({
+        ...params,
+        onWarning: (warn) => {
+          this.logErrorWithOriginalStack(warn, 'warning')
+        },
+      })
     } catch (error) {
       if (error instanceof DecodeError) {
         throw error
@@ -797,7 +974,9 @@ export default class DevServer extends Server {
         const frames = parseStack(err.stack!)
         const frame = frames.find(
           ({ file }) =>
-            !file?.startsWith('eval') && !file?.includes('web/adapter')
+            !file?.startsWith('eval') &&
+            !file?.includes('web/adapter') &&
+            !file?.includes('sandbox/context')
         )!
 
         if (frame.lineNumber && frame?.file) {
@@ -808,7 +987,7 @@ export default class DevServer extends Server {
 
           const src = getErrorSource(err as Error)
           const compilation = (
-            src === 'edge-server'
+            src === COMPILER_NAMES.edgeServer
               ? this.hotReloader?.edgeServerStats?.compilation
               : this.hotReloader?.serverStats?.compilation
           )!
@@ -837,13 +1016,10 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (src === 'edge-server') {
-              console[type === 'warning' ? 'warn' : 'error'](
-                `${(type === 'warning' ? chalk.yellow : chalk.red)(
-                  err.name
-                )}: ${err.message}`
-              )
-            } else if (type === 'warning') {
+            if (src === COMPILER_NAMES.edgeServer) {
+              err = err.message
+            }
+            if (type === 'warning') {
               Log.warn(err)
             } else if (type) {
               Log.error(`${type}:`, err)
@@ -903,7 +1079,7 @@ export default class DevServer extends Server {
   }
 
   protected getMiddleware() {
-    return this.middleware ?? []
+    return this.middleware
   }
 
   protected getEdgeFunctions() {
@@ -914,17 +1090,20 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected async hasMiddleware(
-    pathname: string,
-    isSSR?: boolean
-  ): Promise<boolean> {
-    return this.hasPage(isSSR ? pathname : this.actualMiddlewareFile!)
+  protected getServerCSSManifest() {
+    return undefined
   }
 
-  protected async ensureMiddleware(pathname: string, isSSR?: boolean) {
-    return this.hotReloader!.ensurePage(
-      isSSR ? pathname : this.actualMiddlewareFile!
-    )
+  protected async hasMiddleware(): Promise<boolean> {
+    return this.hasPage(this.actualMiddlewareFile!)
+  }
+
+  protected async ensureMiddleware() {
+    return this.hotReloader!.ensurePage(this.actualMiddlewareFile!)
+  }
+
+  protected async ensureEdgeFunction(pathname: string) {
+    return this.hotReloader!.ensurePage(pathname)
   }
 
   generateRoutes() {
@@ -979,10 +1158,11 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify(
-              this.getMiddleware().map((middleware) => [
-                middleware.re!.source,
-                !!middleware.ssr,
-              ])
+              this.middleware
+                ? {
+                    location: this.middleware.re!.source,
+                  }
+                : {}
             )
           )
           .send()
@@ -1098,7 +1278,7 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async ensureApiPage(pathname: string) {
+  protected async ensureApiPage(pathname: string): Promise<void> {
     return this.hotReloader!.ensurePage(pathname)
   }
 
@@ -1123,6 +1303,7 @@ export default class DevServer extends Server {
       // manifest.
       if (serverComponents) {
         this.serverComponentManifest = super.getServerComponentManifest()
+        this.serverCSSManifest = super.getServerCSSManifest()
       }
 
       return super.findPageComponents(pathname, query, params, isAppDir)
