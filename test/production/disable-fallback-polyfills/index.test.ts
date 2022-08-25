@@ -25,7 +25,7 @@ describe('Disable fallback polyfills', () => {
   })
   afterAll(() => next.destroy())
 
-  it('Polyfills are added by default', async () => {
+  it('Fallback polyfills added by default', async () => {
     const firstLoadJSSize = Number(
       next.cliOutput.match(/○ \/\s{38}(\d*) kB\s{10}(?<firstLoad>\d*) kB/)
         .groups.firstLoad
@@ -33,7 +33,7 @@ describe('Disable fallback polyfills', () => {
     expect(firstLoadJSSize).not.toBeLessThan(200)
   })
 
-  it('When Polyfilling is disabled, build should fail', async () => {
+  it('Build should fail, when fallback polyfilling is disabled', async () => {
     await next.patchFile(
       'next.config.js',
       `module.exports = {
@@ -43,7 +43,6 @@ describe('Disable fallback polyfills', () => {
       }`
     )
 
-    await next.setup()
-    expect(next.cliOutput).toContain("Module not found: Can't resolve 'crypto'")
+    await expect(next.start()).rejects.toThrow(/next build failed/)
   })
 })
