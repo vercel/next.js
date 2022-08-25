@@ -342,6 +342,7 @@ export type FlightData = Array<FlightDataPath> | string
 export type ChildProp = {
   current: React.ReactNode
   segment: Segment
+  partial: boolean
 }
 
 /**
@@ -429,6 +430,7 @@ export async function renderToHTMLOrFlight(
   } = renderOpts
 
   const isFlight = query.__flight__ !== undefined
+  const isPrefetch = query.__flight_prefetch__ !== undefined
 
   // Handle client-side navigation to pages directory
   if (isFlight && isPagesDir) {
@@ -678,6 +680,31 @@ export async function renderToHTMLOrFlight(
             ? [parallelRouteKey]
             : [actualSegment, parallelRouteKey]
 
+          const childSegment = parallelRoutes[parallelRouteKey][0]
+          const childSegmentParam = getDynamicParamFromSegment(childSegment)
+
+          if (isPrefetch && Loading) {
+            const childProp: ChildProp = {
+              partial: true,
+              current: <>TEST</>,
+              segment: childSegmentParam
+                ? childSegmentParam.treeSegment
+                : childSegment,
+            }
+
+            // This is turned back into an object below.
+            return [
+              parallelRouteKey,
+              <LayoutRouter
+                parallelRouterKey={parallelRouteKey}
+                segmentPath={createSegmentPath(currentSegmentPath)}
+                loading={Loading ? <Loading /> : undefined}
+                childProp={childProp}
+                rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
+              />,
+            ]
+          }
+
           // Create the child component
           const { Component: ChildComponent } = await createComponentTree({
             createSegmentPath: (child) => {
@@ -688,9 +715,8 @@ export async function renderToHTMLOrFlight(
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
-          const childSegment = parallelRoutes[parallelRouteKey][0]
-          const childSegmentParam = getDynamicParamFromSegment(childSegment)
           const childProp: ChildProp = {
+            partial: false,
             current: <ChildComponent />,
             segment: childSegmentParam
               ? childSegmentParam.treeSegment
@@ -915,7 +941,6 @@ export async function renderToHTMLOrFlight(
                   loaderTree: loaderTreeToFilter,
                   parentParams: currentParams,
                   firstItem: true,
-                  // parentSegmentPath: '',
                 }
               )
             ).Component

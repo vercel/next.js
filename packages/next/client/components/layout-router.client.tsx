@@ -114,7 +114,7 @@ export function InnerLayoutRouter({
   let childNode = childNodes.get(path)
 
   // If childProp is available this means it's the Flight / SSR case.
-  if (childProp && !childNode) {
+  if (childProp && !childNode && !childProp.partial) {
     // Add the segment's subTreeData to the cache.
     // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
     childNodes.set(path, {
@@ -230,22 +230,22 @@ export function InnerLayoutRouter({
     let fastPath: boolean = false
 
     // If there are multiple patches returned in the Flight data we need to dispatch to ensure a single render.
-    if (flightData.length === 1) {
-      const flightDataPath = flightData[0]
+    // if (flightData.length === 1) {
+    //   const flightDataPath = flightData[0]
 
-      if (segmentPathMatches(flightDataPath, segmentPath)) {
-        // Ensure data is set to null as subTreeData will be set in the cache now.
-        childNode.data = null
-        // Last item is the subtreeData
-        // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
-        const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
-        // Add subTreeData into the cache
-        childNode.subTreeData = subTreeData
-        // This field is required for new items
-        childNode.parallelRoutes = new Map()
-        fastPath = true
-      }
-    }
+    //   if (segmentPathMatches(flightDataPath, segmentPath)) {
+    //     // Ensure data is set to null as subTreeData will be set in the cache now.
+    //     childNode.data = null
+    //     // Last item is the subtreeData
+    //     // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
+    //     const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
+    //     // Add subTreeData into the cache
+    //     childNode.subTreeData = subTreeData
+    //     // This field is required for new items
+    //     childNode.parallelRoutes = new Map()
+    //     fastPath = true
+    //   }
+    // }
 
     // When the fast path is not used a new action is dispatched to update the tree and cache.
     if (!fastPath) {

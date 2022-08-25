@@ -30,7 +30,8 @@ import {
  */
 function fetchFlight(
   url: URL,
-  flightRouterState: FlightRouterState
+  flightRouterState: FlightRouterState,
+  prefetch?: true
 ): ReadableStream {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
@@ -41,6 +42,9 @@ function fetchFlight(
     '__flight_router_state_tree__',
     JSON.stringify(flightRouterState)
   )
+  if (prefetch) {
+    searchParams.append('__flight_prefetch__', '1')
+  }
 
   // TODO-APP: Verify that TransformStream is supported.
   const { readable, writable } = new TransformStream()
@@ -57,10 +61,11 @@ function fetchFlight(
  */
 export function fetchServerResponse(
   url: URL,
-  flightRouterState: FlightRouterState
+  flightRouterState: FlightRouterState,
+  prefetch?: true
 ): { readRoot: () => FlightData } {
   // Handle the `fetch` readable stream that can be read using `readRoot`.
-  return createFromReadableStream(fetchFlight(url, flightRouterState))
+  return createFromReadableStream(fetchFlight(url, flightRouterState, prefetch))
 }
 
 /**

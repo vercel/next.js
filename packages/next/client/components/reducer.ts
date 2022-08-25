@@ -469,6 +469,7 @@ export function reducer(
     | PrefetchAction
   >
 ): AppRouterState {
+  console.log(action.type, action)
   switch (action.type) {
     case ACTION_RESTORE: {
       const { url, tree } = action
@@ -549,7 +550,8 @@ export function reducer(
         /**
          * If the tree can be optimistically rendered and suspend in layout-router instead of in the reducer.
          */
-        const isOptimistic = canOptimisticallyRender(segments, state.tree)
+        const isOptimistic =
+          false && canOptimisticallyRender(segments, state.tree)
 
         // Optimistic tree case.
         if (isOptimistic) {
@@ -600,7 +602,11 @@ export function reducer(
 
         // If no in-flight fetch at the top, start it.
         if (!cache.data) {
-          cache.data = fetchServerResponse(url, state.tree)
+          const prefetchResponse = state.prefetchCache.get(href)
+          console.log({ prefetchResponse })
+          cache.data = prefetchResponse
+            ? prefetchResponse
+            : fetchServerResponse(url, state.tree)
         }
 
         // readRoot to suspend here (in the reducer) until the fetch resolves.
@@ -824,15 +830,7 @@ export function reducer(
         return state
       }
 
-      // state.prefetchCache.set(
-      //   href,
-      //   fetchServerResponse(url, [
-      //     state.tree[0],
-      //     state.tree[1],
-      //     state.tree[2],
-      //     'refetch',
-      //   ])
-      // )
+      state.prefetchCache.set(href, fetchServerResponse(url, state.tree, true))
 
       return state
     }

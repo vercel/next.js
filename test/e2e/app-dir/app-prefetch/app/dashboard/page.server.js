@@ -1,5 +1,5 @@
 export async function getServerSideProps() {
-  await new Promise((resolve) => setTimeout(resolve, 10000))
+  await new Promise((resolve) => setTimeout(resolve, 3000))
   return {
     props: {
       message: 'Welcome to the dashboard',
