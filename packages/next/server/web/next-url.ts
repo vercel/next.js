@@ -31,6 +31,28 @@ function parseURL(url: string | URL, base?: string | URL) {
   )
 }
 
+function parseFlightParameters(
+  searchParams: URLSearchParams
+): Record<string, string> | undefined {
+  let flightData: Record<string, string> = {}
+  let flightDataUpdated = false
+  for (const name of FLIGHT_PARAMETERS) {
+    const value = searchParams.get(name)
+    if (value === null) {
+      continue
+    }
+
+    flightData[name] = value
+    flightDataUpdated = true
+  }
+
+  if (!flightDataUpdated) {
+    return undefined
+  }
+
+  return flightData
+}
+
 const Internal = Symbol('NextURLInternal')
 
 export class NextURL {
@@ -96,21 +118,9 @@ export class NextURL {
     this[Internal].buildId = pathnameInfo.buildId
     this[Internal].locale = pathnameInfo.locale ?? defaultLocale
     this[Internal].trailingSlash = pathnameInfo.trailingSlash
-
-    // Clear the flight data.
-    delete this[Internal].flightData
-
-    // Check if there's flight data in the URL, and if there is, extract it.
-    for (const name of FLIGHT_PARAMETERS) {
-      const value = this[Internal].url.searchParams.get(name)
-      if (value !== null) {
-        // Set the flight data if it wasn't defined.
-        this[Internal].flightData ??= {}
-
-        // Set this flight parameter.
-        this[Internal].flightData[name] = value
-      }
-    }
+    this[Internal].flightData = parseFlightParameters(
+      this[Internal].url.searchParams
+    )
   }
 
   private formatPathname() {
@@ -141,17 +151,15 @@ export class NextURL {
   public set flightData(flightData: Record<string, string> | undefined) {
     if (flightData) {
       for (const name of FLIGHT_PARAMETERS) {
-        this[Internal].url.searchParams.set(name, flightData[name])
+        this[Internal].url.searchParams.set(name, flightData[name] ?? '')
       }
-
-      this[Internal].flightData = flightData
     } else {
       for (const name of FLIGHT_PARAMETERS) {
         this[Internal].url.searchParams.delete(name)
       }
-
-      delete this[Internal].flightData
     }
+
+    this[Internal].flightData = flightData
   }
 
   public get locale() {
