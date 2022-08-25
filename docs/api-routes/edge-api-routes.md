@@ -132,4 +132,4 @@ export default async function handler() {
 }
 ```
 
-The example above is taken from the [WASM XOR API Route]() example.
+View more examples [here](https://github.com/vercel/examples/tree/main/edge-api-routes).
