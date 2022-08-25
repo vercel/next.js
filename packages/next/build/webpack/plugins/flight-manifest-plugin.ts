@@ -114,7 +114,7 @@ export class FlightManifestPlugin {
     const dev = this.dev
 
     compilation.chunkGroups.forEach((chunkGroup) => {
-      const cssResourcesInChunkGroup: string[] = []
+      const cssResourcesInChunkGroup = new Set<string>()
       let entryFilepath: string = ''
 
       function recordModule(
@@ -171,17 +171,10 @@ export class FlightManifestPlugin {
                 chunks,
               },
             }
-            moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id]['default'] = {
-              id: ssrNamedModuleId,
-              name: 'default',
-              chunks,
-            }
-            manifest.__ssr_module_mapping__ = moduleIdMapping
           }
 
           if (chunkGroup.name) {
-            cssResourcesInChunkGroup.push(resource)
+            cssResourcesInChunkGroup.add(resource)
           }
 
           return
@@ -294,7 +287,7 @@ export class FlightManifestPlugin {
 
       const clientCSSManifest: any = manifest.__client_css_manifest__ || {}
       if (entryFilepath) {
-        clientCSSManifest[entryFilepath] = cssResourcesInChunkGroup
+        clientCSSManifest[entryFilepath] = Array.from(cssResourcesInChunkGroup)
       }
       manifest.__client_css_manifest__ = clientCSSManifest
     })
