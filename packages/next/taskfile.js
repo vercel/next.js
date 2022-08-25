@@ -43,35 +43,22 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_styled_jsx_types(task, opts) {
+export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
   // package is hoisted out of Next.js' node_modules or not
   const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
   const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
-  const outputDir = join(__dirname, 'dist/styled-jsx-types')
-  let typeReferences = ``
-
-  await fs.ensureDir(outputDir)
+  const outputDir = join(__dirname, 'dist/styled-jsx')
+  // Separate type files into different folders to avoid conflicts between
+  // dev dep `styled-jsx` and `next/dist/styled-jsx` for duplicated declare modules
+  const typesDir = join(outputDir, 'types')
+  await fs.ensureDir(typesDir)
 
   for (const file of typeFiles) {
-    const fileNoExt = file.replace(/\.d\.ts/, '')
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
-    const exportsIndex = content.indexOf('export')
-
-    await fs.writeFile(
-      join(outputDir, file),
-      `${content.substring(0, exportsIndex)}\n` +
-        `declare module 'styled-jsx${
-          file === 'index.d.ts' ? '' : '/' + fileNoExt
-        }' {
-        ${content.substring(exportsIndex)}
-      }`
-    )
-    typeReferences += `/// <reference types="./${fileNoExt}" />\n`
+    await fs.writeFile(join(typesDir, file), content)
   }
-
-  await fs.writeFile(join(outputDir, 'global.d.ts'), typeReferences)
 }
 
 const externals = {
@@ -188,7 +175,15 @@ export async function compile_config_schema(task, opts) {
   // eslint-disable-next-line
   const standaloneCode = require('ajv/dist/standalone').default
   // eslint-disable-next-line
-  const ajv = new Ajv({ code: { source: true }, allErrors: true })
+  const ajv = new Ajv({
+    code: { source: true },
+    allErrors: true,
+    verbose: true,
+  })
+
+  // errorMessage keyword will be consumed by @segment/ajv-human-errors to provide a custom error message
+  ajv.addKeyword('errorMessage')
+
   ajv.addKeyword({
     keyword: 'isFunction',
     schemaType: 'boolean',
@@ -950,6 +945,19 @@ export async function ncc_async_sema(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('async-sema')))
     .ncc({ packageName: 'async-sema', externals })
     .target('compiled/async-sema')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_segment_ajv_human_errors(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@segment/ajv-human-errors/'))
+    )
+    .ncc({
+      packageName: '@segment/ajv-human-errors/',
+      externals,
+    })
+    .target('compiled/@segment/ajv-human-errors')
 }
 
 const babelCorePackages = {
@@ -1725,13 +1733,12 @@ export async function ncc_webpack_bundle5(task, opts) {
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
     .ncc({
-      packageName: 'webpack5',
+      packageName: 'webpack',
       bundleName: 'webpack',
       customEmit(path) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
       externals: bundleExternals,
-      minify: false,
       target: 'es5',
     })
     .target('compiled/webpack')
@@ -1770,7 +1777,12 @@ export async function path_to_regexp(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'path_to_regexp', 'copy_ncced'],
+    [
+      'browser_polyfills',
+      'path_to_regexp',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+    ],
     opts
   )
 }
@@ -1803,6 +1815,7 @@ export async function ncc(task, opts) {
         'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
+        'ncc_segment_ajv_human_errors',
         'ncc_assert',
         'ncc_browser_zlib',
         'ncc_buffer',
@@ -1928,7 +1941,6 @@ export async function compile(task, opts) {
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
-      'copy_styled_jsx_types',
     ],
     opts
   )

@@ -43,7 +43,7 @@ export default function Post({ data = {}, preview }) {
                 <title>
                   {post.title} | Next.js Blog Example with {CMS_NAME}
                 </title>
-                {post.coverImage && (
+                {post.coverImage?.asset?._ref && (
                   <meta
                     key="ogImage"
                     property="og:image"
@@ -85,6 +85,8 @@ export async function getStaticProps({ params, preview = false }) {
         morePosts: overlayDrafts(morePosts),
       },
     },
+    // If webhooks isn't setup then attempt to re-generate in 1 minute intervals
+    revalidate: process.env.SANITY_REVALIDATE_SECRET ? undefined : 60,
   }
 }
 

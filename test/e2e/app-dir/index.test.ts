@@ -720,6 +720,24 @@ describe('app dir', () => {
         })
       })
 
+      describe('next/router', () => {
+        it('should always return null when accessed from /app', async () => {
+          const browser = await webdriver(next.url, '/old-router')
+
+          try {
+            await browser.waitForElementByCss('#old-router')
+
+            const notNull = await browser.elementsByCss('.was-not-null')
+            expect(notNull.length).toBe(0)
+
+            const wasNull = await browser.elementsByCss('.was-null')
+            expect(wasNull.length).toBe(6)
+          } finally {
+            await browser.close()
+          }
+        })
+      })
+
       describe('hooks', () => {
         describe('useCookies', () => {
           it('should retrive cookies in a server component', async () => {

@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import { NextParsedUrlQuery } from '../../server/request-meta'
+import type { NextParsedUrlQuery } from '../../server/request-meta'
 
 export const SearchParamsContext = createContext<NextParsedUrlQuery>(
   null as any

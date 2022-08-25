@@ -5,10 +5,6 @@ import styled, { keyframes } from 'styled-components'
 interface ILoaderProps {
   done: boolean
 }
-const Loader: React.FC<ILoaderProps> = ({ done }): JSX.Element =>
-  done ? <Image src="/check.png" width={30} height={30} /> : <Spinner />
-
-export default Loader
 
 const spin = keyframes`
     0% {
@@ -18,6 +14,7 @@ const spin = keyframes`
         transform: rotate(360deg);
     }
 `
+
 const Spinner = styled.div`
   border: 3px solid #f3f3f3;
   border-top: 3px solid rgb(235, 137, 82);
@@ -26,3 +23,8 @@ const Spinner = styled.div`
   height: 25px;
   animation: ${spin} 1s linear infinite;
 `
+
+const Loader: React.FC<ILoaderProps> = ({ done }): JSX.Element =>
+  done ? <Image src="/check.png" width={30} height={30} /> : <Spinner />
+
+export default Loader

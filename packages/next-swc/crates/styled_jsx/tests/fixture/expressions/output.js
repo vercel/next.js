@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 const darken = (c)=>c;
 const color = 'red';
 const otherColor = 'green';
