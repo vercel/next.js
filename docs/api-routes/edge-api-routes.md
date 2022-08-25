@@ -114,9 +114,9 @@ Edge API Routes can [stream responses](/docs/api-reference/edge-runtime.md#web-s
 
 View the [supported APIs](/docs/api-reference/edge-runtime.md) and [unsupported APIs](/docs/api-reference/edge-runtime.md#unsupported-apis) for the Edge Runtime.
 
-## Web Assembly (WASM)
+## Web Assembly (Wasm)
 
-You can now use WASM within your Edge API Route by importing your `.wasm` binary with
+You can use Warm within your Edge API Route by importing your `.wasm` binary with:
 
 ```ts
 import wasm from './my-file.wasm?module'
