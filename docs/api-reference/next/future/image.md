@@ -51,7 +51,7 @@ Compared to `next/image`, the new `next/future/image` component has the followin
   - Use [`priority`](#priority) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading progressive jpeg. Possible solutions:
   - Enable [AVIF `formats`](#acceptable-formats)
-  - Use [`placeholder="blur"`](#blur)
+  - Use [`placeholder="blur"`](#placeholder)
 
 ## Migration
 

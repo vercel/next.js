@@ -11,6 +11,7 @@ packages/react-dev-overlay/lib/**
 **/__tmp__/**
 lerna.json
 .github/actions/next-stats-action/.work
+.github/actions/issue-validator/index.mjs
 packages/next-swc/crates/**/*
 packages/next-swc/target/**/*
 packages/next-swc/native/**/*
