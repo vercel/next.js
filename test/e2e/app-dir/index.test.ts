@@ -740,7 +740,7 @@ describe('app dir', () => {
       describe('middleware', () => {
         ;['rewrite', 'redirect'].map((method) =>
           it(`should strip internal query parameters from requests to middleware for ${method}`, async () => {
-            const browser = await webdriver(next.url, '/internal/test')
+            const browser = await webdriver(next.url, '/internal')
 
             try {
               // Wait for and click the navigation element, this should trigger
