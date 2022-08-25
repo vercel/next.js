@@ -258,6 +258,9 @@ const configSchema = {
         externalDir: {
           type: 'boolean',
         },
+        fallbackOldPolyfills: {
+          type: 'boolean',
+        },
         forceSwcTransforms: {
           type: 'boolean',
         },
