@@ -737,6 +737,26 @@ describe('app dir', () => {
         })
       })
 
+      describe('middleware', () => {
+        ;['rewrite', 'redirect'].map((method) =>
+          it(`should strip internal query parameters from requests to middleware for ${method}`, async () => {
+            const browser = await webdriver(next.url, '/internal/test')
+
+            try {
+              // Wait for and click the navigation element, this should trigger
+              // the flight request that'll be caught by the middleware. If the
+              // middleware sees any flight data on the request it'll redirect to
+              // a page with an element of #failure, otherwise, we'll see the
+              // element for #success.
+              await browser.elementById(`navigate-${method}`).click()
+              await browser.waitForElementByCss('#success')
+            } finally {
+              await browser.close()
+            }
+          })
+        )
+      })
+
       describe('next/router', () => {
         it('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')

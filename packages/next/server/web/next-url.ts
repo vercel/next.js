@@ -15,6 +15,12 @@ interface Options {
   }
 }
 
+const FLIGHT_PARAMETERS = [
+  '__flight__',
+  '__props__',
+  '__flight_router_state_tree__',
+] as const
+
 const REGEX_LOCALHOST_HOSTNAME =
   /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
 
@@ -31,6 +37,7 @@ export class NextURL {
   [Internal]: {
     basePath: string
     buildId?: string
+    flightData?: Record<string, string>
     defaultLocale?: string
     domainLocale?: DomainLocale
     locale?: string
@@ -89,6 +96,21 @@ export class NextURL {
     this[Internal].buildId = pathnameInfo.buildId
     this[Internal].locale = pathnameInfo.locale ?? defaultLocale
     this[Internal].trailingSlash = pathnameInfo.trailingSlash
+
+    // Clear the flight data.
+    delete this[Internal].flightData
+
+    // Check if there's flight data in the URL, and if there is, extract it.
+    for (const name of FLIGHT_PARAMETERS) {
+      const value = this[Internal].url.searchParams.get(name)
+      if (value !== null) {
+        // Set the flight data if it wasn't defined.
+        this[Internal].flightData ??= {}
+
+        // Set this flight parameter.
+        this[Internal].flightData[name] = value
+      }
+    }
   }
 
   private formatPathname() {
@@ -110,6 +132,26 @@ export class NextURL {
 
   public set buildId(buildId: string | undefined) {
     this[Internal].buildId = buildId
+  }
+
+  public get flightData() {
+    return this[Internal].flightData
+  }
+
+  public set flightData(flightData: Record<string, string> | undefined) {
+    if (flightData) {
+      for (const name of FLIGHT_PARAMETERS) {
+        this[Internal].url.searchParams.set(name, flightData[name])
+      }
+
+      this[Internal].flightData = flightData
+    } else {
+      for (const name of FLIGHT_PARAMETERS) {
+        this[Internal].url.searchParams.delete(name)
+      }
+
+      delete this[Internal].flightData
+    }
   }
 
   public get locale() {

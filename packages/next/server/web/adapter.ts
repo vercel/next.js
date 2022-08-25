@@ -8,6 +8,7 @@ import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
+import { stripInternalSearchParams } from '../utils'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -54,12 +55,12 @@ export async function adapter(params: {
     requestUrl.pathname = '/'
   }
 
-  // clean-up any internal query params
-  for (const key of [...requestUrl.searchParams.keys()]) {
-    if (key.startsWith('__next')) {
-      requestUrl.searchParams.delete(key)
-    }
-  }
+  // Preserve flight data.
+  const flightData = requestUrl.flightData
+  requestUrl.flightData = undefined
+
+  // Strip internal query parameters off the request.
+  stripInternalSearchParams(requestUrl.searchParams)
 
   const request = new NextRequestHint({
     page: params.page,
@@ -105,6 +106,7 @@ export async function adapter(params: {
 
     if (rewriteUrl.host === request.nextUrl.host) {
       rewriteUrl.buildId = buildId || rewriteUrl.buildId
+      rewriteUrl.flightData = flightData || rewriteUrl.flightData
       response.headers.set('x-middleware-rewrite', String(rewriteUrl))
     }
 
@@ -142,6 +144,7 @@ export async function adapter(params: {
 
     if (redirectURL.host === request.nextUrl.host) {
       redirectURL.buildId = buildId || redirectURL.buildId
+      redirectURL.flightData = flightData || redirectURL.flightData
       response.headers.set('Location', String(redirectURL))
     }
 

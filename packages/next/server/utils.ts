@@ -29,17 +29,30 @@ export function isTargetLikeServerless(target: string) {
   return isServerless || isServerlessTrace
 }
 
-export function stripInternalQueries(query: NextParsedUrlQuery) {
-  delete query.__nextFallback
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextIsNotFound
-
+const INTERNAL_QUERY_NAMES = [
+  '__nextFallback',
+  '__nextLocale',
+  '__nextDefaultLocale',
+  '__nextIsNotFound',
   // RSC
-  delete query.__flight__
-  delete query.__props__
-  // routing
-  delete query.__flight_router_state_tree__
+  '__flight__',
+  '__props__',
+  // Routing
+  '__flight_router_state_tree__',
+] as const
+
+export function stripInternalQueries(query: NextParsedUrlQuery) {
+  for (const name of INTERNAL_QUERY_NAMES) {
+    delete query[name]
+  }
+}
+
+export function stripInternalSearchParams(searchParams: URLSearchParams) {
+  for (const name of INTERNAL_QUERY_NAMES) {
+    searchParams.delete(name)
+  }
+
+  return searchParams
 }
 
 // When react version is >= 18 opt-in using reactRoot
