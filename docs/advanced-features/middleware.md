@@ -160,7 +160,7 @@ You can use Wasm within your Middleware by importing your `.wasm` binary with:
 import wasm from './my-file.wasm?module'
 ```
 
-Note the `?module` suffix. This will provide an array of the WASM data that can be instantiated using `WebAssembly.instantiate()`, which can be done as follows:
+Note the `?module` suffix. This will provide an array of the Wasm data that can be instantiated using `WebAssembly.instantiate()`, which can be done as follows:
 
 ```ts
 export default async function handler() {
