@@ -204,7 +204,7 @@ importers:
       '@types/trusted-types': 2.0.2
       '@typescript-eslint/eslint-plugin': 4.29.1_h7pkbj7dyzxk3ymw6sjfdovo2m
       '@typescript-eslint/parser': 4.29.1_sphjtq24gqflsrz3rov2wazhhy
-      '@vercel/fetch': 6.1.1_fii5qhbaymjqmfm7e2spxc5z4m
+      '@vercel/fetch': 6.1.1_wbqoqouw2iimn65bqgaw3lwmza
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -313,7 +313,7 @@ importers:
       tailwindcss: 1.1.3
       taskr: 1.1.0
       tree-kill: 1.2.2
-      tsec: 0.2.1_5yr6raq5qir6dqmptdaiz6dy4a
+      tsec: 0.2.1_kuhx4c6htogowt7cbr6ror46aq
       turbo: 1.3.2-canary.1
       typescript: 4.6.3
       wait-port: 0.2.2
@@ -3080,8 +3080,8 @@ packages:
       '@babel/helper-validator-identifier': 7.16.7
       to-fast-properties: 2.0.0
 
-  /@bazel/bazelisk/1.12.0:
-    resolution: {integrity: sha512-7oQusq1e4AIyFgotxVV7Pc40Et0QyvoVjujL+7/qV5Vrbfh0Nj3CfqSgl63weEyI4r0+K6RlGVsjfRuBi05p5w==}
+  /@bazel/bazelisk/1.12.1:
+    resolution: {integrity: sha512-TGCwVeIiVeQUP6yLpxAg8yluFOC+tBQnWw5l8lqwMxKhRtOA+WaH1CJKAXeCBAaS2MxohhkXq44zj/7AM+t2jg==}
     hasBin: true
     dev: true
 
@@ -5778,6 +5778,13 @@ packages:
       form-data: 3.0.1
     dev: true
 
+  /@types/node-fetch/2.6.2:
+    resolution: {integrity: sha512-DHqhlq5jeESLy19TYhLakJ07kNumXWjcDdxXsLUMJZ6ue8VZJj4kLPQVE/2mdHh3xZziNF1xppu5lwmS53HR+A==}
+    dependencies:
+      '@types/node': 17.0.21
+      form-data: 3.0.1
+    dev: true
+
   /@types/node/10.12.18:
     resolution: {integrity: sha512-fh+pAqt4xRzPfqA6eh3Z2y6fyZavRIumvjhaCL753+TVkGKGhpPeyrJG2JftD0T9q4GF00KjefsQ+PQNDdWQaQ==}
     dev: true
@@ -6203,14 +6210,14 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/fetch/6.1.1_fii5qhbaymjqmfm7e2spxc5z4m:
+  /@vercel/fetch/6.1.1_wbqoqouw2iimn65bqgaw3lwmza:
     resolution: {integrity: sha512-nddCkgpA0aVIqOlzh+qVlzDNcQq0cSnqefM+x6SciGI4GCvVZeaZ7WEowgX8I/HwBAq8Uj5Bdnd+r0+sYsJsig==}
     peerDependencies:
       '@types/node-fetch': '2'
       node-fetch: '2'
     dependencies:
       '@types/async-retry': 1.2.1
-      '@types/node-fetch': 2.6.1
+      '@types/node-fetch': 2.6.2
       '@vercel/fetch-cached-dns': 2.0.2_node-fetch@2.6.7
       '@vercel/fetch-retry': 5.0.3_node-fetch@2.6.7
       agentkeepalive: 3.4.1
@@ -11717,6 +11724,10 @@ packages:
       url-parse-lax: 3.0.0
     dev: true
 
+  /graceful-fs/4.2.10:
+    resolution: {integrity: sha512-9ByhssR2fPVsNZj478qUUbKfmL0+t5BDVyjShtyZZLiK7ZDAArFFfopyOTj0M05wE2tJPisA4iTnnXl2YoPvOA==}
+    dev: true
+
   /graceful-fs/4.2.9:
     resolution: {integrity: sha512-NtNxqUcXgpW2iMrfqSfR73Glt39K+BLwWsPs94yR63v45T0Wbej7eRmL5cWfwEgqXnmjQp3zaJTshdRW/qC2ZQ==}
 
@@ -11764,7 +11775,7 @@ packages:
       source-map: 0.6.1
       wordwrap: 1.0.0
     optionalDependencies:
-      uglify-js: 3.7.3
+      uglify-js: 3.17.0
     dev: true
 
   /har-schema/2.0.0:
@@ -14351,7 +14362,7 @@ packages:
     resolution: {integrity: sha1-lWkFcI1YtLq0wiYbBPWfMcmTdMA=}
     engines: {node: '>=0.10.0'}
     dependencies:
-      graceful-fs: 4.2.9
+      graceful-fs: 4.2.10
       parse-json: 2.2.0
       pify: 2.3.0
       pinkie-promise: 2.0.1
@@ -16690,7 +16701,7 @@ packages:
     resolution: {integrity: sha1-WcRPfuSR2nBNpBXaWkBwuk+P5EE=}
     engines: {node: '>=0.10.0'}
     dependencies:
-      graceful-fs: 4.2.9
+      graceful-fs: 4.2.10
       pify: 2.3.0
       pinkie-promise: 2.0.1
     dev: true
@@ -18271,7 +18282,7 @@ packages:
       normalize-package-data: 2.5.0
       npm-normalize-package-bin: 1.0.1
     optionalDependencies:
-      graceful-fs: 4.2.9
+      graceful-fs: 4.2.10
     dev: true
 
   /read-package-json/3.0.0:
@@ -20720,14 +20731,14 @@ packages:
       minimist: 1.2.6
       strip-bom: 3.0.0
 
-  /tsec/0.2.1_5yr6raq5qir6dqmptdaiz6dy4a:
+  /tsec/0.2.1_kuhx4c6htogowt7cbr6ror46aq:
     resolution: {integrity: sha512-RP9vhbRbRI9VH4CfOlQvo5W9HdfiPKq0gdiUOWI5oKmLaZKNFN8CsPwBfT5ySmhnKNwmmAS/BtY3WoTfABwwig==}
     hasBin: true
     peerDependencies:
       '@bazel/bazelisk': '>=1.7.5'
       typescript: '>=3.9.2'
     dependencies:
-      '@bazel/bazelisk': 1.12.0
+      '@bazel/bazelisk': 1.12.1
       glob: 7.2.0
       minimatch: 3.1.2
       typescript: 4.6.3
@@ -20995,14 +21006,11 @@ packages:
     resolution: {integrity: sha512-qLK/Xe9E2uzmYI3qLeOmI0tEOt+TBBQyUIAh4aAgU05FVYzeZrKUdkAZfBNVGRaHVgV0TDkdEngJSw/SyQchkQ==}
     dev: true
 
-  /uglify-js/3.7.3:
-    resolution: {integrity: sha512-7tINm46/3puUA4hCkKYo4Xdts+JDaVC9ZPRcG8Xw9R4nhO/gZgUM3TENq8IF4Vatk8qCig4MzP/c8G4u2BkVQg==}
+  /uglify-js/3.17.0:
+    resolution: {integrity: sha512-aTeNPVmgIMPpm1cxXr2Q/nEbvkmV8yq66F3om7X3P/cvOXQ0TMQ64Wk63iyT1gPlmdmGzjGpyLh1f3y8MZWXGg==}
     engines: {node: '>=0.8.0'}
     hasBin: true
     requiresBuild: true
-    dependencies:
-      commander: 2.20.3
-      source-map: 0.6.1
     dev: true
     optional: true
 
@@ -21962,7 +21970,7 @@ packages:
     engines: {node: '>=6'}
     dependencies:
       detect-indent: 5.0.0
-      graceful-fs: 4.2.9
+      graceful-fs: 4.2.10
       make-dir: 2.1.0
       pify: 4.0.1
       sort-keys: 2.0.0
