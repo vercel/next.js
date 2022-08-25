@@ -152,9 +152,9 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-## Web Assembly (WASM)
+## Web Assembly (Wasm)
 
-You can now use WASM within your Middleware by importing your `.wasm` binary with
+You can use Wasm within your Middleware by importing your `.wasm` binary with:
 
 ```ts
 import wasm from './my-file.wasm?module'
