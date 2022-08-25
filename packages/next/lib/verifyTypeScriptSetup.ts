@@ -14,6 +14,8 @@ import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { installDependencies } from './install-dependencies'
+import { isCI } from '../telemetry/ci-info'
+import { missingDepsError } from './typescript/missingDependencyError'
 
 const requiredPackages = [
   {
@@ -64,6 +66,11 @@ export async function verifyTypeScriptSetup({
     )
 
     if (deps.missing?.length > 0) {
+      if (isCI) {
+        // we don't attempt auto install in CI to avoid side-effects
+        // and instead log the error for installing needed packages
+        await missingDepsError(dir, deps.missing)
+      }
       console.log(
         chalk.bold.yellow(
           `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
@@ -82,7 +89,8 @@ export async function verifyTypeScriptSetup({
         if (err && typeof err === 'object' && 'command' in err) {
           console.error(
             `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
-              (err as any).command
+              (err as any).command +
+              '\n'
           )
         }
         throw err

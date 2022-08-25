@@ -1,6 +1,7 @@
 // @ts-check
 import * as github from '@actions/github'
 import * as core from '@actions/core'
+import { gte as semverGte } from 'semver'
 
 const verifyCanaryLabel = 'please verify canary'
 const bugReportLabel = 'template: bug'
@@ -33,13 +34,15 @@ async function run() {
     /** @type {Label[]} */
     const labels = issue.labels
 
-    core.info(
-      `Validating issue ${issueNumber}:
-  Labels:
-    New: ${json(newLabel)}
-    All: ${json(labels)}
-  Body: ${body}`
-    )
+    if (debug) {
+      core.info(
+        `Validating issue ${issueNumber}:
+    Labels:
+      New: ${json(newLabel)}
+      All: ${json(labels)}
+    Body: ${body}`
+      )
+    }
 
     const isBugReport = newLabel.name === bugReportLabel
 
@@ -120,35 +123,49 @@ async function run() {
       )
     }
 
-    const reportedNextVersion = body.match(
+    const reported = body.match(
       /Relevant packages:\n      next: (?<version>\d+\.\d+\.\d+)/
     )?.groups?.version
 
-    core.info(`Reported Next.js version: ${reportedNextVersion}`)
+    core.info(`Reported Next.js version: ${reported}`)
 
-    if (!reportedNextVersion) {
-      // REVIEW: Should we add a label here?
-      return
-    }
+    // REVIEW: Should we add a label here?
+    if (!reported) return
 
-    const { tag_name: lastVersion } = await (
-      await client.repos.listReleases(repo)
-    ).data[0]
+    const last = await getLastVersion()
+    core.info(`Last Next.js version, based on npm releases: ${last}`)
 
-    core.info(`Last Next.js version, based on GitHub releases: ${lastVersion}`)
+    if (!last.includes('canary') || reported === last) return
 
-    if (lastVersion.includes('canary') && reportedNextVersion !== lastVersion) {
-      await notifyOnIssue(
-        verifyCanaryLabel,
-        `The reported Next.js version did not match the latest \`next@canary\` version (${lastVersion}). The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running \`npm install next@canary\`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.`
-      )
-      return core.info(
-        `Commented on issue, because it was not verified against canary`
-      )
-    }
+    await notifyOnIssue(
+      verifyCanaryLabel,
+      `The reported Next.js version did not match the latest \`next@canary\` version (${last}). The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running \`npm install next@canary\`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.`
+    )
+    return core.info(
+      `Commented on issue, because it was not verified against canary`
+    )
   } catch (error) {
     core.setFailed(error.message)
   }
 }
 
 run()
+
+async function getLastVersion() {
+  try {
+    const res = await fetch('https://registry.npmjs.org/next', {
+      headers: {
+        accept:
+          'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
+      },
+    })
+    const value = (await res.body?.getReader().read())?.value
+    const string = new TextDecoder().decode(value?.slice(0, 100))
+    const re = /"latest":"(?<latest>.*)","canary":"(?<canary>.*)","/
+    const { latest, canary } = string.match(re)?.groups ?? {}
+    return semverGte(latest, canary) ? canary : latest
+  } catch (error) {
+    core.error(error)
+    return ''
+  }
+}
