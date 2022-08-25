@@ -1,14 +1,16 @@
 {
   "private": true,
-  "main": "dist/index.js",
+  "exports": "./index.mjs",
   "scripts": {
-    "build": "ncc -o . -m build src/index.js --license licenses.txt"
+    "build": "ncc -m -o . build src/index.mjs --license licenses.txt"
   },
   "devDependencies": {
+    "@types/semver": "7.3.10",
     "@vercel/ncc": "0.34.0"
   },
   "dependencies": {
     "@actions/core": "1.9.0",
-    "@actions/github": "5.0.3"
+    "@actions/github": "5.0.3",
+    "semver": "7.3.7"
   }
 }
