@@ -4,7 +4,7 @@ Server Components allow us to render React components on the server. This is fun
 
 ### Next Router and Layouts RFC
 
-We are currently implementing the [Next.js Router and Layouts RFC](/blog/layouts-rfc).
+We are currently implementing the [Next.js Router and Layouts RFC](https://nextjs.org/blog/layouts-rfc).
 
 The new Next.js router will be built on top of React 18 features, including React Server Components.
 
@@ -12,7 +12,7 @@ One of the biggest proposed changes is that, by default, files inside a new `app
 
 This will allow you to automatically adopt React Server Components when migrating from `pages` to `app`.
 
-You can find more information on the [RFC](/blog/layouts-rfc) and we welcome your feedback on [Github Discussions](https://github.com/vercel/next.js/discussions/37136).
+You can find more information on the [RFC](https://nextjs.org/blog/layouts-rfc) and we welcome your feedback on [Github Discussions](https://github.com/vercel/next.js/discussions/37136).
 
 ### Server Components Conventions
 
