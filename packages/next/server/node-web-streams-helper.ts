@@ -265,14 +265,12 @@ export async function continueFromInitialStream(
     generateStaticHTML,
     flushEffectHandler,
     flushEffectsToHead,
-    initialStylesheets,
   }: {
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     flushEffectHandler?: () => string
     flushEffectsToHead: boolean
-    initialStylesheets?: string[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -291,14 +289,11 @@ export async function continueFromInitialStream(
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
     createHeadInjectionTransformStream(() => {
-      const inlineStyleLinks = (initialStylesheets || [])
-        .map((href) => `<link rel="stylesheet" href="/_next/${href}">`)
-        .join('')
       // TODO-APP: Inject flush effects to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
       const flushEffectsContent =
         flushEffectHandler && flushEffectsToHead ? flushEffectHandler() : ''
-      return inlineStyleLinks + flushEffectsContent
+      return flushEffectsContent
     }),
   ].filter(nonNullable)
 

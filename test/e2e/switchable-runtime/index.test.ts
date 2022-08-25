@@ -286,6 +286,10 @@ describe('Switchable runtime', () => {
           isStatic: false,
           isEdge: true,
         })
+        await testRoute(context.appPort, '/rewrite/edge', {
+          isStatic: false,
+          isEdge: true,
+        })
       })
 
       // TODO: edge rsc in app dir
@@ -302,6 +306,11 @@ describe('Switchable runtime', () => {
         expect(text).toMatch(/Hello from .+\/api\/hello/)
 
         response = await fetchViaHTTP(context.appPort, '/api/edge')
+        text = await response.text()
+        expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
+
+        // Rewrite should also work
+        response = await fetchViaHTTP(context.appPort, 'rewrite/api/edge')
         text = await response.text()
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 

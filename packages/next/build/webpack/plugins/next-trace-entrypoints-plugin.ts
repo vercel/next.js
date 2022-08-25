@@ -563,7 +563,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                         const curPackageJsonPath = `${requestPath}/package.json`
                         if (await job.isFile(curPackageJsonPath)) {
                           await job.emitFile(
-                            curPackageJsonPath,
+                            await job.realpath(curPackageJsonPath),
                             'resolve',
                             parent
                           )
