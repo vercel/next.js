@@ -31,6 +31,7 @@ export interface EdgeMiddlewareMeta {
 
 export interface EdgeSSRMeta {
   isServerComponent: boolean
+  isAppDir?: boolean
   page: string
 }
 

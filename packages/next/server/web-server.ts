@@ -10,7 +10,6 @@ import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { NextConfig } from './config-shared'
 
 import BaseServer from './base-server'
-import { renderToHTML } from './render'
 import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
@@ -20,6 +19,8 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { UrlWithParsedQuery } from 'url'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -29,6 +30,8 @@ interface WebServerOptions extends Options {
     ) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
+    pagesRenderToHTML?: typeof import('./render').renderToHTML
+    appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
   }
 }
 
@@ -58,8 +61,16 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       redirects: [],
     }
   }
-  protected async hasPage() {
-    return false
+  protected async run(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<void> {
+    parsedUrl.pathname = this.serverOptions.webServerConfig.page
+    super.run(req, res, parsedUrl)
+  }
+  protected async hasPage(page: string) {
+    return page === this.serverOptions.webServerConfig.page
   }
   protected getPublicDir() {
     // Public files are not handled by the web server.
@@ -114,12 +125,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
   }
   protected getServerComponentManifest() {
-    // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
-    return undefined
+    return this.serverOptions.webServerConfig.extendRenderOpts
+      .serverComponentManifest
   }
   protected getServerCSSManifest() {
-    // TODO-APP: Support web server.
-    return undefined
+    return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
   protected generateRoutes(): {
@@ -319,21 +329,30 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
-    return renderToHTML(
-      {
-        url: req.url,
-        cookies: req.cookies,
-        headers: req.headers,
-      } as any,
-      {} as any,
-      pathname,
-      query,
-      {
-        ...renderOpts,
-        disableOptimizedLoading: true,
-        runtime: 'experimental-edge',
-      }
-    )
+    const { pagesRenderToHTML, appRenderToHTML } =
+      this.serverOptions.webServerConfig
+    const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
+
+    if (curRenderToHTML) {
+      return await curRenderToHTML(
+        {
+          url: req.url,
+          cookies: req.cookies,
+          headers: req.headers,
+        } as any,
+        {} as any,
+        pathname,
+        query,
+        {
+          ...renderOpts,
+          disableOptimizedLoading: true,
+          runtime: 'experimental-edge',
+        },
+        !!pagesRenderToHTML
+      )
+    } else {
+      throw new Error(`Invariant: curRenderToHTML is missing`)
+    }
   }
   protected async sendRenderResult(
     _req: WebNextRequest,
