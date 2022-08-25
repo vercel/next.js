@@ -28,6 +28,8 @@ function nextImageLoader(content) {
       getImageSize(content, extension)
     )
     let blurDataURL
+    let blurWidth
+    let blurHeight
 
     if (VALID_BLUR_EXT.includes(extension)) {
       if (isDev) {
@@ -39,18 +41,21 @@ function nextImageLoader(content) {
         blurDataURL = url.href.slice(prefix.length)
       } else {
         // Shrink the image's largest dimension
-        const dimension =
-          imageSize.width >= imageSize.height ? 'width' : 'height'
+        if (imageSize.width >= imageSize.height) {
+          blurWidth = BLUR_IMG_SIZE
+          blurHeight = Math.round(
+            (imageSize.height / imageSize.width) * BLUR_IMG_SIZE
+          )
+        } else {
+          blurWidth = Math.round(
+            (imageSize.width / imageSize.height) * BLUR_IMG_SIZE
+          )
+          blurHeight = BLUR_IMG_SIZE
+        }
 
         const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
         const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
-          resizeImage(
-            content,
-            dimension,
-            BLUR_IMG_SIZE,
-            extension,
-            BLUR_QUALITY
-          )
+          resizeImage(content, blurWidth, blurHeight, extension, BLUR_QUALITY)
         )
         const blurDataURLSpan = imageLoaderSpan.traceChild(
           'image-base64-tostring'
@@ -70,6 +75,8 @@ function nextImageLoader(content) {
           height: imageSize.height,
           width: imageSize.width,
           blurDataURL,
+          blurWidth,
+          blurHeight,
         })
       )
 

@@ -29,6 +29,11 @@ describe('app dir - react server components', () => {
   let next: NextInstance
   let distDir: string
 
+  if ((global as any).isNextDeploy) {
+    it('should skip for deploy mode for now', () => {})
+    return
+  }
+
   beforeAll(async () => {
     const appDir = path.join(__dirname, './rsc-basic')
     next = await createNext({

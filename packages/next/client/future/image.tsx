@@ -67,6 +67,8 @@ export interface StaticImageData {
   height: number
   width: number
   blurDataURL?: string
+  blurWidth?: number
+  blurHeight?: number
 }
 
 interface StaticRequire {
@@ -578,6 +580,8 @@ export default function Image({
   }
 
   let staticSrc = ''
+  let blurWidth: number | undefined
+  let blurHeight: number | undefined
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
 
@@ -588,6 +592,8 @@ export default function Image({
         )}`
       )
     }
+    blurWidth = staticImageData.blurWidth
+    blurHeight = staticImageData.blurHeight
     blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
 
@@ -785,16 +791,24 @@ export default function Image({
           bottom: 0,
         }
       : {},
-    showAltText || placeholder === 'blur' ? {} : { color: 'transparent' },
+    showAltText ? {} : { color: 'transparent' },
     style
   )
-  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
+  const std = blurWidth && blurHeight ? '1' : '20'
+  const svgWidth = blurWidth || widthInt
+  const svgHeight = blurHeight || heightInt
+  const feComponentTransfer = blurDataURL?.startsWith('data:image/jpeg')
+    ? `%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%`
+    : ''
+  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${svgWidth} ${svgHeight}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='${std}'/%3E${feComponentTransfer}%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
+
   const blurStyle =
-    placeholder === 'blur' && !blurComplete
+    placeholder === 'blur' && blurDataURL && !blurComplete
       ? {
           backgroundSize: imgStyle.objectFit || 'cover',
-          backgroundPosition: imgStyle.objectPosition || '0% 0%',
-          ...(blurDataURL?.startsWith('data:image')
+          backgroundPosition: imgStyle.objectPosition || '50% 50%',
+          backgroundRepeat: 'no-repeat',
+          ...(blurDataURL.startsWith('data:image') && svgWidth && svgHeight
             ? {
                 backgroundImage: svgBlurPlaceholder,
               }
