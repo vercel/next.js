@@ -4,7 +4,7 @@ description: Next.js supports built-in web font optimization to inline font CSS.
 
 # Font Optimization
 
-Next.js helps you optimize loading web fonts by inlining font CSS during `next build`. This optimization eliminates an extra network round trip to fetch font declaration files. This results in improvements to [First Contentful Paint (FCP)](https://web.dev/fcp/) and [Largest Contentful Paint (LCP)](https://vercel.com/blog/core-web-vitals#largest-contentful-paint). For example, this is the transformation Next.js makes:
+Next.js helps you optimize loading web fonts by inlining font CSS during `next build`. This optimization eliminates an extra network round trip to fetch font declaration files. This results in improvements to [First Contentful Paint (FCP)](https://web.dev/fcp/) and [Largest Contentful Paint (LCP)](https://vercel.com/blog/core-web-vitals#largest-contentful-paint?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). For example, this is the transformation Next.js makes:
 
 ```js
 // Before
