@@ -21,6 +21,8 @@ Middleware runs _before_ cached content, so you can personalize static files and
 
 > **Note:** If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide).
 
+> **Note:** If you are using a [custom server](https://nextjs.org/docs/advanced-features/custom-server) you must provide `hostname` and `port` when calling `next` i.e `next({ hostname: 'localhost', port: 3000 })`.
+
 ## Using Middleware
 
 To begin using Middleware, follow the steps below:
