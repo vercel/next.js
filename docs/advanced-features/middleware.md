@@ -152,6 +152,20 @@ export function middleware(request: NextRequest) {
 }
 ```
 
+## Web Assembly (WASM)
+
+You can now use WASM within your Middleware by importing your `.wasm` binary with
+
+```ts
+import wasm from './my-file.wasm?module'
+```
+
+Note the `?module` suffix. This will provide an array of the WASM data that can be instantiated using `WebAssembly.instantiate()`.
+
+```ts
+
+```
+
 ## Related
 
 <div class="card">
