@@ -4,9 +4,7 @@ description: Next.js supports built-in web font optimization to inline font CSS.
 
 # Font Optimization
 
-Since version **10.2**, Next.js has built-in web font optimization.
-
-By default, Next.js will automatically inline font CSS at build time, eliminating an extra round trip to fetch font declarations. This results in improvements to [First Contentful Paint (FCP)](https://web.dev/fcp/) and [Largest Contentful Paint (LCP)](https://vercel.com/blog/core-web-vitals#largest-contentful-paint). For example:
+Next.js helps you optimize loading web fonts by inlining font CSS during `next build`. This optimization eliminates an extra network round trip to fetch font declaration files. This results in improvements to [First Contentful Paint (FCP)](https://web.dev/fcp/) and [Largest Contentful Paint (LCP)](https://vercel.com/blog/core-web-vitals#largest-contentful-paint). For example, this is the transformation Next.js makes:
 
 ```js
 // Before
@@ -53,17 +51,9 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-Although it's possible to add fonts in a page with [`next/head`](/docs/api-reference/next/head) it comes with some drawbacks:
+Adding fonts to `_document` is preferred over individual pages. When adding fonts to a single page with [`next/head`](/docs/api-reference/next/head.md), font optimizations included by Next.js will not work on navigations between pages client-side or when using [streaming](/docs/advanced-features/react-18/streaming.md).
 
-- It only applies the font to that particular page.
-- The font optimization will only work on page load, not on client side navigation.
-- It won't work with a streaming architecture.
-
-Thus it's highly recommended to add the font in a [Custom `Document`](/docs/advanced-features/custom-document.md), like in the code snippet above.
-
-Automatic Webfont Optimization currently supports Google Fonts and Typekit with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values.
-
-See [Google Font Display](https://nextjs.org/docs/messages/google-font-display) for more information.
+Next.js currently supports optimizing Google Fonts and Typekit, with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values. See [Google Font Display](https://nextjs.org/docs/messages/google-font-display) for more information.
 
 > **Note**: Font Optimization does not currently support self-hosted fonts.
 
