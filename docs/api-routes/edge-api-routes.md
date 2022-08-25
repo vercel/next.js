@@ -122,8 +122,14 @@ You can now use WASM within your Edge API Route by importing your `.wasm` binary
 import wasm from './my-file.wasm?module'
 ```
 
-Note the `?module` suffix. This will provide an array of the WASM data that can be instantiated using `WebAssembly.instantiate()`.
+Note the `?module` suffix. This will provide an array of the WASM data that can be instantiated using `WebAssembly.instantiate()`, which can be done as follows:
 
 ```ts
-
+export default async function handler() {
+  const { exports } = (await WebAssembly.instantiate(wasmModule)) as any
+  const result = exports.xor(0xb4c9a91f, 0xf0c0ffee)
+  return new Response(result)
+}
 ```
+
+The example above is taken from the [WASM XOR API Route]() example.
