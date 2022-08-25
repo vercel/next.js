@@ -15,6 +15,7 @@ import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+  FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
 
 export interface EdgeFunctionDefinition {
@@ -83,6 +84,7 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${FLIGHT_MANIFEST}.js`)
+      files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
       files.push(
         ...entryFiles
           .filter(
