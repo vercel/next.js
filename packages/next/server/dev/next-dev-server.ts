@@ -538,7 +538,7 @@ export default class DevServer extends Server {
         const edgeRoutes = Array.from(edgeRoutesSet)
         this.edgeFunctions = getSortedRoutes(edgeRoutes).map((page) => {
           const appPath = this.getOriginalAppPath(page)
-          
+
           if (typeof appPath === 'string') {
             page = appPath
           }
