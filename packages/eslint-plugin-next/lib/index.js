@@ -43,7 +43,7 @@ module.exports = {
         '@next/next/no-unwanted-polyfillio': 'warn',
         // errors
         '@next/next/inline-script-id': 'error',
-        '@next/next/next-head-key': 'error',
+        '@next/next/next-head-key': 'off',
         '@next/next/no-assign-module-variable': 'error',
         '@next/next/no-document-import-in-page': 'error',
         '@next/next/no-duplicate-head': 'error',
