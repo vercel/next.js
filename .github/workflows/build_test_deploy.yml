@@ -1064,7 +1064,7 @@ jobs:
   releaseStats:
     name: Release Stats
     runs-on: ubuntu-latest
-    needs: [publishRelease, build-native-test]
+    needs: [build-native-test]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -1087,8 +1087,8 @@ jobs:
 
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
-        env:
-          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
+        # env:
+        #   PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
 
   build-native-test:
     name: Build native binary for tests and metrics
