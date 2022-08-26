@@ -110,7 +110,14 @@ pub async fn resolve_options(
         extensions: if emulating {
             environment.resolve_extensions().await?.clone()
         } else {
-            vec![".js".to_string(), ".node".to_string(), ".json".to_string()]
+            vec![
+                ".tsx".to_string(),
+                ".ts".to_string(),
+                ".js".to_string(),
+                ".jsx".to_string(),
+                ".node".to_string(),
+                ".json".to_string(),
+            ]
         },
         modules: if emulating {
             if *environment.resolve_node_modules().await? {

@@ -26,7 +26,10 @@ pub async fn the_module_options() -> ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Css)],
             ),
             ModuleRule::new(
-                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+                ModuleRuleCondition::any(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+                ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
                     app_transforms,
                 ))],
@@ -71,7 +74,10 @@ pub async fn the_module_options() -> ModuleOptionsVc {
                 ))],
             ),
             ModuleRule::new(
-                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                ModuleRuleCondition::any(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+                ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript(
                     no_transforms,
                 ))],
