@@ -43,13 +43,14 @@ module.exports = {
         '@next/next/no-unwanted-polyfillio': 'warn',
         // errors
         '@next/next/inline-script-id': 'error',
+        '@next/next/next-key-head' : 'error',
         '@next/next/no-assign-module-variable': 'error',
         '@next/next/no-document-import-in-page': 'error',
         '@next/next/no-duplicate-head': 'error',
         '@next/next/no-head-import-in-document': 'error',
         '@next/next/no-script-component-in-head': 'error',
-        // off
-        '@next/next/next-key-head' : 'off',
+       
+        
       },
     },
     'core-web-vitals': {
