@@ -14,7 +14,7 @@ describe('correct tsconfig.json defaults', () => {
       },
       skipStart: true,
       dependencies: {
-        typescript: 'latest',
+        typescript: '4.7.4',
         '@types/react': 'latest',
         '@types/node': 'latest',
       },
