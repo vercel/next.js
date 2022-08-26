@@ -214,6 +214,10 @@
           "title": "inline-script-id",
           "path": "/errors/inline-script-id.md"
         },
+                {
+          "title": "next-head-key",
+          "path": "/errors/next-head-key.md"
+        },
         {
           "title": "install-sass",
           "path": "/errors/install-sass.md"
