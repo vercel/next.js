@@ -1,6 +1,9 @@
 pub mod dev;
 
-use std::collections::{HashSet, VecDeque};
+use std::{
+    collections::{HashSet, VecDeque},
+    fmt::Debug,
+};
 
 use anyhow::Result;
 use turbo_tasks::{
@@ -241,12 +244,12 @@ pub struct ChunkContentResult<I> {
 }
 
 #[async_trait::async_trait]
-pub trait FromChunkableAsset: ChunkItem + Sized {
+pub trait FromChunkableAsset: ChunkItem + Sized + Debug {
     async fn from_asset(context: ChunkingContextVc, asset: AssetVc) -> Result<Option<Self>>;
     async fn from_async_asset(
         context: ChunkingContextVc,
         asset: ChunkableAssetVc,
-    ) -> Result<Option<Self>>;
+    ) -> Result<Option<(Self, ChunkableAssetVc)>>;
 }
 
 pub async fn chunk_content_split<I: FromChunkableAsset>(
@@ -364,10 +367,12 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                             false
                         };
                     if is_async {
-                        if let Some(chunk_item) =
+                        if let Some((direct_chunk_item, fat_chunk_asset)) =
                             I::from_async_asset(context, chunkable_asset).await?
                         {
-                            inner_chunk_items.push(chunk_item);
+                            inner_chunk_items.push(direct_chunk_item);
+                            inner_chunk_groups
+                                .push(ChunkGroupVc::from_asset(fat_chunk_asset, context));
                             inner_chunk_groups
                                 .push(ChunkGroupVc::from_asset(chunkable_asset, context));
                             continue;
@@ -386,14 +391,8 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                         }
                     }
 
-                    // fallback to chunk if possible
-                    if let Some(chunkable_asset) = ChunkableAssetVc::resolve_from(asset).await? {
-                        let chunk = chunkable_asset.as_chunk(context);
-                        inner_chunks.push(chunk);
-                    } else {
-                        external_asset_references.push(r);
-                        continue 'outer;
-                    }
+                    let chunk = chunkable_asset.as_chunk(context);
+                    inner_chunks.push(chunk);
                 }
 
                 let prev_chunk_items = chunk_items.len();

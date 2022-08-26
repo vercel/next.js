@@ -182,7 +182,7 @@ impl FromChunkableAsset for CssChunkItemVc {
     async fn from_async_asset(
         _context: ChunkingContextVc,
         _asset: ChunkableAssetVc,
-    ) -> Result<Option<Self>> {
+    ) -> Result<Option<(Self, ChunkableAssetVc)>> {
         Ok(None)
     }
 }

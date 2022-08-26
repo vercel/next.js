@@ -3,22 +3,18 @@
 "[project]/snapshot/example/async_chunk/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
 
 /* [project]/snapshot/example/async_chunk/input/index.js */
-__turbopack_require__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/chunk loader")(__turbopack_import__).then(({ foo  })=>{
+__turbopack_require__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/manifest loader")(__turbopack_import__).then(({ foo  })=>{
     foo(true);
 });
 
 })()),
-"[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/chunk loader": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/manifest loader": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-const chunks = [
-    ["[root of the dev server]/snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_node_modules_foo_index.js", "./snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_node_modules_foo_index.js"],
-];
 
 __turbopack_export_value__((__turbopack_import__) => {
-    const loads = chunks.map(([id, path]) => __turbopack_load__(id, path));
-    return Promise.all(loads).then(() => {
-        return __turbopack_import__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js (ecmascript)")
-    });
+    return __turbopack_load__("[root of the dev server]/snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_node_modules_foo_index.js_manifest-chunk.js", "./snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_node_modules_foo_index.js_manifest-chunk.js").then(() => {
+        return __turbopack_require__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/manifest chunk");
+    }).then(() => __turbopack_import__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js (ecmascript)"));
 });
 })()),
 }, ({ chunks, getModule }) => {

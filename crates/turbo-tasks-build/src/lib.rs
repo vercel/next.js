@@ -342,8 +342,11 @@ impl<'a> RegisterContext<'a> {
     fn add_value_trait(&mut self, ident: &Ident, trait_ident: &Ident) {
         let key: ValueKey = (self.mod_path.to_owned(), ident.clone());
 
-        let entry = self.values.get_mut(&key).unwrap();
-        entry.1.push(trait_ident.clone());
+        let entry = self.values.get_mut(&key);
+        if entry.is_none() {
+            panic!("failed to add value trait {} to {}", trait_ident, ident);
+        }
+        entry.unwrap().1.push(trait_ident.clone());
     }
 
     fn register(

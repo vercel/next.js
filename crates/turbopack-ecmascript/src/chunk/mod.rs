@@ -28,7 +28,7 @@ use turbopack_core::{
 };
 use turbopack_hash::{encode_hex, hash_xxh3_hash64, Xxh3Hash64Hasher};
 
-use self::loader::ChunkGroupLoaderChunkItemVc;
+use self::loader::{ManifestChunkAssetVc, ManifestLoaderItemVc};
 use crate::{
     references::esm::EsmExportsVc,
     utils::{stringify_module_id, stringify_str, FormatIter},
@@ -443,18 +443,23 @@ impl EcmascriptChunkContextVc {
         Ok(ModuleId::String(placeable.to_string().await?.clone()).into())
     }
 
+    /// Certain assets are split into a "loader" item that can be quickly
+    /// embeded, and a "manifest" chunk which is more expensive to compute.
     #[turbo_tasks::function]
-    pub async fn helper_id(self, name: &str, related_asset: Option<AssetVc>) -> Result<ModuleIdVc> {
-        if let Some(related_asset) = related_asset {
-            Ok(ModuleId::String(format!(
-                "{}/__/{}",
-                related_asset.path().to_string().await?,
-                name
-            ))
-            .into())
-        } else {
-            Ok(ModuleId::String(name.to_string()).into())
-        }
+    pub fn manifest_loader_id(self, asset: AssetVc) -> ModuleIdVc {
+        self.helper_id("manifest loader", asset)
+    }
+
+    /// Certain assets are split into a "loader" item that can be quickly
+    /// embeded, and a "manifest" chunk which is more expensive to compute.
+    #[turbo_tasks::function]
+    pub fn manifest_chunk_id(self, asset: AssetVc) -> ModuleIdVc {
+        self.helper_id("manifest chunk", asset)
+    }
+
+    #[turbo_tasks::function]
+    async fn helper_id(self, name: &str, asset: AssetVc) -> Result<ModuleIdVc> {
+        Ok(ModuleId::String(format!("{}/__/{}", asset.path().to_string().await?, name)).into())
     }
 }
 
@@ -506,9 +511,13 @@ impl FromChunkableAsset for EcmascriptChunkItemVc {
     }
 
     async fn from_async_asset(
-        _context: ChunkingContextVc,
+        context: ChunkingContextVc,
         asset: ChunkableAssetVc,
-    ) -> Result<Option<Self>> {
-        Ok(Some(ChunkGroupLoaderChunkItemVc::new(asset).into()))
+    ) -> Result<Option<(Self, ChunkableAssetVc)>> {
+        let chunk = ManifestChunkAssetVc::new(asset, context);
+        Ok(Some((
+            ManifestLoaderItemVc::new(chunk).into(),
+            chunk.into(),
+        )))
     }
 }
