@@ -2231,12 +2231,6 @@ export default class Router implements BaseRouter {
         ? options.locale || undefined
         : this.locale
 
-    const isMiddlewareMatch = await matchesMiddleware({
-      asPath: asPath,
-      locale: locale,
-      router: this,
-    })
-
     if (process.env.__NEXT_HAS_REWRITES && asPath.startsWith('/')) {
       let rewrites: any
       ;({ __rewrites: rewrites } = await getClientBuildManifest())
@@ -2264,9 +2258,7 @@ export default class Router implements BaseRouter {
         pathname = rewritesResult.resolvedHref
         parsed.pathname = pathname
 
-        if (!isMiddlewareMatch) {
-          url = formatWithValidation(parsed)
-        }
+        url = formatWithValidation(parsed)
       }
     }
     parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
@@ -2281,58 +2273,11 @@ export default class Router implements BaseRouter {
         ) || {}
       )
 
-      if (!isMiddlewareMatch) {
-        url = formatWithValidation(parsed)
-      }
+      url = formatWithValidation(parsed)
     }
 
     // Prefetch is not supported in development mode because it would trigger on-demand-entries
     if (process.env.NODE_ENV !== 'production') {
-      return
-    }
-
-    // TODO: if the route middleware's data request
-    // resolves to is not an SSG route we should bust the cache
-    // but we shouldn't allow prefetch to keep triggering
-    // requests for SSP pages
-    const data = await withMiddlewareEffects({
-      fetchData: () =>
-        fetchNextData({
-          dataHref: this.pageLoader.getDataHref({
-            href: formatWithValidation({ pathname, query }),
-            skipInterpolation: true,
-            asPath: resolvedAs,
-            locale,
-          }),
-          hasMiddleware: true,
-          isServerRender: this.isSsr,
-          parseJSON: true,
-          inflightCache: this.sdc,
-          persistCache: !this.isPreview,
-          isPrefetch: true,
-        }),
-      asPath: asPath,
-      locale: locale,
-      router: this,
-    })
-
-    /**
-     * If there was a rewrite we apply the effects of the rewrite on the
-     * current parameters for the prefetch.
-     */
-    if (data?.effect.type === 'rewrite') {
-      parsed.pathname = data.effect.resolvedHref
-      pathname = data.effect.resolvedHref
-      query = { ...query, ...data.effect.parsedAs.query }
-      resolvedAs = data.effect.parsedAs.pathname
-      url = formatWithValidation(parsed)
-    }
-
-    /**
-     * If there is a redirect to an external destination then we don't have
-     * to prefetch content as it will be unused.
-     */
-    if (data?.effect.type === 'redirect-external') {
       return
     }
 
@@ -2342,13 +2287,11 @@ export default class Router implements BaseRouter {
       this.pageLoader._isSsg(route).then((isSsg) => {
         return isSsg
           ? fetchNextData({
-              dataHref:
-                data?.dataHref ||
-                this.pageLoader.getDataHref({
-                  href: url,
-                  asPath: resolvedAs,
-                  locale: locale,
-                }),
+              dataHref: this.pageLoader.getDataHref({
+                href: url,
+                asPath: resolvedAs,
+                locale: locale,
+              }),
               isServerRender: false,
               parseJSON: true,
               inflightCache: this.sdc,
