@@ -5,11 +5,14 @@ use std::{net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use next_core::{create_server_rendered_source, create_web_entry_source};
-use turbo_tasks::{CollectiblesSource, TransientInstance, TurboTasks};
+use turbo_tasks::{CollectiblesSource, TransientInstance, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::{group_and_display_issues, LogOptions, LogOptionsVc};
-use turbopack_core::issue::{IssueSeverity, IssueVc};
+use turbopack_core::{
+    issue::{IssueSeverity, IssueVc},
+    resolve::parse::RequestVc,
+};
 use turbopack_dev_server::{
     fs::DevServerFileSystemVc,
     source::{combined::CombinedContentSource, router::RouterContentSource, ContentSourceVc},
@@ -22,7 +25,7 @@ pub struct NextDevServerBuilder {
     turbo_tasks: Option<Arc<TurboTasks<MemoryBackend>>>,
     project_dir: Option<String>,
     root_dir: Option<String>,
-    entry_assets: Vec<String>,
+    entry_requests: Vec<String>,
     eager_compile: bool,
     hostname: Option<IpAddr>,
     port: Option<u16>,
@@ -43,7 +46,7 @@ impl NextDevServerBuilder {
             turbo_tasks: None,
             project_dir: None,
             root_dir: None,
-            entry_assets: vec![],
+            entry_requests: vec![],
             eager_compile: false,
             hostname: None,
             port: None,
@@ -68,8 +71,8 @@ impl NextDevServerBuilder {
         self
     }
 
-    pub fn entry_asset(mut self, entry_asset_path: String) -> NextDevServerBuilder {
-        self.entry_assets.push(entry_asset_path);
+    pub fn entry_request(mut self, entry_asset_path: String) -> NextDevServerBuilder {
+        self.entry_requests.push(entry_asset_path);
         self
     }
 
@@ -108,7 +111,7 @@ impl NextDevServerBuilder {
 
         let project_dir = self.project_dir.context("project_dir must be set")?;
         let root_dir = self.root_dir.context("root_dir must be set")?;
-        let entry_assets = self.entry_assets;
+        let entry_requests = self.entry_requests;
         let eager_compile = self.eager_compile;
         let show_all = self.show_all;
         let log_detail = self.log_detail;
@@ -126,7 +129,7 @@ impl NextDevServerBuilder {
                 source(
                     root_dir.clone(),
                     project_dir.clone(),
-                    entry_assets.clone(),
+                    entry_requests.clone(),
                     eager_compile,
                     turbo_tasks.clone().into(),
                     log_options.clone().cell(),
@@ -181,7 +184,7 @@ async fn output_fs(project_dir: &str, log_options: LogOptionsVc) -> Result<FileS
 async fn source(
     root_dir: String,
     project_dir: String,
-    entry_assets: Vec<String>,
+    entry_requests: Vec<String>,
     eager_compile: bool,
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
     log_options: LogOptionsVc,
@@ -197,7 +200,10 @@ async fn source(
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     let web_source = create_web_entry_source(
         project_path,
-        entry_assets.iter().map(|a| project_path.join(a)).collect(),
+        entry_requests
+            .iter()
+            .map(|a| RequestVc::relative(Value::new(a.to_string().into()), false))
+            .collect(),
         dev_server_fs,
         eager_compile,
     );

@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
         .turbo_tasks(tt)
         .project_dir(dir)
         .root_dir(root_dir)
-        .entry_asset("src/index.js".into())
+        .entry_request("src/index".into())
         .eager_compile(args.eager_compile)
         .hostname(args.hostname)
         .port(args.port)

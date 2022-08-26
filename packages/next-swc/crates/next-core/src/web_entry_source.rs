@@ -1,8 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, future::IntoFuture};
 
 use anyhow::{anyhow, Result};
-use futures::future::try_join_all;
-use turbo_tasks::Value;
+use turbo_tasks::{util::try_join_all, Value};
 use turbo_tasks_fs::{FileSystemPathVc, FileSystemVc};
 use turbopack::{ecmascript::EcmascriptModuleAssetVc, ModuleAssetContextVc};
 use turbopack_core::{
@@ -12,7 +11,7 @@ use turbopack_core::{
     },
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
-    source_asset::SourceAssetVc,
+    resolve::parse::RequestVc,
     transition::TransitionsByNameVc,
 };
 use turbopack_dev_server::{
@@ -23,7 +22,7 @@ use turbopack_dev_server::{
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
     root: FileSystemPathVc,
-    entry_paths: Vec<FileSystemPathVc>,
+    entry_requests: Vec<RequestVc>,
     dev_server_fs: FileSystemVc,
     eager_compile: bool,
 ) -> Result<ContentSourceVc> {
@@ -52,9 +51,16 @@ pub async fn create_web_entry_source(
     }
     .into();
 
-    let modules = entry_paths
+    let modules = try_join_all(entry_requests.into_iter().map(|r| {
+        context
+            .resolve_asset(context.context_path(), r, context.resolve_options())
+            .primary_assets()
+            .into_future()
+    }))
+    .await?;
+    let modules = modules
         .into_iter()
-        .map(|p| context.process(SourceAssetVc::new(p).into()));
+        .flat_map(|assets| assets.iter().copied().collect::<Vec<_>>());
     let chunks = try_join_all(modules.map(|module| async move {
         if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
             Ok(ecmascript.as_evaluated_chunk(chunking_context.into()))

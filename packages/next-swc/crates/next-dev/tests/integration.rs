@@ -122,8 +122,8 @@ async fn run_test(resource: &str) -> JestRunResult {
         .turbo_tasks(TurboTasks::new(MemoryBackend::new()))
         .root_dir("tests".into())
         .project_dir("tests".into())
-        .entry_asset("harness.js".into())
-        .entry_asset(
+        .entry_request("harness.js".into())
+        .entry_request(
             sys_to_unix(test_entry.strip_prefix("tests").unwrap().to_str().unwrap()).to_string(),
         )
         .eager_compile(false)
