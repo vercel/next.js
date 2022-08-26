@@ -36,12 +36,3 @@ export default async function writeLinksToXata(
     ok: true,
   })
 }
-
-// const writeLinksToXata: NextApiHandler = async (_req, res) => {
-//   await xata.db.nextjs_with_xata_example.create(LINKS)
-//   res.json({
-//     ok: true,
-//   })
-// }
-
-// export default writeLinksToXata
