@@ -582,6 +582,10 @@ describe('app dir', () => {
           const html = await renderViaHTTP(next.url, `/catch-all/${route}`)
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
+
+          // Components under catch-all should not be treated as route that errors during build.
+          // They should be rendered properly when imported in page route.
+          expect($('#widget').text()).toBe('widget')
         })
 
         it('should handle required segments root as not found', async () => {
