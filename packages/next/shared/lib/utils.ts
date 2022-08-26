@@ -165,15 +165,15 @@ export type AppContextType<R extends NextRouter = NextRouter> = {
   router: R
 }
 
-export type AppInitialProps = {
-  pageProps: any
+export type AppInitialProps<P = any> = {
+  pageProps: P
 }
 
 export type AppPropsType<
   R extends NextRouter = NextRouter,
   P = {}
-> = AppInitialProps & {
-  Component: NextComponentType<NextPageContext, any, P>
+> = AppInitialProps<P> & {
+  Component: NextComponentType<NextPageContext, any, any>
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
