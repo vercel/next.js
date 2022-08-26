@@ -50,7 +50,7 @@ impl NextDevServerBuilder {
             eager_compile: false,
             hostname: None,
             port: None,
-            log_level: IssueSeverity::Error,
+            log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
         }
