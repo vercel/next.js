@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   rules: {
     'google-font-display': require('./rules/google-font-display'),
     'google-font-preconnect': require('./rules/google-font-preconnect'),
