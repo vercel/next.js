@@ -116,6 +116,7 @@ module.exports = (actionInfo) => {
             pkgData.files.push('native')
           }
         }
+        console.log('updated pkgData', JSON.stringify(pkgData, null, 2))
         await fs.writeFile(
           pkgDataPath,
           JSON.stringify(pkgData, null, 2),
