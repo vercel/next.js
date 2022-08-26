@@ -67,10 +67,6 @@ const proxyHandlers: ProxyHandler<object> = {
           // This will break if it's minified though.
           return then
         }
-      case 'getStaticProps':
-        return undefined
-      case 'getServerSideProps':
-        return undefined
 
       default:
         break
