@@ -719,8 +719,8 @@ export function sendResponse(
 
 export async function resizeImage(
   content: Buffer,
-  dimension: 'width' | 'height',
-  size: number,
+  width: number,
+  height: number,
   // Should match VALID_BLUR_EXT
   extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
@@ -748,18 +748,11 @@ export async function resizeImage(
     } else if (extension === 'jpeg') {
       transformer.jpeg({ quality })
     }
-    if (dimension === 'width') {
-      transformer.resize(size)
-    } else {
-      transformer.resize(null, size)
-    }
+    transformer.resize(width, height)
     const buf = await transformer.toBuffer()
     return buf
   } else {
-    const resizeOperationOpts: Operation =
-      dimension === 'width'
-        ? { type: 'resize', width: size }
-        : { type: 'resize', height: size }
+    const resizeOperationOpts: Operation = { type: 'resize', width, height }
     const buf = await processBuffer(
       content,
       [resizeOperationOpts],
