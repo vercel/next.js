@@ -98,20 +98,27 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
     let turboTracingPackagePath = ''
     let turboTracingBinPath = ''
     try {
-      turboTracingPackagePath = require.resolve('@vercel/node-module-trace')
+      turboTracingPackagePath = require.resolve(
+        '@vercel/node-module-trace/package.json',
+      )
     } catch (e) {
-      // ignore
+      console.warn(
+        `Could not resolve the @vercel/node-module-trace directory, turbo tracing may fail.`,
+      )
     }
     if (turboTracingPackagePath) {
       try {
-        turboTracingBinPath = require.resolve(
-          `@vercel/node-module-trace-${process.platform}-${process.arch}`,
+        const turboTracingBinPackageJsonPath = require.resolve(
+          `@vercel/node-module-trace-${process.platform}-${process.arch}/package.json`,
           {
-            paths: [turboTracingPackagePath],
+            paths: [join(turboTracingPackagePath, '..')],
           },
         )
+        turboTracingBinPath = join(turboTracingBinPackageJsonPath, '..')
       } catch (e) {
-        // ignore
+        console.warn(
+          `Could not resolve the @vercel/node-module-trace-${process.platform}-${process.arch} directory, turbo tracing may fail.`,
+        )
       }
     }
     const pathSep = process.platform === 'win32' ? ';' : ':'

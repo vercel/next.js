@@ -1,6 +1,6 @@
 {
   "name": "@vercel/webpack-node-module-trace",
-  "version": "0.0.4",
+  "version": "0.0.5-alpha.0",
   "license": "UNLICENSED",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,5 +19,6 @@
   "devDependencies": {
     "@types/webpack": "^5.28.0",
     "webpack": "^5.73.0"
-  }
+  },
+  "stableVersion": "0.0.4"
 }
