@@ -35,11 +35,12 @@ pub struct DevServer {
 async fn handle_issues<T: CollectiblesSource + Copy>(
     source: T,
     path: &str,
+    operation: &str,
     options: LogOptionsVc,
 ) -> Result<()> {
     let issues = IssueVc::peek_issues_with_path(source).await?;
     if !*issues.is_empty().await? {
-        println!("{path} has some issues:\n");
+        println!("{path} has some issues ({operation}):\n");
         group_and_display_issues(options, issues);
     }
     Ok(())
@@ -55,34 +56,44 @@ impl DevServer {
     ) -> Self {
         let make_svc = make_service_fn(move |_| {
             let tt = turbo_tasks.clone();
-            let source = get_source.clone();
+            let get_source = get_source.clone();
             let log_options = log_options.clone();
             async move {
                 let handler = move |request: Request<Body>| {
                     let log_options = log_options.clone();
                     let start = Instant::now();
                     let tt = tt.clone();
-                    let source = source.clone();
+                    let get_source = get_source.clone();
                     let future = async move {
                         if hyper_tungstenite::is_upgrade_request(&request) {
                             let (response, websocket) = hyper_tungstenite::upgrade(request, None)?;
-                            let update_server = UpdateServer::new(websocket, source);
+                            let update_server = UpdateServer::new(websocket, get_source);
                             update_server.run(&*tt);
                             return Ok(response);
                         }
                         let (tx, rx) = tokio::sync::oneshot::channel();
                         let task_id = tt.run_once(Box::pin(async move {
+                            let log_options = log_options.cell();
                             let uri = request.uri();
                             let path = uri.path();
                             let asset_path = path[1..].to_string();
-                            let source = source();
-                            let source = source.resolve_strongly_consistent().await?;
-                            let file_content = source
-                                .get(&asset_path)
-                                .resolve_strongly_consistent()
-                                .await?;
+                            let source = get_source();
+                            handle_issues(source, path, "get source", log_options).await?;
+                            let resolved_source = source.resolve_strongly_consistent().await?;
+                            let file_content = resolved_source.get(&asset_path);
+                            handle_issues(
+                                file_content,
+                                path,
+                                "get content from source",
+                                log_options,
+                            )
+                            .await?;
+                            let resolved_file_content =
+                                file_content.resolve_strongly_consistent().await?;
+                            let content_vc = resolved_file_content.content();
+                            handle_issues(content_vc, path, "content", log_options).await?;
                             if let FileContent::Content(content) =
-                                &*file_content.content().strongly_consistent().await?
+                                &*content_vc.strongly_consistent().await?
                             {
                                 let content_type = content.content_type().map_or_else(
                                     || {
@@ -113,9 +124,6 @@ impl DevServer {
                                         .body(Body::from(bytes))?,
                                 )
                                 .map_err(|_| anyhow!("receiver dropped"))?;
-
-                                handle_issues(file_content, path, log_options.cell()).await?;
-
                                 return Ok(());
                             }
                             tx.send(Response::builder().status(404).body(Body::empty())?)
