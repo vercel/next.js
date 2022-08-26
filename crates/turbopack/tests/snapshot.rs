@@ -1,21 +1,22 @@
 #![cfg(test)]
 
 mod helpers;
-use helpers::print_changeset;
-
-use std::{collections::VecDeque, env, path::Path};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    env, fs,
+    path::Path,
+};
 
 use anyhow::{anyhow, Result};
 use difference::Changeset;
 use futures::future::try_join_all;
+use helpers::print_changeset;
 use lazy_static::lazy_static;
-use std::collections::{HashMap, HashSet};
-use std::fs;
 use test_generator::test_resources;
 use turbo_tasks::{NothingVc, TurboTasks, Value};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemEntryType,
-    FileSystemPathVc,
+    util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent,
+    FileSystemEntryType, FileSystemPathVc,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{ecmascript::EcmascriptModuleAssetVc, register, ModuleAssetContextVc};
@@ -40,7 +41,8 @@ lazy_static! {
 
 #[test_resources("crates/turbopack/tests/snapshot/*/*")]
 fn test(resource: &'static str) {
-    // Separating this into a different function fixes my IDE's types for some reason...
+    // Separating this into a different function fixes my IDE's types for some
+    // reason...
     run(resource).unwrap();
 }
 
@@ -73,7 +75,7 @@ async fn run(resource: &'static str) -> Result<()> {
 
         // TODO: load from options.json
         let test_entry = path.join("input/index.js");
-        let entry_asset = test_entry.to_str().unwrap().replace('\\', "/");
+        let entry_asset = sys_to_unix(test_entry.to_str().unwrap());
         let entry_paths = vec![FileSystemPathVc::new(project_fs.into(), &entry_asset)];
 
         let context: AssetContextVc = ModuleAssetContextVc::new(
@@ -172,8 +174,8 @@ async fn run(resource: &'static str) -> Result<()> {
 }
 
 fn remove_file(root: &str, path: &str) -> Result<()> {
-    // TODO: It'd be great if the entry exposed it's full path joined with the root of
-    // its FS. But defining a new Vc is annoying and I want this to be done.
+    // TODO: It'd be great if the entry exposed it's full path joined with the root
+    // of its FS. But defining a new Vc is annoying and I want this to be done.
     let full_path = Path::new(root).join(&path);
     fs::remove_file(full_path)?;
     Ok(())

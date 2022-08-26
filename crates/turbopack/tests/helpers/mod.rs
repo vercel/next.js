@@ -1,5 +1,4 @@
-use std::collections::VecDeque;
-use std::fmt::Write as _;
+use std::{collections::VecDeque, fmt::Write as _};
 
 use difference::{Changeset, Difference};
 

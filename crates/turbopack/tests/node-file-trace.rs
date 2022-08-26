@@ -5,13 +5,6 @@ use helpers::print_changeset;
 
 /// Explicit extern crate to use allocator.
 extern crate turbo_malloc;
-use anyhow::{anyhow, Context, Result};
-use difference::Changeset;
-use lazy_static::lazy_static;
-use regex::Regex;
-use rstest::*;
-use rstest_reuse::{self, *};
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "bench_against_node_nft")]
 use std::time::Instant;
 use std::{
@@ -24,18 +17,25 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+
+use anyhow::{anyhow, Context, Result};
+use difference::Changeset;
+use lazy_static::lazy_static;
+use regex::Regex;
+use rstest::*;
+use rstest_reuse::{self, *};
+use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
-use turbo_tasks::ValueToString;
-use turbo_tasks::{backend::Backend, TurboTasks, Value};
+use turbo_tasks::{backend::Backend, TurboTasks, Value, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, rebase::RebasedAssetVc, register, ModuleAssetContextVc};
-use turbopack_core::asset::Asset;
-use turbopack_core::context::AssetContext;
-use turbopack_core::target::CompileTargetVc;
 use turbopack_core::{
+    asset::Asset,
+    context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
+    target::CompileTargetVc,
     transition::TransitionsByNameVc,
 };
 
@@ -101,8 +101,9 @@ use turbopack_core::{
 #[case::mongoose("integration/mongoose.js", true)]
 #[case::mysql("integration/mysql.js", true)]
 #[case::npm("integration/npm.js", true)]
-// unable to resolve esm request module 'spdx-license-ids' in node-file-trace/node_modules/npm/node_modules/spdx-correct
-// oracledb doesn't support non x86 architectures
+// unable to resolve esm request module 'spdx-license-ids' in
+// node-file-trace/node_modules/npm/node_modules/spdx-correct oracledb doesn't support non x86
+// architectures
 #[cfg_attr(
     target_arch = "x86_64",
     case::oracledb("integration/oracledb.js", true)
