@@ -31,7 +31,7 @@ pub(crate) fn expand_import_map(
                 .for_each(|(local_export_name, Config { canonical_import })| {
                     let ImportItem(package_name, export_name) = canonical_import;
 
-                    if &*package_name == "@emotion/react" && &*export_name == "jsx" {
+                    if &**package_name == "@emotion/react" && &**export_name == "jsx" {
                         return;
                     }
 

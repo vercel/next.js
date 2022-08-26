@@ -312,7 +312,7 @@ impl State {
 }
 
 pub fn prefix_leading_digit(s: &str) -> Cow<str> {
-    if s.chars().next().map(|c| c.is_digit(10)).unwrap_or(false) {
+    if s.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
         Cow::Owned(format!("sc-{}", s))
     } else {
         Cow::Borrowed(s)

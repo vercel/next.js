@@ -115,7 +115,7 @@ pub fn transform_css(
 /// Returns `(length, value)`
 fn read_number(s: &str) -> (usize, usize) {
     for (idx, c) in s.char_indices() {
-        if c.is_digit(10) {
+        if c.is_ascii_digit() {
             continue;
         }
 

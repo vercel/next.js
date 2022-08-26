@@ -74,7 +74,7 @@ impl HookOptimizer {
         } = &decl;
         let init_clone = init.clone();
         if let Pat::Array(a) = name {
-            if let Expr::Call(c) = &*init.as_deref().unwrap() {
+            if let Expr::Call(c) = init.as_deref().unwrap() {
                 if let Callee::Expr(i) = &c.callee {
                     if let Expr::Ident(Ident { sym, .. }) = &**i {
                         if self.hooks.contains(sym) {
