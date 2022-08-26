@@ -9,11 +9,10 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use difference::Changeset;
-use futures::future::try_join_all;
 use helpers::print_changeset;
 use lazy_static::lazy_static;
 use test_generator::test_resources;
-use turbo_tasks::{NothingVc, TurboTasks, Value};
+use turbo_tasks::{util::try_join_all, NothingVc, TurboTasks, Value};
 use turbo_tasks_fs::{
     util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent,
     FileSystemEntryType, FileSystemPathVc,

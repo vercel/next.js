@@ -45,7 +45,7 @@ impl NodeJsPoolProcess {
     }
 
     fn start(mut cmd: Command) -> Result<Self> {
-        let mut child = cmd.spawn().with_context(|| format!("spawning node pool"))?;
+        let mut child = cmd.spawn().context("spawning node pool")?;
         let stdin = child.stdin.take().unwrap();
         let mut stdout = BufReader::new(child.stdout.take().unwrap());
         let mut bootstrap_log = Vec::new();
