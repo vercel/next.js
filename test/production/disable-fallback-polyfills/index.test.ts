@@ -38,7 +38,7 @@ describe('Disable fallback polyfills', () => {
       'next.config.js',
       `module.exports = {
         experimental: {
-          fallbackOldPolyfills: false
+          fallbackPolyfills: false
         }
       }`
     )
