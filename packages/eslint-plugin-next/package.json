@@ -18,7 +18,7 @@
     "eslint": "7.24.0"
   },
   "scripts": {
-    "build": "swc -d dist lib --config-file .swcrc",
+    "build": "swc -d dist lib",
     "prepublishOnly": "cd ../../ && turbo run build"
   }
 }

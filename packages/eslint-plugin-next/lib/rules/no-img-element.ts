@@ -2,7 +2,7 @@ import type { Rule } from 'eslint'
 
 const url = 'https://nextjs.org/docs/messages/no-img-element'
 
-module.exports = {
+export default {
   meta: {
     docs: {
       description: 'Prevent usage of `<img>` element to prevent layout shift.',
