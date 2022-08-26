@@ -25,6 +25,7 @@ import {
   EXPORT_MARKER,
   FLIGHT_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
+  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -427,7 +428,7 @@ export default async function exportApp(
           renderOpts.serverCSSManifest = require(join(
             distDir,
             SERVER_DIRECTORY,
-            FLIGHT_SERVER_CSS_MANIFEST
+            FLIGHT_SERVER_CSS_MANIFEST + '.json'
           )) as PagesManifest
 
           const appPathsManifest = require(join(
@@ -436,11 +437,22 @@ export default async function exportApp(
             APP_PATHS_MANIFEST
           )) as PagesManifest
 
+          const middlewareManifest = require(join(
+            distDir,
+            SERVER_DIRECTORY,
+            MIDDLEWARE_MANIFEST
+          ))
+
           for (const normalizedPath of Object.keys(appPathsManifest)) {
+            const originalPath = appPathsManifest[normalizedPath]
+
+            if (middlewareManifest.functions[normalizedPath]) {
+              // TODO: edge runtime routes need to be handled inside
+              // of the edge context
+              continue
+            }
             exportMap[normalizedPath] = {
-              page: appPathsManifest[normalizedPath]
-                .replace(/^app\//, '/')
-                .replace(/\.js$/, ''),
+              page: originalPath.replace(/^app\//, '/').replace(/\.js$/, ''),
               // @ts-expect-error internal flag signaling appDir
               _isAppDir: true,
             }
