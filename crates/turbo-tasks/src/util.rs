@@ -1,4 +1,9 @@
-use std::{fmt::Display, future::Future, sync::Arc, time::Duration};
+use std::{
+    fmt::Display,
+    future::{Future, IntoFuture},
+    sync::Arc,
+    time::Duration,
+};
 
 use anyhow::Error;
 use futures::future::join_all;
@@ -48,10 +53,18 @@ impl From<Error> for SharedError {
 
 // Unlike Futures::future::try_join_all, this results in the Error that
 // occurs first in the list of futures, not the first to fail in time.
-pub async fn try_join_all<T: Unpin, E: Unpin, F: Future<Output = Result<T, E>>>(
-    futures: impl Iterator<Item = F>,
+pub async fn try_join_all<
+    T: Unpin,
+    E: Unpin,
+    F: Future<Output = Result<T, E>>,
+    IF: IntoFuture<Output = Result<T, E>, IntoFuture = F>,
+>(
+    futures: impl Iterator<Item = IF>,
 ) -> Result<Vec<T>, E> {
-    join_all(futures).await.into_iter().collect()
+    join_all(futures.map(|f| f.into_future()))
+        .await
+        .into_iter()
+        .collect()
 }
 
 pub struct FormatDuration(pub Duration);

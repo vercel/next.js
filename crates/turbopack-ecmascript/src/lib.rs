@@ -20,7 +20,6 @@ pub(crate) mod special_cases;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
-use std::future::IntoFuture;
 
 use anyhow::Result;
 use chunk::{
@@ -201,15 +200,11 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         let mut code_gens = Vec::new();
         for r in references.await?.iter() {
             if let Some(code_gen) = CodeGenerateableVc::resolve_from(r).await? {
-                code_gens.push(
-                    code_gen
-                        .code_generation(chunk_context, context)
-                        .into_future(),
-                );
+                code_gens.push(code_gen.code_generation(chunk_context, context));
             }
         }
         for c in code_generation.await?.iter() {
-            code_gens.push(c.code_generation(chunk_context, context).into_future());
+            code_gens.push(c.code_generation(chunk_context, context));
         }
         // need to keep that around to allow references into that
         let code_gens = try_join_all(code_gens.into_iter()).await?;

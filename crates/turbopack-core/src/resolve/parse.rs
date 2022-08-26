@@ -1,5 +1,3 @@
-use std::future::IntoFuture;
-
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -254,7 +252,7 @@ impl ValueToString for Request {
             Request::Unknown { path } => format!("unknown {path}"),
             Request::Dynamic => "dynamic".to_string(),
             Request::Alternatives { requests } => {
-                try_join_all(requests.iter().map(|i| i.to_string().into_future()))
+                try_join_all(requests.iter().map(|i| i.to_string()))
                     .await?
                     .into_iter()
                     .map(|r| r.clone())

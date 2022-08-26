@@ -2,7 +2,7 @@ pub mod analyze;
 pub mod code_gen;
 pub mod resolve;
 
-use std::{cmp::Ordering, fmt::Display, future::IntoFuture};
+use std::{cmp::Ordering, fmt::Display};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -154,7 +154,7 @@ impl IssueProcessingPath for ItemIssueProcessingPath {
             .iter()
             .map(|child| child.shortest_path(issue))
             .collect::<Vec<_>>();
-        let paths = try_join_all(paths.iter().map(|p| p.into_future())).await?;
+        let paths = try_join_all(paths.iter()).await?;
         let mut shortest: Option<&Vec<_>> = None;
         for path in paths.iter().filter_map(|p| p.as_ref()) {
             if let Some(old) = shortest {
