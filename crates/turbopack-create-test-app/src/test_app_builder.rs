@@ -23,6 +23,7 @@ pub struct TestAppBuilder {
     pub module_count: usize,
     pub directories_count: usize,
     pub flatness: usize,
+    pub package_json: bool,
 }
 
 impl Default for TestAppBuilder {
@@ -32,6 +33,7 @@ impl Default for TestAppBuilder {
             module_count: 1000,
             directories_count: 50,
             flatness: 5,
+            package_json: false,
         }
     }
 }
@@ -50,7 +52,7 @@ impl TestAppBuilder {
         let mut remaining_directories = self.directories_count;
 
         let mut queue = VecDeque::new();
-        queue.push_back(src.join("triangle.js"));
+        queue.push_back(src.join("triangle.jsx"));
         remaining_modules -= 1;
 
         while let Some(file) = queue.pop_front() {
@@ -61,7 +63,9 @@ impl TestAppBuilder {
                 File::create(file)
                     .context("creating file")?
                     .write_all(
-                        r#"export default function Triangle({ style }) {
+                        r#"import React from "react";
+
+export default function Triangle({ style }) {
     return <polygon points="-5,4.33 0,-4.33 5,4.33" style={style} />;
 }
 "#
@@ -90,7 +94,7 @@ impl TestAppBuilder {
                 for i in 1..=3 {
                     let mut f = base_file.clone();
                     f.set_file_name(format!(
-                        "{}_{}.js",
+                        "{}_{}.jsx",
                         f.file_name().unwrap().to_str().unwrap(),
                         i
                     ));
@@ -102,15 +106,22 @@ impl TestAppBuilder {
                     .with_context(|| format!("creating file with children {}", file.display()))?
                     .write_all(
                         format!(
-                            r#"// Container for 3 child triangles
+                            r#"import React from "react";
 import A from "{import_path}1";
 import B from "{import_path}2";
 import C from "{import_path}3";
+
 export default function Container({{ style }}) {{
     return <>
-        <g transform="translate(0 -2.16)   scale(0.5 0.5)"><A style={{style}}/></g>
-        <g transform="translate(-2.5 2.16) scale(0.5 0.5)"><B style={{style}}/></g>
-        <g transform="translate(2.5 2.16)  scale(0.5 0.5)"><C style={{style}}/></g>
+        <g transform="translate(0 -2.16)   scale(0.5 0.5)">
+            <A style={{style}}/>
+        </g>
+        <g transform="translate(-2.5 2.16) scale(0.5 0.5)">
+            <B style={{style}}/>
+        </g>
+        <g transform="translate(2.5 2.16)  scale(0.5 0.5)">
+            <C style={{style}}/>
+        </g>
     </>;
 }}
 "#
@@ -121,8 +132,9 @@ export default function Container({{ style }}) {{
             }
         }
 
-        let bootstrap = r#"import { createRoot } from "react-dom/client";
-import Triangle from "./triangle.js";
+        let bootstrap = r#"import React from "react";
+import { createRoot } from "react-dom/client";
+import Triangle from "./triangle.jsx";
 
 function App() {
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ }}>
@@ -135,7 +147,7 @@ let root = document.createElement("main");
 document.body.appendChild(root);
 createRoot(root).render(<App />);
 "#;
-        File::create(src.join("index.js"))
+        File::create(src.join("index.jsx"))
             .context("creating bootstrap file")?
             .write_all(bootstrap.as_bytes())
             .context("writing bootstrap file")?;
@@ -143,8 +155,9 @@ createRoot(root).render(<App />);
         let pages = src.join("pages");
         create_dir_all(&pages)?;
 
-        let bootstrap_page = r#"
-import Triangle from "../triangle.js";
+        // The page is e. g. used by Next.js
+        let bootstrap_page = r#"import React from "react";
+import Triangle from "../triangle.jsx";
 
 export default function Page() {
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
@@ -152,10 +165,90 @@ export default function Page() {
     </svg>
 }
 "#;
-        File::create(pages.join("page.js"))
+        File::create(pages.join("page.jsx"))
             .context("creating bootstrap page")?
             .write_all(bootstrap_page.as_bytes())
             .context("writing bootstrap page")?;
+
+        // The page is e. g. used by Next.js
+        let bootstrap_static_page = r#"import React from "react";
+import Triangle from "../triangle.jsx";
+
+export default function Page() {
+    return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
+    <Triangle style={{ fill: "white" }}/>
+    </svg>
+}
+
+export function getStaticProps() {
+    return {
+        props: {}
+    };
+}
+"#;
+        File::create(pages.join("static.jsx"))
+            .context("creating bootstrap static page")?
+            .write_all(bootstrap_static_page.as_bytes())
+            .context("writing bootstrap static page")?;
+
+        // This HTML is used e. g. by Vite
+        let bootstrap_html = r#"<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Turbopack Test App</title>
+    </head>
+    <body>
+        <script type="module" src="/src/index.jsx"></script>
+    </body>
+</html>
+"#;
+        File::create(path.join("index.html"))
+            .context("creating bootstrap html in root")?
+            .write_all(bootstrap_html.as_bytes())
+            .context("writing bootstrap html in root")?;
+
+        // This HTML is used e. g. by Vite
+        let bootstrap_html2 = r#"<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Turbopack Test App</title>
+    </head>
+    <body>
+        <script src="main.js"></script>
+    </body>
+</html>
+"#;
+
+        let public = path.join("public");
+        create_dir_all(&public).context("creating public dir")?;
+
+        File::create(public.join("index.html"))
+            .context("creating bootstrap html in public")?
+            .write_all(bootstrap_html2.as_bytes())
+            .context("writing bootstrap html in public")?;
+
+        if self.package_json {
+            // These dependencies are needed
+            let package_json = json::object! {
+                name: "turbopack-test-app",
+                private: true,
+                version: "0.0.0",
+                dependencies: json::object! {
+                    "@next/react-refresh-utils": "^12.2.5",
+                    "react": "^18.2.0",
+                    "react-dom": "^18.2.0",
+                    "react-refresh": "^0.14.0",
+                }
+            };
+            File::create(path.join("package.json"))
+                .context("creating package.json")?
+                .write_all(package_json.pretty(2).as_bytes())
+                .context("writing package.json")?;
+        }
 
         Ok(path)
     }

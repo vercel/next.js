@@ -18,6 +18,10 @@ struct Args {
     /// How flat should be the component tree
     #[clap(short, long, value_parser, default_value_t = 4)]
     flatness: usize,
+
+    /// Generate a package.json with required dependencies
+    #[clap(long)]
+    package_json: bool,
 }
 
 fn main() -> Result<()> {
@@ -29,7 +33,8 @@ fn main() -> Result<()> {
             target: Some(current_dir()?),
             module_count: args.modules,
             directories_count: args.directories,
-            flatness: args.flatness
+            flatness: args.flatness,
+            package_json: args.package_json
         }
         .build()?
         .display()
