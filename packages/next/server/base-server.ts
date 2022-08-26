@@ -208,6 +208,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     crossOrigin?: string
     supportsDynamicHTML?: boolean
     serverComponentManifest?: any
+    serverCSSManifest?: any
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
@@ -1493,26 +1494,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return path
   }
 
+  // map the route to the actual bundle name
+  protected getOriginalAppPath(route: string) {
+    if (this.nextConfig.experimental.appDir) {
+      const originalAppPath = this.appPathRoutes?.[route]
+
+      if (!originalAppPath) {
+        return null
+      }
+
+      return originalAppPath
+    }
+    return null
+  }
+
   protected async renderPageComponent(
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    // map the route to the actual bundle name
-    const getOriginalAppPath = (appPath: string) => {
-      if (this.nextConfig.experimental.appDir) {
-        const originalAppPath = this.appPathRoutes?.[appPath]
-
-        if (!originalAppPath) {
-          return null
-        }
-
-        return originalAppPath
-      }
-      return null
-    }
-
     const { query, pathname } = ctx
-    const appPath = getOriginalAppPath(pathname)
+    const appPath = this.getOriginalAppPath(pathname)
 
     let page = pathname
     if (typeof appPath === 'string') {
@@ -1705,14 +1706,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       // use static 404 page if available and is 404 response
-      if (is404) {
+      if (is404 && (await this.hasPage('/404'))) {
         result = await this.findPageComponents('/404', query)
         using404Page = result !== null
       }
       let statusPage = `/${res.statusCode}`
 
       if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
-        result = await this.findPageComponents(statusPage, query)
+        // skip ensuring /500 in dev mode as it isn't used and the
+        // dev overlay is used instead
+        if (statusPage !== '/500' || !this.renderOpts.dev) {
+          result = await this.findPageComponents(statusPage, query)
+        }
       }
 
       if (!result) {

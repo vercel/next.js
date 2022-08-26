@@ -74,14 +74,17 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`${key}=${this.env[key]}`)
     }
 
+    if (process.env.VERCEL_CLI_VERSION) {
+      additionalEnv.push('--build-env')
+      additionalEnv.push(`VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION}`)
+    }
+
     const deployRes = await execa(
       'vercel',
       [
         'deploy',
         '--build-env',
         'NEXT_PRIVATE_TEST_MODE=1',
-        '--build-env',
-        'FORCE_RUNTIME_TAG=canary',
         '--build-env',
         'NEXT_TELEMETRY_DISABLED=1',
         ...additionalEnv,
