@@ -7,23 +7,23 @@ import {
   StaticGenerationContext,
 } from './hooks-server-context'
 
-function useStaticGenerationBailout() {
+function useStaticGenerationBailout(reason: string) {
   if (useContext(StaticGenerationContext)) {
-    throw new DynamicServerError('useHeader')
+    throw new DynamicServerError(reason)
   }
 }
 
 export function useHeaders() {
-  useStaticGenerationBailout()
+  useStaticGenerationBailout('useHeaders')
   return useContext(HeadersContext)
 }
 
 export function usePreviewData() {
-  useStaticGenerationBailout()
+  useStaticGenerationBailout('usePreviewData')
   return useContext(PreviewDataContext)
 }
 
 export function useCookies() {
-  useStaticGenerationBailout()
+  useStaticGenerationBailout('useCookies')
   return useContext(CookiesContext)
 }
