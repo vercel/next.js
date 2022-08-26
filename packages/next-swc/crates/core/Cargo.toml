@@ -26,11 +26,11 @@ swc_emotion = {path="../emotion"}
 styled_components = {path="../styled_components"}
 styled_jsx = {path="../styled_jsx"}
 modularize_imports = {path="../modularize_imports"}
-swc = "0.219.2"
+swc = "0.221.0"
 swc_atoms = "0.4.8"
 swc_common = { version = "0.27.13", features = ["concurrent", "sourcemap", "plugin_transform_schema_v1"] }
 swc_ecma_loader = { version = "0.39.4", features = ["node", "lru"] }
-swc_ecmascript = { version = "0.193.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+swc_ecmascript = { version = "0.195.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_plugin_runner = { version = "0.73.1", optional = true, default-features = false, features = ["plugin_transform_schema_v1"] }
 swc_cached = "0.3.5"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
