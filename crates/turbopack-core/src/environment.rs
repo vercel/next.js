@@ -1,5 +1,8 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::BoolVc, Value};
+use turbo_tasks::{
+    primitives::{BoolVc, StringsVc},
+    Value,
+};
 
 use crate::target::CompileTargetVc;
 
@@ -27,12 +30,21 @@ impl EnvironmentVc {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Debug, Hash, Clone, Copy)]
 pub enum EnvironmentIntention {
+    /// Intent to compute data needed for rendering
     Data,
+    /// Intent to intercept requests before server handling
     Middleware,
+    /// Intent to handle api requests
     Api,
+    /// Intent to prerender on a server for hydration on a client
     Prerendering,
+    /// Intent to render on a server
     ServerRendering,
+    /// Intent to render into static content
     StaticRendering,
+    /// Intent to behave equally to the execution environment
+    Emulate,
+    /// Intent to render on the client
     Client,
     // TODO allow custom trait here
     Custom(u8),
@@ -114,6 +126,48 @@ impl EnvironmentVc {
             Value::new(exec),
             Value::new(env.intention),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn is_emulating(self) -> Result<BoolVc> {
+        let env = self.await?;
+        Ok(match env.intention {
+            EnvironmentIntention::Emulate => BoolVc::cell(true),
+            EnvironmentIntention::Custom(_) => todo!(),
+            _ => BoolVc::cell(false),
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn resolve_extensions(self) -> Result<StringsVc> {
+        let env = self.await?;
+        Ok(match env.execution {
+            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+                StringsVc::cell(vec![
+                    ".js".to_string(),
+                    ".node".to_string(),
+                    ".json".to_string(),
+                ])
+            }
+            ExecutionEnvironment::EdgeFunction(_) | ExecutionEnvironment::Browser(_) => {
+                StringsVc::empty()
+            }
+            ExecutionEnvironment::Custom(_) => todo!(),
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn resolve_node_modules(self) -> Result<BoolVc> {
+        let env = self.await?;
+        Ok(match env.execution {
+            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+                BoolVc::cell(true)
+            }
+            ExecutionEnvironment::EdgeFunction(_) | ExecutionEnvironment::Browser(_) => {
+                BoolVc::cell(false)
+            }
+            ExecutionEnvironment::Custom(_) => todo!(),
+        })
     }
 }
 

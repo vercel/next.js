@@ -1,12 +1,15 @@
 use anyhow::Result;
 use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
-use turbopack_core::resolve::{
-    find_context_file,
-    options::{
-        ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
-        ResolveOptions, ResolveOptionsVc, ResolvedMap,
+use turbopack_core::{
+    environment::EnvironmentVc,
+    resolve::{
+        find_context_file,
+        options::{
+            ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
+            ResolveOptions, ResolveOptionsVc, ResolvedMap,
+        },
+        FindContextFileResult, PrefixTree,
     },
-    FindContextFileResult, PrefixTree,
 };
 use turbopack_ecmascript::{
     resolve::apply_cjs_specific_options,
@@ -14,12 +17,16 @@ use turbopack_ecmascript::{
 };
 
 #[turbo_tasks::function]
-pub async fn resolve_options(context: FileSystemPathVc) -> Result<ResolveOptionsVc> {
+pub async fn resolve_options(
+    context: FileSystemPathVc,
+    environment: EnvironmentVc,
+) -> Result<ResolveOptionsVc> {
     let parent = context.parent().resolve().await?;
     if parent != context {
-        return Ok(resolve_options(parent));
+        return Ok(resolve_options(parent, environment));
     }
     let context_value = context.await?;
+    let emulating = *environment.is_emulating().await?;
     let root = FileSystemPathVc::new(context_value.fs, "");
     let mut direct_mappings = PrefixTree::new();
     for req in [
@@ -100,11 +107,26 @@ pub async fn resolve_options(context: FileSystemPathVc) -> Result<ResolveOptions
     }
     .into();
     Ok(ResolveOptions {
-        extensions: vec![".js".to_string(), ".node".to_string(), ".json".to_string()],
-        modules: vec![ResolveModules::Nested(
-            root,
-            vec!["node_modules".to_string()],
-        )],
+        extensions: if emulating {
+            environment.resolve_extensions().await?.clone()
+        } else {
+            vec![".js".to_string(), ".node".to_string(), ".json".to_string()]
+        },
+        modules: if emulating {
+            if *environment.resolve_node_modules().await? {
+                vec![ResolveModules::Nested(
+                    root,
+                    vec!["node_modules".to_string()],
+                )]
+            } else {
+                Vec::new()
+            }
+        } else {
+            vec![ResolveModules::Nested(
+                root,
+                vec!["node_modules".to_string()],
+            )]
+        },
         into_package: vec![
             ResolveIntoPackage::ExportsField {
                 field: "exports".to_string(),
@@ -132,9 +154,12 @@ pub async fn resolve_options(context: FileSystemPathVc) -> Result<ResolveOptions
 }
 
 #[turbo_tasks::function]
-pub async fn typescript_resolve_options(context: FileSystemPathVc) -> Result<ResolveOptionsVc> {
+pub async fn typescript_resolve_options(
+    context: FileSystemPathVc,
+    environment: EnvironmentVc,
+) -> Result<ResolveOptionsVc> {
     let tsconfig = find_context_file(context, "tsconfig.json").await?;
-    let base_resolve_options = resolve_options(context);
+    let base_resolve_options = resolve_options(context, environment);
     let cjs_resolve_options = apply_cjs_specific_options(base_resolve_options);
     let mut options = apply_typescript_options(base_resolve_options);
     match *tsconfig {

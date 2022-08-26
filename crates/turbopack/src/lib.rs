@@ -180,9 +180,9 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn resolve_options(&self) -> Result<ResolveOptionsVc> {
         Ok(if *self.environment.is_typescript_enabled().await? {
-            typescript_resolve_options(self.context_path)
+            typescript_resolve_options(self.context_path, self.environment)
         } else {
-            resolve_options(self.context_path)
+            resolve_options(self.context_path, self.environment)
         })
     }
 

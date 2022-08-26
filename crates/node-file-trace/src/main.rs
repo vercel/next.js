@@ -186,7 +186,7 @@ async fn input_to_modules<'a>(
                 }
                 .into(),
             )),
-            Value::new(EnvironmentIntention::ServerRendering),
+            Value::new(EnvironmentIntention::Emulate),
         ),
     )
     .into();
