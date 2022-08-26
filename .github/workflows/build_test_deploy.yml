@@ -1087,7 +1087,10 @@ jobs:
 
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
-        # env:
+        env:
+          GITHUB_REPOSITORY: 'vercel/next.js'
+          GITHUB_REF: 'canary'
+          GITHUB_ACTION: 'release'
         #   PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
 
   build-native-test:
