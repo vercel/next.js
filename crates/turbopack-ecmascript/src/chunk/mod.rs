@@ -180,10 +180,10 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<StringV
 }
 
 #[derive(Serialize)]
-struct EcmascriptChunkUpdate {
-    added: HashMap<ModuleId, String>,
-    modified: HashMap<ModuleId, String>,
-    deleted: HashSet<ModuleId>,
+struct EcmascriptChunkUpdate<'a> {
+    added: HashMap<&'a ModuleId, &'a str>,
+    modified: HashMap<&'a ModuleId, &'a str>,
+    deleted: HashSet<&'a ModuleId>,
 }
 
 #[turbo_tasks::value_impl]
@@ -287,7 +287,11 @@ impl VersionedContent for EcmascriptChunkContent {
         let this = self_vc.await?;
 
         // TODO(alexkirsz) This should probably be stored as a HashMap already.
-        let module_factories: HashMap<_, _> = this.module_factories.iter().cloned().collect();
+        let module_factories: HashMap<_, _> = this
+            .module_factories
+            .iter()
+            .map(|(k, v)| (k, v.as_str()))
+            .collect();
         let mut added = HashMap::new();
         let mut modified = HashMap::new();
         let mut deleted = HashSet::new();
@@ -298,28 +302,16 @@ impl VersionedContent for EcmascriptChunkContent {
         for (id, hash) in &to.module_factories_hashes {
             if let Some(old_hash) = from.module_factories_hashes.get(id) {
                 if old_hash != hash {
-                    modified.insert(
-                        id.clone(),
-                        module_factories
-                            .get(id)
-                            .ok_or_else(consistency_error)?
-                            .clone(),
-                    );
+                    modified.insert(id, *module_factories.get(id).ok_or_else(consistency_error)?);
                 }
             } else {
-                added.insert(
-                    id.clone(),
-                    module_factories
-                        .get(id)
-                        .ok_or_else(consistency_error)?
-                        .clone(),
-                );
+                added.insert(id, *module_factories.get(id).ok_or_else(consistency_error)?);
             }
         }
 
         for id in from.module_factories_hashes.keys() {
             if !to.module_factories_hashes.contains_key(id) {
-                deleted.insert(id.clone());
+                deleted.insert(id);
             }
         }
 
