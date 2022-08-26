@@ -60,7 +60,7 @@ export async function adapter(params: {
   requestUrl.flightData = undefined
 
   // Strip internal query parameters off the request.
-  stripInternalSearchParams(requestUrl.searchParams)
+  stripInternalSearchParams(requestUrl.searchParams, true)
 
   const request = new NextRequestHint({
     page: params.page,

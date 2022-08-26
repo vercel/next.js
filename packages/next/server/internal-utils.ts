@@ -12,15 +12,26 @@ const INTERNAL_QUERY_NAMES = [
   '__flight_router_state_tree__',
 ] as const
 
+const EXTENDED_INTERNAL_QUERY_NAMES = ['__nextDataReq'] as const
+
 export function stripInternalQueries(query: NextParsedUrlQuery) {
   for (const name of INTERNAL_QUERY_NAMES) {
     delete query[name]
   }
 }
 
-export function stripInternalSearchParams(searchParams: URLSearchParams) {
+export function stripInternalSearchParams(
+  searchParams: URLSearchParams,
+  extended?: boolean
+) {
   for (const name of INTERNAL_QUERY_NAMES) {
     searchParams.delete(name)
+  }
+
+  if (extended) {
+    for (const name of EXTENDED_INTERNAL_QUERY_NAMES) {
+      searchParams.delete(name)
+    }
   }
 
   return searchParams
