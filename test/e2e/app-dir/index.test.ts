@@ -568,6 +568,10 @@ describe('app dir', () => {
           )
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
+
+          // Components under catch-all should not be treated as route that errors during build.
+          // They should be rendered properly when imported in page route.
+          expect($('#widget').html()).toBe('widget')
         })
 
         it('should handle optional segments root', async () => {
