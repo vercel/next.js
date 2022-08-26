@@ -376,10 +376,6 @@ export default class DevServer extends Server {
             continue
           }
 
-          if (!isLayoutsLeafPage(fileName)) {
-            continue
-          }
-
           if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
             enabledTypeScript = true
           }
@@ -391,6 +387,10 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
+            if (!isLayoutsLeafPage(fileName)) {
+              continue
+            }
+
             const originalPageName = pageName
             pageName = normalizeAppPath(pageName) || '/'
             appPaths[pageName] = originalPageName
