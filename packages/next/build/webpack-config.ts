@@ -1578,7 +1578,7 @@ export default async function getBaseWebpackConfig(
                   {
                     resolve: {
                       fallback:
-                        config.experimental.fallbackPolyfills === false
+                        config.experimental.fallbackNodePolyfills === false
                           ? {}
                           : {
                               assert: require.resolve(
