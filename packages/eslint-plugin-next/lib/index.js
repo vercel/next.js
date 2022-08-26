@@ -3,7 +3,7 @@ module.exports = {
     'google-font-display': require('./rules/google-font-display'),
     'google-font-preconnect': require('./rules/google-font-preconnect'),
     'inline-script-id': require('./rules/inline-script-id'),
-    'next-key-head': require('./rules/next-key-head'),
+    'next-head-key': require('./rules/next-head-key'),
     'next-script-for-ga': require('./rules/next-script-for-ga'),
     'no-assign-module-variable': require('./rules/no-assign-module-variable'),
     'no-before-interactive-script-outside-document': require('./rules/no-before-interactive-script-outside-document'),
@@ -43,14 +43,12 @@ module.exports = {
         '@next/next/no-unwanted-polyfillio': 'warn',
         // errors
         '@next/next/inline-script-id': 'error',
-        '@next/next/next-key-head' : 'error',
+        '@next/next/next-head-key': 'error',
         '@next/next/no-assign-module-variable': 'error',
         '@next/next/no-document-import-in-page': 'error',
         '@next/next/no-duplicate-head': 'error',
         '@next/next/no-head-import-in-document': 'error',
         '@next/next/no-script-component-in-head': 'error',
-       
-        
       },
     },
     'core-web-vitals': {
