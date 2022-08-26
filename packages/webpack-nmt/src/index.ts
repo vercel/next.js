@@ -93,7 +93,8 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
     }
     const logLevel = this.options?.log?.level
     if (logLevel) {
-      args.push(`--log-level ${logLevel}`)
+      args.push(`--log-level`)
+      args.push(logLevel)
     }
     let turboTracingPackagePath = ''
     let turboTracingBinPath = ''
