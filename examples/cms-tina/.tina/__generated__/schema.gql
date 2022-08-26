@@ -5,7 +5,6 @@ References another document, used as a foreign key
 scalar Reference
 
 """
-
 """
 scalar JSON
 
@@ -28,14 +27,12 @@ type PageInfo {
 }
 
 """
-
 """
 interface Node {
   id: ID!
 }
 
 """
-
 """
 interface Document {
   id: ID!
