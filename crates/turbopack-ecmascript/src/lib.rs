@@ -23,7 +23,8 @@ pub mod webpack;
 
 use anyhow::Result;
 use chunk::{
-    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkVc,
+    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc,
+    EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
 };
 use code_gen::CodeGenerateableVc;
 use parse::{parse, ParseResult};
@@ -95,11 +96,12 @@ impl EcmascriptModuleAssetVc {
     }
 
     #[turbo_tasks::function]
-    pub fn as_evaluated_chunk(
+    pub async fn as_evaluated_chunk(
         self_vc: EcmascriptModuleAssetVc,
         context: ChunkingContextVc,
-    ) -> ChunkVc {
-        EcmascriptChunkVc::new_evaluate(context, self_vc.into()).into()
+        runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
+    ) -> Result<ChunkVc> {
+        Ok(EcmascriptChunkVc::new_evaluate(context, self_vc.into(), runtime_entries).into())
     }
 
     #[turbo_tasks::function]
@@ -135,7 +137,7 @@ impl Asset for EcmascriptModuleAsset {
 impl ChunkableAsset for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(self_vc: EcmascriptModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
-        EcmascriptChunkVc::new(context, self_vc.into()).into()
+        EcmascriptChunkVc::new(context, self_vc.as_ecmascript_chunk_placeable()).into()
     }
 }
 

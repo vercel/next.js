@@ -36,7 +36,7 @@ impl ChunkGroupFilesAssetVc {
         let this = self.await?;
         let chunk_group =
             if let Some(ecma) = EcmascriptModuleAssetVc::resolve_from(this.asset).await? {
-                ChunkGroupVc::from_chunk(ecma.as_evaluated_chunk(this.chunking_context))
+                ChunkGroupVc::from_chunk(ecma.as_evaluated_chunk(this.chunking_context, None))
             } else {
                 ChunkGroupVc::from_asset(this.asset, this.chunking_context)
             };
@@ -66,7 +66,7 @@ impl Asset for ChunkGroupFilesAsset {
 impl ChunkableAsset for ChunkGroupFilesAsset {
     #[turbo_tasks::function]
     fn as_chunk(self_vc: ChunkGroupFilesAssetVc, context: ChunkingContextVc) -> ChunkVc {
-        EcmascriptChunkVc::new(context, self_vc.into()).into()
+        EcmascriptChunkVc::new(context, self_vc.as_ecmascript_chunk_placeable()).into()
     }
 }
 

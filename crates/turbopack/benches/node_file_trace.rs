@@ -96,6 +96,7 @@ fn bench_emit_with_completion(b: &mut Bencher, bench_input: &BenchInput) {
                         )),
                         Value::new(EnvironmentIntention::ServerRendering),
                     ),
+                    Default::default(),
                 );
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
@@ -144,6 +145,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                         )),
                         Value::new(EnvironmentIntention::ServerRendering),
                     ),
+                    Default::default(),
                 );
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);

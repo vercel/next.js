@@ -102,7 +102,10 @@ async fn main() -> Result<()> {
         .port(args.port)
         .log_detail(args.log_detail)
         .show_all(args.show_all)
-        .log_level(args.log_level.map_or_else(|| IssueSeverity::Error, |l| l.0))
+        .log_level(
+            args.log_level
+                .map_or_else(|| IssueSeverity::Warning, |l| l.0),
+        )
         .build()
         .await?;
 

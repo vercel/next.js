@@ -146,6 +146,7 @@ struct ItemIssueProcessingPath(
 
 #[turbo_tasks::value_impl]
 impl IssueProcessingPath for ItemIssueProcessingPath {
+    /// Returns the shortest path from the root issue to the given issue.
     #[turbo_tasks::function]
     async fn shortest_path(&self, issue: IssueVc) -> Result<OptionIssueProcessingPathItemsVc> {
         assert!(!self.1.is_empty());
@@ -244,6 +245,8 @@ impl IssueVc {
         Ok(source)
     }
 
+    /// Returns all issues from `source` in a list with their associated
+    /// processing path.
     pub async fn peek_issues_with_path<T: CollectiblesSource + Copy>(
         source: T,
     ) -> Result<CapturedIssuesVc> {
@@ -256,6 +259,10 @@ impl IssueVc {
         }))
     }
 
+    /// Returns all issues from `source` in a list with their associated
+    /// processing path.
+    ///
+    /// This unemits the issues. They will not propagate up.
     pub async fn take_issues_with_path<T: CollectiblesSource + Copy>(
         source: T,
     ) -> Result<CapturedIssuesVc> {
@@ -269,14 +276,16 @@ impl IssueVc {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct Issues(Vec<IssueVc>);
+
+/// A list of issues captured with [`IssueVc::peek_issues_with_path`] and
+/// [`IssueVc::take_issues_with_path`].
 #[turbo_tasks::value]
 pub struct CapturedIssues {
     issues: Vec<IssueVc>,
     processing_path: ItemIssueProcessingPathVc,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct Issues(Vec<IssueVc>);
 
 #[turbo_tasks::value_impl]
 impl CapturedIssuesVc {
@@ -287,14 +296,23 @@ impl CapturedIssuesVc {
 }
 
 impl CapturedIssues {
+    /// Returns true if there are no issues.
     pub fn is_empty(&self) -> bool {
         self.issues.is_empty()
     }
 
+    /// Returns the number of issues.
     pub fn len(&self) -> usize {
         self.issues.len()
     }
 
+    /// Returns an iterator over the issues.
+    pub fn iter(&self) -> impl Iterator<Item = IssueVc> + '_ {
+        self.issues.iter().copied()
+    }
+
+    /// Returns an iterator over the issues with the shortest path from the root
+    /// issue to each issue.
     pub fn iter_with_shortest_path(
         &self,
     ) -> impl Iterator<Item = (IssueVc, OptionIssueProcessingPathItemsVc)> + '_ {

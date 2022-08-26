@@ -3,7 +3,11 @@ use std::{collections::HashMap, future::IntoFuture};
 use anyhow::{anyhow, Result};
 use turbo_tasks::{util::try_join_all, Value};
 use turbo_tasks_fs::{FileSystemPathVc, FileSystemVc};
-use turbopack::{ecmascript::EcmascriptModuleAssetVc, ModuleAssetContextVc};
+use turbopack::{
+    ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
+    module_options::ModuleOptionsContext,
+    ModuleAssetContextVc,
+};
 use turbopack_core::{
     chunk::{
         dev::{DevChunkingContext, DevChunkingContextVc},
@@ -19,6 +23,8 @@ use turbopack_dev_server::{
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
 
+use crate::react_refresh::{assert_can_resolve_react_refresh, resolve_react_refresh};
+
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
     root: FileSystemPathVc,
@@ -26,21 +32,32 @@ pub async fn create_web_entry_source(
     dev_server_fs: FileSystemVc,
     eager_compile: bool,
 ) -> Result<ContentSourceVc> {
+    let environment = EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browser_version: 0,
+            }
+            .into(),
+        )),
+        Value::new(EnvironmentIntention::Client),
+    );
+
+    let can_resolve_react_refresh = *assert_can_resolve_react_refresh(root, environment).await?;
+
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
         root,
-        EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::Browser(
-                BrowserEnvironment {
-                    dom: true,
-                    web_worker: false,
-                    service_worker: false,
-                    browser_version: 0,
-                }
-                .into(),
-            )),
-            Value::new(EnvironmentIntention::Client),
-        ),
+        environment,
+        ModuleOptionsContext {
+            // We don't need to resolve React Refresh for each module. Instead,
+            // we try resolve it once at the root and pass down a context to all
+            // the modules.
+            enable_react_refresh: can_resolve_react_refresh,
+        }
+        .into(),
     )
     .into();
 
@@ -50,6 +67,14 @@ pub async fn create_web_entry_source(
         asset_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static/assets"),
     }
     .into();
+
+    let runtime_entries = if can_resolve_react_refresh {
+        Some(EcmascriptChunkPlaceablesVc::cell(vec![
+            resolve_react_refresh(context),
+        ]))
+    } else {
+        None
+    };
 
     let modules = try_join_all(entry_requests.into_iter().map(|r| {
         context
@@ -63,7 +88,7 @@ pub async fn create_web_entry_source(
         .flat_map(|assets| assets.iter().copied().collect::<Vec<_>>());
     let chunks = try_join_all(modules.map(|module| async move {
         if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-            Ok(ecmascript.as_evaluated_chunk(chunking_context.into()))
+            Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), runtime_entries))
         } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
             Ok(chunkable.as_chunk(chunking_context.into()))
         } else {

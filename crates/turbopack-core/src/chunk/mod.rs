@@ -27,6 +27,10 @@ pub enum ModuleId {
     String(String),
 }
 
+/// A list of module ids.
+#[turbo_tasks::value(transparent, shared)]
+pub struct ModuleIds(Vec<ModuleIdVc>);
+
 /// A chunk id, which can be a number or string
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Hash)]
@@ -255,22 +259,34 @@ pub trait FromChunkableAsset: ChunkItem + Sized + Debug {
 pub async fn chunk_content_split<I: FromChunkableAsset>(
     context: ChunkingContextVc,
     entry: AssetVc,
+    additional_entries: Option<AssetsVc>,
 ) -> Result<ChunkContentResult<I>> {
-    let chunk_items = vec![I::from_asset(context, entry).await?.unwrap()];
+    let mut chunk_items = vec![];
     let mut processed_assets = HashSet::new();
     let mut external_asset_references = Vec::new();
     let mut chunks = Vec::new();
     let mut pieces = Vec::new();
-    for r in entry.references().await?.iter() {
-        if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
-            if *pc.is_chunkable().await? {
-                pieces.push((r.resolve_reference().primary_assets(), *r));
-                continue;
+
+    let mut entries = match additional_entries {
+        Some(additional_entries) => additional_entries.await?.clone(),
+        None => vec![],
+    };
+    entries.push(entry);
+
+    for entry in entries {
+        chunk_items.push(I::from_asset(context, entry).await?.unwrap());
+        for r in entry.references().await?.iter() {
+            if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
+                if *pc.is_chunkable().await? {
+                    pieces.push((r.resolve_reference().primary_assets(), *r));
+                    continue;
+                }
             }
+            external_asset_references.push(*r);
         }
-        external_asset_references.push(*r);
+        processed_assets.insert(entry);
     }
-    processed_assets.insert(entry);
+
     'outer: for (assets, r) in pieces {
         let mut inner_chunks = Vec::new();
         for asset in assets
@@ -306,6 +322,7 @@ enum ChunkContentWorkItem {
 pub async fn chunk_content<I: FromChunkableAsset>(
     context: ChunkingContextVc,
     entry: AssetVc,
+    additional_entries: Option<AssetsVc>,
 ) -> Result<Option<ChunkContentResult<I>>> {
     let mut chunk_items = Vec::new();
     let mut processed_assets = HashSet::new();
@@ -320,6 +337,17 @@ pub async fn chunk_content<I: FromChunkableAsset>(
     ));
     chunk_items.push(chunk_item);
     processed_assets.insert(entry);
+
+    if let Some(additional_entries) = additional_entries {
+        for entry in &*additional_entries.await? {
+            let chunk_item = I::from_asset(context, *entry).await?.unwrap();
+            queue.push_back(ChunkContentWorkItem::AssetReferences(
+                chunk_item.references(),
+            ));
+            chunk_items.push(chunk_item);
+            processed_assets.insert(*entry);
+        }
+    }
 
     'outer: while let Some(item) = queue.pop_front() {
         match item {

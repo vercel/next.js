@@ -165,7 +165,7 @@ impl ManifestChunkAssetVc {
         let this = self.await?;
         let chunk_group =
             if let Some(ecma) = EcmascriptModuleAssetVc::resolve_from(this.asset).await? {
-                ChunkGroupVc::from_chunk(ecma.as_evaluated_chunk(this.chunking_context))
+                ChunkGroupVc::from_chunk(ecma.as_evaluated_chunk(this.chunking_context, None))
             } else {
                 ChunkGroupVc::from_asset(this.asset, this.chunking_context)
             };

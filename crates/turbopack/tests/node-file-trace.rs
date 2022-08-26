@@ -331,6 +331,7 @@ fn node_file_trace<B: Backend + 'static>(
                         )),
                         Value::new(EnvironmentIntention::ServerRendering),
                     ),
+                    Default::default(),
                 );
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);

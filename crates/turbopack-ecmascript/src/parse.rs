@@ -29,7 +29,10 @@ use crate::{analyzer::graph::EvalContext, emitter::IssueEmitter};
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum EcmascriptInputTransform {
-    JSX,
+    React {
+        #[serde(default)]
+        refresh: bool,
+    },
     CommonJs,
     Custom,
 }
@@ -221,7 +224,7 @@ pub async fn parse(
                                         || {
                                             for transform in transforms.iter() {
                                                 match transform {
-                                                    EcmascriptInputTransform::JSX => {
+                                                    EcmascriptInputTransform::React { refresh } => {
                                                         parsed_program.visit_mut_with(&mut react(
                                                             cm.clone(),
                                                             Some(comments.clone()),
@@ -229,6 +232,13 @@ pub async fn parse(
                                                                 runtime: Some(
                                                                     swc_ecma_transforms_react::Runtime::Automatic,
                                                                 ),
+                                                                refresh: if *refresh {
+                                                                    Some(
+                                                                        swc_ecma_transforms_react::RefreshOptions {
+                                                                            ..Default::default()
+                                                                        }
+                                                                    )
+                                                                } else { None },
                                                                 ..Default::default()
                                                             },
                                                             top_level_mark,

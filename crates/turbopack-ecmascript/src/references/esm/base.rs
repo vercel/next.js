@@ -143,7 +143,7 @@ lazy_static! {
     )));
 }
 
-fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
+pub(crate) fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
     match program {
         Program::Module(Module { body, .. }) => {
             let pos = body.iter().position(|item| {

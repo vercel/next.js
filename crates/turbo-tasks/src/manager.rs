@@ -492,6 +492,7 @@ impl<B: Backend> TurboTasks<B> {
                 }
             }
         }
+        // TODO(alexkirsz) The take unwrap crashed on me.
         return self.aggregated_update.lock().unwrap().take().unwrap();
     }
 

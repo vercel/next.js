@@ -77,7 +77,7 @@ impl Asset for StaticModuleAsset {
 impl ChunkableAsset for StaticModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(self_vc: StaticModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
-        EcmascriptChunkVc::new(context, self_vc.into()).into()
+        EcmascriptChunkVc::new(context, self_vc.as_ecmascript_chunk_placeable()).into()
     }
 }
 

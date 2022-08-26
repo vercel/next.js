@@ -93,6 +93,7 @@ async fn run(resource: &'static str) -> Result<()> {
                 )),
                 Value::new(EnvironmentIntention::Client),
             ),
+            Default::default(),
         )
         .into();
 
@@ -129,7 +130,7 @@ async fn run(resource: &'static str) -> Result<()> {
 
         let chunks = try_join_all(modules.map(|module| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                Ok(ecmascript.as_evaluated_chunk(chunking_context.into()))
+                Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), None))
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                 Ok(chunkable.as_chunk(chunking_context.into()))
             } else {

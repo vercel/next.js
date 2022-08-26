@@ -84,6 +84,7 @@ pub async fn create_server_rendered_source(
             )),
             Value::new(EnvironmentIntention::Client),
         ),
+        Default::default(),
     )
     .into();
 

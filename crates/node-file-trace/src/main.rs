@@ -188,6 +188,7 @@ async fn input_to_modules<'a>(
             )),
             Value::new(EnvironmentIntention::Emulate),
         ),
+        Default::default(),
     )
     .into();
     let mut list = Vec::new();

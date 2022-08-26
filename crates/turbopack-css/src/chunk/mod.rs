@@ -62,10 +62,10 @@ async fn css_chunk_content(
     context: ChunkingContextVc,
     entry: AssetVc,
 ) -> Result<CssChunkContentResultVc> {
-    let res = if let Some(res) = chunk_content::<CssChunkItemVc>(context, entry).await? {
+    let res = if let Some(res) = chunk_content::<CssChunkItemVc>(context, entry, None).await? {
         res
     } else {
-        chunk_content_split::<CssChunkItemVc>(context, entry).await?
+        chunk_content_split::<CssChunkItemVc>(context, entry, None).await?
     };
 
     Ok(CssChunkContentResultVc::cell(res.into()))

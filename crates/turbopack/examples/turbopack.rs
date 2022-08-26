@@ -61,6 +61,7 @@ async fn main() -> Result<()> {
                     )),
                     Value::new(EnvironmentIntention::ServerRendering),
                 ),
+                Default::default(),
             );
             let module = context.process(source.into());
             let rebased = RebasedAssetVc::new(module, input, output);

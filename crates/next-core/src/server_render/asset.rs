@@ -168,10 +168,10 @@ async fn get_intermediate_asset(
         WrapperAssetVc::new(entry_asset, "server-renderer.js", get_server_renderer()).into(),
         context.with_context_path(entry_asset.path()),
         Value::new(ModuleAssetType::Ecmascript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::JSX]),
+        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React { refresh: false }]),
         context.environment(),
     );
-    let chunk = module.as_evaluated_chunk(chunking_context.into());
+    let chunk = module.as_evaluated_chunk(chunking_context.into(), None);
     let chunk_group = ChunkGroupVc::from_chunk(chunk);
     Ok(NodeJsBootstrapAsset {
         path: intermediate_output_path.join("index.js"),

@@ -16,8 +16,10 @@ use std::{
 use anyhow::Result;
 use ecmascript::typescript::resolve::TypescriptTypesAssetReferenceVc;
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphVc};
-use module_options::{module_options, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType};
-use resolve::{resolve_options, typescript_resolve_options};
+use module_options::{
+    ModuleOptionsContextVc, ModuleOptionsVc, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
+};
+pub use resolve::{resolve_options, typescript_resolve_options};
 use turbo_tasks::{CompletionVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
@@ -43,9 +45,10 @@ async fn module(
     source: AssetVc,
     transitions: TransitionsByNameVc,
     environment: EnvironmentVc,
+    module_options_context: ModuleOptionsContextVc,
 ) -> Result<AssetVc> {
     let path = source.path();
-    let options = module_options(path.parent());
+    let options = ModuleOptionsVc::new(path.parent(), module_options_context);
     let options = options.await?;
     let path_value = path.await?;
 
@@ -71,7 +74,13 @@ async fn module(
             ModuleType::Ecmascript(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    ModuleAssetContextVc::new(transitions, path.parent(), environment).into(),
+                    ModuleAssetContextVc::new(
+                        transitions,
+                        path.parent(),
+                        environment,
+                        module_options_context,
+                    )
+                    .into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
                     *transforms,
                     environment,
@@ -85,6 +94,7 @@ async fn module(
                         transitions,
                         path.parent(),
                         environment.with_typescript(),
+                        module_options_context,
                     )
                     .into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
@@ -100,6 +110,7 @@ async fn module(
                         transitions,
                         path.parent(),
                         environment.with_typescript(),
+                        module_options_context,
                     )
                     .into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
@@ -112,12 +123,24 @@ async fn module(
             ModuleType::Raw => source,
             ModuleType::Css => turbopack_css::CssModuleAssetVc::new(
                 source,
-                ModuleAssetContextVc::new(transitions, path.parent(), environment).into(),
+                ModuleAssetContextVc::new(
+                    transitions,
+                    path.parent(),
+                    environment,
+                    module_options_context,
+                )
+                .into(),
             )
             .into(),
             ModuleType::Static => turbopack_static::StaticModuleAssetVc::new(
                 source,
-                ModuleAssetContextVc::new(transitions, path.parent(), environment).into(),
+                ModuleAssetContextVc::new(
+                    transitions,
+                    path.parent(),
+                    environment,
+                    module_options_context,
+                )
+                .into(),
             )
             .into(),
             ModuleType::Custom(_) => todo!(),
@@ -130,6 +153,7 @@ pub struct ModuleAssetContext {
     transitions: TransitionsByNameVc,
     context_path: FileSystemPathVc,
     environment: EnvironmentVc,
+    module_options_context: ModuleOptionsContextVc,
     transition: Option<TransitionVc>,
 }
 
@@ -140,11 +164,13 @@ impl ModuleAssetContextVc {
         transitions: TransitionsByNameVc,
         context_path: FileSystemPathVc,
         environment: EnvironmentVc,
+        module_options_context: ModuleOptionsContextVc,
     ) -> Self {
         Self::cell(ModuleAssetContext {
             transitions,
             context_path,
             environment,
+            module_options_context,
             transition: None,
         })
     }
@@ -154,12 +180,14 @@ impl ModuleAssetContextVc {
         transitions: TransitionsByNameVc,
         context_path: FileSystemPathVc,
         environment: EnvironmentVc,
+        module_options_context: ModuleOptionsContextVc,
         transition: TransitionVc,
     ) -> Self {
         Self::cell(ModuleAssetContext {
             transitions,
             context_path,
             environment,
+            module_options_context,
             transition: Some(transition),
         })
     }
@@ -201,7 +229,13 @@ impl AssetContext for ModuleAssetContext {
             .await?;
         if *this.environment.is_typescript_enabled().await? {
             let types_reference = TypescriptTypesAssetReferenceVc::new(
-                ModuleAssetContextVc::new(this.transitions, context_path, this.environment).into(),
+                ModuleAssetContextVc::new(
+                    this.transitions,
+                    context_path,
+                    this.environment,
+                    this.module_options_context,
+                )
+                .into(),
                 request,
             );
             result.add_reference(types_reference.into());
@@ -227,21 +261,43 @@ impl AssetContext for ModuleAssetContext {
         if let Some(transition) = this.transition {
             let asset = transition.process_source(asset);
             let environment = transition.process_environment(this.environment);
-            let m = module(asset, this.transitions, environment);
+            let m = module(
+                asset,
+                this.transitions,
+                environment,
+                this.module_options_context,
+            );
             Ok(transition.process_module(m))
         } else {
-            Ok(module(asset, this.transitions, this.environment))
+            Ok(module(
+                asset,
+                this.transitions,
+                this.environment,
+                this.module_options_context,
+            ))
         }
     }
 
     #[turbo_tasks::function]
     fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc {
-        ModuleAssetContextVc::new(self.transitions, path, self.environment).into()
+        ModuleAssetContextVc::new(
+            self.transitions,
+            path,
+            self.environment,
+            self.module_options_context,
+        )
+        .into()
     }
 
     #[turbo_tasks::function]
     fn with_environment(&self, environment: EnvironmentVc) -> AssetContextVc {
-        ModuleAssetContextVc::new(self.transitions, self.context_path, environment).into()
+        ModuleAssetContextVc::new(
+            self.transitions,
+            self.context_path,
+            environment,
+            self.module_options_context,
+        )
+        .into()
     }
 
     #[turbo_tasks::function]
@@ -252,13 +308,19 @@ impl AssetContext for ModuleAssetContext {
                     self.transitions,
                     self.context_path,
                     self.environment,
+                    self.module_options_context,
                     *transition,
                 )
                 .into()
             } else {
                 // TODO report issue
-                ModuleAssetContextVc::new(self.transitions, self.context_path, self.environment)
-                    .into()
+                ModuleAssetContextVc::new(
+                    self.transitions,
+                    self.context_path,
+                    self.environment,
+                    self.module_options_context,
+                )
+                .into()
             },
         )
     }

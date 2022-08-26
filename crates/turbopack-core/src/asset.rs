@@ -40,3 +40,7 @@ pub trait Asset {
         Ok(VersionedFileContentVc::new(self.content()).await?.into())
     }
 }
+
+/// An optional [Asset]
+#[turbo_tasks::value(shared, transparent)]
+pub struct AssetOption(Option<AssetVc>);

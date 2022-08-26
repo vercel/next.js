@@ -1,6 +1,7 @@
 #![feature(min_specialization)]
 
 pub mod next_client;
+pub mod react_refresh;
 mod server_render;
 mod server_rendered_source;
 mod web_entry_source;
