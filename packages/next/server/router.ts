@@ -39,7 +39,8 @@ export type Route = {
     req: BaseNextRequest,
     res: BaseNextResponse,
     params: Params,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery,
+    upgradeHead?: any
   ) => Promise<RouteResult> | RouteResult
 }
 
@@ -130,7 +131,8 @@ export default class Router {
   async execute(
     req: BaseNextRequest,
     res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery,
+    upgradeHead?: any
   ): Promise<boolean> {
     if (this.seenRequests.has(req)) {
       throw new Error(
@@ -218,8 +220,7 @@ export default class Router {
         - User rewrites (checking filesystem and pages each match)
       */
 
-      const [middlewareCatchAllRoute, edgeSSRCatchAllRoute] =
-        this.catchAllMiddleware
+      const [middlewareCatchAllRoute] = this.catchAllMiddleware
       const allRoutes = [
         ...(middlewareCatchAllRoute
           ? this.fsRoutes
@@ -242,7 +243,6 @@ export default class Router {
         // disabled
         ...(this.useFileSystemPublicRoutes
           ? [
-              ...(edgeSSRCatchAllRoute ? [edgeSSRCatchAllRoute] : []),
               {
                 type: 'route',
                 name: 'page checker',
@@ -297,15 +297,15 @@ export default class Router {
 
         // We only check the catch-all route if public page routes hasn't been
         // disabled
-        ...(this.useFileSystemPublicRoutes
-          ? [
-              ...(edgeSSRCatchAllRoute ? [edgeSSRCatchAllRoute] : []),
-              this.catchAllRoute,
-            ]
-          : []),
+        ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
       ]
 
       for (const testRoute of allRoutes) {
+        // only process rewrites for upgrade request
+        if (upgradeHead && testRoute.type !== 'rewrite') {
+          continue
+        }
+
         const originalPathname = parsedUrlUpdated.pathname as string
         const pathnameInfo = getNextPathnameInfo(originalPathname, {
           nextConfig: this.nextConfig,
@@ -388,7 +388,8 @@ export default class Router {
             req,
             res,
             newParams,
-            parsedUrlUpdated
+            parsedUrlUpdated,
+            upgradeHead
           )
 
           if (result.finished) {

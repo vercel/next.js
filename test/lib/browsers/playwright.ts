@@ -27,7 +27,7 @@ export async function quit() {
   browser = undefined
 }
 
-class Playwright extends BrowserInterface {
+export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
@@ -385,5 +385,3 @@ class Playwright extends BrowserInterface {
     return this.chain(() => page.evaluate('window.location.href')) as any
   }
 }
-
-export default Playwright
