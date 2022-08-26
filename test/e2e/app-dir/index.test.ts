@@ -22,15 +22,7 @@ describe('app dir', () => {
   function runTests({ assetPrefix }: { assetPrefix?: boolean }) {
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          public: new FileRef(path.join(__dirname, 'app/public')),
-          styles: new FileRef(path.join(__dirname, 'app/styles')),
-          pages: new FileRef(path.join(__dirname, 'app/pages')),
-          app: new FileRef(path.join(__dirname, 'app/app')),
-          'next.config.js': new FileRef(
-            path.join(__dirname, 'app/next.config.js')
-          ),
-        },
+        files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
           react: 'experimental',
           'react-dom': 'experimental',
@@ -748,6 +740,7 @@ describe('app dir', () => {
               // middleware sees any flight data on the request it'll redirect to
               // a page with an element of #failure, otherwise, we'll see the
               // element for #success.
+              await browser.waitForElementByCss(`#navigate-${method}`)
               await browser.elementById(`navigate-${method}`).click()
               await browser.waitForElementByCss('#success')
             } finally {
