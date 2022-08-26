@@ -189,13 +189,24 @@ function processSymbolChunk(request, id, name) {
 // eslint-disable-next-line no-unused-vars
 var MODULE_TAG = Symbol.for('react.module.reference');
 function getModuleKey(reference) {
-  return reference.filepath + '#' + reference.name;
+  return reference.filepath + '#' + reference.name + (reference.async ? '#async' : '');
 }
 function isModuleReference(reference) {
   return reference.$$typeof === MODULE_TAG;
 }
 function resolveModuleMetaData(config, moduleReference) {
-  return config[moduleReference.filepath][moduleReference.name];
+  var resolvedModuleData = config[moduleReference.filepath][moduleReference.name];
+
+  if (moduleReference.async) {
+    return {
+      id: resolvedModuleData.id,
+      chunks: resolvedModuleData.chunks,
+      name: resolvedModuleData.name,
+      async: true
+    };
+  } else {
+    return resolvedModuleData;
+  }
 }
 
 // ATTENTION
