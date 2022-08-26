@@ -67,7 +67,7 @@ const proxyHandlers: ProxyHandler<object> = {
           // This will break if it's minified though.
           return then
         }
-
+        break
       default:
         break
     }
