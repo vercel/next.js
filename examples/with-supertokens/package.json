@@ -6,10 +6,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "@babel/core": "^7.18.13",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
-    "supertokens-auth-react": "^0.24.0",
-    "supertokens-node": "^11.0.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "supertokens-auth-react": "^0.24.7",
+    "supertokens-node": "^11.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.2"
   }
 }
