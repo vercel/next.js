@@ -5,7 +5,7 @@ const LINKS = [
   {
     description: 'Everything you need to know about Xata APIs and tools.',
     title: 'Xata Docs',
-    url: 'https://docs.xata.io',
+    url: 'https://xata.io/docs',
   },
   {
     description: 'In case you need to check some Next.js specifics.',
