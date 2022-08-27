@@ -1,4 +1,4 @@
-import { spawnSync } from 'child_process'
+import { spawn } from 'child_process'
 import { join } from 'path'
 
 import { Compilation, WebpackPluginInstance, Compiler } from 'webpack'
@@ -46,7 +46,7 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
         )
       },
     )
-    compiler.hooks.afterDone.tap(NodeModuleTracePlugin.PluginName, () =>
+    compiler.hooks.afterEmit.tapPromise(NodeModuleTracePlugin.PluginName, () =>
       this.runTrace(),
     )
   }
@@ -58,26 +58,14 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
       !file.endsWith('.wasm') && !file.endsWith('.map')
 
     for (const entrypoint of compilation.entrypoints.values()) {
-      for (const chunk of entrypoint
-        .getEntrypointChunk()
-        .getAllReferencedChunks()) {
-        for (const file of chunk.files) {
-          if (isTraceable(file)) {
-            const filePath = join(outputPath, file)
-            this.chunksToTrace.add(filePath)
-          }
-        }
-        for (const file of chunk.auxiliaryFiles) {
-          if (isTraceable(file)) {
-            const filePath = join(outputPath, file)
-            this.chunksToTrace.add(filePath)
-          }
-        }
+      const file = entrypoint.getFiles().pop()
+      if (file && isTraceable(file)) {
+        this.chunksToTrace.add(join(outputPath, file))
       }
     }
   }
 
-  private runTrace() {
+  private async runTrace() {
     process.stdout.write('\n')
     const args = [
       'annotate',
@@ -127,13 +115,51 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
     if (turboTracingBinPath) {
       paths = `${turboTracingBinPath}${pathSep}${paths}`
     }
-    spawnSync('node-file-trace', [...args, ...this.chunksToTrace], {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        PATH: paths,
-      },
-      cwd: this.options?.cwd ?? process.cwd(),
-    })
+    let chunks = [...this.chunksToTrace]
+    let restChunks = chunks.length > 300 ? chunks.splice(300) : []
+    while (chunks.length) {
+      await traceChunks(args, paths, chunks, this.options?.cwd)
+      chunks = restChunks
+      if (restChunks.length) {
+        restChunks = chunks.length > 300 ? chunks.splice(300) : []
+      }
+    }
   }
+}
+
+function traceChunks(
+  args: string[],
+  paths: string,
+  chunks: string[],
+  cwd?: string,
+) {
+  const turboTracingProcess = spawn('node-file-trace', [...args, ...chunks], {
+    stdio: 'pipe',
+    env: {
+      ...process.env,
+      PATH: paths,
+      RUST_BACKTRACE: '1',
+    },
+    cwd: cwd ?? process.cwd(),
+  })
+  return new Promise<void>((resolve, reject) => {
+    turboTracingProcess.on('error', (err) => {
+      console.error(err)
+    })
+    turboTracingProcess.stdout.on('data', (chunk) => {
+      process.stdout.write('\n')
+      process.stdout.write(chunk)
+    })
+    turboTracingProcess.stderr.on('data', (chunk) => {
+      process.stdout.write('\n')
+      process.stderr.write(chunk)
+    })
+    turboTracingProcess.once('exit', (code) => {
+      if (!code) {
+        resolve()
+      } else {
+        reject(code)
+      }
+    })
+  })
 }
