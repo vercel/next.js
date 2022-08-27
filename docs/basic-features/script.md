@@ -113,6 +113,7 @@ Scripts that use the `afterInteractive` strategy are injected client-side and wi
 
 ```jsx
 <Script
+  id="google-analytic"
   strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: `
