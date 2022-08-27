@@ -38,7 +38,7 @@ describe('app dir - react server components', () => {
     const appDir = path.join(__dirname, './rsc-basic')
     next = await createNext({
       files: {
-        node_modules: new FileRef(path.join(appDir, 'node_modules')),
+        node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
         pages: new FileRef(path.join(appDir, 'pages')),
         public: new FileRef(path.join(appDir, 'public')),
         components: new FileRef(path.join(appDir, 'components')),
@@ -50,17 +50,16 @@ describe('app dir - react server components', () => {
         react: 'experimental',
         'react-dom': 'experimental',
       },
-      installCommand: `mv ./node_modules ./node_modules_bak; pnpm install --strict-peer-dependencies=false`,
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/ ./node_modules/`,
-          build: 'pnpm setup && next build',
-          dev: 'pnpm setup && next dev',
+          setup: `cp -r ./node_modules_bak/non-isomorphic-text ./node_modules; cp -r ./node_modules_bak/random-module-instance ./node_modules`,
+          build: 'yarn setup && next build',
+          dev: 'yarn setup && next dev',
           start: 'next start',
         },
       },
-      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-      buildCommand: 'pnpm build',
+      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
+      buildCommand: 'yarn build',
     })
     distDir = path.join(next.testDir, '.next')
   })
