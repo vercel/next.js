@@ -65,7 +65,11 @@ describe('tsconfig.json verifier', () => {
     await new Promise((resolve) => setTimeout(resolve, 500))
     expect(await readFile(tsConfig, 'utf8')).toBe('')
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
@@ -272,7 +276,11 @@ describe('tsconfig.json verifier', () => {
       `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node12" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
@@ -354,7 +362,11 @@ describe('tsconfig.json verifier', () => {
     await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
@@ -405,7 +417,11 @@ describe('tsconfig.json verifier', () => {
     await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
