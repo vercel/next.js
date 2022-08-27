@@ -82,10 +82,6 @@ const loadScript = (props: ScriptProps): void => {
     }
   })
 
-  if (src) {
-    ScriptCache.set(src, loadPromise)
-  }
-
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
 
@@ -105,6 +101,8 @@ const loadScript = (props: ScriptProps): void => {
     el.src = src
     // do not add cacheKey into LoadCache for remote script here
     // cacheKey will be added to LoadCache when it is actually loaded (see loadPromise above)
+
+    ScriptCache.set(src, loadPromise)
   }
 
   for (const [k, value] of Object.entries(props)) {
