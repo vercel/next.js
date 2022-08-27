@@ -54,6 +54,8 @@ export async function loadBindings() {
         !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
     )
 
+    console.error({ shouldLoadWasmFallbackFirst, triples })
+
     if (shouldLoadWasmFallbackFirst) {
       const fallbackBindings = await tryLoadWasmWithFallback(attempts)
       if (fallbackBindings) {
