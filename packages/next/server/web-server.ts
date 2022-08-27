@@ -8,6 +8,8 @@ import type { LoadComponentsReturnType } from './load-components'
 import { NoFallbackError, Options } from './base-server'
 import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { NextConfig } from './config-shared'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { UrlWithParsedQuery } from 'url'
 
 import BaseServer from './base-server'
 import { byteLength } from './api-utils/web'
@@ -19,8 +21,6 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { UrlWithParsedQuery } from 'url'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
