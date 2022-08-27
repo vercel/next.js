@@ -231,7 +231,8 @@ describe('Next.js Script - Primary Strategies', () => {
 
       // wait for jQuery to be loaded
       await waitFor(1000)
-      expect(await browser.eval(`window.onReadyCalls`)).toBe(1)
+      expect(await browser.eval(`window.remoteScriptsOnReadyCalls`)).toBe(1)
+      expect(await browser.eval(`window.inlineScriptsOnReadyCalls`)).toBe(1)
     } finally {
       if (browser) await browser.close()
       if (devApp) await killApp(devApp)
