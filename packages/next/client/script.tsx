@@ -61,6 +61,9 @@ const loadScript = (props: ScriptProps): void => {
 
   const loadPromise = new Promise<void>((resolve, reject) => {
     el.addEventListener('load', function (e) {
+      // add cacheKey to LoadCache when load successfully
+      LoadCache.add(cacheKey)
+
       resolve()
       if (onLoad) {
         onLoad.call(this, e)
@@ -82,10 +85,12 @@ const loadScript = (props: ScriptProps): void => {
   if (src) {
     ScriptCache.set(src, loadPromise)
   }
-  LoadCache.add(cacheKey)
 
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
+
+    // add cacheKey to LoadCache for inline script
+    LoadCache.add(cacheKey)
   } else if (children) {
     el.textContent =
       typeof children === 'string'
@@ -93,8 +98,13 @@ const loadScript = (props: ScriptProps): void => {
         : Array.isArray(children)
         ? children.join('')
         : ''
+
+    // add cacheKey to LoadCache for inline script
+    LoadCache.add(cacheKey)
   } else if (src) {
     el.src = src
+    // do not add cacheKey into LoadCache for remote script here
+    // cacheKey will be added to LoadCache when it is actually loaded (see loadPromise above)
   }
 
   for (const [k, value] of Object.entries(props)) {
