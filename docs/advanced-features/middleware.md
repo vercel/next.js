@@ -31,7 +31,7 @@ To begin using Middleware, follow the steps below:
 npm install next@latest
 ```
 
-2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` directory
+2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` directory 
 3. Export a middleware function from the `middleware.ts` file:
 
 ```typescript
@@ -49,6 +49,9 @@ export const config = {
   matcher: '/about/:path*',
 }
 ```
+
+> **Note** If you're changing `pageExtensions` in `next.config.js` you'll have to update your middleware file name.
+> ex: With `pageExtensions: ['page.tsx', 'page.ts']` it will be `middleware.page.ts`.
 
 ## Matching Paths
 
