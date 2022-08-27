@@ -59,6 +59,7 @@ async function runConfigs(
 
       const buildStart = Date.now()
       console.log(
+        'build result:',
         await exec(
           `cd ${statsAppDir} && ${statsConfig.appBuildCommand}`,
           false,
@@ -159,9 +160,16 @@ async function runConfigs(
       }
 
       const secondBuildStart = Date.now()
-      await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false, {
-        env: yarnEnvValues,
-      })
+      console.log(
+        'second build result',
+        await exec(
+          `cd ${statsAppDir} && ${statsConfig.appBuildCommand}`,
+          false,
+          {
+            env: yarnEnvValues,
+          }
+        )
+      )
       curStats.General.buildDurationCached = Date.now() - secondBuildStart
 
       if (statsConfig.appDevCommand) {
