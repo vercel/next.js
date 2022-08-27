@@ -17,7 +17,6 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
@@ -394,8 +393,11 @@ function getCssInlinedLinkTags(
   const chunks = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    for (const chunk of serverComponentManifest[css].default.chunks) {
-      chunks.add(chunk)
+    const mod = serverComponentManifest[css]
+    if (mod) {
+      for (const chunk of mod.default.chunks) {
+        chunks.add(chunk)
+      }
     }
   }
 
@@ -423,7 +425,7 @@ export async function renderToHTMLOrFlight(
   const {
     buildManifest,
     serverComponentManifest,
-    serverCSSManifest,
+    serverCSSManifest = {},
     supportsDynamicHTML,
     ComponentMod,
   } = renderOpts
@@ -474,6 +476,11 @@ export async function renderToHTMLOrFlight(
    * The tree created in next-app-loader that holds component segments and modules
    */
   const loaderTree: LoaderTree = ComponentMod.tree
+
+  const tryGetPreviewData =
+    process.env.NEXT_RUNTIME === 'edge'
+      ? () => false
+      : require('./api-utils/node').tryGetPreviewData
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous

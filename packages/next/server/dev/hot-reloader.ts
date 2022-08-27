@@ -603,6 +603,23 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
+                const isApp = this.appDir && bundlePath.startsWith('app/')
+                const appDirLoader =
+                  isApp && this.appDir
+                    ? getAppEntry({
+                        name: bundlePath,
+                        pagePath: posix.join(
+                          APP_DIR_ALIAS,
+                          relative(
+                            this.appDir!,
+                            entryData.absolutePagePath
+                          ).replace(/\\/g, '/')
+                        ),
+                        appDir: this.appDir!,
+                        pageExtensions: this.config.pageExtensions,
+                      }).import
+                    : undefined
+
                 entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.edgeServer,
@@ -616,6 +633,8 @@ export default class HotReloader {
                     page,
                     pages: this.pagesMapping,
                     isServerComponent,
+                    appDirLoader,
+                    pagesType: isApp ? 'app' : undefined,
                   }),
                   appDir: this.config.experimental.appDir,
                 })
@@ -707,9 +726,12 @@ export default class HotReloader {
     const changedClientPages = new Set<string>()
     const changedServerPages = new Set<string>()
     const changedEdgeServerPages = new Set<string>()
+    const changedCSSImportPages = new Set<string>()
+
     const prevClientPageHashes = new Map<string, string>()
     const prevServerPageHashes = new Map<string, string>()
     const prevEdgeServerPageHashes = new Map<string, string>()
+    const prevCSSImportModuleHashes = new Map<string, string>()
 
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
@@ -727,6 +749,7 @@ export default class HotReloader {
                   const modsIterable: any =
                     stats.chunkGraph.getChunkModulesIterable(chunk)
 
+                  let hasCSSModuleChanges = false
                   let chunksHash = new StringXor()
 
                   modsIterable.forEach((mod: any) => {
@@ -752,6 +775,21 @@ export default class HotReloader {
                         chunk.runtime
                       )
                       chunksHash.add(hash)
+
+                      // Both CSS import changes from server and client
+                      // components are tracked.
+                      if (
+                        key.startsWith('app/') &&
+                        mod.resource?.endsWith('.css')
+                      ) {
+                        const prevHash = prevCSSImportModuleHashes.get(
+                          mod.resource
+                        )
+                        if (prevHash && prevHash !== hash) {
+                          hasCSSModuleChanges = true
+                        }
+                        prevCSSImportModuleHashes.set(mod.resource, hash)
+                      }
                     }
                   })
                   const prevHash = pageHashMap.get(key)
@@ -761,6 +799,10 @@ export default class HotReloader {
                     changedItems.add(key)
                   }
                   pageHashMap.set(key, curHash)
+
+                  if (hasCSSModuleChanges) {
+                    changedCSSImportPages.add(key)
+                  }
                 }
               })
             }
@@ -838,18 +880,20 @@ export default class HotReloader {
         changedServerPages,
         changedClientPages
       )
-      const serverComponentChanges = serverOnlyChanges.filter((key) =>
-        key.startsWith('app/')
-      )
+      const serverComponentChanges = serverOnlyChanges
+        .filter((key) => key.startsWith('app/'))
+        .concat(Array.from(changedCSSImportPages))
       const pageChanges = serverOnlyChanges.filter((key) =>
         key.startsWith('pages/')
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
         (name) => isMiddlewareFilename(name)
       )
+
       changedClientPages.clear()
       changedServerPages.clear()
       changedEdgeServerPages.clear()
+      changedCSSImportPages.clear()
 
       if (middlewareChanges.length > 0) {
         this.send({

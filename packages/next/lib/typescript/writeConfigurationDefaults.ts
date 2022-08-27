@@ -90,9 +90,6 @@ export function getRequiredConfiguration(
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const ev = desiredCompilerOptions[optionKey]
-    if (optionKey === 'moduleResolution') {
-      console.log({ optionKey, ev, current: res[optionKey] })
-    }
     if (!('value' in ev)) {
       continue
     }

@@ -4,13 +4,26 @@
  * inside a comment.
  */
 
-const NextServerCSSLoader = function (this: any, source: string | Buffer) {
+export function pitch(this: any) {
+  const content = this.fs.readFileSync(this.resource)
+  this.data.__checksum = (
+    typeof content === 'string' ? Buffer.from(content) : content
+  ).toString('hex')
+}
+
+const NextServerCSSLoader = function (this: any, content: string) {
   this.cacheable && this.cacheable()
 
-  return `export default "${(typeof source === 'string'
-    ? Buffer.from(source)
-    : source
-  ).toString('hex')}"`
+  const isCSSModule = this.resource.match(/\.module\.css$/)
+  if (isCSSModule) {
+    return (
+      content +
+      '\nmodule.exports.__checksum = ' +
+      JSON.stringify(this.data.__checksum)
+    )
+  }
+
+  return `export default ${JSON.stringify(this.data.__checksum)}`
 }
 
 export default NextServerCSSLoader

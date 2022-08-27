@@ -26,6 +26,8 @@ describe('ci-missing-typescript-deps', () => {
         `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
       )
       expect(next.cliOutput).toContain(`Please install`)
+      expect(next.cliOutput).not.toContain('Call retries were exceeded')
+      expect(next.cliOutput).not.toContain('WorkerError')
     } finally {
       await next.destroy()
     }
