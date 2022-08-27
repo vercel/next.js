@@ -247,7 +247,7 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
   await fs.remove(yarnEnvValues.YARN_CACHE_FOLDER)
-  await exec(`cd ${pkgDir} && pnpm install`, false, {
+  await exec(`cd ${pkgDir} && yarn install`, false, {
     env: yarnEnvValues,
   })
 }
