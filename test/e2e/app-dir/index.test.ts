@@ -1090,7 +1090,14 @@ describe('app dir', () => {
           ).toBe('rgb(255, 0, 0)')
         })
 
-        it('should support css modules inside server pages', async () => {})
+        it('should support css modules inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/css-page')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#cssm')).color`
+            )
+          ).toBe('rgb(0, 0, 255)')
+        })
       })
 
       describe('client layouts', () => {
