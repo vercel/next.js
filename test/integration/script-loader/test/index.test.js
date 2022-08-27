@@ -8,6 +8,9 @@ import {
   stopApp,
   nextBuild,
   waitFor,
+  findPort,
+  launchApp,
+  killApp,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
@@ -211,6 +214,27 @@ describe('Next.js Script - Primary Strategies', () => {
       expect(sameText).toBe('aaa') // onReady should fire again
     } finally {
       if (browser) await browser.close()
+    }
+  })
+
+  // https://github.com/vercel/next.js/issues/39993
+  it('onReady should only fires once after load event in dev mode (issue #39993)', async () => {
+    let browser
+    // we will start a dedicated dev server for this test case only (scoped)
+    let devAppPort
+    let devApp
+
+    try {
+      devAppPort = await findPort()
+      devApp = await launchApp(appDir, devAppPort)
+      browser = await webdriver(devAppPort, '/page10')
+
+      // wait for jQuery to be loaded
+      await waitFor(1000)
+      expect(await browser.eval(`window.onReadyCalls`)).toBe(1)
+    } finally {
+      if (browser) await browser.close()
+      if (devApp) await killApp(devApp)
     }
   })
 
