@@ -236,10 +236,13 @@ function loadNative() {
 
   for (const triple of triples) {
     try {
+      console.log('trying local', triple)
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
       Log.info('Using locally built binary of @next/swc')
       break
-    } catch (e) {}
+    } catch (e) {
+      console.error('local err', e)
+    }
   }
 
   if (!bindings) {
