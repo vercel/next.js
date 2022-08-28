@@ -50,8 +50,7 @@ export const config = {
 }
 ```
 
-> **Note** If you're changing `pageExtensions` in `next.config.js` you'll have to update your middleware file name.
-> ex: With `pageExtensions: ['page.tsx', 'page.ts']` it will be `middleware.page.ts`.
+> **Note** the `pageExtensions` config affects middleware as well, [see related documentation here](/docs/api-reference/next.config.js/custom-page-extensions.md).
 
 ## Matching Paths
 
