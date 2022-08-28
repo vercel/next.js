@@ -10,10 +10,10 @@ import type {
   DocumentType,
   NEXT_DATA,
 } from '../shared/lib/utils'
+import type { ScriptProps } from '../client/script'
+
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
-import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script, { ScriptProps } from '../client/script'
 import isError from '../lib/is-error'
 
 import { HtmlContext } from '../shared/lib/html-context'
@@ -765,7 +765,10 @@ export class Head extends Component<HeadProps> {
             {!hasCanonicalRel && (
               <link
                 rel="canonical"
-                href={canonicalBase + cleanAmpPath(dangerousAsPath)}
+                href={
+                  canonicalBase +
+                  require('../server/utils').cleanAmpPath(dangerousAsPath)
+                }
               />
             )}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
@@ -871,7 +874,8 @@ function handleDocumentScriptLoaderItems(
   React.Children.forEach(combinedChildren, (child: any) => {
     if (!child) return
 
-    if (child.type === Script) {
+    // When using the `next/script` component, register it in script loader.
+    if (child.type?.__nextScript) {
       if (child.props.strategy === 'beforeInteractive') {
         scriptLoader.beforeInteractive = (
           scriptLoader.beforeInteractive || []

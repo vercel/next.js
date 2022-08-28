@@ -1080,9 +1080,24 @@ describe('app dir', () => {
         })
       })
 
-      describe.skip('server pages', () => {
-        it('should support global css inside server pages', async () => {})
-        it('should support css modules inside server pages', async () => {})
+      describe('server pages', () => {
+        it('should support global css inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/css-page')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should support css modules inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/css-page')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#cssm')).color`
+            )
+          ).toBe('rgb(0, 0, 255)')
+        })
       })
 
       describe('client layouts', () => {
