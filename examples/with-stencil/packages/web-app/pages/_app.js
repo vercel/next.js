@@ -1,11 +1,17 @@
-import { useLayoutEffect } from 'react'
+import React from 'react'
+import App from 'next/app'
+
 import { applyPolyfills, defineCustomElements } from 'test-component/loader'
 
-export default function App({ Component, pageProps }) {
-  useLayoutEffect(() => {
+export default class MyApp extends App {
+  componentDidMount() {
     applyPolyfills().then(() => {
       defineCustomElements(window)
     })
-  }, [])
-  return <Component {...pageProps} />
+  }
+
+  render() {
+    const { Component, pageProps } = this.props
+    return <Component {...pageProps} />
+  }
 }

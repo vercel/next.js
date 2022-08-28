@@ -1,10 +1,14 @@
+import App from 'next/app'
 import Nav from '../components/Nav'
 
-export default function App({ Component, pageProps }) {
-  return (
-    <>
-      <Nav />
-      <Component {...pageProps} />
-    </>
-  )
+export default class MyApp extends App {
+  render() {
+    const { Component, pageProps } = this.props
+    return (
+      <>
+        <Nav />
+        <Component {...pageProps} />
+      </>
+    )
+  }
 }

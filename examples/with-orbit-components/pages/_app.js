@@ -1,3 +1,5 @@
+import * as React from 'react'
+import App from 'next/app'
 import { getTokens } from '@kiwicom/orbit-components'
 import { ThemeProvider, createGlobalStyle } from 'styled-components'
 
@@ -12,13 +14,16 @@ const GlobalStyle = createGlobalStyle`
 
 const tokens = getTokens()
 
-export default function App({ Component, pageProps }) {
-  return (
-    <ThemeProvider theme={{ orbit: tokens }}>
-      <>
-        <GlobalStyle />
-        <Component {...pageProps} />
-      </>
-    </ThemeProvider>
-  )
+export default class MyApp extends App {
+  render() {
+    const { Component, pageProps } = this.props
+    return (
+      <ThemeProvider theme={{ orbit: tokens }}>
+        <>
+          <GlobalStyle />
+          <Component {...pageProps} />
+        </>
+      </ThemeProvider>
+    )
+  }
 }

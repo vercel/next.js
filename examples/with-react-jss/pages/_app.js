@@ -1,11 +1,11 @@
-import { useEffect } from 'react'
+import App from 'next/app'
 
-export default function App({ Component, pageProps }) {
-  useEffect(() => {
+export default class MyApp extends App {
+  componentDidMount() {
     const style = document.getElementById('server-side-styles')
+
     if (style) {
       style.parentNode.removeChild(style)
     }
-  }, [])
-  return <Component {...pageProps} />
+  }
 }
