@@ -4,7 +4,8 @@ import type {
   NextComponentType,
   NextPageContext,
 } from '../shared/lib/utils'
-import { type NextRouter, useRouter } from './router'
+import type { NextRouter } from './router'
+import { useRouter } from './router'
 
 export type WithRouterProps = {
   router: NextRouter
