@@ -1,4 +1,4 @@
-FROM node:16-bullseye
+FROM node:14-buster
 
 LABEL com.github.actions.name="Next.js PR Stats"
 LABEL com.github.actions.description="Compares stats of a PR with the main branch"
