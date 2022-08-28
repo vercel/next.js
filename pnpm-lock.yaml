@@ -464,7 +464,7 @@ importers:
       '@types/uuid': 8.3.1
       '@types/webpack-sources1': npm:@types/webpack-sources@0.1.5
       '@types/ws': 8.2.0
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': 0.34.0
       '@vercel/nft': 0.22.0
       acorn: 8.5.0
       ajv: 8.11.0
@@ -655,7 +655,7 @@ importers:
       '@types/uuid': 8.3.1
       '@types/webpack-sources1': /@types/webpack-sources/0.1.5
       '@types/ws': 8.2.0
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': 0.34.0
       '@vercel/nft': 0.22.0
       acorn: 8.5.0
       ajv: 8.11.0
@@ -7914,6 +7914,14 @@ packages:
     resolution:
       {
         integrity: sha512-ln18hs7dMffelP47tpkaR+V5Tj6coykNyxJrlcmCormPqRQjB/Gv4cu2FfBG+PMzIfdZp2CLDsrrB1NPU22Qhg==,
+      }
+    hasBin: true
+    dev: true
+
+  /@vercel/ncc/0.34.0:
+    resolution:
+      {
+        integrity: sha512-G9h5ZLBJ/V57Ou9vz5hI8pda/YQX5HQszCs3AmIus3XzsmRn/0Ptic5otD3xVST8QLKk7AMk7AqpsyQGN7MZ9A==,
       }
     hasBin: true
     dev: true
