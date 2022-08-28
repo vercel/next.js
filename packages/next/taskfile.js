@@ -1624,7 +1624,8 @@ externals['web-vitals'] = 'next/dist/compiled/web-vitals'
 export async function ncc_web_vitals(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('web-vitals')))
-    .ncc({ packageName: 'web-vitals', externals, target: 'es5' })
+    // web-vitals@3.0.0 is pure ESM, compile to CJS for pre-compiled
+    .ncc({ packageName: 'web-vitals', externals, target: 'es5', esm: false })
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
