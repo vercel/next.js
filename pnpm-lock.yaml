@@ -328,7 +328,7 @@ importers:
       '@types/rimraf': 3.0.0
       '@types/tar': 4.0.3
       '@types/validate-npm-package-name': 3.0.0
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': 0.34.0
       async-retry: 1.3.1
       chalk: 2.4.2
       commander: 2.20.0
@@ -348,7 +348,7 @@ importers:
       '@types/rimraf': 3.0.0
       '@types/tar': 4.0.3
       '@types/validate-npm-package-name': 3.0.0
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': 0.34.0
       async-retry: 1.3.1
       chalk: 2.4.2
       commander: 2.20.0
@@ -798,12 +798,12 @@ importers:
 
   packages/next-env:
     specifiers:
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': 0.34.0
       dotenv: 10.0.0
       dotenv-expand: 8.0.1
       rimraf: 3.0.2
     devDependencies:
-      '@vercel/ncc': 0.33.4
+      '@vercel/ncc': 0.34.0
       dotenv: 10.0.0
       dotenv-expand: 8.0.1
       rimraf: 3.0.2
@@ -7908,14 +7908,6 @@ packages:
       node-fetch: 2.6.7
     transitivePeerDependencies:
       - supports-color
-    dev: true
-
-  /@vercel/ncc/0.33.4:
-    resolution:
-      {
-        integrity: sha512-ln18hs7dMffelP47tpkaR+V5Tj6coykNyxJrlcmCormPqRQjB/Gv4cu2FfBG+PMzIfdZp2CLDsrrB1NPU22Qhg==,
-      }
-    hasBin: true
     dev: true
 
   /@vercel/ncc/0.34.0:
