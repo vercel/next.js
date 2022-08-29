@@ -35,6 +35,7 @@ const appOption = {
 }
 const routeUrl = '/api/route'
 const middlewareUrl = '/'
+const TELEMETRY_EVENT_NAME = 'NEXT_EDGE_ALLOW_DYNAMIC_USED'
 
 describe('Edge runtime configurable guards', () => {
   beforeEach(async () => {
@@ -101,6 +102,7 @@ describe('Edge runtime configurable guards', () => {
       const output = await nextBuild(context.appDir, undefined, {
         stdout: true,
         stderr: true,
+        env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
       expect(output.stderr).toContain(`Build failed`)
       expect(output.stderr).toContain(`./pages/api/route.js`)
@@ -108,6 +110,7 @@ describe('Edge runtime configurable guards', () => {
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
       )
       expect(output.stderr).toContain(`Used by default`)
+      expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
     })
   })
 
@@ -299,8 +302,10 @@ describe('Edge runtime configurable guards', () => {
       const output = await nextBuild(context.appDir, undefined, {
         stdout: true,
         stderr: true,
+        env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
       expect(output.stderr).not.toContain(`Build failed`)
+      expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
       context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(200)
@@ -373,11 +378,13 @@ describe('Edge runtime configurable guards', () => {
       const output = await nextBuild(context.appDir, undefined, {
         stdout: true,
         stderr: true,
+        env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
       expect(output.stderr).toContain(`Build failed`)
-      expect(output.stderr).not.toContain(
-        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+      expect(output.stderr).toContain(
+        `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
       )
+      expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
     })
   })
 })

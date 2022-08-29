@@ -24,6 +24,8 @@ import {
   getPageStaticInfo,
   MiddlewareConfig,
 } from '../../analysis/get-page-static-info'
+import { Telemetry } from '../../../telemetry/storage'
+import { traceGlobals } from '../../../trace/shared'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -614,13 +616,16 @@ async function findEntryEdgeFunctionConfig(
       )
     )
     if (typeof pageFilePath === 'string') {
-      return (
-        await getPageStaticInfo({
-          nextConfig: {},
-          pageFilePath,
-          isDev: false,
-        })
-      ).middleware
+      return {
+        file: pageFilePath,
+        config: (
+          await getPageStaticInfo({
+            nextConfig: {},
+            pageFilePath,
+            isDev: false,
+          })
+        ).middleware,
+      }
     }
   }
 }
@@ -636,6 +641,7 @@ function getExtractMetadata(params: {
   return async () => {
     metadataByEntry.clear()
     const resolver = compilation.resolverFactory.get('normal')
+    const telemetry: Telemetry = traceGlobals.get('telemetry')
 
     for (const [entryName, entry] of compilation.entries) {
       if (entry.options.runtime !== EDGE_RUNTIME_WEBPACK) {
@@ -693,10 +699,23 @@ function getExtractMetadata(params: {
             continue
           }
 
+          if (edgeFunctionConfig?.config?.allowDynamicGlobs) {
+            telemetry.record({
+              eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
+              payload: {
+                ...edgeFunctionConfig,
+                file: edgeFunctionConfig.file.replace(rootDir ?? '', ''),
+                fileWithDynamicCode: module.userRequest.replace(
+                  rootDir ?? '',
+                  ''
+                ),
+              },
+            })
+          }
           if (
             !isDynamicCodeEvaluationAllowed(
               module.userRequest,
-              edgeFunctionConfig,
+              edgeFunctionConfig?.config,
               rootDir
             )
           ) {
@@ -708,7 +727,7 @@ function getExtractMetadata(params: {
                         ', '
                       )}`
                     : ''
-                }`,
+                }\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`,
                 entryModule: module,
                 compilation,
               })
