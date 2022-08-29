@@ -48,7 +48,7 @@ import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
-import { findPageFile } from '../lib/find-page-file'
+import { findPageFile, isLayoutsLeafPage } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
   UnwrapPromise,
@@ -389,6 +389,10 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
+            if (!isLayoutsLeafPage(fileName)) {
+              continue
+            }
+
             const originalPageName = pageName
             pageName = normalizeAppPath(pageName) || '/'
             appPaths[pageName] = originalPageName

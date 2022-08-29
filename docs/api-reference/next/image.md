@@ -512,7 +512,7 @@ The following describes the caching algorithm for the default [loader](#loader).
 
 Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the expired image is served stale immediately. Then the image is optimized again in the background (also called revalidation) and saved to the cache with the new expiration date.
 
-The cache status of an image can be determined by reading the value of the `x-nextjs-cache` response header. The possible values are the following:
+The cache status of an image can be determined by reading the value of the `x-nextjs-cache` (`x-vercel-cache` when deployed on Vercel) response header. The possible values are the following:
 
 - `MISS` - the path is not in the cache (occurs at most once, on the first visit)
 - `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background
