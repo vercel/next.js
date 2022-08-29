@@ -1032,6 +1032,9 @@ function runTests(mode) {
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
+        expect(warnings).not.toMatch(
+          /Image with src (.*) is smaller than 40x40. Consider removing(.*)/gm
+        )
       })
       it('should log warnings when using fill mode incorrectly', async () => {
         browser = await webdriver(appPort, '/fill-warnings')
