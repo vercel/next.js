@@ -2,7 +2,6 @@ import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-ut
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
@@ -65,6 +64,17 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = pathJoin(NEXT_PROJECT_ROOT_DIST, 'client')
+
+function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
+  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
+  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
+
+  if (isPrivateKey || hasNextRuntimeKey) {
+    throw new Error(
+      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
+    )
+  }
+}
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -321,27 +331,29 @@ export function attachReactRefresh(
   const reactRefreshLoaderName =
     'next/dist/compiled/@next/react-refresh-utils/dist/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
-  webpackConfig.module?.rules.forEach((rule) => {
-    const curr = rule.use
-    // When the user has configured `defaultLoaders.babel` for a input file:
-    if (curr === targetLoader) {
-      ++injections
-      rule.use = [reactRefreshLoader, curr as webpack.RuleSetUseItem]
-    } else if (
-      Array.isArray(curr) &&
-      curr.some((r) => r === targetLoader) &&
-      // Check if loader already exists:
-      !curr.some(
-        (r) => r === reactRefreshLoader || r === reactRefreshLoaderName
-      )
-    ) {
-      ++injections
-      const idx = curr.findIndex((r) => r === targetLoader)
-      // Clone to not mutate user input
-      rule.use = [...curr]
+  webpackConfig.module?.rules?.forEach((rule) => {
+    if (rule && typeof rule === 'object' && 'use' in rule) {
+      const curr = rule.use
+      // When the user has configured `defaultLoaders.babel` for a input file:
+      if (curr === targetLoader) {
+        ++injections
+        rule.use = [reactRefreshLoader, curr as webpack.RuleSetUseItem]
+      } else if (
+        Array.isArray(curr) &&
+        curr.some((r) => r === targetLoader) &&
+        // Check if loader already exists:
+        !curr.some(
+          (r) => r === reactRefreshLoader || r === reactRefreshLoaderName
+        )
+      ) {
+        ++injections
+        const idx = curr.findIndex((r) => r === targetLoader)
+        // Clone to not mutate user input
+        rule.use = [...curr]
 
-      // inject / input: [other, babel] output: [other, refresh, babel]:
-      rule.use.splice(idx, 0, reactRefreshLoader)
+        // inject / input: [other, babel] output: [other, refresh, babel]:
+        rule.use.splice(idx, 0, reactRefreshLoader)
+      }
     }
   })
 
@@ -504,7 +516,7 @@ export default async function getBaseWebpackConfig(
     config: NextConfigComplete
     compilerType: CompilerNameValues
     dev?: boolean
-    entrypoints: webpack5.EntryObject
+    entrypoints: webpack.EntryObject
     hasReactRoot: boolean
     isDevFallback?: boolean
     pagesDir: string
@@ -519,10 +531,7 @@ export default async function getBaseWebpackConfig(
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
-  const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
-    dir,
-    config
-  )
+  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
 
   const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
 
@@ -820,22 +829,8 @@ export default async function getBaseWebpackConfig(
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
-      ? [
-          '.js',
-          '.mjs',
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
-          '.jsx',
-          '.json',
-          '.wasm',
-        ]
-      : [
-          '.mjs',
-          '.js',
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
-          '.jsx',
-          '.json',
-          '.wasm',
-        ],
+      ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
+      : ['.mjs', '.js', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
@@ -1234,7 +1229,9 @@ export default async function getBaseWebpackConfig(
             moduleIds: isClient ? 'deterministic' : 'named',
           }
         : {}),
-      splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
+      splitChunks: (():
+        | Required<webpack.Configuration>['optimization']['splitChunks']
+        | false => {
         // For the edge runtime, we have to bundle all dependencies inside without dynamic `require`s.
         // To make some dependencies like `react` to be shared between entrypoints, we use a special
         // cache group here even under dev mode.
@@ -1282,12 +1279,13 @@ export default async function getBaseWebpackConfig(
           // as we don't need a separate vendor chunk from that
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
-          chunks: (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+          chunks: (chunk: any) =>
+            !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
           cacheGroups: {
             framework: {
               chunks: 'all',
               name: 'framework',
-              test(module) {
+              test(module: any) {
                 const resource = module.nameForCondition?.()
                 return resource
                   ? topLevelFrameworkPaths.some((pkgPath) =>
@@ -1579,61 +1577,74 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     resolve: {
-                      // Full list of old polyfills is accessible here:
-                      // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
-                      fallback: {
-                        assert: require.resolve('next/dist/compiled/assert'),
-                        buffer: require.resolve('next/dist/compiled/buffer/'),
-                        constants: require.resolve(
-                          'next/dist/compiled/constants-browserify'
-                        ),
-                        crypto: require.resolve(
-                          'next/dist/compiled/crypto-browserify'
-                        ),
-                        domain: require.resolve(
-                          'next/dist/compiled/domain-browser'
-                        ),
-                        http: require.resolve('next/dist/compiled/stream-http'),
-                        https: require.resolve(
-                          'next/dist/compiled/https-browserify'
-                        ),
-                        os: require.resolve('next/dist/compiled/os-browserify'),
-                        path: require.resolve(
-                          'next/dist/compiled/path-browserify'
-                        ),
-                        punycode: require.resolve(
-                          'next/dist/compiled/punycode'
-                        ),
-                        process: require.resolve('./polyfills/process'),
-                        // Handled in separate alias
-                        querystring: require.resolve(
-                          'next/dist/compiled/querystring-es3'
-                        ),
-                        stream: require.resolve(
-                          'next/dist/compiled/stream-browserify'
-                        ),
-                        string_decoder: require.resolve(
-                          'next/dist/compiled/string_decoder'
-                        ),
-                        sys: require.resolve('next/dist/compiled/util/'),
-                        timers: require.resolve(
-                          'next/dist/compiled/timers-browserify'
-                        ),
-                        tty: require.resolve(
-                          'next/dist/compiled/tty-browserify'
-                        ),
-                        // Handled in separate alias
-                        // url: require.resolve('url/'),
-                        util: require.resolve('next/dist/compiled/util/'),
-                        vm: require.resolve('next/dist/compiled/vm-browserify'),
-                        zlib: require.resolve(
-                          'next/dist/compiled/browserify-zlib'
-                        ),
-                        events: require.resolve('next/dist/compiled/events/'),
-                        setImmediate: require.resolve(
-                          'next/dist/compiled/setimmediate'
-                        ),
-                      },
+                      fallback:
+                        config.experimental.fallbackNodePolyfills === false
+                          ? {}
+                          : {
+                              assert: require.resolve(
+                                'next/dist/compiled/assert'
+                              ),
+                              buffer: require.resolve(
+                                'next/dist/compiled/buffer/'
+                              ),
+                              constants: require.resolve(
+                                'next/dist/compiled/constants-browserify'
+                              ),
+                              crypto: require.resolve(
+                                'next/dist/compiled/crypto-browserify'
+                              ),
+                              domain: require.resolve(
+                                'next/dist/compiled/domain-browser'
+                              ),
+                              http: require.resolve(
+                                'next/dist/compiled/stream-http'
+                              ),
+                              https: require.resolve(
+                                'next/dist/compiled/https-browserify'
+                              ),
+                              os: require.resolve(
+                                'next/dist/compiled/os-browserify'
+                              ),
+                              path: require.resolve(
+                                'next/dist/compiled/path-browserify'
+                              ),
+                              punycode: require.resolve(
+                                'next/dist/compiled/punycode'
+                              ),
+                              process: require.resolve('./polyfills/process'),
+                              // Handled in separate alias
+                              querystring: require.resolve(
+                                'next/dist/compiled/querystring-es3'
+                              ),
+                              stream: require.resolve(
+                                'next/dist/compiled/stream-browserify'
+                              ),
+                              string_decoder: require.resolve(
+                                'next/dist/compiled/string_decoder'
+                              ),
+                              sys: require.resolve('next/dist/compiled/util/'),
+                              timers: require.resolve(
+                                'next/dist/compiled/timers-browserify'
+                              ),
+                              tty: require.resolve(
+                                'next/dist/compiled/tty-browserify'
+                              ),
+                              // Handled in separate alias
+                              // url: require.resolve('url/'),
+                              util: require.resolve('next/dist/compiled/util/'),
+                              vm: require.resolve(
+                                'next/dist/compiled/vm-browserify'
+                              ),
+                              zlib: require.resolve(
+                                'next/dist/compiled/browserify-zlib'
+                              ),
+                              events: require.resolve(
+                                'next/dist/compiled/events/'
+                              ),
+                              setImmediate: require.resolve(
+                                'next/dist/compiled/setimmediate'
+                              ),
+                            },
                     },
                   },
                 ],
@@ -1816,13 +1827,16 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
-  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-    webpackConfig.resolve?.plugins?.unshift(
-      new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
+  // allows add JsConfigPathsPlugin to allow hot-reloading
+  // if the config is added/removed
+  webpackConfig.resolve?.plugins?.unshift(
+    new JsConfigPathsPlugin(
+      jsConfig?.compilerOptions?.paths || {},
+      resolvedBaseUrl || dir
     )
-  }
+  )
 
-  const webpack5Config = webpackConfig as webpack5.Configuration
+  const webpack5Config = webpackConfig as webpack.Configuration
 
   if (isEdgeServer) {
     webpack5Config.module?.rules?.unshift({
@@ -1999,7 +2013,7 @@ export default async function getBaseWebpackConfig(
     }
 
     if (logDefault || profile) {
-      webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
+      webpack5Config.plugins!.push((compiler: webpack.Compiler) => {
         compiler.hooks.done.tap('next-webpack-logging', (stats) => {
           console.log(
             stats.toString({
@@ -2010,7 +2024,7 @@ export default async function getBaseWebpackConfig(
         })
       })
     } else if (summary) {
-      webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
+      webpack5Config.plugins!.push((compiler: webpack.Compiler) => {
         compiler.hooks.done.tap('next-webpack-logging', (stats) => {
           console.log(
             stats.toString({
@@ -2025,7 +2039,7 @@ export default async function getBaseWebpackConfig(
 
     if (profile) {
       const ProgressPlugin =
-        webpack.ProgressPlugin as unknown as typeof webpack5.ProgressPlugin
+        webpack.ProgressPlugin as unknown as typeof webpack.ProgressPlugin
       webpack5Config.plugins!.push(
         new ProgressPlugin({
           profile: true,
@@ -2087,7 +2101,7 @@ export default async function getBaseWebpackConfig(
     }
 
     // eslint-disable-next-line no-shadow
-    const webpack5Config = webpackConfig as webpack5.Configuration
+    const webpack5Config = webpackConfig as webpack.Configuration
 
     // disable lazy compilation of entries as next.js has it's own method here
     if (webpack5Config.experiments?.lazyCompilation === true) {
@@ -2112,15 +2126,23 @@ export default async function getBaseWebpackConfig(
     const rules = webpackConfig.module?.rules || []
     const hasCustomSvg = rules.some(
       (rule) =>
+        rule &&
+        typeof rule === 'object' &&
         rule.loader !== 'next-image-loader' &&
         'test' in rule &&
         rule.test instanceof RegExp &&
         rule.test.test('.svg')
     )
     const nextImageRule = rules.find(
-      (rule) => rule.loader === 'next-image-loader'
+      (rule) =>
+        rule && typeof rule === 'object' && rule.loader === 'next-image-loader'
     )
-    if (hasCustomSvg && nextImageRule) {
+    if (
+      hasCustomSvg &&
+      nextImageRule &&
+      nextImageRule &&
+      typeof nextImageRule === 'object'
+    ) {
       // Exclude svg if the user already defined it in custom
       // webpack config such as `@svgr/webpack` plugin or
       // the `babel-plugin-inline-react-svg` plugin.
@@ -2147,6 +2169,7 @@ export default async function getBaseWebpackConfig(
     const innerRules = []
 
     for (const rule of webpackConfig.module.rules) {
+      if (!rule || typeof rule !== 'object') continue
       if (rule.resolve) {
         topRules.push(rule)
       } else {
@@ -2219,8 +2242,8 @@ export default async function getBaseWebpackConfig(
   }
 
   const hasUserCssConfig =
-    webpackConfig.module?.rules.some(
-      (rule) => canMatchCss(rule.test) || canMatchCss(rule.include)
+    webpackConfig.module?.rules?.some(
+      (rule: any) => canMatchCss(rule.test) || canMatchCss(rule.include)
     ) ?? false
 
   if (hasUserCssConfig) {
@@ -2235,9 +2258,10 @@ export default async function getBaseWebpackConfig(
       )
     }
 
-    if (webpackConfig.module?.rules.length) {
+    if (webpackConfig.module?.rules?.length) {
       // Remove default CSS Loaders
       webpackConfig.module.rules.forEach((r) => {
+        if (!r || typeof r !== 'object') return
         if (Array.isArray(r.oneOf)) {
           r.oneOf = r.oneOf.filter(
             (o) => (o as any)[Symbol.for('__next_css_remove')] !== true
@@ -2275,6 +2299,7 @@ export default async function getBaseWebpackConfig(
 
     webpackConfig.module.rules = webpackConfig.module.rules.filter(
       (rule): boolean => {
+        if (!rule || typeof rule !== 'object') return true
         if (!(rule.test instanceof RegExp)) return true
         if ('noop.ts'.match(rule.test) && !'noop.js'.match(rule.test)) {
           // remove if it matches @zeit/next-typescript
@@ -2391,7 +2416,7 @@ export default async function getBaseWebpackConfig(
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     const updatedEntry = async () => {
-      const entry: webpack5.EntryObject =
+      const entry: webpack.EntryObject =
         typeof originalEntry === 'function'
           ? await originalEntry()
           : originalEntry
@@ -2426,21 +2451,10 @@ export default async function getBaseWebpackConfig(
     webpackConfig.entry = updatedEntry
   }
 
-  if (!dev) {
+  if (!dev && typeof webpackConfig.entry === 'function') {
     // entry is always a function
-    webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
+    webpackConfig.entry = await webpackConfig.entry()
   }
 
   return webpackConfig
-}
-
-function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
-  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
-  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
-
-  if (isPrivateKey || hasNextRuntimeKey) {
-    throw new Error(
-      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-    )
-  }
 }

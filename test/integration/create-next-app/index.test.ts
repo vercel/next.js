@@ -186,6 +186,36 @@ describe('create next app', () => {
     })
   })
 
+  it('should allow example with GitHub URL with trailing slash', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'github-app'
+      const res = await run(
+        [
+          projectName,
+          '--example',
+          'https://github.com/vercel/nextjs-portfolio-starter/',
+        ],
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.mdx'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
+    })
+  })
+
   it('should allow example with GitHub URL and example-path', async () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'github-example-path'

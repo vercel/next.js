@@ -65,7 +65,7 @@ With `next/script`, you decide when to load your third-party script by using the
 <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
 ```
 
-There are three different loading strategies that can be used:
+There are four different loading strategies that can be used:
 
 - `beforeInteractive`: Load before the page is interactive
 - `afterInteractive`: (**default**) Load immediately after the page becomes interactive
@@ -113,6 +113,7 @@ Scripts that use the `afterInteractive` strategy are injected client-side and wi
 
 ```jsx
 <Script
+  id="google-analytics"
   strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: `

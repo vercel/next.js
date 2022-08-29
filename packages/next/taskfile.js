@@ -1733,13 +1733,12 @@ export async function ncc_webpack_bundle5(task, opts) {
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
     .ncc({
-      packageName: 'webpack5',
+      packageName: 'webpack',
       bundleName: 'webpack',
       customEmit(path) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
       externals: bundleExternals,
-      minify: false,
       target: 'es5',
     })
     .target('compiled/webpack')

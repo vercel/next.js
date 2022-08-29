@@ -1,5 +1,5 @@
 import os from 'os'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -115,7 +115,7 @@ export interface ExperimentalConfig {
   runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
-  urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+  urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
     remotePatterns?: RemotePattern[]
@@ -145,6 +145,12 @@ export interface ExperimentalConfig {
   }
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
+  /**
+   * If set to `false`, webpack won't fall back to polyfill Node.js modules in the browser
+   * Full list of old polyfills is accessible here:
+   * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
+   */
+  fallbackNodePolyfills?: false
 }
 
 export type ExportPathMap = {

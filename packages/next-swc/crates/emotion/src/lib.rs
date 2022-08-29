@@ -82,7 +82,7 @@ static EMOTION_OFFICIAL_LIBRARIES: Lazy<Vec<EmotionModuleConfig>> = Lazy::new(||
 });
 
 static SPACE_AROUND_COLON: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\s*(?P<s>[:|;|,|\{,\}])\s*").unwrap());
+    Lazy::new(|| Regex::new(r"\s*(?P<s>[:;,\{,\}])\s*").unwrap());
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

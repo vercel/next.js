@@ -582,6 +582,10 @@ describe('app dir', () => {
           const html = await renderViaHTTP(next.url, `/catch-all/${route}`)
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
+
+          // Components under catch-all should not be treated as route that errors during build.
+          // They should be rendered properly when imported in page route.
+          expect($('#widget').text()).toBe('widget')
         })
 
         it('should handle required segments root as not found', async () => {
@@ -717,6 +721,24 @@ describe('app dir', () => {
           expect(await browser.elementByCss('#slow-page-message').text()).toBe(
             'hello from slow page'
           )
+        })
+      })
+
+      describe('next/router', () => {
+        it('should always return null when accessed from /app', async () => {
+          const browser = await webdriver(next.url, '/old-router')
+
+          try {
+            await browser.waitForElementByCss('#old-router')
+
+            const notNull = await browser.elementsByCss('.was-not-null')
+            expect(notNull.length).toBe(0)
+
+            const wasNull = await browser.elementsByCss('.was-null')
+            expect(wasNull.length).toBe(6)
+          } finally {
+            await browser.close()
+          }
         })
       })
 
@@ -1058,9 +1080,24 @@ describe('app dir', () => {
         })
       })
 
-      describe.skip('server pages', () => {
-        it('should support global css inside server pages', async () => {})
-        it('should support css modules inside server pages', async () => {})
+      describe('server pages', () => {
+        it('should support global css inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/css-page')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should support css modules inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/css-page')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#cssm')).color`
+            )
+          ).toBe('rgb(0, 0, 255)')
+        })
       })
 
       describe('client layouts', () => {

@@ -3,10 +3,11 @@ import chalk from 'next/dist/compiled/chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
+import type { CompilerOptions } from 'typescript'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 
 type DesiredCompilerOptionsShape = {
-  [key: string]:
+  [K in keyof CompilerOptions]:
     | { suggested: any }
     | {
         parsedValue?: any
@@ -58,8 +59,11 @@ function getDesiredCompilerOptions(
       parsedValues: [
         ts.ModuleResolutionKind.NodeJs,
         ts.ModuleResolutionKind.Node12,
+        // only newer TypeScript versions have this field, it
+        // will be filtered for older ones
+        (ts.ModuleResolutionKind as any).Node16,
         ts.ModuleResolutionKind.NodeNext,
-      ],
+      ].filter((val) => typeof val !== 'undefined'),
       value: 'node',
       reason: 'to match webpack resolution',
     },

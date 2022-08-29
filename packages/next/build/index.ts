@@ -1,4 +1,4 @@
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
@@ -154,6 +154,95 @@ type SingleCompilerResult = {
   stats: webpack.Stats | undefined
 }
 
+/**
+ * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
+ * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
+ *
+ * Since it is impossible to pass a function from main thread to a worker,
+ * instead of running "next/lib/typescript/runTypeCheck" in a worker,
+ * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
+ */
+function verifyTypeScriptSetup(
+  dir: string,
+  intentDirs: string[],
+  typeCheckPreflight: boolean,
+  tsconfigPath: string,
+  disableStaticImages: boolean,
+  cacheDir: string | undefined,
+  numWorkers: number | undefined,
+  enableWorkerThreads: boolean | undefined
+) {
+  const typeCheckWorker = new JestWorker(
+    require.resolve('../lib/verifyTypeScriptSetup'),
+    {
+      numWorkers,
+      enableWorkerThreads,
+      maxRetries: 0,
+    }
+  ) as JestWorker & {
+    verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
+  }
+
+  typeCheckWorker.getStdout().pipe(process.stdout)
+  typeCheckWorker.getStderr().pipe(process.stderr)
+
+  return typeCheckWorker
+    .verifyTypeScriptSetup({
+      dir,
+      intentDirs,
+      typeCheckPreflight,
+      tsconfigPath,
+      disableStaticImages,
+      cacheDir,
+    })
+    .then((result) => {
+      typeCheckWorker.end()
+      return result
+    })
+}
+
+function generateClientSsgManifest(
+  prerenderManifest: PrerenderManifest,
+  {
+    buildId,
+    distDir,
+    locales,
+  }: { buildId: string; distDir: string; locales: string[] }
+) {
+  const ssgPages = new Set<string>(
+    [
+      ...Object.entries(prerenderManifest.routes)
+        // Filter out dynamic routes
+        .filter(([, { srcRoute }]) => srcRoute == null)
+        .map(([route]) => normalizeLocalePath(route, locales).pathname),
+      ...Object.keys(prerenderManifest.dynamicRoutes),
+    ].sort()
+  )
+
+  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
+    ssgPages
+  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+
+  writeFileSync(
+    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    clientSsgManifestContent
+  )
+}
+
+function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
+  return plugin instanceof TelemetryPlugin
+}
+
+function pageToRoute(page: string) {
+  const routeRegex = getNamedRouteRegex(page)
+  return {
+    page,
+    regex: normalizeRouteRegex(routeRegex.re.source),
+    routeKeys: routeRegex.routeKeys,
+    namedRegex: routeRegex.namedRegex,
+  }
+}
+
 export default async function build(
   dir: string,
   conf = null,
@@ -279,47 +368,57 @@ export default async function build(
 
       const typeCheckStart = process.hrtime()
 
-      const [[verifyResult, typeCheckEnd]] = await Promise.all([
-        nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
-          verifyTypeScriptSetup(
-            dir,
-            [pagesDir, appDir].filter(Boolean) as string[],
-            !ignoreTypeScriptErrors,
-            config.typescript.tsconfigPath,
-            config.images.disableStaticImages,
-            cacheDir,
-            config.experimental.cpus,
-            config.experimental.workerThreads
-          ).then((resolved) => {
-            const checkEnd = process.hrtime(typeCheckStart)
-            return [resolved, checkEnd] as const
-          })
-        ),
-        shouldLint &&
-          nextBuildSpan.traceChild('verify-and-lint').traceAsyncFn(async () => {
-            await verifyAndLint(
+      try {
+        const [[verifyResult, typeCheckEnd]] = await Promise.all([
+          nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
+            verifyTypeScriptSetup(
               dir,
-              eslintCacheDir,
-              config.eslint?.dirs,
+              [pagesDir, appDir].filter(Boolean) as string[],
+              !ignoreTypeScriptErrors,
+              config.typescript.tsconfigPath,
+              config.images.disableStaticImages,
+              cacheDir,
               config.experimental.cpus,
-              config.experimental.workerThreads,
-              telemetry
-            )
-          }),
-      ])
+              config.experimental.workerThreads
+            ).then((resolved) => {
+              const checkEnd = process.hrtime(typeCheckStart)
+              return [resolved, checkEnd] as const
+            })
+          ),
+          shouldLint &&
+            nextBuildSpan
+              .traceChild('verify-and-lint')
+              .traceAsyncFn(async () => {
+                await verifyAndLint(
+                  dir,
+                  eslintCacheDir,
+                  config.eslint?.dirs,
+                  config.experimental.cpus,
+                  config.experimental.workerThreads,
+                  telemetry
+                )
+              }),
+        ])
+        typeCheckingAndLintingSpinner?.stopAndPersist()
 
-      typeCheckingAndLintingSpinner?.stopAndPersist()
-
-      if (!ignoreTypeScriptErrors && verifyResult) {
-        telemetry.record(
-          eventTypeCheckCompleted({
-            durationInSeconds: typeCheckEnd[0],
-            typescriptVersion: verifyResult.version,
-            inputFilesCount: verifyResult.result?.inputFilesCount,
-            totalFilesCount: verifyResult.result?.totalFilesCount,
-            incremental: verifyResult.result?.incremental,
-          })
-        )
+        if (!ignoreTypeScriptErrors && verifyResult) {
+          telemetry.record(
+            eventTypeCheckCompleted({
+              durationInSeconds: typeCheckEnd[0],
+              typescriptVersion: verifyResult.version,
+              inputFilesCount: verifyResult.result?.inputFilesCount,
+              totalFilesCount: verifyResult.result?.totalFilesCount,
+              incremental: verifyResult.result?.incremental,
+            })
+          )
+        }
+      } catch (err) {
+        // prevent showing jest-worker internal error as it
+        // isn't helpful for users and clutters output
+        if (isError(err) && err.message === 'Call retries were exceeded') {
+          process.exit(1)
+        }
+        throw err
       }
 
       const buildLintEvent: EventBuildFeatureUsage = {
@@ -709,6 +808,10 @@ export default async function build(
               ? [
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    FLIGHT_SERVER_CSS_MANIFEST + '.js'
+                  ),
                   path.join(
                     SERVER_DIRECTORY,
                     FLIGHT_SERVER_CSS_MANIFEST + '.json'
@@ -2404,94 +2507,5 @@ export default async function build(
     await flushAllTraces()
     teardownTraceSubscriber()
     teardownCrashReporter()
-  }
-}
-
-/**
- * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
- * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
- *
- * Since it is impossible to pass a function from main thread to a worker,
- * instead of running "next/lib/typescript/runTypeCheck" in a worker,
- * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
- */
-function verifyTypeScriptSetup(
-  dir: string,
-  intentDirs: string[],
-  typeCheckPreflight: boolean,
-  tsconfigPath: string,
-  disableStaticImages: boolean,
-  cacheDir: string | undefined,
-  numWorkers: number | undefined,
-  enableWorkerThreads: boolean | undefined
-) {
-  const typeCheckWorker = new JestWorker(
-    require.resolve('../lib/verifyTypeScriptSetup'),
-    {
-      numWorkers,
-      enableWorkerThreads,
-      maxRetries: 0,
-    }
-  ) as JestWorker & {
-    verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
-  }
-
-  typeCheckWorker.getStdout().pipe(process.stdout)
-  typeCheckWorker.getStderr().pipe(process.stderr)
-
-  return typeCheckWorker
-    .verifyTypeScriptSetup(
-      dir,
-      intentDirs,
-      typeCheckPreflight,
-      tsconfigPath,
-      disableStaticImages,
-      cacheDir
-    )
-    .then((result) => {
-      typeCheckWorker.end()
-      return result
-    })
-}
-
-function generateClientSsgManifest(
-  prerenderManifest: PrerenderManifest,
-  {
-    buildId,
-    distDir,
-    locales,
-  }: { buildId: string; distDir: string; locales: string[] }
-) {
-  const ssgPages = new Set<string>(
-    [
-      ...Object.entries(prerenderManifest.routes)
-        // Filter out dynamic routes
-        .filter(([, { srcRoute }]) => srcRoute == null)
-        .map(([route]) => normalizeLocalePath(route, locales).pathname),
-      ...Object.keys(prerenderManifest.dynamicRoutes),
-    ].sort()
-  )
-
-  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
-    ssgPages
-  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-
-  writeFileSync(
-    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
-    clientSsgManifestContent
-  )
-}
-
-function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
-  return plugin instanceof TelemetryPlugin
-}
-
-function pageToRoute(page: string) {
-  const routeRegex = getNamedRouteRegex(page)
-  return {
-    page,
-    regex: normalizeRouteRegex(routeRegex.re.source),
-    routeKeys: routeRegex.routeKeys,
-    namedRegex: routeRegex.namedRegex,
   }
 }

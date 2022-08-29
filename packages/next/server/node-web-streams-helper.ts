@@ -4,6 +4,16 @@ export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
 }
 
+export function encodeText(input: string) {
+  return new TextEncoder().encode(input)
+}
+
+export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
+  return textDecoder
+    ? textDecoder.decode(input, { stream: true })
+    : new TextDecoder().decode(input)
+}
+
 export function readableStreamTee<T = any>(
   readable: ReadableStream<T>
 ): [ReadableStream<T>, ReadableStream<T>] {
@@ -74,16 +84,6 @@ export async function streamToString(
 
     bufferedString += decodeText(value, textDecoder)
   }
-}
-
-export function encodeText(input: string) {
-  return new TextEncoder().encode(input)
-}
-
-export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
-  return textDecoder
-    ? textDecoder.decode(input, { stream: true })
-    : new TextDecoder().decode(input)
 }
 
 export function createBufferedTransformStream(
@@ -168,69 +168,6 @@ export function createHeadInjectionTransformStream(
   })
 }
 
-export async function continueFromInitialStream(
-  renderStream: ReactReadableStream,
-  {
-    suffix,
-    dataStream,
-    generateStaticHTML,
-    flushEffectHandler,
-    flushEffectsToHead,
-    initialStylesheets,
-  }: {
-    suffix?: string
-    dataStream?: ReadableStream<Uint8Array>
-    generateStaticHTML: boolean
-    flushEffectHandler?: () => string
-    flushEffectsToHead: boolean
-    initialStylesheets?: string[]
-  }
-): Promise<ReadableStream<Uint8Array>> {
-  const closeTag = '</body></html>'
-  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
-
-  if (generateStaticHTML) {
-    await renderStream.allReady
-  }
-
-  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
-    createBufferedTransformStream(),
-    flushEffectHandler && !flushEffectsToHead
-      ? createFlushEffectStream(flushEffectHandler)
-      : null,
-    suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
-    dataStream ? createInlineDataStream(dataStream) : null,
-    suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-    createHeadInjectionTransformStream(() => {
-      const inlineStyleLinks = (initialStylesheets || [])
-        .map((href) => `<link rel="stylesheet" href="/_next/${href}">`)
-        .join('')
-      // TODO-APP: Inject flush effects to end of head in app layout rendering, to avoid
-      // hydration errors. Remove this once it's ready to be handled by react itself.
-      const flushEffectsContent =
-        flushEffectHandler && flushEffectsToHead ? flushEffectHandler() : ''
-      return inlineStyleLinks + flushEffectsContent
-    }),
-  ].filter(nonNullable)
-
-  return transforms.reduce(
-    (readable, transform) => readable.pipeThrough(transform),
-    renderStream
-  )
-}
-
-export function createSuffixStream(
-  suffix: string
-): TransformStream<Uint8Array, Uint8Array> {
-  return new TransformStream({
-    flush(controller) {
-      if (suffix) {
-        controller.enqueue(encodeText(suffix))
-      }
-    },
-  })
-}
-
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
 export function createDeferredSuffixStream(
@@ -306,4 +243,62 @@ export function createInlineDataStream(
       }
     },
   })
+}
+
+export function createSuffixStream(
+  suffix: string
+): TransformStream<Uint8Array, Uint8Array> {
+  return new TransformStream({
+    flush(controller) {
+      if (suffix) {
+        controller.enqueue(encodeText(suffix))
+      }
+    },
+  })
+}
+
+export async function continueFromInitialStream(
+  renderStream: ReactReadableStream,
+  {
+    suffix,
+    dataStream,
+    generateStaticHTML,
+    flushEffectHandler,
+    flushEffectsToHead,
+  }: {
+    suffix?: string
+    dataStream?: ReadableStream<Uint8Array>
+    generateStaticHTML: boolean
+    flushEffectHandler?: () => string
+    flushEffectsToHead: boolean
+  }
+): Promise<ReadableStream<Uint8Array>> {
+  const closeTag = '</body></html>'
+  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
+
+  if (generateStaticHTML) {
+    await renderStream.allReady
+  }
+
+  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+    createBufferedTransformStream(),
+    flushEffectHandler && !flushEffectsToHead
+      ? createFlushEffectStream(flushEffectHandler)
+      : null,
+    suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
+    dataStream ? createInlineDataStream(dataStream) : null,
+    suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+    createHeadInjectionTransformStream(() => {
+      // TODO-APP: Inject flush effects to end of head in app layout rendering, to avoid
+      // hydration errors. Remove this once it's ready to be handled by react itself.
+      const flushEffectsContent =
+        flushEffectHandler && flushEffectsToHead ? flushEffectHandler() : ''
+      return flushEffectsContent
+    }),
+  ].filter(nonNullable)
+
+  return transforms.reduce(
+    (readable, transform) => readable.pipeThrough(transform),
+    renderStream
+  )
 }

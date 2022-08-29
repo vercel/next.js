@@ -67,6 +67,8 @@ export interface StaticImageData {
   height: number
   width: number
   blurDataURL?: string
+  blurWidth?: number
+  blurHeight?: number
 }
 
 interface StaticRequire {
@@ -358,13 +360,41 @@ const ImageElement = ({
         loading={loading}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
-          (img: ImgElementWithDataProp) => {
+          (img: ImgElementWithDataProp | null) => {
+            if (!img) {
+              return
+            }
+            if (onError) {
+              // If the image has an error before react hydrates, then the error is lost.
+              // The workaround is to wait until the image is mounted which is after hydration,
+              // then we set the src again to trigger the error handler (if there was an error).
+              // eslint-disable-next-line no-self-assign
+              img.src = img.src
+            }
             if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
+              if (!srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
+              if (
+                img.getAttribute('objectFit') ||
+                img.getAttribute('objectfit')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
+              if (
+                img.getAttribute('objectPosition') ||
+                img.getAttribute('objectposition')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
             }
-            if (img?.complete) {
+            if (img.complete) {
               handleLoading(
                 img,
                 srcString,
@@ -374,7 +404,13 @@ const ImageElement = ({
               )
             }
           },
-          [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
+          [
+            srcString,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete,
+            onError,
+          ]
         )}
         onLoad={(event) => {
           const img = event.currentTarget as ImgElementWithDataProp
@@ -429,6 +465,73 @@ const ImageElement = ({
   )
 }
 
+function defaultLoader({
+  config,
+  src,
+  width,
+  quality,
+}: ImageLoaderPropsWithConfig): string {
+  if (process.env.NODE_ENV !== 'production') {
+    const missingValues = []
+
+    // these should always be provided but make sure they are
+    if (!src) missingValues.push('src')
+    if (!width) missingValues.push('width')
+
+    if (missingValues.length > 0) {
+      throw new Error(
+        `Next Image Optimization requires ${missingValues.join(
+          ', '
+        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
+          { src, width, quality }
+        )}`
+      )
+    }
+
+    if (src.startsWith('//')) {
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (
+      !src.startsWith('/') &&
+      (config.domains || experimentalRemotePatterns)
+    ) {
+      let parsedSrc: URL
+      try {
+        parsedSrc = new URL(src)
+      } catch (err) {
+        console.error(err)
+        throw new Error(
+          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+        )
+      }
+
+      if (process.env.NODE_ENV !== 'test') {
+        // We use dynamic require because this should only error in development
+        const { hasMatch } = require('../../shared/lib/match-remote-pattern')
+        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+          )
+        }
+      }
+    }
+  }
+
+  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
+  }
+
+  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
+    quality || 75
+  }`
+}
+
 export default function Image({
   src,
   sizes,
@@ -477,6 +580,8 @@ export default function Image({
   }
 
   let staticSrc = ''
+  let blurWidth: number | undefined
+  let blurHeight: number | undefined
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
 
@@ -487,11 +592,16 @@ export default function Image({
         )}`
       )
     }
+    blurWidth = staticImageData.blurWidth
+    blurHeight = staticImageData.blurHeight
     blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
 
-    height = height || staticImageData.height
-    width = width || staticImageData.width
+    // Ignore width and height (come from the bundler) when "fill" is used
+    if (!fill) {
+      height = height || staticImageData.height
+      width = width || staticImageData.width
+    }
     if (!staticImageData.height || !staticImageData.width) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
@@ -586,19 +696,8 @@ export default function Image({
       )
     }
 
-    if ('objectFit' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" property.`
-      )
-    }
-    if ('objectPosition' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" property.`
-      )
-    }
-
     if (placeholder === 'blur') {
-      if ((widthInt || 0) * (heightInt || 0) < 1600) {
+      if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
@@ -692,16 +791,24 @@ export default function Image({
           bottom: 0,
         }
       : {},
-    showAltText || placeholder === 'blur' ? {} : { color: 'transparent' },
+    showAltText ? {} : { color: 'transparent' },
     style
   )
-  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
+  const std = blurWidth && blurHeight ? '1' : '20'
+  const svgWidth = blurWidth || widthInt
+  const svgHeight = blurHeight || heightInt
+  const feComponentTransfer = blurDataURL?.startsWith('data:image/jpeg')
+    ? `%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%`
+    : ''
+  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${svgWidth} ${svgHeight}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='${std}'/%3E${feComponentTransfer}%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
+
   const blurStyle =
-    placeholder === 'blur' && !blurComplete
+    placeholder === 'blur' && blurDataURL && !blurComplete
       ? {
           backgroundSize: imgStyle.objectFit || 'cover',
-          backgroundPosition: imgStyle.objectPosition || '0% 0%',
-          ...(blurDataURL?.startsWith('data:image')
+          backgroundPosition: imgStyle.objectPosition || '50% 50%',
+          backgroundRepeat: 'no-repeat',
+          ...(blurDataURL.startsWith('data:image') && svgWidth && svgHeight
             ? {
                 backgroundImage: svgBlurPlaceholder,
               }
@@ -802,71 +909,4 @@ export default function Image({
       ) : null}
     </>
   )
-}
-
-function defaultLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  if (process.env.NODE_ENV !== 'production') {
-    const missingValues = []
-
-    // these should always be provided but make sure they are
-    if (!src) missingValues.push('src')
-    if (!width) missingValues.push('width')
-
-    if (missingValues.length > 0) {
-      throw new Error(
-        `Next Image Optimization requires ${missingValues.join(
-          ', '
-        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
-          { src, width, quality }
-        )}`
-      )
-    }
-
-    if (src.startsWith('//')) {
-      throw new Error(
-        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
-      )
-    }
-
-    if (
-      !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
-    ) {
-      let parsedSrc: URL
-      try {
-        parsedSrc = new URL(src)
-      } catch (err) {
-        console.error(err)
-        throw new Error(
-          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
-        )
-      }
-
-      if (process.env.NODE_ENV !== 'test') {
-        // We use dynamic require because this should only error in development
-        const { hasMatch } = require('../../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
-          throw new Error(
-            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
-          )
-        }
-      }
-    }
-  }
-
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
-
-  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || 75
-  }`
 }

@@ -1,4 +1,4 @@
-import type webpack from 'webpack5'
+import type webpack from 'webpack'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 
@@ -12,7 +12,7 @@ async function createTreeCodeFromPath({
   removeExt: (pathToRemoveExtensions: string) => string
 }) {
   let tree: undefined | string
-  const splittedPath = pagePath.split('/')
+  const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
 
   const segments = ['', ...splittedPath.slice(1)]
@@ -24,8 +24,11 @@ async function createTreeCodeFromPath({
 
     // First item in the list is the page which can't have layouts by itself
     if (i === segments.length - 1) {
+      const resolvedPagePath = await resolve(pagePath)
       // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-      tree = `['', {}, {page: () => require('${pagePath}')}]`
+      tree = `['', {}, {filePath: ${JSON.stringify(
+        resolvedPagePath
+      )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
       continue
     }
 
@@ -46,14 +49,15 @@ async function createTreeCodeFromPath({
         children ? `children: ${children},` : ''
       }
     }, {
+      filePath: '${resolvedLayoutPath}',
       ${
         resolvedLayoutPath
-          ? `layout: () => require('${resolvedLayoutPath}'),`
+          ? `layout: () => require(${JSON.stringify(resolvedLayoutPath)}),`
           : ''
       }
       ${
         resolvedLoadingPath
-          ? `loading: () => require('${resolvedLoadingPath}'),`
+          ? `loading: () => require(${JSON.stringify(resolvedLoadingPath)}),`
           : ''
       }
     }]`
