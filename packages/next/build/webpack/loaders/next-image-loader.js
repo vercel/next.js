@@ -32,6 +32,19 @@ function nextImageLoader(content) {
     let blurHeight
 
     if (VALID_BLUR_EXT.includes(extension)) {
+      // Shrink the image's largest dimension
+      if (imageSize.width >= imageSize.height) {
+        blurWidth = BLUR_IMG_SIZE
+        blurHeight = Math.round(
+          (imageSize.height / imageSize.width) * BLUR_IMG_SIZE
+        )
+      } else {
+        blurWidth = Math.round(
+          (imageSize.width / imageSize.height) * BLUR_IMG_SIZE
+        )
+        blurHeight = BLUR_IMG_SIZE
+      }
+
       if (isDev) {
         const prefix = 'http://localhost'
         const url = new URL(`${basePath || ''}/_next/image`, prefix)
@@ -40,19 +53,6 @@ function nextImageLoader(content) {
         url.searchParams.set('q', BLUR_QUALITY)
         blurDataURL = url.href.slice(prefix.length)
       } else {
-        // Shrink the image's largest dimension
-        if (imageSize.width >= imageSize.height) {
-          blurWidth = BLUR_IMG_SIZE
-          blurHeight = Math.round(
-            (imageSize.height / imageSize.width) * BLUR_IMG_SIZE
-          )
-        } else {
-          blurWidth = Math.round(
-            (imageSize.width / imageSize.height) * BLUR_IMG_SIZE
-          )
-          blurHeight = BLUR_IMG_SIZE
-        }
-
         const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
         const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
           resizeImage(content, blurWidth, blurHeight, extension, BLUR_QUALITY)

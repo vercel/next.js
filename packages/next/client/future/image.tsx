@@ -815,7 +815,7 @@ export default function Image({
       : {}
 
   if (process.env.NODE_ENV === 'development') {
-    if (blurDataURL?.startsWith('/')) {
+    if (blurStyle.backgroundImage && blurDataURL?.startsWith('/')) {
       // During `next dev`, we don't want to generate blur placeholders with webpack
       // because it can delay starting the dev server. Instead, `next-image-loader.js`
       // will inline a special url to lazily generate the blur placeholder at request time.
