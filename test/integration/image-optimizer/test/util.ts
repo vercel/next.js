@@ -456,7 +456,7 @@ export function runTests(ctx) {
     if (isDev) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
-      expect(await res.text()).toBe(
+      expect(await res.text()).toMatch(
         `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
       )
     } else {
@@ -472,7 +472,7 @@ export function runTests(ctx) {
     if (isDev) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
-      expect(await res.text()).toBe(
+      expect(await res.text()).toMatch(
         `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
       )
     } else {
