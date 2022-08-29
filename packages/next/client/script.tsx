@@ -247,4 +247,6 @@ function Script(props: ScriptProps): JSX.Element | null {
   return null
 }
 
+Object.defineProperty(Script, '__nextScript', { value: true })
+
 export default Script
