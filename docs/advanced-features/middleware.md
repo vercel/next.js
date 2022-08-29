@@ -50,6 +50,8 @@ export const config = {
 }
 ```
 
+> **Note** the `pageExtensions` config affects middleware as well, [see related documentation here](/docs/api-reference/next.config.js/custom-page-extensions.md).
+
 ## Matching Paths
 
 Middleware will be invoked for **every route in your project**. The following is the execution order:
