@@ -241,7 +241,7 @@ export function getStaticProps() {
                     "@next/react-refresh-utils": "^12.2.5",
                     "react": "^18.2.0",
                     "react-dom": "^18.2.0",
-                    "react-refresh": "^0.14.0",
+                    "react-refresh": "^0.12.0",
                 }
             };
             File::create(path.join("package.json"))
