@@ -457,7 +457,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
       expect(await res.text()).toBe(
-        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64,UklGRlIAAABXRUJQVlA4IEYAAACwAQCdASoIAAgAAkA4JaQAAp2cwt8EAP79KbQ0BVm4QoDXIX5ZsWTSXe0tfSlEXLq/vbXjIBhHoY3GzDxxLttmNBFLPQAA'/></svg>`
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
       )
     } else {
       expect(res.status).toBe(400)
@@ -473,7 +473,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
       expect(await res.text()).toBe(
-        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64,UklGRjQAAABXRUJQVlA4ICgAAACQAQCdASoDAAMAAkA4JaQAAudZtgAA/vscq+drfo03+O5Tw/A4AAAA'/></svg>`
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
       )
     } else {
       expect(res.status).toBe(400)
