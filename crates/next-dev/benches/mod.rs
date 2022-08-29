@@ -9,6 +9,7 @@ use std::{
 
 use chromiumoxide::{
     browser::{Browser, BrowserConfig},
+    cdp::js_protocol::runtime::EventExceptionThrown,
     error::CdpError::Ws,
     Page,
 };
@@ -18,7 +19,7 @@ use criterion::{
     measurement::{Measurement, WallTime},
     AsyncBencher, BenchmarkId, Criterion,
 };
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use regex::Regex;
 use tokio::runtime::Runtime;
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
@@ -81,7 +82,15 @@ impl PreparedApp {
 
     async fn new_page(&self, browser: &Browser) -> Page {
         let server = self.server.as_ref().expect("Server must be started");
-        browser.new_page(&server.1).await.unwrap()
+        let page = browser.new_page("about:blank").await.unwrap();
+        let mut errors = page.event_listener::<EventExceptionThrown>().await.unwrap();
+
+        page.goto(&server.1).await.unwrap();
+
+        // Make sure no runtime errors occurred when loading the page
+        assert!(errors.next().now_or_never().is_none());
+
+        page
     }
 
     fn schedule_page_disposal(&mut self, page: Page) {
