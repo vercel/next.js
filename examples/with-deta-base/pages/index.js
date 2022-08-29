@@ -75,10 +75,6 @@ export default function Home() {
       <Head>
         <title>deta + next.js</title>
         <link rel="icon" href="/favicon.ico" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap"
-          rel="stylesheet"
-        />
       </Head>
       <header className={styles.header}>
         <h2>
