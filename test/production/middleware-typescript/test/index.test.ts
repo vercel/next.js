@@ -19,7 +19,7 @@ describe('should set-up next', () => {
         'next.config.js': new FileRef(join(appDir, 'next.config.js')),
       },
       dependencies: {
-        typescript: '4.7.4',
+        typescript: 'latest',
         '@types/node': 'latest',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',

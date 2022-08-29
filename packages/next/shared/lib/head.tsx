@@ -118,14 +118,15 @@ function unique() {
  *
  * @param headChildrenElements List of children of <Head>
  */
-function reduceComponents(
+function reduceComponents<T extends {} & WithInAmpMode>(
   headChildrenElements: Array<React.ReactElement<any>>,
-  props: WithInAmpMode
+  props: T
 ) {
+  const { inAmpMode } = props
   return headChildrenElements
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(props.inAmpMode).reverse())
+    .concat(defaultHead(inAmpMode).reverse())
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -133,7 +134,7 @@ function reduceComponents(
       if (
         process.env.NODE_ENV !== 'development' &&
         process.env.__NEXT_OPTIMIZE_FONTS &&
-        !props.inAmpMode
+        !inAmpMode
       ) {
         if (
           c.type === 'link' &&
