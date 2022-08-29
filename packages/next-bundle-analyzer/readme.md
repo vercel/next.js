@@ -56,6 +56,15 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 module.exports = withBundleAnalyzer({})
 ```
 
+To generate a json report, set `analyzerMode` to `'json'`:
+
+```js
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  analyzerMode: 'json',
+})
+module.exports = withBundleAnalyzer({})
+```
+
 ### Usage with next-compose-plugins
 
 From version 2.0.0 of next-compose-plugins you need to call bundle-analyzer in this way to work
