@@ -22,9 +22,27 @@ describe('correct tsconfig.json defaults', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should add `moduleResoution` when generating tsconfig.json in dev', async () => {
+  it('should add `moduleResolution` when generating tsconfig.json in dev', async () => {
     const tsconfigPath = path.join(next.testDir, 'tsconfig.json')
     expect(fs.existsSync(tsconfigPath)).toBeFalse()
+
+    await next.start()
+    await waitFor(1000)
+    await next.stop()
+
+    expect(fs.existsSync(tsconfigPath)).toBeTrue()
+
+    const tsconfig = JSON.parse(await next.readFile('tsconfig.json'))
+    expect(next.cliOutput).not.toContain('moduleResolution')
+
+    expect(tsconfig.compilerOptions).toEqual(
+      expect.objectContaining({ moduleResolution: 'node' })
+    )
+  })
+
+  it('should not warn for `moduleResolution` when already present and valid', async () => {
+    const tsconfigPath = path.join(next.testDir, 'tsconfig.json')
+    expect(fs.existsSync(tsconfigPath)).toBeTrue()
 
     await next.start()
     await waitFor(1000)
@@ -37,5 +55,6 @@ describe('correct tsconfig.json defaults', () => {
     expect(tsconfig.compilerOptions).toEqual(
       expect.objectContaining({ moduleResolution: 'node' })
     )
+    expect(next.cliOutput).not.toContain('moduleResolution')
   })
 })
