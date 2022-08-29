@@ -46,6 +46,9 @@ function nextImageLoader(content) {
       }
 
       if (isDev) {
+        // During `next dev`, we don't want to generate blur placeholders with webpack
+        // because it can delay starting the dev server. Instead, we inline a
+        // special url to lazily generate the blur placeholder at request time.
         const prefix = 'http://localhost'
         const url = new URL(`${basePath || ''}/_next/image`, prefix)
         url.searchParams.set('url', outputPath)

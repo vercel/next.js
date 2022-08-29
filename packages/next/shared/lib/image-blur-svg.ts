@@ -1,5 +1,5 @@
 /**
- * A shared function. used on both client and server. to generate a SVG blur placeholder.
+ * A shared function, used on both client and server, to generate a SVG blur placeholder.
  */
 export function getImageBlurSvg({
   widthInt,
@@ -17,13 +17,6 @@ export function getImageBlurSvg({
   const std = blurWidth && blurHeight ? '1' : '20'
   const svgWidth = blurWidth || widthInt
   const svgHeight = blurHeight || heightInt
-
-  if (!svgWidth || !svgHeight) {
-    throw new Error(
-      'Invariant: Expected image with placeholder="blur" to have width and height'
-    )
-  }
-
   const feComponentTransfer = blurDataURL.startsWith('data:image/jpeg')
     ? `%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%`
     : ''
