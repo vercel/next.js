@@ -1,7 +1,7 @@
 use std::{
     fs::remove_dir_all,
     future::Future,
-    io::{BufRead, BufReader},
+    io::{self, BufRead, BufReader, Write},
     path::PathBuf,
     process::{Child, ChildStdout, Command, Stdio},
     time::Duration,
@@ -34,10 +34,11 @@ fn bench_startup(c: &mut Criterion) {
 
     for size in [100, 1_000] {
         g.bench_with_input(BenchmarkId::new("modules", size), &size, |b, &s| {
+            let test_dir = build_test(s);
             b.to_async(&runtime).iter_batched_async(
-                || PreparedApp::new(s),
-                |mut app| async move {
-                    app.start_server();
+                PreparedApp::new,
+                |mut app| async {
+                    app.start_server(&test_dir);
                     let page = app.new_page(browser).await;
                     page.wait_for_navigation().await.unwrap();
                     app.schedule_page_disposal(page);
@@ -45,7 +46,8 @@ fn bench_startup(c: &mut Criterion) {
                     app
                 },
                 |app| app.dispose(),
-            )
+            );
+            remove_dir_all(&test_dir).unwrap();
         });
     }
 
@@ -53,32 +55,22 @@ fn bench_startup(c: &mut Criterion) {
 }
 struct PreparedApp {
     server: Option<(Child, String)>,
-    test_dir: PathBuf,
     pages: Vec<Page>,
 }
 
 impl PreparedApp {
-    async fn new(module_count: usize) -> Self {
-        let test_dir = TestAppBuilder {
-            module_count,
-            directories_count: module_count / 20,
-            ..Default::default()
-        }
-        .build()
-        .unwrap();
-
+    async fn new() -> Self {
         Self {
-            test_dir,
             server: None,
             pages: Vec::new(),
         }
     }
 
-    fn start_server(&mut self) {
+    fn start_server(&mut self, test_dir: &PathBuf) {
         assert!(self.server.is_none(), "Server already started");
-
         let mut proc = Command::new(std::env!("CARGO_BIN_EXE_next-dev"))
-            .args([self.test_dir.to_str().unwrap(), "--no-open", "--port", "0"])
+            .args([".", "--no-open", "--port", "0"])
+            .current_dir(test_dir)
             .stdout(Stdio::piped())
             .spawn()
             .unwrap();
@@ -103,8 +95,32 @@ impl PreparedApp {
         for page in self.pages {
             page.close().await.unwrap();
         }
-        remove_dir_all(&self.test_dir).unwrap();
     }
+}
+
+fn build_test(module_count: usize) -> PathBuf {
+    let test_dir = TestAppBuilder {
+        module_count,
+        directories_count: module_count / 20,
+        package_json: true,
+        ..Default::default()
+    }
+    .build()
+    .unwrap();
+
+    let npm = Command::new("npm")
+        .args(["install", "--prefer-offline", "--loglevel=error"])
+        .current_dir(&test_dir)
+        .output()
+        .unwrap();
+
+    if !npm.status.success() {
+        io::stdout().write_all(&npm.stdout).unwrap();
+        io::stderr().write_all(&npm.stderr).unwrap();
+        panic!("npm install failed. See above.");
+    }
+
+    test_dir
 }
 
 async fn create_browser() -> Browser {
