@@ -222,7 +222,10 @@ export class ImageOptimizerCache {
       sizes.push(BLUR_IMG_SIZE)
     }
 
-    if (!sizes.includes(width)) {
+    const isValidSize =
+      sizes.includes(width) || (isDev && width <= BLUR_IMG_SIZE)
+
+    if (!isValidSize) {
       return {
         errorMessage: `"w" parameter (width) of ${width} is not allowed`,
       }
@@ -610,7 +613,7 @@ export async function imageOptimizer(
       // End Squoosh transformation logic
     }
     if (optimizedBuffer) {
-      if (isDev && width === BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+      if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
         // During `next dev`, we don't want to generate blur placeholders with webpack
         // because it can delay starting the dev server. Instead, `next-image-loader.js`
         // will inline a special url to lazily generate the blur placeholder at request time.

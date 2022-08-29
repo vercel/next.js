@@ -52,7 +52,7 @@ function nextImageLoader(content) {
         const prefix = 'http://localhost'
         const url = new URL(`${basePath || ''}/_next/image`, prefix)
         url.searchParams.set('url', outputPath)
-        url.searchParams.set('w', BLUR_IMG_SIZE)
+        url.searchParams.set('w', blurWidth)
         url.searchParams.set('q', BLUR_QUALITY)
         blurDataURL = url.href.slice(prefix.length)
       } else {
