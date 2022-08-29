@@ -36,7 +36,18 @@ function parseModel(response, json) {
 // eslint-disable-next-line no-unused-vars
 function resolveModuleReference(bundlerConfig, moduleData) {
   if (bundlerConfig) {
-    return bundlerConfig[moduleData.id][moduleData.name];
+    var resolvedModuleData = bundlerConfig[moduleData.id][moduleData.name];
+
+    if (moduleData.async) {
+      return {
+        id: resolvedModuleData.id,
+        chunks: resolvedModuleData.chunks,
+        name: resolvedModuleData.name,
+        async: true
+      };
+    } else {
+      return resolvedModuleData;
+    }
   }
 
   return moduleData;
@@ -45,11 +56,13 @@ function resolveModuleReference(bundlerConfig, moduleData) {
 // in Webpack but unfortunately it's not exposed so we have to
 // replicate it in user space. null means that it has already loaded.
 
-var chunkCache = new Map(); // Start preloading the modules since we might need them soon.
+var chunkCache = new Map();
+var asyncModuleCache = new Map(); // Start preloading the modules since we might need them soon.
 // This function doesn't suspend.
 
 function preloadModule(moduleData) {
   var chunks = moduleData.chunks;
+  var promises = [];
 
   for (var i = 0; i < chunks.length; i++) {
     var chunkId = chunks[i];
@@ -58,31 +71,62 @@ function preloadModule(moduleData) {
     if (entry === undefined) {
       var thenable = globalThis.__next_chunk_load__(chunkId);
 
+      promises.push(thenable);
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
       var reject = chunkCache.set.bind(chunkCache, chunkId);
       thenable.then(resolve, reject);
       chunkCache.set(chunkId, thenable);
     }
   }
+
+  if (moduleData.async) {
+    var modulePromise = Promise.all(promises).then(function () {
+      return globalThis.__next_require__(moduleData.id);
+    });
+    modulePromise.then(function (value) {
+      modulePromise.status = 'fulfilled';
+      modulePromise.value = value;
+    }, function (reason) {
+      modulePromise.status = 'rejected';
+      modulePromise.reason = reason;
+    });
+    asyncModuleCache.set(moduleData.id, modulePromise);
+  }
 } // Actually require the module or suspend if it's not yet ready.
 // Increase priority if necessary.
 
 function requireModule(moduleData) {
-  var chunks = moduleData.chunks;
+  var moduleExports;
 
-  for (var i = 0; i < chunks.length; i++) {
-    var chunkId = chunks[i];
-    var entry = chunkCache.get(chunkId);
+  if (moduleData.async) {
+    // We assume that preloadModule has been called before, which
+    // should have added something to the module cache.
+    var promise = asyncModuleCache.get(moduleData.id);
 
-    if (entry !== null) {
-      // We assume that preloadModule has been called before.
-      // So we don't expect to see entry being undefined here, that's an error.
-      // Let's throw either an error or the Promise.
-      throw entry;
+    if (promise.status === 'fulfilled') {
+      moduleExports = promise.value;
+    } else if (promise.status === 'rejected') {
+      throw promise.reason;
+    } else {
+      throw promise;
     }
-  }
+  } else {
+    var chunks = moduleData.chunks;
 
-  var moduleExports = globalThis.__next_require__(moduleData.id);
+    for (var i = 0; i < chunks.length; i++) {
+      var chunkId = chunks[i];
+      var entry = chunkCache.get(chunkId);
+
+      if (entry !== null) {
+        // We assume that preloadModule has been called before.
+        // So we don't expect to see entry being undefined here, that's an error.
+        // Let's throw either an error or the Promise.
+        throw entry;
+      }
+    }
+
+    moduleExports = globalThis.__next_require__(moduleData.id);
+  }
 
   if (moduleData.name === '*') {
     // This is a placeholder value that represents that the caller imported this
