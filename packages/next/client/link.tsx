@@ -31,11 +31,6 @@ type InternalLinkProps = {
   href: Url
   as?: Url
   replace?: boolean
-
-  /**
-   * TODO-APP
-   */
-  soft?: boolean
   scroll?: boolean
   shallow?: boolean
   passHref?: boolean
@@ -139,8 +134,7 @@ function linkClicked(
         scroll,
       })
     } else {
-      // If we're doing a soft navigation, use the soft variants of
-      // replace/push.
+      // If `beforePopState` doesn't exist on the router it's the AppRouter.
       const method: keyof AppRouterInstance = replace ? 'replace' : 'push'
 
       router[method](href, { forceOptimisticNavigation: !prefetchEnabled })
@@ -205,7 +199,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       const optionalPropsGuard: Record<LinkPropsOptional, true> = {
         as: true,
         replace: true,
-        soft: true,
         scroll: true,
         shallow: true,
         passHref: true,
@@ -252,7 +245,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else if (
           key === 'replace' ||
-          key === 'soft' ||
           key === 'scroll' ||
           key === 'shallow' ||
           key === 'passHref' ||
@@ -293,7 +285,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       prefetch: prefetchProp,
       passHref,
       replace,
-      soft,
       shallow,
       scroll,
       locale,
