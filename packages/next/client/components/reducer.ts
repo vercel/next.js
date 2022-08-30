@@ -258,10 +258,6 @@ function createOptimisticTree(
   // if (isFirstSegment) {
   //   result[2] = href
   // }
-  // Copy the loading flag from existing tree
-  if (flightRouterState && flightRouterState[4]) {
-    result[4] = flightRouterState[4]
-  }
 
   return result
 }
@@ -314,10 +310,6 @@ function applyRouterStatePatchToTree(
   // if (url) {
   //   tree[2] = url
   // }
-  // Copy loading flag
-  if (flightRouterState[4]) {
-    tree[4] = flightRouterState[4]
-  }
 
   return tree
 }
