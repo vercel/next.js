@@ -103,24 +103,26 @@ export default function AppRouter({
   children: React.ReactNode
   hotReloader?: React.ReactNode
 }) {
-  const [{ tree, cache, pushRef, focusAndScrollRef, canonicalUrl }, dispatch] =
-    React.useReducer(reducer, {
-      tree: initialTree,
-      cache: {
-        data: null,
-        subTreeData: children,
-        parallelRoutes:
-          typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-      },
-      prefetchCache: new Map(),
-      pushRef: { pendingPush: false, mpaNavigation: false },
-      focusAndScrollRef: { apply: false },
-      canonicalUrl:
-        initialCanonicalUrl +
-        // Hash is read as the initial value for canonicalUrl in the browser
-        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
-        (typeof window !== 'undefined' ? window.location.hash : ''),
-    })
+  const [
+    { tree, cache, prefetchCache, pushRef, focusAndScrollRef, canonicalUrl },
+    dispatch,
+  ] = React.useReducer(reducer, {
+    tree: initialTree,
+    cache: {
+      data: null,
+      subTreeData: children,
+      parallelRoutes:
+        typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+    },
+    prefetchCache: new Map(),
+    pushRef: { pendingPush: false, mpaNavigation: false },
+    focusAndScrollRef: { apply: false },
+    canonicalUrl:
+      initialCanonicalUrl +
+      // Hash is read as the initial value for canonicalUrl in the browser
+      // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
+      (typeof window !== 'undefined' ? window.location.hash : ''),
+  })
 
   useEffect(() => {
     // Ensure initialParallelRoutes is cleaned up from memory once it's used.
@@ -186,14 +188,23 @@ export default function AppRouter({
 
     const routerInstance: AppRouterInstance = {
       // TODO-APP: implement prefetching of flight
-      prefetch: (href) => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
-          dispatch({
-            type: ACTION_PREFETCH,
-            url: new URL(href, location.origin),
+      prefetch: async (href) => {
+        const url = new URL(href, location.origin)
+        const r = fetchServerResponse(url, tree, true)
+        try {
+          r.readRoot()
+        } catch (e) {
+          await e
+          const flightData = r.readRoot()
+          // @ts-ignore startTransition exists
+          React.startTransition(() => {
+            dispatch({
+              type: ACTION_PREFETCH,
+              url,
+              flightData,
+            })
           })
-        })
+        }
       },
       replace: (href) => {
         // @ts-ignore startTransition exists
@@ -266,7 +277,7 @@ export default function AppRouter({
   // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
   if (typeof window !== 'undefined') {
     // @ts-ignore this is for debugging
-    window.nd = { router: appRouter, cache, tree }
+    window.nd = { router: appRouter, cache, prefetchCache, tree }
   }
 
   /**
