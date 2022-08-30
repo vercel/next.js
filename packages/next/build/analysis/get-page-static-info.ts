@@ -28,7 +28,7 @@ export interface PageStaticInfo {
  *   - Modules with `export function getStaticProps | getServerSideProps`
  *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
  */
-function checkExports(swcAST: any) {
+export function checkExports(swcAST: any): { ssr: boolean; ssg: boolean } {
   if (Array.isArray(swcAST?.body)) {
     try {
       for (const node of swcAST.body) {

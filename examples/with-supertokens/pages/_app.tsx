@@ -10,7 +10,7 @@ if (typeof window !== 'undefined') {
   SuperTokensReact.init(SuperTokensConfig.frontendConfig())
 }
 
-function MyApp({ Component, pageProps }) {
+function MyApp({ Component, pageProps }): JSX.Element {
   useEffect(() => {
     async function doRefresh() {
       if (pageProps.fromSupertokens === 'needs-refresh') {
