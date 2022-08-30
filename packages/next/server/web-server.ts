@@ -66,7 +66,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
-    parsedUrl.pathname = this.serverOptions.webServerConfig.page
     super.run(req, res, parsedUrl)
   }
   protected async hasPage(page: string) {
@@ -343,11 +342,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         {} as any,
         pathname,
         query,
-        {
-          ...renderOpts,
+        Object.assign(renderOpts, {
           disableOptimizedLoading: true,
           runtime: 'experimental-edge',
-        },
+        }),
         !!pagesRenderToHTML
       )
     } else {
