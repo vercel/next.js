@@ -1,6 +1,22 @@
 import { warn } from '../../../build/output/log'
 import { SpanProcessorConfig, TraceConfig } from './trace-config'
 import { configureTracer } from './tracer'
+import type { OTLPExporterNodeConfigBase } from '@opentelemetry/otlp-exporter-base'
+
+const {
+  OTLPTraceExporter,
+}: typeof import('@opentelemetry/exporter-trace-otlp-grpc') = require('next/dist/compiled/@opentelemetry/exporter-trace-otlp-grpc')
+
+/**
+ * Options to create exporter to collector using otlp-grpc.
+ * Most of configurations can be controlled via environment variables as well -
+ * refer
+ * https://github.com/open-telemetry/opentelemetry-js/blob/bd9159a35331406cbbd790c0d4542b1cebf3b442/experimental/packages/exporter-trace-otlp-grpc/README.md#environment-variable-configuration
+ * for more details.
+ *
+ * TODO: Figure out what kind of options we'll expose to configure.
+ */
+const collectorOptions: OTLPExporterNodeConfigBase = {}
 
 /**
  * Creates a span processor.
@@ -66,13 +82,26 @@ export const initializeTraceOnce = (() => {
     provider = new NodeTracerProvider({
       resource: new Resource({
         [SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
+        // TODO: These are recommended resource attributes to be included
+        // (https://github.com/open-telemetry/opentelemetry-specification/blob/ea61daeeaf8a3770a5189528abc09f25b87c7531/specification/resource/semantic_conventions/README.md#service)
+        // which we may need to expose in config.
+        [SemanticResourceAttributes.SERVICE_NAMESPACE]: undefined,
+        [SemanticResourceAttributes.SERVICE_INSTANCE_ID]: undefined,
+        [SemanticResourceAttributes.SERVICE_VERSION]: undefined,
       }),
     })
 
+    if (!!config?.debug) {
+      warn(`Debug mode is enabled. Spans will be emitted into console.`)
+    }
+
+    const exporter = !!config?.debug
+      ? new ConsoleSpanExporter()
+      : new OTLPTraceExporter(collectorOptions)
     provider.addSpanProcessor(
       buildSpanProcessor(
         config.spanProcessorConfig ?? { processorType: 'simple' },
-        new ConsoleSpanExporter()
+        exporter
       )
     )
 

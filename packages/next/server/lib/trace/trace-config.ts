@@ -17,6 +17,11 @@ interface TraceConfig {
    */
   defaultTracerName?: string
   spanProcessorConfig?: SpanProcessorConfig
+  /**
+   * Enable console span processor to emit spans into console instead.
+   * This will DISABLE exporter to actually send spans into collector.
+   */
+  debug?: boolean
 }
 
 export { SpanProcessorConfig, TraceConfig }
