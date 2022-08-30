@@ -43,6 +43,7 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import { getRuntimeContext } from '../server/web/sandbox'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1008,17 +1009,31 @@ export async function buildStaticPaths(
   }
 }
 
-export async function isPageStatic(
-  page: string,
-  distDir: string,
-  serverless: boolean,
-  configFileName: string,
-  runtimeEnvConfig: any,
-  httpAgentOptions: NextConfigComplete['httpAgentOptions'],
-  locales?: string[],
-  defaultLocale?: string,
+export async function isPageStatic({
+  page,
+  distDir,
+  serverless,
+  configFileName,
+  runtimeEnvConfig,
+  httpAgentOptions,
+  locales,
+  defaultLocale,
+  parentId,
+  pageRuntime,
+  edgeInfo,
+}: {
+  page: string
+  distDir: string
+  serverless: boolean
+  configFileName: string
+  runtimeEnvConfig: any
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  locales?: string[]
+  defaultLocale?: string
   parentId?: any
-): Promise<{
+  edgeInfo?: any
+  pageRuntime: ServerRuntime
+}): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
@@ -1037,7 +1052,26 @@ export async function isPageStatic(
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
 
-      const mod = await loadComponents(distDir, page, serverless)
+      let mod: any
+
+      if (pageRuntime === SERVER_RUNTIME.edge) {
+        const runtime = await getRuntimeContext({
+          paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
+          env: edgeInfo.env,
+          edgeFunctionEntry: edgeInfo,
+          name: edgeInfo.name,
+          useCache: true,
+          distDir,
+        })
+        mod =
+          runtime.context._ENTRIES[`middleware_${edgeInfo.name}`].ComponentMod
+
+        mod.Component = mod.default
+        mod.ComponentMod = mod
+        mod.pageConfig = mod.config
+      } else {
+        mod = await loadComponents(distDir, page, serverless)
+      }
       const Comp = mod.Component
 
       if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {

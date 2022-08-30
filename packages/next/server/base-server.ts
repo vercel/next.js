@@ -946,7 +946,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Toggle whether or not this is a Data request
     const isDataReq =
-      !!query.__nextDataReq && (isSSG || hasServerProps || isServerComponent)
+      !!(query.__nextDataReq || req.headers['x-nextjs-data']) &&
+      (isSSG || hasServerProps || isServerComponent)
 
     delete query.__nextDataReq
 

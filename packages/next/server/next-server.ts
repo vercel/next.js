@@ -96,6 +96,8 @@ import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
+import { interpolateDynamicPath } from '../build/webpack/loaders/next-serverless-loader/utils'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -1951,7 +1953,32 @@ export default class NextNodeServer extends BaseServer {
     }
 
     // For middleware to "fetch" we must always provide an absolute URL
-    const url = getRequestMeta(params.req, '__NEXT_INIT_URL')!
+    const isDataReq = !!params.query.__nextDataReq
+    const query = urlQueryToSearchParams(
+      Object.assign({}, getRequestMeta(params.req, '__NEXT_INIT_QUERY') || {})
+    ).toString()
+    const locale = params.query.__nextLocale
+    let normalizedPathname = params.page
+
+    if (isDataReq) {
+      params.req.headers['x-nextjs-data'] = '1'
+    }
+
+    if (isDynamicRoute(normalizedPathname)) {
+      const routeRegex = getNamedRouteRegex(params.page)
+      normalizedPathname = interpolateDynamicPath(
+        params.page,
+        Object.assign({}, params.params, params.query),
+        routeRegex
+      )
+    }
+
+    const url = `${getRequestMeta(params.req, '_protocol')}://${
+      this.hostname
+    }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
+      query ? `?${query}` : ''
+    }`
+
     if (!url.startsWith('http')) {
       throw new Error(
         'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
