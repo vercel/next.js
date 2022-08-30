@@ -1,37 +1,40 @@
 import React, { useContext, useEffect, useRef } from 'react'
-import type { ChildProp, Segment } from '../../server/app-render'
+import type {
+  ChildProp,
+  //Segment
+} from '../../server/app-render'
 import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  FlightDataPath,
+  // FlightDataPath,
 } from '../../server/app-render'
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
-import { matchSegment } from './match-segments'
+// import { matchSegment } from './match-segments'
 
 /**
  * Check if every segment in array a and b matches
  */
-function equalSegmentPaths(a: Segment[], b: Segment[]) {
-  // Comparing length is a fast path.
-  return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
-}
+// function equalSegmentPaths(a: Segment[], b: Segment[]) {
+//   // Comparing length is a fast path.
+//   return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
+// }
 
 /**
  * Check if flightDataPath matches layoutSegmentPath
  */
-function segmentPathMatches(
-  flightDataPath: FlightDataPath,
-  layoutSegmentPath: FlightSegmentPath
-): boolean {
-  // The last three items are the current segment, tree, and subTreeData
-  const pathToLayout = flightDataPath.slice(0, -3)
-  return equalSegmentPaths(layoutSegmentPath, pathToLayout)
-}
+// function segmentPathMatches(
+//   flightDataPath: FlightDataPath,
+//   layoutSegmentPath: FlightSegmentPath
+// ): boolean {
+//   // The last three items are the current segment, tree, and subTreeData
+//   const pathToLayout = flightDataPath.slice(0, -3)
+//   return equalSegmentPaths(layoutSegmentPath, pathToLayout)
+// }
 
 /**
  * Used to cache in createInfinitePromise
