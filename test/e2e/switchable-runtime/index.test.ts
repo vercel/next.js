@@ -16,6 +16,7 @@ function splitLines(text) {
 
 async function testRoute(appPort, url, { isStatic, isEdge }) {
   const html1 = await renderViaHTTP(appPort, url)
+  console.error({ html1 })
   const renderedAt1 = +html1.match(/Time: (\d+)/)[1]
   expect(html1).toContain(`Runtime: ${isEdge ? 'Edge' : 'Node.js'}`)
 
