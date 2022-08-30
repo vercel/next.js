@@ -381,10 +381,10 @@ export default class Router {
 
         if (
           route.matchesLocale &&
-          parsedUrl.query.__nextLocale &&
+          parsedUrlUpdated.query.__nextLocale &&
           !pathnameInfo.locale
         ) {
-          pathnameInfo.locale = parsedUrl.query.__nextLocale
+          pathnameInfo.locale = parsedUrlUpdated.query.__nextLocale
         }
 
         if (
