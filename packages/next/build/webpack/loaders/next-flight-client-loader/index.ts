@@ -24,13 +24,15 @@ export default async function transformSource(
 
   const appDir = path.join(this.rootContext, 'app')
   const isUnderAppDir = containsPath(appDir, this.resourcePath)
+  const filename = path.basename(this.resourcePath)
+  const isPageOrLayoutFile = /^(page|layout)\.client\.\w+$/.test(filename)
 
   const createError = (name: string) =>
     new Error(
       `${name} is not supported in client components.\nFrom: ${this.resourcePath}`
     )
 
-  if (isUnderAppDir) {
+  if (isUnderAppDir && isPageOrLayoutFile) {
     const swcAST = await parse(source, {
       filename: this.resourcePath,
       isModule: 'unknown',
