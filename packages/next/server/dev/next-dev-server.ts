@@ -44,7 +44,7 @@ import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
-import { findPageFile } from '../lib/find-page-file'
+import { findPageFile, isLayoutsLeafPage } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
   UnwrapPromise,
@@ -386,6 +386,10 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
+            if (!isLayoutsLeafPage(fileName)) {
+              continue
+            }
+
             const originalPageName = pageName
             pageName = normalizeAppPath(pageName) || '/'
             appPaths[pageName] = originalPageName
@@ -535,7 +539,13 @@ export default class DevServer extends Server {
         this.edgeFunctions = []
         const edgeRoutes = Array.from(edgeRoutesSet)
         getSortedRoutes(edgeRoutes).forEach((page) => {
+          let appPath = this.getOriginalAppPath(page)
+
+          if (typeof appPath === 'string') {
+            page = appPath
+          }
           const isRootMiddleware = page === '/' && !!middlewareMatcher
+
           const middlewareRegex = isRootMiddleware
             ? { re: middlewareMatcher!, groups: {} }
             : getMiddlewareRegex(page, { catchAll: false })
@@ -544,7 +554,6 @@ export default class DevServer extends Server {
             page,
             re: middlewareRegex.re,
           }
-
           if (isRootMiddleware) {
             this.middleware = routeItem
           } else {

@@ -1032,6 +1032,9 @@ function runTests(mode) {
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
+        expect(warnings).not.toMatch(
+          /Image with src (.*) is smaller than 40x40. Consider removing(.*)/gm
+        )
       })
       it('should log warnings when using fill mode incorrectly', async () => {
         browser = await webdriver(appPort, '/fill-warnings')
@@ -1092,15 +1095,6 @@ function runTests(mode) {
     expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
       `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
-  })
-
-  it('should not use blurry placeholder for <noscript> image', async () => {
-    const html = await renderViaHTTP(appPort, '/blurry-placeholder')
-    const $html = cheerio.load(html)
-    const img = $html('noscript > img')[0]
-    expect(img).toBeDefined()
-    expect(img.attribs.id).toBe('blurry-placeholder-raw')
-    expect(img.attribs.style).toBe('color:transparent')
   })
 
   it('should remove blurry placeholder after image loads', async () => {

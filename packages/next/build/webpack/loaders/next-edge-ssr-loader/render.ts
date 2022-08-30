@@ -20,7 +20,10 @@ export function getRender({
   Document,
   buildManifest,
   reactLoadableManifest,
+  appRenderToHTML,
+  pagesRenderToHTML,
   serverComponentManifest,
+  serverCSSManifest,
   config,
   buildId,
 }: {
@@ -30,10 +33,13 @@ export function getRender({
   pageMod: any
   errorMod: any
   error500Mod: any
+  appRenderToHTML: any
+  pagesRenderToHTML: any
   Document: DocumentType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest: any
+  serverCSSManifest: any
   appServerMod: any
   config: NextConfig
   buildId: string
@@ -58,7 +64,10 @@ export function getRender({
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         serverComponentManifest,
+        serverCSSManifest,
       },
+      appRenderToHTML,
+      pagesRenderToHTML,
       loadComponent: async (pathname) => {
         if (pathname === page) {
           return {

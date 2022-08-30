@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react'
 import Head from '../../shared/lib/head'
+import { getImageBlurSvg } from '../../shared/lib/image-blur-svg'
 import {
   ImageConfigComplete,
   imageConfigDefault,
@@ -133,7 +134,6 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
   setShowAltText: (b: boolean) => void
-  noscriptSizes: string | undefined
 }
 
 function getWidths(
@@ -342,7 +342,6 @@ const ImageElement = ({
   setShowAltText,
   onLoad,
   onError,
-  noscriptSizes,
   ...rest
 }: ImageElementProps) => {
   loading = isLazy ? 'lazy' : loading
@@ -437,30 +436,6 @@ const ImageElement = ({
           }
         }}
       />
-      {placeholder === 'blur' && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            width={widthInt}
-            height={heightInt}
-            decoding="async"
-            data-nimg={`future${fill ? '-fill' : ''}`}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
-      )}
     </>
   )
 }
@@ -697,7 +672,7 @@ export default function Image({
     }
 
     if (placeholder === 'blur') {
-      if ((widthInt || 0) * (heightInt || 0) < 1600) {
+      if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
@@ -794,13 +769,6 @@ export default function Image({
     showAltText ? {} : { color: 'transparent' },
     style
   )
-  const std = blurWidth && blurHeight ? '1' : '20'
-  const svgWidth = blurWidth || widthInt
-  const svgHeight = blurHeight || heightInt
-  const feComponentTransfer = blurDataURL?.startsWith('data:image/jpeg')
-    ? `%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%`
-    : ''
-  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${svgWidth} ${svgHeight}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='${std}'/%3E${feComponentTransfer}%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
 
   const blurStyle =
     placeholder === 'blur' && blurDataURL && !blurComplete
@@ -808,16 +776,26 @@ export default function Image({
           backgroundSize: imgStyle.objectFit || 'cover',
           backgroundPosition: imgStyle.objectPosition || '50% 50%',
           backgroundRepeat: 'no-repeat',
-          ...(blurDataURL.startsWith('data:image') && svgWidth && svgHeight
-            ? {
-                backgroundImage: svgBlurPlaceholder,
-              }
-            : {
-                filter: 'blur(20px)',
-                backgroundImage: `url("${blurDataURL}")`,
-              }),
+          backgroundImage: `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg(
+            {
+              widthInt,
+              heightInt,
+              blurWidth,
+              blurHeight,
+              blurDataURL,
+            }
+          )}")`,
         }
       : {}
+
+  if (process.env.NODE_ENV === 'development') {
+    if (blurStyle.backgroundImage && blurDataURL?.startsWith('/')) {
+      // During `next dev`, we don't want to generate blur placeholders with webpack
+      // because it can delay starting the dev server. Instead, `next-image-loader.js`
+      // will inline a special url to lazily generate the blur placeholder at request time.
+      blurStyle.backgroundImage = `url("${blurDataURL}")`
+    }
+  }
 
   const imgAttributes = generateImgAttrs({
     config,
@@ -880,7 +858,6 @@ export default function Image({
     onLoadingCompleteRef,
     setBlurComplete,
     setShowAltText,
-    noscriptSizes: sizes,
     ...rest,
   }
   return (
