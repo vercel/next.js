@@ -1578,6 +1578,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (result !== false) return result
         }
       }
+
+      // currently edge functions aren't receiving the x-matched-path
+      // header so we need to fallback to matching the current page
+      // when we weren't able to match via dynamic route to handle
+      // the rewrite case
+      // @ts-expect-error extended in child class web-server
+      if (this.serverOptions.webServerConfig) {
+        // @ts-expect-error extended in child class web-server
+        ctx.pathname = this.serverOptions.webServerConfig.page
+        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
+        if (result !== false) return result
+      }
     } catch (error) {
       const err = getProperError(error)
 
