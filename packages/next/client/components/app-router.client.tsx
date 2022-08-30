@@ -208,28 +208,48 @@ export default function AppRouter({
           })
         }
       },
-      replace: (href, options) => {
+      replace: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'hard', 'replace', options.forceOptimisticNavigation)
+          navigate(
+            href,
+            'hard',
+            'replace',
+            Boolean(options.forceOptimisticNavigation)
+          )
         })
       },
-      softReplace: (href, options) => {
+      softReplace: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'soft', 'replace', options.forceOptimisticNavigation)
+          navigate(
+            href,
+            'soft',
+            'replace',
+            Boolean(options.forceOptimisticNavigation)
+          )
         })
       },
-      softPush: (href, options) => {
+      softPush: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'soft', 'push', options.forceOptimisticNavigation)
+          navigate(
+            href,
+            'soft',
+            'push',
+            Boolean(options.forceOptimisticNavigation)
+          )
         })
       },
-      push: (href, options) => {
+      push: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'hard', 'push', options.forceOptimisticNavigation)
+          navigate(
+            href,
+            'hard',
+            'push',
+            Boolean(options.forceOptimisticNavigation)
+          )
         })
       },
       reload: () => {
