@@ -826,11 +826,20 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
+  // Disable .mjs for node_modules bundling
+  let extensions = isNodeServer
+    ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
+    : ['.mjs', '.js', '.tsx', '.ts', '.jsx', '.json', '.wasm']
+
+  if (jsConfig?.compilerOptions?.moduleSuffixes) {
+    extensions = jsConfig?.compilerOptions?.moduleSuffixes.flatMap(
+      (suffix: string) => extensions.map((ext) => `${suffix}${ext}`)
+    )
+  }
+
   const resolveConfig = {
-    // Disable .mjs for node_modules bundling
-    extensions: isNodeServer
-      ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
-      : ['.mjs', '.js', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
+    extensions,
+
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
