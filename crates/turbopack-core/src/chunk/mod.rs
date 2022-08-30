@@ -261,68 +261,29 @@ pub async fn chunk_content_split<I: FromChunkableAsset>(
     entry: AssetVc,
     additional_entries: Option<AssetsVc>,
 ) -> Result<ChunkContentResult<I>> {
-    let mut chunk_items = vec![];
-    let mut processed_assets = HashSet::new();
-    let mut external_asset_references = Vec::new();
-    let mut chunks = Vec::new();
-    let mut pieces = Vec::new();
-
-    let mut entries = match additional_entries {
-        Some(additional_entries) => additional_entries.await?.clone(),
-        None => vec![],
-    };
-    entries.push(entry);
-
-    for entry in entries {
-        chunk_items.push(I::from_asset(context, entry).await?.unwrap());
-        for r in entry.references().await?.iter() {
-            if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
-                if *pc.is_chunkable().await? {
-                    pieces.push((r.resolve_reference().primary_assets(), *r));
-                    continue;
-                }
-            }
-            external_asset_references.push(*r);
-        }
-        processed_assets.insert(entry);
-    }
-
-    'outer: for (assets, r) in pieces {
-        let mut inner_chunks = Vec::new();
-        for asset in assets
-            .await?
-            .iter()
-            .filter(|asset| processed_assets.insert(**asset))
-        {
-            // always make a separate chunk
-            if let Some(chunkable_asset) = ChunkableAssetVc::resolve_from(asset).await? {
-                let chunk = chunkable_asset.as_chunk(context);
-                inner_chunks.push(chunk);
-            } else {
-                external_asset_references.push(r);
-                continue 'outer;
-            }
-        }
-        for chunk in inner_chunks {
-            chunks.push(chunk);
-        }
-    }
-    Ok(ChunkContentResult {
-        chunk_items,
-        chunks,
-        async_chunk_groups: Vec::new(),
-        external_asset_references,
-    })
-}
-enum ChunkContentWorkItem {
-    AssetReferences(AssetReferencesVc),
-    Assets(AssetsVc, AssetReferenceVc),
+    chunk_content_internal(context, entry, additional_entries, true)
+        .await
+        .map(|o| o.unwrap())
 }
 
 pub async fn chunk_content<I: FromChunkableAsset>(
     context: ChunkingContextVc,
     entry: AssetVc,
     additional_entries: Option<AssetsVc>,
+) -> Result<Option<ChunkContentResult<I>>> {
+    chunk_content_internal(context, entry, additional_entries, false).await
+}
+
+enum ChunkContentWorkItem {
+    AssetReferences(AssetReferencesVc),
+    Assets(AssetsVc, AssetReferenceVc),
+}
+
+async fn chunk_content_internal<I: FromChunkableAsset>(
+    context: ChunkingContextVc,
+    entry: AssetVc,
+    additional_entries: Option<AssetsVc>,
+    split: bool,
 ) -> Result<Option<ChunkContentResult<I>>> {
     let mut chunk_items = Vec::new();
     let mut processed_assets = HashSet::new();
@@ -411,7 +372,7 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                     }
 
                     // heuristic for being in the same chunk
-                    if *context.can_be_in_same_chunk(entry, *asset).await? {
+                    if !split && *context.can_be_in_same_chunk(entry, *asset).await? {
                         // chunk item, chunk or other asset?
                         if let Some(chunk_item) = I::from_asset(context, *asset).await? {
                             inner_chunk_items.push(chunk_item);
@@ -435,7 +396,8 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                 async_chunk_groups.extend(inner_chunk_groups);
 
                 let chunk_items_count = chunk_items.len();
-                if prev_chunk_items != chunk_items_count
+                if !split
+                    && prev_chunk_items != chunk_items_count
                     && chunk_items_count > 5000
                     && prev_chunk_items > 1
                 {

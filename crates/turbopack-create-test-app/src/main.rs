@@ -15,6 +15,10 @@ struct Args {
     #[clap(short, long, value_parser, default_value_t = 50)]
     directories: usize,
 
+    /// The number of dynamic imports (import()) to generate
+    #[clap(long, value_parser, default_value_t = 0)]
+    dynamic_imports: usize,
+
     /// How flat should be the component tree
     #[clap(short, long, value_parser, default_value_t = 4)]
     flatness: usize,
@@ -33,6 +37,7 @@ fn main() -> Result<()> {
             target: Some(current_dir()?),
             module_count: args.modules,
             directories_count: args.directories,
+            dynamic_import_count: args.dynamic_imports,
             flatness: args.flatness,
             package_json: args.package_json
         }

@@ -18,10 +18,22 @@ fn decide(remaining: usize, min_remaining_decisions: usize) -> bool {
     }
 }
 
+fn decide_early(remaining: usize, min_remaining_decisions: usize) -> bool {
+    if remaining == 0 {
+        false
+    } else if min_remaining_decisions <= remaining {
+        true
+    } else {
+        let urgentness = min_remaining_decisions / remaining / remaining;
+        (min_remaining_decisions * 11 * 7 * 5) % urgentness == 0
+    }
+}
+
 pub struct TestAppBuilder {
     pub target: Option<PathBuf>,
     pub module_count: usize,
     pub directories_count: usize,
+    pub dynamic_import_count: usize,
     pub flatness: usize,
     pub package_json: bool,
 }
@@ -32,6 +44,7 @@ impl Default for TestAppBuilder {
             target: None,
             module_count: 1000,
             directories_count: 50,
+            dynamic_import_count: 0,
             flatness: 5,
             package_json: false,
         }
@@ -50,6 +63,7 @@ impl TestAppBuilder {
 
         let mut remaining_modules = self.module_count - 1;
         let mut remaining_directories = self.directories_count;
+        let mut remaining_dynamic_imports = self.dynamic_import_count;
 
         let mut queue = VecDeque::new();
         queue.push_back(src.join("triangle.jsx"));
@@ -102,33 +116,63 @@ export default function Triangle({ style }) {
                 }
                 remaining_modules = remaining_modules.saturating_sub(3);
 
-                File::create(&file)
-                    .with_context(|| format!("creating file with children {}", file.display()))?
-                    .write_all(
-                        format!(
-                            r#"import React from "react";
-import A from "{import_path}1";
-import B from "{import_path}2";
-import C from "{import_path}3";
+                if let [(a, a_), (b, b_), (c, c_)] = &*[("A", "1"), ("B", "2"), ("C", "3")]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, (name, n))| {
+                        if decide_early(remaining_dynamic_imports, remaining_modules + (2 - i)) {
+                            remaining_dynamic_imports -= 1;
+                            (
+                                format!(
+                                    "const {name}Lazy = React.lazy(() => \
+                                     import('{import_path}{n}'));"
+                                ),
+                                format!(
+                                    "<React.Suspense><{name}Lazy style={{style}} \
+                                     /></React.Suspense>"
+                                ),
+                            )
+                        } else {
+                            (
+                                format!("import {name} from '{import_path}{n}'"),
+                                format!("<{name} style={{style}} />"),
+                            )
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                {
+                    File::create(&file)
+                        .with_context(|| format!("creating file with children {}", file.display()))?
+                        .write_all(
+                            format!(
+                                r#"import React from "react";
+{a}
+{b}
+{c}
 
 export default function Container({{ style }}) {{
     return <>
         <g transform="translate(0 -2.16)   scale(0.5 0.5)">
-            <A style={{style}}/>
+            {a_}
         </g>
         <g transform="translate(-2.5 2.16) scale(0.5 0.5)">
-            <B style={{style}}/>
+            {b_}
         </g>
         <g transform="translate(2.5 2.16)  scale(0.5 0.5)">
-            <C style={{style}}/>
+            {c_}
         </g>
     </>;
 }}
 "#
+                            )
+                            .as_bytes(),
                         )
-                        .as_bytes(),
-                    )
-                    .with_context(|| format!("writing file with children {}", file.display()))?;
+                        .with_context(|| {
+                            format!("writing file with children {}", file.display())
+                        })?;
+                } else {
+                    unreachable!()
+                }
             }
         }
 

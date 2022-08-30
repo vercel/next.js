@@ -1,7 +1,5 @@
 #![feature(min_specialization)]
 
-use std::future::IntoFuture;
-
 use anyhow::Result;
 use swc_common::{Globals, GLOBALS};
 use swc_css_ast::{AtRule, AtRulePrelude, Rule};
@@ -136,11 +134,7 @@ impl CssChunkItem for ModuleChunkItem {
         let mut code_gens = Vec::new();
         for r in references.iter() {
             if let Some(code_gen) = CodeGenerateableVc::resolve_from(r).await? {
-                code_gens.push(
-                    code_gen
-                        .code_generation(chunk_context, context)
-                        .into_future(),
-                );
+                code_gens.push(code_gen.code_generation(chunk_context, context));
             }
         }
         // need to keep that around to allow references into that
