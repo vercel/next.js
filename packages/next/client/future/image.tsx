@@ -134,7 +134,6 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
   setShowAltText: (b: boolean) => void
-  noscriptSizes: string | undefined
 }
 
 function getWidths(
@@ -343,7 +342,6 @@ const ImageElement = ({
   setShowAltText,
   onLoad,
   onError,
-  noscriptSizes,
   ...rest
 }: ImageElementProps) => {
   loading = isLazy ? 'lazy' : loading
@@ -438,30 +436,6 @@ const ImageElement = ({
           }
         }}
       />
-      {placeholder === 'blur' && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            width={widthInt}
-            height={heightInt}
-            decoding="async"
-            data-nimg={`future${fill ? '-fill' : ''}`}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
-      )}
     </>
   )
 }
@@ -884,7 +858,6 @@ export default function Image({
     onLoadingCompleteRef,
     setBlurComplete,
     setShowAltText,
-    noscriptSizes: sizes,
     ...rest,
   }
   return (
