@@ -1068,7 +1068,7 @@ export async function isPageStatic({
 
         mod.Component = mod.default
         mod.ComponentMod = mod
-        mod.pageConfig = mod.config
+        mod.pageConfig = mod.config || {}
       } else {
         mod = await loadComponents(distDir, page, serverless)
       }
