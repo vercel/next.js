@@ -1,6 +1,13 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  getBrowserBodyText,
+  hasRedbox,
+  renderViaHTTP,
+  waitFor,
+} from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -1024,48 +1031,60 @@ describe('app dir', () => {
       })
 
       if (isDev) {
-        it('should throw an error when getStaticProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-static-props/page.client.js'
-          const content = await next.readFile(pageFile)
-          await next.patchFile(
-            pageFile,
-            content.replace(
-              '// export function getStaticProps',
-              'export function getStaticProps'
-            )
-          )
-          const res = await fetchViaHTTP(
-            next.url,
-            '/client-with-errors/get-static-props'
-          )
-          await next.patchFile(pageFile, content)
-          expect(res.status).toBe(500)
-          expect(await res.text()).toContain(
-            'getStaticProps is not supported in client components'
-          )
-        })
-
         it('should throw an error when getServerSideProps is used', async () => {
           const pageFile =
             'app/client-with-errors/get-server-side-props/page.client.js'
           const content = await next.readFile(pageFile)
-          await next.patchFile(
-            pageFile,
-            content.replace(
-              '// export function getServerSideProps',
-              'export function getServerSideProps'
-            )
+          const uncomment = content.replace(
+            '// export function getServerSideProps',
+            'export function getServerSideProps'
           )
+          await next.patchFile(pageFile, uncomment)
           const res = await fetchViaHTTP(
             next.url,
             '/client-with-errors/get-server-side-props'
           )
           await next.patchFile(pageFile, content)
 
+          await check(async () => {
+            const { status } = await fetchViaHTTP(
+              next.url,
+              '/client-with-errors/get-server-side-props'
+            )
+            return status
+          }, /200/)
+
           expect(res.status).toBe(500)
           expect(await res.text()).toContain(
             'getServerSideProps is not supported in client components'
+          )
+        })
+
+        it('should throw an error when getStaticProps is used', async () => {
+          const pageFile =
+            'app/client-with-errors/get-static-props/page.client.js'
+          const content = await next.readFile(pageFile)
+          const uncomment = content.replace(
+            '// export function getStaticProps',
+            'export function getStaticProps'
+          )
+          await next.patchFile(pageFile, uncomment)
+          const res = await fetchViaHTTP(
+            next.url,
+            '/client-with-errors/get-static-props'
+          )
+          await next.patchFile(pageFile, content)
+          await check(async () => {
+            const { status } = await fetchViaHTTP(
+              next.url,
+              '/client-with-errors/get-static-props'
+            )
+            return status
+          }, /200/)
+
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain(
+            'getStaticProps is not supported in client components'
           )
         })
       }
