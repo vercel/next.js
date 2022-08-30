@@ -1097,15 +1097,6 @@ function runTests(mode) {
     )
   })
 
-  it('should not use blurry placeholder for <noscript> image', async () => {
-    const html = await renderViaHTTP(appPort, '/blurry-placeholder')
-    const $html = cheerio.load(html)
-    const img = $html('noscript > img')[0]
-    expect(img).toBeDefined()
-    expect(img.attribs.id).toBe('blurry-placeholder-raw')
-    expect(img.attribs.style).toBe('color:transparent')
-  })
-
   it('should remove blurry placeholder after image loads', async () => {
     const browser = await webdriver(appPort, '/blurry-placeholder')
     await check(
