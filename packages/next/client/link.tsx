@@ -112,7 +112,6 @@ function linkClicked(
   href: string,
   as: string,
   replace?: boolean,
-  soft?: boolean,
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
@@ -132,26 +131,19 @@ function linkClicked(
   e.preventDefault()
 
   const navigate = () => {
-    // If the router is an AppRouterInstance, then it'll have `softPush` and
-    // `softReplace`.
-    if ('softPush' in router && 'softReplace' in router) {
-      // If we're doing a soft navigation, use the soft variants of
-      // replace/push.
-      const method: keyof AppRouterInstance = soft
-        ? replace
-          ? 'softReplace'
-          : 'softPush'
-        : replace
-        ? 'replace'
-        : 'push'
-
-      router[method](href, { forceOptimisticNavigation: !prefetchEnabled })
-    } else {
+    // If the router is an NextRouter instance it will have `beforePopState`
+    if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
         locale,
         scroll,
       })
+    } else {
+      // If we're doing a soft navigation, use the soft variants of
+      // replace/push.
+      const method: keyof AppRouterInstance = replace ? 'replace' : 'push'
+
+      router[method](href, { forceOptimisticNavigation: !prefetchEnabled })
     }
   }
 
@@ -456,7 +448,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             href,
             as,
             replace,
-            soft,
             shallow,
             scroll,
             locale,

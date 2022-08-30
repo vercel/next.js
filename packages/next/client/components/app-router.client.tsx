@@ -169,7 +169,6 @@ export default function AppRouter({
   const appRouter = React.useMemo<AppRouterInstance>(() => {
     const navigate = (
       href: string,
-      cacheType: 'hard' | 'soft',
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
@@ -177,7 +176,6 @@ export default function AppRouter({
         type: ACTION_NAVIGATE,
         url: new URL(href, location.origin),
         forceOptimisticNavigation,
-        cacheType,
         navigateType,
         cache: {
           data: null,
@@ -211,45 +209,13 @@ export default function AppRouter({
       replace: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(
-            href,
-            'hard',
-            'replace',
-            Boolean(options.forceOptimisticNavigation)
-          )
-        })
-      },
-      softReplace: (href, options = {}) => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
-          navigate(
-            href,
-            'soft',
-            'replace',
-            Boolean(options.forceOptimisticNavigation)
-          )
-        })
-      },
-      softPush: (href, options = {}) => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
-          navigate(
-            href,
-            'soft',
-            'push',
-            Boolean(options.forceOptimisticNavigation)
-          )
+          navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
         })
       },
       push: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(
-            href,
-            'hard',
-            'push',
-            Boolean(options.forceOptimisticNavigation)
-          )
+          navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
         })
       },
       reload: () => {

@@ -369,7 +369,6 @@ interface ReloadAction {
 interface NavigateAction {
   type: typeof ACTION_NAVIGATE
   url: URL
-  cacheType: 'soft' | 'hard'
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
   cache: CacheNode
@@ -493,14 +492,8 @@ export function reducer(
       }
     }
     case ACTION_NAVIGATE: {
-      const {
-        url,
-        cacheType,
-        navigateType,
-        cache,
-        mutable,
-        forceOptimisticNavigation,
-      } = action
+      const { url, navigateType, cache, mutable, forceOptimisticNavigation } =
+        action
       const { pathname, search, hash } = url
       const href = pathname + search + hash
       const pendingPush = navigateType === 'push'
@@ -561,8 +554,10 @@ export function reducer(
       // TODO-APP: figure out something better for index pages
       segments.push('')
 
+      const isSoftNavigation = false
+
       // In case of soft push data fetching happens in layout-router if a segment is missing
-      if (cacheType === 'soft') {
+      if (isSoftNavigation) {
         // Create optimistic tree that causes missing data to be fetched in layout-router during render.
         const optimisticTree = createOptimisticTree(
           segments,
@@ -594,124 +589,119 @@ export function reducer(
       // When doing a hard push there can be two cases: with optimistic tree and without
       // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
       // The without optimistic tree case happens when there is no loading state, in that case we suspend in this reducer
-      if (cacheType === 'hard') {
-        // forceOptimisticNavigation is used for links that have `prefetch={false}`.
-        if (forceOptimisticNavigation) {
-          // Optimistic tree case.
-          // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
-          const optimisticTree = createOptimisticTree(
-            segments,
-            state.tree,
-            true,
-            false,
-            href
-          )
 
-          // Fill in the cache with blank that holds the `data` field.
-          // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
-          // Copy subTreeData for the root node of the cache.
-          cache.subTreeData = state.cache.subTreeData
-
-          // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
-          // The `data` property is used to suspend in layout-router during render if it hasn't resolved yet by the time it renders.
-          const res = fillCacheWithDataProperty(
-            cache,
-            state.cache,
-            segments.slice(1),
-            (): { readRoot: () => FlightData } =>
-              fetchServerResponse(url, optimisticTree)
-          )
-
-          // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
-          if (!res?.bailOptimistic) {
-            mutable.previousTree = state.tree
-            mutable.patchedTree = optimisticTree
-            return {
-              // Set href.
-              canonicalUrl: href,
-              // Set pendingPush.
-              pushRef: { pendingPush, mpaNavigation: false },
-              // All navigation requires scroll and focus management to trigger.
-              focusAndScrollRef: { apply: true },
-              // Apply patched cache.
-              cache: cache,
-              prefetchCache: state.prefetchCache,
-              // Apply optimistic tree.
-              tree: optimisticTree,
-            }
-          }
-        }
-
-        // Below is the not-optimistic case. Data is fetched at the root and suspended there without a suspense boundary.
-
-        // If no in-flight fetch at the top, start it.
-        if (!cache.data) {
-          cache.data = fetchServerResponse(url, state.tree)
-        }
-
-        // readRoot to suspend here (in the reducer) until the fetch resolves.
-        const flightData = cache.data.readRoot()
-
-        // Handle case when navigating to page in `pages` from `app`
-        if (typeof flightData === 'string') {
-          return {
-            canonicalUrl: flightData,
-            // Enable mpaNavigation
-            pushRef: { pendingPush: true, mpaNavigation: true },
-            // Don't apply scroll and focus management.
-            focusAndScrollRef: { apply: false },
-            cache: state.cache,
-            prefetchCache: state.prefetchCache,
-            tree: state.tree,
-          }
-        }
-
-        // Remove cache.data as it has been resolved at this point.
-        cache.data = null
-
-        // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-        const flightDataPath = flightData[0]
-
-        // The one before last item is the router state tree patch
-        const [treePatch] = flightDataPath.slice(-2)
-
-        // Path without the last segment, router state, and the subTreeData
-        const flightSegmentPath = flightDataPath.slice(0, -3)
-
-        // Create new tree based on the flightSegmentPath and router state patch
-        const newTree = applyRouterStatePatchToTree(
-          // TODO-APP: remove ''
-          ['', ...flightSegmentPath],
+      // forceOptimisticNavigation is used for links that have `prefetch={false}`.
+      if (forceOptimisticNavigation) {
+        // Optimistic tree case.
+        // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
+        const optimisticTree = createOptimisticTree(
+          segments,
           state.tree,
-          treePatch
+          true,
+          false,
+          href
         )
 
-        mutable.previousTree = state.tree
-        mutable.patchedTree = newTree
-
+        // Fill in the cache with blank that holds the `data` field.
+        // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
         // Copy subTreeData for the root node of the cache.
         cache.subTreeData = state.cache.subTreeData
-        // Create a copy of the existing cache with the subTreeData applied.
-        fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
 
-        return {
-          // Set href.
-          canonicalUrl: href,
-          // Set pendingPush.
-          pushRef: { pendingPush, mpaNavigation: false },
-          // All navigation requires scroll and focus management to trigger.
-          focusAndScrollRef: { apply: true },
-          // Apply patched cache.
-          cache: cache,
-          prefetchCache: state.prefetchCache,
-          // Apply patched tree.
-          tree: newTree,
+        // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
+        // The `data` property is used to suspend in layout-router during render if it hasn't resolved yet by the time it renders.
+        const res = fillCacheWithDataProperty(
+          cache,
+          state.cache,
+          segments.slice(1),
+          (): { readRoot: () => FlightData } =>
+            fetchServerResponse(url, optimisticTree)
+        )
+
+        // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
+        if (!res?.bailOptimistic) {
+          mutable.previousTree = state.tree
+          mutable.patchedTree = optimisticTree
+          return {
+            // Set href.
+            canonicalUrl: href,
+            // Set pendingPush.
+            pushRef: { pendingPush, mpaNavigation: false },
+            // All navigation requires scroll and focus management to trigger.
+            focusAndScrollRef: { apply: true },
+            // Apply patched cache.
+            cache: cache,
+            prefetchCache: state.prefetchCache,
+            // Apply optimistic tree.
+            tree: optimisticTree,
+          }
         }
       }
 
-      // This case should never be hit as `cacheType` is required and both cases are implemented.
-      // Short error to save bundle space.
-      throw new Error('Invalid navigate')
+      // Below is the not-optimistic case. Data is fetched at the root and suspended there without a suspense boundary.
+
+      // If no in-flight fetch at the top, start it.
+      if (!cache.data) {
+        cache.data = fetchServerResponse(url, state.tree)
+      }
+
+      // readRoot to suspend here (in the reducer) until the fetch resolves.
+      const flightData = cache.data.readRoot()
+
+      // Handle case when navigating to page in `pages` from `app`
+      if (typeof flightData === 'string') {
+        return {
+          canonicalUrl: flightData,
+          // Enable mpaNavigation
+          pushRef: { pendingPush: true, mpaNavigation: true },
+          // Don't apply scroll and focus management.
+          focusAndScrollRef: { apply: false },
+          cache: state.cache,
+          prefetchCache: state.prefetchCache,
+          tree: state.tree,
+        }
+      }
+
+      // Remove cache.data as it has been resolved at this point.
+      cache.data = null
+
+      // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
+      const flightDataPath = flightData[0]
+
+      // The one before last item is the router state tree patch
+      const [treePatch] = flightDataPath.slice(-2)
+
+      // Path without the last segment, router state, and the subTreeData
+      const flightSegmentPath = flightDataPath.slice(0, -3)
+
+      // Create new tree based on the flightSegmentPath and router state patch
+      const newTree = applyRouterStatePatchToTree(
+        // TODO-APP: remove ''
+        ['', ...flightSegmentPath],
+        state.tree,
+        treePatch
+      )
+
+      mutable.previousTree = state.tree
+      mutable.patchedTree = newTree
+
+      // Copy subTreeData for the root node of the cache.
+      cache.subTreeData = state.cache.subTreeData
+      // Create a copy of the existing cache with the subTreeData applied.
+      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+
+      return {
+        // Set href.
+        canonicalUrl: href,
+        // Set pendingPush.
+        pushRef: { pendingPush, mpaNavigation: false },
+        // All navigation requires scroll and focus management to trigger.
+        focusAndScrollRef: { apply: true },
+        // Apply patched cache.
+        cache: cache,
+        prefetchCache: state.prefetchCache,
+        // Apply patched tree.
+        tree: newTree,
+      }
     }
     case ACTION_SERVER_PATCH: {
       const { flightData, previousTree, cache } = action
