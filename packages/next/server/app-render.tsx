@@ -328,7 +328,7 @@ export type FlightDataPath =
       ...FlightSegmentPath,
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode
+      /* subTreeData: */ React.ReactNode | null // Can be null during prefetch if there's no loading component
     ]
 
 /**
@@ -340,7 +340,7 @@ export type FlightData = Array<FlightDataPath> | string
  * Property holding the current subTreeData.
  */
 export type ChildProp = {
-  current: React.ReactNode
+  current: React.ReactNode | null
   segment: Segment
   partial: boolean
 }
@@ -686,7 +686,7 @@ export async function renderToHTMLOrFlight(
           if (isPrefetch && Loading) {
             const childProp: ChildProp = {
               partial: true,
-              current: <>TEST</>,
+              current: null,
               segment: childSegmentParam
                 ? childSegmentParam.treeSegment
                 : childSegment,
@@ -931,20 +931,23 @@ export async function renderToHTMLOrFlight(
           actualSegment,
           // Create router state using the slice of the loaderTree
           createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
-          // Create component tree using the slice of the loaderTree
-          React.createElement(
-            (
-              await createComponentTree(
-                // This ensures flightRouterPath is valid and filters down the tree
-                {
-                  createSegmentPath: (child) => child,
-                  loaderTree: loaderTreeToFilter,
-                  parentParams: currentParams,
-                  firstItem: true,
-                }
-              )
-            ).Component
-          ),
+          // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
+          isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
+            ? null
+            : // Create component tree using the slice of the loaderTree
+              React.createElement(
+                (
+                  await createComponentTree(
+                    // This ensures flightRouterPath is valid and filters down the tree
+                    {
+                      createSegmentPath: (child) => child,
+                      loaderTree: loaderTreeToFilter,
+                      parentParams: currentParams,
+                      firstItem: true,
+                    }
+                  )
+                ).Component
+              ),
         ]
       }
 

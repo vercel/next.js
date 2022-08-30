@@ -877,13 +877,16 @@ export function reducer(
       const flightDataPath = flightData[0]
 
       // The one before last item is the router state tree patch
-      const [treePatch] = flightDataPath.slice(-2)
+      const [treePatch, subTreeData] = flightDataPath.slice(-2)
+
+      // TODO-APP: Verify if `null` can't be returned from user code.
+      // If subTreeData is null the prefetch did not provide a component tree.
+      if (subTreeData !== null) {
+        fillCacheWithPrefetchedSubTreeData(state.cache, flightDataPath)
+      }
 
       // Path without the last segment, router state, and the subTreeData
       const flightSegmentPath = flightDataPath.slice(0, -3)
-
-      fillCacheWithPrefetchedSubTreeData(state.cache, flightDataPath)
-
       // Create new tree based on the flightSegmentPath and router state patch
       state.prefetchCache.set(href, {
         flightSegmentPath,
