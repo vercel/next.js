@@ -1,5 +1,11 @@
 module.exports =
-  ({ enabled = true, openAnalyzer = true, analyzerMode = 'static' } = {}) =>
+  ({
+    enabled = true,
+    openAnalyzer = true,
+    analyzerMode = 'static',
+    serverReportFilename,
+    clientReportFilename,
+  } = {}) =>
   (nextConfig = {}) => {
     return Object.assign({}, nextConfig, {
       webpack(config, options) {
@@ -11,8 +17,10 @@ module.exports =
               analyzerMode,
               openAnalyzer,
               reportFilename: options.isServer
-                ? `../analyze/server.${reportFileExtension}`
-                : `./analyze/client.${reportFileExtension}`,
+                ? `../${serverReportFilename}` ||
+                  `../analyze/server.${reportFileExtension}`
+                : `./${clientReportFilename}` ||
+                  `./analyze/client.${reportFileExtension}`,
             })
           )
         }
