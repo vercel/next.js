@@ -1083,18 +1083,21 @@ impl Task {
         state.state_type != TaskStateType::Done
     }
 
-    pub fn get_stats_info(&self) -> (Duration, Duration, u32, bool, usize) {
+    pub fn get_stats_info(&self, backend: &MemoryBackend) -> TaskStatsInfo {
         let state = self.state.read().unwrap();
-        (
-            state.total_duration,
-            state.last_duration,
-            state.executions,
-            matches!(state.scopes, TaskScopes::Root(_)),
-            match state.scopes {
+        TaskStatsInfo {
+            total_duration: state.total_duration,
+            last_duration: state.last_duration,
+            executions: state.executions,
+            root_scoped: matches!(state.scopes, TaskScopes::Root(_)),
+            child_scopes: match state.scopes {
                 TaskScopes::Root(_) => 1,
                 TaskScopes::Inner(ref list) => list.len(),
             },
-        )
+            active: state.scopes.iter().any(|scope| {
+                backend.with_scope(scope, |scope| scope.state.lock().unwrap().is_active())
+            }),
+        }
     }
 
     pub fn get_stats_type(self: &Task) -> stats::TaskType {
@@ -1472,3 +1475,12 @@ impl PartialEq for Task {
 }
 
 impl Eq for Task {}
+
+pub struct TaskStatsInfo {
+    pub total_duration: Duration,
+    pub last_duration: Duration,
+    pub executions: u32,
+    pub root_scoped: bool,
+    pub child_scopes: usize,
+    pub active: bool,
+}

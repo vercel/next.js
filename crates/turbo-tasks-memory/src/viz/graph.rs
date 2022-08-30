@@ -26,36 +26,41 @@ pub fn wrap_html(graph: &str) -> String {
     )
 }
 
-pub fn visualize_stats_tree(root: GroupTree) -> String {
+struct GlobalData<'a> {
+    ids: HashMap<&'a TaskType, usize>,
+    depths: HashMap<&'a TaskType, usize>,
+    output: String,
+    edges: String,
+}
+
+impl<'a> GlobalData<'a> {
+    fn get_id(&mut self, ty: &'a TaskType) -> usize {
+        get_id(ty, &mut self.ids)
+    }
+}
+
+pub fn visualize_stats_tree(root: GroupTree, tree_ref_type: ReferenceType) -> String {
     let max_values = get_max_values(&root);
-    let mut out = String::new();
-    let mut edges = String::new();
     let mut depths = HashMap::new();
     compute_depths(&root, 0, &mut depths);
-    out += "digraph {\nrankdir=LR\n\n";
-    // out += "digraph {\n\n";
-    visualize_stats_tree_internal(
-        &root,
-        0,
-        &max_values,
-        &mut HashMap::new(),
-        &depths,
-        &mut out,
-        &mut edges,
-    );
-    out += &edges;
-    out += "\n}";
-    out
+    let mut global_data = GlobalData {
+        ids: HashMap::new(),
+        depths,
+        output: "digraph {\nrankdir=LR\n\n".to_string(),
+        edges: String::new(),
+    };
+    visualize_stats_tree_internal(&root, 0, tree_ref_type, &max_values, &mut global_data);
+    global_data.output += &global_data.edges;
+    global_data.output += "\n}";
+    global_data.output
 }
 
 fn visualize_stats_tree_internal<'a>(
     node: &'a GroupTree,
     depth: usize,
+    tree_ref_type: ReferenceType,
     max_values: &MaxValues,
-    ids: &mut HashMap<&'a TaskType, usize>,
-    depths: &HashMap<&'a TaskType, usize>,
-    output: &mut String,
-    edges: &mut String,
+    global_data: &mut GlobalData<'a>,
 ) {
     let GroupTree {
         primary,
@@ -63,41 +68,49 @@ fn visualize_stats_tree_internal<'a>(
         task_types,
     } = node;
     if let Some((ty, stats)) = primary {
-        let id = get_id(ty, ids);
+        let id = global_data.get_id(ty);
         let label = get_task_label(ty, stats, max_values);
-        writeln!(output, "subgraph cluster_{id} {{\ncolor=lightgray;").unwrap();
-        writeln!(output, "task_{id} [shape=plaintext, label={label}]").unwrap();
+        writeln!(
+            &mut global_data.output,
+            "subgraph cluster_{id} {{\ncolor=lightgray;"
+        )
+        .unwrap();
+        writeln!(
+            &mut global_data.output,
+            "task_{id} [shape=plaintext, label={label}]"
+        )
+        .unwrap();
         visualize_stats_references_internal(
             id,
             stats.count,
             &stats.references,
             depth,
-            ids,
-            depths,
-            output,
-            edges,
+            tree_ref_type,
+            global_data,
         );
     }
     for (ty, stats) in task_types.iter() {
-        let id = get_id(ty, ids);
+        let id = global_data.get_id(ty);
         let label = get_task_label(ty, stats, max_values);
-        writeln!(output, "task_{id} [shape=plaintext, label={label}]").unwrap();
+        writeln!(
+            &mut global_data.output,
+            "task_{id} [shape=plaintext, label={label}]"
+        )
+        .unwrap();
         visualize_stats_references_internal(
             id,
             stats.count,
             &stats.references,
             depth,
-            ids,
-            depths,
-            output,
-            edges,
+            tree_ref_type,
+            global_data,
         );
     }
     for child in children.iter() {
-        visualize_stats_tree_internal(child, depth + 1, max_values, ids, depths, output, edges);
+        visualize_stats_tree_internal(child, depth + 1, tree_ref_type, max_values, global_data);
     }
     if primary.is_some() {
-        output.push_str("}\n");
+        global_data.output.push_str("}\n");
     }
 }
 
@@ -106,60 +119,49 @@ fn visualize_stats_references_internal<'a>(
     source_count: usize,
     references: &'a HashMap<(ReferenceType, TaskType), ReferenceStats>,
     depth: usize,
-    ids: &mut HashMap<&'a TaskType, usize>,
-    depths: &HashMap<&'a TaskType, usize>,
-    output: &mut String,
-    edges: &mut String,
+    tree_ref_type: ReferenceType,
+    global_data: &mut GlobalData<'a>,
 ) {
     let mut far_types = Vec::new();
     for ((ref_ty, ty), stats) in references.iter() {
-        let target_id = get_id(ty, ids);
-        let is_far = depths.get(ty).map(|d| *d < depth).unwrap_or(false);
-        match ref_ty {
-            ReferenceType::Child => {
-                let label = get_child_label(ref_ty, stats, source_count);
-                if is_far {
-                    far_types.push((ty, label));
-                } else {
-                    writeln!(
-                        edges,
-                        "task_{source_id} -> task_{target_id} [style=dashed, color=lightgray, \
-                         label=\"{label}\"]"
-                    )
-                    .unwrap();
-                }
-            }
-            ReferenceType::Dependency => {
-                // output.push_str(&format!(
-                //     "task_{source_id} -> task_{target_id} [color=\"#77c199\",
-                // weight=0, \      constraint=false]\n"
-                // ));
-            }
-            ReferenceType::Input => {
-                //   output.push_str(&format!(
-                //     "task_{source_id} -> task_{target_id}
-                // [constraint=false]\n" ));
+        let target_id = global_data.get_id(ty);
+        let is_far = global_data
+            .depths
+            .get(ty)
+            .map(|d| *d < depth)
+            .unwrap_or(false);
+        if ref_ty == &tree_ref_type {
+            let label = get_child_label(ref_ty, stats, source_count);
+            if is_far {
+                far_types.push((ty, label));
+            } else {
+                writeln!(
+                    &mut global_data.edges,
+                    "task_{source_id} -> task_{target_id} [style=dashed, color=lightgray, \
+                     label=\"{label}\"]"
+                )
+                .unwrap();
             }
         }
     }
     if !far_types.is_empty() {
         if far_types.len() == 1 {
             let (ty, label) = far_types.get(0).unwrap();
-            let target_id = get_id(ty, ids);
+            let target_id = global_data.get_id(ty);
             writeln!(
-                output,
+                &mut global_data.output,
                 "far_task_{source_id}_{target_id} [label=\"{ty}\", style=dashed]"
             )
             .unwrap();
             writeln!(
-                edges,
+                &mut global_data.edges,
                 "task_{source_id} -> far_task_{source_id}_{target_id} [style=dashed, \
                  color=lightgray, label=\"{label}\"]"
             )
             .unwrap();
         } else {
             writeln!(
-                output,
+                &mut global_data.output,
                 "far_tasks_{source_id} [label=\"{}\", style=dashed]",
                 escape_in_template_str(
                     &far_types
@@ -171,7 +173,7 @@ fn visualize_stats_references_internal<'a>(
             )
             .unwrap();
             writeln!(
-                edges,
+                &mut global_data.edges,
                 "task_{source_id} -> far_tasks_{source_id} [style=dashed, color=lightgray]"
             )
             .unwrap();

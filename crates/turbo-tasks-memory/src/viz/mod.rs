@@ -34,15 +34,29 @@ struct MaxValues {
     pub avg_duration: Duration,
     pub max_duration: Duration,
     pub count: usize,
+    pub active_count: usize,
     pub updates: usize,
     pub roots: usize,
-    /// stores as scopes * 100
+    /// stored as scopes * 100
     pub scopes: usize,
+    /// stored as dependencies * 100
+    pub dependencies: usize,
     pub depth: u32,
 }
 
 fn get_max_values(node: &GroupTree) -> MaxValues {
     get_max_values_internal(0, node)
+}
+
+pub fn get_avg_dependencies_count_times_100(stats: &TaskStats) -> usize {
+    stats
+        .references
+        .iter()
+        .filter(|((ty, _), _)| *ty == ReferenceType::Dependency)
+        .map(|(_, ref_stats)| ref_stats.count)
+        .sum::<usize>()
+        * 100
+        / stats.count
 }
 
 fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
@@ -52,9 +66,11 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
     let mut max_avg_duration = Duration::ZERO;
     let mut max_max_duration = Duration::ZERO;
     let mut max_count = 0;
+    let mut max_active_count = 0;
     let mut max_updates = 0;
     let mut max_roots = 0;
     let mut max_scopes = 0;
+    let mut max_dependencies = 0;
     let mut max_depth = 0;
     for (_, ref s) in node.task_types.iter().chain(node.primary.iter()) {
         max_total_duration = max(max_total_duration, s.total_duration);
@@ -63,9 +79,11 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
         max_avg_duration = max(max_avg_duration, s.total_duration / s.executions as u32);
         max_max_duration = max(max_max_duration, s.max_duration);
         max_count = max(max_count, s.count);
+        max_active_count = max(max_active_count, s.active_count);
         max_updates = max(max_updates, s.executions.saturating_sub(s.count));
         max_roots = max(max_roots, s.roots);
         max_scopes = max(max_scopes, 100 * s.scopes / s.count);
+        max_dependencies = max(max_dependencies, get_avg_dependencies_count_times_100(s));
     }
     max_depth = max(
         max_depth,
@@ -83,9 +101,11 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
             avg_duration,
             max_duration,
             count,
+            active_count,
             updates,
             roots,
             scopes,
+            dependencies,
             depth: inner_depth,
         } = get_max_values_internal(depth + 1, child);
         max_total_duration = max(max_total_duration, total_duration);
@@ -94,9 +114,11 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
         max_avg_duration = max(max_avg_duration, avg_duration);
         max_max_duration = max(max_max_duration, max_duration);
         max_count = max(max_count, count);
+        max_active_count = max(max_active_count, active_count);
         max_updates = max(max_updates, updates);
         max_roots = max(max_roots, roots);
         max_scopes = max(max_scopes, scopes);
+        max_dependencies = max(max_dependencies, dependencies);
         max_depth = max(max_depth, inner_depth);
     }
     MaxValues {
@@ -106,9 +128,11 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
         avg_duration: max_avg_duration,
         max_duration: max_max_duration,
         count: max_count,
+        active_count: max_active_count,
         updates: max_updates,
         roots: max_roots,
         scopes: max_scopes,
+        dependencies: max_dependencies,
         depth: max_depth,
     }
 }

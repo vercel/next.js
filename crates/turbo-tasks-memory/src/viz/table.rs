@@ -29,6 +29,7 @@ pub fn create_table(root: GroupTree) -> String {
     out += r#"<table class="sortable"><thead><tr>"#;
     out += r#"<th>function</th>"#;
     out += r#"<th>initial executions</th>"#;
+    out += r#"<th>active</th>"#;
     out += r#"<th>reexecutions</th>"#;
     out += r#"<th>total duration</th>"#;
     out += r#"<th>total current duration</th>"#;
@@ -37,6 +38,7 @@ pub fn create_table(root: GroupTree) -> String {
     out += r#"<th>max duration</th>"#;
     out += r#"<th>root scopes</th>"#;
     out += r#"<th>avg scopes</th>"#;
+    out += r#"<th>avg dependencies</th>"#;
     out += r#"<th>depth</th>"#;
     out += r#"<th>common parent</th>"#;
     out += r#"</tr></thead>"#;
@@ -63,6 +65,12 @@ pub fn create_table(root: GroupTree) -> String {
             "<td bgcolor=\"{}\">{}</td>",
             as_frac_color(stats.count, max_values.count),
             stats.count
+        )?;
+        write!(
+            out,
+            "<td bgcolor=\"{}\">{}</td>",
+            as_frac_color(stats.active_count, max_values.active_count),
+            stats.active_count
         )?;
         write!(
             out,
@@ -138,6 +146,13 @@ pub fn create_table(root: GroupTree) -> String {
                 max_scopes
             ),
             (100 * stats.scopes / stats.count) as f32 / 100.0
+        )?;
+        let dependencies = get_avg_dependencies_count_times_100(stats);
+        write!(
+            out,
+            "<td bgcolor=\"{}\">{}</td>",
+            as_frac_color(dependencies, max_values.dependencies),
+            (dependencies as f32) / 100.0
         )?;
         write!(
             out,

@@ -14,7 +14,7 @@ use tokio::{spawn, time::sleep};
 use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::{
-    stats::Stats,
+    stats::{ReferenceType, Stats},
     viz::graph::{visualize_stats_tree, wrap_html},
     MemoryBackend,
 };
@@ -103,10 +103,14 @@ async fn main() -> Result<()> {
         // prettify graph
         stats.merge_resolve();
 
-        let tree = stats.treeify();
+        let tree = stats.treeify(ReferenceType::Child);
 
         // write HTML
-        fs::write("graph.html", wrap_html(&visualize_stats_tree(tree))).unwrap();
+        fs::write(
+            "graph.html",
+            wrap_html(&visualize_stats_tree(tree, ReferenceType::Child)),
+        )
+        .unwrap();
         println!("graph.html written");
 
         sleep(Duration::from_secs(10)).await;

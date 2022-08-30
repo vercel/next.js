@@ -8,7 +8,10 @@ use std::{
 
 use turbo_tasks::{registry, FunctionId, TaskId, TraitTypeId};
 
-use crate::{task::Task, MemoryBackend};
+use crate::{
+    task::{Task, TaskStatsInfo},
+    MemoryBackend,
+};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TaskType {
@@ -40,7 +43,7 @@ pub struct ReferenceStats {
     pub count: usize,
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, Copy)]
 pub enum ReferenceType {
     Child,
     Dependency,
@@ -50,6 +53,7 @@ pub enum ReferenceType {
 #[derive(Clone, Debug)]
 pub struct TaskStats {
     pub count: usize,
+    pub active_count: usize,
     pub executions: usize,
     pub roots: usize,
     pub scopes: usize,
@@ -64,6 +68,7 @@ impl Default for TaskStats {
     fn default() -> Self {
         Self {
             count: 0,
+            active_count: 0,
             executions: 0,
             roots: 0,
             scopes: 0,
@@ -97,18 +102,28 @@ impl Stats {
         let ty = task.get_stats_type();
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
-        let (duration, last_duration, executions, root, scopes) = task.get_stats_info();
-        stats.total_duration += duration;
+        let TaskStatsInfo {
+            total_duration,
+            last_duration,
+            executions,
+            root_scoped,
+            child_scopes,
+            active,
+        } = task.get_stats_info(backend);
+        if active {
+            stats.active_count += 1
+        }
+        stats.total_duration += total_duration;
         stats.total_current_duration += last_duration;
         if executions > 1 {
             stats.total_update_duration += last_duration;
         }
-        stats.max_duration = max(stats.max_duration, duration);
+        stats.max_duration = max(stats.max_duration, last_duration);
         stats.executions += executions as usize;
-        if root {
+        if root_scoped {
             stats.roots += 1;
         }
-        stats.scopes += scopes;
+        stats.scopes += child_scopes;
 
         let (references, _) = task.get_stats_references();
         let set: HashSet<_> = references.into_iter().collect();
@@ -166,19 +181,23 @@ impl Stats {
         }
     }
 
-    pub fn treeify(&self) -> GroupTree {
-        let mut roots: HashSet<_> = self.tasks.keys().collect();
+    pub fn treeify(&self, tree_ref_type: ReferenceType) -> GroupTree {
+        let mut incoming_references_count = self
+            .tasks
+            .keys()
+            .map(|ty| (ty, 0))
+            .collect::<HashMap<_, usize>>();
         for stats in self.tasks.values() {
             for (ref_type, ty) in stats.references.keys() {
-                if ref_type == &ReferenceType::Child {
-                    roots.remove(ty);
+                if ref_type == &tree_ref_type {
+                    *incoming_references_count.entry(ty).or_default() += 1;
                 }
             }
         }
+        let mut root_queue = incoming_references_count.into_iter().collect::<Vec<_>>();
+        root_queue.sort_by_key(|(_, c)| *c);
 
         let mut task_placement: HashMap<&TaskType, Option<&TaskType>> = HashMap::new();
-        let mut queue: VecDeque<(&TaskType, Option<&TaskType>)> =
-            roots.into_iter().map(|ty| (ty, None)).collect();
         fn get_path<'a>(
             ty: Option<&'a TaskType>,
             task_placement: &HashMap<&'a TaskType, Option<&'a TaskType>>,
@@ -207,23 +226,34 @@ impl Stats {
                 }
             }
         }
-        while let Some((ty, placement)) = queue.pop_front() {
-            match task_placement.entry(ty) {
-                Entry::Occupied(e) => {
-                    let current_placement = *e.get();
-                    if placement != current_placement {
-                        let new_placement = find_common(
-                            get_path(placement, &task_placement),
-                            get_path(current_placement, &task_placement),
-                        );
-                        task_placement.insert(ty, new_placement);
+        for (root, _) in root_queue.into_iter() {
+            if task_placement.contains_key(root) {
+                continue;
+            }
+            let mut queue: VecDeque<(&TaskType, Option<&TaskType>)> =
+                [(root, None)].into_iter().collect();
+
+            while let Some((ty, placement)) = queue.pop_front() {
+                match task_placement.entry(ty) {
+                    Entry::Occupied(e) => {
+                        let current_placement = *e.get();
+                        if placement != current_placement {
+                            let new_placement = find_common(
+                                get_path(placement, &task_placement),
+                                get_path(current_placement, &task_placement),
+                            );
+                            task_placement.insert(ty, new_placement);
+                        }
                     }
-                }
-                Entry::Vacant(e) => {
-                    e.insert(placement);
-                    for (ref_type, child_ty) in self.tasks[ty].references.keys() {
-                        if ref_type == &ReferenceType::Child {
-                            queue.push_back((child_ty, Some(ty)));
+                    Entry::Vacant(e) => {
+                        if let Some(task) = self.tasks.get(ty) {
+                            e.insert(placement);
+
+                            for (ref_type, child_ty) in task.references.keys() {
+                                if ref_type == &tree_ref_type {
+                                    queue.push_back((child_ty, Some(ty)));
+                                }
+                            }
                         }
                     }
                 }

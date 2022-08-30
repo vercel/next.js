@@ -25,7 +25,10 @@ use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
 };
-use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
+use turbo_tasks_memory::{
+    stats::{ReferenceType, Stats},
+    viz, MemoryBackend,
+};
 use turbopack::{emit, rebase::RebasedAssetVc, ModuleAssetContextVc};
 use turbopack_cli_utils::issue::{group_and_display_issues, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
@@ -320,8 +323,8 @@ async fn main() -> Result<()> {
                 });
                 stats.add_id(b, root_task);
                 // stats.merge_resolve();
-                let tree = stats.treeify();
-                let graph = viz::graph::visualize_stats_tree(tree);
+                let tree = stats.treeify(ReferenceType::Child);
+                let graph = viz::graph::visualize_stats_tree(tree, ReferenceType::Child);
                 fs::write("graph.html", viz::graph::wrap_html(&graph)).unwrap();
                 println!("graph.html written");
             }

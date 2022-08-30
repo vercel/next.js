@@ -1,10 +1,13 @@
-use std::{str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use mime::Mime;
-use turbo_tasks::TurboTasks;
+use turbo_tasks::{get_invalidator, TurboTasks};
 use turbo_tasks_fs::{File, FileContent};
-use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
+use turbo_tasks_memory::{
+    stats::{ReferenceType, Stats},
+    viz, MemoryBackend,
+};
 use turbopack_core::version::VersionedContentVc;
 use turbopack_dev_server::source::{ContentSource, ContentSourceVc};
 
@@ -20,40 +23,65 @@ impl TurboTasksSourceVc {
     }
 }
 
+const INVALIDATION_INTERVAL: Duration = Duration::from_secs(3);
+
 #[turbo_tasks::value_impl]
 impl ContentSource for TurboTasksSource {
     #[turbo_tasks::function]
     fn get(&self, path: &str) -> Result<VersionedContentVc> {
         let tt = &self.turbo_tasks;
-        if path == "graph" {
-            let mut stats = Stats::new();
-            let b = tt.backend();
-            b.with_all_cached_tasks(|task| {
-                stats.add_id(b, task);
-            });
-            let tree = stats.treeify();
-            let graph = viz::graph::visualize_stats_tree(tree);
-            return Ok(FileContent::Content(
-                File::from_source(viz::graph::wrap_html(&graph))
-                    .with_content_type(Mime::from_str("text/html")?),
-            )
-            .into());
+        let invalidator = get_invalidator();
+        tokio::spawn({
+            async move {
+                tokio::time::sleep(INVALIDATION_INTERVAL).await;
+                invalidator.invalidate();
+            }
+        });
+        match path {
+            "graph" => {
+                let mut stats = Stats::new();
+                let b = tt.backend();
+                b.with_all_cached_tasks(|task| {
+                    stats.add_id(b, task);
+                });
+                let tree = stats.treeify(ReferenceType::Dependency);
+                let graph = viz::graph::visualize_stats_tree(tree, ReferenceType::Dependency);
+                Ok(FileContent::Content(
+                    File::from_source(viz::graph::wrap_html(&graph))
+                        .with_content_type(Mime::from_str("text/html")?),
+                )
+                .into())
+            }
+            "call-graph" => {
+                let mut stats = Stats::new();
+                let b = tt.backend();
+                b.with_all_cached_tasks(|task| {
+                    stats.add_id(b, task);
+                });
+                let tree = stats.treeify(ReferenceType::Child);
+                let graph = viz::graph::visualize_stats_tree(tree, ReferenceType::Child);
+                Ok(FileContent::Content(
+                    File::from_source(viz::graph::wrap_html(&graph))
+                        .with_content_type(Mime::from_str("text/html")?),
+                )
+                .into())
+            }
+            "table" => {
+                let mut stats = Stats::new();
+                let b = tt.backend();
+                b.with_all_cached_tasks(|task| {
+                    stats.add_id(b, task);
+                });
+                let tree = stats.treeify(ReferenceType::Dependency);
+                let table = viz::table::create_table(tree);
+                Ok(FileContent::Content(
+                    File::from_source(viz::table::wrap_html(&table))
+                        .with_content_type(Mime::from_str("text/html")?),
+                )
+                .into())
+            }
+            _ => Ok(FileContent::NotFound.into()),
         }
-        if path == "table" {
-            let mut stats = Stats::new();
-            let b = tt.backend();
-            b.with_all_cached_tasks(|task| {
-                stats.add_id(b, task);
-            });
-            let tree = stats.treeify();
-            let table = viz::table::create_table(tree);
-            return Ok(FileContent::Content(
-                File::from_source(viz::table::wrap_html(&table))
-                    .with_content_type(Mime::from_str("text/html")?),
-            )
-            .into());
-        }
-        Ok(FileContent::NotFound.into())
     }
 
     #[turbo_tasks::function]
