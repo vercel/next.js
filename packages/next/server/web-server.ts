@@ -406,11 +406,16 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // @TODO
     return true
   }
-  protected async findPageComponents(
-    pathname: string,
-    query?: NextParsedUrlQuery,
+  protected async findPageComponents({
+    pathname,
+    query,
+    params,
+  }: {
+    pathname: string
+    query?: NextParsedUrlQuery
     params?: Params | null
-  ) {
+    isAppDir?: boolean
+  }) {
     const result = await this.serverOptions.webServerConfig.loadComponent(
       pathname
     )

@@ -309,7 +309,7 @@ export default class DevServer extends Server {
         let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
-        const appPaths: Record<string, string> = {}
+        const appPaths: Record<string, string[]> = {}
         const edgeRoutesSet = new Set<string>()
         let envChange = false
         let tsconfigChange = false
@@ -393,7 +393,10 @@ export default class DevServer extends Server {
 
             const originalPageName = pageName
             pageName = normalizeAppPath(pageName) || '/'
-            appPaths[pageName] = originalPageName
+            if (!appPaths[pageName]) {
+              appPaths[pageName] = []
+            }
+            appPaths[pageName].push(originalPageName)
 
             if (routedPages.includes(pageName)) {
               continue
@@ -536,14 +539,17 @@ export default class DevServer extends Server {
           nestedMiddleware = []
         }
 
-        this.appPathRoutes = appPaths
+        this.appPathRoutes = Object.fromEntries(
+          // Make sure to sort parallel routes to make the result deterministic.
+          Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+        )
         this.edgeFunctions = []
         const edgeRoutes = Array.from(edgeRoutesSet)
         getSortedRoutes(edgeRoutes).forEach((page) => {
-          let appPath = this.getOriginalAppPath(page)
+          let appPaths = this.getOriginalAppPaths(page)
 
-          if (typeof appPath === 'string') {
-            page = appPath
+          if (typeof appPaths === 'string') {
+            page = appPaths
           }
           const isRootMiddleware = page === '/' && !!middlewareMatcher
 
@@ -1103,11 +1109,17 @@ export default class DevServer extends Server {
   }
 
   protected async ensureMiddleware() {
-    return this.hotReloader!.ensurePage(this.actualMiddlewareFile!)
+    return this.hotReloader!.ensurePage({ page: this.actualMiddlewareFile! })
   }
 
-  protected async ensureEdgeFunction(pathname: string) {
-    return this.hotReloader!.ensurePage(pathname)
+  protected async ensureEdgeFunction({
+    page,
+    appPaths,
+  }: {
+    page: string
+    appPaths: string[] | null
+  }) {
+    return this.hotReloader!.ensurePage({ page, appPaths })
   }
 
   generateRoutes() {
@@ -1283,15 +1295,22 @@ export default class DevServer extends Server {
   }
 
   protected async ensureApiPage(pathname: string): Promise<void> {
-    return this.hotReloader!.ensurePage(pathname)
+    return this.hotReloader!.ensurePage({ page: pathname })
   }
 
-  protected async findPageComponents(
-    pathname: string,
-    query: ParsedUrlQuery = {},
-    params: Params | null = null,
-    isAppDir: boolean = false
-  ): Promise<FindComponentsResult | null> {
+  protected async findPageComponents({
+    pathname,
+    query = {},
+    params = null,
+    isAppDir = false,
+    appPaths,
+  }: {
+    pathname: string
+    query?: ParsedUrlQuery
+    params?: Params | null
+    isAppDir?: boolean
+    appPaths?: string[] | null
+  }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -1299,7 +1318,7 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      await this.hotReloader!.ensurePage(pathname)
+      await this.hotReloader!.ensurePage({ page: pathname, appPaths })
 
       const serverComponents = this.nextConfig.experimental.serverComponents
 
@@ -1310,7 +1329,7 @@ export default class DevServer extends Server {
         this.serverCSSManifest = super.getServerCSSManifest()
       }
 
-      return super.findPageComponents(pathname, query, params, isAppDir)
+      return super.findPageComponents({ pathname, query, params, isAppDir })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw err
@@ -1323,7 +1342,7 @@ export default class DevServer extends Server {
     await this.hotReloader!.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
-    await this.hotReloader!.ensurePage('/_error')
+    await this.hotReloader!.ensurePage({ page: '/_error' })
     return await loadDefaultErrorComponents(this.distDir)
   }
 

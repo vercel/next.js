@@ -42,6 +42,7 @@ import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { serverComponentRegex } from './webpack/loaders/utils'
 import { ServerRuntime } from '../types'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -144,6 +145,7 @@ interface CreateEntrypointsParams {
   envFiles: LoadedEnvFiles
   isDev?: boolean
   pages: { [page: string]: string }
+  appPathsPerRoute?: { [route: string]: string[] }
   pagesDir: string
   previewMode: __ApiPreviewProps
   rootDir: string
@@ -219,6 +221,7 @@ export function getAppEntry(opts: {
   name: string
   pagePath: string
   appDir: string
+  appPaths: string[] | null
   pageExtensions: string[]
 }) {
   return {
@@ -335,6 +338,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     config,
     pages,
     pagesDir,
+    appPathsPerRoute = {},
     isDev,
     rootDir,
     rootPaths,
@@ -425,10 +429,12 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         },
         onServer: () => {
           if (pagesType === 'app' && appDir) {
+            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
             server[serverBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
               appDir,
+              appPaths: matchedAppPaths,
               pageExtensions,
             })
           } else if (isTargetLikeServerless(target)) {
@@ -449,15 +455,17 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           }
         },
         onEdgeServer: () => {
-          const appDirLoader =
-            pagesType === 'app'
-              ? getAppEntry({
-                  name: serverBundlePath,
-                  pagePath: mappings[page],
-                  appDir: appDir!,
-                  pageExtensions,
-                }).import
-              : ''
+          let appDirLoader: string = ''
+          if (pagesType === 'app') {
+            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
+            appDirLoader = getAppEntry({
+              name: serverBundlePath,
+              pagePath: mappings[page],
+              appDir: appDir!,
+              appPaths: matchedAppPaths,
+              pageExtensions,
+            }).import
+          }
 
           edgeServer[serverBundlePath] = getEdgeServerEntry({
             ...params,
