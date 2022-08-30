@@ -30,14 +30,6 @@ export async function getServerSideProps(context) {
   }
 }
 
-export default function Home(props) {
-  return (
-    <ThirdPartyEmailPasswordAuth>
-      <ProtectedPage userId={props.userId} />
-    </ThirdPartyEmailPasswordAuth>
-  )
-}
-
 function ProtectedPage({ userId }) {
   const session = useSessionContext()
 
@@ -176,5 +168,13 @@ function ProtectedPage({ userId }) {
         </a>
       </footer>
     </div>
+  )
+}
+
+export default function Home(props) {
+  return (
+    <ThirdPartyEmailPasswordAuth>
+      <ProtectedPage userId={props.userId} />
+    </ThirdPartyEmailPasswordAuth>
   )
 }

@@ -787,6 +787,7 @@ export default class NextNodeServer extends BaseServer {
       res.originalResponse,
       paramsResult,
       this.nextConfig,
+      this.renderOpts.dev,
       (newReq, newRes, newParsedUrl) =>
         this.getRequestHandler()(
           new NodeNextRequest(newReq),
