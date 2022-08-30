@@ -11,8 +11,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     trace::TraceRawVcs,
-    util::try_join_all,
-    Value, ValueToString,
+    TryJoinIterExt, Value, ValueToString,
 };
 use turbo_tasks_fs::{
     util::{normalize_path, normalize_request},
@@ -161,7 +160,7 @@ impl ResolveResult {
         Ok(match self {
             ResolveResult::Single(asset, refs) => {
                 let asset = asset_fn(*asset).await?;
-                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
+                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
                 ResolveResult::Single(asset, refs)
             }
             ResolveResult::Keyed(map, refs) => {
@@ -169,7 +168,7 @@ impl ResolveResult {
                 for (key, value) in map.iter() {
                     new_map.insert(key.clone(), asset_fn(*value).await?);
                 }
-                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
+                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
                 ResolveResult::Keyed(new_map, refs)
             }
             ResolveResult::Alternatives(assets, refs) => {
@@ -177,15 +176,15 @@ impl ResolveResult {
                 for asset in assets.iter() {
                     new_assets.push(asset_fn(*asset).await?);
                 }
-                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
+                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
                 ResolveResult::Alternatives(new_assets, refs)
             }
             ResolveResult::Special(ty, refs) => {
-                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
+                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
                 ResolveResult::Special(ty.clone(), refs)
             }
             ResolveResult::Unresolveable(refs) => {
-                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
+                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
                 ResolveResult::Unresolveable(refs)
             }
         })

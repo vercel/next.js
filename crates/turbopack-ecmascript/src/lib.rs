@@ -34,9 +34,7 @@ use references::AnalyzeEcmascriptModuleResult;
 use swc_common::GLOBALS;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 use swc_ecma_visit::{VisitMutWith, VisitMutWithPath};
-use turbo_tasks::{
-    primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -209,7 +207,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             code_gens.push(c.code_generation(chunk_context, context));
         }
         // need to keep that around to allow references into that
-        let code_gens = try_join_all(code_gens.into_iter()).await?;
+        let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
         // TOOD use interval tree with references into "code_gens"
         let mut visitors = Vec::new();

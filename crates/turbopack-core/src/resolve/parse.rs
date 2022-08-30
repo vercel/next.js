@@ -1,9 +1,7 @@
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{
-    primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 
 use super::pattern::Pattern;
 
@@ -251,14 +249,15 @@ impl ValueToString for Request {
             Request::Uri { protocol, remainer } => format!("uri \"{protocol}\" \"{remainer}\""),
             Request::Unknown { path } => format!("unknown {path}"),
             Request::Dynamic => "dynamic".to_string(),
-            Request::Alternatives { requests } => {
-                try_join_all(requests.iter().map(|i| i.to_string()))
-                    .await?
-                    .into_iter()
-                    .map(|r| r.clone())
-                    .collect::<Vec<_>>()
-                    .join(" or ")
-            }
+            Request::Alternatives { requests } => requests
+                .iter()
+                .map(|i| i.to_string())
+                .try_join()
+                .await?
+                .into_iter()
+                .map(|r| r.clone())
+                .collect::<Vec<_>>()
+                .join(" or "),
         }))
     }
 }

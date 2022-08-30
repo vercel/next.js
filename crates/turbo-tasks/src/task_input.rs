@@ -17,7 +17,6 @@ use crate::{
     magic_any::MagicAny,
     manager::{read_task_cell, read_task_output},
     registry, turbo_tasks,
-    util::try_join_all,
     value::{TransientInstance, TransientValue, Value},
     value_type::TypedForInput,
     RawVc, TaskId, TraitType, Typed, ValueTypeId,
@@ -372,7 +371,8 @@ impl TaskInput {
                         list: Vec<TaskInput>,
                     ) -> Pin<Box<dyn Future<Output = Result<Vec<TaskInput>>> + Send>>
                     {
-                        Box::pin(try_join_all(list.into_iter().map(|i| i.resolve())))
+                        use crate::TryJoinIterExt;
+                        Box::pin(list.into_iter().map(|i| i.resolve()).try_join())
                     }
                     return Ok(TaskInput::List(resolve_all(list).await?));
                 }

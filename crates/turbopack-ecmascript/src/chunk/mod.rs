@@ -10,8 +10,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
-    util::try_join_all,
-    ValueToString, ValueToStringVc,
+    TryJoinIterExt, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{embed_file, File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
@@ -137,15 +136,17 @@ impl EcmascriptChunkContent {
         // the risks of values not being strongly consistent with each other.
         let chunk_content = ecmascript_chunk_content(context, main_entry, runtime_entries).await?;
         let c_context = chunk_context(context);
-        let module_factories: Vec<_> = try_join_all(chunk_content.chunk_items.iter().map(
-            |chunk_item| async move {
+        let module_factories: Vec<_> = chunk_content
+            .chunk_items
+            .iter()
+            .map(|chunk_item| async move {
                 let content = chunk_item.content(c_context, context);
                 let factory = module_factory(content);
                 let content_id = content.await?.id.await?;
                 Ok((content_id.clone(), factory.await?.clone())) as Result<_>
-            },
-        ))
-        .await?;
+            })
+            .try_join()
+            .await?;
         Ok(EcmascriptChunkContent {
             module_factories,
             chunk_id,
@@ -223,13 +224,16 @@ impl EcmascriptChunkContentVc {
                 .collect::<Vec<_>>()
                 .join("");
             let entries_ids = &*evaluate.entry_modules_ids.await?;
-            let entries_instantiations = try_join_all(entries_ids.iter().map(|id| async move {
-                let id = id.await?;
-                let id = stringify_module_id(&id);
-                Ok(format!(r#"instantiateRuntimeModule({id});"#)) as Result<_>
-            }))
-            .await?
-            .join("\n");
+            let entries_instantiations = entries_ids
+                .iter()
+                .map(|id| async move {
+                    let id = id.await?;
+                    let id = stringify_module_id(&id);
+                    Ok(format!(r#"instantiateRuntimeModule({id});"#)) as Result<_>
+                })
+                .try_join()
+                .await?
+                .join("\n");
             // Add a runnable to the chunk that requests the entry module to ensure it gets
             // executed when the chunk is evaluated.
             // The condition stops the entry module from being executed while chunks it
@@ -375,13 +379,12 @@ impl ValueToString for EcmascriptChunk {
             Some(EcmascriptChunkEvaluate {
                 runtime_entries: Some(runtime_entries),
             }) => {
-                let runtime_entries_ids = try_join_all(
-                    runtime_entries
-                        .await?
-                        .iter()
-                        .map(|entry| entry.path().to_string().into_future()),
-                )
-                .await?;
+                let runtime_entries_ids = runtime_entries
+                    .await?
+                    .iter()
+                    .map(|entry| entry.path().to_string().into_future())
+                    .try_join()
+                    .await?;
                 let runtime_entries_ids_str = runtime_entries_ids
                     .iter()
                     .map(|s| s.as_ref())
@@ -421,17 +424,21 @@ impl EcmascriptChunkVc {
                 }
                 let c_context = chunk_context(this.context);
                 let mut entry_modules_ids = if let Some(runtime_entries) = runtime_entries {
-                    try_join_all(runtime_entries.await?.iter().map({
-                        let context = this.context;
-                        move |entry| async move {
-                            Ok(entry
-                                .as_chunk_item(context)
-                                .content(c_context, context)
-                                .await?
-                                .id) as Result<_>
-                        }
-                    }))
-                    .await?
+                    runtime_entries
+                        .await?
+                        .iter()
+                        .map({
+                            let context = this.context;
+                            move |entry| async move {
+                                Ok(entry
+                                    .as_chunk_item(context)
+                                    .content(c_context, context)
+                                    .await?
+                                    .id) as Result<_>
+                            }
+                        })
+                        .try_join()
+                        .await?
                 } else {
                     vec![]
                 };

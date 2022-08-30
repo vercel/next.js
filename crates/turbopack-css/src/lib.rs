@@ -7,7 +7,7 @@ use swc_common::{Globals, GLOBALS};
 use swc_css_ast::{AtRule, AtRulePrelude, Rule};
 use swc_css_codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit};
 use swc_css_visit::{VisitMutWith, VisitMutWithPath};
-use turbo_tasks::{primitives::StringVc, util::try_join_all, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -144,7 +144,7 @@ impl CssChunkItem for ModuleChunkItem {
             }
         }
         // need to keep that around to allow references into that
-        let code_gens = try_join_all(code_gens.into_iter()).await?;
+        let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
         // TOOD use interval tree with references into "code_gens"
         let mut visitors = Vec::new();

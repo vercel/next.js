@@ -41,6 +41,7 @@ mod display;
 mod id;
 mod id_factory;
 mod infinite_vec;
+mod join_iter_ext;
 mod magic_any;
 mod manager;
 mod native_function;
@@ -66,6 +67,7 @@ pub use id::{
     with_task_id_mapping, without_task_id_mapping, FunctionId, IdMapping, TaskId, TraitTypeId,
     ValueTypeId,
 };
+pub use join_iter_ext::{JoinIterExt, TryJoinIterExt};
 pub use lazy_static::lazy_static;
 pub use manager::{
     dynamic_call, emit, get_invalidator, spawn_blocking, spawn_thread, trait_call, turbo_tasks,

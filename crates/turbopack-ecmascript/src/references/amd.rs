@@ -3,8 +3,7 @@ use swc_common::DUMMY_SP;
 use swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
-    util::try_join_all,
-    Value, ValueToString,
+    TryJoinIterExt, Value, ValueToString,
 };
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
@@ -93,8 +92,10 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
     ) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
-        let dependencies_pms: Vec<_> =
-            try_join_all(self.dependencies_requests.iter().map(|request| async move {
+        let dependencies_pms: Vec<_> = self
+            .dependencies_requests
+            .iter()
+            .map(|request| async move {
                 PatternMappingVc::resolve_request(
                     self.context.context_path(),
                     chunk_context,
@@ -102,7 +103,8 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                     Value::new(Cjs),
                 )
                 .await
-            }))
+            })
+            .try_join()
             .await?;
 
         let path = &self.path.await?;

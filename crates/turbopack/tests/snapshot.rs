@@ -12,7 +12,7 @@ use difference::Changeset;
 use helpers::print_changeset;
 use lazy_static::lazy_static;
 use test_generator::test_resources;
-use turbo_tasks::{util::try_join_all, NothingVc, TurboTasks, Value};
+use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks, Value};
 use turbo_tasks_fs::{
     util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent,
     FileSystemEntryType, FileSystemPathVc,
@@ -128,20 +128,22 @@ async fn run(resource: &'static str) -> Result<()> {
             .into_iter()
             .map(|p| context.process(SourceAssetVc::new(p).into()));
 
-        let chunks = try_join_all(modules.map(|module| async move {
-            if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), None))
-            } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-                Ok(chunkable.as_chunk(chunking_context.into()))
-            } else {
-                // TODO convert into a serve-able asset
-                Err(anyhow!(
-                    "Entry module is not chunkable, so it can't be used to bootstrap the \
-                     application"
-                ))
-            }
-        }))
-        .await?;
+        let chunks = modules
+            .map(|module| async move {
+                if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
+                    Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), None))
+                } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
+                    Ok(chunkable.as_chunk(chunking_context.into()))
+                } else {
+                    // TODO convert into a serve-able asset
+                    Err(anyhow!(
+                        "Entry module is not chunkable, so it can't be used to bootstrap the \
+                         application"
+                    ))
+                }
+            })
+            .try_join()
+            .await?;
 
         let mut seen = HashSet::new();
         let mut queue = VecDeque::new();

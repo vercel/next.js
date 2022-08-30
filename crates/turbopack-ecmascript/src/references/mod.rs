@@ -25,7 +25,7 @@ use swc_common::{
 };
 use swc_ecma_ast::*;
 use swc_ecma_visit::{AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath};
-use turbo_tasks::{util::try_join_all, Value};
+use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
@@ -437,7 +437,7 @@ pub(crate) async fn analyze_ecmascript_module(
                 fn explain_args(args: &[JsValue]) -> (String, String) {
                     JsValue::explain_args(args, 10, 2)
                 }
-                let linked_args = || try_join_all(args.iter().map(|arg| link_value(arg.clone())));
+                let linked_args = || args.iter().map(|arg| link_value(arg.clone())).try_join();
                 match func {
                     JsValue::Alternatives(_, alts) => {
                         for alt in alts {
@@ -1261,7 +1261,10 @@ async fn value_visitor_inner(
                     match &*resolved {
                         ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
                         ResolveResult::Alternatives(assets, _) => JsValue::alternatives(
-                            try_join_all(assets.iter().map(|asset| as_abs_path(asset.path())))
+                            assets
+                                .iter()
+                                .map(|asset| as_abs_path(asset.path()))
+                                .try_join()
                                 .await?,
                         ),
                         _ => JsValue::Unknown(

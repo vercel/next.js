@@ -1,7 +1,7 @@
 use std::{collections::HashMap, future::IntoFuture};
 
 use anyhow::{anyhow, Result};
-use turbo_tasks::{util::try_join_all, Value};
+use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_fs::{FileSystemPathVc, FileSystemVc};
 use turbopack::{
     ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
@@ -76,30 +76,36 @@ pub async fn create_web_entry_source(
         None
     };
 
-    let modules = try_join_all(entry_requests.into_iter().map(|r| {
-        context
-            .resolve_asset(context.context_path(), r, context.resolve_options())
-            .primary_assets()
-            .into_future()
-    }))
-    .await?;
+    let modules = entry_requests
+        .into_iter()
+        .map(|r| {
+            context
+                .resolve_asset(context.context_path(), r, context.resolve_options())
+                .primary_assets()
+                .into_future()
+        })
+        .try_join()
+        .await?;
     let modules = modules
         .into_iter()
         .flat_map(|assets| assets.iter().copied().collect::<Vec<_>>());
-    let chunks = try_join_all(modules.map(|module| async move {
-        if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-            Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), runtime_entries))
-        } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-            Ok(chunkable.as_chunk(chunking_context.into()))
-        } else {
-            // TODO convert into a serve-able asset
-            Err(anyhow!(
-                "Entry module is not chunkable, so it can't be used to bootstrap the application"
-            ))
-        }
-        // ChunkGroupVc::from_chunk(m)
-    }))
-    .await?;
+    let chunks = modules
+        .map(|module| async move {
+            if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
+                Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), runtime_entries))
+            } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
+                Ok(chunkable.as_chunk(chunking_context.into()))
+            } else {
+                // TODO convert into a serve-able asset
+                Err(anyhow!(
+                    "Entry module is not chunkable, so it can't be used to bootstrap the \
+                     application"
+                ))
+            }
+            // ChunkGroupVc::from_chunk(m)
+        })
+        .try_join()
+        .await?;
 
     let entry_asset = DevHtmlAsset {
         path: FileSystemPathVc::new(dev_server_fs, "index.html"),

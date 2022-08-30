@@ -10,8 +10,7 @@ use turbo_tasks::{
     emit,
     primitives::{BoolVc, StringVc},
     trace::TraceRawVcs,
-    util::try_join_all,
-    CollectiblesSource, ValueToString, ValueToStringVc,
+    CollectiblesSource, TryJoinIterExt, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{FileLine, FileLinesContent, FileSystemPathVc};
 
@@ -155,7 +154,7 @@ impl IssueProcessingPath for ItemIssueProcessingPath {
             .iter()
             .map(|child| child.shortest_path(issue))
             .collect::<Vec<_>>();
-        let paths = try_join_all(paths.iter()).await?;
+        let paths = paths.iter().try_join().await?;
         let mut shortest: Option<&Vec<_>> = None;
         for path in paths.iter().filter_map(|p| p.as_ref()) {
             if let Some(old) = shortest {

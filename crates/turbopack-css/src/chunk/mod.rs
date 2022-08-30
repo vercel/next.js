@@ -3,7 +3,7 @@ mod writer;
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, util::try_join_all, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -103,12 +103,16 @@ impl Asset for CssChunk {
             .as_chunk_item(this.context)
             .content(c_context, this.context);
 
-        let entries = try_join_all(content.chunk_items.iter().map(|chunk_item| async {
-            let content_vc = chunk_item.content(c_context, this.context);
-            let content = &*content_vc.await?;
-            Ok((content.path.await?.clone(), content_vc)) as Result<_>
-        }))
-        .await?;
+        let entries = content
+            .chunk_items
+            .iter()
+            .map(|chunk_item| async {
+                let content_vc = chunk_item.content(c_context, this.context);
+                let content = &*content_vc.await?;
+                Ok((content.path.await?.clone(), content_vc)) as Result<_>
+            })
+            .try_join()
+            .await?;
         let map = entries.into_iter().collect::<HashMap<_, _>>();
 
         let path = self_vc.path();
