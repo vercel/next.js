@@ -116,7 +116,8 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
-  startTransition?: (cb: any) => void
+  startTransition?: (cb: any) => void,
+  prefetchEnabled?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -144,7 +145,7 @@ function linkClicked(
         ? 'replace'
         : 'push'
 
-      router[method](href)
+      router[method](href, { forceOptimisticNavigation: !prefetchEnabled })
     } else {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
@@ -459,7 +460,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             shallow,
             scroll,
             locale,
-            appRouter ? startTransition : undefined
+            appRouter ? startTransition : undefined,
+            p
           )
         }
       },
@@ -474,8 +476,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
-        if (isLocalURL(href)) {
-          prefetch(router, href, as, { priority: true })
+
+        // Check for not prefetch disabled in page using appRouter
+        if (!(!p && appRouter)) {
+          if (isLocalURL(href)) {
+            prefetch(router, href, as, { priority: true })
+          }
         }
       },
       onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
@@ -491,8 +497,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           child.props.onTouchStart(e)
         }
 
-        if (isLocalURL(href)) {
-          prefetch(router, href, as, { priority: true })
+        // Check for not prefetch disabled in page using appRouter
+        if (!(!p && appRouter)) {
+          if (isLocalURL(href)) {
+            prefetch(router, href, as, { priority: true })
+          }
         }
       },
     }

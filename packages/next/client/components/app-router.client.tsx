@@ -170,11 +170,13 @@ export default function AppRouter({
     const navigate = (
       href: string,
       cacheType: 'hard' | 'soft',
-      navigateType: 'push' | 'replace'
+      navigateType: 'push' | 'replace',
+      forceOptimisticNavigation: boolean
     ) => {
       return dispatch({
         type: ACTION_NAVIGATE,
         url: new URL(href, location.origin),
+        forceOptimisticNavigation,
         cacheType,
         navigateType,
         cache: {
@@ -206,28 +208,28 @@ export default function AppRouter({
           })
         }
       },
-      replace: (href) => {
+      replace: (href, options) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'hard', 'replace')
+          navigate(href, 'hard', 'replace', options.forceOptimisticNavigation)
         })
       },
-      softReplace: (href) => {
+      softReplace: (href, options) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'soft', 'replace')
+          navigate(href, 'soft', 'replace', options.forceOptimisticNavigation)
         })
       },
-      softPush: (href) => {
+      softPush: (href, options) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'soft', 'push')
+          navigate(href, 'soft', 'push', options.forceOptimisticNavigation)
         })
       },
-      push: (href) => {
+      push: (href, options) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'hard', 'push')
+          navigate(href, 'hard', 'push', options.forceOptimisticNavigation)
         })
       },
       reload: () => {
