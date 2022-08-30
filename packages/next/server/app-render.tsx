@@ -639,20 +639,6 @@ export async function renderToHTMLOrFlight(
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
 
-    // Only server components can have getServerSideProps / getStaticProps
-    // TODO-APP: friendly error with correct stacktrace. Potentially this can be part of the compiler instead.
-    if (isClientComponentModule) {
-      if (layoutOrPageMod.ssr) {
-        throw new Error(
-          'getServerSideProps is not supported on Client Components'
-        )
-      }
-
-      if (layoutOrPageMod.ssg) {
-        throw new Error('getStaticProps is not supported on Client Components')
-      }
-    }
-
     /**
      * The React Component to render.
      */
@@ -765,7 +751,7 @@ export async function renderToHTMLOrFlight(
     }
 
     // TODO-APP: pass a shared cache from previous getStaticProps/getServerSideProps calls?
-    if (!isClientComponentModule && layoutOrPageMod.getServerSideProps) {
+    if (layoutOrPageMod.getServerSideProps) {
       // TODO-APP: recommendation for i18n
       // locales: (renderOpts as any).locales, // always the same
       // locale: (renderOpts as any).locale, // /nl/something -> nl
@@ -789,7 +775,7 @@ export async function renderToHTMLOrFlight(
         )
     }
     // TODO-APP: implement layout specific caching for getStaticProps
-    if (!isClientComponentModule && layoutOrPageMod.getStaticProps) {
+    if (layoutOrPageMod.getStaticProps) {
       const getStaticPropsContext:
         | GetStaticPropsContext
         | GetStaticPropContextPage = {

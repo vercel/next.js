@@ -1023,31 +1023,52 @@ describe('app dir', () => {
         })
       })
 
-      it('should throw an error when getStaticProps is used', async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/client-with-errors/get-static-props'
-        )
-        expect(res.status).toBe(500)
-        expect(await res.text()).toContain(
-          isDev
-            ? 'getStaticProps is not supported on Client Components'
-            : 'Internal Server Error'
-        )
-      })
+      if (isDev) {
+        it('should throw an error when getStaticProps is used', async () => {
+          const pageFile =
+            'app/client-with-errors/get-static-props/page.client.js'
+          const content = await next.readFile(pageFile)
+          await next.patchFile(
+            pageFile,
+            content.replace(
+              '// export function getStaticProps',
+              'export function getStaticProps'
+            )
+          )
+          const res = await fetchViaHTTP(
+            next.url,
+            '/client-with-errors/get-static-props'
+          )
+          await next.patchFile(pageFile, content)
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain(
+            'getStaticProps is not supported in client components'
+          )
+        })
 
-      it('should throw an error when getServerSideProps is used', async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/client-with-errors/get-server-side-props'
-        )
-        expect(res.status).toBe(500)
-        expect(await res.text()).toContain(
-          isDev
-            ? 'getServerSideProps is not supported on Client Components'
-            : 'Internal Server Error'
-        )
-      })
+        it('should throw an error when getServerSideProps is used', async () => {
+          const pageFile =
+            'app/client-with-errors/get-server-side-props/page.client.js'
+          const content = await next.readFile(pageFile)
+          await next.patchFile(
+            pageFile,
+            content.replace(
+              '// export function getServerSideProps',
+              'export function getServerSideProps'
+            )
+          )
+          const res = await fetchViaHTTP(
+            next.url,
+            '/client-with-errors/get-server-side-props'
+          )
+          await next.patchFile(pageFile, content)
+
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain(
+            'getServerSideProps is not supported in client components'
+          )
+        })
+      }
     })
 
     describe('css support', () => {
