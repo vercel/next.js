@@ -222,7 +222,6 @@ export default class DevServer extends Server {
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
 
-        // We use unshift so that we're sure the routes is defined before Next's default routes
         this.router.addFsRoute({
           match: getPathMatch(path),
           type: 'route',
