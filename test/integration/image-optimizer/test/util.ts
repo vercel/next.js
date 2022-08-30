@@ -449,6 +449,38 @@ export function runTests(ctx) {
     )
   })
 
+  it('should emit blur svg when width is 8 in dev but not prod', async () => {
+    const query = { url: '/test.png', w: 8, q: 70 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    if (isDev) {
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
+      expect(await res.text()).toMatch(
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
+      )
+    } else {
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"w" parameter (width) of 8 is not allowed`)
+    }
+  })
+
+  it('should emit blur svg when width is less than 8 in dev but not prod', async () => {
+    const query = { url: '/test.png', w: 3, q: 70 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    if (isDev) {
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
+      expect(await res.text()).toMatch(
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
+      )
+    } else {
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"w" parameter (width) of 3 is not allowed`)
+    }
+  })
+
   it('should resize relative url and webp Firefox accept header', async () => {
     const query = { url: '/test.png', w: ctx.w, q: 80 }
     const opts = { headers: { accept: 'image/webp,*/*' } }
