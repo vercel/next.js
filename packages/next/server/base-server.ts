@@ -1609,11 +1609,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       res.statusCode = 500
+
+      // if pages/500 is present we still need to trigger
+      // /_error `getInitialProps` to allow reporting error
+      if (await this.hasPage('/500')) {
+        ctx.query.__nextCustomErrorRender = '1'
+        await this.renderErrorToResponse(ctx, err)
+        delete ctx.query.__nextCustomErrorRender
+      }
+
       const isWrappedError = err instanceof WrappedBuildError
-      const response = await this.renderErrorToResponse(
-        ctx,
-        isWrappedError ? (err as WrappedBuildError).innerError : err
-      )
 
       if (!isWrappedError) {
         if (
@@ -1625,6 +1630,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         this.logError(getProperError(err))
       }
+      const response = await this.renderErrorToResponse(
+        ctx,
+        isWrappedError ? (err as WrappedBuildError).innerError : err
+      )
       return response
     }
 
@@ -1713,7 +1722,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
       let statusPage = `/${res.statusCode}`
 
-      if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
+      if (
+        !ctx.query.__nextCustomErrorRender &&
+        !result &&
+        STATIC_STATUS_PAGES.includes(statusPage)
+      ) {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
         if (statusPage !== '/500' || !this.renderOpts.dev) {
