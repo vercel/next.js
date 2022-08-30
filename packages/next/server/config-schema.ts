@@ -111,11 +111,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 topLevelImportPaths: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                    minLength: 1,
-                  },
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 ssr: {
                   type: 'boolean',
@@ -124,7 +129,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 meaninglessFileNames: {
-                  type: 'boolean',
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 minify: {
                   type: 'boolean',
@@ -242,6 +256,9 @@ const configSchema = {
           type: 'boolean',
         },
         externalDir: {
+          type: 'boolean',
+        },
+        fallbackNodePolyfills: {
           type: 'boolean',
         },
         forceSwcTransforms: {
@@ -393,6 +410,7 @@ const configSchema = {
     },
     exportPathMap: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     future: {
       additionalProperties: false,
@@ -401,12 +419,14 @@ const configSchema = {
     },
     generateBuildId: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     generateEtags: {
       type: 'boolean',
     },
     headers: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     httpAgentOptions: {
       additionalProperties: false,
@@ -560,9 +580,11 @@ const configSchema = {
     },
     redirects: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     rewrites: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     sassOptions: {
       type: 'object',
@@ -597,6 +619,8 @@ const configSchema = {
     },
     webpack: {
       isFunction: true,
+      errorMessage:
+        'must be a function that returns a webpack configuration object',
     } as any,
   },
 } as JSONSchemaType<NextConfig>

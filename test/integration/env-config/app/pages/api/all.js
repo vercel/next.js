@@ -21,18 +21,22 @@ const variables = [
   'ENV_FILE_EXPANDED_CONCAT',
   'ENV_FILE_EXPANDED_ESCAPED',
   'ENV_FILE_KEY_EXCLAMATION',
+  'NEW_ENV_KEY',
+  'NEW_ENV_LOCAL_KEY',
+  'NEW_ENV_DEV_KEY',
+  'NEXT_PUBLIC_HELLO_WORLD',
 ]
 
-const items = {
-  nextConfigEnv: process.env.nextConfigEnv,
-  nextConfigPublicEnv: process.env.nextConfigPublicEnv,
-}
+export default async function handler(req, res) {
+  const items = {
+    nextConfigEnv: process.env.nextConfigEnv,
+    nextConfigPublicEnv: process.env.nextConfigPublicEnv,
+  }
 
-variables.forEach((variable) => {
-  items[variable] = process.env[variable]
-})
+  variables.forEach((variable) => {
+    items[variable] = process.env[variable]
+  })
 
-export default async (req, res) => {
   // Only for testing, don't do this...
   res.json(items)
 }

@@ -62,15 +62,13 @@ describe('Middleware Runtime', () => {
     })
   }
 
-  describe('with i18n', () => {
-    setup({ i18n: true })
-    runTests({ i18n: true })
-  })
+  function readMiddlewareJSON(response) {
+    return JSON.parse(response.headers.get('data'))
+  }
 
-  describe('without i18n', () => {
-    setup({ i18n: false })
-    runTests({ i18n: false })
-  })
+  function readMiddlewareError(response) {
+    return response.headers.get('error')
+  }
 
   function runTests({ i18n }: { i18n?: boolean }) {
     if ((global as any).isNextDev) {
@@ -94,6 +92,15 @@ describe('Middleware Runtime', () => {
           fs.writeFileSync(middlewarePath, originalContent)
           await browser.close()
         }
+      })
+
+      it('should only contain middleware route in dev middleware manifest', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
+        )
+        const { location } = await res.json()
+        expect(location).toBe('.*')
       })
     }
 
@@ -609,12 +616,13 @@ describe('Middleware Runtime', () => {
       ])
     })
   }
+  describe('with i18n', () => {
+    setup({ i18n: true })
+    runTests({ i18n: true })
+  })
+
+  describe('without i18n', () => {
+    setup({ i18n: false })
+    runTests({ i18n: false })
+  })
 })
-
-function readMiddlewareJSON(response) {
-  return JSON.parse(response.headers.get('data'))
-}
-
-function readMiddlewareError(response) {
-  return response.headers.get('error')
-}

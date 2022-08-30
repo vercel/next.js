@@ -39,6 +39,14 @@ export function startServer(opts: StartServerOptions) {
       }
     })
 
+    let upgradeHandler: any
+
+    if (!opts.dev) {
+      server.on('upgrade', (req, socket, upgrade) => {
+        upgradeHandler(req, socket, upgrade)
+      })
+    }
+
     server.on('listening', () => {
       const addr = server.address()
       const hostname =
@@ -55,6 +63,7 @@ export function startServer(opts: StartServerOptions) {
       })
 
       requestHandler = app.getRequestHandler()
+      upgradeHandler = app.getUpgradeHandler()
       resolve(app)
     })
 

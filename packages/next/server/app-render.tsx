@@ -1,12 +1,11 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
-import type { ServerRuntime } from './config-shared'
+import type { ServerRuntime } from '../types'
 
 import React from 'react'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
-import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
 import {
@@ -18,11 +17,15 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
+import {
+  FlightCSSManifest,
+  FlightManifest,
+} from '../build/webpack/plugins/flight-manifest-plugin'
+import { FlushEffectsContext } from '../client/components/hooks-client'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -33,10 +36,12 @@ const ReactDOMServer = shouldUseReactRoot
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
-  serverComponentManifest?: any
+  serverComponentManifest?: FlightManifest
+  serverCSSManifest?: FlightCSSManifest
   supportsDynamicHTML?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  assetPrefix?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -60,6 +65,7 @@ const enum RecordStatus {
 
 type Record = {
   status: RecordStatus
+  // Could hold the existing promise or the resolved Promise
   value: any
 }
 
@@ -278,6 +284,7 @@ type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
   components: {
+    filePath: string
     layout?: () => any
     loading?: () => any
     page?: () => any
@@ -368,26 +375,33 @@ function getSegmentParam(segment: string): {
 }
 
 /**
- * Get inline <link> tags based on __next_rsc_css__ manifest. Only used when rendering to HTML.
+ * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
  */
 function getCssInlinedLinkTags(
-  ComponentMod: any,
-  serverComponentManifest: any
-) {
-  const importedServerCSSFiles: string[] =
-    ComponentMod.__client__?.__next_rsc_css__ || []
+  serverComponentManifest: FlightManifest,
+  serverCSSManifest: FlightCSSManifest,
+  filePath: string
+): string[] {
+  const layoutOrPageCss =
+    serverCSSManifest[filePath] ||
+    serverComponentManifest.__client_css_manifest__?.[filePath]
 
-  return Array.from(
-    new Set(
-      importedServerCSSFiles
-        .map((css) =>
-          css.endsWith('.css')
-            ? serverComponentManifest[css].default.chunks
-            : []
-        )
-        .flat()
-    )
-  )
+  if (!layoutOrPageCss) {
+    return []
+  }
+
+  const chunks = new Set<string>()
+
+  for (const css of layoutOrPageCss) {
+    const mod = serverComponentManifest[css]
+    if (mod) {
+      for (const chunk of mod.default.chunks) {
+        chunks.add(chunk)
+      }
+    }
+  }
+
+  return [...chunks]
 }
 
 export async function renderToHTMLOrFlight(
@@ -411,8 +425,8 @@ export async function renderToHTMLOrFlight(
   const {
     buildManifest,
     serverComponentManifest,
+    serverCSSManifest = {},
     supportsDynamicHTML,
-    runtime,
     ComponentMod,
   } = renderOpts
 
@@ -462,6 +476,11 @@ export async function renderToHTMLOrFlight(
    * The tree created in next-app-loader that holds component segments and modules
    */
   const loaderTree: LoaderTree = ComponentMod.tree
+
+  const tryGetPreviewData =
+    process.env.NEXT_RUNTIME === 'edge'
+      ? () => false
+      : require('./api-utils/node').tryGetPreviewData
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
@@ -579,7 +598,7 @@ export async function renderToHTMLOrFlight(
    */
   const createComponentTree = async ({
     createSegmentPath,
-    loaderTree: [segment, parallelRoutes, { layout, loading, page }],
+    loaderTree: [segment, parallelRoutes, { filePath, layout, loading, page }],
     parentParams,
     firstItem,
     rootLayoutIncluded,
@@ -590,6 +609,12 @@ export async function renderToHTMLOrFlight(
     rootLayoutIncluded?: boolean
     firstItem?: boolean
   }): Promise<{ Component: React.ComponentType }> => {
+    // TODO-APP: enable stylesheet per layout/page
+    const stylesheets = getCssInlinedLinkTags(
+      serverComponentManifest,
+      serverCSSManifest!,
+      filePath
+    )
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
     const isPage = typeof page !== 'undefined'
@@ -617,13 +642,13 @@ export async function renderToHTMLOrFlight(
     // Only server components can have getServerSideProps / getStaticProps
     // TODO-APP: friendly error with correct stacktrace. Potentially this can be part of the compiler instead.
     if (isClientComponentModule) {
-      if (layoutOrPageMod.getServerSideProps) {
+      if (layoutOrPageMod.ssr) {
         throw new Error(
           'getServerSideProps is not supported on Client Components'
         )
       }
 
-      if (layoutOrPageMod.getStaticProps) {
+      if (layoutOrPageMod.ssg) {
         throw new Error('getStaticProps is not supported on Client Components')
       }
     }
@@ -740,7 +765,7 @@ export async function renderToHTMLOrFlight(
     }
 
     // TODO-APP: pass a shared cache from previous getStaticProps/getServerSideProps calls?
-    if (layoutOrPageMod.getServerSideProps) {
+    if (!isClientComponentModule && layoutOrPageMod.getServerSideProps) {
       // TODO-APP: recommendation for i18n
       // locales: (renderOpts as any).locales, // always the same
       // locale: (renderOpts as any).locale, // /nl/something -> nl
@@ -764,7 +789,7 @@ export async function renderToHTMLOrFlight(
         )
     }
     // TODO-APP: implement layout specific caching for getStaticProps
-    if (layoutOrPageMod.getStaticProps) {
+    if (!isClientComponentModule && layoutOrPageMod.getStaticProps) {
       const getStaticPropsContext:
         | GetStaticPropsContext
         | GetStaticPropContextPage = {
@@ -807,16 +832,32 @@ export async function renderToHTMLOrFlight(
         }
 
         return (
-          <Component
-            {...props}
-            {...parallelRouteComponents}
-            // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
-            // Params are always the current params that apply to the layout
-            // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
-            params={currentParams}
-            // Query is only provided to page
-            {...(isPage ? { searchParams: query } : {})}
-          />
+          <>
+            {stylesheets
+              ? stylesheets.map((href) => (
+                  <link
+                    rel="stylesheet"
+                    href={`/_next/${href}?ts=${Date.now()}`}
+                    // `Precedence` is an opt-in signal for React to handle
+                    // resource loading and deduplication, etc:
+                    // https://github.com/facebook/react/pull/25060
+                    // @ts-ignore
+                    precedence="high"
+                    key={href}
+                  />
+                ))
+              : null}
+            <Component
+              {...props}
+              {...parallelRouteComponents}
+              // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+              // Params are always the current params that apply to the layout
+              // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
+              params={currentParams}
+              // Query is only provided to page
+              {...(isPage ? { searchParams: query } : {})}
+            />
+          </>
         )
       },
     }
@@ -881,6 +922,7 @@ export async function renderToHTMLOrFlight(
                   loaderTree: loaderTreeToFilter,
                   parentParams: currentParams,
                   firstItem: true,
+                  // parentSegmentPath: '',
                 }
               )
             ).Component
@@ -947,10 +989,6 @@ export async function renderToHTMLOrFlight(
 
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
-  const initialStylesheets: string[] = getCssInlinedLinkTags(
-    ComponentMod,
-    serverComponentManifest
-  )
 
   /**
    * A new React Component that renders the provided React Component
@@ -962,10 +1000,13 @@ export async function renderToHTMLOrFlight(
 
       return (
         <AppRouter
-          hotReloader={HotReloader && <HotReloader assetPrefix="" />}
+          hotReloader={
+            HotReloader && (
+              <HotReloader assetPrefix={renderOpts.assetPrefix || ''} />
+            )
+          }
           initialCanonicalUrl={initialCanonicalUrl}
           initialTree={initialTree}
-          initialStylesheets={initialStylesheets}
         >
           <ComponentTree />
         </AppRouter>
@@ -980,18 +1021,22 @@ export async function renderToHTMLOrFlight(
     }
   )
 
-  /**
-   * Style registry for styled-jsx
-   */
-  const jsxStyleRegistry = createStyleRegistry()
+  const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
+  function FlushEffects({ children }: { children: JSX.Element }) {
+    // Reset flushEffectsHandler on each render
+    flushEffectsCallbacks.clear()
+    const addFlushEffects = React.useCallback(
+      (handler: () => React.ReactNode) => {
+        flushEffectsCallbacks.add(handler)
+      },
+      []
+    )
 
-  /**
-   * styled-jsx styles as React Component
-   */
-  const styledJsxFlushEffect = (): React.ReactNode => {
-    const styles = jsxStyleRegistry.styles()
-    jsxStyleRegistry.flush()
-    return <>{styles}</>
+    return (
+      <FlushEffectsContext.Provider value={addFlushEffects}>
+        {children}
+      </FlushEffectsContext.Provider>
+    )
   }
 
   /**
@@ -1010,10 +1055,17 @@ export async function renderToHTMLOrFlight(
   const generateStaticHTML = supportsDynamicHTML !== true
   const bodyResult = async () => {
     const content = (
-      <StyleRegistry registry={jsxStyleRegistry}>
+      <FlushEffects>
         <ServerComponentsRenderer />
-      </StyleRegistry>
+      </FlushEffects>
     )
+
+    const flushEffectHandler = (): string => {
+      const flushed = ReactDOMServer.renderToString(
+        <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
+      )
+      return flushed
+    }
 
     const renderStream = await renderToInitialStream({
       ReactDOMServer,
@@ -1021,23 +1073,16 @@ export async function renderToHTMLOrFlight(
       streamOptions: {
         // Include hydration scripts in the HTML
         bootstrapScripts: buildManifest.rootMainFiles.map(
-          (src) => '/_next/' + src
+          (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
         ),
       },
     })
 
-    const flushEffectHandler = (): string => {
-      const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
-      return flushed
-    }
-
-    const hasConcurrentFeatures = !!runtime
-
     return await continueFromInitialStream(renderStream, {
       dataStream: serverComponentsInlinedTransformStream?.readable,
-      generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+      generateStaticHTML: generateStaticHTML,
       flushEffectHandler,
-      initialStylesheets,
+      flushEffectsToHead: true,
     })
   }
 

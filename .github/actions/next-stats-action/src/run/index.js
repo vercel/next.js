@@ -58,9 +58,15 @@ async function runConfigs(
       }
 
       const buildStart = Date.now()
-      await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false, {
-        env: yarnEnvValues,
-      })
+      console.log(
+        await exec(
+          `cd ${statsAppDir} && ${statsConfig.appBuildCommand}`,
+          false,
+          {
+            env: yarnEnvValues,
+          }
+        )
+      )
       curStats.General.buildDuration = Date.now() - buildStart
 
       // apply renames to get deterministic output names
@@ -153,9 +159,15 @@ async function runConfigs(
       }
 
       const secondBuildStart = Date.now()
-      await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false, {
-        env: yarnEnvValues,
-      })
+      console.log(
+        await exec(
+          `cd ${statsAppDir} && ${statsConfig.appBuildCommand}`,
+          false,
+          {
+            env: yarnEnvValues,
+          }
+        )
+      )
       curStats.General.buildDurationCached = Date.now() - secondBuildStart
 
       if (statsConfig.appDevCommand) {

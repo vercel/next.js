@@ -29,6 +29,11 @@ describe('app dir - react server components', () => {
   let next: NextInstance
   let distDir: string
 
+  if ((global as any).isNextDeploy) {
+    it('should skip for deploy mode for now', () => {})
+    return
+  }
+
   beforeAll(async () => {
     const appDir = path.join(__dirname, './rsc-basic')
     next = await createNext({
@@ -41,6 +46,7 @@ describe('app dir - react server components', () => {
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
       },
       dependencies: {
+        'styled-components': '6.0.0-alpha.5',
         react: 'experimental',
         'react-dom': 'experimental',
       },
@@ -263,27 +269,13 @@ describe('app dir - react server components', () => {
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
-  // TODO: support esm import for RSC
-  if (isNextDev) {
-    // For prod build, the directory contains the build ID so it's not deterministic.
-    // Only enable it for dev for now.
-    it.skip('should not bundle external imports into client builds for RSC', async () => {
-      const html = await renderViaHTTP(next.url, '/external-imports')
-      expect(html).toContain('date:')
-
-      const distServerDir = path.join(distDir, 'static', 'chunks', 'pages')
-      const bundle = fs
-        .readFileSync(path.join(distServerDir, 'external-imports.js'))
-        .toString()
-
-      expect(bundle).not.toContain('non-isomorphic-text')
-    })
-  }
-
-  // TODO: support esm import for RSC
-  it.skip('should not pick browser field from package.json for external libraries', async () => {
+  it('should handle external async module libraries correctly', async () => {
     const html = await renderViaHTTP(next.url, '/external-imports')
-    expect(html).toContain('isomorphic-export')
+    expect(html).toContain('module type:esm-export')
+    expect(html).toContain('export named:named')
+    expect(html).toContain('export value:123')
+    expect(html).toContain('export array:4,5,6')
+    expect(html).toContain('export object:{x:1}')
   })
 
   it('should handle various kinds of exports correctly', async () => {
@@ -320,11 +312,16 @@ describe('app dir - react server components', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it.skip('should SSR styled-jsx correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/styled-jsx')
-    const styledJsxClass = getNodeBySelector(html, 'h1').attr('class')
+  it('should render initial styles of css-in-js in SSR correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/css-in-js')
+    const head = getNodeBySelector(html, 'head').html()
 
-    expect(html).toContain(`h1.${styledJsxClass}{color:red}`)
+    // from styled-jsx
+    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
+    expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+
+    // from styled-components
+    expect(head).toMatch(/{color:(\s*)blue;?}/)
   })
 
   it('should support streaming for flight response', async () => {
