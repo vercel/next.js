@@ -1,3 +1,7 @@
+const pad = (n) => (n < 10 ? `0${n}` : n)
+const format = (t) =>
+  `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
+
 export default function Clock({ lastUpdate, light }) {
   return (
     <div className={light ? 'light' : ''}>
@@ -18,8 +22,3 @@ export default function Clock({ lastUpdate, light }) {
     </div>
   )
 }
-
-const format = (t) =>
-  `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
-
-const pad = (n) => (n < 10 ? `0${n}` : n)

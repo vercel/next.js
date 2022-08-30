@@ -148,7 +148,7 @@ impl VisitMut for TranspileCssProp {
                                         span: DUMMY_SP,
                                         tail: true,
                                         cooked: None,
-                                        raw: v.value.clone(),
+                                        raw: (&*v.value).into(),
                                     }],
                                 }),
                                 JSXAttrValue::JSXExprContainer(JSXExprContainer {

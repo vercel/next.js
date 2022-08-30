@@ -8,7 +8,7 @@ const convex = new ConvexReactClient(convexConfig.origin)
 function MyApp({ Component, pageProps }: AppProps) {
   return (
     <ConvexProvider client={convex}>
-      <Component {...pageProps} />;
+      <Component {...pageProps} />
     </ConvexProvider>
   )
 }
