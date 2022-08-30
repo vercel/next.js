@@ -273,6 +273,18 @@ describe('app dir', () => {
       }
     })
 
+    it('should match parallel routes', async () => {
+      const html = await renderViaHTTP(next.url, '/parallel/nested')
+      expect(html).toContain('parallel/@foo/nested/layout')
+      expect(html).toContain('parallel/@foo/nested/@a/page')
+      expect(html).toContain('parallel/@foo/nested/@b/page')
+      expect(html).toContain('parallel/@bar/nested/layout')
+      expect(html).toContain('parallel/@bar/nested/@a/page')
+      expect(html).toContain('parallel/@bar/nested/@b/page')
+      expect(html).toContain('parallel/(new)/@baz/nested/page')
+      expect(html).toContain('parallel/nested/page')
+    })
+
     describe('<Link />', () => {
       // TODO-APP: fix development test
       it.skip('should hard push', async () => {
