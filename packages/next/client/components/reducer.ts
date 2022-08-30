@@ -476,7 +476,6 @@ export function reducer(
     | PrefetchAction
   >
 ): AppRouterState {
-  console.log(action.type, action)
   switch (action.type) {
     case ACTION_RESTORE: {
       const { url, tree } = action
