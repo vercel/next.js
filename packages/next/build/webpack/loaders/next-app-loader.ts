@@ -49,7 +49,7 @@ async function createTreeCodeFromPath({
         children ? `children: ${children},` : ''
       }
     }, {
-      filePath: '${resolvedLayoutPath}',
+      filePath: ${JSON.stringify(resolvedLayoutPath)},
       ${
         resolvedLayoutPath
           ? `layout: () => require(${JSON.stringify(resolvedLayoutPath)}),`
