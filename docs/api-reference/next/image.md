@@ -283,7 +283,7 @@ const Example = () => {
   const lazyRoot = React.useRef(null)
 
   return (
-    <div ref={lazyRoot} style={{ overflowX: "scroll", width: "500px" }}>
+    <div ref={lazyRoot} style={{ overflowX: 'scroll', width: '500px' }}>
       <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
       <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
     </div>
