@@ -4,10 +4,10 @@ type SpanProcessorConfig =
     }
   | {
       processorType: 'batch'
-      exportTimeoutMs?: number
+      exportTimeoutMillis?: number
       maxExportBatchSize?: number
       maxQueueSize?: number
-      scheduledDelayMs?: number
+      scheduledDelayMillis?: number
     }
 
 interface TraceConfig {
