@@ -119,7 +119,7 @@ interface PostDocumentData {
  * Slice for *Post → Slice Zone*
  *
  */
-type PostDocumentDataSlicesSlice = TextSlice
+type PostDocumentDataSlicesSlice = TextSlice | ImageSlice
 /**
  * Post document from Prismic
  *
@@ -132,6 +132,49 @@ type PostDocumentDataSlicesSlice = TextSlice
 export type PostDocument<Lang extends string = string> =
   prismicT.PrismicDocumentWithUID<Simplify<PostDocumentData>, 'post', Lang>
 export type AllDocumentTypes = AuthorDocument | PostDocument
+/**
+ * Primary content in Image → Primary
+ *
+ */
+interface ImageSliceDefaultPrimary {
+  /**
+   * Image field in *Image → Primary*
+   *
+   * - **Field Type**: Image
+   * - **Placeholder**: *None*
+   * - **API ID Path**: image.primary.image
+   * - **Documentation**: https://prismic.io/docs/core-concepts/image
+   *
+   */
+  image: prismicT.ImageField<never>
+}
+/**
+ * Default variation for Image Slice
+ *
+ * - **API ID**: `default`
+ * - **Description**: `Image`
+ * - **Documentation**: https://prismic.io/docs/core-concepts/reusing-slices
+ *
+ */
+export type ImageSliceDefault = prismicT.SharedSliceVariation<
+  'default',
+  Simplify<ImageSliceDefaultPrimary>,
+  never
+>
+/**
+ * Slice variation for *Image*
+ *
+ */
+type ImageSliceVariation = ImageSliceDefault
+/**
+ * Image Shared Slice
+ *
+ * - **API ID**: `image`
+ * - **Description**: `Image`
+ * - **Documentation**: https://prismic.io/docs/core-concepts/reusing-slices
+ *
+ */
+export type ImageSlice = prismicT.SharedSlice<'image', ImageSliceVariation>
 /**
  * Primary content in Text → Primary
  *

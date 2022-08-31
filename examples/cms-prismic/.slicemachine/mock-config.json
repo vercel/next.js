@@ -29,6 +29,11 @@
           }
         }
       }
+    },
+    "Image": {
+      "default": {
+        "primary": {}
+      }
     }
   }
 }
