@@ -518,7 +518,7 @@ export default async function getBaseWebpackConfig(
     entrypoints: webpack.EntryObject
     hasReactRoot: boolean
     isDevFallback?: boolean
-    pagesDir: string
+    pagesDir?: string
     reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
     runWebpackSpan: Span
@@ -792,7 +792,7 @@ export default async function getBaseWebpackConfig(
   const customDocumentAliases: { [key: string]: string[] } = {}
   const customRootAliases: { [key: string]: string[] } = {}
 
-  if (dev) {
+  if (dev && pagesDir) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...rawPageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_app.${ext}`))
@@ -850,7 +850,7 @@ export default async function getBaseWebpackConfig(
       ...customDocumentAliases,
       ...customRootAliases,
 
-      [PAGES_DIR_ALIAS]: pagesDir,
+      ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
       ...(appDir
         ? {
             [APP_DIR_ALIAS]: appDir,
@@ -2051,7 +2051,9 @@ export default async function getBaseWebpackConfig(
   webpackConfig = await buildConfiguration(webpackConfig, {
     supportedBrowsers,
     rootDirectory: dir,
-    customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
+    customAppFile: pagesDir
+      ? new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`)))
+      : undefined,
     isDevelopment: dev,
     isServer: isNodeServer || isEdgeServer,
     isEdgeRuntime: isEdgeServer,

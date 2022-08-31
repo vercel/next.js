@@ -276,9 +276,9 @@ function tryToNormalizePagePath(page: string) {
  */
 async function findPagePathData(
   rootDir: string,
-  pagesDir: string,
   page: string,
   extensions: string[],
+  pagesDir?: string,
   appDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
@@ -323,11 +323,11 @@ async function findPagePathData(
     }
   }
 
-  if (!pagePath) {
+  if (!pagePath && pagesDir) {
     pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
   }
 
-  if (pagePath !== null) {
+  if (pagePath !== null && pagesDir) {
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
         extensions,
@@ -365,7 +365,7 @@ export function onDemandEntryHandler({
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
   pagesBufferLength: number
-  pagesDir: string
+  pagesDir?: string
   rootDir: string
   appDir?: string
 }) {
@@ -545,9 +545,9 @@ export function onDemandEntryHandler({
       try {
         const pagePathData = await findPagePathData(
           rootDir,
-          pagesDir,
           page,
           nextConfig.pageExtensions,
+          pagesDir,
           appDir
         )
 

@@ -38,7 +38,7 @@ describe('app dir - react server components', () => {
     const appDir = path.join(__dirname, './rsc-basic')
     next = await createNext({
       files: {
-        node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
+        node_modules: new FileRef(path.join(appDir, 'node_modules')),
         pages: new FileRef(path.join(appDir, 'pages')),
         public: new FileRef(path.join(appDir, 'public')),
         components: new FileRef(path.join(appDir, 'components')),
@@ -52,12 +52,14 @@ describe('app dir - react server components', () => {
       },
       packageJson: {
         scripts: {
+          preinstall: 'mv node_modules node_modules_bak',
           setup: `cp -r ./node_modules_bak/non-isomorphic-text ./node_modules; cp -r ./node_modules_bak/random-module-instance ./node_modules`,
           build: 'yarn setup && next build',
           dev: 'yarn setup && next dev',
           start: 'next start',
         },
       },
+      installCommand: 'yarn',
       startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
       buildCommand: 'yarn build',
     })

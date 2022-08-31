@@ -102,7 +102,7 @@ export default class DevServer extends Server {
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
-  private pagesDir: string
+  private pagesDir?: string
   private appDir?: string
   private actualMiddlewareFile?: string
   private middleware?: MiddlewareRoutingItem
@@ -259,6 +259,13 @@ export default class DevServer extends Server {
 
     let resolved = false
     return new Promise(async (resolve, reject) => {
+      if (!this.pagesDir) {
+        if (!resolved) {
+          resolve()
+          resolved = true
+        }
+        return
+      }
       // Watchpack doesn't emit an event for an empty directory
       fs.readdir(this.pagesDir, (_, files) => {
         if (files?.length) {
@@ -380,7 +387,7 @@ export default class DevServer extends Server {
           }
 
           let pageName = absolutePathToPage(fileName, {
-            pagesDir: isAppPath ? this.appDir! : this.pagesDir,
+            pagesDir: isAppPath ? this.appDir! : this.pagesDir!,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: isAppPath,
           })
@@ -529,8 +536,11 @@ export default class DevServer extends Server {
 
         if (nestedMiddleware.length > 0) {
           Log.error(
-            new NestedMiddlewareError(nestedMiddleware, this.dir, this.pagesDir)
-              .message
+            new NestedMiddlewareError(
+              nestedMiddleware,
+              this.dir,
+              this.pagesDir!
+            ).message
           )
           nestedMiddleware = []
         }
@@ -679,7 +689,9 @@ export default class DevServer extends Server {
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir: relative(this.dir, this.pagesDir).startsWith('src'),
+        isSrcDir: this.pagesDir
+          ? relative(this.dir, this.pagesDir).startsWith('src')
+          : false,
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
       })
@@ -735,12 +747,15 @@ export default class DevServer extends Server {
       if (pageFile) return true
     }
 
-    const pageFile = await findPageFile(
-      this.pagesDir,
-      normalizedPath,
-      this.nextConfig.pageExtensions
-    )
-    return !!pageFile
+    if (this.pagesDir) {
+      const pageFile = await findPageFile(
+        this.pagesDir,
+        normalizedPath,
+        this.nextConfig.pageExtensions
+      )
+      return !!pageFile
+    }
+    return false
   }
 
   protected async _beforeCatchAllRender(

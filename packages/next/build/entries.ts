@@ -149,7 +149,7 @@ interface CreateEntrypointsParams {
   envFiles: LoadedEnvFiles
   isDev?: boolean
   pages: { [page: string]: string }
-  pagesDir: string
+  pagesDir?: string
   previewMode: __ApiPreviewProps
   rootDir: string
   rootPaths?: Record<string, string>
@@ -366,7 +366,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       // Handle paths that have aliases
       const pageFilePath = (() => {
-        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
+        if (pagesDir && absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
           return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
         }
 
@@ -490,7 +490,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
   if (nestedMiddleware.length > 0) {
-    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir)
+    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir!)
   }
 
   return {

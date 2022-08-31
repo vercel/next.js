@@ -159,7 +159,7 @@ export default class HotReloader {
   private dir: string
   private buildId: string
   private interceptors: any[]
-  private pagesDir: string
+  private pagesDir?: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
@@ -197,7 +197,7 @@ export default class HotReloader {
       appDir,
     }: {
       config: NextConfigComplete
-      pagesDir: string
+      pagesDir?: string
       distDir: string
       buildId: string
       previewProps: __ApiPreviewProps
@@ -405,28 +405,30 @@ export default class HotReloader {
       : this.config.pageExtensions
 
     return webpackConfigSpan.traceAsyncFn(async () => {
-      const pagePaths = await webpackConfigSpan
-        .traceChild('get-page-paths')
-        .traceAsyncFn(() =>
-          Promise.all([
-            findPageFile(this.pagesDir, '/_app', rawPageExtensions),
-            findPageFile(this.pagesDir, '/_document', rawPageExtensions),
-          ])
-        )
+      const pagePaths = !this.pagesDir
+        ? ([null, null] as [null, null])
+        : await webpackConfigSpan
+            .traceChild('get-page-paths')
+            .traceAsyncFn(() =>
+              Promise.all([
+                findPageFile(this.pagesDir!, '/_app', rawPageExtensions),
+                findPageFile(this.pagesDir!, '/_document', rawPageExtensions),
+              ])
+            )
 
-      this.pagesMapping = webpackConfigSpan
-        .traceChild('create-pages-mapping')
-        .traceFn(() =>
-          createPagesMapping({
-            hasServerComponents: this.hasServerComponents,
-            isDev: true,
-            pageExtensions: this.config.pageExtensions,
-            pagesType: 'pages',
-            pagePaths: pagePaths.filter(
-              (i): i is string => typeof i === 'string'
-            ),
-          })
-        )
+      this.pagesMapping = !this.pagesDir
+        ? {}
+        : webpackConfigSpan.traceChild('create-pages-mapping').traceFn(() =>
+            createPagesMapping({
+              hasServerComponents: this.hasServerComponents,
+              isDev: true,
+              pageExtensions: this.config.pageExtensions,
+              pagesType: 'pages',
+              pagePaths: pagePaths.filter(
+                (i: string | null): i is string => typeof i === 'string'
+              ),
+            })
+          )
 
       const entrypoints = await webpackConfigSpan
         .traceChild('create-entrypoints')
@@ -847,6 +849,10 @@ export default class HotReloader {
       (stats) => {
         this.serverError = null
         this.serverStats = stats
+
+        if (!this.pagesDir) {
+          return
+        }
 
         const { compilation } = stats
 

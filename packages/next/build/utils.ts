@@ -305,7 +305,7 @@ export async function printTreeView(
   }: {
     distPath: string
     buildId: string
-    pagesDir: string
+    pagesDir?: string
     pageExtensions: string[]
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
@@ -345,7 +345,8 @@ export async function printTreeView(
       .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   // Check if we have a custom app.
-  const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+  const hasCustomApp =
+    pagesDir && (await findPageFile(pagesDir, '/_app', pageExtensions))
 
   const filterAndSortList = (list: ReadonlyArray<string>) =>
     list
