@@ -89,6 +89,8 @@ function ErrorOverlay({
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
   typeof window === 'undefined' ? null! : new Map()
 
+const prefetched = new Set<string>()
+
 /**
  * The global router that wraps the application components.
  */
@@ -189,8 +191,16 @@ export default function AppRouter({
     const routerInstance: AppRouterInstance = {
       // TODO-APP: implement prefetching of flight
       prefetch: async (href) => {
+        // If prefetch has already been triggered, don't trigger it again.
+        if (prefetched.has(href)) {
+          return
+        }
+
+        prefetched.add(href)
+
         const url = new URL(href, location.origin)
-        const r = fetchServerResponse(url, tree, true)
+        // TODO-APP: handle case where history.state is not the new router history entry
+        const r = fetchServerResponse(url, window.history.state.tree, true)
         try {
           r.readRoot()
         } catch (e) {
