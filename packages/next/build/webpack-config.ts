@@ -196,14 +196,12 @@ export function getDefineEnv({
       path: config.images.path,
       loader: config.images.loader,
       dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
-      experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-      experimentalFuture: config.experimental?.images?.allowFutureImage,
+      unoptimized: config?.images?.unoptimized,
       ...(dev
         ? {
             // pass domains in development to allow validating on the client
             domains: config.images.domains,
-            experimentalRemotePatterns:
-              config.experimental?.images?.remotePatterns,
+            remotePatterns: config.images?.remotePatterns,
           }
         : {}),
     }),
