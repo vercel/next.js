@@ -1,5 +1,6 @@
 import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
+import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
@@ -9,10 +10,17 @@ import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
-import { ServerRuntime } from '../../types'
+import { ServerRuntime } from 'next/types'
+import { checkCustomRoutes } from '../../lib/load-custom-routes'
 
-interface MiddlewareConfig {
-  pathMatcher: RegExp
+export interface MiddlewareConfig {
+  matchers: MiddlewareMatcher[]
+}
+
+export interface MiddlewareMatcher {
+  regexp: string
+  locale?: false
+  has?: RouteHas[]
 }
 
 export interface PageStaticInfo {
@@ -81,55 +89,63 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
-function getMiddlewareRegExpStrings(
+function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
   nextConfig: NextConfig
-): string[] {
+): MiddlewareMatcher[] {
+  let matchers: unknown[] = []
   if (Array.isArray(matcherOrMatchers)) {
-    return matcherOrMatchers.flatMap((matcher) =>
-      getMiddlewareRegExpStrings(matcher, nextConfig)
-    )
+    matchers = matcherOrMatchers
+  } else {
+    matchers.push(matcherOrMatchers)
   }
   const { i18n } = nextConfig
 
-  if (typeof matcherOrMatchers !== 'string') {
-    throw new Error(
-      '`matcher` must be a path matcher or an array of path matchers'
-    )
-  }
+  let routes = matchers.map(
+    (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
+  )
 
-  let matcher: string = matcherOrMatchers
+  // check before we process the routes and after to ensure
+  // they are still valid
+  checkCustomRoutes(routes, 'middleware')
 
-  if (!matcher.startsWith('/')) {
-    throw new Error('`matcher`: path matcher must start with /')
-  }
-  const isRoot = matcher === '/'
+  routes = routes.map((r) => {
+    let { source } = r
 
-  if (i18n?.locales) {
-    matcher = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : matcher}`
-  }
+    const isRoot = source === '/'
 
-  matcher = `/:nextData(_next/data/[^/]{1,})?${matcher}${
-    isRoot
-      ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
-      : '(.json)?'
-  }`
+    if (i18n?.locales && r.locale !== false) {
+      source = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : source}`
+    }
 
-  if (nextConfig.basePath) {
-    matcher = `${nextConfig.basePath}${matcher}`
-  }
-  const parsedPage = tryToParsePath(matcher)
+    source = `/:nextData(_next/data/[^/]{1,})?${source}${
+      isRoot
+        ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
+        : '(.json)?'
+    }`
 
-  if (parsedPage.error) {
-    throw new Error(`Invalid path matcher: ${matcher}`)
-  }
+    if (nextConfig.basePath) {
+      source = `${nextConfig.basePath}${source}`
+    }
 
-  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
-  if (regexes.length < 1) {
-    throw new Error("Can't parse matcher")
-  } else {
-    return regexes
-  }
+    return { ...r, source }
+  })
+
+  checkCustomRoutes(routes, 'middleware')
+
+  return routes.map((r) => {
+    const { source, ...rest } = r
+    const parsedPage = tryToParsePath(source)
+
+    if (parsedPage.error || !parsedPage.regexStr) {
+      throw new Error(`Invalid source: ${source}`)
+    }
+
+    return {
+      ...rest,
+      regexp: parsedPage.regexStr,
+    }
+  })
 }
 
 function getMiddlewareConfig(
@@ -139,15 +155,7 @@ function getMiddlewareConfig(
   const result: Partial<MiddlewareConfig> = {}
 
   if (config.matcher) {
-    result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
-    )
-
-    if (result.pathMatcher.source.length > 4096) {
-      throw new Error(
-        `generated matcher config must be less than 4096 characters.`
-      )
-    }
+    result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
   return result
