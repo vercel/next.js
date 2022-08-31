@@ -183,6 +183,8 @@ The `alt` property is used to describe the image for screen readers and search e
 
 It should contain replacement text that could be used instead of the image. It is not meant to supplement the image and should not repeat information that is already provided in the captions above or below the image.
 
+If the image is decorative and doesn't present any information, the `alt` property should be an empty string (`alt=""`). See [A purely decorative image that doesn't add any information - HTML5 Spec](https://html.spec.whatwg.org/multipage/images.html#a-purely-decorative-image-that-doesn't-add-any-information)
+
 ## Optional Props
 
 The `<Image />` component accepts a number of additional properties beyond those which are required. This section describes the most commonly-used properties of the Image component. Find details about more rarely-used properties in the [Advanced Props](#advanced-props) section.
