@@ -112,6 +112,8 @@ export default async function edgeSSRLoader(this: any) {
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
     })
+    
+    export const ComponentMod = pageMod
 
     export default function(opts) {
       return adapter({
