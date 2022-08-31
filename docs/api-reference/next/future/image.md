@@ -181,9 +181,11 @@ Required, except for [statically imported images](/docs/basic-features/image-opt
 
 The `alt` property is used to describe the image for screen readers and search engines. It is also the fallback text if images have been disabled or an error occurs while loading the image.
 
-It should contain replacement text that could be used instead of the image. It is not meant to supplement the image and should not repeat information that is already provided in the captions above or below the image.
+It should contain text that could replace the image [without changing the meaning of the page](https://html.spec.whatwg.org/multipage/images.html#general-guidelines). It is not meant to supplement the image and should not repeat information that is already provided in the captions above or below the image.
 
-If the image is decorative and doesn't present any information, the `alt` property should be an empty string (`alt=""`). See [A purely decorative image that doesn't add any information - HTML5 Spec](https://html.spec.whatwg.org/multipage/images.html#a-purely-decorative-image-that-doesn't-add-any-information)
+If the image is [purely decorative](https://html.spec.whatwg.org/multipage/images.html#a-purely-decorative-image-that-doesn't-add-any-information) or [not intended for the user](https://html.spec.whatwg.org/multipage/images.html#an-image-not-intended-for-the-user), the `alt` property should be an empty string (`alt=""`).
+
+[Learn more](https://html.spec.whatwg.org/multipage/images.html#alt)
 
 ## Optional Props
 
