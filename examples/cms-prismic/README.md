@@ -62,7 +62,7 @@ This command will:
 2. Create a new Prismic repository with premade Author and Post content models.
 3. Connect the Prismic repository to your app.
 
-**Optional**: To see the premade content models, start the [Slice Machine][https://prismic.io/docs/technologies/slice-machine] app.
+**Optional**: To see the premade content models, start the [Slice Machine](https://prismic.io/docs/technologies/slice-machine) app.
 
 ```sh
 npm run slicemachine
