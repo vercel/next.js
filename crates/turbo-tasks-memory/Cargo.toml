@@ -15,6 +15,7 @@ event-listener = "2.5.2"
 flurry = "0.4.0"
 lazy_static = "1.4.0"
 num_cpus = "1.13.1"
+parking_lot = "0.12.1"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 

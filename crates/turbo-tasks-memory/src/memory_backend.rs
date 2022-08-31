@@ -131,7 +131,7 @@ impl MemoryBackend {
     ) {
         while let Some(scope) = queue.pop() {
             if let Some(tasks) = self.with_scope(scope, |scope| {
-                scope.state.lock().unwrap().increment_active(&mut queue)
+                scope.state.lock().increment_active(&mut queue)
             }) {
                 turbo_tasks.schedule_backend_foreground_job(
                     self.create_backend_job(Job::ScheduleWhenDirty(tasks)),
@@ -156,11 +156,7 @@ impl MemoryBackend {
     ) {
         let mut queue = Vec::new();
         if let Some(tasks) = self.with_scope(scope, |scope| {
-            scope
-                .state
-                .lock()
-                .unwrap()
-                .increment_active_by(count, &mut queue)
+            scope.state.lock().increment_active_by(count, &mut queue)
         }) {
             for task in tasks.into_iter() {
                 turbo_tasks.schedule(task);
@@ -177,7 +173,7 @@ impl MemoryBackend {
         let mut queue = vec![scope];
         while let Some(scope) = queue.pop() {
             self.with_scope(scope, |scope| {
-                scope.state.lock().unwrap().decrement_active(&mut queue)
+                scope.state.lock().decrement_active(&mut queue)
             });
         }
     }

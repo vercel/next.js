@@ -4,13 +4,11 @@ use std::{
     hash::{BuildHasher, Hash, Hasher},
     mem::take,
     ops::Deref,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Mutex,
-    },
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use event_listener::{Event, EventListener};
+use parking_lot::Mutex;
 use turbo_tasks::{RawVc, TaskId, TraitTypeId};
 
 use crate::{
@@ -280,7 +278,6 @@ impl TaskScope {
             let mut queue = self
                 .state
                 .lock()
-                .unwrap()
                 .children
                 .iter()
                 .copied()
@@ -301,7 +298,7 @@ impl TaskScope {
                     {
                         return Err(());
                     }
-                    let scope = scope.state.lock().unwrap();
+                    let scope = scope.state.lock();
                     queue.extend(
                         scope
                             .children
@@ -341,7 +338,7 @@ impl TaskScope {
         backend: &MemoryBackend,
     ) -> Vec<RawVc> {
         // TODO add reverse edges from task to scopes and (scope, trait_id)
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock();
         let children = state.children.iter().copied().collect::<Vec<_>>();
         state.dependent_tasks.insert(reader);
         Task::add_dependency_to_current(TaskDependency::ScopeChildren(self_id));
@@ -369,7 +366,7 @@ impl TaskScope {
         trait_id: TraitTypeId,
         backend: &MemoryBackend,
     ) -> Vec<RawVc> {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock();
         let children = state.children.iter().copied().collect::<Vec<_>>();
         let mut collectibles = {
             if let Some((c, _)) = state.collectibles.get(&trait_id) {
@@ -392,7 +389,7 @@ impl TaskScope {
     }
 
     pub(crate) fn remove_dependent_task(&self, reader: TaskId) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock();
         state.dependent_tasks.remove(&reader);
     }
 
@@ -401,7 +398,7 @@ impl TaskScope {
         trait_type: TraitTypeId,
         reader: TaskId,
     ) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock();
         if let Some((_, dependent_tasks)) = state.collectibles.get_mut(&trait_type) {
             dependent_tasks.remove(&reader);
         }
