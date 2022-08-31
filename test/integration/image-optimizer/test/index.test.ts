@@ -79,10 +79,8 @@ describe('Image Optimizer', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
-          experimental: {
-            images: {
-              remotePatterns: [{ hostname: 'example.com', foo: 'bar' }],
-            },
+          images: {
+            remotePatterns: [{ hostname: 'example.com', foo: 'bar' }],
           },
         })
       )
