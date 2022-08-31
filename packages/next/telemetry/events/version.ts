@@ -81,7 +81,7 @@ export function eventCliSession(
     return []
   }
 
-  const { images, i18n, experimental } = nextConfig || {}
+  const { images, i18n } = nextConfig || {}
 
   const payload: EventCliSessionStarted = {
     nextVersion: process.env.__NEXT_VERSION,

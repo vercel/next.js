@@ -5,7 +5,6 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-  RemotePattern,
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
 

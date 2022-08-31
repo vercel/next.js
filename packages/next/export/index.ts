@@ -322,7 +322,6 @@ export default async function exportApp(
     const {
       i18n,
       images: { loader = 'default', unoptimized },
-      experimental,
     } = nextConfig
 
     if (i18n && !options.buildExport) {
