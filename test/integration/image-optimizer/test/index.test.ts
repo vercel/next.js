@@ -108,10 +108,8 @@ describe('Image Optimizer', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
-          experimental: {
-            images: {
-              remotePatterns: [{ protocol: 'https' }],
-            },
+          images: {
+            remotePatterns: [{ protocol: 'https' }],
           },
         })
       )

@@ -95,15 +95,15 @@ export function eventCliSession(
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
     imageEnabled: !!images,
-    imageFutureEnabled: !!experimental.images?.allowFutureImage,
+    imageFutureEnabled: true,
     basePathEnabled: !!nextConfig?.basePath,
     i18nEnabled: !!i18n,
     locales: i18n?.locales ? i18n.locales.join(',') : null,
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
-    imageRemotePatternsCount: experimental?.images?.remotePatterns
-      ? experimental.images.remotePatterns.length
+    imageRemotePatternsCount: images?.remotePatterns
+      ? images.remotePatterns.length
       : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,

@@ -2405,7 +2405,7 @@ export default async function build(
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
       ;(images as any).remotePatterns = (
-        config?.experimental?.images?.remotePatterns || []
+        config?.images?.remotePatterns || []
       ).map((p: RemotePattern) => ({
         // Should be the same as matchRemotePattern()
         protocol: p.protocol,

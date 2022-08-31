@@ -22,8 +22,6 @@ function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
-const { experimentalRemotePatterns = [], experimentalUnoptimized } =
-  (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -137,10 +135,7 @@ function defaultLoader({
       )
     }
 
-    if (
-      !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
-    ) {
+    if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
@@ -154,7 +149,7 @@ function defaultLoader({
       if (process.env.NODE_ENV !== 'test') {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -673,7 +668,7 @@ export default function Image({
   if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
     isLazy = false
   }
-  if (experimentalUnoptimized) {
+  if (config.unoptimized) {
     unoptimized = true
   }
 
