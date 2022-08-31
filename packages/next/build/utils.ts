@@ -34,7 +34,10 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
-import { loadComponents } from '../server/load-components'
+import {
+  loadComponents,
+  LoadComponentsReturnType,
+} from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -43,6 +46,7 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import { getRuntimeContext } from '../server/web/sandbox'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1008,17 +1012,31 @@ export async function buildStaticPaths(
   }
 }
 
-export async function isPageStatic(
-  page: string,
-  distDir: string,
-  serverless: boolean,
-  configFileName: string,
-  runtimeEnvConfig: any,
-  httpAgentOptions: NextConfigComplete['httpAgentOptions'],
-  locales?: string[],
-  defaultLocale?: string,
+export async function isPageStatic({
+  page,
+  distDir,
+  serverless,
+  configFileName,
+  runtimeEnvConfig,
+  httpAgentOptions,
+  locales,
+  defaultLocale,
+  parentId,
+  pageRuntime,
+  edgeInfo,
+}: {
+  page: string
+  distDir: string
+  serverless: boolean
+  configFileName: string
+  runtimeEnvConfig: any
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  locales?: string[]
+  defaultLocale?: string
   parentId?: any
-): Promise<{
+  edgeInfo?: any
+  pageRuntime: ServerRuntime
+}): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
@@ -1037,24 +1055,51 @@ export async function isPageStatic(
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
 
-      const mod = await loadComponents(distDir, page, serverless)
-      const Comp = mod.Component
+      let componentsResult: LoadComponentsReturnType
+
+      if (pageRuntime === SERVER_RUNTIME.edge) {
+        const runtime = await getRuntimeContext({
+          paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
+          env: edgeInfo.env,
+          edgeFunctionEntry: edgeInfo,
+          name: edgeInfo.name,
+          useCache: true,
+          distDir,
+        })
+        const mod =
+          runtime.context._ENTRIES[`middleware_${edgeInfo.name}`].ComponentMod
+
+        componentsResult = {
+          Component: mod.default,
+          ComponentMod: mod,
+          pageConfig: mod.config || {},
+          // @ts-expect-error this is not needed during require
+          buildManifest: {},
+          reactLoadableManifest: {},
+          getServerSideProps: mod.getServerSideProps,
+          getStaticPaths: mod.getStaticPaths,
+          getStaticProps: mod.getStaticProps,
+        }
+      } else {
+        componentsResult = await loadComponents(distDir, page, serverless)
+      }
+      const Comp = componentsResult.Component
 
       if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
       const hasGetInitialProps = !!(Comp as any).getInitialProps
-      const hasStaticProps = !!mod.getStaticProps
-      const hasStaticPaths = !!mod.getStaticPaths
-      const hasServerProps = !!mod.getServerSideProps
-      const hasLegacyServerProps = !!(await mod.ComponentMod
+      const hasStaticProps = !!componentsResult.getStaticProps
+      const hasStaticPaths = !!componentsResult.getStaticPaths
+      const hasServerProps = !!componentsResult.getServerSideProps
+      const hasLegacyServerProps = !!(await componentsResult.ComponentMod
         .unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await mod.ComponentMod
+      const hasLegacyStaticProps = !!(await componentsResult.ComponentMod
         .unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await mod.ComponentMod
+      const hasLegacyStaticPaths = !!(await componentsResult.ComponentMod
         .unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await mod.ComponentMod
+      const hasLegacyStaticParams = !!(await componentsResult.ComponentMod
         .unstable_getStaticParams)
 
       if (hasLegacyStaticParams) {
@@ -1121,7 +1166,7 @@ export async function isPageStatic(
           encodedPaths: encodedPrerenderRoutes,
         } = await buildStaticPaths(
           page,
-          mod.getStaticPaths!,
+          componentsResult.getStaticPaths!,
           configFileName,
           locales,
           defaultLocale
@@ -1129,7 +1174,7 @@ export async function isPageStatic(
       }
 
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
-      const config: PageConfig = mod.pageConfig
+      const config: PageConfig = componentsResult.pageConfig
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
