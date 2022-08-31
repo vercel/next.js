@@ -140,7 +140,7 @@ function traceChunks(
       PATH: paths,
       RUST_BACKTRACE: '1',
     },
-    cwd: cwd ?? process.cwd(),
+    cwd: cwd ?? process.env.npm_config_local_prefix ?? process.cwd(),
   })
   return new Promise<void>((resolve, reject) => {
     turboTracingProcess.on('error', (err) => {
