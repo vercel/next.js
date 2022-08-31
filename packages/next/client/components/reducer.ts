@@ -476,21 +476,6 @@ export function reducer(
   >
 ): AppRouterState {
   switch (action.type) {
-    case ACTION_RESTORE: {
-      const { url, tree } = action
-      const href = url.pathname + url.search + url.hash
-
-      return {
-        // Set canonical url
-        canonicalUrl: href,
-        pushRef: state.pushRef,
-        focusAndScrollRef: state.focusAndScrollRef,
-        cache: state.cache,
-        prefetchCache: state.prefetchCache,
-        // Restore provided tree
-        tree: tree,
-      }
-    }
     case ACTION_NAVIGATE: {
       const { url, navigateType, cache, mutable, forceOptimisticNavigation } =
         action
@@ -553,38 +538,6 @@ export function reducer(
       const segments = pathname.split('/')
       // TODO-APP: figure out something better for index pages
       segments.push('')
-
-      const isSoftNavigation = false
-
-      // In case of soft push data fetching happens in layout-router if a segment is missing
-      if (isSoftNavigation) {
-        // Create optimistic tree that causes missing data to be fetched in layout-router during render.
-        const optimisticTree = createOptimisticTree(
-          segments,
-          state.tree,
-          true,
-          false,
-          href
-        )
-
-        mutable.patchedTree = optimisticTree
-        mutable.previousTree = state.tree
-        mutable.useExistingCache = true
-
-        return {
-          // Set href.
-          canonicalUrl: href,
-          // Set pendingPush. mpaNavigation is handled during rendering in layout-router for this case.
-          pushRef: { pendingPush, mpaNavigation: false },
-          // All navigation requires scroll and focus management to trigger.
-          focusAndScrollRef: { apply: true },
-          // Existing cache is used for soft navigation.
-          cache: state.cache,
-          prefetchCache: state.prefetchCache,
-          // Optimistic tree is applied.
-          tree: optimisticTree,
-        }
-      }
 
       // When doing a hard push there can be two cases: with optimistic tree and without
       // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
@@ -760,6 +713,21 @@ export function reducer(
         prefetchCache: state.prefetchCache,
         // Apply patched cache
         cache: cache,
+      }
+    }
+    case ACTION_RESTORE: {
+      const { url, tree } = action
+      const href = url.pathname + url.search + url.hash
+
+      return {
+        // Set canonical url
+        canonicalUrl: href,
+        pushRef: state.pushRef,
+        focusAndScrollRef: state.focusAndScrollRef,
+        cache: state.cache,
+        prefetchCache: state.prefetchCache,
+        // Restore provided tree
+        tree: tree,
       }
     }
     case ACTION_RELOAD: {
