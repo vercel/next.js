@@ -544,10 +544,9 @@ export default class DevServer extends Server {
         )
         const edgeRoutes = Array.from(edgeRoutesSet)
         this.edgeFunctions = getSortedRoutes(edgeRoutes).map((page) => {
-          const appPaths = this.getOriginalAppPaths(page)
-
-          if (Array.isArray(appPaths)) {
-            page = appPaths[0]
+          const matchedAppPaths = this.getOriginalAppPaths(page)
+          if (Array.isArray(matchedAppPaths)) {
+            page = matchedAppPaths[0]
           }
           const edgeRegex = getRouteRegex(page)
           return {
