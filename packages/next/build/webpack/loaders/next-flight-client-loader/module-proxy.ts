@@ -38,9 +38,6 @@ const proxyHandlers: ProxyHandler<object> = {
           // whole object or just the default export.
           name: '',
           async: target.async,
-
-          ssr: target.ssr,
-          ssg: target.ssg,
         }
         return true
       case 'then':
@@ -57,9 +54,6 @@ const proxyHandlers: ProxyHandler<object> = {
               filepath: target.filepath,
               name: '*', // Represents the whole object instead of a particular import.
               async: true,
-
-              ssr: target.ssr,
-              ssg: target.ssg,
             }
             return Promise.resolve(
               resolve(new Proxy(moduleReference, proxyHandlers))
@@ -74,11 +68,6 @@ const proxyHandlers: ProxyHandler<object> = {
           return then
         }
         break
-
-      case 'ssg':
-        return target.ssg
-      case 'ssr':
-        return target.ssr
       default:
         break
     }
@@ -102,18 +91,12 @@ const proxyHandlers: ProxyHandler<object> = {
   },
 }
 
-export function createProxy(
-  moduleId: string,
-  { ssr, ssg }: { ssr: boolean; ssg: boolean }
-) {
+export function createProxy(moduleId: string) {
   const moduleReference = {
     $$typeof: MODULE_REFERENCE,
     filepath: moduleId,
     name: '*', // Represents the whole object instead of a particular import.
     async: false,
-
-    ssr,
-    ssg,
   }
   return new Proxy(moduleReference, proxyHandlers)
 }
