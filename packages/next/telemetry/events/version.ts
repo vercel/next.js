@@ -95,7 +95,7 @@ export function eventCliSession(
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
     imageEnabled: !!images,
-    imageFutureEnabled: true,
+    imageFutureEnabled: !!images,
     basePathEnabled: !!nextConfig?.basePath,
     i18nEnabled: !!i18n,
     locales: i18n?.locales ? i18n.locales.join(',') : null,
