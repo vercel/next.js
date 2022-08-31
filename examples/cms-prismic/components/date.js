@@ -1,7 +1,13 @@
-import { format } from 'date-fns'
-import { Date as PrismicDate } from 'prismic-reactjs'
+import { asDate } from '@prismicio/helpers'
+
+const formatter = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+})
 
 export default function Date({ dateString }) {
-  const date = PrismicDate(dateString)
-  return <time dateTime={dateString}>{format(date, 'LLLL	d, yyyy')}</time>
+  const date = asDate(dateString)
+
+  return <time dateTime={dateString}>{formatter.format(date)}</time>
 }
