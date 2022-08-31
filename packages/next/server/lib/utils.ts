@@ -16,7 +16,7 @@ export function getNodeOptionsWithoutInspect() {
 }
 
 export function getPort(args: arg.Result<arg.Spec>): number {
-  if (args['--port'] != null) {
+  if (typeof args['--port'] === 'number') {
     return args['--port']
   }
 
