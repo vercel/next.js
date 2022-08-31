@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { predicate } from '@prismicio/client'
+import { asImageSrc, asText } from '@prismicio/helpers'
 import Container from '../../components/container'
 import PostBody from '../../components/post-body'
 import MoreStories from '../../components/more-stories'
@@ -11,7 +12,6 @@ import Layout from '../../components/layout'
 import PostTitle from '../../components/post-title'
 import { CMS_NAME } from '../../lib/constants'
 import { createClient } from '../../lib/prismic'
-import { asImageSrc, asText } from '@prismicio/helpers'
 
 /** @param {import("next").InferGetStaticPropsType<typeof getStaticProps>>} */
 export default function Post({ post, morePosts, preview }) {
@@ -28,7 +28,8 @@ export default function Post({ post, morePosts, preview }) {
             <article>
               <Head>
                 <title>
-                  {asText(post.title)} | Next.js Blog Example with {CMS_NAME}
+                  {asText(post.data.title)} | Next.js Blog Example with{' '}
+                  {CMS_NAME}
                 </title>
                 <meta
                   property="og:image"
