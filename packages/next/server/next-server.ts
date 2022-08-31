@@ -153,6 +153,41 @@ function getMiddlewareMatcher(
   return matcher
 }
 
+/**
+ * Hardcoded every possible error status code that could be thrown by "serveStatic" method
+ * This is done by searching "this.error" inside "send" module's source code:
+ * https://github.com/pillarjs/send/blob/master/index.js
+ * https://github.com/pillarjs/send/blob/develop/index.js
+ */
+const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
+  // send module will throw 500 when header is already sent or fs.stat error happens
+  // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L392
+  // Note: we will use Next.js built-in 500 page to handle 500 errors
+  // 500,
+
+  // send module will throw 404 when file is missing
+  // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L421
+  // Note: we will use Next.js built-in 404 page to handle 404 errors
+  // 404,
+
+  // send module will throw 403 when redirecting to a directory without enabling directory listing
+  // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L484
+  // Note: Next.js throws a different error (without status code) for directory listing
+  // 403,
+
+  // send module will throw 400 when fails to normalize the path
+  // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L520
+  400,
+
+  // send module will throw 412 with conditional GET request
+  // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L632
+  412,
+
+  // send module will throw 416 when range is not satisfiable
+  // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L669
+  416,
+])
+
 function getEdgeMatcher(
   info: MiddlewareManifest['functions'][string]
 ): RouteMatch {
@@ -1362,8 +1397,11 @@ export default class NextNodeServer extends BaseServer {
       const err = error as Error & { code?: string; statusCode?: number }
       if (err.code === 'ENOENT' || err.statusCode === 404) {
         this.render404(req, res, parsedUrl)
-      } else if (err.statusCode === 412) {
-        res.statusCode = 412
+      } else if (
+        typeof err.statusCode === 'number' &&
+        POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC.has(err.statusCode)
+      ) {
+        res.statusCode = err.statusCode
         return this.renderError(err, req, res, path)
       } else {
         throw err
