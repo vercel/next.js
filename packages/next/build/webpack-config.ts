@@ -54,6 +54,7 @@ import type {
   SWC_TARGET_TRIPLE,
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
+import type { MiddlewareMatcher } from './analysis/get-page-static-info'
 import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
@@ -90,7 +91,7 @@ export function getDefineEnv({
   hasReactRoot,
   isNodeServer,
   isEdgeServer,
-  middlewareRegex,
+  middlewareMatchers,
   hasServerComponents,
 }: {
   dev?: boolean
@@ -100,7 +101,7 @@ export function getDefineEnv({
   hasReactRoot?: boolean
   isNodeServer?: boolean
   isEdgeServer?: boolean
-  middlewareRegex?: string
+  middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
   hasServerComponents?: boolean
 }) {
@@ -144,8 +145,8 @@ export function getDefineEnv({
         isEdgeServer ? 'edge' : 'nodejs'
       ),
     }),
-    'process.env.__NEXT_MIDDLEWARE_REGEX': JSON.stringify(
-      middlewareRegex || ''
+    'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
+      middlewareMatchers || []
     ),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
       config.experimental.manualClientBasePath
@@ -510,7 +511,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     target = COMPILER_NAMES.server,
     appDir,
-    middlewareRegex,
+    middlewareMatchers,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -525,7 +526,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
     target?: string
     appDir?: string
-    middlewareRegex?: string
+    middlewareMatchers?: MiddlewareMatcher[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -1673,7 +1674,7 @@ export default async function getBaseWebpackConfig(
           hasReactRoot,
           isNodeServer,
           isEdgeServer,
-          middlewareRegex,
+          middlewareMatchers,
           hasServerComponents,
         })
       ),

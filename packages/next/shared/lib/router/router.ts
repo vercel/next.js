@@ -91,21 +91,27 @@ interface MiddlewareEffectParams<T extends FetchDataOutput> {
   router: Router
 }
 
-function matchesMiddleware<T extends FetchDataOutput>(
+export async function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
-  return Promise.resolve(options.router.pageLoader.getMiddleware()).then(
-    (middleware) => {
-      const { pathname: asPathname } = parsePath(options.asPath)
-      const cleanedAs = hasBasePath(asPathname)
-        ? removeBasePath(asPathname)
-        : asPathname
+  const matchers = await Promise.resolve(
+    options.router.pageLoader.getMiddleware()
+  )
+  if (!matchers) return false
 
-      const regex = middleware?.location
-      return (
-        !!regex && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
-      )
-    }
+  const { pathname: asPathname } = parsePath(options.asPath)
+  // remove basePath first since path prefix has to be in the order of `/${basePath}/${locale}`
+  const cleanedAs = hasBasePath(asPathname)
+    ? removeBasePath(asPathname)
+    : asPathname
+  const asWithBasePathAndLocale = addBasePath(
+    addLocale(cleanedAs, options.locale)
+  )
+
+  // Check only path match on client. Matching "has" should be done on server
+  // where we can access more info such as headers, HttpOnly cookie, etc.
+  return matchers.some((m) =>
+    new RegExp(m.regexp).test(asWithBasePathAndLocale)
   )
 }
 

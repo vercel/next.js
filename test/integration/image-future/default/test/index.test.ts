@@ -685,6 +685,16 @@ function runTests(mode) {
       )
     })
 
+    it('should show missing alt error', async () => {
+      const browser = await webdriver(appPort, '/missing-alt')
+
+      expect(await hasRedbox(browser)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log()).map((log) => log.message).join('\n')
+      }, /Image is missing required "alt" property/gm)
+    })
+
     it('should show error when missing width prop', async () => {
       const browser = await webdriver(appPort, '/missing-width')
 
