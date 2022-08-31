@@ -9,6 +9,7 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 | Version   | Changes                                      |
 | --------- | -------------------------------------------- |
+| `v12.3.0` | Changed `alt` property to required.          |
 | `v12.2.4` | Support for `fill` property added.           |
 | `v12.2.0` | Experimental `next/future/image` introduced. |
 
@@ -43,6 +44,7 @@ Compared to `next/image`, the new `next/future/image` component has the followin
   - Removes `lazyBoundary` prop since there is no native equivalent
   - Removes `lazyRoot` prop since there is no native equivalent
 - Removes `loader` config in favor of [`loader`](#loader) prop
+- Changed `alt` prop from optional to required
 
 ## Known Browser Bugs
 
@@ -174,6 +176,16 @@ Required, except for [statically imported images](/docs/basic-features/image-opt
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
 Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
+
+### alt
+
+The `alt` property is used to describe the image for screen readers and search engines. It is also the fallback text if images have been disabled or an error occurs while loading the image.
+
+It should contain text that could replace the image [without changing the meaning of the page](https://html.spec.whatwg.org/multipage/images.html#general-guidelines). It is not meant to supplement the image and should not repeat information that is already provided in the captions above or below the image.
+
+If the image is [purely decorative](https://html.spec.whatwg.org/multipage/images.html#a-purely-decorative-image-that-doesn't-add-any-information) or [not intended for the user](https://html.spec.whatwg.org/multipage/images.html#an-image-not-intended-for-the-user), the `alt` property should be an empty string (`alt=""`).
+
+[Learn more](https://html.spec.whatwg.org/multipage/images.html#alt)
 
 ## Optional Props
 
