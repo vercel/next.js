@@ -13,7 +13,6 @@ export default function Avatar({ name, picture }) {
           field={picture}
           layout="fill"
           className="rounded-full"
-          alt={name}
         />
       </div>
       <div className="text-xl font-bold">{name}</div>
