@@ -5,6 +5,15 @@ import Avatar from '../components/avatar'
 import Date from '../components/date'
 import CoverImage from '../components/cover-image'
 
+/**
+ * @param {object} props
+ * @param {import("@prismicio/types").TitleField} props.title
+ * @param {import("@prismicio/types").ImageField} props.coverImage
+ * @param {string} props.date
+ * @param {string} props.excerpt
+ * @param {import('../types.generated').AuthorDocument} props.author
+ * @param {string} props.href
+ */
 export default function HeroPost({
   title,
   coverImage,

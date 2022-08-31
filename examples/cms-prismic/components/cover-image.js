@@ -1,7 +1,13 @@
-import { PrismicNextImage } from '@prismicio/next'
 import Link from 'next/link'
 import cn from 'classnames'
+import { PrismicNextImage } from '@prismicio/next'
 
+/**
+ * @param {object} props
+ * @param {string} props.title
+ * @param {import("@prismicio/types").ImageField} props.image
+ * @param {string} [props.href]
+ */
 export default function CoverImage({ title, image: imageField, href }) {
   const image = (
     <PrismicNextImage

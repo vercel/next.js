@@ -1,5 +1,9 @@
 import PostPreview from '../components/post-preview'
 
+/**
+ * @param {object} props
+ * @param {import('../types.generated').PostDocument[]} props.posts
+ */
 export default function MoreStories({ posts }) {
   return (
     <section>

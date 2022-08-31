@@ -7,6 +7,7 @@ import Layout from '../components/layout'
 import { CMS_NAME } from '../lib/constants'
 import { createClient } from '../lib/prismic'
 
+/** @param {import("next").InferGetStaticPropsType<typeof getStaticProps>} */
 export default function Index({ preview, allPosts }) {
   const [heroPost, ...morePosts] = allPosts
 
@@ -35,6 +36,7 @@ export default function Index({ preview, allPosts }) {
   )
 }
 
+/** @param {import("next").GetStaticPropsContext} */
 export async function getStaticProps({ preview = false, previewData }) {
   const client = createClient({ previewData })
 

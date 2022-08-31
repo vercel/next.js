@@ -6,6 +6,10 @@ const formatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 })
 
+/**
+ * @param {object} props
+ * @param {string} props.dateString
+ */
 export default function Date({ dateString }) {
   const date = asDate(dateString)
 

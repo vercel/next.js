@@ -13,6 +13,7 @@ import { CMS_NAME } from '../../lib/constants'
 import { createClient } from '../../lib/prismic'
 import { asImageSrc, asText } from '@prismicio/helpers'
 
+/** @param {import("next").InferGetStaticPropsType<typeof getStaticProps>>} */
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
 
@@ -57,6 +58,7 @@ export default function Post({ post, morePosts, preview }) {
   )
 }
 
+/** @param {import("next").GetStaticPropsContext<{ slug: string }>} */
 export async function getStaticProps({ params, preview = false, previewData }) {
   const client = createClient({ previewData })
 

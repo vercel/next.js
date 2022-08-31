@@ -5,6 +5,14 @@ import Avatar from '../components/avatar'
 import Date from '../components/date'
 import CoverImage from './cover-image'
 
+/**
+ * @param {object} props
+ * @param {import("@prismicio/types").TitleField} props.title
+ * @param {import('@prismicio/types').ImageField} props.coverImage
+ * @param {string} props.date
+ * @param {import("../types.generated").AuthorDocument} props.author
+ * @param {string} props.href
+ */
 export default function PostPreview({
   title,
   coverImage,

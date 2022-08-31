@@ -5,6 +5,13 @@ import Date from '../components/date'
 import CoverImage from '../components/cover-image'
 import PostTitle from '../components/post-title'
 
+/**
+ * @param {object} props
+ * @param {import("@prismicio/types").TitleField} props.title
+ * @param {import('@prismicio/types').ImageField} props.coverImage
+ * @param {string} props.date
+ * @param {import("../types.generated").AuthorDocument} props.author
+ */
 export default function PostHeader({ title, coverImage, date, author }) {
   return (
     <>
@@ -13,7 +20,10 @@ export default function PostHeader({ title, coverImage, date, author }) {
       </PostTitle>
       <div className="hidden md:block md:mb-12">
         {author && (
-          <Avatar name={asText(author.name)} picture={author.picture} />
+          <Avatar
+            name={asText(author.data.name)}
+            picture={author.data.picture}
+          />
         )}
       </div>
       <div className="mb-8 md:mb-16 sm:mx-0">
@@ -22,7 +32,10 @@ export default function PostHeader({ title, coverImage, date, author }) {
       <div className="max-w-2xl mx-auto">
         <div className="block md:hidden mb-6">
           {author && (
-            <Avatar name={asText(author.name)} picture={author.picture} />
+            <Avatar
+              name={asText(author.data.name)}
+              picture={author.data.picture}
+            />
           )}
         </div>
         <div className="mb-6 text-lg">
