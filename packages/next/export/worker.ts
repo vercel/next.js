@@ -66,6 +66,7 @@ interface ExportPageInput {
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
   appDir?: boolean
+  appPaths: string[]
 }
 
 interface ExportPageResults {
@@ -106,6 +107,7 @@ export default async function exportPage({
   distDir,
   outDir,
   appDir,
+  appPaths,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -273,6 +275,9 @@ export default async function exportPage({
         return !buildExport && getStaticProps && !isDynamicRoute(path)
       }
 
+      const isAppPath = appPaths.some((appPath: string) =>
+        appPath.startsWith(page + '.page')
+      )
       if (serverless) {
         const curUrl = url.parse(req.url!, true)
         req.url = url.format({
@@ -293,7 +298,7 @@ export default async function exportPage({
           page,
           serverless,
           !!serverComponents,
-          !!appDir
+          isAppPath
         )
         const ampState = {
           ampFirst: pageConfig?.amp === true,
@@ -360,7 +365,7 @@ export default async function exportPage({
           page,
           serverless,
           !!serverComponents,
-          !!appDir
+          isAppPath
         )
         const ampState = {
           ampFirst: components.pageConfig?.amp === true,
