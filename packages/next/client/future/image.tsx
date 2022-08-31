@@ -100,9 +100,10 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
+  'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
+  alt: string
   width?: number | string
   height?: number | string
   fill?: boolean
@@ -116,7 +117,7 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
-type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
+type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   srcString: string
   imgAttributes: GenImgAttrsResult
   heightInt: number | undefined
@@ -390,6 +391,11 @@ const ImageElement = ({
                 console.error(
                   `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
                   img
+                )
+              }
+              if (img.getAttribute('alt') === null) {
+                console.error(
+                  `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
                 )
               }
             }
