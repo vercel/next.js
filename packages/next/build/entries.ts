@@ -4,6 +4,10 @@ import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type {
+  MiddlewareConfig,
+  MiddlewareMatcher,
+} from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
@@ -43,6 +47,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { serverComponentRegex } from './webpack/loaders/utils'
 import { ServerRuntime } from '../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -164,7 +169,7 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
-  middleware?: { pathMatcher?: RegExp }
+  middleware?: Partial<MiddlewareConfig>
   pagesType?: 'app' | 'pages' | 'root'
   appDirLoader?: string
 }) {
@@ -172,12 +177,9 @@ export function getEdgeServerEntry(opts: {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
-      // pathMatcher can have special characters that break the loader params
-      // parsing so we base64 encode/decode the string
-      matcherRegexp: Buffer.from(
-        (opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source) ||
-          ''
-      ).toString('base64'),
+      matchers: opts.middleware?.matchers
+        ? encodeMatchers(opts.middleware.matchers)
+        : '',
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -349,7 +351,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
   const nestedMiddleware: string[] = []
-  let middlewareRegex: string | undefined = undefined
+  let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
 
   let appPathsPerRoute: Record<string, string[]> = {}
   if (appDir && appPaths) {
@@ -420,7 +422,9 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       })
 
       if (isMiddlewareFile(page)) {
-        middlewareRegex = staticInfo.middleware?.pathMatcher?.source || '.*'
+        middlewareMatchers = staticInfo.middleware?.matchers ?? [
+          { regexp: '.*' },
+        ]
 
         if (target === 'serverless') {
           throw new MiddlewareInServerlessTargetError()
@@ -515,7 +519,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     client,
     server,
     edgeServer,
-    middlewareRegex,
+    middlewareMatchers,
   }
 }
 

@@ -5,6 +5,7 @@ import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
@@ -68,6 +69,7 @@ import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -78,6 +80,12 @@ export interface RoutingItem {
   page: string
   match: RouteMatch
   re?: RegExp
+}
+
+export interface MiddlewareRoutingItem {
+  page: string
+  match: MiddlewareRouteMatch
+  matchers?: MiddlewareMatcher[]
 }
 
 export interface Options {
@@ -1585,6 +1593,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (result !== false) return result
         }
       }
+
+      // currently edge functions aren't receiving the x-matched-path
+      // header so we need to fallback to matching the current page
+      // when we weren't able to match via dynamic route to handle
+      // the rewrite case
+      // @ts-expect-error extended in child class web-server
+      if (this.serverOptions.webServerConfig) {
+        // @ts-expect-error extended in child class web-server
+        ctx.pathname = this.serverOptions.webServerConfig.page
+        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
+        if (result !== false) return result
+      }
     } catch (error) {
       const err = getProperError(error)
 
@@ -1616,11 +1636,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       res.statusCode = 500
+
+      // if pages/500 is present we still need to trigger
+      // /_error `getInitialProps` to allow reporting error
+      if (await this.hasPage('/500')) {
+        ctx.query.__nextCustomErrorRender = '1'
+        await this.renderErrorToResponse(ctx, err)
+        delete ctx.query.__nextCustomErrorRender
+      }
+
       const isWrappedError = err instanceof WrappedBuildError
-      const response = await this.renderErrorToResponse(
-        ctx,
-        isWrappedError ? (err as WrappedBuildError).innerError : err
-      )
 
       if (!isWrappedError) {
         if (
@@ -1632,6 +1657,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         this.logError(getProperError(err))
       }
+      const response = await this.renderErrorToResponse(
+        ctx,
+        isWrappedError ? (err as WrappedBuildError).innerError : err
+      )
       return response
     }
 
@@ -1720,7 +1749,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
       let statusPage = `/${res.statusCode}`
 
-      if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
+      if (
+        !ctx.query.__nextCustomErrorRender &&
+        !result &&
+        STATIC_STATUS_PAGES.includes(statusPage)
+      ) {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
         if (statusPage !== '/500' || !this.renderOpts.dev) {
