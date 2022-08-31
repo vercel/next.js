@@ -447,7 +447,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         },
         onServer: () => {
           if (pagesType === 'app' && appDir) {
-            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
+            const matchedAppPaths =
+              appPathsPerRoute[normalizeAppPath(page) || '/']
             server[serverBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
@@ -475,7 +476,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         onEdgeServer: () => {
           let appDirLoader: string = ''
           if (pagesType === 'app') {
-            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
+            const matchedAppPaths =
+              appPathsPerRoute[normalizeAppPath(page) || '/']
             appDirLoader = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
