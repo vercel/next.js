@@ -65,7 +65,6 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  appDir?: boolean
   appPaths: string[]
 }
 
@@ -92,7 +91,6 @@ interface RenderOpts {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
-  appDir?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -106,7 +104,6 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
-  appDir,
   appPaths,
   pagesDataDir,
   renderOpts,
