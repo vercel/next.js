@@ -52,12 +52,10 @@ describe('Image Optimizer', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
-          experimental: {
-            images: {
-              remotePatterns: Array.from({ length: 51 }).map((_) => ({
-                hostname: 'example.com',
-              })),
-            },
+          images: {
+            remotePatterns: Array.from({ length: 51 }).map((_) => ({
+              hostname: 'example.com',
+            })),
           },
         })
       )
