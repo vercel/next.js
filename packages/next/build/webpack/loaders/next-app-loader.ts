@@ -122,9 +122,11 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   }
   const resolve = this.getResolve(resolveOptions)
 
+  const normalizedAppPaths =
+    typeof appPaths === 'string' ? [appPaths] : appPaths || []
   const resolveParallelSegments = (pathname: string) => {
     const matched = new Set<string>()
-    for (const path of appPaths || []) {
+    for (const path of normalizedAppPaths) {
       if (path.startsWith(pathname + '/')) {
         const restPath = path.slice(pathname.length + 1)
 
