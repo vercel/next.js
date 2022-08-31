@@ -1,13 +1,14 @@
-import markdownStyles from './markdown-styles.module.css'
 import { SliceZone } from '@prismicio/react'
+import { components } from '../slices'
 
-export default function PostBody({ content }) {
+/**
+ * @param {object} props
+ * @param {import('../types.generated').PostDocument['data']['slices']} props.slices
+ */
+export default function PostBody({ slices }) {
   return (
     <div className="max-w-2xl mx-auto">
-      <div className={markdownStyles['markdown']}>
-        <p>Slice Zone incoming!</p>
-        {/* <RichText render={content} /> */}
-      </div>
+      <SliceZone slices={slices} components={components} />
     </div>
   )
 }
