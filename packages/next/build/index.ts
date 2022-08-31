@@ -849,7 +849,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
-          middlewareRegex: entrypoints.middlewareRegex,
+          middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
         const configs = await runWebpackSpan
