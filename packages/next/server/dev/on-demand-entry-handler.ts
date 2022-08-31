@@ -22,6 +22,7 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
 } from '../../shared/lib/constants'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -255,9 +256,9 @@ function disposeInactiveEntries(maxInactiveAge: number) {
   })
 }
 
-function tryToNormalizePagePath(page: string) {
+function tryToNormalizePagePath(page: string, isAppDir: boolean) {
   try {
-    return normalizePagePath(page)
+    return isAppDir ? normalizeAppPath(page) : normalizePagePath(page)
   } catch (err) {
     console.error(err)
     throw new PageNotFoundError(page)
@@ -278,14 +279,20 @@ async function findPagePathData(
   rootDir: string,
   page: string,
   extensions: string[],
+  isAppDir: boolean,
   pagesDir?: string,
   appDir?: string
 ) {
-  const normalizedPagePath = tryToNormalizePagePath(page)
+  const normalizedPagePath = tryToNormalizePagePath(page, isAppDir)
   let pagePath: string | null = null
 
   if (isMiddlewareFile(normalizedPagePath)) {
-    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
+    pagePath = await findPageFile(
+      rootDir,
+      normalizedPagePath,
+      extensions,
+      false
+    )
 
     if (!pagePath) {
       throw new PageNotFoundError(normalizedPagePath)
@@ -306,7 +313,7 @@ async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
-    pagePath = await findPageFile(appDir, normalizedPagePath, extensions)
+    pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
         removePagePathTail(normalizePathSep(pagePath), {
@@ -324,7 +331,12 @@ async function findPagePathData(
   }
 
   if (!pagePath && pagesDir) {
-    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
+    pagePath = await findPageFile(
+      pagesDir,
+      normalizedPagePath,
+      extensions,
+      false
+    )
   }
 
   if (pagePath !== null && pagesDir) {
@@ -534,7 +546,11 @@ export function onDemandEntryHandler({
   }
 
   return {
-    async ensurePage(page: string, clientOnly: boolean): Promise<void> {
+    async ensurePage(
+      page: string,
+      isAppDir: boolean,
+      clientOnly: boolean
+    ): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
         debug(
@@ -547,6 +563,7 @@ export function onDemandEntryHandler({
           rootDir,
           page,
           nextConfig.pageExtensions,
+          isAppDir,
           pagesDir,
           appDir
         )

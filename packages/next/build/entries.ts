@@ -366,7 +366,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       // Handle paths that have aliases
       const pageFilePath = (() => {
-        if (pagesDir && absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
+        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS) && pagesDir) {
           return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
         }
 
@@ -444,12 +444,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               })
             }
           } else {
-            server[serverBundlePath] = isServerComponent
-              ? {
-                  import: mappings[page],
-                  layer: WEBPACK_LAYERS.server,
-                }
-              : [mappings[page]]
+            server[serverBundlePath] = [mappings[page]]
           }
         },
         onEdgeServer: () => {

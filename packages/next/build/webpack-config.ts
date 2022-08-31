@@ -792,26 +792,32 @@ export default async function getBaseWebpackConfig(
   const customDocumentAliases: { [key: string]: string[] } = {}
   const customRootAliases: { [key: string]: string[] } = {}
 
-  if (dev && pagesDir) {
+  if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
-        prev.push(path.join(pagesDir, `_app.${ext}`))
-        return prev
-      }, [] as string[]),
+      ...(pagesDir
+        ? rawPageExtensions.reduce((prev, ext) => {
+            prev.push(path.join(pagesDir, `_app.${ext}`))
+            return prev
+          }, [] as string[])
+        : []),
       'next/dist/pages/_app.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
-        prev.push(path.join(pagesDir, `_error.${ext}`))
-        return prev
-      }, [] as string[]),
+      ...(pagesDir
+        ? rawPageExtensions.reduce((prev, ext) => {
+            prev.push(path.join(pagesDir, `_error.${ext}`))
+            return prev
+          }, [] as string[])
+        : []),
       'next/dist/pages/_error.js',
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
-        prev.push(path.join(pagesDir, `_document.${ext}`))
-        return prev
-      }, [] as string[]),
+      ...(pagesDir
+        ? rawPageExtensions.reduce((prev, ext) => {
+            prev.push(path.join(pagesDir, `_document.${ext}`))
+            return prev
+          }, [] as string[])
+        : []),
       `next/dist/pages/_document.js`,
     ]
   }

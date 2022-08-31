@@ -272,7 +272,7 @@ export default class HotReloader {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage(page, true)
+          await this.ensurePage(page, false, true)
         } catch (error) {
           await renderScriptError(pageBundleRes, getProperError(error))
           return { finished: true }
@@ -406,13 +406,18 @@ export default class HotReloader {
 
     return webpackConfigSpan.traceAsyncFn(async () => {
       const pagePaths = !this.pagesDir
-        ? ([null, null] as [null, null])
+        ? ([] as (string | null)[])
         : await webpackConfigSpan
             .traceChild('get-page-paths')
             .traceAsyncFn(() =>
               Promise.all([
-                findPageFile(this.pagesDir!, '/_app', rawPageExtensions),
-                findPageFile(this.pagesDir!, '/_document', rawPageExtensions),
+                findPageFile(this.pagesDir!, '/_app', rawPageExtensions, false),
+                findPageFile(
+                  this.pagesDir!,
+                  '/_document',
+                  rawPageExtensions,
+                  false
+                ),
               ])
             )
 
@@ -1068,7 +1073,8 @@ export default class HotReloader {
 
   public async ensurePage(
     page: string,
-    clientOnly: boolean = false
+    isAppDir: boolean,
+    clientOnly: boolean
   ): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
@@ -1080,6 +1086,6 @@ export default class HotReloader {
     if (error) {
       return Promise.reject(error)
     }
-    return this.onDemandEntries?.ensurePage(page, clientOnly) as any
+    return this.onDemandEntries?.ensurePage(page, isAppDir, clientOnly) as any
   }
 }

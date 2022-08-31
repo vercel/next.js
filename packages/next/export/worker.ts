@@ -292,8 +292,8 @@ export default async function exportPage({
           distDir,
           page,
           serverless,
-          serverComponents,
-          appDir
+          !!serverComponents,
+          !!appDir
         )
         const ampState = {
           ampFirst: pageConfig?.amp === true,
@@ -359,7 +359,8 @@ export default async function exportPage({
           distDir,
           page,
           serverless,
-          serverComponents
+          !!serverComponents,
+          !!appDir
         )
         const ampState = {
           ampFirst: components.pageConfig?.amp === true,

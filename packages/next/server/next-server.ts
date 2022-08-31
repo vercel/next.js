@@ -27,7 +27,7 @@ import type { NextConfig } from './config-shared'
 import type { DynamicRoutes, PageChecker } from './router'
 
 import fs from 'fs'
-import { join, relative, resolve, sep } from 'path'
+import path, { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { isDynamicRoute } from '../shared/lib/router/utils'
@@ -101,6 +101,7 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { interpolateDynamicPath } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -247,12 +248,20 @@ export default class NextNodeServer extends BaseServer {
     if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
-      loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
-        () => {}
-      )
-      loadComponents(this.distDir, '/_app', this._isLikeServerless).catch(
-        () => {}
-      )
+      loadComponents(
+        this.distDir,
+        '/_document',
+        this._isLikeServerless,
+        false,
+        false
+      ).catch(() => {})
+      loadComponents(
+        this.distDir,
+        '/_app',
+        this._isLikeServerless,
+        false,
+        false
+      ).catch(() => {})
     }
   }
 
@@ -906,13 +915,17 @@ export default class NextNodeServer extends BaseServer {
 
   protected async findPageComponents(
     pathname: string,
-    query: NextParsedUrlQuery = {},
-    params: Params | null = null,
-    isAppDir: boolean = false
+    query: NextParsedUrlQuery,
+    params: Params,
+    isAppDir: boolean
   ): Promise<FindComponentsResult | null> {
     let paths = [
       // try serving a static AMP version first
-      query.amp ? normalizePagePath(pathname) + '.amp' : null,
+      query.amp
+        ? (isAppDir
+            ? normalizeAppPath(pathname)
+            : normalizePagePath(pathname)) + '.amp'
+        : null,
       pathname,
     ].filter(Boolean)
 
@@ -931,8 +944,8 @@ export default class NextNodeServer extends BaseServer {
           this.distDir,
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless,
-          this.renderOpts.serverComponents,
-          this.nextConfig.experimental.appDir
+          !!this.renderOpts.serverComponents,
+          isAppDir
         )
 
         if (
@@ -966,6 +979,8 @@ export default class NextNodeServer extends BaseServer {
         // in the pages-manifest
         if (!(err instanceof PageNotFoundError)) {
           throw err
+        } else if (this.renderOpts.dev) {
+          console.error(err)
         }
       }
     }

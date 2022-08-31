@@ -29,9 +29,10 @@ async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
 export async function findPageFile(
   pagesDir: string,
   normalizedPagePath: string,
-  pageExtensions: string[]
+  pageExtensions: string[],
+  isAppDir: boolean
 ): Promise<string | null> {
-  const pagePaths = getPagePaths(normalizedPagePath, pageExtensions)
+  const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir)
   const [existingPath, ...others] = (
     await Promise.all(
       pagePaths.map(async (path) =>
