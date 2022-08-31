@@ -14,6 +14,7 @@ export default function CoverImage({ title, image: imageField, href }) {
       field={imageField}
       width={2000}
       height={1000}
+      imgixParams={{ fit: 'crop', ar: 2 }}
       className={cn('shadow-small', {
         'hover:shadow-medium transition-shadow duration-200': href,
       })}
