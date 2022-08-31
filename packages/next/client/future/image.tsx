@@ -103,6 +103,7 @@ export type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
+  alt: string
   width?: number | string
   height?: number | string
   fill?: boolean
@@ -390,6 +391,11 @@ const ImageElement = ({
                 console.error(
                   `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
                   img
+                )
+              }
+              if (img.getAttribute('alt') === null) {
+                console.error(
+                  `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
                 )
               }
             }
