@@ -1162,16 +1162,17 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            staticWorkers.isPageStatic(
-              '/_error',
+            staticWorkers.isPageStatic({
+              page: '/_error',
               distDir,
-              isLikeServerless,
+              serverless: isLikeServerless,
               configFileName,
               runtimeEnvConfig,
-              config.httpAgentOptions,
-              config.i18n?.locales,
-              config.i18n?.defaultLocale
-            )
+              httpAgentOptions: config.httpAgentOptions,
+              locales: config.i18n?.locales,
+              defaultLocale: config.i18n?.defaultLocale,
+              pageRuntime: config.experimental.runtime,
+            })
         )
 
         // we don't output _app in serverless mode so use _app export
@@ -1274,28 +1275,52 @@ export default async function build(
                   // Only calculate page static information if the page is not an
                   // app page.
                   pageType !== 'app' &&
-                  !isReservedPage(page) &&
-                  // We currently don't support static optimization in the Edge runtime.
-                  pageRuntime !== SERVER_RUNTIME.edge
+                  !isReservedPage(page)
                 ) {
                   try {
+                    let edgeInfo: any
+
+                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      const manifest = require(join(
+                        distDir,
+                        serverDir,
+                        MIDDLEWARE_MANIFEST
+                      ))
+
+                      edgeInfo = manifest.functions[page]
+                    }
+
                     let isPageStaticSpan =
                       checkPageSpan.traceChild('is-page-static')
                     let workerResult = await isPageStaticSpan.traceAsyncFn(
                       () => {
-                        return staticWorkers.isPageStatic(
+                        return staticWorkers.isPageStatic({
                           page,
                           distDir,
-                          isLikeServerless,
+                          serverless: isLikeServerless,
                           configFileName,
                           runtimeEnvConfig,
-                          config.httpAgentOptions,
-                          config.i18n?.locales,
-                          config.i18n?.defaultLocale,
-                          isPageStaticSpan.id
-                        )
+                          httpAgentOptions: config.httpAgentOptions,
+                          locales: config.i18n?.locales,
+                          defaultLocale: config.i18n?.defaultLocale,
+                          parentId: isPageStaticSpan.id,
+                          pageRuntime,
+                          edgeInfo,
+                        })
                       }
                     )
+
+                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (workerResult.hasStaticProps) {
+                        console.warn(
+                          `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
+                        )
+                      }
+                      // TODO: add handling for statically rendering edge
+                      // pages and allow edge with Prerender outputs
+                      workerResult.isStatic = false
+                      workerResult.hasStaticProps = false
+                    }
 
                     if (config.outputFileTracing) {
                       pageTraceIncludes.set(
