@@ -145,7 +145,6 @@ interface CreateEntrypointsParams {
   envFiles: LoadedEnvFiles
   isDev?: boolean
   pages: { [page: string]: string }
-  appPathsPerRoute?: { [route: string]: string[] }
   pagesDir: string
   previewMode: __ApiPreviewProps
   rootDir: string
@@ -338,7 +337,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     config,
     pages,
     pagesDir,
-    appPathsPerRoute = {},
     isDev,
     rootDir,
     rootPaths,
@@ -352,6 +350,22 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const client: webpack.EntryObject = {}
   const nestedMiddleware: string[] = []
   let middlewareRegex: string | undefined = undefined
+
+  let appPathsPerRoute: Record<string, string[]> = {}
+  if (appDir && appPaths) {
+    for (const pathname in appPaths) {
+      const normalizedPath = normalizeAppPath(pathname) || '/'
+      if (!appPathsPerRoute[normalizedPath]) {
+        appPathsPerRoute[normalizedPath] = []
+      }
+      appPathsPerRoute[normalizedPath].push(pathname)
+    }
+
+    // Make sure to sort parallel routes to make the result deterministic.
+    appPathsPerRoute = Object.fromEntries(
+      Object.entries(appPathsPerRoute).map(([k, v]) => [k, v.sort()])
+    )
+  }
 
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>

@@ -517,35 +517,6 @@ export default async function build(
         })
       }
 
-      const serverDir = isLikeServerless
-        ? SERVERLESS_DIRECTORY
-        : SERVER_DIRECTORY
-
-      let appPathsPerRoute: Record<string, string[]> = {}
-      if (appDir) {
-        const appPathsManifest = JSON.parse(
-          await promises.readFile(
-            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
-            'utf8'
-          )
-        )
-        const appPathRoutes: Record<string, string> = {}
-
-        Object.keys(appPathsManifest).forEach((entry) => {
-          const normalizedPath = normalizeAppPath(entry) || '/'
-          appPathRoutes[entry] = normalizedPath
-          if (!appPathsPerRoute[normalizedPath]) {
-            appPathsPerRoute[normalizedPath] = []
-          }
-          appPathsPerRoute[normalizedPath].push(entry)
-        })
-
-        await promises.writeFile(
-          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
-          JSON.stringify(appPathRoutes, null, 2)
-        )
-      }
-
       const entrypoints = await nextBuildSpan
         .traceChild('create-entrypoints')
         .traceAsyncFn(() =>
@@ -555,7 +526,6 @@ export default async function build(
             envFiles: loadedEnvFiles,
             isDev: false,
             pages: mappedPages,
-            appPathsPerRoute,
             pagesDir,
             previewMode: previewProps,
             target,
@@ -810,6 +780,9 @@ export default async function build(
           )
         )
 
+      const serverDir = isLikeServerless
+        ? SERVERLESS_DIRECTORY
+        : SERVER_DIRECTORY
       const manifestPath = path.join(distDir, serverDir, PAGES_MANIFEST)
 
       const requiredServerFiles = nextBuildSpan
@@ -1842,6 +1815,24 @@ export default async function build(
         JSON.stringify(requiredServerFiles),
         'utf8'
       )
+
+      if (appDir) {
+        const appPathsManifest = JSON.parse(
+          await promises.readFile(
+            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
+            'utf8'
+          )
+        )
+        const appPathRoutes: Record<string, string> = {}
+
+        Object.keys(appPathsManifest).forEach((entry) => {
+          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+        })
+        await promises.writeFile(
+          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
+          JSON.stringify(appPathRoutes, null, 2)
+        )
+      }
 
       const middlewareManifest: MiddlewareManifest = JSON.parse(
         await promises.readFile(

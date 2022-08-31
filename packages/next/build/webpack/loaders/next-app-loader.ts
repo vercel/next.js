@@ -9,7 +9,9 @@ async function createTreeCodeFromPath({
 }: {
   pagePath: string
   resolve: (pathname: string) => Promise<string | undefined>
-  resolveParallelSegments: (pathname: string) => string[]
+  resolveParallelSegments: (
+    pathname: string
+  ) => [key: string, segment: string][]
 }) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
@@ -20,10 +22,7 @@ async function createTreeCodeFromPath({
     const segmentPath = segments.join('/')
 
     // Last item in the list is the page which can't have layouts by itself
-    if (
-      segments[segments.length - 1] === 'page' ||
-      segments[segments.length - 1]?.endsWith('/page')
-    ) {
+    if (segments[segments.length - 1] === 'page') {
       const matchedPagePath = `${appDirPrefix}${segmentPath}`
       const resolvedPagePath = await resolve(matchedPagePath)
       // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
@@ -38,14 +37,14 @@ async function createTreeCodeFromPath({
     const props: Record<string, string> = {}
 
     // We need to resolve all parallel routes in this level.
-    const parallelSegments: string[] = []
+    const parallelSegments: [key: string, segment: string][] = []
     if (segments.length === 0) {
-      parallelSegments.push('')
+      parallelSegments.push(['children', ''])
     } else {
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
-    for (const parallelSegment of parallelSegments) {
+    for (const [parallelKey, parallelSegment] of parallelSegments) {
       const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const subtree = await createSubtreePropsFromSegmentPath([
         ...segments,
@@ -60,10 +59,7 @@ async function createTreeCodeFromPath({
       const resolvedLayoutPath = await resolve(layoutPath)
       const resolvedLoadingPath = await resolve(loadingPath)
 
-      const matchedSlot = parallelSegment.match(/@(.+)/)
-      const segmentKey = matchedSlot ? matchedSlot[1] : 'children'
-
-      props[segmentKey] = `[
+      props[parallelKey] = `[
         '${parallelSegment}',
         ${subtree},
         {
@@ -125,29 +121,19 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
   const resolveParallelSegments = (pathname: string) => {
-    const matched = new Set<string>()
+    const matched: Record<string, string> = {}
     for (const path of normalizedAppPaths) {
       if (path.startsWith(pathname + '/')) {
         const restPath = path.slice(pathname.length + 1)
 
-        const pathSegments = restPath.split('/')
-        let matchedSegments = ''
-        for (const segment of pathSegments) {
-          if (matchedSegments) {
-            matchedSegments += '/'
-          }
-          if (segment.startsWith('(')) {
-            // Include all prefixed (...) segments.
-            matchedSegments += segment
-          } else {
-            matchedSegments += segment
-            break
-          }
-        }
-        matched.add(matchedSegments)
+        const matchedSegment = restPath.split('/')[0]
+        const matchedKey = matchedSegment.startsWith('@')
+          ? matchedSegment.slice(1)
+          : 'children'
+        matched[matchedKey] = matchedSegment
       }
     }
-    return Array.from(matched)
+    return Object.entries(matched)
   }
 
   const resolver = async (pathname: string) => {
