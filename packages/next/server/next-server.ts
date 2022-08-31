@@ -21,8 +21,8 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type {
   Params,
   RouteMatch,
-  MiddlewareRouteMatch,
 } from '../shared/lib/router/utils/route-matcher'
+import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { NextConfig } from './config-shared'
 import type { DynamicRoutes, PageChecker } from './router'
 
@@ -87,10 +87,8 @@ import { toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import {
-  getMiddlewareRouteMatcher,
-  getRouteMatcher,
-} from '../shared/lib/router/utils/route-matcher'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'

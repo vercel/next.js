@@ -34,10 +34,8 @@ import {
   COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
-import {
-  getMiddlewareRouteMatcher,
-  getRouteMatcher,
-} from '../../shared/lib/router/utils/route-matcher'
+import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router from '../router'

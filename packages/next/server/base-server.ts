@@ -4,10 +4,8 @@ import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
-import type {
-  MiddlewareRouteMatch,
-  RouteMatch,
-} from '../shared/lib/router/utils/route-matcher'
+import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
