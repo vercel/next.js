@@ -39,7 +39,6 @@ describe('app dir - react server components', () => {
     next = await createNext({
       files: {
         node_modules: new FileRef(path.join(appDir, 'node_modules')),
-        pages: new FileRef(path.join(appDir, 'pages')),
         public: new FileRef(path.join(appDir, 'public')),
         components: new FileRef(path.join(appDir, 'components')),
         app: new FileRef(path.join(appDir, 'app')),
@@ -169,7 +168,7 @@ describe('app dir - react server components', () => {
     // expect(modFromClient[1]).not.toBe(modFromServer[1])
   })
 
-  it('should be able to navigate between rsc pages', async () => {
+  it('should be able to navigate between rsc routes', async () => {
     const browser = await webdriver(next.url, '/root')
 
     await browser.waitForElementByCss('#goto-next-link').click()
