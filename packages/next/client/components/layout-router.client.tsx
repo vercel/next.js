@@ -117,7 +117,13 @@ export function InnerLayoutRouter({
   let childNode = childNodes.get(path)
 
   // If childProp is available this means it's the Flight / SSR case.
-  if (childProp && !childNode && !childProp.partial) {
+  if (
+    childProp &&
+    // TODO-APP: verify if this can be null based on user code
+    childProp.current !== null &&
+    !childNode /*&&
+    !childProp.partial*/
+  ) {
     // Add the segment's subTreeData to the cache.
     // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
     childNodes.set(path, {
@@ -191,9 +197,8 @@ export function InnerLayoutRouter({
     /**
      * Flight data fetch kicked off during render and put into the cache.
      */
-    const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
     childNodes.set(path, {
-      data,
+      data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
       parallelRoutes: new Map(),
     })

@@ -78,6 +78,67 @@ function fillCacheWithNewSubTreeData(
 }
 
 /**
+ * Fill cache up to the end of the flightSegmentPath, invalidating anything below it.
+ */
+function invalidateCacheBelowFlightSegmentPath(
+  newCache: CacheNode,
+  existingCache: CacheNode,
+  flightSegmentPath: FlightSegmentPath
+): void {
+  const isLastEntry = flightSegmentPath.length <= 2
+  const [parallelRouteKey, segment] = flightSegmentPath
+
+  const segmentForCache = Array.isArray(segment) ? segment[1] : segment
+
+  const existingChildSegmentMap =
+    existingCache.parallelRoutes.get(parallelRouteKey)
+
+  if (!existingChildSegmentMap) {
+    // Bailout because the existing cache does not have the path to the leaf node
+    // Will trigger lazy fetch in layout-router because of missing segment
+    return
+  }
+
+  let childSegmentMap = newCache.parallelRoutes.get(parallelRouteKey)
+  if (!childSegmentMap || childSegmentMap === existingChildSegmentMap) {
+    childSegmentMap = new Map(existingChildSegmentMap)
+    newCache.parallelRoutes.set(parallelRouteKey, childSegmentMap)
+  }
+
+  const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
+  let childCacheNode = childSegmentMap.get(segmentForCache)
+
+  if (!childCacheNode || !existingChildCacheNode) {
+    // Bailout because the existing cache does not have the path to the leaf node
+    // Will trigger lazy fetch in layout-router because of missing segment
+    return
+  }
+
+  if (childCacheNode === existingChildCacheNode) {
+    childCacheNode = {
+      data: childCacheNode.data,
+      subTreeData: childCacheNode.subTreeData,
+      parallelRoutes: new Map(childCacheNode.parallelRoutes),
+    }
+    childSegmentMap.set(segmentForCache, childCacheNode)
+  }
+
+  // In case of last entry don't copy further down.
+  if (isLastEntry) {
+    if (childCacheNode) {
+      childCacheNode.parallelRoutes.clear()
+    }
+    return
+  }
+
+  invalidateCacheBelowFlightSegmentPath(
+    childCacheNode,
+    existingChildCacheNode,
+    flightSegmentPath.slice(2)
+  )
+}
+
+/**
  * Fill cache with subTreeData based on flightDataPath that was prefetched
  * This operation is append-only to the existing cache.
  */
@@ -518,7 +579,22 @@ export function reducer(
 
         mutable.previousTree = state.tree
         mutable.patchedTree = newTree
-        mutable.useExistingCache = true
+
+        const hardNavigate = true
+        if (hardNavigate) {
+          // Fill in the cache with blank that holds the `data` field.
+          // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
+          // Copy subTreeData for the root node of the cache.
+          cache.subTreeData = state.cache.subTreeData
+
+          invalidateCacheBelowFlightSegmentPath(
+            cache,
+            state.cache,
+            flightSegmentPath
+          )
+        } else {
+          mutable.useExistingCache = true
+        }
 
         return {
           // Set href.
@@ -528,7 +604,7 @@ export function reducer(
           // All navigation requires scroll and focus management to trigger.
           focusAndScrollRef: { apply: true },
           // Apply patched cache.
-          cache: state.cache,
+          cache: hardNavigate ? cache : state.cache,
           prefetchCache: state.prefetchCache,
           // Apply patched tree.
           tree: newTree,
@@ -843,11 +919,10 @@ export function reducer(
         fillCacheWithPrefetchedSubTreeData(state.cache, flightDataPath)
       }
 
-      // Path without the last segment, router state, and the subTreeData
-      const flightSegmentPath = flightDataPath.slice(0, -3)
       // Create new tree based on the flightSegmentPath and router state patch
       state.prefetchCache.set(href, {
-        flightSegmentPath,
+        // Path without the last segment, router state, and the subTreeData
+        flightSegmentPath: flightDataPath.slice(0, -2),
         treePatch,
       })
 

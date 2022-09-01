@@ -339,9 +339,11 @@ export type FlightData = Array<FlightDataPath> | string
  * Property holding the current subTreeData.
  */
 export type ChildProp = {
+  /**
+   * Null indicates that the tree is partial
+   */
   current: React.ReactNode | null
   segment: Segment
-  partial: boolean
 }
 
 /**
@@ -679,7 +681,7 @@ export async function renderToHTMLOrFlight(
 
           if (isPrefetch && Loading) {
             const childProp: ChildProp = {
-              partial: true,
+              // Null indicates the tree is not fully rendered
               current: null,
               segment: childSegmentParam
                 ? childSegmentParam.treeSegment
@@ -710,7 +712,6 @@ export async function renderToHTMLOrFlight(
           })
 
           const childProp: ChildProp = {
-            partial: false,
             current: <ChildComponent />,
             segment: childSegmentParam
               ? childSegmentParam.treeSegment
