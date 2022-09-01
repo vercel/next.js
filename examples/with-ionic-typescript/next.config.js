@@ -1,5 +1,7 @@
 const path = require('path')
 const CopyPlugin = require('copy-webpack-plugin')
+
+/** @type {import('next').NextConfig} */
 module.exports = {
   webpack: (config) => {
     config.plugins.push(
