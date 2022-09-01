@@ -256,7 +256,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
-    const remotePatterns = result.experimental?.images?.remotePatterns
+    const remotePatterns = result?.images?.remotePatterns
     if (remotePatterns) {
       if (!Array.isArray(remotePatterns)) {
         throw new Error(
@@ -437,7 +437,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    const unoptimized = result.experimental?.images?.unoptimized
+    const unoptimized = result?.images?.unoptimized
     if (
       typeof unoptimized !== 'undefined' &&
       typeof unoptimized !== 'boolean'
