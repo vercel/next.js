@@ -1373,7 +1373,7 @@ export async function copyTracedFiles(
           if (symlink) {
             try {
               await fs.symlink(symlink, fileOutputPath)
-            } catch (e) {
+            } catch (e: Error) {
               if (e.code !== 'EEXIST') {
                 throw e
               }
