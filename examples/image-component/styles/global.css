@@ -6,6 +6,14 @@ body {
   color: white;
 }
 
+#__next {
+  padding: 4rem 1rem;
+}
+
+#__next p {
+  margin: 1.5rem 0;
+}
+
 a {
   cursor: pointer;
   color: #0076ff;

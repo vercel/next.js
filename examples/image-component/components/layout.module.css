@@ -1,8 +1,18 @@
+.card {
+  max-width: 60rem;
+  box-shadow: -10px 10px 80px rgba(255, 255, 255, 0.1);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 2rem;
+  margin: 0 auto;
+}
+
 .svg {
   position: absolute;
   top: 0;
   right: 0;
 }
+
 .arm {
   transform-origin: 130px 106px;
 }

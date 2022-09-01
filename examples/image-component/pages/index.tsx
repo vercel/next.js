@@ -1,15 +1,13 @@
-import styles from '../styles.module.css'
 import Image from 'next/image'
 import Link from 'next/link'
-import ViewSource from '../components/view-source'
+import Layout from '../components/layout'
+import Code from '../components/code'
+import Divider from '../components/divider'
 import vercel from '../public/vercel.png'
 
-const Code = (p) => <code className={styles.inlineCode} {...p} />
-
-const Index = () => (
-  <div className={styles.container}>
-    <ViewSource pathname="pages/index.js" />
-    <div className={styles.card}>
+export default function IndexPage() {
+  return (
+    <Layout>
       <h1>Image Component with Next.js</h1>
       <p>
         This page demonstrates the usage of the{' '}
@@ -25,7 +23,7 @@ const Index = () => (
         </a>{' '}
         images on-demand as the browser requests them.
       </p>
-      <hr className={styles.hr} />
+      <Divider />
       <h2 id="layout">Layout</h2>
       <p>
         The <Code>layout</Code> property tells the image to respond differently
@@ -62,7 +60,7 @@ const Index = () => (
           </Link>
         </li>
       </ul>
-      <hr className={styles.hr} />
+      <Divider />
       <h2 id="placeholder">Placeholder</h2>
       <p>
         The <Code>placeholder</Code> property tells the image what to do while
@@ -93,7 +91,7 @@ const Index = () => (
           </Link>
         </li>
       </ul>
-      <hr className={styles.hr} />
+      <Divider />
       <h2 id="internal">Internal Image</h2>
       <p>
         The following is an example of a reference to an internal image from the{' '}
@@ -104,7 +102,7 @@ const Index = () => (
         image.
       </p>
       <Image alt="Vercel logo" src={vercel} width={1000} height={1000} />
-      <hr className={styles.hr} />
+      <Divider />
       <h2 id="external">External Image</h2>
       <p>
         The following is an example of a reference to an external image at{' '}
@@ -120,7 +118,7 @@ const Index = () => (
         width={1200}
         height={400}
       />
-      <hr className={styles.hr} />
+      <Divider />
       <h2 id="more">Learn More</h2>
       <p>
         You can optionally configure a cloud provider, device sizes, and more!
@@ -132,8 +130,6 @@ const Index = () => (
         </a>{' '}
         to learn more.
       </p>
-    </div>
-  </div>
-)
-
-export default Index
+    </Layout>
+  )
+}
