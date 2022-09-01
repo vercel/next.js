@@ -41,7 +41,9 @@ function treePathToEntrypoint(
   // TODO-APP: modify this path to cover parallelRouteKey convention
   const path =
     (parentPath ? parentPath + '/' : '') +
-    (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +
+    (parallelRouteKey !== 'children' && !segment.startsWith('@')
+      ? parallelRouteKey + '/'
+      : '') +
     (segment === '' ? 'page' : segment)
 
   // Last segment
@@ -493,6 +495,7 @@ export function onDemandEntryHandler({
         toSend = { success: true }
       }
     }
+
     return toSend
   }
 

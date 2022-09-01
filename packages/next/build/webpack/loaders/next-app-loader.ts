@@ -21,18 +21,6 @@ async function createTreeCodeFromPath({
   ): Promise<string> {
     const segmentPath = segments.join('/')
 
-    // Last item in the list is the page which can't have layouts by itself
-    if (segments[segments.length - 1] === 'page') {
-      const matchedPagePath = `${appDirPrefix}${segmentPath}`
-      const resolvedPagePath = await resolve(matchedPagePath)
-      // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-      return `{
-        children: ${`['', {}, {filePath: ${JSON.stringify(
-          resolvedPagePath
-        )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`}
-      }`
-    }
-
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
 
@@ -46,6 +34,17 @@ async function createTreeCodeFromPath({
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       const parallelSegmentPath = segmentPath + '/' + parallelSegment
+
+      if (parallelSegment === 'page') {
+        const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
+        const resolvedPagePath = await resolve(matchedPagePath)
+        // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
+        props[parallelKey] = `['', {}, {filePath: ${JSON.stringify(
+          resolvedPagePath
+        )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
+        continue
+      }
+
       const subtree = await createSubtreePropsFromSegmentPath([
         ...segments,
         parallelSegment,
