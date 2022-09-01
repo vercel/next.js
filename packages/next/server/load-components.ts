@@ -38,7 +38,7 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
-  isAppPath: boolean
+  isAppPath?: boolean
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
