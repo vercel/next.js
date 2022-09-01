@@ -901,6 +901,7 @@ export default class DevServer extends Server {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    isAppDir: boolean
   }) {
     try {
       return super.runEdgeFunction({
@@ -1123,8 +1124,8 @@ export default class DevServer extends Server {
     )
   }
 
-  protected async ensureEdgeFunction(pathname: string) {
-    return this.hotReloader!.ensurePage(pathname, false, false)
+  protected async ensureEdgeFunction(pathname: string, isAppDir: boolean) {
+    return this.hotReloader!.ensurePage(pathname, isAppDir, false)
   }
 
   generateRoutes() {

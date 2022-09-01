@@ -759,6 +759,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           page,
+          isAppDir: false,
         })
 
         if (handledAsEdgeFunction) {
@@ -888,10 +889,11 @@ export default class NextNodeServer extends BaseServer {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const appPath = this.getOriginalAppPath(ctx.pathname)
+    const appPath = this.getOriginalAppPath(ctx.pathname) || undefined
     let page = ctx.pathname
 
-    if (typeof appPath === 'string') {
+    const isAppDir = typeof appPath === 'string'
+    if (isAppDir) {
       page = appPath
     }
 
@@ -904,7 +906,9 @@ export default class NextNodeServer extends BaseServer {
           res: ctx.res,
           query: ctx.query,
           params: ctx.renderOpts.params,
-          page,
+          page: ctx.pathname,
+          appPath,
+          isAppDir,
         })
         return null
       }
@@ -1666,7 +1670,7 @@ export default class NextNodeServer extends BaseServer {
    * so that we can run it.
    */
   protected async ensureMiddleware() {}
-  protected async ensureEdgeFunction(_pathname: string) {}
+  protected async ensureEdgeFunction(_pathname: string, _isAppDir: boolean) {}
 
   /**
    * This method gets all middleware matchers and execute them when the request
@@ -2014,18 +2018,17 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    isAppDir: boolean
+    appPath?: string
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
-    let appPath = this.getOriginalAppPath(params.page)
 
-    if (typeof appPath === 'string') {
-      params.page = appPath
-    }
-
-    await this.ensureEdgeFunction(params.page)
+    // If it's edge app route, use appPath to find the edge SSR page
+    const page = params.isAppDir ? params.appPath! : params.page
+    await this.ensureEdgeFunction(page, params.isAppDir)
     middlewareInfo = this.getEdgeFunctionInfo({
-      page: params.page,
+      page: page,
       middleware: false,
     })
 
@@ -2039,6 +2042,7 @@ export default class NextNodeServer extends BaseServer {
       Object.assign({}, getRequestMeta(params.req, '__NEXT_INIT_QUERY') || {})
     ).toString()
     const locale = params.query.__nextLocale
+    // Use original pathname (without `/page`) instead of appPath for url
     let normalizedPathname = params.page
 
     if (isDataReq) {

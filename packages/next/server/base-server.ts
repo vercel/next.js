@@ -1522,9 +1522,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     bubbleNoFallback: boolean
   ) {
     const { query, pathname } = ctx
-    const appPath = this.getOriginalAppPath(pathname)
 
     let page = pathname
+    const appPath = this.getOriginalAppPath(pathname)
     if (typeof appPath === 'string') {
       page = appPath
     }
