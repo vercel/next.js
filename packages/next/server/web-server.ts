@@ -408,7 +408,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     pathname: string,
     query: NextParsedUrlQuery,
     params: Params | null,
-    _isAppDir: boolean
+    _isAppPath: boolean
   ) {
     const result = await this.serverOptions.webServerConfig.loadComponent(
       pathname

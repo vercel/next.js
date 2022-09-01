@@ -22,7 +22,6 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
 } from '../../shared/lib/constants'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 const debug = origDebug('next:on-demand-entry-handler')
 

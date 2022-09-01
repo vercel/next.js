@@ -759,7 +759,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           page,
-          isAppDir: false,
+          isAppPath: false,
         })
 
         if (handledAsEdgeFunction) {
@@ -892,8 +892,8 @@ export default class NextNodeServer extends BaseServer {
     const appPath = this.getOriginalAppPath(ctx.pathname) || undefined
     let page = ctx.pathname
 
-    const isAppDir = typeof appPath === 'string'
-    if (isAppDir) {
+    const isAppPath = typeof appPath === 'string'
+    if (isAppPath) {
       page = appPath
     }
 
@@ -908,7 +908,7 @@ export default class NextNodeServer extends BaseServer {
           params: ctx.renderOpts.params,
           page: ctx.pathname,
           appPath,
-          isAppDir,
+          isAppPath: isAppPath,
         })
         return null
       }
@@ -921,12 +921,12 @@ export default class NextNodeServer extends BaseServer {
     pathname: string,
     query: NextParsedUrlQuery,
     params: Params,
-    isAppDir: boolean
+    isAppPath: boolean
   ): Promise<FindComponentsResult | null> {
     let paths = [
       // try serving a static AMP version first
       query.amp
-        ? (isAppDir
+        ? (isAppPath
             ? normalizeAppPath(pathname)
             : normalizePagePath(pathname)) + '.amp'
         : null,
@@ -949,7 +949,7 @@ export default class NextNodeServer extends BaseServer {
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless,
           !!this.renderOpts.serverComponents,
-          isAppDir
+          isAppPath
         )
 
         if (
@@ -975,7 +975,7 @@ export default class NextNodeServer extends BaseServer {
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
-            ...((isAppDir ? {} : params) || {}),
+            ...((isAppPath ? {} : params) || {}),
           },
         }
       } catch (err) {
@@ -2016,14 +2016,14 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    isAppDir: boolean
+    isAppPath: boolean
     appPath?: string
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
     // If it's edge app route, use appPath to find the edge SSR page
-    const page = params.isAppDir ? params.appPath! : params.page
+    const page = params.isAppPath ? params.appPath! : params.page
     await this.ensureEdgeFunction(page)
     middlewareInfo = this.getEdgeFunctionInfo({
       page: page,

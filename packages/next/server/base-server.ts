@@ -243,7 +243,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname: string,
     query: NextParsedUrlQuery,
     params: Params,
-    isAppDir: boolean
+    isAppPath: boolean
   ): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest

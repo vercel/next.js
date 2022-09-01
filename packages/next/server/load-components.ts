@@ -64,7 +64,7 @@ export async function loadComponents(
   pathname: string,
   serverless: boolean,
   hasServerComponents: boolean,
-  isAppDirRoute: boolean
+  isAppPath: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
@@ -101,7 +101,7 @@ export async function loadComponents(
 
   let DocumentMod = {}
   let AppMod = {}
-  if (!isAppDirRoute) {
+  if (!isAppPath) {
     ;[DocumentMod, AppMod] = await Promise.all([
       Promise.resolve().then(() =>
         requirePage('/_document', distDir, serverless, false)
@@ -112,7 +112,7 @@ export async function loadComponents(
     ])
   }
   const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(pathname, distDir, serverless, isAppDirRoute)
+    requirePage(pathname, distDir, serverless, isAppPath)
   )
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
@@ -130,15 +130,14 @@ export async function loadComponents(
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
-  let isAppPath = false
-  if (isAppDirRoute) {
+  if (isAppPath) {
     const pagePath = getPagePath(
       pathname,
       distDir,
       serverless,
       false,
       undefined,
-      isAppDirRoute
+      isAppPath
     )
     isAppPath = !!pagePath?.match(/server[/\\]app[/\\]/)
   }

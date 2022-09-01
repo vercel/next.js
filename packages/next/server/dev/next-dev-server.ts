@@ -901,7 +901,7 @@ export default class DevServer extends Server {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    isAppDir: boolean
+    isAppPath: boolean
   }) {
     try {
       return super.runEdgeFunction({
@@ -1294,7 +1294,7 @@ export default class DevServer extends Server {
     pathname: string,
     query: ParsedUrlQuery,
     params: Params,
-    isAppDir: boolean
+    isAppPath: boolean
   ): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
@@ -1314,7 +1314,7 @@ export default class DevServer extends Server {
         this.serverCSSManifest = super.getServerCSSManifest()
       }
 
-      return super.findPageComponents(pathname, query, params, isAppDir)
+      return super.findPageComponents(pathname, query, params, isAppPath)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw err
