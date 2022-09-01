@@ -270,44 +270,6 @@ const configSchema = {
         gzipSize: {
           type: 'boolean',
         },
-        images: {
-          additionalProperties: false,
-          properties: {
-            allowFutureImage: {
-              type: 'boolean',
-            },
-            remotePatterns: {
-              items: {
-                additionalProperties: false,
-                properties: {
-                  hostname: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  pathname: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  port: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  protocol: {
-                    // automatic typing doesn't like enum
-                    enum: ['http', 'https'] as any,
-                    type: 'string',
-                  },
-                },
-                type: 'object',
-              },
-              type: 'array',
-            },
-            unoptimized: {
-              type: 'boolean',
-            },
-          },
-          type: 'object',
-        },
         incrementalCacheHandlerPath: {
           type: 'string',
         },
@@ -487,6 +449,35 @@ const configSchema = {
     images: {
       additionalProperties: false,
       properties: {
+        remotePatterns: {
+          items: {
+            additionalProperties: false,
+            properties: {
+              hostname: {
+                minLength: 1,
+                type: 'string',
+              },
+              pathname: {
+                minLength: 1,
+                type: 'string',
+              },
+              port: {
+                minLength: 1,
+                type: 'string',
+              },
+              protocol: {
+                // automatic typing doesn't like enum
+                enum: ['http', 'https'] as any,
+                type: 'string',
+              },
+            },
+            type: 'object',
+          },
+          type: 'array',
+        },
+        unoptimized: {
+          type: 'boolean',
+        },
         contentSecurityPolicy: {
           minLength: 1,
           type: 'string',
