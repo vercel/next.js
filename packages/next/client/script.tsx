@@ -179,7 +179,7 @@ function Script(props: ScriptProps): JSX.Element | null {
   /**
    * - First mount:
    *   1. The useEffect for onReady executes
-   *   2. hasOnReadyEffectCalled.current is false, but the script hasn't loadeded yet (not in LoadCache)
+   *   2. hasOnReadyEffectCalled.current is false, but the script hasn't loaded yet (not in LoadCache)
    *      onReady is skipped, set hasOnReadyEffectCalled.current to true
    *   3. The useEffect for loadScript executes
    *      Once the script is loaded, the onReady will be called by then
