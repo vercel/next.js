@@ -465,7 +465,7 @@ importers:
       '@types/webpack-sources1': npm:@types/webpack-sources@0.1.5
       '@types/ws': 8.2.0
       '@vercel/ncc': 0.34.0
-      '@vercel/nft': 0.22.0
+      '@vercel/nft': 0.22.1
       acorn: 8.5.0
       ajv: 8.11.0
       amphtml-validator: 1.0.35
@@ -656,7 +656,7 @@ importers:
       '@types/webpack-sources1': /@types/webpack-sources/0.1.5
       '@types/ws': 8.2.0
       '@vercel/ncc': 0.34.0
-      '@vercel/nft': 0.22.0
+      '@vercel/nft': 0.22.1
       acorn: 8.5.0
       ajv: 8.11.0
       amphtml-validator: 1.0.35
@@ -7918,10 +7918,10 @@ packages:
     hasBin: true
     dev: true
 
-  /@vercel/nft/0.22.0:
+  /@vercel/nft/0.22.1:
     resolution:
       {
-        integrity: sha512-hB80/093PPiCefN2gVbqv6J93MH+63Zr7uDCwkiS/U4W07DXkLoftbnkBmZoS0Q84LiTSl9DRVSHU4XYCX+sJA==,
+        integrity: sha512-lYYZIoxRurqDOSoVIdBicGnpUIpfyaS5qVjdPq+EfI285WqtZK3NK/dyCkiyBul+X2U2OEhRyeMdXPCHGJbohw==,
       }
     hasBin: true
     dependencies:
