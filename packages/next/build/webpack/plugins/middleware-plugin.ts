@@ -3,6 +3,7 @@ import type {
   EdgeMiddlewareMeta,
 } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
+import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -15,6 +16,7 @@ import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+  FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
 
 export interface EdgeFunctionDefinition {
@@ -22,13 +24,13 @@ export interface EdgeFunctionDefinition {
   files: string[]
   name: string
   page: string
-  regexp: string
+  matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
 }
 
 export interface MiddlewareManifest {
-  version: 1
+  version: 2
   sortedMiddleware: string[]
   middleware: { [page: string]: EdgeFunctionDefinition }
   functions: { [page: string]: EdgeFunctionDefinition }
@@ -48,7 +50,7 @@ const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
   middleware: {},
   functions: {},
-  version: 1,
+  version: 2,
 }
 
 /**
@@ -83,6 +85,7 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${FLIGHT_MANIFEST}.js`)
+      files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
       files.push(
         ...entryFiles
           .filter(
@@ -136,14 +139,16 @@ function getCreateAssets(params: {
       const { namedRegex } = getNamedMiddlewareRegex(page, {
         catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
-      const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
+      const matchers = metadata?.edgeMiddleware?.matchers ?? [
+        { regexp: namedRegex },
+      ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
-        regexp,
+        matchers,
         wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
           name,
           filePath,

@@ -54,6 +54,7 @@ import type {
   SWC_TARGET_TRIPLE,
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
+import type { MiddlewareMatcher } from './analysis/get-page-static-info'
 import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
@@ -90,7 +91,7 @@ export function getDefineEnv({
   hasReactRoot,
   isNodeServer,
   isEdgeServer,
-  middlewareRegex,
+  middlewareMatchers,
   hasServerComponents,
 }: {
   dev?: boolean
@@ -100,7 +101,7 @@ export function getDefineEnv({
   hasReactRoot?: boolean
   isNodeServer?: boolean
   isEdgeServer?: boolean
-  middlewareRegex?: string
+  middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
   hasServerComponents?: boolean
 }) {
@@ -144,8 +145,8 @@ export function getDefineEnv({
         isEdgeServer ? 'edge' : 'nodejs'
       ),
     }),
-    'process.env.__NEXT_MIDDLEWARE_REGEX': JSON.stringify(
-      middlewareRegex || ''
+    'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
+      middlewareMatchers || []
     ),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
       config.experimental.manualClientBasePath
@@ -195,14 +196,12 @@ export function getDefineEnv({
       path: config.images.path,
       loader: config.images.loader,
       dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
-      experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-      experimentalFuture: config.experimental?.images?.allowFutureImage,
+      unoptimized: config?.images?.unoptimized,
       ...(dev
         ? {
             // pass domains in development to allow validating on the client
             domains: config.images.domains,
-            experimentalRemotePatterns:
-              config.experimental?.images?.remotePatterns,
+            remotePatterns: config.images?.remotePatterns,
           }
         : {}),
     }),
@@ -510,7 +509,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     target = COMPILER_NAMES.server,
     appDir,
-    middlewareRegex,
+    middlewareMatchers,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -525,16 +524,13 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
     target?: string
     appDir?: string
-    middlewareRegex?: string
+    middlewareMatchers?: MiddlewareMatcher[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
-  const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
-    dir,
-    config
-  )
+  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
 
   const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
 
@@ -832,22 +828,8 @@ export default async function getBaseWebpackConfig(
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
-      ? [
-          '.js',
-          '.mjs',
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
-          '.jsx',
-          '.json',
-          '.wasm',
-        ]
-      : [
-          '.mjs',
-          '.js',
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
-          '.jsx',
-          '.json',
-          '.wasm',
-        ],
+      ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
+      : ['.mjs', '.js', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
@@ -1594,61 +1576,74 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     resolve: {
-                      // Full list of old polyfills is accessible here:
-                      // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
-                      fallback: {
-                        assert: require.resolve('next/dist/compiled/assert'),
-                        buffer: require.resolve('next/dist/compiled/buffer/'),
-                        constants: require.resolve(
-                          'next/dist/compiled/constants-browserify'
-                        ),
-                        crypto: require.resolve(
-                          'next/dist/compiled/crypto-browserify'
-                        ),
-                        domain: require.resolve(
-                          'next/dist/compiled/domain-browser'
-                        ),
-                        http: require.resolve('next/dist/compiled/stream-http'),
-                        https: require.resolve(
-                          'next/dist/compiled/https-browserify'
-                        ),
-                        os: require.resolve('next/dist/compiled/os-browserify'),
-                        path: require.resolve(
-                          'next/dist/compiled/path-browserify'
-                        ),
-                        punycode: require.resolve(
-                          'next/dist/compiled/punycode'
-                        ),
-                        process: require.resolve('./polyfills/process'),
-                        // Handled in separate alias
-                        querystring: require.resolve(
-                          'next/dist/compiled/querystring-es3'
-                        ),
-                        stream: require.resolve(
-                          'next/dist/compiled/stream-browserify'
-                        ),
-                        string_decoder: require.resolve(
-                          'next/dist/compiled/string_decoder'
-                        ),
-                        sys: require.resolve('next/dist/compiled/util/'),
-                        timers: require.resolve(
-                          'next/dist/compiled/timers-browserify'
-                        ),
-                        tty: require.resolve(
-                          'next/dist/compiled/tty-browserify'
-                        ),
-                        // Handled in separate alias
-                        // url: require.resolve('url/'),
-                        util: require.resolve('next/dist/compiled/util/'),
-                        vm: require.resolve('next/dist/compiled/vm-browserify'),
-                        zlib: require.resolve(
-                          'next/dist/compiled/browserify-zlib'
-                        ),
-                        events: require.resolve('next/dist/compiled/events/'),
-                        setImmediate: require.resolve(
-                          'next/dist/compiled/setimmediate'
-                        ),
-                      },
+                      fallback:
+                        config.experimental.fallbackNodePolyfills === false
+                          ? {}
+                          : {
+                              assert: require.resolve(
+                                'next/dist/compiled/assert'
+                              ),
+                              buffer: require.resolve(
+                                'next/dist/compiled/buffer/'
+                              ),
+                              constants: require.resolve(
+                                'next/dist/compiled/constants-browserify'
+                              ),
+                              crypto: require.resolve(
+                                'next/dist/compiled/crypto-browserify'
+                              ),
+                              domain: require.resolve(
+                                'next/dist/compiled/domain-browser'
+                              ),
+                              http: require.resolve(
+                                'next/dist/compiled/stream-http'
+                              ),
+                              https: require.resolve(
+                                'next/dist/compiled/https-browserify'
+                              ),
+                              os: require.resolve(
+                                'next/dist/compiled/os-browserify'
+                              ),
+                              path: require.resolve(
+                                'next/dist/compiled/path-browserify'
+                              ),
+                              punycode: require.resolve(
+                                'next/dist/compiled/punycode'
+                              ),
+                              process: require.resolve('./polyfills/process'),
+                              // Handled in separate alias
+                              querystring: require.resolve(
+                                'next/dist/compiled/querystring-es3'
+                              ),
+                              stream: require.resolve(
+                                'next/dist/compiled/stream-browserify'
+                              ),
+                              string_decoder: require.resolve(
+                                'next/dist/compiled/string_decoder'
+                              ),
+                              sys: require.resolve('next/dist/compiled/util/'),
+                              timers: require.resolve(
+                                'next/dist/compiled/timers-browserify'
+                              ),
+                              tty: require.resolve(
+                                'next/dist/compiled/tty-browserify'
+                              ),
+                              // Handled in separate alias
+                              // url: require.resolve('url/'),
+                              util: require.resolve('next/dist/compiled/util/'),
+                              vm: require.resolve(
+                                'next/dist/compiled/vm-browserify'
+                              ),
+                              zlib: require.resolve(
+                                'next/dist/compiled/browserify-zlib'
+                              ),
+                              events: require.resolve(
+                                'next/dist/compiled/events/'
+                              ),
+                              setImmediate: require.resolve(
+                                'next/dist/compiled/setimmediate'
+                              ),
+                            },
                     },
                   },
                 ],
@@ -1677,7 +1672,7 @@ export default async function getBaseWebpackConfig(
           hasReactRoot,
           isNodeServer,
           isEdgeServer,
-          middlewareRegex,
+          middlewareMatchers,
           hasServerComponents,
         })
       ),
@@ -1831,11 +1826,14 @@ export default async function getBaseWebpackConfig(
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
-  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-    webpackConfig.resolve?.plugins?.unshift(
-      new JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl)
+  // allows add JsConfigPathsPlugin to allow hot-reloading
+  // if the config is added/removed
+  webpackConfig.resolve?.plugins?.unshift(
+    new JsConfigPathsPlugin(
+      jsConfig?.compilerOptions?.paths || {},
+      resolvedBaseUrl || dir
     )
-  }
+  )
 
   const webpack5Config = webpackConfig as webpack.Configuration
 
