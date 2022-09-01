@@ -1371,7 +1371,13 @@ export async function copyTracedFiles(
           const symlink = await fs.readlink(tracedFilePath).catch(() => null)
 
           if (symlink) {
-            await fs.symlink(symlink, fileOutputPath)
+            try {
+              await fs.symlink(symlink, fileOutputPath)
+            } catch (e: any) {
+              if (e.code !== 'EEXIST') {
+                throw e
+              }
+            }
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
           }

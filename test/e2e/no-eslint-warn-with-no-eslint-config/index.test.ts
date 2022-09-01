@@ -65,5 +65,23 @@ describe('no-eslint-warn-with-no-eslint-config', () => {
         await next.patchFile('package.json', origPkgJson)
       }
     })
+
+    it('should not warn with eslint config in package.json', async () => {
+      await next.stop()
+      const origPkgJson = await next.readFile('package.json')
+      const pkgJson = JSON.parse(origPkgJson)
+      pkgJson.eslintConfig = { rules: { semi: 'off' } }
+
+      try {
+        await next.patchFile('package.json', JSON.stringify(pkgJson))
+        await next.start()
+
+        expect(next.cliOutput).not.toContain(
+          'No ESLint configuration detected. Run next lint to begin setup'
+        )
+      } finally {
+        await next.patchFile('package.json', origPkgJson)
+      }
+    })
   }
 })
