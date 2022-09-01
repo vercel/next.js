@@ -76,8 +76,6 @@ describe('no-eslint-warn-with-no-eslint-config', () => {
         await next.patchFile('package.json', JSON.stringify(pkgJson))
         await next.start()
 
-        console.log(next.cliOutput)
-
         expect(next.cliOutput).not.toContain(
           'No ESLint configuration detected. Run next lint to begin setup'
         )
