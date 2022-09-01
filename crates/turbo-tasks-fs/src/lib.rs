@@ -15,7 +15,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Display},
     fs::{self, create_dir_all},
-    io::{ErrorKind, Write},
+    io::{self, ErrorKind},
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{
@@ -27,6 +27,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use futures_retry::{ErrorHandler, FutureRetry, RetryPolicy};
 use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
@@ -35,6 +36,9 @@ use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher
 use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
 use serde::{Deserialize, Serialize};
+#[cfg(unix)]
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
 use turbo_tasks::{
     primitives::StringVc, spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc,
     Invalidator, ValueToString, ValueToStringVc,
@@ -292,13 +296,14 @@ impl DiskFileSystem {
     }
 }
 
+fn can_retry(err: &std::io::Error) -> bool {
+    matches!(
+        err.kind(),
+        ErrorKind::PermissionDenied | ErrorKind::WouldBlock
+    )
+}
+
 fn with_retry<T>(func: impl Fn() -> Result<T, std::io::Error>) -> Result<T, std::io::Error> {
-    fn can_retry(err: &std::io::Error) -> bool {
-        matches!(
-            err.kind(),
-            ErrorKind::PermissionDenied | ErrorKind::WouldBlock
-        )
-    }
     let mut result = func();
     if let Err(e) = &result {
         if can_retry(e) {
@@ -319,6 +324,28 @@ fn with_retry<T>(func: impl Fn() -> Result<T, std::io::Error>) -> Result<T, std:
     result
 }
 
+struct FutureRetryHandle {
+    max_attempts: usize,
+}
+
+impl Default for FutureRetryHandle {
+    fn default() -> Self {
+        Self { max_attempts: 10 }
+    }
+}
+
+impl ErrorHandler<io::Error> for FutureRetryHandle {
+    type OutError = io::Error;
+
+    fn handle(&mut self, attempt: usize, e: io::Error) -> RetryPolicy<io::Error> {
+        if attempt == self.max_attempts || !can_retry(&e) {
+            RetryPolicy::ForwardError(e)
+        } else {
+            RetryPolicy::WaitRetry(Duration::from_millis(10 + (attempt as u64) * 100))
+        }
+    }
+}
+
 impl fmt::Debug for DiskFileSystem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "name: {}, root: {}", self.name, self.root)
@@ -335,11 +362,13 @@ impl FileSystem for DiskFileSystem {
             self.invalidator_map
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
-        Ok(match self
-            .execute(move || with_retry(move || File::from_path(&full_path)))
-            .await
+        Ok(match FutureRetry::new(
+            || File::from_path_async(full_path.clone()),
+            FutureRetryHandle::default(),
+        )
+        .await
         {
-            Ok(file) => FileContent::new(file),
+            Ok((file, _attempts)) => FileContent::new(file),
             Err(_) => FileContent::NotFound,
         }
         .into())
@@ -353,12 +382,8 @@ impl FileSystem for DiskFileSystem {
             self.dir_invalidator_map
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
-        let result = self
-            .execute({
-                let full_path = full_path.clone();
-                move || with_retry(move || fs::read_dir(&full_path))
-            })
-            .await;
+        let full_path_to_read_dir = full_path.clone();
+        let result = with_retry(move || fs::read_dir(&full_path_to_read_dir));
         Ok(match result {
             Ok(res) => DirectoryContentVc::new(
                 res.filter_map(|e| -> Option<Result<(String, DirectoryEntry)>> {
@@ -455,40 +480,70 @@ impl FileSystem for DiskFileSystem {
             .with_context(|| format!("reading old content of {}", full_path.display()))?;
         if *content != *old_content {
             let create_directory = *old_content == FileContent::NotFound;
-            self.execute(move || match &*content {
-                FileContent::Content(file) => {
-                    if create_directory {
-                        if let Some(parent) = full_path.parent() {
-                            with_retry(move || fs::create_dir_all(parent)).with_context(|| {
-                                format!(
-                                    "failed to create directory {} for write to {}",
-                                    parent.display(),
-                                    full_path.display()
+            async {
+                match &*content {
+                    FileContent::Content(file) => {
+                        if create_directory {
+                            if let Some(parent) = full_path.parent() {
+                                FutureRetry::new(
+                                    move || tokio::fs::create_dir_all(parent),
+                                    FutureRetryHandle::default(),
                                 )
-                            })?;
+                                .await
+                                .map_err(|(err, _attempts)| err)
+                                .with_context(|| {
+                                    format!(
+                                        "failed to create directory {} for write to {}",
+                                        parent.display(),
+                                        full_path.display()
+                                    )
+                                })?;
+                            }
                         }
+                        // println!("write {} bytes to {}", buffer.len(), full_path.display());
+                        let full_path_to_write = full_path.clone();
+                        FutureRetry::new(
+                            move || {
+                                let full_path = full_path_to_write.clone();
+                                async move {
+                                    let full_path = full_path.clone();
+                                    let mut f = tokio::fs::File::create(&full_path).await?;
+                                    f.write_all(&file.content).await?;
+                                    #[cfg(target_family = "unix")]
+                                    fs::set_permissions(&full_path, file.meta.permissions.into())?;
+                                    Ok::<(), io::Error>(())
+                                }
+                            },
+                            FutureRetryHandle::default(),
+                        )
+                        .await
+                        .map_err(|(err, _attempts)| err)
+                        .with_context(|| format!("failed to write to {}", full_path.display()))
                     }
-                    // println!("write {} bytes to {}", buffer.len(), full_path.display());
-                    with_retry(|| {
-                        let mut f = fs::File::create(&full_path)?;
-                        f.write_all(&file.content)?;
-                        #[cfg(target_family = "unix")]
-                        fs::set_permissions(&full_path, file.meta.permissions.into())?;
-                        Ok(())
-                    })
-                    .with_context(|| format!("failed to write to {}", full_path.display()))
+                    FileContent::NotFound => {
+                        // println!("remove {}", full_path.display());
+                        let full_path_to_remove = full_path.clone();
+                        FutureRetry::new(
+                            move || {
+                                let full_path = full_path_to_remove.clone();
+                                async move {
+                                    tokio::fs::remove_file(full_path).await.or_else(|err| {
+                                        if err.kind() == ErrorKind::NotFound {
+                                            Ok(())
+                                        } else {
+                                            Err(err)
+                                        }
+                                    })
+                                }
+                            },
+                            FutureRetryHandle::default(),
+                        )
+                        .await
+                        .map_err(|(err, _attempts)| err)
+                        .context(anyhow!("removing {} failed", full_path.display()))
+                    }
                 }
-                FileContent::NotFound => {
-                    // println!("remove {}", full_path.display());
-                    with_retry(|| fs::remove_file(&full_path)).or_else(|err| {
-                        if err.kind() == ErrorKind::NotFound {
-                            Ok(())
-                        } else {
-                            Err(err).context(anyhow!("removing {} failed", full_path.display()))
-                        }
-                    })
-                }
-            })
+            }
             .await?;
         }
         Ok(CompletionVc::new())
@@ -956,6 +1011,28 @@ impl File {
         #[cfg(not(unix))]
         {
             fs::read(p).map(|output| File {
+                meta: Default::default(),
+                content: output,
+            })
+        }
+    }
+
+    pub async fn from_path_async(p: PathBuf) -> Result<Self, std::io::Error> {
+        #[cfg(unix)]
+        {
+            let mut f = tokio::fs::File::open(p).await?;
+            let metadata = f.metadata().await?;
+            let mut output = Vec::with_capacity(metadata.len() as usize);
+            f.read_to_end(&mut output).await?;
+            Ok(File {
+                meta: metadata.into(),
+                content: output,
+            })
+        }
+        #[cfg(not(unix))]
+        {
+            let output = tokio::fs::read(p).await?;
+            Ok(File {
                 meta: Default::default(),
                 content: output,
             })

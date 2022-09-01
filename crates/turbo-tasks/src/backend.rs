@@ -326,7 +326,7 @@ impl PersistentTaskType {
         inputs: Vec<TaskInput>,
         turbo_tasks: Arc<dyn TurboTasksBackendApi>,
     ) -> Result<RawVc> {
-        let mut resolved_inputs = Vec::new();
+        let mut resolved_inputs = Vec::with_capacity(inputs.len());
         for input in inputs.into_iter() {
             resolved_inputs.push(input.resolve().await?)
         }
@@ -339,7 +339,7 @@ impl PersistentTaskType {
         inputs: Vec<TaskInput>,
         turbo_tasks: Arc<dyn TurboTasksBackendApi>,
     ) -> Result<RawVc> {
-        let mut resolved_inputs = Vec::new();
+        let mut resolved_inputs = Vec::with_capacity(inputs.len());
         let mut iter = inputs.into_iter();
         if let Some(this) = iter.next() {
             let this = this.resolve().await?;
