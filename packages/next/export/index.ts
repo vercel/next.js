@@ -325,8 +325,7 @@ export default async function exportApp(
 
     const {
       i18n,
-      images: { loader = 'default' },
-      experimental,
+      images: { loader = 'default', unoptimized },
     } = nextConfig
 
     if (i18n && !options.buildExport) {
@@ -348,7 +347,7 @@ export default async function exportApp(
       if (
         isNextImageImported &&
         loader === 'default' &&
-        !experimental?.images?.unoptimized &&
+        !unoptimized &&
         !hasNextSupport
       ) {
         throw new Error(

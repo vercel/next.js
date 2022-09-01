@@ -648,20 +648,6 @@ export async function renderToHTMLOrFlight(
       throw new DynamicServerError(`getServerSideProps ${segment || 'root'}`)
     }
 
-    // Only server components can have getServerSideProps / getStaticProps
-    // TODO-APP: friendly error with correct stacktrace. Potentially this can be part of the compiler instead.
-    if (isClientComponentModule) {
-      if (layoutOrPageMod.ssr) {
-        throw new Error(
-          'getServerSideProps is not supported on Client Components'
-        )
-      }
-
-      if (layoutOrPageMod.ssg) {
-        throw new Error('getStaticProps is not supported on Client Components')
-      }
-    }
-
     /**
      * The React Component to render.
      */
