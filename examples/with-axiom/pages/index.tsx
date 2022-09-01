@@ -10,9 +10,9 @@ export const getStaticProps = async (ctx: GetStaticPropsContext) => {
 }
 
 const fetcher = async (...args: any[]) => {
-  log.info('Hello from SWR', { args });
-  const res = await fetch.apply(null, [...args]);
-  return await res.json();
+  log.info('Hello from SWR', { args })
+  const res = await fetch.apply(null, [...args])
+  return await res.json()
 }
 
 const Home = () => {
