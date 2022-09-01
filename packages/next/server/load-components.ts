@@ -15,7 +15,7 @@ import {
   FLIGHT_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
-import { requirePage, getPagePath } from './require'
+import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 
@@ -38,7 +38,7 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
-  isAppPath?: boolean
+  isAppPath: boolean
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
@@ -129,18 +129,6 @@ export async function loadComponents(
   const App = interopDefault(AppMod)
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
-
-  if (isAppPath) {
-    const pagePath = getPagePath(
-      pathname,
-      distDir,
-      serverless,
-      false,
-      undefined,
-      isAppPath
-    )
-    isAppPath = !!pagePath?.match(/server[/\\]app[/\\]/)
-  }
 
   return {
     App,
