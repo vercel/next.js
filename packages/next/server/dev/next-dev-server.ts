@@ -1117,15 +1117,11 @@ export default class DevServer extends Server {
   }
 
   protected async ensureMiddleware() {
-    return this.hotReloader!.ensurePage(
-      this.actualMiddlewareFile!,
-      false,
-      false
-    )
+    return this.hotReloader!.ensurePage(this.actualMiddlewareFile!, false)
   }
 
-  protected async ensureEdgeFunction(pathname: string, isAppDir: boolean) {
-    return this.hotReloader!.ensurePage(pathname, isAppDir, false)
+  protected async ensureEdgeFunction(pathname: string) {
+    return this.hotReloader!.ensurePage(pathname, false)
   }
 
   generateRoutes() {
@@ -1291,7 +1287,7 @@ export default class DevServer extends Server {
   }
 
   protected async ensureApiPage(pathname: string): Promise<void> {
-    return this.hotReloader!.ensurePage(pathname, false, false)
+    return this.hotReloader!.ensurePage(pathname, false)
   }
 
   protected async findPageComponents(
@@ -1307,7 +1303,7 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      await this.hotReloader!.ensurePage(pathname, isAppDir, false)
+      await this.hotReloader!.ensurePage(pathname, false)
 
       const serverComponents = this.nextConfig.experimental.serverComponents
 
@@ -1331,7 +1327,7 @@ export default class DevServer extends Server {
     await this.hotReloader!.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
-    await this.hotReloader!.ensurePage('/_error', false, false)
+    await this.hotReloader!.ensurePage('/_error', false)
     return await loadDefaultErrorComponents(this.distDir)
   }
 

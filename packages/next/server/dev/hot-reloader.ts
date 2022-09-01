@@ -272,7 +272,7 @@ export default class HotReloader {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage(page, false, true)
+          await this.ensurePage(page, true)
         } catch (error) {
           await renderScriptError(pageBundleRes, getProperError(error))
           return { finished: true }
@@ -1071,11 +1071,7 @@ export default class HotReloader {
     )
   }
 
-  public async ensurePage(
-    page: string,
-    isAppDir: boolean,
-    clientOnly: boolean
-  ): Promise<void> {
+  public async ensurePage(page: string, clientOnly: boolean): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
@@ -1086,6 +1082,6 @@ export default class HotReloader {
     if (error) {
       return Promise.reject(error)
     }
-    return this.onDemandEntries?.ensurePage(page, isAppDir, clientOnly) as any
+    return this.onDemandEntries?.ensurePage(page, clientOnly) as any
   }
 }

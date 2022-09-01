@@ -983,8 +983,6 @@ export default class NextNodeServer extends BaseServer {
         // in the pages-manifest
         if (!(err instanceof PageNotFoundError)) {
           throw err
-        } else if (this.renderOpts.dev) {
-          console.error(err)
         }
       }
     }
@@ -1670,7 +1668,7 @@ export default class NextNodeServer extends BaseServer {
    * so that we can run it.
    */
   protected async ensureMiddleware() {}
-  protected async ensureEdgeFunction(_pathname: string, _isAppDir: boolean) {}
+  protected async ensureEdgeFunction(_pathname: string) {}
 
   /**
    * This method gets all middleware matchers and execute them when the request
@@ -2026,7 +2024,7 @@ export default class NextNodeServer extends BaseServer {
 
     // If it's edge app route, use appPath to find the edge SSR page
     const page = params.isAppDir ? params.appPath! : params.page
-    await this.ensureEdgeFunction(page, params.isAppDir)
+    await this.ensureEdgeFunction(page)
     middlewareInfo = this.getEdgeFunctionInfo({
       page: page,
       middleware: false,

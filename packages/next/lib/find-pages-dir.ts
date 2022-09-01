@@ -47,6 +47,6 @@ export function findPagesDir(
 
   return {
     pages: pagesDir,
-    appDir: appDir,
+    appDir,
   }
 }

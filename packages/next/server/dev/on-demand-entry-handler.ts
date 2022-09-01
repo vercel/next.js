@@ -256,9 +256,10 @@ function disposeInactiveEntries(maxInactiveAge: number) {
   })
 }
 
-function tryToNormalizePagePath(page: string, isAppDir: boolean) {
+// Normalize both app paths and page paths
+function tryToNormalizePagePath(page: string) {
   try {
-    return isAppDir ? normalizeAppPath(page) : normalizePagePath(page)
+    return normalizePagePath(page)
   } catch (err) {
     console.error(err)
     throw new PageNotFoundError(page)
@@ -279,11 +280,10 @@ async function findPagePathData(
   rootDir: string,
   page: string,
   extensions: string[],
-  isAppDir: boolean,
   pagesDir?: string,
   appDir?: string
 ) {
-  const normalizedPagePath = tryToNormalizePagePath(page, isAppDir)
+  const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
   if (isMiddlewareFile(normalizedPagePath)) {
@@ -546,11 +546,7 @@ export function onDemandEntryHandler({
   }
 
   return {
-    async ensurePage(
-      page: string,
-      isAppDir: boolean,
-      clientOnly: boolean
-    ): Promise<void> {
+    async ensurePage(page: string, clientOnly: boolean): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
         debug(
@@ -563,7 +559,6 @@ export function onDemandEntryHandler({
           rootDir,
           page,
           nextConfig.pageExtensions,
-          isAppDir,
           pagesDir,
           appDir
         )
