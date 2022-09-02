@@ -79,6 +79,17 @@ export function existsInRepo(nameOrUrl: string): Promise<boolean> {
   }
 }
 
+// HACK: See: https://github.com/vercel/next.js/issues/39321
+function swallowPrematureStreamClose(e: Error & { code?: string }) {
+  if (
+    process.version.startsWith('18') &&
+    e.code === 'ERR_STREAM_PREMATURE_CLOSE'
+  ) {
+    return
+  }
+  throw e
+}
+
 export function downloadAndExtractRepo(
   root: string,
   { username, name, branch, filePath }: RepoInfo
@@ -91,7 +102,7 @@ export function downloadAndExtractRepo(
       { cwd: root, strip: filePath ? filePath.split('/').length + 1 : 1 },
       [`${name}-${branch.replace(/\//g, '-')}${filePath ? `/${filePath}` : ''}`]
     )
-  )
+  ).catch(swallowPrematureStreamClose)
 }
 
 export function downloadAndExtractExample(
@@ -105,5 +116,5 @@ export function downloadAndExtractExample(
   return pipeline(
     got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
     tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
-  )
+  ).catch(swallowPrematureStreamClose)
 }
