@@ -12,6 +12,7 @@ import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
 import { ServerRuntime } from 'next/types'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
+import { matcher } from 'next/dist/compiled/micromatch'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
@@ -177,9 +178,11 @@ function getMiddlewareConfig(
       ? config.allowDynamic
       : [config.allowDynamic]
     for (const glob of result.allowDynamicGlobs ?? []) {
-      if (typeof glob !== 'string') {
+      try {
+        matcher(glob)
+      } catch (err) {
         throw new Error(
-          `A middleware/edge exported 'config.allowDynamic' must be a string or an array of strings`
+          `A middleware/edge exported 'config.allowDynamic' is not a valid pattern: ${err.message}`
         )
       }
     }

@@ -29,7 +29,7 @@ describe('Edge config validations', () => {
     })
     await expect(next.start()).rejects.toThrow('next build failed')
     expect(next.cliOutput).toMatch(
-      `exported 'config.allowDynamic' must be a string or an array of strings`
+      `exported 'config.allowDynamic' is not a valid pattern: Expected pattern to be a non-empty string`
     )
   })
 })

@@ -255,12 +255,7 @@ function isDynamicCodeEvaluationAllowed(
   rootDir?: string
 ) {
   const name = fileName.replace(rootDir ?? '', '')
-  for (const glob of edgeFunctionConfig?.allowDynamicGlobs ?? []) {
-    if (isMatch(name, glob)) {
-      return true
-    }
-  }
-  return false
+  return isMatch(name, edgeFunctionConfig?.allowDynamicGlobs ?? [])
 }
 
 function buildUnsupportedApiError({
