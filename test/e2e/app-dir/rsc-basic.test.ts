@@ -262,6 +262,14 @@ describe('app dir - react server components', () => {
     expect(manipulated).toBe(undefined)
   })
 
+  it('should render built-in 404 page for missing route if pagesDir is not presented', async () => {
+    const res = await fetchViaHTTP(next.url, '/does-not-exist')
+
+    expect(res.status).toBe(404)
+    const html = await res.text()
+    expect(html).toContain('This page could not be found')
+  })
+
   it('should suspense next/image in server components', async () => {
     const imageHTML = await renderViaHTTP(next.url, '/next-api/image')
     const imageTag = getNodeBySelector(imageHTML, '#myimg')

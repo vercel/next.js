@@ -421,19 +421,20 @@ export default class HotReloader {
               ])
             )
 
-      this.pagesMapping = !this.pagesDir
-        ? {}
-        : webpackConfigSpan.traceChild('create-pages-mapping').traceFn(() =>
-            createPagesMapping({
-              hasServerComponents: this.hasServerComponents,
-              isDev: true,
-              pageExtensions: this.config.pageExtensions,
-              pagesType: 'pages',
-              pagePaths: pagePaths.filter(
-                (i: string | null): i is string => typeof i === 'string'
-              ),
-            })
-          )
+      this.pagesMapping = webpackConfigSpan
+        .traceChild('create-pages-mapping')
+        .traceFn(() =>
+          createPagesMapping({
+            hasServerComponents: this.hasServerComponents,
+            isDev: true,
+            pageExtensions: this.config.pageExtensions,
+            pagesType: 'pages',
+            pagePaths: pagePaths.filter(
+              (i: string | null): i is string => typeof i === 'string'
+            ),
+            pagesDir: this.pagesDir,
+          })
+        )
 
       const entrypoints = await webpackConfigSpan
         .traceChild('create-entrypoints')
