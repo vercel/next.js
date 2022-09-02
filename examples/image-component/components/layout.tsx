@@ -8,6 +8,7 @@ type LayoutProps = {
 
 export default function Layout({ children }: LayoutProps) {
   const { asPath } = useRouter()
+  const pagePath = `/pages/${asPath || 'index'}.tsx`
   return (
     <>
       <svg
@@ -20,7 +21,7 @@ export default function Layout({ children }: LayoutProps) {
       >
         <a
           title="View Source"
-          href={`https://github.com/vercel/next.js/tree/canary/examples/image-component/pages/${asPath}.tsx`}
+          href={`https://github.com/vercel/next.js/tree/canary/examples/image-component${pagePath}`}
         >
           <path d="M0 0l115 115h15l12 27 108 108V0z" fill="#fff" />
           <path
