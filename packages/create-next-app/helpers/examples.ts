@@ -82,7 +82,7 @@ export function existsInRepo(nameOrUrl: string): Promise<boolean> {
 // HACK: See: https://github.com/vercel/next.js/issues/39321
 function swallowPrematureStreamClose(e: Error & { code?: string }) {
   if (
-    process.version.startsWith('18') &&
+    process.version.startsWith('v18') &&
     e.code === 'ERR_STREAM_PREMATURE_CLOSE'
   ) {
     return
