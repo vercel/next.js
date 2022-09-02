@@ -76,7 +76,7 @@ describe('Dynamic Route Interpolation', () => {
     await browser.elementById('now').click() // fetch data once
     const text = await browser.elementById('now').text()
     await browser.elementById('now').click() // fetch data again
-    await browser.waitForElementByCss(`#now:not(:text("${text}"))`, 100)
+    await browser.waitForElementByCss(`#now:not(:text("${text}"))`)
     await browser.close()
   })
 
@@ -85,7 +85,7 @@ describe('Dynamic Route Interpolation', () => {
     await browser.elementById('now').click() // fetch data once
     const text = await browser.elementById('now').text()
     await browser.elementById('now').click() // fetch data again
-    await browser.waitForElementByCss(`#now:not(:text("${text}"))`, 100)
+    await browser.waitForElementByCss(`#now:not(:text("${text}"))`)
     await browser.close()
   })
 })
