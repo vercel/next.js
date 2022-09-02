@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { RouteLoader } from './route-loader'
+import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import { addBasePath } from './add-base-path'
 import { interpolateAs } from '../shared/lib/router/router'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
@@ -11,7 +12,7 @@ import { createRouteLoader, getClientBuildManifest } from './route-loader'
 
 declare global {
   interface Window {
-    __DEV_MIDDLEWARE_MANIFEST?: { location?: string }
+    __DEV_MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __DEV_PAGES_MANIFEST?: { pages: string[] }
     __SSG_MANIFEST_CB?: () => void
     __SSG_MANIFEST?: Set<string>
@@ -30,7 +31,7 @@ export default class PageLoader {
   private assetPrefix: string
   private promisedSsgManifest: Promise<Set<string>>
   private promisedDevPagesManifest?: Promise<string[]>
-  private promisedMiddlewareManifest?: Promise<{ location: string }>
+  private promisedMiddlewareMatchers?: Promise<MiddlewareMatcher[]>
 
   public routeLoader: RouteLoader
 
@@ -80,32 +81,32 @@ export default class PageLoader {
 
   getMiddleware() {
     if (process.env.NODE_ENV === 'production') {
-      const middlewareRegex = process.env.__NEXT_MIDDLEWARE_REGEX
-      window.__MIDDLEWARE_MANIFEST = middlewareRegex
-        ? { location: middlewareRegex }
+      const middlewareMatchers = process.env.__NEXT_MIDDLEWARE_MATCHERS
+      window.__MIDDLEWARE_MATCHERS = middlewareMatchers
+        ? (middlewareMatchers as any as MiddlewareMatcher[])
         : undefined
-      return window.__MIDDLEWARE_MANIFEST
+      return window.__MIDDLEWARE_MATCHERS
     } else {
-      if (window.__DEV_MIDDLEWARE_MANIFEST) {
-        return window.__DEV_MIDDLEWARE_MANIFEST
+      if (window.__DEV_MIDDLEWARE_MATCHERS) {
+        return window.__DEV_MIDDLEWARE_MATCHERS
       } else {
-        if (!this.promisedMiddlewareManifest) {
+        if (!this.promisedMiddlewareMatchers) {
           // TODO: Decide what should happen when fetching fails instead of asserting
           // @ts-ignore
-          this.promisedMiddlewareManifest = fetch(
+          this.promisedMiddlewareMatchers = fetch(
             `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
           )
             .then((res) => res.json())
-            .then((manifest: { location?: string }) => {
-              window.__DEV_MIDDLEWARE_MANIFEST = manifest
-              return manifest
+            .then((matchers: MiddlewareMatcher[]) => {
+              window.__DEV_MIDDLEWARE_MATCHERS = matchers
+              return matchers
             })
             .catch((err) => {
               console.log(`Failed to fetch _devMiddlewareManifest`, err)
             })
         }
         // TODO Remove this assertion as this could be undefined
-        return this.promisedMiddlewareManifest!
+        return this.promisedMiddlewareMatchers!
       }
     }
   }
