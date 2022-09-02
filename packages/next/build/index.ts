@@ -314,9 +314,9 @@ export default async function build(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
-          isSrcDir: pagesDir
-            ? path.relative(dir, pagesDir).startsWith('src')
-            : false,
+          isSrcDir:
+            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
+            (!!appDir && path.relative(dir, appDir).startsWith('src')),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
         })

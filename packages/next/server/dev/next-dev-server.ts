@@ -686,9 +686,10 @@ export default class DevServer extends Server {
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir: this.pagesDir
-          ? relative(this.dir, this.pagesDir).startsWith('src')
-          : false,
+        isSrcDir:
+          (!!this.pagesDir &&
+            relative(this.dir, this.pagesDir).startsWith('src')) ||
+          (!!this.appDir && relative(this.dir, this.appDir).startsWith('src')),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
       })
