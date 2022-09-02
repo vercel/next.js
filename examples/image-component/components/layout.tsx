@@ -1,12 +1,8 @@
-import { ReactNode } from 'react'
+import type { PropsWithChildren } from 'react'
 import { useRouter } from 'next/router'
 import styles from './layout.module.css'
 
-type LayoutProps = {
-  children: ReactNode
-}
-
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children }: PropsWithChildren) {
   const { asPath } = useRouter()
   const pagePath = `/pages/${asPath || 'index'}.tsx`
   return (

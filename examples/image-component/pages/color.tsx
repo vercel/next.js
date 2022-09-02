@@ -1,5 +1,4 @@
 import Image from 'next/image'
-import Layout from '../components/layout'
 
 // Pixel GIF code adapted from https://stackoverflow.com/a/33919020/266535
 const keyStr =
@@ -18,7 +17,7 @@ const rgbDataURL = (r: number, g: number, b: number) =>
 
 export default function ColorPage() {
   return (
-    <Layout>
+    <>
       <h1>Image Component With Color Data URL</h1>
       <Image
         alt="Dog"
@@ -36,6 +35,6 @@ export default function ColorPage() {
         width={750}
         height={1000}
       />
-    </Layout>
+    </>
   )
 }

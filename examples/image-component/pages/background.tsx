@@ -1,9 +1,8 @@
 import Image from 'next/image'
-import Layout from '../components/layout'
 
 export default function BackgroundPage() {
   return (
-    <Layout>
+    <>
       <div
         style={{
           position: 'fixed',
@@ -38,6 +37,6 @@ export default function BackgroundPage() {
         <br />
         as a Background
       </p>
-    </Layout>
+    </>
   )
 }

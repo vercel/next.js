@@ -1,5 +1,4 @@
 import Image from 'next/image'
-import Layout from '../components/layout'
 
 const shimmer = (w: number, h: number) =>
   `<svg width="${w}" height="${h}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -22,7 +21,7 @@ const toBase64 = (str: string) =>
 
 export default function Shimmer() {
   return (
-    <Layout>
+    <>
       <h1>Image Component With Shimmer Data URL</h1>
       <Image
         alt="Mountains"
@@ -32,6 +31,6 @@ export default function Shimmer() {
         width={700}
         height={475}
       />
-    </Layout>
+    </>
   )
 }

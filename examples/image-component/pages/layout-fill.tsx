@@ -1,10 +1,9 @@
 import Image from 'next/image'
-import Layout from '../components/layout'
 import mountains from '../public/mountains.jpg'
 
 export default function FillPage() {
   return (
-    <Layout>
+    <>
       <h1>Image Component With Layout Fill</h1>
       <div style={{ position: 'relative', width: '300px', height: '500px' }}>
         <Image
@@ -31,6 +30,6 @@ export default function FillPage() {
           quality={100}
         />
       </div>
-    </Layout>
+    </>
   )
 }

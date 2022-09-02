@@ -1,8 +1,6 @@
-import { HTMLAttributes } from 'react'
+import { PropsWithChildren } from 'react'
 import styles from './code.module.css'
 
-type CodeProps = Omit<HTMLAttributes<HTMLDivElement>, 'className'>
-
-export default function Code(props: CodeProps) {
+export default function Code(props: PropsWithChildren) {
   return <code className={styles.root} {...props} />
 }

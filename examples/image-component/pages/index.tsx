@@ -1,13 +1,12 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import Layout from '../components/layout'
 import Code from '../components/code'
 import Divider from '../components/divider'
 import vercel from '../public/vercel.png'
 
 export default function IndexPage() {
   return (
-    <Layout>
+    <>
       <h1>Image Component with Next.js</h1>
       <p>
         This page demonstrates the usage of the{' '}
@@ -130,6 +129,6 @@ export default function IndexPage() {
         </a>{' '}
         to learn more.
       </p>
-    </Layout>
+    </>
   )
 }
