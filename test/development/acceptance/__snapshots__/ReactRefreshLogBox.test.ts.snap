@@ -104,6 +104,18 @@ exports[`ReactRefreshLogBox render error not shown right after syntax error 1`] 
   9 | }"
 `;
 
+exports[`ReactRefreshLogBox should strip whitespace correctly with newline 1`] = `
+"index.js (9:34) @ onClick
+
+   7 | 
+   8 | <a onClick={() => {
+>  9 |   throw new Error('idk')
+     |        ^
+  10 | }}>
+  11 |   click me
+  12 | </a>"
+`;
+
 exports[`ReactRefreshLogBox stuck error 1`] = `
 "Foo.js (4:10) @ Foo
 

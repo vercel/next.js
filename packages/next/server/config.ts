@@ -45,6 +45,23 @@ const experimentalWarning = execOnce(
   }
 )
 
+export function setHttpAgentOptions(
+  options: NextConfigComplete['httpAgentOptions']
+) {
+  if ((global as any).__NEXT_HTTP_AGENT) {
+    // We only need to assign once because we want
+    // to resuse the same agent for all requests.
+    return
+  }
+
+  if (!options) {
+    throw new Error('Expected config.httpAgentOptions to be an object')
+  }
+
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
+}
+
 function assignDefaults(userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
@@ -239,7 +256,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
-    const remotePatterns = result.experimental?.images?.remotePatterns
+    const remotePatterns = result?.images?.remotePatterns
     if (remotePatterns) {
       if (!Array.isArray(remotePatterns)) {
         throw new Error(
@@ -420,7 +437,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    const unoptimized = result.experimental?.images?.unoptimized
+    const unoptimized = result?.images?.unoptimized
     if (
       typeof unoptimized !== 'undefined' &&
       typeof unoptimized !== 'boolean'
@@ -726,7 +743,7 @@ export default async function loadConfig(
   customConfig?: object | null
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook()
+  loadWebpackHook()
 
   let configFileName = 'next.config.js'
 
@@ -854,21 +871,4 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
-}
-
-export function setHttpAgentOptions(
-  options: NextConfigComplete['httpAgentOptions']
-) {
-  if ((global as any).__NEXT_HTTP_AGENT) {
-    // We only need to assign once because we want
-    // to resuse the same agent for all requests.
-    return
-  }
-
-  if (!options) {
-    throw new Error('Expected config.httpAgentOptions to be an object')
-  }
-
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
 }

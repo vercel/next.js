@@ -111,11 +111,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 topLevelImportPaths: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                    minLength: 1,
-                  },
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 ssr: {
                   type: 'boolean',
@@ -124,7 +129,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 meaninglessFileNames: {
-                  type: 'boolean',
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 minify: {
                   type: 'boolean',
@@ -244,6 +258,9 @@ const configSchema = {
         externalDir: {
           type: 'boolean',
         },
+        fallbackNodePolyfills: {
+          type: 'boolean',
+        },
         forceSwcTransforms: {
           type: 'boolean',
         },
@@ -252,44 +269,6 @@ const configSchema = {
         },
         gzipSize: {
           type: 'boolean',
-        },
-        images: {
-          additionalProperties: false,
-          properties: {
-            allowFutureImage: {
-              type: 'boolean',
-            },
-            remotePatterns: {
-              items: {
-                additionalProperties: false,
-                properties: {
-                  hostname: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  pathname: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  port: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  protocol: {
-                    // automatic typing doesn't like enum
-                    enum: ['http', 'https'] as any,
-                    type: 'string',
-                  },
-                },
-                type: 'object',
-              },
-              type: 'array',
-            },
-            unoptimized: {
-              type: 'boolean',
-            },
-          },
-          type: 'object',
         },
         incrementalCacheHandlerPath: {
           type: 'string',
@@ -470,6 +449,35 @@ const configSchema = {
     images: {
       additionalProperties: false,
       properties: {
+        remotePatterns: {
+          items: {
+            additionalProperties: false,
+            properties: {
+              hostname: {
+                minLength: 1,
+                type: 'string',
+              },
+              pathname: {
+                minLength: 1,
+                type: 'string',
+              },
+              port: {
+                minLength: 1,
+                type: 'string',
+              },
+              protocol: {
+                // automatic typing doesn't like enum
+                enum: ['http', 'https'] as any,
+                type: 'string',
+              },
+            },
+            type: 'object',
+          },
+          type: 'array',
+        },
+        unoptimized: {
+          type: 'boolean',
+        },
         contentSecurityPolicy: {
           minLength: 1,
           type: 'string',

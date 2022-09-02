@@ -166,6 +166,11 @@ function processModelChunk(request, id, model) {
   var row = serializeRowHeader('J', id) + json + '\n';
   return stringToChunk(row);
 }
+function processReferenceChunk(request, id, reference) {
+  var json = stringify(reference);
+  var row = serializeRowHeader('J', id) + json + '\n';
+  return stringToChunk(row);
+}
 function processModuleChunk(request, id, moduleMetaData) {
   var json = stringify(moduleMetaData);
   var row = serializeRowHeader('M', id) + json + '\n';
@@ -184,13 +189,24 @@ function processSymbolChunk(request, id, name) {
 // eslint-disable-next-line no-unused-vars
 var MODULE_TAG = Symbol.for('react.module.reference');
 function getModuleKey(reference) {
-  return reference.filepath + '#' + reference.name;
+  return reference.filepath + '#' + reference.name + (reference.async ? '#async' : '');
 }
 function isModuleReference(reference) {
   return reference.$$typeof === MODULE_TAG;
 }
 function resolveModuleMetaData(config, moduleReference) {
-  return config[moduleReference.filepath][moduleReference.name];
+  var resolvedModuleData = config[moduleReference.filepath][moduleReference.name];
+
+  if (moduleReference.async) {
+    return {
+      id: resolvedModuleData.id,
+      chunks: resolvedModuleData.chunks,
+      name: resolvedModuleData.name,
+      async: true
+    };
+  } else {
+    return resolvedModuleData;
+  }
 }
 
 // ATTENTION
@@ -502,6 +518,7 @@ var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
 var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 
 var textSeparator = stringToPrecomputedChunk('<!-- -->');
@@ -537,10 +554,12 @@ var startPendingSuspenseBoundary1 = stringToPrecomputedChunk('<!--$?--><template
 var startPendingSuspenseBoundary2 = stringToPrecomputedChunk('"></template>');
 var startClientRenderedSuspenseBoundary = stringToPrecomputedChunk('<!--$!-->');
 var endSuspenseBoundary = stringToPrecomputedChunk('<!--/$-->');
-var clientRenderedSuspenseBoundaryError1 = stringToPrecomputedChunk('<template data-hash="');
-var clientRenderedSuspenseBoundaryError1A = stringToPrecomputedChunk('" data-msg="');
-var clientRenderedSuspenseBoundaryError1B = stringToPrecomputedChunk('" data-stack="');
-var clientRenderedSuspenseBoundaryError2 = stringToPrecomputedChunk('"></template>');
+var clientRenderedSuspenseBoundaryError1 = stringToPrecomputedChunk('<template');
+var clientRenderedSuspenseBoundaryErrorAttrInterstitial = stringToPrecomputedChunk('"');
+var clientRenderedSuspenseBoundaryError1A = stringToPrecomputedChunk(' data-dgst="');
+var clientRenderedSuspenseBoundaryError1B = stringToPrecomputedChunk(' data-msg="');
+var clientRenderedSuspenseBoundaryError1C = stringToPrecomputedChunk(' data-stck="');
+var clientRenderedSuspenseBoundaryError2 = stringToPrecomputedChunk('></template>');
 var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="');
 var startSegmentHTML2 = stringToPrecomputedChunk('">');
 var endSegmentHTML = stringToPrecomputedChunk('</div>');
@@ -570,7 +589,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 // const SUSPENSE_PENDING_START_DATA = '$?';
 // const SUSPENSE_FALLBACK_START_DATA = '$!';
 //
-// function clientRenderBoundary(suspenseBoundaryID, errorHash, errorMsg, errorComponentStack) {
+// function clientRenderBoundary(suspenseBoundaryID, errorDigest, errorMsg, errorComponentStack) {
 //   // Find the fallback's first element.
 //   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
 //   if (!suspenseIdNode) {
@@ -584,9 +603,9 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 //   suspenseNode.data = SUSPENSE_FALLBACK_START_DATA;
 //   // assign error metadata to first sibling
 //   let dataset = suspenseIdNode.dataset;
-//   if (errorHash) dataset.hash = errorHash;
+//   if (errorDigest) dataset.dgst = errorDigest;
 //   if (errorMsg) dataset.msg = errorMsg;
-//   if (errorComponentStack) dataset.stack = errorComponentStack;
+//   if (errorComponentStack) dataset.stck = errorComponentStack;
 //   // Tell React to retry it if the parent already hydrated.
 //   if (suspenseNode._reactRetry) {
 //     suspenseNode._reactRetry();
@@ -670,7 +689,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 
 var completeSegmentFunction = 'function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)}';
 var completeBoundaryFunction = 'function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}}';
-var clientRenderFunction = 'function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.hash=c),d&&(a.msg=d),e&&(a.stack=e),b._reactRetry&&b._reactRetry())}';
+var clientRenderFunction = 'function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())}';
 var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegmentFunction + ';$RS("');
 var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
 var completeSegmentScript2 = stringToPrecomputedChunk('","');
@@ -936,6 +955,9 @@ var Dispatcher = {
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {
     return unsupportedRefresh;
+  },
+  useMemoCache: function (size) {
+    return new Array(size);
   }
 };
 
@@ -977,6 +999,10 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+var PENDING = 0;
+var COMPLETED = 1;
+var ABORTED = 3;
+var ERRORED = 4;
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 
 function defaultErrorHandler(error) {
@@ -987,7 +1013,8 @@ var OPEN = 0;
 var CLOSING = 1;
 var CLOSED = 2;
 function createRequest(model, bundlerConfig, onError, context, identifierPrefix) {
-  var pingedSegments = [];
+  var abortSet = new Set();
+  var pingedTasks = [];
   var request = {
     status: OPEN,
     fatalError: null,
@@ -996,7 +1023,8 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     cache: new Map(),
     nextChunkId: 0,
     pendingChunks: 0,
-    pingedSegments: pingedSegments,
+    abortableTasks: abortSet,
+    pingedTasks: pingedTasks,
     completedModuleChunks: [],
     completedJSONChunks: [],
     completedErrorChunks: [],
@@ -1012,8 +1040,8 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
   };
   request.pendingChunks++;
   var rootContext = createRootContext(context);
-  var rootSegment = createSegment(request, model, rootContext);
-  pingedSegments.push(rootSegment);
+  var rootTask = createTask(request, model, rootContext, abortSet);
+  pingedTasks.push(rootTask);
   return request;
 }
 
@@ -1032,7 +1060,12 @@ function attemptResolveElement(type, key, ref, props) {
   }
 
   if (typeof type === 'function') {
-    // This is a server-side component.
+    if (isModuleReference(type)) {
+      // This is a reference to a client component.
+      return [REACT_ELEMENT_TYPE, type, key, props];
+    } // This is a server-side component.
+
+
     return type(props);
   } else if (typeof type === 'string') {
     // This is a host element. E.g. HTML.
@@ -1106,28 +1139,30 @@ function attemptResolveElement(type, key, ref, props) {
   throw new Error("Unsupported server component type: " + describeValueForErrorMessage(type));
 }
 
-function pingSegment(request, segment) {
-  var pingedSegments = request.pingedSegments;
-  pingedSegments.push(segment);
+function pingTask(request, task) {
+  var pingedTasks = request.pingedTasks;
+  pingedTasks.push(task);
 
-  if (pingedSegments.length === 1) {
+  if (pingedTasks.length === 1) {
     scheduleWork(function () {
       return performWork(request);
     });
   }
 }
 
-function createSegment(request, model, context) {
+function createTask(request, model, context, abortSet) {
   var id = request.nextChunkId++;
-  var segment = {
+  var task = {
     id: id,
+    status: PENDING,
     model: model,
     context: context,
     ping: function () {
-      return pingSegment(request, segment);
+      return pingTask(request, task);
     }
   };
-  return segment;
+  abortSet.add(task);
+  return task;
 }
 
 function serializeByValueID(id) {
@@ -1136,6 +1171,49 @@ function serializeByValueID(id) {
 
 function serializeByRefID(id) {
   return '@' + id.toString(16);
+}
+
+function serializeModuleReference(request, parent, key, moduleReference) {
+  var moduleKey = getModuleKey(moduleReference);
+  var writtenModules = request.writtenModules;
+  var existingId = writtenModules.get(moduleKey);
+
+  if (existingId !== undefined) {
+    if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
+      // If we're encoding the "type" of an element, we can refer
+      // to that by a lazy reference instead of directly since React
+      // knows how to deal with lazy values. This lets us suspend
+      // on this component rather than its parent until the code has
+      // loaded.
+      return serializeByRefID(existingId);
+    }
+
+    return serializeByValueID(existingId);
+  }
+
+  try {
+    var moduleMetaData = resolveModuleMetaData(request.bundlerConfig, moduleReference);
+    request.pendingChunks++;
+    var moduleId = request.nextChunkId++;
+    emitModuleChunk(request, moduleId, moduleMetaData);
+    writtenModules.set(moduleKey, moduleId);
+
+    if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
+      // If we're encoding the "type" of an element, we can refer
+      // to that by a lazy reference instead of directly since React
+      // knows how to deal with lazy values. This lets us suspend
+      // on this component rather than its parent until the code has
+      // loaded.
+      return serializeByRefID(moduleId);
+    }
+
+    return serializeByValueID(moduleId);
+  } catch (x) {
+    request.pendingChunks++;
+    var errorId = request.nextChunkId++;
+    emitErrorChunk(request, errorId, x);
+    return serializeByValueID(errorId);
+  }
 }
 
 function escapeStringValue(value) {
@@ -1362,12 +1440,12 @@ function resolveModelToJSON(request, parent, key, value) {
       }
     } catch (x) {
       if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
-        // Something suspended, we'll need to create a new segment and resolve it later.
+        // Something suspended, we'll need to create a new task and resolve it later.
         request.pendingChunks++;
-        var newSegment = createSegment(request, value, getActiveContext());
-        var ping = newSegment.ping;
+        var newTask = createTask(request, value, getActiveContext(), request.abortableTasks);
+        var ping = newTask.ping;
         x.then(ping, ping);
-        return serializeByRefID(newSegment.id);
+        return serializeByRefID(newTask.id);
       } else {
         logRecoverableError(request, x); // Something errored. We'll still send everything we have up until this point.
         // We'll replace this element with a lazy reference that throws on the client
@@ -1387,49 +1465,7 @@ function resolveModelToJSON(request, parent, key, value) {
 
   if (typeof value === 'object') {
     if (isModuleReference(value)) {
-      var moduleReference = value;
-      var moduleKey = getModuleKey(moduleReference);
-      var writtenModules = request.writtenModules;
-      var existingId = writtenModules.get(moduleKey);
-
-      if (existingId !== undefined) {
-        if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
-          // If we're encoding the "type" of an element, we can refer
-          // to that by a lazy reference instead of directly since React
-          // knows how to deal with lazy values. This lets us suspend
-          // on this component rather than its parent until the code has
-          // loaded.
-          return serializeByRefID(existingId);
-        }
-
-        return serializeByValueID(existingId);
-      }
-
-      try {
-        var moduleMetaData = resolveModuleMetaData(request.bundlerConfig, moduleReference);
-        request.pendingChunks++;
-        var moduleId = request.nextChunkId++;
-        emitModuleChunk(request, moduleId, moduleMetaData);
-        writtenModules.set(moduleKey, moduleId);
-
-        if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
-          // If we're encoding the "type" of an element, we can refer
-          // to that by a lazy reference instead of directly since React
-          // knows how to deal with lazy values. This lets us suspend
-          // on this component rather than its parent until the code has
-          // loaded.
-          return serializeByRefID(moduleId);
-        }
-
-        return serializeByValueID(moduleId);
-      } catch (x) {
-        request.pendingChunks++;
-
-        var _errorId = request.nextChunkId++;
-
-        emitErrorChunk(request, _errorId, x);
-        return serializeByValueID(_errorId);
-      }
+      return serializeModuleReference(request, parent, key, value);
     } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
       var providerKey = value._context._globalName;
       var writtenProviders = request.writtenProviders;
@@ -1483,6 +1519,10 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'function') {
+    if (isModuleReference(value)) {
+      return serializeModuleReference(request, parent, key, value);
+    }
+
     if (/^on[A-Z]/.test(key)) {
       throw new Error('Event handlers cannot be passed to client component props. ' + ("Remove " + describeKeyForErrorMessage(key) + " from these props if possible: " + describeObjectForErrorMessage(parent) + "\n") + 'If you need interactivity, consider converting part of this to a client component.');
     } else {
@@ -1492,11 +1532,10 @@ function resolveModelToJSON(request, parent, key, value) {
 
   if (typeof value === 'symbol') {
     var writtenSymbols = request.writtenSymbols;
+    var existingId = writtenSymbols.get(value);
 
-    var _existingId = writtenSymbols.get(value);
-
-    if (_existingId !== undefined) {
-      return serializeByValueID(_existingId);
+    if (existingId !== undefined) {
+      return serializeByValueID(existingId);
     }
 
     var name = value.description;
@@ -1575,34 +1614,43 @@ function emitProviderChunk(request, id, contextName) {
   request.completedJSONChunks.push(processedChunk);
 }
 
-function retrySegment(request, segment) {
-  switchContext(segment.context);
+function retryTask(request, task) {
+  if (task.status !== PENDING) {
+    // We completed this by other means before we had a chance to retry it.
+    return;
+  }
+
+  switchContext(task.context);
 
   try {
-    var _value3 = segment.model;
+    var _value3 = task.model;
 
     while (typeof _value3 === 'object' && _value3 !== null && _value3.$$typeof === REACT_ELEMENT_TYPE) {
       // TODO: Concatenate keys of parents onto children.
       var element = _value3; // Attempt to render the server component.
-      // Doing this here lets us reuse this same segment if the next component
+      // Doing this here lets us reuse this same task if the next component
       // also suspends.
 
-      segment.model = _value3;
+      task.model = _value3;
       _value3 = attemptResolveElement(element.type, element.key, element.ref, element.props);
     }
 
-    var processedChunk = processModelChunk(request, segment.id, _value3);
+    var processedChunk = processModelChunk(request, task.id, _value3);
     request.completedJSONChunks.push(processedChunk);
+    request.abortableTasks.delete(task);
+    task.status = COMPLETED;
   } catch (x) {
     if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
       // Something suspended again, let's pick it back up later.
-      var ping = segment.ping;
+      var ping = task.ping;
       x.then(ping, ping);
       return;
     } else {
+      request.abortableTasks.delete(task);
+      task.status = ERRORED;
       logRecoverableError(request, x); // This errored, we need to serialize this error to the
 
-      emitErrorChunk(request, segment.id, x);
+      emitErrorChunk(request, task.id, x);
     }
   }
 }
@@ -1615,12 +1663,12 @@ function performWork(request) {
   prepareToUseHooksForRequest(request);
 
   try {
-    var pingedSegments = request.pingedSegments;
-    request.pingedSegments = [];
+    var pingedTasks = request.pingedTasks;
+    request.pingedTasks = [];
 
-    for (var i = 0; i < pingedSegments.length; i++) {
-      var segment = pingedSegments[i];
-      retrySegment(request, segment);
+    for (var i = 0; i < pingedTasks.length; i++) {
+      var task = pingedTasks[i];
+      retryTask(request, task);
     }
 
     if (request.destination !== null) {
@@ -1634,6 +1682,15 @@ function performWork(request) {
     setCurrentCache(prevCache);
     resetHooksForRequest();
   }
+}
+
+function abortTask(task, request, errorId) {
+  task.status = ABORTED; // Instead of emitting an error per task.id, we emit a model that only
+  // has a single value referencing the error.
+
+  var ref = serializeByValueID(errorId);
+  var processedChunk = processReferenceChunk(request, task.id, ref);
+  request.completedJSONChunks.push(processedChunk);
 }
 
 function flushCompletedChunks(request, destination) {
@@ -1735,6 +1792,34 @@ function startFlowing(request, destination) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+} // This is called to early terminate a request. It creates an error at all pending tasks.
+
+function abort(request, reason) {
+  try {
+    var abortableTasks = request.abortableTasks;
+
+    if (abortableTasks.size > 0) {
+      // We have tasks to abort. We'll emit one error row and then emit a reference
+      // to that row from every row that's still remaining.
+      var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+
+      logRecoverableError(request, _error);
+      request.pendingChunks++;
+      var errorId = request.nextChunkId++;
+      emitErrorChunk(request, errorId, _error);
+      abortableTasks.forEach(function (task) {
+        return abortTask(task, request, errorId);
+      });
+      abortableTasks.clear();
+    }
+
+    if (request.destination !== null) {
+      flushCompletedChunks(request, request.destination);
+    }
+  } catch (error) {
+    logRecoverableError(request, error);
+    fatalError(request, error);
+  }
 }
 
 function importServerContexts(contexts) {
@@ -1760,6 +1845,22 @@ function importServerContexts(contexts) {
 
 function renderToReadableStream(model, webpackMap, options) {
   var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined);
+
+  if (options && options.signal) {
+    var signal = options.signal;
+
+    if (signal.aborted) {
+      abort(request, signal.reason);
+    } else {
+      var listener = function () {
+        abort(request, signal.reason);
+        signal.removeEventListener('abort', listener);
+      };
+
+      signal.addEventListener('abort', listener);
+    }
+  }
+
   var stream = new ReadableStream({
     type: 'bytes',
     start: function (controller) {

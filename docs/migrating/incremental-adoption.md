@@ -82,7 +82,7 @@ To learn more about rewrites, take a look at our [documentation](/docs/api-refer
 
 ### Micro-Frontends with Monorepos and Subdomains
 
-Next.js and [Vercel](https://vercel.com) make it straightforward to adopt [micro-frontends](https://martinfowler.com/articles/micro-frontends.html) and deploy as a [Monorepo](https://vercel.com/blog/monorepos). This allows you to use [subdomains](https://en.wikipedia.org/wiki/Subdomain) to adopt new applications incrementally. Some benefits of micro-frontends:
+Next.js and [Vercel](https://vercel.com) make it straightforward to adopt micro frontends and deploy as a [monorepo](https://vercel.com/blog/monorepos-are-changing-how-teams-build-software?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). This allows you to use [subdomains](https://demo.vercel.pub/platforms-starter-kit) to adopt new applications incrementally. Some benefits of micro-frontends:
 
 - Smaller, more cohesive and maintainable codebases.
 - More scalable organizations with decoupled, autonomous teams.
@@ -92,4 +92,4 @@ Once your monorepo is set up, push changes to your Git repository as usual and y
 
 ## Conclusion
 
-To learn more, read about [subpaths](/docs/api-reference/next.config.js/basepath.md) and [rewrites](/docs/api-reference/next.config.js/rewrites.md) or [deploy an example with micro-frontends](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-zones&project-name=with-zones&repository-name=with-zones).
+To learn more, read about [subpaths](/docs/api-reference/next.config.js/basepath.md) and [rewrites](/docs/api-reference/next.config.js/rewrites.md) or [deploy a Next.jsmonorepo](https://vercel.com/templates/next.js/monorepo).

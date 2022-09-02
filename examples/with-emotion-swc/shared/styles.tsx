@@ -62,7 +62,9 @@ export const Pink = styled(Basic)({
   color: 'hotpink',
 })
 
-export const BasicExtended = styled(Basic)``
+export const BasicExtended = styled(Basic, {
+  shouldForwardProp: (propertyName: string) => !propertyName.startsWith('$'),
+})``
 
 export const ComponentSelectorsExtended = styled.div`
   ${BasicExtended} {
