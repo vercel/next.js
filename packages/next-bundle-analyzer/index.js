@@ -1,28 +1,26 @@
 module.exports =
-  ({
-    enabled = true,
-    openAnalyzer = true,
-    analyzerMode = 'static',
-    serverReportFilename,
-    clientReportFilename,
-  } = {}) =>
+  (bundleAnalyzerConfig = {}) =>
   (nextConfig = {}) => {
     return Object.assign({}, nextConfig, {
       webpack(config, options) {
-        if (enabled) {
+        const analyzerConfig =
+          typeof bundleAnalyzerConfig === 'function'
+            ? bundleAnalyzerConfig(config, options)
+            : Object.assign(
+                {},
+                {
+                  enabled: true,
+                  openAnalyzer: true,
+                  analyzerMode: 'static',
+                  reportFilename: options.isServer
+                    ? `../analyze/server.html`
+                    : `./analyze/client.html`,
+                },
+                bundleAnalyzerConfig
+              )
+        if (analyzerConfig.enabled) {
           const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
-          const reportFileExtension = analyzerMode === 'json' ? 'json' : 'html'
-          config.plugins.push(
-            new BundleAnalyzerPlugin({
-              analyzerMode,
-              openAnalyzer,
-              reportFilename: options.isServer
-                ? `../${serverReportFilename}` ||
-                  `../analyze/server.${reportFileExtension}`
-                : `./${clientReportFilename}` ||
-                  `./analyze/client.${reportFileExtension}`,
-            })
-          )
+          config.plugins.push(new BundleAnalyzerPlugin(analyzerConfig))
         }
 
         if (typeof nextConfig.webpack === 'function') {
