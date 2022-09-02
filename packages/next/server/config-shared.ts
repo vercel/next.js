@@ -350,11 +350,11 @@ export interface NextConfig extends Record<string, any> {
   /**
    * By default, Next.js will automatically inline font CSS at build time
    *
-   * @default true
+   * @default { inlineFonts: true }
    * @since version 10.2
    * @see [Font Optimization](https://nextjs.org/docs/basic-features/font-optimization)
    */
-  optimizeFonts?: boolean
+  optimizeFonts?: any
 
   /**
    * The Next.js runtime is Strict Mode-compliant.
@@ -518,7 +518,10 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
-  optimizeFonts: true,
+  optimizeFonts: {
+    inlineFonts: true,
+    experimentalAdjustFallbacks: false,
+  },
   webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
@@ -550,7 +553,7 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
-    optimizeCss: false,
+    optimizeCss: { a: 'a' },
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,

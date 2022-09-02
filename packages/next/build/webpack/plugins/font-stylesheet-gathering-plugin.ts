@@ -5,6 +5,7 @@ import {
 } from 'next/dist/compiled/webpack/webpack'
 import {
   getFontDefinitionFromNetwork,
+  getFontOverrideCss,
   FontManifest,
 } from '../../../server/font-utils'
 import postcss from 'postcss'
@@ -52,9 +53,18 @@ export class FontStylesheetGatheringPlugin {
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
   isLikeServerless: boolean
+  optimizeFonts: any
 
-  constructor({ isLikeServerless }: { isLikeServerless: boolean }) {
+  constructor({
+    isLikeServerless,
+    optimizeFonts,
+  }: {
+    isLikeServerless: boolean
+    optimizeFonts: any
+  }) {
+    console.log('in webpack plugin ', isLikeServerless, optimizeFonts)
     this.isLikeServerless = isLikeServerless
+    this.optimizeFonts = optimizeFonts
   }
 
   private parserHandler = (
@@ -212,7 +222,11 @@ export class FontStylesheetGatheringPlugin {
 
           this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
-            const css = await fontDefinitionPromises[promiseIndex]
+            let css = await fontDefinitionPromises[promiseIndex]
+
+            if (this.optimizeFonts.experimentalAdjustFallbacks) {
+              css += getFontOverrideCss(fontStylesheets[promiseIndex], css)
+            }
 
             if (css) {
               try {

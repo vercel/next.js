@@ -200,7 +200,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
-    optimizeFonts: boolean
+    optimizeFonts: any
     images: ImageConfigComplete
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
@@ -378,9 +378,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
-      optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
+      optimizeFonts: this.nextConfig.optimizeFonts,
       fontManifest:
-        this.nextConfig.optimizeFonts && !dev
+        this.nextConfig.optimizeFonts &&
+        this.nextConfig.optimizeFonts.inlineFonts &&
+        !dev
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -1183,6 +1185,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           locale,
           locales,
           defaultLocale,
+          optimizeFonts: this.renderOpts.optimizeFonts,
           optimizeCss: this.renderOpts.optimizeCss,
           nextScriptWorkers: this.renderOpts.nextScriptWorkers,
           distDir: this.distDir,

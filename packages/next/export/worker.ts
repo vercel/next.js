@@ -59,7 +59,7 @@ interface ExportPageInput {
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   serverless: boolean
-  optimizeFonts: boolean
+  optimizeFonts: any
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
@@ -82,7 +82,7 @@ interface RenderOpts {
   ampPath?: string
   ampValidatorPath?: string
   ampSkipValidation?: boolean
-  optimizeFonts?: boolean
+  optimizeFonts?: any
   disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
@@ -338,9 +338,10 @@ export default async function exportPage({
               optimizeCss,
               disableOptimizedLoading,
               distDir,
-              fontManifest: optimizeFonts
-                ? requireFontManifest(distDir, serverless)
-                : null,
+              fontManifest:
+                optimizeFonts && optimizeFonts.inlineFonts
+                  ? requireFontManifest(distDir, serverless)
+                  : null,
               locale: locale!,
               locales: renderOpts.locales!,
             },
@@ -398,7 +399,7 @@ export default async function exportPage({
            * `process.env.__NEXT_OPTIMIZE_FONTS`.
            * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
            */
-          if (optimizeFonts) {
+          if (optimizeFonts && optimizeFonts.inlineFonts) {
             process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
           }
           if (optimizeCss) {
@@ -412,9 +413,10 @@ export default async function exportPage({
             optimizeFonts,
             optimizeCss,
             disableOptimizedLoading,
-            fontManifest: optimizeFonts
-              ? requireFontManifest(distDir, serverless)
-              : null,
+            fontManifest:
+              optimizeFonts && optimizeFonts.inlineFonts
+                ? requireFontManifest(distDir, serverless)
+                : null,
             locale: locale as string,
           }
           renderResult = await renderMethod(

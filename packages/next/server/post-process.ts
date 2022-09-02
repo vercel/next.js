@@ -20,7 +20,7 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
 }
 
 type postProcessOptions = {
-  optimizeFonts: boolean
+  optimizeFonts: any
 }
 
 type renderOptions = {

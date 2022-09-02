@@ -222,7 +222,7 @@ export type RenderOptsPartial = {
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  optimizeFonts: boolean
+  optimizeFonts: any
   fontManifest?: FontManifest
   optimizeCss: any
   nextScriptWorkers: any

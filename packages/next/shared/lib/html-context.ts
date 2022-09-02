@@ -35,8 +35,8 @@ export type HtmlProps = {
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
   crossOrigin?: string
-  optimizeCss?: boolean
-  optimizeFonts?: boolean
+  optimizeCss?: any
+  optimizeFonts?: any
   nextScriptWorkers?: boolean
   runtime?: ServerRuntime
   hasConcurrentFeatures?: boolean

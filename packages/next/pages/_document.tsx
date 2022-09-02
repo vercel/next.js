@@ -420,7 +420,7 @@ export class Head extends Component<HeadProps> {
       )
     })
 
-    if (process.env.NODE_ENV !== 'development' && optimizeFonts) {
+    if (process.env.NODE_ENV !== 'development' && optimizeFonts.inlineFonts) {
       cssLinkElements = this.makeStylesheetInert(
         cssLinkElements
       ) as ReactElement[]
@@ -657,7 +657,7 @@ export class Head extends Component<HeadProps> {
 
     if (
       process.env.NODE_ENV !== 'development' &&
-      optimizeFonts &&
+      optimizeFonts.inlineFonts &&
       !(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode)
     ) {
       children = this.makeStylesheetInert(children)
@@ -754,7 +754,7 @@ export class Head extends Component<HeadProps> {
         />
 
         {children}
-        {optimizeFonts && <meta name="next-font-preconnect" />}
+        {optimizeFonts.inlineFonts && <meta name="next-font-preconnect" />}
 
         {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>

@@ -1764,6 +1764,7 @@ export default async function getBaseWebpackConfig(
             }
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
+            optimizeFonts: config.optimizeFonts,
           })
         })(),
       new WellKnownErrorsPlugin(),
