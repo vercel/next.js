@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react'
+import type { PropsWithChildren, ReactElement, ReactNode } from 'react'
+import React, { useEffect, useMemo, useCallback } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
@@ -24,6 +25,7 @@ import {
   PathnameContext,
   // LayoutSegmentsContext,
 } from './hooks-client-context'
+import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -71,9 +73,7 @@ export function fetchServerResponse(
 /**
  * Renders development error overlay when NODE_ENV is development.
  */
-function ErrorOverlay({
-  children,
-}: React.PropsWithChildren<{}>): React.ReactElement {
+function ErrorOverlay({ children }: PropsWithChildren<{}>): ReactElement {
   if (process.env.NODE_ENV === 'production') {
     return <>{children}</>
   } else {
@@ -102,29 +102,33 @@ export default function AppRouter({
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
-  children: React.ReactNode
-  hotReloader?: React.ReactNode
+  children: ReactNode
+  hotReloader?: ReactNode
 }) {
+  const initialState = useMemo(() => {
+    return {
+      tree: initialTree,
+      cache: {
+        data: null,
+        subTreeData: children,
+        parallelRoutes:
+          typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+      },
+      prefetchCache: new Map(),
+      pushRef: { pendingPush: false, mpaNavigation: false },
+      focusAndScrollRef: { apply: false },
+      canonicalUrl:
+        initialCanonicalUrl +
+        // Hash is read as the initial value for canonicalUrl in the browser
+        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
+        (typeof window !== 'undefined' ? window.location.hash : ''),
+    }
+  }, [children, initialCanonicalUrl, initialTree])
   const [
     { tree, cache, prefetchCache, pushRef, focusAndScrollRef, canonicalUrl },
     dispatch,
-  ] = React.useReducer(reducer, {
-    tree: initialTree,
-    cache: {
-      data: null,
-      subTreeData: children,
-      parallelRoutes:
-        typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-    },
-    prefetchCache: new Map(),
-    pushRef: { pendingPush: false, mpaNavigation: false },
-    focusAndScrollRef: { apply: false },
-    canonicalUrl:
-      initialCanonicalUrl +
-      // Hash is read as the initial value for canonicalUrl in the browser
-      // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
-      (typeof window !== 'undefined' ? window.location.hash : ''),
-  })
+    sync,
+  ] = useReducerWithReduxDevtools(reducer, initialState)
 
   useEffect(() => {
     // Ensure initialParallelRoutes is cleaned up from memory once it's used.
@@ -132,7 +136,7 @@ export default function AppRouter({
   }, [])
 
   // Add memoized pathname/query for useSearchParams and usePathname.
-  const { searchParams, pathname } = React.useMemo(() => {
+  const { searchParams, pathname } = useMemo(() => {
     const url = new URL(
       canonicalUrl,
       typeof window === 'undefined' ? 'http://n' : window.location.href
@@ -149,7 +153,7 @@ export default function AppRouter({
   /**
    * Server response that only patches the cache and tree.
    */
-  const changeByServerResponse = React.useCallback(
+  const changeByServerResponse = useCallback(
     (previousTree: FlightRouterState, flightData: FlightData) => {
       dispatch({
         type: ACTION_SERVER_PATCH,
@@ -160,15 +164,16 @@ export default function AppRouter({
           subTreeData: null,
           parallelRoutes: new Map(),
         },
+        mutable: {},
       })
     },
-    []
+    [dispatch]
   )
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
    */
-  const appRouter = React.useMemo<AppRouterInstance>(() => {
+  const appRouter = useMemo<AppRouterInstance>(() => {
     const navigate = (
       href: string,
       navigateType: 'push' | 'replace',
@@ -248,7 +253,7 @@ export default function AppRouter({
     }
 
     return routerInstance
-  }, [])
+  }, [dispatch])
 
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
@@ -269,7 +274,9 @@ export default function AppRouter({
     } else {
       window.history.replaceState(historyState, '', canonicalUrl)
     }
-  }, [tree, pushRef, canonicalUrl])
+
+    sync()
+  }, [tree, pushRef, canonicalUrl, sync])
 
   // Add `window.nd` for debugging purposes.
   // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
@@ -283,33 +290,36 @@ export default function AppRouter({
    * By default dispatches ACTION_RESTORE, however if the history entry was not pushed/replaced by app-router it will reload the page.
    * That case can happen when the old router injected the history entry.
    */
-  const onPopState = React.useCallback(({ state }: PopStateEvent) => {
-    if (!state) {
-      // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
-      return
-    }
+  const onPopState = useCallback(
+    ({ state }: PopStateEvent) => {
+      if (!state) {
+        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+        return
+      }
 
-    // TODO-APP: this case happens when pushState/replaceState was called outside of Next.js or when the history entry was pushed by the old router.
-    // It reloads the page in this case but we might have to revisit this as the old router ignores it.
-    if (!state.__NA) {
-      window.location.reload()
-      return
-    }
+      // TODO-APP: this case happens when pushState/replaceState was called outside of Next.js or when the history entry was pushed by the old router.
+      // It reloads the page in this case but we might have to revisit this as the old router ignores it.
+      if (!state.__NA) {
+        window.location.reload()
+        return
+      }
 
-    // @ts-ignore useTransition exists
-    // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
-    // Without startTransition works if the cache is there for this path
-    React.startTransition(() => {
-      dispatch({
-        type: ACTION_RESTORE,
-        url: new URL(window.location.href),
-        tree: state.tree,
+      // @ts-ignore useTransition exists
+      // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
+      // Without startTransition works if the cache is there for this path
+      React.startTransition(() => {
+        dispatch({
+          type: ACTION_RESTORE,
+          url: new URL(window.location.href),
+          tree: state.tree,
+        })
       })
-    })
-  }, [])
+    },
+    [dispatch]
+  )
 
   // Register popstate event to call onPopstate.
-  React.useEffect(() => {
+  useEffect(() => {
     window.addEventListener('popstate', onPopState)
     return () => {
       window.removeEventListener('popstate', onPopState)
