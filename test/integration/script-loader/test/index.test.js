@@ -163,21 +163,21 @@ const runTests = (isDev = false) => {
     })
   }
 
+  it('onload fires correctly', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page4')
+      await waitFor(3000)
+
+      const text = await browser.elementById('text').text()
+
+      expect(text).toBe('aaabbbccc')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   if (!isDev) {
-    it('onload fires correctly', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/page4')
-        await waitFor(3000)
-
-        const text = await browser.elementById('text').text()
-
-        expect(text).toBe('aaabbbccc')
-      } finally {
-        if (browser) await browser.close()
-      }
-    })
-
     it('priority beforeInteractive with inline script', async () => {
       const html = await renderViaHTTP(appPort, '/page5')
       const $ = cheerio.load(html)
