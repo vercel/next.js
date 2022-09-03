@@ -1,13 +1,13 @@
 use std::hash::Hash;
 
 use swc_core::{
-    ast::{
+    common::{collections::AHashSet, SyntaxContext},
+    ecma::ast::{
         ClassDecl, FnDecl, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
         ImportStarAsSpecifier, ModuleItem, ObjectPatProp, Param, Pat, Stmt, VarDeclarator,
     },
-    common::{collections::AHashSet, SyntaxContext},
-    utils::ident::IdentLike,
-    visit::{noop_visit_type, Visit, VisitWith},
+    ecma::utils::ident::IdentLike,
+    ecma::visit::{noop_visit_type, Visit, VisitWith},
 };
 
 // Modified from swc_ecma_utils/src/lib.rs:BindingCollector.

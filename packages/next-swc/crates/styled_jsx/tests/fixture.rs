@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use styled_jsx::styled_jsx;
 use swc_core::{
     common::{chain, FileName, Mark, Span, DUMMY_SP},
-    parser::{EsConfig, Syntax},
-    testing_transform::{test_fixture, test_fixture_allowing_error},
-    transforms::resolver,
+    ecma::parser::{EsConfig, Syntax},
+    ecma::transforms::resolver,
+    ecma::transforms::testing::{test_fixture, test_fixture_allowing_error},
 };
 use testing::fixture;
 

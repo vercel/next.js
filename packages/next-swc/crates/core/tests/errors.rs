@@ -5,8 +5,8 @@ use next_swc::{
 use std::path::PathBuf;
 use swc_core::{
     common::FileName,
-    parser::{EsConfig, Syntax},
-    testing_transform::test_fixture_allowing_error,
+    ecma::parser::{EsConfig, Syntax},
+    ecma::transforms::testing::test_fixture_allowing_error,
 };
 use testing::fixture;
 

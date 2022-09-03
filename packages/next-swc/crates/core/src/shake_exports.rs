@@ -1,11 +1,11 @@
 use serde::Deserialize;
 
 use swc_core::{
-    ast::*,
-    atoms::{js_word, JsWord},
     common::Mark,
-    transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
-    visit::{Fold, FoldWith},
+    ecma::ast::*,
+    ecma::atoms::{js_word, JsWord},
+    ecma::transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
+    ecma::visit::{Fold, FoldWith},
 };
 
 #[derive(Clone, Debug, Deserialize)]
