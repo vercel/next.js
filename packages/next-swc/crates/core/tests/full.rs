@@ -3,8 +3,8 @@ use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 use swc_core::{
     base::Compiler,
-    parser::{Syntax, TsConfig},
-    transforms::pass::noop,
+    ecma::parser::{Syntax, TsConfig},
+    ecma::transforms::pass::noop,
 };
 use testing::{NormalizedOutput, Tester};
 

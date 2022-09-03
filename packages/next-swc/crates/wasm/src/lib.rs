@@ -9,7 +9,7 @@ use wasm_bindgen_futures::future_to_promise;
 use swc_core::{
     base::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler},
     common::{comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap},
-    transforms::pass::noop,
+    ecma::transforms::pass::noop,
 };
 
 fn convert_err(err: Error) -> JsValue {

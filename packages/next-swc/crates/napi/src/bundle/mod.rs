@@ -8,8 +8,6 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use swc_core::{
-    ast::*,
-    atoms::JsWord,
     base::{config::SourceMapsConfig, try_with_handler, TransformOutput},
     bundler::{Bundler, ModuleData, ModuleRecord},
     common::{
@@ -17,12 +15,14 @@ use swc_core::{
         errors::{ColorConfig, Handler},
         BytePos, FileName, SourceMap, Span,
     },
-    loader::{
+    ecma::ast::*,
+    ecma::atoms::JsWord,
+    ecma::loader::{
         resolvers::{lru::CachingResolver, node::NodeModulesResolver},
         TargetEnv, NODE_BUILTINS,
     },
-    parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax},
-    visit::{noop_visit_type, Visit, VisitWith},
+    ecma::parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax},
+    ecma::visit::{noop_visit_type, Visit, VisitWith},
 };
 
 #[js_function(1)]

@@ -60,7 +60,7 @@ fn styled_jsx_fixture(input: PathBuf) {
 }
 
 pub struct DropSpan;
-impl swc_core::visit::VisitMut for DropSpan {
+impl swc_core::ecma::visit::VisitMut for DropSpan {
     fn visit_mut_span(&mut self, span: &mut Span) {
         *span = DUMMY_SP
     }

@@ -45,7 +45,7 @@ use std::{
 use swc_core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{errors::ColorConfig, FileName},
-    transforms::pass::noop,
+    ecma::transforms::pass::noop,
 };
 
 /// Input to transform
