@@ -9,7 +9,8 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { RoutingItem } from '../base-server'
+import type { MiddlewareRoutingItem, RoutingItem } from '../base-server'
+import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-info'
 
 import crypto from 'crypto'
 import fs from 'fs'
@@ -34,6 +35,7 @@ import {
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router from '../router'
@@ -44,7 +46,7 @@ import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
-import { findPageFile } from '../lib/find-page-file'
+import { findPageFile, isLayoutsLeafPage } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
   UnwrapPromise,
@@ -60,10 +62,7 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import {
-  getMiddlewareRegex,
-  getRouteRegex,
-} from '../../shared/lib/router/utils/route-regex'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
@@ -106,7 +105,7 @@ export default class DevServer extends Server {
   private pagesDir: string
   private appDir?: string
   private actualMiddlewareFile?: string
-  private middleware?: RoutingItem
+  private middleware?: MiddlewareRoutingItem
   private edgeFunctions?: RoutingItem[]
   private verifyingTypeScript?: boolean
   private usingTypeScript?: boolean
@@ -222,7 +221,6 @@ export default class DevServer extends Server {
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
 
-        // We use unshift so that we're sure the routes is defined before Next's default routes
         this.router.addFsRoute({
           match: getPathMatch(path),
           type: 'route',
@@ -306,11 +304,12 @@ export default class DevServer extends Server {
       let enabledTypeScript = this.usingTypeScript
 
       wp.on('aggregated', async () => {
-        let middlewareMatcher: RegExp | undefined
+        let middlewareMatchers: MiddlewareMatcher[] | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
         const edgeRoutesSet = new Set<string>()
+
         let envChange = false
         let tsconfigChange = false
 
@@ -370,9 +369,9 @@ export default class DevServer extends Server {
 
           if (isMiddlewareFile(rootFile)) {
             this.actualMiddlewareFile = rootFile
-            middlewareMatcher =
-              staticInfo.middleware?.pathMatcher || new RegExp('.*')
-            edgeRoutesSet.add('/')
+            middlewareMatchers = staticInfo.middleware?.matchers || [
+              { regexp: '.*' },
+            ]
             continue
           }
 
@@ -387,6 +386,10 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
+            if (!isLayoutsLeafPage(fileName)) {
+              continue
+            }
+
             const originalPageName = pageName
             pageName = normalizeAppPath(pageName) || '/'
             appPaths[pageName] = originalPageName
@@ -533,30 +536,28 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.edgeFunctions = []
         const edgeRoutes = Array.from(edgeRoutesSet)
-        getSortedRoutes(edgeRoutes).forEach((page) => {
-          let appPath = this.getOriginalAppPath(page)
+        this.edgeFunctions = getSortedRoutes(edgeRoutes).map((page) => {
+          const appPath = this.getOriginalAppPath(page)
 
           if (typeof appPath === 'string') {
             page = appPath
           }
-          const isRootMiddleware = page === '/' && !!middlewareMatcher
-
-          const middlewareRegex = isRootMiddleware
-            ? { re: middlewareMatcher!, groups: {} }
-            : getMiddlewareRegex(page, { catchAll: false })
-          const routeItem = {
-            match: getRouteMatcher(middlewareRegex),
+          const edgeRegex = getRouteRegex(page)
+          return {
+            match: getRouteMatcher(edgeRegex),
             page,
-            re: middlewareRegex.re,
-          }
-          if (isRootMiddleware) {
-            this.middleware = routeItem
-          } else {
-            this.edgeFunctions!.push(routeItem)
+            re: edgeRegex.re,
           }
         })
+
+        this.middleware = middlewareMatchers
+          ? {
+              match: getMiddlewareRouteMatcher(middlewareMatchers),
+              page: '/',
+              matchers: middlewareMatchers,
+            }
+          : undefined
 
         try {
           // we serve a separate manifest with all pages for the client in
@@ -825,6 +826,7 @@ export default class DevServer extends Server {
     response: BaseNextResponse
     parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
+    middlewareList: MiddlewareRoutingItem[]
   }) {
     try {
       const result = await super.runMiddleware({
@@ -1155,17 +1157,7 @@ export default class DevServer extends Server {
       fn: async (_req, res) => {
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res
-          .body(
-            JSON.stringify(
-              this.middleware
-                ? {
-                    location: this.middleware.re!.source,
-                  }
-                : {}
-            )
-          )
-          .send()
+        res.body(JSON.stringify(this.getMiddleware()?.matchers ?? [])).send()
         return {
           finished: true,
         }

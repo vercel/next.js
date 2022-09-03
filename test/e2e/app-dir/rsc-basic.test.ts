@@ -269,27 +269,13 @@ describe('app dir - react server components', () => {
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
-  // TODO: support esm import for RSC
-  if (isNextDev) {
-    // For prod build, the directory contains the build ID so it's not deterministic.
-    // Only enable it for dev for now.
-    it.skip('should not bundle external imports into client builds for RSC', async () => {
-      const html = await renderViaHTTP(next.url, '/external-imports')
-      expect(html).toContain('date:')
-
-      const distServerDir = path.join(distDir, 'static', 'chunks', 'pages')
-      const bundle = fs
-        .readFileSync(path.join(distServerDir, 'external-imports.js'))
-        .toString()
-
-      expect(bundle).not.toContain('non-isomorphic-text')
-    })
-  }
-
-  // TODO: support esm import for RSC
-  it.skip('should not pick browser field from package.json for external libraries', async () => {
+  it('should handle external async module libraries correctly', async () => {
     const html = await renderViaHTTP(next.url, '/external-imports')
-    expect(html).toContain('isomorphic-export')
+    expect(html).toContain('module type:esm-export')
+    expect(html).toContain('export named:named')
+    expect(html).toContain('export value:123')
+    expect(html).toContain('export array:4,5,6')
+    expect(html).toContain('export object:{x:1}')
   })
 
   it('should handle various kinds of exports correctly', async () => {

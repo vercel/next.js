@@ -1,3 +1,4 @@
+import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 /**
@@ -25,7 +26,7 @@ export interface RouteMeta {
 
 export interface EdgeMiddlewareMeta {
   page: string
-  matcherRegexp?: string
+  matchers?: MiddlewareMatcher[]
 }
 
 export interface EdgeSSRMeta {
