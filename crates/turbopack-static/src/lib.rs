@@ -17,8 +17,7 @@ use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
-    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
-    resolve::{ResolveResult, ResolveResultVc},
+    reference::{AssetReferencesVc, SingleAssetReferenceVc},
 };
 use turbopack_css::embed::{CssEmbed, CssEmbedVc, CssEmbeddable, CssEmbeddableVc};
 use turbopack_ecmascript::{
@@ -160,27 +159,6 @@ impl Asset for StaticAsset {
 }
 
 #[turbo_tasks::value]
-struct StaticAssetReference {
-    static_asset: StaticAssetVc,
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for StaticAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        Ok(ResolveResult::Single(self.static_asset.into(), Vec::new()).into())
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "static(url) {}",
-            self.static_asset.path().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value]
 struct ModuleChunkItem {
     module: StaticModuleAssetVc,
     context: ChunkingContextVc,
@@ -190,11 +168,12 @@ struct ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::cell(vec![StaticAssetReferenceVc::cell(StaticAssetReference {
-            static_asset: self.static_asset,
-        })
-        .into()])
+    async fn references(&self) -> Result<AssetReferencesVc> {
+        Ok(AssetReferencesVc::cell(vec![SingleAssetReferenceVc::new(
+            self.static_asset.into(),
+            StringVc::cell(format!("static(url) {}", self.static_asset.path().await?)),
+        )
+        .into()]))
     }
 }
 
@@ -228,11 +207,12 @@ struct StaticCssEmbed {
 #[turbo_tasks::value_impl]
 impl CssEmbed for StaticCssEmbed {
     #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::cell(vec![StaticAssetReferenceVc::cell(StaticAssetReference {
-            static_asset: self.static_asset,
-        })
-        .into()])
+    async fn references(&self) -> Result<AssetReferencesVc> {
+        Ok(AssetReferencesVc::cell(vec![SingleAssetReferenceVc::new(
+            self.static_asset.into(),
+            StringVc::cell(format!("static(url) {}", self.static_asset.path().await?)),
+        )
+        .into()]))
     }
 
     #[turbo_tasks::function]

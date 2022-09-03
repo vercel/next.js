@@ -43,6 +43,48 @@ impl AssetReferencesVc {
     }
 }
 
+/// A reference that always resolves to a single asset.
+#[turbo_tasks::value]
+pub struct SingleAssetReference {
+    asset: AssetVc,
+    description: StringVc,
+}
+
+impl SingleAssetReference {
+    /// Returns the asset that this reference resolves to.
+    pub fn asset(&self) -> AssetVc {
+        self.asset
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for SingleAssetReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> ResolveResultVc {
+        ResolveResult::Single(self.asset, vec![]).cell()
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> StringVc {
+        self.description
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl SingleAssetReferenceVc {
+    /// Create a new [SingleAssetReferenceVc] that resolves to the given asset.
+    #[turbo_tasks::function]
+    pub fn new(asset: AssetVc, description: StringVc) -> Self {
+        Self::cell(SingleAssetReference { asset, description })
+    }
+
+    /// The [AssetVc] that this reference resolves to.
+    #[turbo_tasks::function]
+    pub async fn asset(self) -> Result<AssetVc> {
+        Ok(self.await?.asset)
+    }
+}
+
 /// Aggregates all [Asset]s referenced by an [Asset]. [AssetReference]
 /// This does not include transitively references [Asset]s, but it includes
 /// primary and secondary [Asset]s referenced.

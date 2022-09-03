@@ -61,7 +61,6 @@ __turbopack_export_value__((__turbopack_import__) => {
    */
   const moduleChunksMap = new Map()
   var hOP = Object.prototype.hasOwnProperty
-  let socket
   // TODO: temporary solution
   var _process =
     typeof process !== 'undefined'
@@ -681,6 +680,27 @@ __turbopack_export_value__((__turbopack_import__) => {
     return instantiateModule(moduleId, SOURCE_TYPE_RUNTIME)
   }
 
+  /**
+   * Subscribes to chunk updates from the update server and applies them.
+   */
+  function subscribeToChunkUpdates(chunkId) {
+    self.TURBOPACK_UPDATE_CLIENT.onChunkUpdate(
+      chunkId,
+      (updateType, instruction) => {
+        switch (updateType) {
+          case 'partial':
+            applyUpdate(chunkId, JSON.parse(instruction))
+            break
+          case 'restart':
+            self.location.reload()
+            break
+          default:
+            throw new Error(`Unknown update type: ${updateType}`)
+        }
+      },
+    )
+  }
+
   var runtime = {
     chunks,
     modules: moduleFactories,
@@ -693,7 +713,7 @@ __turbopack_export_value__((__turbopack_import__) => {
       loading[chunkId].resolve()
       delete loading[chunkId]
     }
-    if (socket) socket.send(JSON.stringify(chunkId))
+    subscribeToChunkUpdates(chunkId)
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
         moduleFactories[moduleId] = moduleFactory
@@ -705,27 +725,4 @@ __turbopack_export_value__((__turbopack_import__) => {
   }
   self.TURBOPACK = { push: registerChunk }
   chunksToRegister.forEach(registerChunk)
-
-  if (typeof WebSocket !== 'undefined') {
-    var connectingSocket = new WebSocket('ws' + location.origin.slice(4))
-    connectingSocket.onopen = () => {
-      socket = connectingSocket
-      for (var chunk of chunks) {
-        socket.send(JSON.stringify(chunk))
-      }
-      socket.onmessage = (event) => {
-        var data = JSON.parse(event.data)
-        if (data.type === 'restart') {
-          location.reload()
-        } else if (data.type === 'partial') {
-          try {
-            applyUpdate(data.id, JSON.parse(data.instruction))
-          } catch (err) {
-            console.error('Failed to apply update', err)
-            location.reload()
-          }
-        }
-      }
-    }
-  }
 })()
