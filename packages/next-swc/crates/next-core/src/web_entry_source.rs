@@ -107,10 +107,10 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAsset {
-        path: FileSystemPathVc::new(dev_server_fs, "index.html"),
-        chunk_groups: chunks.into_iter().map(ChunkGroupVc::from_chunk).collect(),
-    }
+    let entry_asset = DevHtmlAsset::new(
+        FileSystemPathVc::new(dev_server_fs, "index.html"),
+        chunks.into_iter().map(ChunkGroupVc::from_chunk).collect(),
+    )
     .cell()
     .into();
 
