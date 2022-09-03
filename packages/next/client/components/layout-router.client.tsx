@@ -37,6 +37,56 @@ import { fetchServerResponse } from './app-router.client'
 // }
 
 /**
+ * Add refetch marker to router state at the point of the current layout segment.
+ * This ensures the response returned is not further down than the current layout segment.
+ */
+function walkAddRefetch(
+  segmentPathToWalk: FlightSegmentPath | undefined,
+  treeToRecreate: FlightRouterState
+): FlightRouterState {
+  if (segmentPathToWalk) {
+    const [segment, parallelRouteKey] = segmentPathToWalk
+    const isLast = segmentPathToWalk.length === 2
+
+    if (treeToRecreate[0] === segment) {
+      if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
+        if (isLast) {
+          const subTree = walkAddRefetch(
+            undefined,
+            treeToRecreate[1][parallelRouteKey]
+          )
+          return [
+            treeToRecreate[0],
+            {
+              ...treeToRecreate[1],
+              [parallelRouteKey]: [
+                subTree[0],
+                subTree[1],
+                subTree[2],
+                'refetch',
+              ],
+            },
+          ]
+        }
+
+        return [
+          treeToRecreate[0],
+          {
+            ...treeToRecreate[1],
+            [parallelRouteKey]: walkAddRefetch(
+              segmentPathToWalk.slice(2),
+              treeToRecreate[1][parallelRouteKey]
+            ),
+          },
+        ]
+      }
+    }
+  }
+
+  return treeToRecreate
+}
+
+/**
  * Used to cache in createInfinitePromise
  */
 let infinitePromise: Promise<void> | Error
@@ -139,55 +189,6 @@ export function InnerLayoutRouter({
 
   // When childNode is not available during rendering client-side we need to fetch it from the server.
   if (!childNode) {
-    /**
-     * Add refetch marker to router state at the point of the current layout segment.
-     * This ensures the response returned is not further down than the current layout segment.
-     */
-    const walkAddRefetch = (
-      segmentPathToWalk: FlightSegmentPath | undefined,
-      treeToRecreate: FlightRouterState
-    ): FlightRouterState => {
-      if (segmentPathToWalk) {
-        const [segment, parallelRouteKey] = segmentPathToWalk
-        const isLast = segmentPathToWalk.length === 2
-
-        if (treeToRecreate[0] === segment) {
-          if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
-            if (isLast) {
-              const subTree = walkAddRefetch(
-                undefined,
-                treeToRecreate[1][parallelRouteKey]
-              )
-              if (!subTree[2]) {
-                subTree[2] = undefined
-              }
-              subTree[3] = 'refetch'
-              return [
-                treeToRecreate[0],
-                {
-                  ...treeToRecreate[1],
-                  [parallelRouteKey]: [...subTree],
-                },
-              ]
-            }
-
-            return [
-              treeToRecreate[0],
-              {
-                ...treeToRecreate[1],
-                [parallelRouteKey]: walkAddRefetch(
-                  segmentPathToWalk.slice(2),
-                  treeToRecreate[1][parallelRouteKey]
-                ),
-              },
-            ]
-          }
-        }
-      }
-
-      return treeToRecreate
-    }
-
     /**
      * Router state with refetch marker added
      */
