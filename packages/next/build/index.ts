@@ -1056,6 +1056,9 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalSsgPaths = new Map<string, Array<string>>()
       const additionalSsgPathsEncoded = new Map<string, Array<string>>()
+      const appStaticPaths = new Map<string, Array<string>>()
+      const appStaticPathsEncoded = new Map<string, Array<string>>()
+      const appDynamicParamPaths = new Set<string>()
       const pageTraceIncludes = new Map<string, Array<string>>()
       const pageTraceExcludes = new Map<string, Array<string>>()
       const pageInfos = new Map<string, PageInfo>()
@@ -1077,6 +1080,26 @@ export default async function build(
         ? require.resolve('./worker')
         : require.resolve('./utils')
       let infoPrinted = false
+
+      let appPathsManifest: Record<string, string> = {}
+      const appPathRoutes: Record<string, string> = {}
+
+      if (appDir) {
+        appPathsManifest = JSON.parse(
+          await promises.readFile(
+            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
+            'utf8'
+          )
+        )
+
+        Object.keys(appPathsManifest).forEach((entry) => {
+          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+        })
+        await promises.writeFile(
+          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
+          JSON.stringify(appPathRoutes, null, 2)
+        )
+      }
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -1246,24 +1269,44 @@ export default async function build(
                 let isHybridAmp = false
                 let ssgPageRoutes: string[] | null = null
 
-                const pagePath =
-                  pageType === 'pages'
-                    ? pagesPaths.find(
-                        (p) =>
-                          p.startsWith(actualPage + '.') ||
-                          p.startsWith(actualPage + '/index.')
-                      )
-                    : appPaths?.find((p) => p.startsWith(actualPage + '/page.'))
+                let pagePath = ''
 
-                const pageRuntime =
-                  pageType === 'pages' && pagePath
-                    ? (
-                        await getPageStaticInfo({
-                          pageFilePath: join(pagesDir, pagePath),
-                          nextConfig: config,
-                        })
-                      ).runtime
-                    : undefined
+                if (pageType === 'pages') {
+                  pagePath =
+                    pagesPaths.find(
+                      (p) =>
+                        p.startsWith(actualPage + '.') ||
+                        p.startsWith(actualPage + '/index.')
+                    ) || ''
+                }
+                let originalAppPath: string | undefined
+
+                if (pageType === 'app' && mappedAppPages) {
+                  for (const [originalPath, normalizedPath] of Object.entries(
+                    appPathRoutes
+                  )) {
+                    if (normalizedPath === page) {
+                      pagePath = mappedAppPages[originalPath].replace(
+                        /^private-next-app-dir/,
+                        ''
+                      )
+                      originalAppPath = originalPath
+                      break
+                    }
+                  }
+                }
+
+                const pageRuntime = pagePath
+                  ? (
+                      await getPageStaticInfo({
+                        pageFilePath: join(
+                          (pageType === 'pages' ? pagesDir : appDir) || '',
+                          pagePath
+                        ),
+                        nextConfig: config,
+                      })
+                    ).runtime
+                  : undefined
 
                 if (hasServerComponents && pagePath) {
                   if (isServerComponentPage(config, pagePath)) {
@@ -1271,12 +1314,7 @@ export default async function build(
                   }
                 }
 
-                if (
-                  // Only calculate page static information if the page is not an
-                  // app page.
-                  pageType !== 'app' &&
-                  !isReservedPage(page)
-                ) {
+                if (!isReservedPage(page)) {
                   try {
                     let edgeInfo: any
 
@@ -1286,8 +1324,10 @@ export default async function build(
                         serverDir,
                         MIDDLEWARE_MANIFEST
                       ))
+                      const manifestKey =
+                        pageType === 'pages' ? page : join(page, 'page')
 
-                      edgeInfo = manifest.functions[page]
+                      edgeInfo = manifest.functions[manifestKey]
                     }
 
                     let isPageStaticSpan =
@@ -1296,6 +1336,7 @@ export default async function build(
                       () => {
                         return staticWorkers.isPageStatic({
                           page,
+                          originalAppPath,
                           distDir,
                           serverless: isLikeServerless,
                           configFileName,
@@ -1306,9 +1347,37 @@ export default async function build(
                           parentId: isPageStaticSpan.id,
                           pageRuntime,
                           edgeInfo,
+                          pageType,
+                          hasServerComponents,
                         })
                       }
                     )
+
+                    if (pageType === 'app' && originalAppPath) {
+                      if (
+                        workerResult.encodedPrerenderRoutes &&
+                        workerResult.prerenderRoutes
+                      ) {
+                        appStaticPaths.set(
+                          originalAppPath,
+                          workerResult.prerenderRoutes
+                        )
+                        appStaticPathsEncoded.set(
+                          originalAppPath,
+                          workerResult.encodedPrerenderRoutes
+                        )
+                      }
+                      if (!isDynamicRoute(page)) {
+                        appStaticPaths.set(originalAppPath, [page])
+                        appStaticPathsEncoded.set(originalAppPath, [page])
+                      }
+                      if (workerResult.prerenderFallback) {
+                        // whether or not to allow requests for paths not
+                        // returned from generateStaticParams
+                        appDynamicParamPaths.add(originalAppPath)
+                      }
+                      return
+                    }
 
                     if (pageRuntime === SERVER_RUNTIME.edge) {
                       if (workerResult.hasStaticProps) {
@@ -1816,24 +1885,6 @@ export default async function build(
         'utf8'
       )
 
-      if (appDir) {
-        const appPathsManifest = JSON.parse(
-          await promises.readFile(
-            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
-            'utf8'
-          )
-        )
-        const appPathRoutes: Record<string, string> = {}
-
-        Object.keys(appPathsManifest).forEach((entry) => {
-          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
-        })
-        await promises.writeFile(
-          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
-          JSON.stringify(appPathRoutes, null, 2)
-        )
-      }
-
       const middlewareManifest: MiddlewareManifest = JSON.parse(
         await promises.readFile(
           path.join(distDir, serverDir, MIDDLEWARE_MANIFEST),
@@ -1988,6 +2039,21 @@ export default async function build(
                   page: '/_error',
                 }
               }
+
+              // TODO: output manifest specific to app paths and their
+              // revalidate periods and dynamicParams settings
+              appStaticPaths.forEach((routes, originalAppPath) => {
+                const encodedRoutes = appStaticPathsEncoded.get(originalAppPath)
+
+                routes.forEach((route, routeIdx) => {
+                  console.log('adding', { route, originalAppPath })
+                  defaultMap[route] = {
+                    page: originalAppPath,
+                    query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
+                    _isAppDir: true,
+                  }
+                })
+              })
 
               if (i18n) {
                 for (const page of [

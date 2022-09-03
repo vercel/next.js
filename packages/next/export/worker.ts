@@ -28,6 +28,7 @@ import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { Writable } from 'stream'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -178,7 +179,11 @@ export default async function exportPage({
       ).pathname
 
       if (isDynamic && page !== nonLocalizedPath) {
-        params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
+        const normalizedPage = isAppDir ? normalizeAppPath(page) : page
+
+        params =
+          getRouteMatcher(getRouteRegex(normalizedPage))(updatedPath) ||
+          undefined
         if (params) {
           // we have to pass these separately for serverless
           if (!serverless) {
