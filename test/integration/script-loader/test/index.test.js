@@ -169,9 +169,19 @@ const runTests = (isDev = false) => {
       browser = await webdriver(appPort, '/page4')
       await waitFor(3000)
 
-      const text = await browser.elementById('text').text()
-
+      const text = await browser.elementById('onload-div-1').text()
       expect(text).toBe('aaabbbccc')
+
+      // Navigate to different page and back
+      await browser.waitForElementByCss('[href="/page9"]')
+      await browser.click('[href="/page9"]')
+      await browser.waitForElementByCss('[href="/page4"]')
+      await browser.click('[href="/page4"]')
+
+      await browser.waitForElementByCss('#onload-div-1')
+      const sameText = await browser.elementById('onload-div-1').text()
+      // onload should only be fired once, not on sequential re-mount
+      expect(sameText).toBe('')
     } finally {
       if (browser) await browser.close()
     }
