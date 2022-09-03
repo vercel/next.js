@@ -101,6 +101,7 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { interpolateDynamicPath } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -247,12 +248,20 @@ export default class NextNodeServer extends BaseServer {
     if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
-      loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
-        () => {}
-      )
-      loadComponents(this.distDir, '/_app', this._isLikeServerless).catch(
-        () => {}
-      )
+      loadComponents(
+        this.distDir,
+        '/_document',
+        this._isLikeServerless,
+        false,
+        false
+      ).catch(() => {})
+      loadComponents(
+        this.distDir,
+        '/_app',
+        this._isLikeServerless,
+        false,
+        false
+      ).catch(() => {})
     }
   }
 
@@ -750,6 +759,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           page,
+          isAppPath: false,
         })
 
         if (handledAsEdgeFunction) {
@@ -879,10 +889,11 @@ export default class NextNodeServer extends BaseServer {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const appPath = this.getOriginalAppPath(ctx.pathname)
+    const appPath = this.getOriginalAppPath(ctx.pathname) || undefined
     let page = ctx.pathname
 
-    if (typeof appPath === 'string') {
+    const isAppPath = typeof appPath === 'string'
+    if (isAppPath) {
       page = appPath
     }
 
@@ -895,7 +906,9 @@ export default class NextNodeServer extends BaseServer {
           res: ctx.res,
           query: ctx.query,
           params: ctx.renderOpts.params,
-          page,
+          page: ctx.pathname,
+          appPath,
+          isAppPath: isAppPath,
         })
         return null
       }
@@ -906,13 +919,17 @@ export default class NextNodeServer extends BaseServer {
 
   protected async findPageComponents(
     pathname: string,
-    query: NextParsedUrlQuery = {},
-    params: Params | null = null,
-    isAppDir: boolean = false
+    query: NextParsedUrlQuery,
+    params: Params,
+    isAppPath: boolean
   ): Promise<FindComponentsResult | null> {
     let paths = [
       // try serving a static AMP version first
-      query.amp ? normalizePagePath(pathname) + '.amp' : null,
+      query.amp
+        ? (isAppPath
+            ? normalizeAppPath(pathname)
+            : normalizePagePath(pathname)) + '.amp'
+        : null,
       pathname,
     ].filter(Boolean)
 
@@ -931,8 +948,8 @@ export default class NextNodeServer extends BaseServer {
           this.distDir,
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless,
-          this.renderOpts.serverComponents,
-          this.nextConfig.experimental.appDir
+          !!this.renderOpts.serverComponents,
+          isAppPath
         )
 
         if (
@@ -958,7 +975,7 @@ export default class NextNodeServer extends BaseServer {
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
-            ...((isAppDir ? {} : params) || {}),
+            ...((isAppPath ? {} : params) || {}),
           },
         }
       } catch (err) {
@@ -1999,18 +2016,17 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    isAppPath: boolean
+    appPath?: string
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
-    let appPath = this.getOriginalAppPath(params.page)
 
-    if (typeof appPath === 'string') {
-      params.page = appPath
-    }
-
-    await this.ensureEdgeFunction(params.page)
+    // If it's edge app route, use appPath to find the edge SSR page
+    const page = params.isAppPath ? params.appPath! : params.page
+    await this.ensureEdgeFunction(page)
     middlewareInfo = this.getEdgeFunctionInfo({
-      page: params.page,
+      page: page,
       middleware: false,
     })
 
@@ -2024,6 +2040,7 @@ export default class NextNodeServer extends BaseServer {
       Object.assign({}, getRequestMeta(params.req, '__NEXT_INIT_QUERY') || {})
     ).toString()
     const locale = params.query.__nextLocale
+    // Use original pathname (without `/page`) instead of appPath for url
     let normalizedPathname = params.page
 
     if (isDataReq) {
