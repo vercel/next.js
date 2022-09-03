@@ -1,9 +1,9 @@
 use chrono::Utc;
 
 use swc_core::{
-    ast::*,
     common::{errors::HANDLER, Span, DUMMY_SP},
-    visit::{Fold, FoldWith},
+    ecma::ast::*,
+    ecma::visit::{Fold, FoldWith},
 };
 
 pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {

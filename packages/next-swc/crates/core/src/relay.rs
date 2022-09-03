@@ -4,11 +4,11 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 use swc_core::{
-    ast::*,
-    atoms::JsWord,
     common::{errors::HANDLER, FileName},
-    utils::{quote_ident, ExprFactory},
-    visit::{Fold, FoldWith},
+    ecma::ast::*,
+    ecma::atoms::JsWord,
+    ecma::utils::{quote_ident, ExprFactory},
+    ecma::visit::{Fold, FoldWith},
 };
 
 #[derive(Copy, Clone, Debug, Deserialize)]

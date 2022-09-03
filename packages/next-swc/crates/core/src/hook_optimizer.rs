@@ -1,11 +1,11 @@
 use swc_core::{
-    ast::{
+    common::DUMMY_SP,
+    ecma::ast::{
         ArrayPat, Callee, Decl, Expr, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
         ObjectPat, ObjectPatProp, Pat, PropName, VarDecl, VarDeclarator,
     },
-    atoms::JsWord,
-    common::DUMMY_SP,
-    visit::{Fold, FoldWith},
+    ecma::atoms::JsWord,
+    ecma::visit::{Fold, FoldWith},
 };
 
 pub fn hook_optimizer() -> impl Fold {

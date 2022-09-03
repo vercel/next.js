@@ -38,12 +38,12 @@ use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 
 use swc_core::{
-    ast::EsVersion,
     base::config::ModuleConfig,
     common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
-    parser::parse_file_as_module,
-    transforms::pass::noop,
-    visit::Fold,
+    ecma::ast::EsVersion,
+    ecma::parser::parse_file_as_module,
+    ecma::transforms::pass::noop,
+    ecma::visit::Fold,
 };
 
 pub mod amp_attributes;

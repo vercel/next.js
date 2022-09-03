@@ -5,13 +5,13 @@ use std::mem::take;
 use std::rc::Rc;
 
 use swc_core::{
-    ast::*,
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},
         DUMMY_SP,
     },
-    visit::{noop_fold_type, Fold, FoldWith},
+    ecma::ast::*,
+    ecma::visit::{noop_fold_type, Fold, FoldWith},
 };
 
 static SSG_EXPORTS: &[&str; 3] = &["getStaticProps", "getStaticPaths", "getServerSideProps"];

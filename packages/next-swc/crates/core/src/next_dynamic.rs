@@ -3,15 +3,15 @@ use std::path::{Path, PathBuf};
 use pathdiff::diff_paths;
 
 use swc_core::{
-    ast::{
+    common::{errors::HANDLER, FileName, DUMMY_SP},
+    ecma::ast::{
         ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
         ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
         MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str, Tpl,
     },
-    atoms::js_word,
-    common::{errors::HANDLER, FileName, DUMMY_SP},
-    utils::ExprFactory,
-    visit::{Fold, FoldWith},
+    ecma::atoms::js_word,
+    ecma::utils::ExprFactory,
+    ecma::visit::{Fold, FoldWith},
 };
 
 pub fn next_dynamic(

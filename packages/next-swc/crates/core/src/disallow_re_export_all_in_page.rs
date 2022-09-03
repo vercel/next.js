@@ -1,8 +1,8 @@
 use swc_core::{
-    ast::ExportAll,
     common::errors::HANDLER,
-    transforms::pass::Optional,
-    visit::{noop_fold_type, Fold},
+    ecma::ast::ExportAll,
+    ecma::transforms::pass::Optional,
+    ecma::visit::{noop_fold_type, Fold},
 };
 
 pub fn disallow_re_export_all_in_page(is_page_file: bool) -> impl Fold {

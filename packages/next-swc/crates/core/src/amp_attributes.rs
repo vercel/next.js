@@ -1,7 +1,7 @@
 use swc_core::{
-    ast::{Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement},
-    atoms::JsWord,
-    visit::Fold,
+    ecma::ast::{Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement},
+    ecma::atoms::JsWord,
+    ecma::visit::Fold,
 };
 
 pub fn amp_attributes() -> impl Fold {

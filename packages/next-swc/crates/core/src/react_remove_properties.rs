@@ -2,8 +2,8 @@ use regex::Regex;
 use serde::Deserialize;
 
 use swc_core::{
-    ast::*,
-    visit::{noop_fold_type, Fold, FoldWith},
+    ecma::ast::*,
+    ecma::visit::{noop_fold_type, Fold, FoldWith},
 };
 
 #[derive(Clone, Debug, Deserialize)]

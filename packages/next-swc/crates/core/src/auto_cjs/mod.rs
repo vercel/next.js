@@ -1,6 +1,6 @@
 use swc_core::{
-    ast::*,
-    visit::{Visit, VisitWith},
+    ecma::ast::*,
+    ecma::visit::{Visit, VisitWith},
 };
 
 pub(crate) fn contains_cjs(m: &Module) -> bool {
