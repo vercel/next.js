@@ -29,7 +29,6 @@ export default function BackgroundPage() {
           fontSize: '2rem',
           lineHeight: '3rem',
           textAlign: 'center',
-          paddingTop: '40vh',
           textShadow: '1px 1px 1px #3c5c5e',
         }}
       >
