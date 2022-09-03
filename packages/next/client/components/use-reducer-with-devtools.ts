@@ -115,11 +115,7 @@ export function useReducerWithReduxDevtools(
   const enabledRef = useRef<boolean>()
 
   useEffect(() => {
-    if (devtoolsConnectionRef.current) {
-      return
-    }
-
-    if (enabledRef.current === false) {
+    if (devtoolsConnectionRef.current || enabledRef.current === false) {
       return
     }
 
