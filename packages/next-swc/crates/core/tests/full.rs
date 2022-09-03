@@ -1,8 +1,8 @@
 use next_swc::{custom_before_pass, TransformOptions};
 use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
-use swc::Compiler;
-use swc_ecmascript::{
+use swc_core::{
+    base::Compiler,
     parser::{Syntax, TsConfig},
     transforms::pass::noop,
 };
@@ -28,14 +28,14 @@ fn test(input: &Path, minify: bool) {
             let fm = cm.load_file(input).expect("failed to load file");
 
             let options = TransformOptions {
-                swc: swc::config::Options {
+                swc: swc_core::base::config::Options {
                     swcrc: true,
                     output_path: Some(output.clone()),
 
-                    config: swc::config::Config {
-                        is_module: swc::config::IsModule::Bool(true),
+                    config: swc_core::base::config::Config {
+                        is_module: swc_core::base::config::IsModule::Bool(true),
 
-                        jsc: swc::config::JscConfig {
+                        jsc: swc_core::base::config::JscConfig {
                             minify: if minify {
                                 Some(assert_json("{ \"compress\": true, \"mangle\": true }"))
                             } else {

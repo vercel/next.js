@@ -2,12 +2,14 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use swc_atoms::JsWord;
-use swc_common::errors::HANDLER;
-use swc_common::FileName;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::{quote_ident, ExprFactory};
-use swc_ecmascript::visit::{Fold, FoldWith};
+
+use swc_core::{
+    ast::*,
+    atoms::JsWord,
+    common::{errors::HANDLER, FileName},
+    utils::{quote_ident, ExprFactory},
+    visit::{Fold, FoldWith},
+};
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]

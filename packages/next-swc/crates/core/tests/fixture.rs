@@ -9,10 +9,10 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use std::path::PathBuf;
-use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark};
-use swc_ecma_transforms_testing::{test, test_fixture};
-use swc_ecmascript::{
+use swc_core::{
+    common::{chain, comments::SingleThreadedComments, FileName, Mark},
     parser::{EsConfig, Syntax},
+    testing_transform::{test, test_fixture},
     transforms::react::jsx,
 };
 use testing::fixture;
@@ -86,7 +86,7 @@ fn next_ssg_fixture(input: PathBuf) {
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                swc_ecmascript::transforms::react::Options {
+                swc_core::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
