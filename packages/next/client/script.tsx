@@ -4,6 +4,8 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 
+const nextjsStartTransition = (React.startTransition as Function) || ((callback: Function) => callback())
+
 const ScriptCache = new Map()
 const LoadCache = new Set()
 
@@ -119,7 +121,11 @@ export function handleClientScriptLoad(props: ScriptProps) {
   const { strategy = 'afterInteractive' } = props
   if (strategy === 'lazyOnload') {
     window.addEventListener('load', () => {
-      requestIdleCallback(() => loadScript(props))
+      requestIdleCallback(() => {
+        nextjsStartTransition(() => {
+          loadScript(props)
+        })
+      })
     })
   } else {
     loadScript(props)
@@ -128,10 +134,18 @@ export function handleClientScriptLoad(props: ScriptProps) {
 
 function loadLazyScript(props: ScriptProps) {
   if (document.readyState === 'complete') {
-    requestIdleCallback(() => loadScript(props))
+    requestIdleCallback(() => {
+      nextjsStartTransition(() => {
+        loadScript(props)
+      })
+    })
   } else {
     window.addEventListener('load', () => {
-      requestIdleCallback(() => loadScript(props))
+      requestIdleCallback(() => {
+        nextjsStartTransition(() => {
+          loadScript(props)
+        })
+      })
     })
   }
 }
