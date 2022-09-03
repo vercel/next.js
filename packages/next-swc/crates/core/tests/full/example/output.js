@@ -4,39 +4,38 @@ function t(t, r) {
     return e;
 }
 import r from "other";
-var n = function(r, n) {
+(function(r, n) {
     return function(t) {
         if (Array.isArray(t)) return t;
     }(r) || function(t, r) {
         var n, e, o = null == t ? null : "undefined" != typeof Symbol && t[Symbol.iterator] || t["@@iterator"];
         if (null != o) {
-            var u = [], l = !0, a = !1;
+            var u = [], l = !0, i = !1;
             try {
                 for(o = o.call(t); !(l = (n = o.next()).done) && (u.push(n.value), !r || u.length !== r); l = !0);
-            } catch (i) {
-                a = !0, e = i;
+            } catch (a) {
+                i = !0, e = a;
             } finally{
                 try {
                     l || null == o.return || o.return();
                 } finally{
-                    if (a) throw e;
+                    if (i) throw e;
                 }
             }
             return u;
         }
-    }(r, n) || function r(n, e) {
-        if (n) {
-            if ("string" == typeof n) return t(n, e);
-            var o = Object.prototype.toString.call(n).slice(8, -1);
-            if ("Object" === o && n.constructor && (o = n.constructor.name), "Map" === o || "Set" === o) return Array.from(o);
-            if ("Arguments" === o || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(o)) return t(n, e);
+    }(r, n) || function(r, n) {
+        if (r) {
+            if ("string" == typeof r) return t(r, n);
+            var e = Object.prototype.toString.call(r).slice(8, -1);
+            if ("Object" === e && r.constructor && (e = r.constructor.name), "Map" === e || "Set" === e) return Array.from(e);
+            if ("Arguments" === e || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(e)) return t(r, n);
         }
     }(r, n) || function() {
         throw new TypeError("Invalid attempt to destructure non-iterable instance.\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
     }();
-}(r, 1);
-n[0];
+})(r, 1)[0];
 export var __N_SSG = !0;
-export default function e() {
+export default function n() {
     return React.createElement("div", null);
 };
