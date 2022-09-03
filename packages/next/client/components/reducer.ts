@@ -46,11 +46,31 @@ function fillCacheWithNewSubTreeData(
       !childCacheNode.data ||
       childCacheNode === existingChildCacheNode
     ) {
-      childSegmentMap.set(segmentForCache, {
+      childCacheNode = {
         data: null,
         subTreeData: flightDataPath[3],
-        parallelRoutes: new Map(),
-      })
+        // Ensure segments other than the one we got data for are preserved.
+        parallelRoutes: existingChildCacheNode
+          ? new Map(existingChildCacheNode.parallelRoutes)
+          : new Map(),
+      }
+
+      // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
+      for (const key in flightDataPath[2][1]) {
+        const segmentForParallelRoute = flightDataPath[2][1][key][0]
+        const cacheKey = Array.isArray(segmentForParallelRoute)
+          ? segmentForParallelRoute[1]
+          : segmentForParallelRoute
+        const existingParallelRoutesCacheNode =
+          existingChildCacheNode?.parallelRoutes.get(key)
+        if (existingParallelRoutesCacheNode) {
+          let parallelRouteCacheNode = new Map(existingParallelRoutesCacheNode)
+          parallelRouteCacheNode.delete(cacheKey)
+          childCacheNode.parallelRoutes.set(key, parallelRouteCacheNode)
+        }
+      }
+
+      childSegmentMap.set(segmentForCache, childCacheNode)
     }
     return
   }
@@ -375,6 +395,35 @@ function applyRouterStatePatchToTree(
   return tree
 }
 
+/**
+ * Apply the router state from the Flight response. Creates a new router state tree.
+ */
+function shouldHardNavigate(
+  flightSegmentPath: FlightData[0],
+  flightRouterState: FlightRouterState,
+  treePatch: FlightRouterState
+): boolean {
+  const [segment, parallelRoutes] = flightRouterState
+  const [currentSegment, parallelRouteKey] = flightSegmentPath
+
+  // Tree path returned from the server should always match up with the current tree in the browser
+  if (!matchSegment(currentSegment, segment)) {
+    return true
+  }
+
+  const lastSegment = flightSegmentPath.length === 2
+
+  if (lastSegment) {
+    return false
+  }
+
+  return shouldHardNavigate(
+    flightSegmentPath.slice(2),
+    parallelRoutes[parallelRouteKey],
+    treePatch
+  )
+}
+
 export type FocusAndScrollRef = {
   /**
    * If focus and scroll should be set in the layout-router's useEffect()
@@ -464,6 +513,9 @@ interface ServerPatchAction {
   flightData: FlightData
   previousTree: FlightRouterState
   cache: CacheNode
+  mutable: {
+    patchedTree?: FlightRouterState
+  }
 }
 
 interface PrefetchAction {
@@ -580,7 +632,12 @@ export function reducer(
         mutable.previousTree = state.tree
         mutable.patchedTree = newTree
 
-        const hardNavigate = true
+        const hardNavigate = shouldHardNavigate(
+          // TODO-APP: remove ''
+          ['', ...flightSegmentPath],
+          state.tree,
+          newTree
+        )
         if (hardNavigate) {
           // Fill in the cache with blank that holds the `data` field.
           // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
@@ -733,7 +790,7 @@ export function reducer(
       }
     }
     case ACTION_SERVER_PATCH: {
-      const { flightData, previousTree, cache } = action
+      const { flightData, previousTree, cache, mutable } = action
       // When a fetch is slow to resolve it could be that you navigated away while the request was happening or before the reducer runs.
       // In that case opt-out of applying the patch given that the data could be stale.
       if (JSON.stringify(previousTree) !== JSON.stringify(state.tree)) {
@@ -741,6 +798,23 @@ export function reducer(
         console.log('TREE MISMATCH')
         // Keep everything as-is.
         return state
+      }
+
+      // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
+      if (mutable.patchedTree) {
+        return {
+          // Keep href as it was set during navigate / restore
+          canonicalUrl: state.canonicalUrl,
+          // Keep pushRef as server-patch only causes cache/tree update.
+          pushRef: state.pushRef,
+          // Keep focusAndScrollRef as server-patch only causes cache/tree update.
+          focusAndScrollRef: state.focusAndScrollRef,
+          // Apply patched router state
+          tree: mutable.patchedTree,
+          prefetchCache: state.prefetchCache,
+          // Apply patched cache
+          cache: cache,
+        }
       }
 
       // Handle case when navigating to page in `pages` from `app`
@@ -772,6 +846,8 @@ export function reducer(
         state.tree,
         treePatch
       )
+
+      mutable.patchedTree = newTree
 
       // Copy subTreeData for the root node of the cache.
       cache.subTreeData = state.cache.subTreeData
