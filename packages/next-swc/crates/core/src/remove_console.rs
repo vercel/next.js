@@ -1,9 +1,11 @@
 use serde::Deserialize;
-use swc_atoms::JsWord;
-use swc_common::collections::AHashSet;
-use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{noop_fold_type, Fold, FoldWith};
+
+use swc_core::{
+    common::{collections::AHashSet, DUMMY_SP},
+    ecma::ast::*,
+    ecma::atoms::JsWord,
+    ecma::visit::{noop_fold_type, Fold, FoldWith},
+};
 
 use crate::top_level_binding_collector::collect_top_level_decls;
 
