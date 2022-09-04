@@ -411,7 +411,7 @@ function shouldHardNavigate(
     return true
   }
 
-  const lastSegment = flightSegmentPath.length === 2
+  const lastSegment = flightSegmentPath.length <= 2
 
   if (lastSegment) {
     return false
