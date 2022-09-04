@@ -42,7 +42,7 @@ swc_core = { version = "0.20.2", features = [
   "ecma_parser",
   "ecma_parser_typescript",
   "cached",
-  "base_concurrent" # concurrent?
+  "base"
 ] }
 
 [dev-dependencies]
