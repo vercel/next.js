@@ -61,20 +61,21 @@ function normalizeRouterState(val: any): any {
   return val
 }
 
-function logReducer(fn: typeof reducer) {
-  return (
-    state: ReducerState<typeof reducer>,
-    action: ReducerAction<typeof reducer>
-  ) => {
-    console.groupCollapsed(action.type)
-    console.log('action', action)
-    console.log('old', state)
-    const res = fn(state, action)
-    console.log('new', res)
-    console.groupEnd()
-    return res
-  }
-}
+// Log router state when actions are triggered.
+// function logReducer(fn: typeof reducer) {
+//   return (
+//     state: ReducerState<typeof reducer>,
+//     action: ReducerAction<typeof reducer>
+//   ) => {
+//     console.groupCollapsed(action.type)
+//     console.log('action', action)
+//     console.log('old', state)
+//     const res = fn(state, action)
+//     console.log('new', res)
+//     console.groupEnd()
+//     return res
+//   }
+// }
 
 declare global {
   interface Window {
@@ -143,7 +144,7 @@ export function useReducerWithReduxDevtools(
   }, [initialState])
 
   const [state, dispatch] = useReducer(
-    devToolReducer(logReducer(fn), devtoolsConnectionRef),
+    devToolReducer(/* logReducer( */ fn /*)*/, devtoolsConnectionRef),
     initialState
   )
 
