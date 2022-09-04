@@ -42,7 +42,7 @@ use swc_core::{
     common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
     ecma::ast::EsVersion,
     ecma::parser::parse_file_as_module,
-    ecma::transforms::pass::noop,
+    ecma::transforms::base::pass::noop,
     ecma::visit::Fold,
 };
 

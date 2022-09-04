@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use swc_core::{
     base::Compiler,
     ecma::parser::{Syntax, TsConfig},
-    ecma::transforms::pass::noop,
+    ecma::transforms::base::pass::noop,
 };
 use testing::{NormalizedOutput, Tester};
 

@@ -5,7 +5,7 @@ use styled_components::{styled_components, Config};
 use swc_core::{
     common::{chain, Mark},
     ecma::parser::{EsConfig, Syntax},
-    ecma::transforms::resolver,
+    ecma::transforms::base::resolver,
     ecma::transforms::testing::test_fixture,
 };
 

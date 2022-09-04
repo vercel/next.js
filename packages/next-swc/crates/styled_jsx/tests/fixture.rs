@@ -4,7 +4,7 @@ use styled_jsx::styled_jsx;
 use swc_core::{
     common::{chain, FileName, Mark, Span, DUMMY_SP},
     ecma::parser::{EsConfig, Syntax},
-    ecma::transforms::resolver,
+    ecma::transforms::base::resolver,
     ecma::transforms::testing::{test_fixture, test_fixture_allowing_error},
 };
 use testing::fixture;

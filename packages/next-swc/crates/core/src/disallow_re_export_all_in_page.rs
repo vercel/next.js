@@ -1,7 +1,7 @@
 use swc_core::{
     common::errors::HANDLER,
     ecma::ast::ExportAll,
-    ecma::transforms::pass::Optional,
+    ecma::transforms::base::pass::Optional,
     ecma::visit::{noop_fold_type, Fold},
 };
 
