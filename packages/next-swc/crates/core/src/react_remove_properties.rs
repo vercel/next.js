@@ -1,7 +1,10 @@
 use regex::Regex;
 use serde::Deserialize;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{noop_fold_type, Fold, FoldWith};
+
+use swc_core::{
+    ecma::ast::*,
+    ecma::visit::{noop_fold_type, Fold, FoldWith},
+};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
