@@ -12,7 +12,7 @@ const createEvent = (trace, ph, cat) => ({
   ph,
   // process id. We don't collect this for now, putting arbitrary numbers.
   pid: 1,
-  // thread id. We don't collect this for now, putting arbitrary numebers.
+  // thread id. We don't collect this for now, putting arbitrary numbers.
   tid: 10,
   args: trace.tags,
 })
@@ -112,7 +112,7 @@ const collectTraces = async (filePath, outFilePath, metadata) => {
   const traces = new Map()
   const rootTraces = []
 
-  // Input trace file contains newline-seperated sets of traces, where each line is valid JSON
+  // Input trace file contains newline-separated sets of traces, where each line is valid JSON
   // type of Array<TraceEvent>. Read it line-by-line to manually reconstruct trace trees.
   //
   // We have to read through end of the trace -
