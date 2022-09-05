@@ -343,14 +343,16 @@ function createOptimisticTree(
   return result
 }
 
+// type a =
+
 /**
  * Apply the router state from the Flight response. Creates a new router state tree.
  */
-function applyRouterStatePatchToTree(
+function applyRouterStatePatchToTree<T>(
   flightSegmentPath: FlightData[0],
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
-): FlightRouterState {
+): FlightRouterState | null {
   const [segment, parallelRoutes /* , url */] = flightRouterState
 
   // Root refresh
@@ -368,22 +370,31 @@ function applyRouterStatePatchToTree(
 
   // Tree path returned from the server should always match up with the current tree in the browser
   if (!matchSegment(currentSegment, segment)) {
-    throw new Error('SEGMENT MISMATCH')
+    return null
   }
 
   const lastSegment = flightSegmentPath.length === 2
+
+  let parallelRoutePatch
+  if (lastSegment) {
+    parallelRoutePatch = treePatch
+  } else {
+    parallelRoutePatch = applyRouterStatePatchToTree(
+      flightSegmentPath.slice(2),
+      parallelRoutes[parallelRouteKey],
+      treePatch
+    )
+
+    if (parallelRoutePatch === null) {
+      return null
+    }
+  }
 
   const tree: FlightRouterState = [
     flightSegmentPath[0],
     {
       ...parallelRoutes,
-      [parallelRouteKey]: lastSegment
-        ? treePatch
-        : applyRouterStatePatchToTree(
-            flightSegmentPath.slice(2),
-            parallelRoutes[parallelRouteKey],
-            treePatch
-          ),
+      [parallelRouteKey]: parallelRoutePatch,
     },
   ]
 
@@ -629,48 +640,46 @@ export function reducer(
           treePatch
         )
 
-        mutable.previousTree = state.tree
-        mutable.patchedTree = newTree
+        if (newTree !== null) {
+          mutable.previousTree = state.tree
+          mutable.patchedTree = newTree
 
-        const hardNavigate = shouldHardNavigate(
-          // TODO-APP: remove ''
-          ['', ...flightSegmentPath],
-          state.tree,
-          newTree
-        )
-        if (hardNavigate) {
-          // Fill in the cache with blank that holds the `data` field.
-          // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
-          // Copy subTreeData for the root node of the cache.
-          cache.subTreeData = state.cache.subTreeData
-
-          invalidateCacheBelowFlightSegmentPath(
-            cache,
-            state.cache,
-            flightSegmentPath
+          const hardNavigate = shouldHardNavigate(
+            // TODO-APP: remove ''
+            ['', ...flightSegmentPath],
+            state.tree,
+            newTree
           )
-        } else {
-          mutable.useExistingCache = true
-        }
+          if (hardNavigate) {
+            // Fill in the cache with blank that holds the `data` field.
+            // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
+            // Copy subTreeData for the root node of the cache.
+            cache.subTreeData = state.cache.subTreeData
 
-        return {
-          // Set href.
-          canonicalUrl: href,
-          // Set pendingPush.
-          pushRef: { pendingPush, mpaNavigation: false },
-          // All navigation requires scroll and focus management to trigger.
-          focusAndScrollRef: { apply: true },
-          // Apply patched cache.
-          cache: hardNavigate ? cache : state.cache,
-          prefetchCache: state.prefetchCache,
-          // Apply patched tree.
-          tree: newTree,
+            invalidateCacheBelowFlightSegmentPath(
+              cache,
+              state.cache,
+              flightSegmentPath
+            )
+          } else {
+            mutable.useExistingCache = true
+          }
+
+          return {
+            // Set href.
+            canonicalUrl: href,
+            // Set pendingPush.
+            pushRef: { pendingPush, mpaNavigation: false },
+            // All navigation requires scroll and focus management to trigger.
+            focusAndScrollRef: { apply: true },
+            // Apply patched cache.
+            cache: hardNavigate ? cache : state.cache,
+            prefetchCache: state.prefetchCache,
+            // Apply patched tree.
+            tree: newTree,
+          }
         }
       }
-
-      const segments = pathname.split('/')
-      // TODO-APP: figure out something better for index pages
-      segments.push('')
 
       // When doing a hard push there can be two cases: with optimistic tree and without
       // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
@@ -678,6 +687,10 @@ export function reducer(
 
       // forceOptimisticNavigation is used for links that have `prefetch={false}`.
       if (forceOptimisticNavigation) {
+        const segments = pathname.split('/')
+        // TODO-APP: figure out something better for index pages
+        segments.push('')
+
         // Optimistic tree case.
         // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
         const optimisticTree = createOptimisticTree(
@@ -767,6 +780,10 @@ export function reducer(
         treePatch
       )
 
+      if (newTree === null) {
+        throw new Error('SEGMENT MISMATCH')
+      }
+
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
 
@@ -846,6 +863,10 @@ export function reducer(
         state.tree,
         treePatch
       )
+
+      if (newTree === null) {
+        throw new Error('SEGMENT MISMATCH')
+      }
 
       mutable.patchedTree = newTree
 
@@ -951,6 +972,10 @@ export function reducer(
         state.tree,
         treePatch
       )
+
+      if (newTree === null) {
+        throw new Error('SEGMENT MISMATCH')
+      }
 
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
