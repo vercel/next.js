@@ -893,9 +893,10 @@ export default class NextNodeServer extends BaseServer {
     const edgeFunctions = this.getEdgeFunctions() || []
     if (edgeFunctions.length) {
       const appPaths = this.getOriginalAppPaths(ctx.pathname)
-      let page = ctx.pathname
+      const isAppPath = Array.isArray(appPaths)
 
-      if (Array.isArray(appPaths)) {
+      let page = ctx.pathname
+      if (isAppPath) {
         // When it's an array, we need to pass all parallel routes to the loader.
         page = appPaths[0]
       }
@@ -909,7 +910,7 @@ export default class NextNodeServer extends BaseServer {
             params: ctx.renderOpts.params,
             page,
             appPaths,
-            isAppPath: Array.isArray(appPaths),
+            isAppPath,
           })
           return null
         }
@@ -2028,16 +2029,14 @@ export default class NextNodeServer extends BaseServer {
     page: string
     appPaths: string[] | null
     isAppPath: boolean
-    appPath?: string
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    // If it's edge app route, use appPath to find the edge SSR page
-    const page = params.isAppPath ? params.appPath! : params.page
+    const page = params.page
     await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     middlewareInfo = this.getEdgeFunctionInfo({
-      page: page,
+      page,
       middleware: false,
     })
 
