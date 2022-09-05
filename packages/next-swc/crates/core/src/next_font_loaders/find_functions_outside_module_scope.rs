@@ -4,7 +4,7 @@ use swc_core::ecma::visit::noop_visit_type;
 use swc_core::ecma::visit::Visit;
 
 pub struct FindFunctionsOutsideModuleScope<'a> {
-    pub state: &'a mut super::State,
+    pub state: &'a super::State,
 }
 
 impl<'a> Visit for FindFunctionsOutsideModuleScope<'a> {

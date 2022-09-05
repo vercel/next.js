@@ -1,10 +1,11 @@
 use swc_core::common::errors::HANDLER;
 use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::noop_visit_type;
 use swc_core::ecma::visit::Visit;
 
 pub struct FontFunctionsCollector<'a> {
-    pub font_loaders: &'a [String],
+    pub font_loaders: &'a [JsWord],
     pub state: &'a mut super::State,
 }
 
@@ -12,10 +13,7 @@ impl<'a> Visit for FontFunctionsCollector<'a> {
     noop_visit_type!();
 
     fn visit_import_decl(&mut self, import_decl: &ImportDecl) {
-        if self
-            .font_loaders
-            .contains(&String::from(&*import_decl.src.value))
-        {
+        if self.font_loaders.contains(&import_decl.src.value) {
             self.state
                 .removeable_module_items
                 .insert(import_decl.span.lo);

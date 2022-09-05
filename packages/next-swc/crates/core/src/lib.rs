@@ -36,6 +36,7 @@ use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
+use swc_core::ecma::atoms::JsWord;
 
 use swc_core::{
     base::config::ModuleConfig,
@@ -108,7 +109,7 @@ pub struct TransformOptions {
     pub modularize_imports: Option<modularize_imports::Config>,
 
     #[serde(default)]
-    pub font_loaders: Option<Vec<String>>,
+    pub font_loaders: Option<Vec<JsWord>>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(

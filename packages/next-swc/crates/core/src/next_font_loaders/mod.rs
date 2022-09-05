@@ -12,7 +12,7 @@ mod find_functions_outside_module_scope;
 mod font_functions_collector;
 mod font_imports_generator;
 
-pub fn next_font_loaders(font_loaders: Vec<String>) -> impl Fold + VisitMut {
+pub fn next_font_loaders(font_loaders: Vec<JsWord>) -> impl Fold + VisitMut {
     as_folder(NextFontLoaders {
         font_loaders,
         state: State {
@@ -35,7 +35,7 @@ pub struct State {
 }
 
 struct NextFontLoaders {
-    font_loaders: Vec<String>,
+    font_loaders: Vec<JsWord>,
     state: State,
 }
 
@@ -60,7 +60,7 @@ impl VisitMut for NextFontLoaders {
             // Find font function refs in wrong scope
             let mut wrong_scope =
                 find_functions_outside_module_scope::FindFunctionsOutsideModuleScope {
-                    state: &mut self.state,
+                    state: &self.state,
                 };
             items.visit_with(&mut wrong_scope);
 

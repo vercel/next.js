@@ -111,7 +111,7 @@ impl<'a> FontImportsGenerator<'a> {
                                     handler
                                         .struct_span_err(
                                             pattern.span(),
-                                            "Font loader calls must be assigned to a const",
+                                            "Font loader calls must be assigned to an identifier",
                                         )
                                         .emit()
                                 });
