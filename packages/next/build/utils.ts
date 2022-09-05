@@ -1059,6 +1059,14 @@ export async function isPageStatic({
       let componentsResult: LoadComponentsReturnType
 
       if (pageRuntime === SERVER_RUNTIME.edge) {
+        console.log({
+          paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
+          env: edgeInfo.env,
+          edgeFunctionEntry: edgeInfo,
+          name: edgeInfo.name,
+          useCache: true,
+          distDir,
+        })
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           env: edgeInfo.env,

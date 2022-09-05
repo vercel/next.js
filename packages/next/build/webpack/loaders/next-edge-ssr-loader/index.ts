@@ -65,8 +65,8 @@ export default async function edgeSSRLoader(this: any) {
   )}`
 
   const transformed = `
-    import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
-    import { getRender } from 'next/dist/build/webpack/loaders/next-edge-ssr-loader/render'
+    import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
+    import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
 
     import Document from ${stringifiedDocumentPath}
 
@@ -75,13 +75,13 @@ export default async function edgeSSRLoader(this: any) {
     ${
       isAppDir
         ? `
-      const appRenderToHTML = require('next/dist/server/app-render').renderToHTMLOrFlight
+      const appRenderToHTML = require('next/dist/esm/server/app-render').renderToHTMLOrFlight
       const pagesRenderToHTML = null
       const pageMod = require(${JSON.stringify(pageModPath)})
     `
         : `
       const appRenderToHTML = null
-      const pagesRenderToHTML = require('next/dist/server/render').renderToHTML
+      const pagesRenderToHTML = require('next/dist/esm/server/render').renderToHTML
       const pageMod = require(${stringifiedPagePath})
     `
     }
