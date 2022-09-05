@@ -3,12 +3,15 @@ import Image from 'next/image'
 import Link from 'next/link'
 import ViewSource from '../components/view-source'
 import vercel from '../public/vercel.png'
+import type { PropsWithChildren } from 'react'
 
-const Code = (p) => <code className={styles.inlineCode} {...p} />
+const Code = (props: PropsWithChildren) => (
+  <code className={styles.inlineCode} {...props} />
+)
 
 const Index = () => (
   <div className={styles.container}>
-    <ViewSource pathname="pages/index.js" />
+    <ViewSource pathname="pages/index.tsx" />
     <div className={styles.card}>
       <h1>Image Component with Next.js</h1>
       <p>

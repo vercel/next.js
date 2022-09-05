@@ -4,7 +4,7 @@ import mountains from '../public/mountains.jpg'
 
 const Fixed = () => (
   <div>
-    <ViewSource pathname="pages/layout-fixed.js" />
+    <ViewSource pathname="pages/layout-fixed.tsx" />
     <h1>Image Component With Layout Fixed</h1>
     <Image
       alt="Mountains"
