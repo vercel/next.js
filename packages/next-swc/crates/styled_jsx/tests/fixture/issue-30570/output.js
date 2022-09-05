@@ -6,7 +6,7 @@ export default function IndexPage() {
 
 
 
-        <_JSXStyle id={"bbdada4ef17d18ef"}>{"@supports(display:flex){h1{color:hotpink}}"}</_JSXStyle>
+        <_JSXStyle id={"bbdada4ef17d18ef"}>{"@supports((display:flex)or (display:-webkit-box)or (display:-webkit-flex)or (display:-moz-box)or (display:-ms-flexbox)){h1{color:hotpink}}"}</_JSXStyle>
 
       </div>;
 };
