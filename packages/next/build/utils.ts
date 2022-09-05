@@ -305,7 +305,7 @@ export async function printTreeView(
   }: {
     distPath: string
     buildId: string
-    pagesDir: string
+    pagesDir?: string
     pageExtensions: string[]
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
@@ -345,7 +345,8 @@ export async function printTreeView(
       .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   // Check if we have a custom app.
-  const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+  const hasCustomApp =
+    pagesDir && (await findPageFile(pagesDir, '/_app', pageExtensions, false))
 
   const filterAndSortList = (list: ReadonlyArray<string>) =>
     list
@@ -1081,7 +1082,13 @@ export async function isPageStatic({
           getStaticProps: mod.getStaticProps,
         }
       } else {
-        componentsResult = await loadComponents(distDir, page, serverless)
+        componentsResult = await loadComponents(
+          distDir,
+          page,
+          serverless,
+          false,
+          false
+        )
       }
       const Comp = componentsResult.Component
 
@@ -1207,7 +1214,13 @@ export async function hasCustomGetInitialProps(
 ): Promise<boolean> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
-  const components = await loadComponents(distDir, page, isLikeServerless)
+  const components = await loadComponents(
+    distDir,
+    page,
+    isLikeServerless,
+    false,
+    false
+  )
   let mod = components.ComponentMod
 
   if (checkingApp) {
@@ -1226,7 +1239,13 @@ export async function getNamedExports(
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-  const components = await loadComponents(distDir, page, isLikeServerless)
+  const components = await loadComponents(
+    distDir,
+    page,
+    isLikeServerless,
+    false,
+    false
+  )
   let mod = components.ComponentMod
 
   return Object.keys(mod)

@@ -8,9 +8,11 @@ pub use crate::{
 };
 use serde::Deserialize;
 use std::{cell::RefCell, rc::Rc};
-use swc_atoms::JsWord;
-use swc_common::{chain, pass::Optional, FileName};
-use swc_ecmascript::visit::{Fold, VisitMut};
+use swc_core::{
+    common::{chain, pass::Optional, FileName},
+    ecma::atoms::JsWord,
+    ecma::visit::{Fold, VisitMut},
+};
 
 mod css;
 mod utils;

@@ -13,19 +13,34 @@ const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
 describe('findPageFile', () => {
   it('should work', async () => {
     const pagePath = normalizePagePath('/nav/about')
-    const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
+    const result = await findPageFile(
+      dirWithPages,
+      pagePath,
+      ['jsx', 'js'],
+      false
+    )
     expect(result).toMatch(/^[\\/]nav[\\/]about\.js/)
   })
 
   it('should work with nested index.js', async () => {
     const pagePath = normalizePagePath('/nested')
-    const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
+    const result = await findPageFile(
+      dirWithPages,
+      pagePath,
+      ['jsx', 'js'],
+      false
+    )
     expect(result).toMatch(/^[\\/]nested[\\/]index\.js/)
   })
 
   it('should prefer prefered.js before preferred/index.js', async () => {
     const pagePath = normalizePagePath('/prefered')
-    const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
+    const result = await findPageFile(
+      dirWithPages,
+      pagePath,
+      ['jsx', 'js'],
+      false
+    )
     expect(result).toMatch(/^[\\/]prefered\.js/)
   })
 })

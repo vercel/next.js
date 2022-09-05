@@ -262,6 +262,7 @@ function disposeInactiveEntries(maxInactiveAge: number) {
   })
 }
 
+// Normalize both app paths and page paths
 function tryToNormalizePagePath(page: string) {
   try {
     return normalizePagePath(page)
@@ -283,16 +284,21 @@ function tryToNormalizePagePath(page: string) {
  */
 async function findPagePathData(
   rootDir: string,
-  pagesDir: string,
   page: string,
   extensions: string[],
+  pagesDir?: string,
   appDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
   if (isMiddlewareFile(normalizedPagePath)) {
-    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
+    pagePath = await findPageFile(
+      rootDir,
+      normalizedPagePath,
+      extensions,
+      false
+    )
 
     if (!pagePath) {
       throw new PageNotFoundError(normalizedPagePath)
@@ -313,7 +319,7 @@ async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
-    pagePath = await findPageFile(appDir, normalizedPagePath, extensions)
+    pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
         removePagePathTail(normalizePathSep(pagePath), {
@@ -330,11 +336,16 @@ async function findPagePathData(
     }
   }
 
-  if (!pagePath) {
-    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
+  if (!pagePath && pagesDir) {
+    pagePath = await findPageFile(
+      pagesDir,
+      normalizedPagePath,
+      extensions,
+      false
+    )
   }
 
-  if (pagePath !== null) {
+  if (pagePath !== null && pagesDir) {
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
         extensions,
@@ -372,7 +383,7 @@ export function onDemandEntryHandler({
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
   pagesBufferLength: number
-  pagesDir: string
+  pagesDir?: string
   rootDir: string
   appDir?: string
 }) {
@@ -561,9 +572,9 @@ export function onDemandEntryHandler({
       try {
         const pagePathData = await findPagePathData(
           rootDir,
-          pagesDir,
           page,
           nextConfig.pageExtensions,
+          pagesDir,
           appDir
         )
 

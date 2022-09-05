@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use styled_jsx::styled_jsx;
-use swc_common::{chain, FileName, Mark, Span, DUMMY_SP};
-use swc_ecma_transforms_testing::{test_fixture, test_fixture_allowing_error};
-use swc_ecmascript::{
-    parser::{EsConfig, Syntax},
-    transforms::resolver,
+use swc_core::{
+    common::{chain, FileName, Mark, Span, DUMMY_SP},
+    ecma::parser::{EsConfig, Syntax},
+    ecma::transforms::base::resolver,
+    ecma::transforms::testing::{test_fixture, test_fixture_allowing_error},
 };
 use testing::fixture;
 
@@ -60,7 +60,7 @@ fn styled_jsx_fixture(input: PathBuf) {
 }
 
 pub struct DropSpan;
-impl swc_ecmascript::visit::VisitMut for DropSpan {
+impl swc_core::ecma::visit::VisitMut for DropSpan {
     fn visit_mut_span(&mut self, span: &mut Span) {
         *span = DUMMY_SP
     }

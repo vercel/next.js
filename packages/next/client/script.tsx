@@ -1,4 +1,4 @@
-import React, { useEffect, useContext } from 'react'
+import React, { useEffect, useContext, useRef } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
@@ -57,21 +57,25 @@ const loadScript = (props: ScriptProps): void => {
     return
   }
 
+  /** Execute after the script first loaded */
+  const afterLoad = () => {
+    // Run onReady for the first time after load event
+    if (onReady) {
+      onReady()
+    }
+    // add cacheKey to LoadCache when load successfully
+    LoadCache.add(cacheKey)
+  }
+
   const el = document.createElement('script')
 
   const loadPromise = new Promise<void>((resolve, reject) => {
     el.addEventListener('load', function (e) {
-      // add cacheKey to LoadCache when load successfully
-      LoadCache.add(cacheKey)
-
       resolve()
       if (onLoad) {
         onLoad.call(this, e)
       }
-      // Run onReady for the first time after load event
-      if (onReady) {
-        onReady()
-      }
+      afterLoad()
     })
     el.addEventListener('error', function (e) {
       reject(e)
@@ -85,8 +89,7 @@ const loadScript = (props: ScriptProps): void => {
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
 
-    // add cacheKey to LoadCache for inline script
-    LoadCache.add(cacheKey)
+    afterLoad()
   } else if (children) {
     el.textContent =
       typeof children === 'string'
@@ -95,8 +98,7 @@ const loadScript = (props: ScriptProps): void => {
         ? children.join('')
         : ''
 
-    // add cacheKey to LoadCache for inline script
-    LoadCache.add(cacheKey)
+    afterLoad()
   } else if (src) {
     el.src = src
     // do not add cacheKey into LoadCache for remote script here
@@ -174,12 +176,42 @@ function Script(props: ScriptProps): JSX.Element | null {
   // Context is available only during SSR
   const { updateScripts, scripts, getIsSsr } = useContext(HeadManagerContext)
 
+  /**
+   * - First mount:
+   *   1. The useEffect for onReady executes
+   *   2. hasOnReadyEffectCalled.current is false, but the script hasn't loaded yet (not in LoadCache)
+   *      onReady is skipped, set hasOnReadyEffectCalled.current to true
+   *   3. The useEffect for loadScript executes
+   *      Once the script is loaded, the onReady will be called by then
+   *   [If strict mode is enabled / is wrapped in <OffScreen /> component]
+   *   5. The useEffect for onReady executes again
+   *   6. hasOnReadyEffectCalled.current is true, so entire effect is skipped
+   *   7. The useEffect for loadScript executes again
+   *   8. The script is already loaded/loading, loadScript bails out
+   *
+   * - Second mount:
+   *   1. The useEffect for onReady executes
+   *   2. hasOnReadyEffectCalled.current is false, but the script has already loaded (found in LoadCache)
+   *      onReady is called, set hasOnReadyEffectCalled.current to true
+   *   3. The useEffect for loadScript executes
+   *   4. The script is already loaded, loadScript bails out
+   *   [If strict mode is enabled / is wrapped in <OffScreen /> component]
+   *   5. The useEffect for onReady executes again
+   *   6. hasOnReadyEffectCalled.current is true, so entire effect is skipped
+   *   7. The useEffect for loadScript executes again
+   *   8. The script is already loaded, loadScript will bail out
+   */
+  const hasOnReadyEffectCalled = useRef(false)
+
   useEffect(() => {
     const cacheKey = id || src
+    if (!hasOnReadyEffectCalled.current) {
+      // Run onReady if script has loaded before but component is re-mounted
+      if (onReady && cacheKey && LoadCache.has(cacheKey)) {
+        onReady()
+      }
 
-    // Run onReady if script has loaded before but component is re-mounted
-    if (onReady && cacheKey && LoadCache.has(cacheKey)) {
-      onReady()
+      hasOnReadyEffectCalled.current = true
     }
   }, [onReady, id, src])
 

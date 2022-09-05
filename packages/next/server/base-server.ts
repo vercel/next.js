@@ -241,9 +241,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getFilesystemPaths(): Set<string>
   protected abstract findPageComponents(params: {
     pathname: string
-    query?: NextParsedUrlQuery
-    params?: Params
-    isAppDir?: boolean
+    query: NextParsedUrlQuery
+    params: Params
+    isAppPath: boolean
     appPaths?: string[] | null
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
@@ -1527,6 +1527,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     bubbleNoFallback: boolean
   ) {
     const { query, pathname } = ctx
+
     const appPaths = this.getOriginalAppPaths(pathname)
 
     let page = pathname
@@ -1538,10 +1539,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const result = await this.findPageComponents({
       pathname: page,
       query,
-      params: ctx.renderOpts.params,
-      isAppDir: Array.isArray(appPaths),
+      params: ctx.renderOpts.params || {},
+      isAppPath: Array.isArray(appPaths),
       appPaths,
     })
+
     if (result) {
       try {
         return await this.renderToResponseWithComponents(ctx, result)
@@ -1744,7 +1746,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // use static 404 page if available and is 404 response
       if (is404 && (await this.hasPage('/404'))) {
-        result = await this.findPageComponents({ pathname: '/404', query })
+        result = await this.findPageComponents({
+          pathname: '/404',
+          query,
+          params: {},
+          isAppPath: false,
+        })
         using404Page = result !== null
       }
       let statusPage = `/${res.statusCode}`
@@ -1760,12 +1767,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           result = await this.findPageComponents({
             pathname: statusPage,
             query,
+            params: {},
+            isAppPath: false,
           })
         }
       }
 
       if (!result) {
-        result = await this.findPageComponents({ pathname: '/_error', query })
+        result = await this.findPageComponents({
+          pathname: '/_error',
+          query,
+          params: {},
+          isAppPath: false,
+        })
         statusPage = '/_error'
       }
 
