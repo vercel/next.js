@@ -38,6 +38,7 @@ export default async function edgeSSRLoader(this: any) {
     appDirLoaderBase64 || '',
     'base64'
   ).toString()
+  console.log(this.getOptions())
   const isAppDir = pagesType === 'app'
 
   const buildInfo = getModuleBuildInfo(this._module)
@@ -52,9 +53,18 @@ export default async function edgeSSRLoader(this: any) {
   }
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
-  const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)
-  const stringifiedErrorPath = stringifyRequest(this, absoluteErrorPath)
-  const stringifiedDocumentPath = stringifyRequest(this, absoluteDocumentPath)
+  const stringifiedAppPath = stringifyRequest(this, absoluteAppPath).replace(
+    'dist',
+    'dist/esm'
+  )
+  const stringifiedErrorPath = stringifyRequest(
+    this,
+    absoluteErrorPath
+  ).replace('dist', 'dist/esm')
+  const stringifiedDocumentPath = stringifyRequest(
+    this,
+    absoluteDocumentPath
+  ).replace('dist', 'dist/esm')
   const stringified500Path = absolute500Path
     ? stringifyRequest(this, absolute500Path)
     : null
