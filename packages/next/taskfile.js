@@ -2114,7 +2114,8 @@ export async function shared(task, opts) {
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
+      opts.src ||
+        'shared/**/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
