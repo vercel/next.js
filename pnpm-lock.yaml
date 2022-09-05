@@ -560,7 +560,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.0.5
+      styled-jsx: 5.0.6
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -584,7 +584,7 @@ importers:
       '@swc/helpers': 0.4.11
       caniuse-lite: 1.0.30001332
       postcss: 8.4.14
-      styled-jsx: 5.0.5_@babel+core@7.18.0
+      styled-jsx: 5.0.6_@babel+core@7.18.0
       use-sync-external-store: 1.2.0
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
@@ -26881,10 +26881,10 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.0.5_@babel+core@7.18.0:
+  /styled-jsx/5.0.6_@babel+core@7.18.0:
     resolution:
       {
-        integrity: sha512-tCd8t8expdtl9UJbG3aKjGYheAbOPQenf7qPts75kovpz4ebGGZ4b8r0JNhy1NaddFBrNi5rRQVZWtMXIs7LgA==,
+        integrity: sha512-xOeROtkK5MGMDimBQ3J6iPId8q0t/BDoG5XN6oKkZClVz9ISF/hihN8OCn2LggMU6N32aXnrXBdn3auSqNS9fA==,
       }
     engines: { node: '>= 12.0.0' }
     peerDependencies:
