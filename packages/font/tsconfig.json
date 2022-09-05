@@ -5,7 +5,7 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "target": "es2019",
-    "outDir": ".",
+    "outDir": "dist",
     "rootDir": "src"
   },
   "include": ["src/**/*.ts"],
