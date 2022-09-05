@@ -100,9 +100,9 @@ describe('@next/font/google loader', () => {
           emitFontFile: jest.fn(),
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-          "Failed to fetch font  \`Inter\`.
-          URL: https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional"
-        `)
+                        "Failed to fetch font  \`Inter\`.
+                        URL: https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional"
+                    `)
     })
 
     test('Missing config with subsets', async () => {
@@ -153,36 +153,37 @@ describe('@next/font/google loader', () => {
           emitFontFile: jest.fn(),
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-        "Unknown variant \`123\` for font \`Inter\`.
-        Available variants: \`100\`, \`200\`, \`300\`, \`400\`, \`500\`, \`600\`, \`700\`, \`800\`, \`900\`, \`variable\`"
-      `)
+                      "Unknown variant \`123\` for font \`Inter\`.
+                      Available variants: \`100\`, \`200\`, \`300\`, \`400\`, \`500\`, \`600\`, \`700\`, \`800\`, \`900\`, \`variable\`"
+                  `)
     })
 
-    test('Missing default variant', async () => {
+    test('Missing variant for non variable font', async () => {
       await expect(
         loader({
-          functionName: 'Inter',
+          functionName: 'Abel',
           data: [],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
         })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"Cannot read properties of undefined (reading 'ok')"`
-      )
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Missing variant for font \`Abel\`.
+              Available variants: \`400\`"
+            `)
     })
 
     test('Invalid display value', async () => {
       await expect(
         loader({
           functionName: 'Inter',
-          data: [{ display: 'unvalid' }],
+          data: [{ display: 'invalid' }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-        "Invalid display value \`unvalid\` for font \`Inter\`.
-        Available display values: \`auto\`, \`block\`, \`swap\`, \`fallback\`, \`optional\`"
-      `)
+                      "Invalid display value \`invalid\` for font \`Inter\`.
+                      Available display values: \`auto\`, \`block\`, \`swap\`, \`fallback\`, \`optional\`"
+                  `)
     })
 
     test('Setting axes on non variable font', async () => {
