@@ -53,7 +53,7 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages(repoDir = '') {
+    async linkPackages(repoDir = '', nextSwcPkg) {
       const pkgPaths = new Map()
       const pkgDatas = new Map()
       let pkgs
@@ -109,11 +109,15 @@ module.exports = (actionInfo) => {
           )
         }
         if (pkg === 'next') {
-          if (pkgDatas.get('@next/swc')) {
-            pkgData.dependencies['@next/swc'] =
-              pkgDatas.get('@next/swc').packedPkgPath
+          if (nextSwcPkg) {
+            Object.assign(pkgData.dependencies, nextSwcPkg)
           } else {
-            pkgData.files.push('native')
+            if (pkgDatas.get('@next/swc')) {
+              pkgData.dependencies['@next/swc'] =
+                pkgDatas.get('@next/swc').packedPkgPath
+            } else {
+              pkgData.files.push('native')
+            }
           }
         }
         await fs.writeFile(
