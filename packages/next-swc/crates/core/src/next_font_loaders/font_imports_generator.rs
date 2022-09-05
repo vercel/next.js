@@ -128,11 +128,8 @@ impl<'a> Visit for FontImportsGenerator<'a> {
     noop_visit_type!();
 
     fn visit_module_item(&mut self, item: &ModuleItem) {
-        match item {
-            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
-                self.check_var_decl(var_decl);
-            }
-            _ => {}
+        if let ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) = item {
+            self.check_var_decl(var_decl);
         }
     }
 }
@@ -155,11 +152,8 @@ fn object_lit_to_json(object_lit: &ObjectLit) -> Value {
                         }
                     };
                     let val = expr_to_json(&*key_val.value);
-                    match (key, val) {
-                        (Ok(key), Ok(val)) => {
-                            values.insert(key, val);
-                        }
-                        _ => {}
+                    if let (Ok(key), Ok(val)) = (key, val) {
+                        values.insert(key, val);
                     }
                 }
                 key => HANDLER.with(|handler| {
