@@ -32,6 +32,8 @@ pnpm create next-app --example cms-contentful cms-contentful-app
 
 ### Link Your Xata Workspace and Run Codegen
 
+> 💡 consider [installing the Xata CLI globally](https://xata.io/docs/cli/getting-started), it will likely improve your experience managing your databases
+
 ```sh
 npm run start:xata
 ```
