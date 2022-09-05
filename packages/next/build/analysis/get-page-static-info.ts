@@ -182,7 +182,9 @@ function getMiddlewareConfig(
         matcher(glob)
       } catch (err) {
         throw new Error(
-          `A middleware/edge exported 'config.allowDynamic' is not a valid pattern: ${err.message}`
+          `A middleware/edge exported 'config.allowDynamic' is not a valid pattern: ${
+            (err as Error).message
+          }`
         )
       }
     }
