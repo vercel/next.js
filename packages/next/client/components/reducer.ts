@@ -4,6 +4,7 @@ import type {
   FlightData,
   FlightDataPath,
   FlightSegmentPath,
+  Segment,
 } from '../../server/app-render'
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
@@ -404,19 +405,20 @@ function applyRouterStatePatchToTree<T>(
   return tree
 }
 
-/**
- * Apply the router state from the Flight response. Creates a new router state tree.
- */
 function shouldHardNavigate(
-  flightSegmentPath: FlightData[0],
+  flightSegmentPath: FlightDataPath,
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
 ): boolean {
   const [segment, parallelRoutes] = flightRouterState
-  const [currentSegment, parallelRouteKey] = flightSegmentPath
+  // TODO-APP: Check if `as` can be replaced.
+  const [currentSegment, parallelRouteKey] = flightSegmentPath as [
+    Segment,
+    string
+  ]
 
-  // Tree path returned from the server should always match up with the current tree in the browser
-  if (!matchSegment(currentSegment, segment)) {
+  // If dynamic parameter in tree doesn't match up with segment path a hard navigation is triggered.
+  if (Array.isArray(currentSegment) && !matchSegment(currentSegment, segment)) {
     return true
   }
 
