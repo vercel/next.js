@@ -1,1 +1,1 @@
-export * from '../dist/google/loader'
+export { default } from '../dist/google/loader'
