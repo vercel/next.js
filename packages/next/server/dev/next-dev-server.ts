@@ -891,6 +891,7 @@ export default class DevServer extends Server {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    appPaths: string[] | null
   }) {
     try {
       return super.runEdgeFunction({

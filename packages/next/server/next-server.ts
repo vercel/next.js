@@ -750,6 +750,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           page,
+          appPaths: null,
         })
 
         if (handledAsEdgeFunction) {
@@ -897,6 +898,7 @@ export default class NextNodeServer extends BaseServer {
             query: ctx.query,
             params: ctx.renderOpts.params,
             page,
+            appPaths,
           })
           return null
         }
@@ -2009,18 +2011,15 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    appPaths: string[] | null
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
-    let appPaths = this.getOriginalAppPaths(params.page)
 
-    if (Array.isArray(appPaths)) {
-      // When it's an array, we need to pass all parallel routes to the loader.
-      params.page = appPaths[0]
-      // params.appPaths = appPaths
-    }
-
-    await this.ensureEdgeFunction({ page: params.page, appPaths })
+    await this.ensureEdgeFunction({
+      page: params.page,
+      appPaths: params.appPaths,
+    })
     middlewareInfo = this.getEdgeFunctionInfo({
       page: params.page,
       middleware: false,
