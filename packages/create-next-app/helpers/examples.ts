@@ -3,7 +3,6 @@ import got from 'got'
 import tar from 'tar'
 import { Stream } from 'stream'
 import { promisify } from 'util'
-
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { createWriteStream } from 'fs'
