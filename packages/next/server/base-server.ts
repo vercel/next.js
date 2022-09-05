@@ -241,9 +241,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getFilesystemPaths(): Set<string>
   protected abstract findPageComponents(
     pathname: string,
-    query?: NextParsedUrlQuery,
-    params?: Params,
-    isAppDir?: boolean
+    query: NextParsedUrlQuery,
+    params: Params,
+    isAppPath: boolean
   ): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -1522,9 +1522,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     bubbleNoFallback: boolean
   ) {
     const { query, pathname } = ctx
-    const appPath = this.getOriginalAppPath(pathname)
 
     let page = pathname
+    const appPath = this.getOriginalAppPath(pathname)
     if (typeof appPath === 'string') {
       page = appPath
     }
@@ -1532,7 +1532,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const result = await this.findPageComponents(
       page,
       query,
-      ctx.renderOpts.params,
+      ctx.renderOpts.params || {},
       typeof appPath === 'string'
     )
     if (result) {
@@ -1737,7 +1737,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // use static 404 page if available and is 404 response
       if (is404 && (await this.hasPage('/404'))) {
-        result = await this.findPageComponents('/404', query)
+        result = await this.findPageComponents('/404', query, {}, false)
         using404Page = result !== null
       }
       let statusPage = `/${res.statusCode}`
@@ -1750,12 +1750,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
         if (statusPage !== '/500' || !this.renderOpts.dev) {
-          result = await this.findPageComponents(statusPage, query)
+          result = await this.findPageComponents(statusPage, query, {}, false)
         }
       }
 
       if (!result) {
-        result = await this.findPageComponents('/_error', query)
+        result = await this.findPageComponents('/_error', query, {}, false)
         statusPage = '/_error'
       }
 
