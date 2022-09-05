@@ -32,14 +32,16 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 /// Explicit extern crate to use allocator.
-extern crate swc_node_base;
+extern crate swc_core;
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use std::{env, panic::set_hook, sync::Arc};
-use swc::{Compiler, TransformOutput};
-use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
+use swc_core::{
+    base::{Compiler, TransformOutput},
+    common::{sync::Lazy, FilePathMapping, SourceMap},
+};
 
 mod bundle;
 mod minify;

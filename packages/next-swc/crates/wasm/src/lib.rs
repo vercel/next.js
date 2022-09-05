@@ -3,11 +3,14 @@ use js_sys::JsString;
 use next_swc::{custom_before_pass, TransformOptions};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
-use swc::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler};
-use swc_common::{comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap};
-use swc_ecmascript::transforms::pass::noop;
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::future_to_promise;
+
+use swc_core::{
+    base::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler},
+    common::{comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap},
+    ecma::transforms::base::pass::noop,
+};
 
 fn convert_err(err: Error) -> JsValue {
     format!("{:?}", err).into()
@@ -21,7 +24,7 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
 
     try_with_handler(
         c.cm.clone(),
-        swc::HandlerOpts {
+        swc_core::base::HandlerOpts {
             color: ColorConfig::Never,
             skip_filename: false,
         },
@@ -54,7 +57,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
 
     try_with_handler(
         c.cm.clone(),
-        swc::HandlerOpts {
+        swc_core::base::HandlerOpts {
             color: ColorConfig::Never,
             skip_filename: false,
         },
@@ -112,11 +115,11 @@ pub fn transform(s: JsValue, opts: JsValue) -> js_sys::Promise {
 pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
-    let c = swc::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
+    let c = swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
 
     try_with_handler(
         c.cm.clone(),
-        swc::HandlerOpts {
+        swc_core::base::HandlerOpts {
             ..Default::default()
         },
         |handler| {

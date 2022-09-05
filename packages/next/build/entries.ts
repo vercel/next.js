@@ -69,12 +69,14 @@ export function createPagesMapping({
   pageExtensions,
   pagePaths,
   pagesType,
+  pagesDir,
 }: {
   hasServerComponents: boolean
   isDev: boolean
   pageExtensions: string[]
   pagePaths: string[]
   pagesType: 'pages' | 'root' | 'app'
+  pagesDir: string | undefined
 }): { [page: string]: string } {
   const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
@@ -133,7 +135,7 @@ export function createPagesMapping({
   // In development we always alias these to allow Webpack to fallback to
   // the correct source file so that HMR can work properly when a file is
   // added or removed.
-  const root = isDev ? PAGES_DIR_ALIAS : 'next/dist/pages'
+  const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
   return {
     '/_app': `${root}/_app`,
@@ -149,7 +151,7 @@ interface CreateEntrypointsParams {
   envFiles: LoadedEnvFiles
   isDev?: boolean
   pages: { [page: string]: string }
-  pagesDir: string
+  pagesDir?: string
   previewMode: __ApiPreviewProps
   rootDir: string
   rootPaths?: Record<string, string>
@@ -366,7 +368,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       // Handle paths that have aliases
       const pageFilePath = (() => {
-        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
+        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS) && pagesDir) {
           return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
         }
 
@@ -444,12 +446,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               })
             }
           } else {
-            server[serverBundlePath] = isServerComponent
-              ? {
-                  import: mappings[page],
-                  layer: WEBPACK_LAYERS.server,
-                }
-              : [mappings[page]]
+            server[serverBundlePath] = [mappings[page]]
           }
         },
         onEdgeServer: () => {
@@ -490,7 +487,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
   if (nestedMiddleware.length > 0) {
-    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir)
+    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir!)
   }
 
   return {

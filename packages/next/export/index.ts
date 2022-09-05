@@ -133,6 +133,7 @@ interface ExportOptions {
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
+  appPaths?: string[]
 }
 
 export default async function exportApp(
@@ -582,7 +583,6 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
-            appDir: nextConfig.experimental.appDir,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
@@ -594,6 +594,7 @@ export default async function exportApp(
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
             serverComponents: nextConfig.experimental.serverComponents,
+            appPaths: options.appPaths || [],
           })
 
           for (const validation of result.ampValidations || []) {
