@@ -4,6 +4,10 @@ import tar from 'tar'
 import { Stream } from 'stream'
 import { promisify } from 'util'
 
+import { join } from 'path'
+import { tmpdir } from 'os'
+import { createWriteStream } from 'fs'
+
 const pipeline = promisify(Stream.pipeline)
 
 export type RepoInfo = {
@@ -79,42 +83,44 @@ export function existsInRepo(nameOrUrl: string): Promise<boolean> {
   }
 }
 
-// HACK: See: https://github.com/vercel/next.js/issues/39321
-function swallowPrematureStreamClose(e: Error & { code?: string }) {
-  if (
-    process.version.startsWith('v18') &&
-    e.code === 'ERR_STREAM_PREMATURE_CLOSE'
-  ) {
-    return
-  }
-  throw e
+async function downloadTar(url: string) {
+  const tempFile = join(tmpdir(), `next.js-cra-example.temp-${Date.now()}`)
+  await pipeline(got.stream(url), createWriteStream(tempFile))
+  return tempFile
 }
 
-export function downloadAndExtractRepo(
+export async function downloadAndExtractRepo(
   root: string,
   { username, name, branch, filePath }: RepoInfo
-): Promise<void> {
-  return pipeline(
-    got.stream(
-      `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
-    ),
-    tar.extract(
-      { cwd: root, strip: filePath ? filePath.split('/').length + 1 : 1 },
-      [`${name}-${branch.replace(/\//g, '-')}${filePath ? `/${filePath}` : ''}`]
-    )
-  ).catch(swallowPrematureStreamClose)
+) {
+  const tempFile = await downloadTar(
+    `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
+  )
+
+  await tar.x({
+    file: tempFile,
+    cwd: root,
+    strip: filePath ? filePath.split('/').length + 1 : 1,
+    filter: (p) =>
+      p.startsWith(
+        `${name}-${branch.replace(/\//g, '-')}${filePath ? `/${filePath}` : ''}`
+      ),
+  })
 }
 
-export function downloadAndExtractExample(
-  root: string,
-  name: string
-): Promise<void> {
+export async function downloadAndExtractExample(root: string, name: string) {
   if (name === '__internal-testing-retry') {
     throw new Error('This is an internal example for testing the CLI.')
   }
 
-  return pipeline(
-    got.stream('https://codeload.github.com/vercel/next.js/tar.gz/canary'),
-    tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
-  ).catch(swallowPrematureStreamClose)
+  const tempFile = await downloadTar(
+    'https://codeload.github.com/vercel/next.js/tar.gz/canary'
+  )
+
+  await tar.x({
+    file: tempFile,
+    cwd: root,
+    strip: 3,
+    filter: (p) => p.includes(`next.js-canary/examples/${name}`),
+  })
 }
