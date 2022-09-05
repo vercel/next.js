@@ -1,11 +1,11 @@
 import Image from 'next/image'
 import ViewSource from '../components/view-source'
-import { bgWrap, bgText } from '../styles.module.css'
+import styles from '../styles.module.css'
 
-const Background = () => (
+const BackgroundPage = () => (
   <div>
-    <ViewSource pathname="pages/background.js" />
-    <div className={bgWrap}>
+    <ViewSource pathname="pages/background.tsx" />
+    <div className={styles.bgWrap}>
       <Image
         alt="Mountains"
         src="/mountains.jpg"
@@ -14,7 +14,7 @@ const Background = () => (
         quality={100}
       />
     </div>
-    <p className={bgText}>
+    <p className={styles.bgText}>
       Image Component
       <br />
       as a Background
@@ -22,4 +22,4 @@ const Background = () => (
   </div>
 )
 
-export default Background
+export default BackgroundPage
