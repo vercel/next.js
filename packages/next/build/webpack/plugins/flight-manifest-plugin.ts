@@ -9,7 +9,6 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -18,31 +17,66 @@ import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 // you might want them.
 // const clientFileName = require.resolve('../');
 
-type Options = {
+interface Options {
   dev: boolean
   appDir: boolean
   pageExtensions: string[]
 }
 
+/**
+ * Webpack module id
+ */
+// TODO-APP ensure `null` is included as it is used.
+type ModuleId = string | number /*| null*/
+
+export type ManifestChunks = Array<`${string}:${string}` | string>
+
+interface ManifestNode {
+  [moduleExport: string]: {
+    /**
+     * Webpack module id
+     */
+    id: ModuleId
+    /**
+     * Export name
+     */
+    name: string
+    /**
+     * Chunks for the module. JS and CSS.
+     */
+    chunks: ManifestChunks
+  }
+}
+
+export type FlightManifest = {
+  __ssr_module_mapping__: {
+    [moduleId: string]: ManifestNode
+  }
+} & {
+  [modulePath: string]: ManifestNode
+}
+
+export type FlightCSSManifest = {
+  [modulePath: string]: string[]
+}
+
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
-  dev: boolean = false
-  pageExtensions: string[]
-  appDir: boolean = false
+  dev: Options['dev'] = false
+  pageExtensions: Options['pageExtensions']
+  appDir: Options['appDir'] = false
 
   constructor(options: Options) {
-    if (typeof options.dev === 'boolean') {
-      this.dev = options.dev
-    }
+    this.dev = options.dev
     this.appDir = options.appDir
     this.pageExtensions = options.pageExtensions
   }
 
-  apply(compiler: any) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
-      (compilation: any, { normalModuleFactory }: any) => {
+      (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
           (webpack as any).dependencies.ModuleDependency,
           normalModuleFactory
@@ -54,30 +88,38 @@ export class FlightManifestPlugin {
       }
     )
 
-    compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
+    compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
           // Have to be in the optimize stage to run after updating the CSS
           // asset hash via extract mini css plugin.
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets: any) => this.createAsset(assets, compilation, compiler.context)
+        (assets) => this.createAsset(assets, compilation, compiler.context)
       )
     })
   }
 
-  createAsset(assets: any, compilation: webpack5.Compilation, context: string) {
-    const manifest: any = {}
+  createAsset(
+    assets: webpack.Compilation['assets'],
+    compilation: webpack.Compilation,
+    context: string
+  ) {
+    const manifest: FlightManifest = {
+      __ssr_module_mapping__: {},
+    }
     const appDir = this.appDir
     const dev = this.dev
 
-    compilation.chunkGroups.forEach((chunkGroup: any) => {
+    compilation.chunkGroups.forEach((chunkGroup) => {
+      const cssResourcesInChunkGroup = new Set<string>()
+      let entryFilepath: string = ''
+
       function recordModule(
-        chunk: webpack5.Chunk,
-        id: string | number,
-        mod: any
+        chunk: webpack.Chunk,
+        id: ModuleId,
+        mod: webpack.NormalModule
       ) {
         // if appDir is enabled we shouldn't process chunks from
         // the pages dir
@@ -89,23 +131,23 @@ export class FlightManifestPlugin {
           mod.type === 'css/mini-extract' ||
           (mod.loaders &&
             (dev
-              ? mod.loaders.some((item: any) =>
+              ? mod.loaders.some((item) =>
                   item.loader.includes('next-style-loader/index.js')
                 )
-              : mod.loaders.some((item: any) =>
+              : mod.loaders.some((item) =>
                   item.loader.includes('mini-css-extract-plugin/loader.js')
                 )))
 
         const resource =
           mod.type === 'css/mini-extract'
-            ? mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            ? // @ts-expect-error TODO: use `identifier()` instead.
+              mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
             : mod.resource
 
         if (!resource) return
 
-        const moduleExports: any = manifest[resource] || {}
-        const moduleIdMapping: any = manifest.__ssr_module_mapping__ || {}
-        moduleIdMapping[id] = moduleIdMapping[id] || {}
+        const moduleExports = manifest[resource] || {}
+        const moduleIdMapping = manifest.__ssr_module_mapping__
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
@@ -115,49 +157,25 @@ export class FlightManifestPlugin {
           mod.resourceResolveData?.path || resource
         )
         if (!ssrNamedModuleId.startsWith('.'))
-          ssrNamedModuleId = `./${ssrNamedModuleId}`
+          // TODO use getModuleId instead
+          ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
           if (!manifest[resource]) {
-            if (dev) {
-              const chunkIdNameMapping = (chunk.ids || []).map((chunkId) => {
-                return (
-                  chunkId +
-                  ':' +
-                  (chunk.name || chunk.id) +
-                  (dev ? '' : '-' + chunk.hash)
-                )
-              })
-              manifest[resource] = {
-                default: {
-                  id,
-                  name: 'default',
-                  chunks: chunkIdNameMapping,
-                },
-              }
-              moduleIdMapping[id]['default'] = {
-                id: ssrNamedModuleId,
-                name: 'default',
-                chunks: chunkIdNameMapping,
-              }
-              manifest.__ssr_module_mapping__ = moduleIdMapping
-            } else {
-              const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
-              manifest[resource] = {
-                default: {
-                  id,
-                  name: 'default',
-                  chunks,
-                },
-              }
-              moduleIdMapping[id]['default'] = {
-                id: ssrNamedModuleId,
+            const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
+            manifest[resource] = {
+              default: {
+                id,
                 name: 'default',
                 chunks,
-              }
-              manifest.__ssr_module_mapping__ = moduleIdMapping
+              },
             }
           }
+
+          if (chunkGroup.name) {
+            cssResourcesInChunkGroup.add(resource)
+          }
+
           return
         }
 
@@ -168,29 +186,31 @@ export class FlightManifestPlugin {
           return
         }
 
+        if (/\/(page|layout)\.client\.(ts|js)x?$/.test(resource)) {
+          entryFilepath = resource
+        }
+
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const cjsExports = [
-          ...new Set(
-            [].concat(
-              mod.dependencies.map((dep: any) => {
-                // Match CommonJsSelfReferenceDependency
-                if (dep.type === 'cjs self exports reference') {
-                  // `module.exports = ...`
-                  if (dep.base === 'module.exports') {
-                    return 'default'
-                  }
-
-                  // `exports.foo = ...`, `exports.default = ...`
-                  if (dep.base === 'exports') {
-                    return dep.names.filter(
-                      (name: any) => name !== '__esModule'
-                    )
-                  }
+          ...new Set([
+            ...mod.dependencies.map((dep) => {
+              // Match CommonJsSelfReferenceDependency
+              if (dep.type === 'cjs self exports reference') {
+                // @ts-expect-error: TODO: Fix Dependency type
+                if (dep.base === 'module.exports') {
+                  return 'default'
                 }
-                return null
-              })
-            )
-          ),
+
+                // `exports.foo = ...`, `exports.default = ...`
+                // @ts-expect-error: TODO: Fix Dependency type
+                if (dep.base === 'exports') {
+                  // @ts-expect-error: TODO: Fix Dependency type
+                  return dep.names.filter((name: any) => name !== '__esModule')
+                }
+              }
+              return null
+            }),
+          ]),
         ]
 
         const moduleExportedKeys = ['', '*']
@@ -202,49 +222,22 @@ export class FlightManifestPlugin {
           )
           .filter((name) => name !== null)
 
-        // Get all CSS files imported from the module's dependencies.
-        const visitedModule = new Set()
-        const cssChunks: Set<string> = new Set()
-
-        function collectClientImportedCss(module: any) {
-          if (!module) return
-
-          const modRequest = module.userRequest
-          if (visitedModule.has(modRequest)) return
-          visitedModule.add(modRequest)
-
-          if (/\.css$/.test(modRequest)) {
-            // collect relative imported css chunks
-            compilation.chunkGraph.getModuleChunks(module).forEach((c) => {
-              ;[...c.files]
-                .filter((file) => file.endsWith('.css'))
-                .forEach((file) => cssChunks.add(file))
-            })
-          }
-
-          const connections = Array.from(
-            compilation.moduleGraph.getOutgoingConnections(module)
-          )
-          connections.forEach((connection) => {
-            collectClientImportedCss(
-              compilation.moduleGraph.getResolvedModule(connection.dependency!)
-            )
-          })
-        }
-        collectClientImportedCss(mod)
-
         moduleExportedKeys.forEach((name) => {
-          let requiredChunks = []
+          let requiredChunks: ManifestChunks = []
           if (!moduleExports[name]) {
-            const isRelatedChunk = (c: webpack5.Chunk) =>
+            const isRelatedChunk = (c: webpack.Chunk) => {
               // If current chunk is a page, it should require the related page chunk;
               // If current chunk is a component, it should filter out the related page chunk;
-              chunk.name?.startsWith('pages/') || !c.name?.startsWith('pages/')
+              return (
+                chunk.name?.startsWith('pages/') ||
+                !c.name?.startsWith('pages/')
+              )
+            }
 
             if (appDir) {
               requiredChunks = chunkGroup.chunks
                 .filter(isRelatedChunk)
-                .map((requiredChunk: webpack5.Chunk) => {
+                .map((requiredChunk: webpack.Chunk) => {
                   return (
                     requiredChunk.id +
                     ':' +
@@ -257,9 +250,11 @@ export class FlightManifestPlugin {
             moduleExports[name] = {
               id,
               name,
-              chunks: requiredChunks.concat([...cssChunks]),
+              chunks: requiredChunks,
             }
           }
+
+          moduleIdMapping[id] = moduleIdMapping[id] || {}
           if (!moduleIdMapping[id][name]) {
             moduleIdMapping[id][name] = {
               ...moduleExports[name],
@@ -272,15 +267,18 @@ export class FlightManifestPlugin {
         manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
-      chunkGroup.chunks.forEach((chunk: webpack5.Chunk) => {
-        const chunkModules =
-          compilation.chunkGraph.getChunkModulesIterable(chunk)
+      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+          chunk
+          // TODO: Update type so that it doesn't have to be cast.
+        ) as Iterable<webpack.NormalModule>
         for (const mod of chunkModules) {
           const modId = compilation.chunkGraph.getModuleId(mod)
 
           recordModule(chunk, modId, mod)
 
           // If this is a concatenation, register each child to the parent ID.
+          // TODO: remove any
           const anyModule = mod as any
           if (anyModule.modules) {
             anyModule.modules.forEach((concatenatedMod: any) => {
@@ -289,12 +287,26 @@ export class FlightManifestPlugin {
           }
         }
       })
+
+      const clientCSSManifest: any = manifest.__client_css_manifest__ || {}
+      if (entryFilepath) {
+        clientCSSManifest[entryFilepath] = Array.from(cssResourcesInChunkGroup)
+      }
+      manifest.__client_css_manifest__ = clientCSSManifest
     })
 
     const file = 'server/' + FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
 
-    assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
-    assets[file + '.json'] = new sources.RawSource(json)
+    assets[file + '.js'] = new sources.RawSource(
+      'self.__RSC_MANIFEST=' + json
+      // Work around webpack 4 type of RawSource being used
+      // TODO: use webpack 5 type by default
+    ) as unknown as webpack.sources.RawSource
+    assets[file + '.json'] = new sources.RawSource(
+      json
+      // Work around webpack 4 type of RawSource being used
+      // TODO: use webpack 5 type by default
+    ) as unknown as webpack.sources.RawSource
   }
 }

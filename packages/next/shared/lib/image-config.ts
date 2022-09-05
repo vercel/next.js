@@ -60,7 +60,7 @@ export type ImageConfigComplete = {
    */
   domains: string[]
 
-  /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
+  /** @see [Disable static image import configuration](https://nextjs.org/docs/api-reference/next/image#disable-static-imports) */
   disableStaticImages: boolean
 
   /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
@@ -74,6 +74,12 @@ export type ImageConfigComplete = {
 
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   contentSecurityPolicy: string
+
+  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remote-patterns) */
+  remotePatterns: RemotePattern[]
+
+  /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
+  unoptimized: boolean
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
@@ -89,4 +95,6 @@ export const imageConfigDefault: ImageConfigComplete = {
   formats: ['image/webp'],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
+  remotePatterns: [],
+  unoptimized: false,
 }

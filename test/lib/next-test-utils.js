@@ -93,6 +93,7 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
     const parsedUrl = new URL(fullUrl)
     const parsedPathQuery = new URL(url, fullUrl)
 
+    parsedUrl.hash = parsedPathQuery.hash
     parsedUrl.search = parsedPathQuery.search
     parsedUrl.pathname = parsedPathQuery.pathname
 
@@ -113,6 +114,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
 
+/** @return {Promise<Response & {buffer: any} & {headers: any}>} */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''

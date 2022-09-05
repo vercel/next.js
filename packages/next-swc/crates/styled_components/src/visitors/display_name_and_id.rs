@@ -5,12 +5,12 @@ use crate::{
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::{cell::RefCell, convert::TryInto, path::Path, rc::Rc};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{util::take::Take, FileName, DUMMY_SP};
-use swc_ecmascript::{
-    ast::*,
-    utils::{quote_ident, ExprFactory},
-    visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+use swc_core::{
+    common::{util::take::Take, FileName, DUMMY_SP},
+    ecma::ast::*,
+    ecma::atoms::{js_word, JsWord},
+    ecma::utils::{quote_ident, ExprFactory},
+    ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 use tracing::{debug, span, trace, Level};
 

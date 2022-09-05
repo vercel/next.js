@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig } from 'next/types'
 import {
+  checkIsManualRevalidate,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   __ApiPreviewProps,
 } from '.'
@@ -41,6 +42,12 @@ export function tryGetPreviewData(
   res: ServerResponse | BaseNextResponse,
   options: __ApiPreviewProps
 ): PreviewData {
+  // if an On-Demand revalidation is being done preview mode
+  // is disabled
+  if (options && checkIsManualRevalidate(req, options).isManualRevalidate) {
+    return false
+  }
+
   // Read cached preview data if present
   if (SYMBOL_PREVIEW_DATA in req) {
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
@@ -111,6 +118,23 @@ export function tryGetPreviewData(
 }
 
 /**
+ * Parse `JSON` and handles invalid `JSON` strings
+ * @param str `JSON` string
+ */
+function parseJson(str: string): object {
+  if (str.length === 0) {
+    // special-case empty json body, as it's a common client-side mistake
+    return {}
+  }
+
+  try {
+    return JSON.parse(str)
+  } catch (e) {
+    throw new ApiError(400, 'Invalid JSON')
+  }
+}
+
+/**
  * Parse incoming message like `json` or `urlencoded`
  * @param req request object
  */
@@ -156,6 +180,241 @@ export async function parseBody(
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+}
+
+function getMaxContentLength(responseLimit?: number | string | boolean) {
+  if (responseLimit && typeof responseLimit !== 'boolean') {
+    return bytes.parse(responseLimit)
+  }
+  return RESPONSE_LIMIT_DEFAULT
+}
+
+/**
+ * Send `any` body to response
+ * @param req request object
+ * @param res response object
+ * @param body of response
+ */
+function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
+  if (body === null || body === undefined) {
+    res.end()
+    return
+  }
+
+  // strip irrelevant headers/body
+  if (res.statusCode === 204 || res.statusCode === 304) {
+    res.removeHeader('Content-Type')
+    res.removeHeader('Content-Length')
+    res.removeHeader('Transfer-Encoding')
+
+    if (process.env.NODE_ENV === 'development' && body) {
+      console.warn(
+        `A body was attempted to be set with a 204 statusCode for ${req.url}, this is invalid and the body was ignored.\n` +
+          `See more info here https://nextjs.org/docs/messages/invalid-api-status-body`
+      )
+    }
+    res.end()
+    return
+  }
+
+  const contentType = res.getHeader('Content-Type')
+
+  if (body instanceof Stream) {
+    if (!contentType) {
+      res.setHeader('Content-Type', 'application/octet-stream')
+    }
+    body.pipe(res)
+    return
+  }
+
+  const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
+  const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
+  const etag = generateETag(stringifiedBody)
+  if (sendEtagResponse(req, res, etag)) {
+    return
+  }
+
+  if (Buffer.isBuffer(body)) {
+    if (!contentType) {
+      res.setHeader('Content-Type', 'application/octet-stream')
+    }
+    res.setHeader('Content-Length', body.length)
+    res.end(body)
+    return
+  }
+
+  if (isJSONLike) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  }
+
+  res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
+  res.end(stringifiedBody)
+}
+
+/**
+ * Send `JSON` object
+ * @param res response object
+ * @param jsonBody of data
+ */
+function sendJson(res: NextApiResponse, jsonBody: any): void {
+  // Set header to application/json
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+
+  // Use send to handle request
+  res.send(JSON.stringify(jsonBody))
+}
+
+function isNotValidData(str: string): boolean {
+  return typeof str !== 'string' || str.length < 16
+}
+
+function setPreviewData<T>(
+  res: NextApiResponse<T>,
+  data: object | string, // TODO: strict runtime type checking
+  options: {
+    maxAge?: number
+    path?: string
+  } & __ApiPreviewProps
+): NextApiResponse<T> {
+  if (isNotValidData(options.previewModeId)) {
+    throw new Error('invariant: invalid previewModeId')
+  }
+  if (isNotValidData(options.previewModeEncryptionKey)) {
+    throw new Error('invariant: invalid previewModeEncryptionKey')
+  }
+  if (isNotValidData(options.previewModeSigningKey)) {
+    throw new Error('invariant: invalid previewModeSigningKey')
+  }
+
+  const payload = jsonwebtoken.sign(
+    {
+      data: encryptWithSecret(
+        Buffer.from(options.previewModeEncryptionKey),
+        JSON.stringify(data)
+      ),
+    },
+    options.previewModeSigningKey,
+    {
+      algorithm: 'HS256',
+      ...(options.maxAge !== undefined
+        ? { expiresIn: options.maxAge }
+        : undefined),
+    }
+  )
+
+  // limit preview mode cookie to 2KB since we shouldn't store too much
+  // data here and browsers drop cookies over 4KB
+  if (payload.length > 2048) {
+    throw new Error(
+      `Preview data is limited to 2KB currently, reduce how much data you are storing as preview data to continue`
+    )
+  }
+
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const previous = res.getHeader('Set-Cookie')
+  res.setHeader(`Set-Cookie`, [
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+      ? previous
+      : []),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+      ...(options.maxAge !== undefined
+        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
+    }),
+    serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+      ...(options.maxAge !== undefined
+        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
+    }),
+  ])
+  return res
+}
+
+async function revalidate(
+  urlPath: string,
+  opts: {
+    unstable_onlyGenerated?: boolean
+  },
+  req: IncomingMessage,
+  context: ApiContext
+) {
+  if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
+    throw new Error(
+      `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
+    )
+  }
+  const revalidateHeaders = {
+    [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+    ...(opts.unstable_onlyGenerated
+      ? {
+          [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
+        }
+      : {}),
+  }
+
+  try {
+    if (context.trustHostHeader) {
+      const res = await fetch(`https://${req.headers.host}${urlPath}`, {
+        method: 'HEAD',
+        headers: {
+          ...revalidateHeaders,
+          cookie: req.headers.cookie || '',
+        },
+      })
+      // we use the cache header to determine successful revalidate as
+      // a non-200 status code can be returned from a successful revalidate
+      // e.g. notFound: true returns 404 status code but is successful
+      const cacheHeader =
+        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
+
+      if (
+        cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
+        !(res.status === 404 && opts.unstable_onlyGenerated)
+      ) {
+        throw new Error(`Invalid response ${res.status}`)
+      }
+    } else if (context.revalidate) {
+      const {
+        req: mockReq,
+        res: mockRes,
+        streamPromise,
+      } = mockRequest(urlPath, revalidateHeaders, 'GET')
+      await context.revalidate(mockReq, mockRes)
+      await streamPromise
+
+      if (
+        mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+        !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)
+      ) {
+        throw new Error(`Invalid response ${mockRes.statusCode}`)
+      }
+    } else {
+      throw new Error(
+        `Invariant: required internal revalidate method not passed to api-utils`
+      )
+    }
+  } catch (err: unknown) {
+    throw new Error(
+      `Failed to revalidate ${urlPath}: ${isError(err) ? err.message : err}`
+    )
+  }
 }
 
 export async function apiResolver(
@@ -289,248 +548,4 @@ export async function apiResolver(
       sendError(apiRes, 500, 'Internal Server Error')
     }
   }
-}
-
-async function revalidate(
-  urlPath: string,
-  opts: {
-    unstable_onlyGenerated?: boolean
-  },
-  req: IncomingMessage,
-  context: ApiContext
-) {
-  if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
-    throw new Error(
-      `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
-    )
-  }
-  const revalidateHeaders = {
-    [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
-    ...(opts.unstable_onlyGenerated
-      ? {
-          [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
-        }
-      : {}),
-  }
-
-  try {
-    if (context.trustHostHeader) {
-      const res = await fetch(`https://${req.headers.host}${urlPath}`, {
-        headers: {
-          ...revalidateHeaders,
-          cookie: req.headers.cookie || '',
-        },
-      })
-      // we use the cache header to determine successful revalidate as
-      // a non-200 status code can be returned from a successful revalidate
-      // e.g. notFound: true returns 404 status code but is successful
-      const cacheHeader =
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-
-      if (
-        cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
-        !(res.status === 404 && opts.unstable_onlyGenerated)
-      ) {
-        throw new Error(`Invalid response ${res.status}`)
-      }
-    } else if (context.revalidate) {
-      const {
-        req: mockReq,
-        res: mockRes,
-        streamPromise,
-      } = mockRequest(urlPath, revalidateHeaders, 'GET')
-      await context.revalidate(mockReq, mockRes)
-      await streamPromise
-
-      if (
-        mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-        !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)
-      ) {
-        throw new Error(`Invalid response ${mockRes.statusCode}`)
-      }
-    } else {
-      throw new Error(
-        `Invariant: required internal revalidate method not passed to api-utils`
-      )
-    }
-  } catch (err: unknown) {
-    throw new Error(
-      `Failed to revalidate ${urlPath}: ${isError(err) ? err.message : err}`
-    )
-  }
-}
-
-/**
- * Parse `JSON` and handles invalid `JSON` strings
- * @param str `JSON` string
- */
-function parseJson(str: string): object {
-  if (str.length === 0) {
-    // special-case empty json body, as it's a common client-side mistake
-    return {}
-  }
-
-  try {
-    return JSON.parse(str)
-  } catch (e) {
-    throw new ApiError(400, 'Invalid JSON')
-  }
-}
-
-/**
- * Send `any` body to response
- * @param req request object
- * @param res response object
- * @param body of response
- */
-function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
-  if (body === null || body === undefined) {
-    res.end()
-    return
-  }
-
-  // strip irrelevant headers/body
-  if (res.statusCode === 204 || res.statusCode === 304) {
-    res.removeHeader('Content-Type')
-    res.removeHeader('Content-Length')
-    res.removeHeader('Transfer-Encoding')
-
-    if (process.env.NODE_ENV === 'development' && body) {
-      console.warn(
-        `A body was attempted to be set with a 204 statusCode for ${req.url}, this is invalid and the body was ignored.\n` +
-          `See more info here https://nextjs.org/docs/messages/invalid-api-status-body`
-      )
-    }
-    res.end()
-    return
-  }
-
-  const contentType = res.getHeader('Content-Type')
-
-  if (body instanceof Stream) {
-    if (!contentType) {
-      res.setHeader('Content-Type', 'application/octet-stream')
-    }
-    body.pipe(res)
-    return
-  }
-
-  const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
-  const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
-  const etag = generateETag(stringifiedBody)
-  if (sendEtagResponse(req, res, etag)) {
-    return
-  }
-
-  if (Buffer.isBuffer(body)) {
-    if (!contentType) {
-      res.setHeader('Content-Type', 'application/octet-stream')
-    }
-    res.setHeader('Content-Length', body.length)
-    res.end(body)
-    return
-  }
-
-  if (isJSONLike) {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  }
-
-  res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
-  res.end(stringifiedBody)
-}
-
-/**
- * Send `JSON` object
- * @param res response object
- * @param jsonBody of data
- */
-function sendJson(res: NextApiResponse, jsonBody: any): void {
-  // Set header to application/json
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-
-  // Use send to handle request
-  res.send(JSON.stringify(jsonBody))
-}
-
-function isNotValidData(str: string): boolean {
-  return typeof str !== 'string' || str.length < 16
-}
-
-function setPreviewData<T>(
-  res: NextApiResponse<T>,
-  data: object | string, // TODO: strict runtime type checking
-  options: {
-    maxAge?: number
-  } & __ApiPreviewProps
-): NextApiResponse<T> {
-  if (isNotValidData(options.previewModeId)) {
-    throw new Error('invariant: invalid previewModeId')
-  }
-  if (isNotValidData(options.previewModeEncryptionKey)) {
-    throw new Error('invariant: invalid previewModeEncryptionKey')
-  }
-  if (isNotValidData(options.previewModeSigningKey)) {
-    throw new Error('invariant: invalid previewModeSigningKey')
-  }
-
-  const payload = jsonwebtoken.sign(
-    {
-      data: encryptWithSecret(
-        Buffer.from(options.previewModeEncryptionKey),
-        JSON.stringify(data)
-      ),
-    },
-    options.previewModeSigningKey,
-    {
-      algorithm: 'HS256',
-      ...(options.maxAge !== undefined
-        ? { expiresIn: options.maxAge }
-        : undefined),
-    }
-  )
-
-  // limit preview mode cookie to 2KB since we shouldn't store too much
-  // data here and browsers drop cookies over 4KB
-  if (payload.length > 2048) {
-    throw new Error(
-      `Preview data is limited to 2KB currently, reduce how much data you are storing as preview data to continue`
-    )
-  }
-
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
-  const previous = res.getHeader('Set-Cookie')
-  res.setHeader(`Set-Cookie`, [
-    ...(typeof previous === 'string'
-      ? [previous]
-      : Array.isArray(previous)
-      ? previous
-      : []),
-    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
-      path: '/',
-      ...(options.maxAge !== undefined
-        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
-        : undefined),
-    }),
-    serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
-      path: '/',
-      ...(options.maxAge !== undefined
-        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
-        : undefined),
-    }),
-  ])
-  return res
-}
-
-function getMaxContentLength(responseLimit?: number | string | boolean) {
-  if (responseLimit && typeof responseLimit !== 'boolean') {
-    return bytes.parse(responseLimit)
-  }
-  return RESPONSE_LIMIT_DEFAULT
 }

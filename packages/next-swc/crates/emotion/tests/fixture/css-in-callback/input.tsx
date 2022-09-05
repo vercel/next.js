@@ -28,6 +28,12 @@ const DivContainer2 = styled.div`
   background: red;
 `
 
+const ContainerWithOptions = styled('div', {
+  shouldForwardProp: (propertyName: string) => !propertyName.startsWith('$'),
+})`
+  color: hotpink;
+`
+
 const SpanContainer = styled('span')({
   background: 'yellow',
 })

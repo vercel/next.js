@@ -16,12 +16,14 @@ const configSchema = {
       },
       type: 'object',
     },
+    analyticsId: {
+      type: 'string',
+    },
     assetPrefix: {
       minLength: 1,
       type: 'string',
     },
     basePath: {
-      minLength: 1,
       type: 'string',
     },
     cleanDistDir: {
@@ -74,22 +76,6 @@ const configSchema = {
           ] as any,
         },
         relay: {
-          additionalProperties: false,
-          properties: {
-            artifactDirectory: {
-              minLength: 1,
-              type: 'string',
-            },
-            language: {
-              // automatic typing doesn't like enum
-              enum: ['flow', 'typescript'] as any,
-              type: 'string',
-            },
-            src: {
-              minLength: 1,
-              type: 'string',
-            },
-          },
           type: 'object',
         },
         removeConsole: {
@@ -125,11 +111,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 topLevelImportPaths: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                    minLength: 1,
-                  },
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 ssr: {
                   type: 'boolean',
@@ -138,7 +129,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 meaninglessFileNames: {
-                  type: 'boolean',
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 minify: {
                   type: 'boolean',
@@ -258,6 +258,9 @@ const configSchema = {
         externalDir: {
           type: 'boolean',
         },
+        fallbackNodePolyfills: {
+          type: 'boolean',
+        },
         forceSwcTransforms: {
           type: 'boolean',
         },
@@ -266,44 +269,6 @@ const configSchema = {
         },
         gzipSize: {
           type: 'boolean',
-        },
-        images: {
-          additionalProperties: false,
-          properties: {
-            allowFutureImage: {
-              type: 'boolean',
-            },
-            remotePatterns: {
-              items: {
-                additionalProperties: false,
-                properties: {
-                  hostname: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  pathname: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  port: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  protocol: {
-                    // automatic typing doesn't like enum
-                    enum: ['http', 'https'] as any,
-                    type: 'string',
-                  },
-                },
-                type: 'object',
-              },
-              type: 'array',
-            },
-            unoptimized: {
-              type: 'boolean',
-            },
-          },
-          type: 'object',
         },
         incrementalCacheHandlerPath: {
           type: 'string',
@@ -333,6 +298,16 @@ const configSchema = {
           type: 'boolean',
         },
         optimizeCss: {
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              type: 'object',
+            },
+          ] as any,
+        },
+        optimisticClientCache: {
           type: 'boolean',
         },
         outputFileTracingRoot: {
@@ -395,6 +370,10 @@ const configSchema = {
       },
       type: 'object',
     },
+    exportPathMap: {
+      isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
+    } as any,
     future: {
       additionalProperties: false,
       properties: {},
@@ -402,12 +381,14 @@ const configSchema = {
     },
     generateBuildId: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     generateEtags: {
-      isFunction: true,
-    } as any,
+      type: 'boolean',
+    },
     headers: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     httpAgentOptions: {
       additionalProperties: false,
@@ -468,6 +449,35 @@ const configSchema = {
     images: {
       additionalProperties: false,
       properties: {
+        remotePatterns: {
+          items: {
+            additionalProperties: false,
+            properties: {
+              hostname: {
+                minLength: 1,
+                type: 'string',
+              },
+              pathname: {
+                minLength: 1,
+                type: 'string',
+              },
+              port: {
+                minLength: 1,
+                type: 'string',
+              },
+              protocol: {
+                // automatic typing doesn't like enum
+                enum: ['http', 'https'] as any,
+                type: 'string',
+              },
+            },
+            type: 'object',
+          },
+          type: 'array',
+        },
+        unoptimized: {
+          type: 'boolean',
+        },
         contentSecurityPolicy: {
           minLength: 1,
           type: 'string',
@@ -561,9 +571,11 @@ const configSchema = {
     },
     redirects: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     rewrites: {
       isFunction: true,
+      errorMessage: 'must be a function that returns a Promise',
     } as any,
     sassOptions: {
       type: 'object',
@@ -598,6 +610,8 @@ const configSchema = {
     },
     webpack: {
       isFunction: true,
+      errorMessage:
+        'must be a function that returns a webpack configuration object',
     } as any,
   },
 } as JSONSchemaType<NextConfig>

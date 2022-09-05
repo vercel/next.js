@@ -30,7 +30,7 @@ import {
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
-import { NextConfigComplete } from '../server/config-shared'
+import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -124,10 +124,6 @@ const createProgress = (total: number, label: string) => {
   }
 }
 
-type ExportPathMap = {
-  [page: string]: { page: string; query?: { [key: string]: string } }
-}
-
 interface ExportOptions {
   outdir: string
   silent?: boolean
@@ -137,6 +133,7 @@ interface ExportOptions {
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
+  appPaths?: string[]
 }
 
 export default async function exportApp(
@@ -318,15 +315,14 @@ export default async function exportApp(
           `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
         )
       }
-      nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
+      nextConfig.exportPathMap = async (defaultMap) => {
         return defaultMap
       }
     }
 
     const {
       i18n,
-      images: { loader = 'default' },
-      experimental,
+      images: { loader = 'default', unoptimized },
     } = nextConfig
 
     if (i18n && !options.buildExport) {
@@ -348,7 +344,7 @@ export default async function exportApp(
       if (
         isNextImageImported &&
         loader === 'default' &&
-        !experimental?.images?.unoptimized &&
+        !unoptimized &&
         !hasNextSupport
       ) {
         throw new Error(
@@ -587,7 +583,6 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
-            appDir: nextConfig.experimental.appDir,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
@@ -599,6 +594,7 @@ export default async function exportApp(
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
             serverComponents: nextConfig.experimental.serverComponents,
+            appPaths: options.appPaths || [],
           })
 
           for (const validation of result.ampValidations || []) {

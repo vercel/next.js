@@ -61,6 +61,52 @@ describe('Switchable runtime', () => {
 
   if ((global as any).isNextDev) {
     describe('Switchable runtime (dev)', () => {
+      it('should not include edge api routes and edge ssr routes into dev middleware manifest', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
+        )
+        const devMiddlewareManifest = await res.json()
+        expect(devMiddlewareManifest).toEqual([])
+      })
+
+      it('should sort edge SSR routes correctly', async () => {
+        const res = await fetchViaHTTP(next.url, `/edge/foo`)
+        const html = await res.text()
+
+        // /edge/foo should be caught before /edge/[id]
+        expect(html).toContain(`to /edge/[id]`)
+      })
+
+      it('should be able to navigate between edge SSR routes without any errors', async () => {
+        const res = await fetchViaHTTP(next.url, `/edge/foo`)
+        const html = await res.text()
+
+        // /edge/foo should be caught before /edge/[id]
+        expect(html).toContain(`to /edge/[id]`)
+
+        const browser = await webdriver(context.appPort, '/edge/foo')
+
+        await browser.waitForElementByCss('a').click()
+
+        // on /edge/[id]
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /to \/edge\/foo/
+        )
+
+        await browser.waitForElementByCss('a').click()
+
+        // on /edge/foo
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /to \/edge\/\[id\]/
+        )
+
+        expect(context.stdout).not.toContain('self is not defined')
+        expect(context.stderr).not.toContain('self is not defined')
+      })
+
       it.skip('should support client side navigation to ssr rsc pages', async () => {
         let flightRequest = null
 
@@ -115,10 +161,14 @@ describe('Switchable runtime', () => {
         )
       })
 
-      it('should build /api/hello as an api route with edge runtime', async () => {
-        const response = await fetchViaHTTP(context.appPort, '/api/hello')
-        const text = await response.text()
+      it('should build /api/hello and /api/edge as an api route with edge runtime', async () => {
+        let response = await fetchViaHTTP(context.appPort, '/api/hello')
+        let text = await response.text()
         expect(text).toMatch(/Hello from .+\/api\/hello/)
+
+        response = await fetchViaHTTP(context.appPort, '/api/edge')
+        text = await response.text()
+        expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
         if (!(global as any).isNextDeploy) {
           const manifest = await readJson(
@@ -134,7 +184,18 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                regexp: '^/api/hello$',
+                matchers: [{ regexp: '^/api/hello$' }],
+                wasm: [],
+              },
+              '/api/edge': {
+                env: [],
+                files: [
+                  'server/edge-runtime-webpack.js',
+                  'server/pages/api/edge.js',
+                ],
+                name: 'pages/api/edge',
+                page: '/api/edge',
+                matchers: [{ regexp: '^/api/edge$' }],
                 wasm: [],
               },
             },
@@ -225,6 +286,10 @@ describe('Switchable runtime', () => {
           isStatic: false,
           isEdge: true,
         })
+        await testRoute(context.appPort, '/rewrite/edge', {
+          isStatic: false,
+          isEdge: true,
+        })
       })
 
       // TODO: edge rsc in app dir
@@ -235,10 +300,19 @@ describe('Switchable runtime', () => {
         })
       })
 
-      it('should build /api/hello as an api route with edge runtime', async () => {
-        const response = await fetchViaHTTP(context.appPort, '/api/hello')
-        const text = await response.text()
+      it('should build /api/hello and /api/edge as an api route with edge runtime', async () => {
+        let response = await fetchViaHTTP(context.appPort, '/api/hello')
+        let text = await response.text()
         expect(text).toMatch(/Hello from .+\/api\/hello/)
+
+        response = await fetchViaHTTP(context.appPort, '/api/edge')
+        text = await response.text()
+        expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
+
+        // Rewrite should also work
+        response = await fetchViaHTTP(context.appPort, 'rewrite/api/edge')
+        text = await response.text()
+        expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
         if (!(global as any).isNextDeploy) {
           const manifest = await readJson(
@@ -254,7 +328,18 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                regexp: '^/api/hello$',
+                matchers: [{ regexp: '^/api/hello$' }],
+                wasm: [],
+              },
+              '/api/edge': {
+                env: [],
+                files: [
+                  'server/edge-runtime-webpack.js',
+                  'server/pages/api/edge.js',
+                ],
+                name: 'pages/api/edge',
+                page: '/api/edge',
+                matchers: [{ regexp: '^/api/edge$' }],
                 wasm: [],
               },
             },
