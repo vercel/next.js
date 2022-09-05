@@ -1,8 +1,8 @@
-<h1> Next.js + Xata Minimal Template <img alt="Xatafly, the logo from Xata" src="/public/flap.gif" width="50" /></h1>
+# Next.js + Xata
 
-[![TypeScript](https://badgen.net/badge/icon/typescript?icon=typescript&label)](https://typescriptlang.org)
+This example showcases how to use Next.js with [Xata](https://xata.io) as your data layer.
 
-🌎 Check it live at [nextjs-with-xata.vercel.app](https://nextjs-with-xata.vercel.app)
+With this template you get out-of-the-box:
 
 - API Route to connect to your Xata database
 - Type-safe Codegen
@@ -10,29 +10,25 @@
   - Dark/Light mode
   - Respects `prefers-reduce-motion` for CSS Transitions
 
-## How to use
+## Demo
 
-### Clone the Example
+[nextjs-with-xata.vercel.app](https://nextjs-with-xata.vercel.app)
+
+## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```sh
-npx create-next-app --example https://github.com/xataio/examples/tree/main/apps/nextjs-minimal next-xata-app
-
-```
-
-<details>
-<summary> Yarn or PNPM</summary>
-
-```sh
-yarn create next-app --example https://github.com/xataio/examples/tree/main/apps/nextjs-minimal next-xata-app
+npx create-next-app --example cms-contentful cms-contentful-app
 ```
 
 ```sh
-pnpm create next-app --example https://github.com/xataio/examples/tree/main/apps/nextjs-minimal next-xata-app
+yarn create next-app --example cms-contentful cms-contentful-app
 ```
 
-</details>
+```sh
+pnpm create next-app --example cms-contentful cms-contentful-app
+```
 
 ### Link Your Xata Workspace and Run Codegen
 
@@ -40,22 +36,9 @@ pnpm create next-app --example https://github.com/xataio/examples/tree/main/apps
 npm run start:xata
 ```
 
-<details>
-<summary> Yarn or PNPM</summary>
-
-```sh
-yarn start:xata
-```
-
-```sh
-pnpm run start:xata
-```
-
-</details>
-
 > ⚠️ once linked, you can just run `xata` to re-generate types.
 
-### Start Coding 🚀
+### Start Coding
 
 Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
