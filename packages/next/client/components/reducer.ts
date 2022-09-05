@@ -125,6 +125,12 @@ function invalidateCacheBelowFlightSegmentPath(
     newCache.parallelRoutes.set(parallelRouteKey, childSegmentMap)
   }
 
+  // In case of last entry don't copy further down.
+  if (isLastEntry) {
+    childSegmentMap.delete(segmentForCache)
+    return
+  }
+
   const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
   let childCacheNode = childSegmentMap.get(segmentForCache)
 
@@ -141,14 +147,6 @@ function invalidateCacheBelowFlightSegmentPath(
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     }
     childSegmentMap.set(segmentForCache, childCacheNode)
-  }
-
-  // In case of last entry don't copy further down.
-  if (isLastEntry) {
-    if (childCacheNode) {
-      childCacheNode.parallelRoutes.clear()
-    }
-    return
   }
 
   invalidateCacheBelowFlightSegmentPath(
@@ -644,14 +642,17 @@ export function reducer(
           mutable.previousTree = state.tree
           mutable.patchedTree = newTree
 
-          const hardNavigate = shouldHardNavigate(
-            // TODO-APP: remove ''
-            ['', ...flightSegmentPath],
-            state.tree,
-            newTree
-          )
+          const hardNavigate =
+            // TODO-APP: Revisit if this is correct.
+            search !== location.search ||
+            shouldHardNavigate(
+              // TODO-APP: remove ''
+              ['', ...flightSegmentPath],
+              state.tree,
+              newTree
+            )
+
           if (hardNavigate) {
-            // Fill in the cache with blank that holds the `data` field.
             // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
             // Copy subTreeData for the root node of the cache.
             cache.subTreeData = state.cache.subTreeData
@@ -673,7 +674,7 @@ export function reducer(
             // All navigation requires scroll and focus management to trigger.
             focusAndScrollRef: { apply: true },
             // Apply patched cache.
-            cache: hardNavigate ? cache : state.cache,
+            cache: mutable.useExistingCache ? state.cache : cache,
             prefetchCache: state.prefetchCache,
             // Apply patched tree.
             tree: newTree,
