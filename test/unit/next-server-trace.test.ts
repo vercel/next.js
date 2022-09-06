@@ -40,7 +40,7 @@ describe('Tracer', () => {
   describe('trace', () => {
     it('should run the callback with a new span', () => {
       const tracer = getTracer()
-      const traceName = 'dummy_trace_name_test_1'
+      const traceName = 'dummy_trace_name_test_1' as any
 
       return new Promise((res) =>
         tracer.trace(traceName, (span) => {
@@ -52,7 +52,7 @@ describe('Tracer', () => {
 
     it('should accept options', () => {
       const tracer = getTracer()
-      const traceName = 'dummy_trace_name_test_2'
+      const traceName = 'dummy_trace_name_test_2' as any
       const options = {
         kind: 0,
         attributes: {
@@ -74,7 +74,7 @@ describe('Tracer', () => {
       const tracer = getTracer()
 
       return new Promise((res) =>
-        tracer.trace('name', (span) => {
+        tracer.trace('name' as any, (span) => {
           expect(span.isRecording()).toBe(true)
           res(0)
         })
@@ -87,7 +87,7 @@ describe('Tracer', () => {
       const context = tracer.getContext()
       const parentContext = context.active()
 
-      const parent = tracer.startSpan('parent')
+      const parent = tracer.startSpan('parent' as any)
       const contextWithSpanSet = (tracer as any).traceApi.setSpan(
         parentContext,
         parent
@@ -95,7 +95,7 @@ describe('Tracer', () => {
 
       return new Promise((res) =>
         context.with(contextWithSpanSet, () => {
-          tracer.trace('name', (span) => {
+          tracer.trace('name' as any, (span) => {
             expect(span).toEqual(
               expect.objectContaining({
                 parentSpanId: parent.spanContext().spanId,
@@ -109,10 +109,10 @@ describe('Tracer', () => {
 
     it('should allow overriding the parent span', () => {
       const tracer = getTracer()
-      const parent = tracer.startSpan('parent')
+      const parent = tracer.startSpan('parent' as any)
 
       return new Promise((res) =>
-        tracer.trace('name', { parentSpan: parent }, (span) => {
+        tracer.trace('name' as any, { parentSpan: parent }, (span) => {
           expect(span).toEqual(
             expect.objectContaining({
               parentSpanId: parent.spanContext().spanId,
@@ -129,8 +129,8 @@ describe('Tracer', () => {
       const tracer = getTracer()
 
       await new Promise((res) =>
-        tracer.trace('parentTraceDummy', (parentSpan: Span) => {
-          tracer.trace('childTraceDummy', (childSpan: Span) => {
+        tracer.trace('parentTraceDummy' as any, (parentSpan: Span) => {
+          tracer.trace('childTraceDummy' as any, (childSpan: Span) => {
             expect(tracer.getContext().active()).toBeDefined()
             expect(childSpan).toEqual(
               expect.objectContaining({
@@ -145,7 +145,7 @@ describe('Tracer', () => {
 
     it('should return the value from the callback', () => {
       const tracer = getTracer()
-      const result = tracer.trace('name', {}, (span) => 'test')
+      const result = tracer.trace('name' as any, {}, (span) => 'test')
 
       expect(result).toEqual('test')
     })
@@ -154,7 +154,7 @@ describe('Tracer', () => {
       const tracer = getTracer()
       let span: Span
 
-      tracer.trace('name', {}, (_span) => {
+      tracer.trace('name' as any, {}, (_span) => {
         span = _span
       })
 
@@ -168,7 +168,7 @@ describe('Tracer', () => {
       let span: Span
 
       try {
-        tracer.trace('name', {}, (_span) => {
+        tracer.trace('name' as any, {}, (_span) => {
           span = _span
           throw new Error('boom')
         })
@@ -189,7 +189,7 @@ describe('Tracer', () => {
         let span: Span
         let done: Function
 
-        tracer.trace('name', {}, (_span, _done) => {
+        tracer.trace('name' as any, {}, (_span, _done) => {
           span = _span
           done = _done
         })
@@ -218,7 +218,7 @@ describe('Tracer', () => {
         let span: Span
         let done: Function
 
-        tracer.trace('name', {}, (_span, _done) => {
+        tracer.trace('name' as any, {}, (_span, _done) => {
           span = _span
           done = _done
         })
@@ -249,7 +249,7 @@ describe('Tracer', () => {
         let span: Span
 
         let traceAwaiter = tracer
-          .trace('name', {}, (_span) => {
+          .trace('name' as any, {}, (_span) => {
             span = _span
             return promise
           })
@@ -280,7 +280,7 @@ describe('Tracer', () => {
         let span: Span
 
         let tracerAwaiter = tracer
-          .trace('name', {}, (_span) => {
+          .trace('name' as any, {}, (_span) => {
             span = _span
             return Promise.reject(new Error('boom'))
           })
@@ -313,7 +313,7 @@ describe('Tracer', () => {
         return 'test'
       })
 
-      const fn = tracer.wrap('name', {}, callback)
+      const fn = tracer.wrap('name' as any, {}, callback)
 
       const result = fn.call(it, 'foo')
 
@@ -328,7 +328,7 @@ describe('Tracer', () => {
 
       const tracer = getTracer()
       const fn = tracer.wrap(
-        'name',
+        'name' as any,
         {},
         jest.fn(function (cb) {
           const span = tracer.getActiveScopeSpan()
@@ -353,7 +353,7 @@ describe('Tracer', () => {
       expect.assertions(1)
 
       const tracer = getTracer()
-      const fn = tracer.wrap('name', {}, (cb: Function) => cb())
+      const fn = tracer.wrap('name' as any, {}, (cb: Function) => cb())
 
       return fn(() => Promise.reject(new Error('boom'))).catch((err: any) => {
         expect(err.message).toEqual('boom')
@@ -364,9 +364,12 @@ describe('Tracer', () => {
       const tracer = getTracer()
       jest.spyOn(tracer, 'trace')
 
-      const fn = tracer.wrap('name', function (arg1: string, arg2: string) {
-        return `${arg1}-${arg2}`
-      })
+      const fn = tracer.wrap(
+        'name' as any,
+        function (arg1: string, arg2: string) {
+          return `${arg1}-${arg2}`
+        }
+      )
 
       const result = fn('hello', 'goodbye')
       expect(result).toEqual('hello-goodbye')
@@ -378,7 +381,7 @@ describe('Tracer', () => {
       const options = { attributes: { sometag: 'somevalue' } }
 
       const fn = tracer.wrap(
-        'name',
+        'name' as any,
         options,
         function (..._args: Array<any>) {}
       )
@@ -408,7 +411,7 @@ describe('Tracer', () => {
         return { attributes: { sometag: 'somevalue', invocations } }
       }
 
-      const fn = tracer.wrap('name', options, function () {})
+      const fn = tracer.wrap('name' as any, options, function () {})
 
       fn.call(it, 'hello', 'goodbye')
 
@@ -451,10 +454,10 @@ describe('Tracer', () => {
         return 'test'
       })
 
-      const fn = tracer.wrap('child', {}, callback)
+      const fn = tracer.wrap('child' as any, {}, callback)
 
       await new Promise((res) =>
-        tracer.trace('parentTraceDummy', (span) => {
+        tracer.trace('parentTraceDummy' as any, (span) => {
           parentSpan = span
           // call wrapped fn inside of trace context, without explicitly setting current span as active context
           res(fn('foo'))
@@ -466,7 +469,7 @@ describe('Tracer', () => {
       it('should trace', () => {
         const tracer = getTracer()
         const fn = tracer.wrap(
-          'falsy',
+          'falsy' as any,
           (_args: any) => false as any,
           () => {}
         )

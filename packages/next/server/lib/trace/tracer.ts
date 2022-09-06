@@ -3,6 +3,7 @@ import { warn } from '../../../build/output/log'
 import type { ContextAPI, Span, SpanOptions } from '@opentelemetry/api'
 import { TraceConfig } from './trace-config'
 import type { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
+import type { SpanNames } from './constants'
 
 const {
   SpanStatusCode,
@@ -44,20 +45,20 @@ interface Tracer {
    *
    */
   trace<T>(
-    name: string,
+    name: SpanNames,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
-    name: string,
+    name: SpanNames,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   trace<T>(
-    name: string,
+    name: SpanNames,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
-    name: string,
+    name: SpanNames,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
@@ -76,14 +77,14 @@ interface Tracer {
    * * The function doesn't accept a callback and doesn't return a promise, in
    * which case the span will finish at the end of the function execution.
    */
-  wrap<T = (...args: Array<any>) => any>(name: string, fn: T): T
+  wrap<T = (...args: Array<any>) => any>(name: SpanNames, fn: T): T
   wrap<T = (...args: Array<any>) => any>(
-    name: string,
+    name: SpanNames,
     options: TracerSpanOptions,
     fn: T
   ): T
   wrap<T = (...args: Array<any>) => any>(
-    name: string,
+    name: SpanNames,
     options: (...args: any[]) => TracerSpanOptions,
     fn: T
   ): T
@@ -96,8 +97,8 @@ interface Tracer {
    * context via `tracer.getContext().with`. `trace`, or `wrap` is generally recommended as it gracefully
    * handles context activation. (ref: https://github.com/open-telemetry/opentelemetry-js/issues/1923)
    */
-  startSpan(name: string): Span
-  startSpan(name: string, options: TracerSpanOptions): Span
+  startSpan(name: SpanNames): Span
+  startSpan(name: SpanNames, options: TracerSpanOptions): Span
 
   /**
    * Returns currently activated span if current context is in the scope of the span.
@@ -178,20 +179,20 @@ class NextTracer implements Tracer {
   // Trace, wrap implementation is inspired by datadog trace implementation
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
-    name: string,
+    name: SpanNames,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    name: string,
+    name: SpanNames,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
-    name: string,
+    name: SpanNames,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    name: string,
+    name: SpanNames,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
@@ -260,14 +261,14 @@ class NextTracer implements Tracer {
     })
   }
 
-  public wrap<T = (...args: Array<any>) => any>(name: string, fn: T): T
+  public wrap<T = (...args: Array<any>) => any>(name: SpanNames, fn: T): T
   public wrap<T = (...args: Array<any>) => any>(
-    name: string,
+    name: SpanNames,
     options: TracerSpanOptions,
     fn: T
   ): T
   public wrap<T = (...args: Array<any>) => any>(
-    name: string,
+    name: SpanNames,
     options: (...args: any[]) => TracerSpanOptions,
     fn: T
   ): T
@@ -311,8 +312,8 @@ class NextTracer implements Tracer {
     }
   }
 
-  public startSpan(name: string): Span
-  public startSpan(name: string, options: TracerSpanOptions): Span
+  public startSpan(name: SpanNames): Span
+  public startSpan(name: SpanNames, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
     const [name, options]: [string, TracerSpanOptions | undefined] = args as any
 

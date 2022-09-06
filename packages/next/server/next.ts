@@ -14,6 +14,8 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { shouldUseReactRoot } from './utils'
 import { initializeTraceOnce } from './lib/trace/initialize-trace-once'
+import { getTracer } from './lib/trace/tracer'
+import { NextServerSpan } from './lib/trace/constants'
 
 let ServerImpl: typeof Server
 
@@ -58,8 +60,10 @@ export class NextServer {
       res: ServerResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
-      const requestHandler = await this.getServerRequestHandler()
-      return requestHandler(req, res, parsedUrl)
+      return getTracer().trace(NextServerSpan.getRequestHandler, async () => {
+        const requestHandler = await this.getServerRequestHandler()
+        return requestHandler(req, res, parsedUrl)
+      })
     }
   }
 
@@ -152,14 +156,17 @@ export class NextServer {
         // prior to this will be silently ignored.
         initializeTraceOnce(conf?.experimental?.trace)
 
-        this.server = await this.createServer({
-          ...this.options,
-          conf,
+        // This'll be the root span for the next/server trace
+        return getTracer().trace(NextServerSpan.getServer, async () => {
+          this.server = await this.createServer({
+            ...this.options,
+            conf,
+          })
+          if (this.preparedAssetPrefix) {
+            this.server.setAssetPrefix(this.preparedAssetPrefix)
+          }
+          return this.server
         })
-        if (this.preparedAssetPrefix) {
-          this.server.setAssetPrefix(this.preparedAssetPrefix)
-        }
-        return this.server
       })
     }
     return this.serverPromise
@@ -169,7 +176,10 @@ export class NextServer {
     // Memoize request handler creation
     if (!this.reqHandlerPromise) {
       this.reqHandlerPromise = this.getServer().then((server) =>
-        server.getRequestHandler().bind(server)
+        getTracer().wrap(
+          NextServerSpan.getServerRequestHandler,
+          server.getRequestHandler().bind(server)
+        )
       )
     }
     return this.reqHandlerPromise
@@ -177,7 +187,7 @@ export class NextServer {
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerOptions): NextServer {
+function createServerImpl(options: NextServerOptions): NextServer {
   if (options == null) {
     throw new Error(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
@@ -204,6 +214,11 @@ function createServer(options: NextServerOptions): NextServer {
 
   return new NextServer(options)
 }
+
+const createServer = getTracer().wrap(
+  NextServerSpan.createServer,
+  createServerImpl
+)
 
 // Support commonjs `require('next')`
 module.exports = createServer
