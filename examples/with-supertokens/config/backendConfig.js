@@ -1,4 +1,5 @@
 import ThirdPartyEmailPasswordNode from 'supertokens-node/recipe/thirdpartyemailpassword'
+import EmailVerificationNode from 'supertokens-node/recipe/emailverification'
 import SessionNode from 'supertokens-node/recipe/session'
 import { appInfo } from './appInfo'
 
@@ -10,6 +11,9 @@ export let backendConfig = () => {
     },
     appInfo,
     recipeList: [
+      EmailVerificationNode.init({
+        mode: 'REQUIRED',
+      }),
       ThirdPartyEmailPasswordNode.init({
         providers: [
           // We have provided you with development keys which you can use for testing.
