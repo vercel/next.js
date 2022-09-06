@@ -205,7 +205,11 @@ export default function AppRouter({
 
         const url = new URL(href, location.origin)
         // TODO-APP: handle case where history.state is not the new router history entry
-        const r = fetchServerResponse(url, window.history.state.tree, true)
+        const r = fetchServerResponse(
+          url,
+          window.history.state?.tree || initialTree,
+          true
+        )
         try {
           r.readRoot()
         } catch (e) {
@@ -240,7 +244,6 @@ export default function AppRouter({
             type: ACTION_RELOAD,
 
             // TODO-APP: revisit if this needs to be passed.
-            url: new URL(window.location.href),
             cache: {
               data: null,
               subTreeData: null,
