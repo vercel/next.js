@@ -1,39 +1,12 @@
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
-var __defProps = Object.defineProperties;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getOwnPropSymbols = Object.getOwnPropertySymbols;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __propIsEnum = Object.prototype.propertyIsEnumerable;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __spreadValues = (a, b) => {
-  for (var prop in b || (b = {}))
-    if (__hasOwnProp.call(b, prop))
-      __defNormalProp(a, prop, b[prop]);
-  if (__getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(b)) {
-      if (__propIsEnum.call(b, prop))
-        __defNormalProp(a, prop, b[prop]);
-    }
-  return a;
-};
-var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
-var __objRest = (source, exclude) => {
-  var target = {};
-  for (var prop in source)
-    if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
-      target[prop] = source[prop];
-  if (source != null && __getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(source)) {
-      if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
-        target[prop] = source[prop];
-    }
-  return target;
-};
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -52,7 +25,10 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target, mod));
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var __publicField = (obj, key, value) => {
   __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
@@ -60,12 +36,10 @@ var __publicField = (obj, key, value) => {
 };
 
 // <define:process>
-var env, versions, define_process_default;
+var define_process_default;
 var init_define_process = __esm({
   "<define:process>"() {
-    env = {};
-    versions = { node: "16.6.0" };
-    define_process_default = { env, versions };
+    define_process_default = { env: {}, versions: { node: "16.6.0" } };
   }
 });
 
@@ -643,11 +617,15 @@ var require_util = __commonJS({
     }
     __name(isDisturbed, "isDisturbed");
     function isErrored(body) {
-      return !!(body && (stream.isErrored ? stream.isErrored(body) : /state: 'errored'/.test(nodeUtil.inspect(body))));
+      return !!(body && (stream.isErrored ? stream.isErrored(body) : /state: 'errored'/.test(
+        nodeUtil.inspect(body)
+      )));
     }
     __name(isErrored, "isErrored");
     function isReadable(body) {
-      return !!(body && (stream.isReadable ? stream.isReadable(body) : /state: 'readable'/.test(nodeUtil.inspect(body))));
+      return !!(body && (stream.isReadable ? stream.isReadable(body) : /state: 'readable'/.test(
+        nodeUtil.inspect(body)
+      )));
     }
     __name(isReadable, "isReadable");
     function getSocketInfo(socket) {
@@ -672,26 +650,29 @@ var require_util = __commonJS({
         return ReadableStream.from(iterable);
       }
       let iterator;
-      return new ReadableStream({
-        async start() {
-          iterator = iterable[Symbol.asyncIterator]();
-        },
-        async pull(controller) {
-          const { done, value } = await iterator.next();
-          if (done) {
-            queueMicrotask(() => {
-              controller.close();
-            });
-          } else {
-            const buf = Buffer.isBuffer(value) ? value : Buffer.from(value);
-            controller.enqueue(new Uint8Array(buf));
+      return new ReadableStream(
+        {
+          async start() {
+            iterator = iterable[Symbol.asyncIterator]();
+          },
+          async pull(controller) {
+            const { done, value } = await iterator.next();
+            if (done) {
+              queueMicrotask(() => {
+                controller.close();
+              });
+            } else {
+              const buf = Buffer.isBuffer(value) ? value : Buffer.from(value);
+              controller.enqueue(new Uint8Array(buf));
+            }
+            return controller.desiredSize > 0;
+          },
+          async cancel(reason) {
+            await iterator.return();
           }
-          return controller.desiredSize > 0;
         },
-        async cancel(reason) {
-          await iterator.return();
-        }
-      }, 0);
+        0
+      );
     }
     __name(ReadableStreamFrom, "ReadableStreamFrom");
     function isFormDataLike(chunk) {
@@ -1203,7 +1184,9 @@ var require_util2 = __commonJS({
       const i = {
         next() {
           if (Object.getPrototypeOf(this) !== i) {
-            throw new TypeError(`'next' called on an object that does not implement interface ${name} Iterator.`);
+            throw new TypeError(
+              `'next' called on an object that does not implement interface ${name} Iterator.`
+            );
           }
           return iterator.next();
         },
@@ -1273,7 +1256,10 @@ var require_headers = __commonJS({
       if (value === void 0) {
         throw new TypeError(value, name);
       }
-      const normalizedHeaderValue = `${value}`.replace(/^[\n\t\r\x20]+|[\n\t\r\x20]+$/g, "");
+      const normalizedHeaderValue = `${value}`.replace(
+        /^[\n\t\r\x20]+|[\n\t\r\x20]+$/g,
+        ""
+      );
       validateHeaderValue(name, normalizedHeaderValue);
       return normalizedHeaderValue;
     }
@@ -1366,7 +1352,9 @@ var require_headers = __commonJS({
       constructor(...args) {
         var _a;
         if (args[0] !== void 0 && !(typeof args[0] === "object" && args[0] != null) && !Array.isArray(args[0])) {
-          throw new TypeError("Failed to construct 'Headers': The provided value is not of type '(record<ByteString, ByteString> or sequence<sequence<ByteString>>");
+          throw new TypeError(
+            "Failed to construct 'Headers': The provided value is not of type '(record<ByteString, ByteString> or sequence<sequence<ByteString>>"
+          );
         }
         const init = args.length >= 1 ? (_a = args[0]) != null ? _a : {} : {};
         this[kHeadersList2] = new HeadersList2();
@@ -1381,7 +1369,9 @@ var require_headers = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (arguments.length < 2) {
-          throw new TypeError(`Failed to execute 'append' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'append' on 'Headers': 2 arguments required, but only ${arguments.length} present.`
+          );
         }
         if (this[kGuard2] === "immutable") {
           throw new TypeError("immutable");
@@ -1394,7 +1384,9 @@ var require_headers = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'delete' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'delete' on 'Headers': 1 argument required, but only ${arguments.length} present.`
+          );
         }
         if (this[kGuard2] === "immutable") {
           throw new TypeError("immutable");
@@ -1407,7 +1399,9 @@ var require_headers = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'get' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'get' on 'Headers': 1 argument required, but only ${arguments.length} present.`
+          );
         }
         return this[kHeadersList2].get(String(name));
       }
@@ -1416,7 +1410,9 @@ var require_headers = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'has' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'has' on 'Headers': 1 argument required, but only ${arguments.length} present.`
+          );
         }
         return this[kHeadersList2].has(String(name));
       }
@@ -1425,7 +1421,9 @@ var require_headers = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (arguments.length < 2) {
-          throw new TypeError(`Failed to execute 'set' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'set' on 'Headers': 2 arguments required, but only ${arguments.length} present.`
+          );
         }
         if (this[kGuard2] === "immutable") {
           throw new TypeError("immutable");
@@ -1461,10 +1459,14 @@ var require_headers = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'forEach' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'forEach' on 'Headers': 1 argument required, but only ${arguments.length} present.`
+          );
         }
         if (typeof callbackFn !== "function") {
-          throw new TypeError("Failed to execute 'forEach' on 'Headers': parameter 1 is not of type 'Function'.");
+          throw new TypeError(
+            "Failed to execute 'forEach' on 'Headers': parameter 1 is not of type 'Function'."
+          );
         }
         for (const [key, value] of this) {
           callbackFn.apply(thisArg, [value, key, this]);
@@ -1513,7 +1515,9 @@ var require_formdata = __commonJS({
       constructor(...args) {
         var _a, _b;
         if (args.length > 0 && !(((_b = (_a = args[0]) == null ? void 0 : _a.constructor) == null ? void 0 : _b.name) === "HTMLFormElement")) {
-          throw new TypeError("Failed to construct 'FormData': parameter 1 is not of type 'HTMLFormElement'");
+          throw new TypeError(
+            "Failed to construct 'FormData': parameter 1 is not of type 'HTMLFormElement'"
+          );
         }
         this[kState] = [];
       }
@@ -1522,10 +1526,14 @@ var require_formdata = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 2) {
-          throw new TypeError(`Failed to execute 'append' on 'FormData': 2 arguments required, but only ${args.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'append' on 'FormData': 2 arguments required, but only ${args.length} present.`
+          );
         }
         if (args.length === 3 && !isBlobLike(args[1])) {
-          throw new TypeError("Failed to execute 'append' on 'FormData': parameter 2 is not of type 'Blob'");
+          throw new TypeError(
+            "Failed to execute 'append' on 'FormData': parameter 2 is not of type 'Blob'"
+          );
         }
         const name = toUSVString(args[0]);
         const filename = args.length === 3 ? toUSVString(args[2]) : void 0;
@@ -1538,7 +1546,9 @@ var require_formdata = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'delete' on 'FormData': 1 arguments required, but only ${args.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'delete' on 'FormData': 1 arguments required, but only ${args.length} present.`
+          );
         }
         const name = toUSVString(args[0]);
         const next = [];
@@ -1554,7 +1564,9 @@ var require_formdata = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'get' on 'FormData': 1 arguments required, but only ${args.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'get' on 'FormData': 1 arguments required, but only ${args.length} present.`
+          );
         }
         const name = toUSVString(args[0]);
         const idx = this[kState].findIndex((entry) => entry.name === name);
@@ -1568,7 +1580,9 @@ var require_formdata = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'getAll' on 'FormData': 1 arguments required, but only ${args.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'getAll' on 'FormData': 1 arguments required, but only ${args.length} present.`
+          );
         }
         const name = toUSVString(args[0]);
         return this[kState].filter((entry) => entry.name === name).map((entry) => entry.value);
@@ -1578,7 +1592,9 @@ var require_formdata = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'has' on 'FormData': 1 arguments required, but only ${args.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'has' on 'FormData': 1 arguments required, but only ${args.length} present.`
+          );
         }
         const name = toUSVString(args[0]);
         return this[kState].findIndex((entry) => entry.name === name) !== -1;
@@ -1588,10 +1604,14 @@ var require_formdata = __commonJS({
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 2) {
-          throw new TypeError(`Failed to execute 'set' on 'FormData': 2 arguments required, but only ${args.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'set' on 'FormData': 2 arguments required, but only ${args.length} present.`
+          );
         }
         if (args.length === 3 && !isBlobLike(args[1])) {
-          throw new TypeError("Failed to execute 'set' on 'FormData': parameter 2 is not of type 'Blob'");
+          throw new TypeError(
+            "Failed to execute 'set' on 'FormData': parameter 2 is not of type 'Blob'"
+          );
         }
         const name = toUSVString(args[0]);
         const filename = args.length === 3 ? toUSVString(args[2]) : void 0;
@@ -1615,29 +1635,42 @@ var require_formdata = __commonJS({
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        return makeIterator(makeIterable(this[kState], "entries"), "FormData");
+        return makeIterator(
+          makeIterable(this[kState], "entries"),
+          "FormData"
+        );
       }
       keys() {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        return makeIterator(makeIterable(this[kState], "keys"), "FormData");
+        return makeIterator(
+          makeIterable(this[kState], "keys"),
+          "FormData"
+        );
       }
       values() {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        return makeIterator(makeIterable(this[kState], "values"), "FormData");
+        return makeIterator(
+          makeIterable(this[kState], "values"),
+          "FormData"
+        );
       }
       forEach(callbackFn, thisArg = globalThis) {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'forEach' on 'FormData': 1 argument required, but only ${arguments.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'forEach' on 'FormData': 1 argument required, but only ${arguments.length} present.`
+          );
         }
         if (typeof callbackFn !== "function") {
-          throw new TypeError("Failed to execute 'forEach' on 'FormData': parameter 1 is not of type 'Function'.");
+          throw new TypeError(
+            "Failed to execute 'forEach' on 'FormData': parameter 1 is not of type 'Function'."
+          );
         }
         for (const [key, value] of this) {
           callbackFn.apply(thisArg, [value, key, this]);
@@ -1740,15 +1773,19 @@ Content-Disposition: form-data`;
           const enc = new TextEncoder();
           for (const [name, value] of object2) {
             if (typeof value === "string") {
-              yield enc.encode(prefix + `; name="${escape(normalizeLinefeeds(name))}"\r
+              yield enc.encode(
+                prefix + `; name="${escape(normalizeLinefeeds(name))}"\r
 \r
 ${normalizeLinefeeds(value)}\r
-`);
+`
+              );
             } else {
-              yield enc.encode(prefix + `; name="${escape(normalizeLinefeeds(name))}"` + (value.name ? `; filename="${escape(value.name)}"` : "") + `\r
+              yield enc.encode(
+                prefix + `; name="${escape(normalizeLinefeeds(name))}"` + (value.name ? `; filename="${escape(value.name)}"` : "") + `\r
 Content-Type: ${value.type || "application/octet-stream"}\r
 \r
-`);
+`
+              );
               yield* blobGen(value);
               yield enc.encode("\r\n");
             }
@@ -1769,7 +1806,9 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           throw new TypeError("keepalive");
         }
         if (util.isDisturbed(object) || object.locked) {
-          throw new TypeError("Response body object should not be disturbed or locked");
+          throw new TypeError(
+            "Response body object should not be disturbed or locked"
+          );
         }
         stream = object instanceof ReadableStream ? object : ReadableStreamFrom(object);
       } else {
@@ -1805,7 +1844,9 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       } else if (!stream) {
         stream = new ReadableStream({
           async pull(controller) {
-            controller.enqueue(typeof source === "string" ? new TextEncoder().encode(source) : source);
+            controller.enqueue(
+              typeof source === "string" ? new TextEncoder().encode(source) : source
+            );
             queueMicrotask(() => {
               controller.close();
             });
@@ -1950,17 +1991,24 @@ var require_response = __commonJS({
       }
       static json(data, init = {}) {
         if (arguments.length === 0) {
-          throw new TypeError("Failed to execute 'json' on 'Response': 1 argument required, but 0 present.");
+          throw new TypeError(
+            "Failed to execute 'json' on 'Response': 1 argument required, but 0 present."
+          );
         }
         if (init === null || typeof init !== "object") {
-          throw new TypeError(`Failed to execute 'json' on 'Response': init must be a RequestInit, found ${typeof init}.`);
+          throw new TypeError(
+            `Failed to execute 'json' on 'Response': init must be a RequestInit, found ${typeof init}.`
+          );
         }
-        init = __spreadValues({
+        init = {
           status: 200,
           statusText: "",
-          headers: new HeadersList2()
-        }, init);
-        const bytes = new TextEncoder("utf-8").encode(serializeJavascriptValueToJSONString(data));
+          headers: new HeadersList2(),
+          ...init
+        };
+        const bytes = new TextEncoder("utf-8").encode(
+          serializeJavascriptValueToJSONString(data)
+        );
         const body = extractBody(bytes);
         const relevantRealm = { settingsObject: {} };
         const responseObject = new Response3();
@@ -1973,7 +2021,9 @@ var require_response = __commonJS({
       static redirect(...args) {
         const relevantRealm = { settingsObject: {} };
         if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'redirect' on 'Response': 1 argument required, but only ${args.length} present.`);
+          throw new TypeError(
+            `Failed to execute 'redirect' on 'Response': 1 argument required, but only ${args.length} present.`
+          );
         }
         const status = args.length >= 2 ? args[1] : 302;
         const url = toUSVString(args[0]);
@@ -2000,7 +2050,9 @@ var require_response = __commonJS({
       constructor(...args) {
         var _a;
         if (args.length >= 1 && typeof args[1] !== "object" && args[1] !== void 0) {
-          throw new TypeError("Failed to construct 'Request': cannot convert to dictionary.");
+          throw new TypeError(
+            "Failed to construct 'Request': cannot convert to dictionary."
+          );
         }
         const body = args.length >= 1 ? args[0] : null;
         const init = args.length >= 2 ? (_a = args[1]) != null ? _a : {} : {};
@@ -2101,9 +2153,12 @@ var require_response = __commonJS({
     });
     function cloneResponse(response) {
       if (response.internalResponse) {
-        return filterResponse(cloneResponse(response.internalResponse), response.type);
+        return filterResponse(
+          cloneResponse(response.internalResponse),
+          response.type
+        );
       }
-      const newResponse = makeResponse(__spreadProps(__spreadValues({}, response), { body: null }));
+      const newResponse = makeResponse({ ...response, body: null });
       if (response.body != null) {
         newResponse.body = cloneBody(response.body);
       }
@@ -2111,7 +2166,7 @@ var require_response = __commonJS({
     }
     __name(cloneResponse, "cloneResponse");
     function makeResponse(init) {
-      return __spreadProps(__spreadValues({
+      return {
         aborted: false,
         rangeRequested: false,
         timingAllowPassed: false,
@@ -2120,11 +2175,11 @@ var require_response = __commonJS({
         status: 200,
         timingInfo: null,
         cacheState: "",
-        statusText: ""
-      }, init), {
+        statusText: "",
+        ...init,
         headersList: init.headersList ? new HeadersList2(init.headersList) : new HeadersList2(),
         urlList: init.urlList ? [...init.urlList] : []
-      });
+      };
     }
     __name(makeResponse, "makeResponse");
     function makeNetworkError(reason) {
@@ -2139,9 +2194,10 @@ var require_response = __commonJS({
     }
     __name(makeNetworkError, "makeNetworkError");
     function makeFilteredResponse(response, state) {
-      state = __spreadValues({
-        internalResponse: response
-      }, state);
+      state = {
+        internalResponse: response,
+        ...state
+      };
       return new Proxy(response, {
         get(target, p) {
           return p in state ? state[p] : target[p];
@@ -2272,10 +2328,14 @@ var require_request = __commonJS({
           return;
         }
         if (args.length < 1) {
-          throw new TypeError(`Failed to construct 'Request': 1 argument required, but only ${args.length} present.`);
+          throw new TypeError(
+            `Failed to construct 'Request': 1 argument required, but only ${args.length} present.`
+          );
         }
         if (args.length >= 1 && typeof args[1] !== "object" && args[1] !== void 0) {
-          throw new TypeError("Failed to construct 'Request': cannot convert to dictionary.");
+          throw new TypeError(
+            "Failed to construct 'Request': cannot convert to dictionary."
+          );
         }
         const input = args[0] instanceof Request2 ? args[0] : toUSVString(args[0]);
         const init = args.length >= 1 ? (_a = args[1]) != null ? _a : {} : {};
@@ -2292,7 +2352,9 @@ var require_request = __commonJS({
             throw new TypeError("Failed to parse URL from " + input, { cause: err });
           }
           if (parsedURL.username || parsedURL.password) {
-            throw new TypeError("Request cannot be constructed from a URL that includes credentials: " + input);
+            throw new TypeError(
+              "Request cannot be constructed from a URL that includes credentials: " + input
+            );
           }
           request = makeRequest({ urlList: [parsedURL] });
           fallbackMode = "cors";
@@ -2361,14 +2423,18 @@ var require_request = __commonJS({
         if (init.referrerPolicy !== void 0) {
           request.referrerPolicy = init.referrerPolicy;
           if (!referrerPolicy.includes(request.referrerPolicy)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.referrerPolicy}' is not a valid enum value of type ReferrerPolicy.`);
+            throw new TypeError(
+              `Failed to construct 'Request': The provided value '${request.referrerPolicy}' is not a valid enum value of type ReferrerPolicy.`
+            );
           }
         }
         let mode;
         if (init.mode !== void 0) {
           mode = init.mode;
           if (!requestMode.includes(mode)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.mode}' is not a valid enum value of type RequestMode.`);
+            throw new TypeError(
+              `Failed to construct 'Request': The provided value '${request.mode}' is not a valid enum value of type RequestMode.`
+            );
           }
         } else {
           mode = fallbackMode;
@@ -2382,22 +2448,30 @@ var require_request = __commonJS({
         if (init.credentials !== void 0) {
           request.credentials = init.credentials;
           if (!requestCredentials.includes(request.credentials)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.credentials}' is not a valid enum value of type RequestCredentials.`);
+            throw new TypeError(
+              `Failed to construct 'Request': The provided value '${request.credentials}' is not a valid enum value of type RequestCredentials.`
+            );
           }
         }
         if (init.cache !== void 0) {
           request.cache = init.cache;
           if (!requestCache.includes(request.cache)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.cache}' is not a valid enum value of type RequestCache.`);
+            throw new TypeError(
+              `Failed to construct 'Request': The provided value '${request.cache}' is not a valid enum value of type RequestCache.`
+            );
           }
         }
         if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
-          throw new TypeError("'only-if-cached' can be set only with 'same-origin' mode");
+          throw new TypeError(
+            "'only-if-cached' can be set only with 'same-origin' mode"
+          );
         }
         if (init.redirect !== void 0) {
           request.redirect = init.redirect;
           if (!requestRedirect.includes(request.redirect)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.redirect}' is not a valid enum value of type RequestRedirect.`);
+            throw new TypeError(
+              `Failed to construct 'Request': The provided value '${request.redirect}' is not a valid enum value of type RequestRedirect.`
+            );
           }
         }
         if (init.integrity !== void 0 && init.integrity != null) {
@@ -2426,7 +2500,9 @@ var require_request = __commonJS({
         this[kSignal][kRealm] = this[kRealm];
         if (signal != null) {
           if (!signal || typeof signal.aborted !== "boolean" || typeof signal.addEventListener !== "function") {
-            throw new TypeError("Failed to construct 'Request': member signal is not of type AbortSignal.");
+            throw new TypeError(
+              "Failed to construct 'Request': member signal is not of type AbortSignal."
+            );
           }
           if (signal.aborted) {
             ac.abort();
@@ -2442,7 +2518,9 @@ var require_request = __commonJS({
         this[kHeaders2][kRealm] = this[kRealm];
         if (mode === "no-cors") {
           if (!corsSafeListedMethods.includes(request.method)) {
-            throw new TypeError(`'${request.method} is unsupported in no-cors mode.`);
+            throw new TypeError(
+              `'${request.method} is unsupported in no-cors mode.`
+            );
           }
           this[kHeaders2][kGuard2] = "request-no-cors";
         }
@@ -2466,7 +2544,10 @@ var require_request = __commonJS({
         }
         let initBody = null;
         if (init.body !== void 0 && init.body != null) {
-          const [extractedBody, contentType] = extractBody(init.body, request.keepalive);
+          const [extractedBody, contentType] = extractBody(
+            init.body,
+            request.keepalive
+          );
           initBody = extractedBody;
           if (contentType && !this[kHeaders2].has("content-type")) {
             this[kHeaders2].append("content-type", contentType);
@@ -2475,14 +2556,18 @@ var require_request = __commonJS({
         const inputOrInitBody = initBody != null ? initBody : inputBody;
         if (inputOrInitBody != null && inputOrInitBody.source == null) {
           if (request.mode !== "same-origin" && request.mode !== "cors") {
-            throw new TypeError('If request is made from ReadableStream, mode should be "same-origin" or "cors"');
+            throw new TypeError(
+              'If request is made from ReadableStream, mode should be "same-origin" or "cors"'
+            );
           }
           request.useCORSPreflightFlag = true;
         }
         let finalBody = inputOrInitBody;
         if (initBody == null && inputBody != null) {
           if (util.isDisturbed(inputBody.stream) || inputBody.stream.locked) {
-            throw new TypeError("Cannot construct a Request with a Request object that has already been used.");
+            throw new TypeError(
+              "Cannot construct a Request with a Request object that has already been used."
+            );
           }
           if (!TransformStream) {
             TransformStream = require("./streams").TransformStream;
@@ -2613,9 +2698,13 @@ var require_request = __commonJS({
         if (this.signal.aborted) {
           ac.abort();
         } else {
-          this.signal.addEventListener("abort", function() {
-            ac.abort();
-          }, { once: true });
+          this.signal.addEventListener(
+            "abort",
+            function() {
+              ac.abort();
+            },
+            { once: true }
+          );
         }
         clonedRequestObject[kSignal] = ac.signal;
         return clonedRequestObject;
@@ -2624,7 +2713,7 @@ var require_request = __commonJS({
     __name(Request2, "Request");
     mixinBody(Request2.prototype);
     function makeRequest(init) {
-      const request = __spreadProps(__spreadValues({
+      const request = {
         method: "GET",
         localURLsOnly: false,
         unsafeRequest: false,
@@ -2659,16 +2748,16 @@ var require_request = __commonJS({
         responseTainting: "basic",
         preventNoCacheCacheControlHeaderModification: false,
         done: false,
-        timingAllowFailed: false
-      }, init), {
+        timingAllowFailed: false,
+        ...init,
         headersList: init.headersList ? new HeadersList2(init.headersList) : new HeadersList2()
-      });
+      };
       request.url = request.urlList[0];
       return request;
     }
     __name(makeRequest, "makeRequest");
     function cloneRequest(request) {
-      const newRequest = makeRequest(__spreadProps(__spreadValues({}, request), { body: null }));
+      const newRequest = makeRequest({ ...request, body: null });
       if (request.body != null) {
         newRequest.body = cloneBody(request.body);
       }
@@ -2699,7 +2788,11 @@ var require_dataURL = __commonJS({
       let input = URLSerializer(dataURL, true);
       input = input.slice(5);
       const position = { position: 0 };
-      let mimeType = collectASequenceOfCodePoints((char) => char !== ",", input, position);
+      let mimeType = collectASequenceOfCodePoints(
+        (char) => char !== ",",
+        input,
+        position
+      );
       const mimeTypeLength = mimeType.length;
       mimeType = mimeType.replace(/^(\u0020)+|(\u0020)+$/g, "");
       if (position.position >= input.length) {
@@ -2792,7 +2885,11 @@ var require_dataURL = __commonJS({
     function parseMIMEType(input) {
       input = input.trim();
       const position = { position: 0 };
-      const type = collectASequenceOfCodePoints((char) => char !== "/", input, position);
+      const type = collectASequenceOfCodePoints(
+        (char) => char !== "/",
+        input,
+        position
+      );
       if (type.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(type)) {
         return "failure";
       }
@@ -2800,7 +2897,11 @@ var require_dataURL = __commonJS({
         return "failure";
       }
       position.position++;
-      let subtype = collectASequenceOfCodePoints((char) => char !== ";", input, position);
+      let subtype = collectASequenceOfCodePoints(
+        (char) => char !== ";",
+        input,
+        position
+      );
       subtype = subtype.trim();
       if (subtype.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(subtype)) {
         return "failure";
@@ -2812,8 +2913,16 @@ var require_dataURL = __commonJS({
       };
       while (position.position < input.length) {
         position.position++;
-        collectASequenceOfCodePoints((char) => /(\u000A|\u000D|\u0009|\u0020)/.test(char), input, position);
-        let parameterName = collectASequenceOfCodePoints((char) => char !== ";" && char !== "=", input, position);
+        collectASequenceOfCodePoints(
+          (char) => /(\u000A|\u000D|\u0009|\u0020)/.test(char),
+          input,
+          position
+        );
+        let parameterName = collectASequenceOfCodePoints(
+          (char) => char !== ";" && char !== "=",
+          input,
+          position
+        );
         parameterName = parameterName.toLowerCase();
         if (position.position < input.length) {
           if (input[position.position] === ";") {
@@ -2827,9 +2936,17 @@ var require_dataURL = __commonJS({
         let parameterValue = null;
         if (input[position.position] === '"') {
           parameterValue = collectAnHTTPQuotedString(input, position);
-          collectASequenceOfCodePoints((char) => char !== ";", input, position);
+          collectASequenceOfCodePoints(
+            (char) => char !== ";",
+            input,
+            position
+          );
         } else {
-          parameterValue = collectASequenceOfCodePoints((char) => char !== ";", input, position);
+          parameterValue = collectASequenceOfCodePoints(
+            (char) => char !== ";",
+            input,
+            position
+          );
           parameterValue = parameterValue.trim();
           if (parameterValue.length === 0) {
             continue;
@@ -2867,7 +2984,11 @@ var require_dataURL = __commonJS({
       assert(input[position.position] === '"');
       position.position++;
       while (true) {
-        value += collectASequenceOfCodePoints((char) => char !== '"' && char !== "\\", input, position);
+        value += collectASequenceOfCodePoints(
+          (char) => char !== '"' && char !== "\\",
+          input,
+          position
+        );
         if (position.position >= input.length) {
           break;
         }
@@ -2991,10 +3112,14 @@ var require_fetch = __commonJS({
     async function fetch2(...args) {
       var _a, _b;
       if (args.length < 1) {
-        throw new TypeError(`Failed to execute 'fetch' on 'Window': 1 argument required, but only ${args.length} present.`);
+        throw new TypeError(
+          `Failed to execute 'fetch' on 'Window': 1 argument required, but only ${args.length} present.`
+        );
       }
       if (args.length >= 1 && typeof args[1] !== "object" && args[1] !== void 0) {
-        throw new TypeError("Failed to execute 'fetch' on 'Window': cannot convert to dictionary.");
+        throw new TypeError(
+          "Failed to execute 'fetch' on 'Window': cannot convert to dictionary."
+        );
       }
       const resource = args[0];
       const init = args.length >= 1 ? (_a = args[1]) != null ? _a : {} : {};
@@ -3013,13 +3138,17 @@ var require_fetch = __commonJS({
       const relevantRealm = null;
       let locallyAborted = false;
       let controller = null;
-      requestObject.signal.addEventListener("abort", () => {
-        locallyAborted = true;
-        abortFetch(p, request, responseObject);
-        if (controller != null) {
-          controller.abort();
-        }
-      }, { once: true });
+      requestObject.signal.addEventListener(
+        "abort",
+        () => {
+          locallyAborted = true;
+          abortFetch(p, request, responseObject);
+          if (controller != null) {
+            controller.abort();
+          }
+        },
+        { once: true }
+      );
       const handleFetchDone = /* @__PURE__ */ __name((response) => finalizeAndReportTiming(response, "fetch"), "handleFetchDone");
       const processResponse = /* @__PURE__ */ __name((response) => {
         if (locallyAborted) {
@@ -3030,7 +3159,9 @@ var require_fetch = __commonJS({
           return;
         }
         if (response.type === "error") {
-          p.reject(Object.assign(new TypeError("fetch failed"), { cause: response.error }));
+          p.reject(
+            Object.assign(new TypeError("fetch failed"), { cause: response.error })
+          );
           return;
         }
         responseObject = new Response3();
@@ -3075,7 +3206,13 @@ var require_fetch = __commonJS({
       }
       response.timingInfo.endTime = coarsenedSharedCurrentTime();
       response.timingInfo = timingInfo;
-      markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState);
+      markResourceTiming(
+        timingInfo,
+        originalURL,
+        initiatorType,
+        globalThis,
+        cacheState
+      );
     }
     __name(finalizeAndReportTiming, "finalizeAndReportTiming");
     function markResourceTiming() {
@@ -3149,7 +3286,9 @@ var require_fetch = __commonJS({
       }
       if (request.policyContainer === "client") {
         if (request.client != null) {
-          request.policyContainer = clonePolicyContainer(request.client.policyContainer);
+          request.policyContainer = clonePolicyContainer(
+            request.client.policyContainer
+          );
         } else {
           request.policyContainer = makePolicyContainer();
         }
@@ -3199,7 +3338,9 @@ var require_fetch = __commonJS({
           }
           if (request.mode === "no-cors") {
             if (request.redirect !== "follow") {
-              return makeNetworkError('redirect mode cannot be "follow" for "no-cors" request');
+              return makeNetworkError(
+                'redirect mode cannot be "follow" for "no-cors" request'
+              );
             }
             request.responseTainting = "opaque";
             return await schemeFetch(fetchParams);
@@ -3413,7 +3554,12 @@ var require_fetch = __commonJS({
           request.timingAllowFailed = true;
         }
       }
-      if ((request.responseTainting === "opaque" || response.type === "opaque") && crossOriginResourcePolicyCheck(request.origin, request.client, request.destination, actualResponse) === "blocked") {
+      if ((request.responseTainting === "opaque" || response.type === "opaque") && crossOriginResourcePolicyCheck(
+        request.origin,
+        request.client,
+        request.destination,
+        actualResponse
+      ) === "blocked") {
         return makeNetworkError("blocked");
       }
       if (redirectStatus.includes(actualResponse.status)) {
@@ -3437,7 +3583,10 @@ var require_fetch = __commonJS({
       const actualResponse = response.internalResponse ? response.internalResponse : response;
       let locationURL;
       try {
-        locationURL = responseLocationURL(actualResponse, requestCurrentURL(request).hash);
+        locationURL = responseLocationURL(
+          actualResponse,
+          requestCurrentURL(request).hash
+        );
         if (locationURL == null) {
           return response;
         }
@@ -3455,7 +3604,9 @@ var require_fetch = __commonJS({
         return makeNetworkError('cross origin not allowed for request mode "cors"');
       }
       if (request.responseTainting === "cors" && (locationURL.username || locationURL.password)) {
-        return makeNetworkError('URL cannot contain credentials for request mode "cors"');
+        return makeNetworkError(
+          'URL cannot contain credentials for request mode "cors"'
+        );
       }
       if (actualResponse.status !== 303 && request.body != null && request.body.source == null) {
         return makeNetworkError();
@@ -3493,7 +3644,7 @@ var require_fetch = __commonJS({
         httpRequest = request;
       } else {
         httpRequest = makeRequest(request);
-        httpFetchParams = __spreadValues({}, fetchParams);
+        httpFetchParams = { ...fetchParams };
         httpFetchParams.request = httpRequest;
       }
       const includeCredentials = request.credentials === "include" || request.credentials === "same-origin" && request.responseTainting === "basic";
@@ -3553,7 +3704,11 @@ var require_fetch = __commonJS({
         if (httpRequest.mode === "only-if-cached") {
           return makeNetworkError("only if cached");
         }
-        const forwardResponse = await httpNetworkFetch(httpFetchParams, includeCredentials, isNewConnectionFetch);
+        const forwardResponse = await httpNetworkFetch(
+          httpFetchParams,
+          includeCredentials,
+          isNewConnectionFetch
+        );
         if (!safeMethods.includes(httpRequest.method) && forwardResponse.status >= 200 && forwardResponse.status <= 399) {
         }
         if (revalidatingFlag && forwardResponse.status === 304) {
@@ -3581,7 +3736,11 @@ var require_fetch = __commonJS({
           return makeAppropriateNetworkError(fetchParams);
         }
         fetchParams.controller.connection.destroy();
-        response = await httpNetworkOrCacheFetch(fetchParams, isAuthenticationFetch, true);
+        response = await httpNetworkOrCacheFetch(
+          fetchParams,
+          isAuthenticationFetch,
+          true
+        );
       }
       if (isAuthenticationFetch) {
       }
@@ -3674,17 +3833,20 @@ var require_fetch = __commonJS({
       if (!ReadableStream) {
         ReadableStream = require("./streams").ReadableStream;
       }
-      const stream = new ReadableStream({
-        async start(controller) {
-          fetchParams.controller.controller = controller;
+      const stream = new ReadableStream(
+        {
+          async start(controller) {
+            fetchParams.controller.controller = controller;
+          },
+          async pull(controller) {
+            await pullAlgorithm(controller);
+          },
+          async cancel(reason) {
+            await cancelAlgorithm(reason);
+          }
         },
-        async pull(controller) {
-          await pullAlgorithm(controller);
-        },
-        async cancel(reason) {
-          await cancelAlgorithm(reason);
-        }
-      }, { highWaterMark: 0 });
+        { highWaterMark: 0 }
+      );
       response.body = { stream };
       fetchParams.controller.on("terminated", onAborted);
       fetchParams.controller.resume = async () => {
@@ -3749,92 +3911,95 @@ var require_fetch = __commonJS({
       return response;
       async function dispatch({ body }) {
         const url = requestCurrentURL(request);
-        return new Promise((resolve, reject) => fetchParams.controller.dispatcher.dispatch({
-          path: url.pathname + url.search,
-          origin: url.origin,
-          method: request.method,
-          body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
-          headers: [...request.headersList].flat(),
-          maxRedirections: 0,
-          bodyTimeout: 3e5,
-          headersTimeout: 3e5
-        }, {
-          body: null,
-          abort: null,
-          onConnect(abort) {
-            const { connection } = fetchParams.controller;
-            if (connection.destroyed) {
-              abort(new AbortError());
-            } else {
-              fetchParams.controller.on("terminated", abort);
-              this.abort = connection.abort = abort;
-            }
+        return new Promise((resolve, reject) => fetchParams.controller.dispatcher.dispatch(
+          {
+            path: url.pathname + url.search,
+            origin: url.origin,
+            method: request.method,
+            body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
+            headers: [...request.headersList].flat(),
+            maxRedirections: 0,
+            bodyTimeout: 3e5,
+            headersTimeout: 3e5
           },
-          onHeaders(status, headersList, resume, statusText) {
-            if (status < 200) {
-              return;
-            }
-            let codings = [];
-            const headers = new Headers3();
-            for (let n = 0; n < headersList.length; n += 2) {
-              const key = headersList[n + 0].toString();
-              const val = headersList[n + 1].toString();
-              if (key.toLowerCase() === "content-encoding") {
-                codings = val.split(",").map((x) => x.trim());
+          {
+            body: null,
+            abort: null,
+            onConnect(abort) {
+              const { connection } = fetchParams.controller;
+              if (connection.destroyed) {
+                abort(new AbortError());
+              } else {
+                fetchParams.controller.on("terminated", abort);
+                this.abort = connection.abort = abort;
               }
-              headers.append(key, val);
-            }
-            this.body = new Readable({ read: resume });
-            const decoders = [];
-            if (request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status)) {
-              for (const coding of codings) {
-                if (/(x-)?gzip/.test(coding)) {
-                  decoders.push(zlib.createGunzip());
-                } else if (/(x-)?deflate/.test(coding)) {
-                  decoders.push(zlib.createInflate());
-                } else if (coding === "br") {
-                  decoders.push(zlib.createBrotliDecompress());
-                } else {
-                  decoders.length = 0;
-                  break;
+            },
+            onHeaders(status, headersList, resume, statusText) {
+              if (status < 200) {
+                return;
+              }
+              let codings = [];
+              const headers = new Headers3();
+              for (let n = 0; n < headersList.length; n += 2) {
+                const key = headersList[n + 0].toString();
+                const val = headersList[n + 1].toString();
+                if (key.toLowerCase() === "content-encoding") {
+                  codings = val.split(",").map((x) => x.trim());
+                }
+                headers.append(key, val);
+              }
+              this.body = new Readable({ read: resume });
+              const decoders = [];
+              if (request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status)) {
+                for (const coding of codings) {
+                  if (/(x-)?gzip/.test(coding)) {
+                    decoders.push(zlib.createGunzip());
+                  } else if (/(x-)?deflate/.test(coding)) {
+                    decoders.push(zlib.createInflate());
+                  } else if (coding === "br") {
+                    decoders.push(zlib.createBrotliDecompress());
+                  } else {
+                    decoders.length = 0;
+                    break;
+                  }
                 }
               }
+              resolve({
+                status,
+                statusText,
+                headersList: headers[kHeadersList2],
+                body: decoders.length ? pipeline(this.body, ...decoders, () => {
+                }) : this.body.on("error", () => {
+                })
+              });
+              return true;
+            },
+            onData(chunk) {
+              if (fetchParams.controller.dump) {
+                return;
+              }
+              const bytes = chunk;
+              timingInfo.encodedBodySize += bytes.byteLength;
+              return this.body.push(bytes);
+            },
+            onComplete() {
+              if (this.abort) {
+                fetchParams.controller.off("terminated", this.abort);
+              }
+              fetchParams.controller.ended = true;
+              this.body.push(null);
+            },
+            onError(error) {
+              var _a;
+              if (this.abort) {
+                fetchParams.controller.off("terminated", this.abort);
+              }
+              (_a = this.body) == null ? void 0 : _a.destroy(error);
+              fetchParams.controller.terminate(error);
+              reject(error);
             }
-            resolve({
-              status,
-              statusText,
-              headersList: headers[kHeadersList2],
-              body: decoders.length ? pipeline(this.body, ...decoders, () => {
-              }) : this.body.on("error", () => {
-              })
-            });
-            return true;
-          },
-          onData(chunk) {
-            if (fetchParams.controller.dump) {
-              return;
-            }
-            const bytes = chunk;
-            timingInfo.encodedBodySize += bytes.byteLength;
-            return this.body.push(bytes);
-          },
-          onComplete() {
-            if (this.abort) {
-              fetchParams.controller.off("terminated", this.abort);
-            }
-            fetchParams.controller.ended = true;
-            this.body.push(null);
-          },
-          onError(error) {
-            var _a;
-            if (this.abort) {
-              fetchParams.controller.off("terminated", this.abort);
-            }
-            (_a = this.body) == null ? void 0 : _a.destroy(error);
-            fetchParams.controller.terminate(error);
-            reject(error);
           }
-        }));
+        ));
       }
       __name(dispatch, "dispatch");
     }
@@ -4297,7 +4462,9 @@ var require_undici_core_request = __commonJS({
         if (typeof path !== "string") {
           throw new InvalidArgumentError2("path must be a string");
         } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
-          throw new InvalidArgumentError2("path must be an absolute URL or start with a slash");
+          throw new InvalidArgumentError2(
+            "path must be an absolute URL or start with a slash"
+          );
         }
         if (typeof method !== "string") {
           throw new InvalidArgumentError2("method must be a string");
@@ -4330,7 +4497,9 @@ var require_undici_core_request = __commonJS({
         } else if (util.isFormDataLike(body) || util.isIterable(body) || util.isBlobLike(body)) {
           this.body = body;
         } else {
-          throw new InvalidArgumentError2("body must be a string, a Buffer, a Readable stream, an iterable, or an async iterable");
+          throw new InvalidArgumentError2(
+            "body must be a string, a Buffer, a Readable stream, an iterable, or an async iterable"
+          );
         }
         this.completed = false;
         this.aborted = false;
@@ -4361,7 +4530,9 @@ var require_undici_core_request = __commonJS({
         }
         if (util.isFormDataLike(this.body)) {
           if (nodeMajor < 16 || nodeMajor === 16 && nodeMinor < 5) {
-            throw new InvalidArgumentError2("Form-Data bodies are only supported in node v16.5 and newer.");
+            throw new InvalidArgumentError2(
+              "Form-Data bodies are only supported in node v16.5 and newer."
+            );
           }
           if (!extractBody) {
             extractBody = require_body().extractBody;
@@ -4511,7 +4682,7 @@ var require_redirect = __commonJS({
         this.dispatcher = dispatcher;
         this.location = null;
         this.abort = null;
-        this.opts = __spreadProps(__spreadValues({}, opts), { maxRedirections: 0 });
+        this.opts = { ...opts, maxRedirections: 0 };
         this.maxRedirections = maxRedirections;
         this.handler = handler;
         this.history = [];
@@ -4633,12 +4804,11 @@ var require_connect = __commonJS({
     var util = require_util();
     var { InvalidArgumentError: InvalidArgumentError2, ConnectTimeoutError } = require_errors();
     var tls;
-    function buildConnector(_a) {
-      var _b = _a, { maxCachedSessions, socketPath, timeout } = _b, opts = __objRest(_b, ["maxCachedSessions", "socketPath", "timeout"]);
+    function buildConnector({ maxCachedSessions, socketPath, timeout, ...opts }) {
       if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
         throw new InvalidArgumentError2("maxCachedSessions must be a positive integer or zero");
       }
-      const options = __spreadValues({ path: socketPath }, opts);
+      const options = { path: socketPath, ...opts };
       const sessionCache = /* @__PURE__ */ new Map();
       timeout = timeout == null ? 1e4 : timeout;
       maxCachedSessions = maxCachedSessions == null ? 100 : maxCachedSessions;
@@ -4652,15 +4822,15 @@ var require_connect = __commonJS({
           const sessionKey = servername || hostname;
           const session = sessionCache.get(sessionKey) || null;
           assert(sessionKey);
-          socket = tls.connect(__spreadProps(__spreadValues({
-            highWaterMark: 16384
-          }, options), {
+          socket = tls.connect({
+            highWaterMark: 16384,
+            ...options,
             servername,
             session,
             socket: httpSocket,
             port: port || 443,
             host: hostname
-          }));
+          });
           socket.on("session", function(session2) {
             if (maxCachedSessions === 0) {
               return;
@@ -4677,12 +4847,12 @@ var require_connect = __commonJS({
           });
         } else {
           assert(!httpSocket, "httpSocket can only be sent on TLS update");
-          socket = net.connect(__spreadProps(__spreadValues({
-            highWaterMark: 64 * 1024
-          }, options), {
+          socket = net.connect({
+            highWaterMark: 64 * 1024,
+            ...options,
             port: port || 80,
             host: hostname
-          }));
+          });
         }
         const timeoutId = timeout ? setTimeout(onConnectTimeout, timeout, socket) : null;
         socket.setNoDelay(true).once(protocol === "https:" ? "secureConnect" : "connect", function() {
@@ -5222,11 +5392,13 @@ var require_client = __commonJS({
           throw new InvalidArgumentError2("maxRequestsPerClient must be a positive number");
         }
         if (typeof connect2 !== "function") {
-          connect2 = buildConnector(__spreadValues(__spreadProps(__spreadValues({}, tls), {
+          connect2 = buildConnector({
+            ...tls,
             maxCachedSessions,
             socketPath,
-            timeout: connectTimeout
-          }), connect2));
+            timeout: connectTimeout,
+            ...connect2
+          });
         }
         this[kUrl] = util.parseOrigin(url);
         this[kConnector] = connect2;
@@ -5652,7 +5824,10 @@ var require_client = __commonJS({
         if (shouldKeepAlive && client[kPipelining]) {
           const keepAliveTimeout = this.keepAlive ? util.parseKeepAliveTimeout(this.keepAlive) : null;
           if (keepAliveTimeout != null) {
-            const timeout = Math.min(keepAliveTimeout - client[kKeepAliveTimeoutThreshold], client[kKeepAliveMaxTimeout]);
+            const timeout = Math.min(
+              keepAliveTimeout - client[kKeepAliveTimeoutThreshold],
+              client[kKeepAliveMaxTimeout]
+            );
             if (timeout <= 0) {
               socket[kReset] = true;
             } else {
@@ -6415,24 +6590,16 @@ var require_pool = __commonJS({
     }
     __name(defaultFactory, "defaultFactory");
     var Pool = class extends PoolBase {
-      constructor(origin, _a = {}) {
-        var _b = _a, {
-          connections,
-          factory = defaultFactory,
-          connect,
-          connectTimeout,
-          tls,
-          maxCachedSessions,
-          socketPath
-        } = _b, options = __objRest(_b, [
-          "connections",
-          "factory",
-          "connect",
-          "connectTimeout",
-          "tls",
-          "maxCachedSessions",
-          "socketPath"
-        ]);
+      constructor(origin, {
+        connections,
+        factory = defaultFactory,
+        connect,
+        connectTimeout,
+        tls,
+        maxCachedSessions,
+        socketPath,
+        ...options
+      } = {}) {
         super();
         if (connections != null && (!Number.isFinite(connections) || connections < 0)) {
           throw new InvalidArgumentError2("invalid connections");
@@ -6444,15 +6611,17 @@ var require_pool = __commonJS({
           throw new InvalidArgumentError2("connect must be a function or an object");
         }
         if (typeof connect !== "function") {
-          connect = buildConnector(__spreadValues(__spreadProps(__spreadValues({}, tls), {
+          connect = buildConnector({
+            ...tls,
             maxCachedSessions,
             socketPath,
-            timeout: connectTimeout == null ? 1e4 : connectTimeout
-          }), connect));
+            timeout: connectTimeout == null ? 1e4 : connectTimeout,
+            ...connect
+          });
         }
         this[kConnections] = connections || null;
         this[kUrl] = util.parseOrigin(origin);
-        this[kOptions] = __spreadProps(__spreadValues({}, util.deepClone(options)), { connect });
+        this[kOptions] = { ...util.deepClone(options), connect };
         this[kFactory] = factory;
       }
       [kGetDispatcher]() {
@@ -6535,8 +6704,7 @@ var require_agent = __commonJS({
     }
     __name(defaultFactory, "defaultFactory");
     var Agent2 = class extends DispatcherBase {
-      constructor(_a = {}) {
-        var _b = _a, { factory = defaultFactory, maxRedirections = 0, connect } = _b, options = __objRest(_b, ["factory", "maxRedirections", "connect"]);
+      constructor({ factory = defaultFactory, maxRedirections = 0, connect, ...options } = {}) {
         super();
         if (typeof factory !== "function") {
           throw new InvalidArgumentError2("factory must be a function.");
@@ -6548,9 +6716,9 @@ var require_agent = __commonJS({
           throw new InvalidArgumentError2("maxRedirections must be a positive number");
         }
         if (connect && typeof connect !== "function") {
-          connect = __spreadValues({}, connect);
+          connect = { ...connect };
         }
-        this[kOptions] = __spreadProps(__spreadValues({}, util.deepClone(options)), { connect });
+        this[kOptions] = { ...util.deepClone(options), connect };
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
         this[kClients] = /* @__PURE__ */ new Map();
@@ -6600,7 +6768,7 @@ var require_agent = __commonJS({
         }
         const { maxRedirections = this[kMaxRedirections] } = opts;
         if (maxRedirections != null && maxRedirections !== 0) {
-          opts = __spreadProps(__spreadValues({}, opts), { maxRedirections: 0 });
+          opts = { ...opts, maxRedirections: 0 };
           handler = new RedirectHandler(this, maxRedirections, opts, handler);
         }
         return dispatcher.dispatch(opts, handler);
@@ -6673,7 +6841,9 @@ HeadersModule.HeadersList.prototype.append = function(name, value) {
   }
   const _name = HeadersModule.normalizeAndValidateHeaderName(name);
   if (_name === "set-cookie") {
-    this[SCookies].push(HeadersModule.normalizeAndValidateHeaderValue(_name, value));
+    this[SCookies].push(
+      HeadersModule.normalizeAndValidateHeaderValue(_name, value)
+    );
   }
   return result;
 };

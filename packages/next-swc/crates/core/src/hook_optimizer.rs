@@ -1,10 +1,12 @@
-use swc_atoms::JsWord;
-use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::{
-    ArrayPat, Callee, Decl, Expr, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
-    ObjectPat, ObjectPatProp, Pat, PropName, VarDecl, VarDeclarator,
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{
+        ArrayPat, Callee, Decl, Expr, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
+        ObjectPat, ObjectPatProp, Pat, PropName, VarDecl, VarDeclarator,
+    },
+    ecma::atoms::JsWord,
+    ecma::visit::{Fold, FoldWith},
 };
-use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn hook_optimizer() -> impl Fold {
     HookOptimizer::default()
@@ -72,7 +74,7 @@ impl HookOptimizer {
         } = &decl;
         let init_clone = init.clone();
         if let Pat::Array(a) = name {
-            if let Expr::Call(c) = &*init.as_deref().unwrap() {
+            if let Expr::Call(c) = init.as_deref().unwrap() {
                 if let Callee::Expr(i) = &c.callee {
                     if let Expr::Ident(Ident { sym, .. }) = &**i {
                         if self.hooks.contains(sym) {

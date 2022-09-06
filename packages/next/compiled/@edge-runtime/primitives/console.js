@@ -1,3 +1,4 @@
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -23,7 +24,10 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target, mod));
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // <define:process>
@@ -35,6 +39,7 @@ var init_define_process = __esm({
 // ../format/dist/index.js
 var require_dist = __commonJS({
   "../format/dist/index.js"(exports, module2) {
+    "use strict";
     init_define_process();
     var __defProp2 = Object.defineProperty;
     var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
@@ -81,7 +86,10 @@ var require_dist = __commonJS({
     var StringPrototypeIncludes = String.prototype.includes;
     var SymbolIterator = Symbol.iterator;
     var SymbolPrototypeToString = Symbol.prototype.toString;
-    var TypedArrayPrototypeGetLength = GetOwnGetter(TypedArray.prototype, "length");
+    var TypedArrayPrototypeGetLength = GetOwnGetter(
+      TypedArray.prototype,
+      "length"
+    );
     var typedArrayStrings = /* @__PURE__ */ new Set([
       "[object BigInt64Array]",
       "[object BigUint64Array]",
@@ -191,7 +199,7 @@ var require_dist = __commonJS({
         return str;
       }
       __name(format2, "format");
-      function formatValue(ctx, value, recurseTimes, typedArray) {
+      function formatValue(ctx, value, recurseTimes) {
         if (hasCustomSymbol(value, customInspectSymbol)) {
           return format2(value[customInspectSymbol]());
         }
@@ -264,7 +272,6 @@ var require_dist = __commonJS({
             noIterator = true;
           }
         }
-        let isValueFunction = false;
         if (noIterator) {
           keys = getKeys(value, ctx.showHidden);
           braces = ["{", "}"];
@@ -273,7 +280,6 @@ var require_dist = __commonJS({
               return `{}`;
             }
           } else if (kind(value, "function")) {
-            isValueFunction = true;
             base = `[Function${value.name ? ": " + value.name : ""}]`;
             if (keys.length === 0) {
               return base;
@@ -313,7 +319,16 @@ var require_dist = __commonJS({
         const visibleKeys = new Set(keys);
         const output = formatter(ctx, value, recurseTimes, visibleKeys, keys);
         for (let i = 0; i < keys.length; i++) {
-          output.push(formatProperty(ctx, value, recurseTimes, visibleKeys, keys[i], false));
+          output.push(
+            formatProperty(
+              ctx,
+              value,
+              recurseTimes,
+              visibleKeys,
+              keys[i],
+              false
+            )
+          );
         }
         if (ctx.circular !== void 0) {
           const index = ctx.circular.get(value);
@@ -323,7 +338,7 @@ var require_dist = __commonJS({
           }
         }
         ctx.seen.pop();
-        return reduceToSingleString(output, base, braces, isValueFunction);
+        return reduceToSingleString(output, base, braces);
       }
       __name(formatRaw, "formatRaw");
       function inspect(value, opts2) {
@@ -359,11 +374,20 @@ var require_dist = __commonJS({
         return `${name}: ${str}`;
       }
       __name(formatProperty, "formatProperty");
-      function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
+      function formatArray(ctx, value, recurseTimes, visibleKeys) {
         const output = [];
         for (let index = 0; index < value.length; ++index) {
           if (Object.prototype.hasOwnProperty.call(value, String(index))) {
-            output.push(formatProperty(ctx, value, recurseTimes, visibleKeys, String(index), true));
+            output.push(
+              formatProperty(
+                ctx,
+                value,
+                recurseTimes,
+                visibleKeys,
+                String(index),
+                true
+              )
+            );
           } else {
             output.push("");
           }
@@ -384,7 +408,7 @@ var require_dist = __commonJS({
             "byteOffset",
             "buffer"
           ]) {
-            const str = formatValue(ctx, value[key], recurseTimes, true);
+            const str = formatValue(ctx, value[key], recurseTimes);
             ArrayPrototypePush.call(output, `[${String(key)}]: ${str}`);
           }
         }
@@ -402,7 +426,13 @@ var require_dist = __commonJS({
       function formatMap(ctx, value, recurseTimes) {
         const output = [];
         for (const { 0: k, 1: v } of value) {
-          output.push(`${formatValue(ctx, k, recurseTimes)} => ${formatValue(ctx, v, recurseTimes)}`);
+          output.push(
+            `${formatValue(ctx, k, recurseTimes)} => ${formatValue(
+              ctx,
+              v,
+              recurseTimes
+            )}`
+          );
         }
         return output;
       }
@@ -410,11 +440,7 @@ var require_dist = __commonJS({
       return format2;
     }
     __name(createFormat2, "createFormat");
-    function formatBigInt(bigint) {
-      const str = String(bigint);
-      return `${str}n`;
-    }
-    __name(formatBigInt, "formatBigInt");
+    var formatBigInt = /* @__PURE__ */ __name((bigint) => `${bigint}n`, "formatBigInt");
     function formatPrimitive(value) {
       if (value === null)
         return "null";
@@ -472,7 +498,7 @@ var require_dist = __commonJS({
       return base === "" || !StringPrototypeIncludes.call(base, "\n");
     }
     __name(isBelowBreakLength, "isBelowBreakLength");
-    function reduceToSingleString(output, base, braces, isValueFunction) {
+    function reduceToSingleString(output, base, braces) {
       const start = output.length + braces[0].length + base.length + 10;
       if (!isBelowBreakLength(output, start, base)) {
         return (base ? base + " " : "") + braces[0] + "\n  " + output.join(",\n  ") + "\n" + braces[1];
@@ -482,7 +508,9 @@ var require_dist = __commonJS({
     __name(reduceToSingleString, "reduceToSingleString");
     function safeStringify(input) {
       if (Array.isArray(input)) {
-        input = input.map((element) => JSON.parse(JSON.stringify(element, makeCircularReplacer())));
+        input = input.map(
+          (element) => JSON.parse(JSON.stringify(element, makeCircularReplacer()))
+        );
       }
       return JSON.stringify(input, makeCircularReplacer());
     }

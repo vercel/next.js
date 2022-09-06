@@ -159,7 +159,7 @@ export default class HotReloader {
   private dir: string
   private buildId: string
   private interceptors: any[]
-  private pagesDir: string
+  private pagesDir?: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
@@ -197,7 +197,7 @@ export default class HotReloader {
       appDir,
     }: {
       config: NextConfigComplete
-      pagesDir: string
+      pagesDir?: string
       distDir: string
       buildId: string
       previewProps: __ApiPreviewProps
@@ -405,14 +405,21 @@ export default class HotReloader {
       : this.config.pageExtensions
 
     return webpackConfigSpan.traceAsyncFn(async () => {
-      const pagePaths = await webpackConfigSpan
-        .traceChild('get-page-paths')
-        .traceAsyncFn(() =>
-          Promise.all([
-            findPageFile(this.pagesDir, '/_app', rawPageExtensions),
-            findPageFile(this.pagesDir, '/_document', rawPageExtensions),
-          ])
-        )
+      const pagePaths = !this.pagesDir
+        ? ([] as (string | null)[])
+        : await webpackConfigSpan
+            .traceChild('get-page-paths')
+            .traceAsyncFn(() =>
+              Promise.all([
+                findPageFile(this.pagesDir!, '/_app', rawPageExtensions, false),
+                findPageFile(
+                  this.pagesDir!,
+                  '/_document',
+                  rawPageExtensions,
+                  false
+                ),
+              ])
+            )
 
       this.pagesMapping = webpackConfigSpan
         .traceChild('create-pages-mapping')
@@ -423,8 +430,9 @@ export default class HotReloader {
             pageExtensions: this.config.pageExtensions,
             pagesType: 'pages',
             pagePaths: pagePaths.filter(
-              (i): i is string => typeof i === 'string'
+              (i: string | null): i is string => typeof i === 'string'
             ),
+            pagesDir: this.pagesDir,
           })
         )
 
@@ -603,6 +611,23 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
+                const isApp = this.appDir && bundlePath.startsWith('app/')
+                const appDirLoader =
+                  isApp && this.appDir
+                    ? getAppEntry({
+                        name: bundlePath,
+                        pagePath: posix.join(
+                          APP_DIR_ALIAS,
+                          relative(
+                            this.appDir!,
+                            entryData.absolutePagePath
+                          ).replace(/\\/g, '/')
+                        ),
+                        appDir: this.appDir!,
+                        pageExtensions: this.config.pageExtensions,
+                      }).import
+                    : undefined
+
                 entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.edgeServer,
@@ -616,6 +641,8 @@ export default class HotReloader {
                     page,
                     pages: this.pagesMapping,
                     isServerComponent,
+                    appDirLoader,
+                    pagesType: isApp ? 'app' : undefined,
                   }),
                   appDir: this.config.experimental.appDir,
                 })
@@ -707,9 +734,12 @@ export default class HotReloader {
     const changedClientPages = new Set<string>()
     const changedServerPages = new Set<string>()
     const changedEdgeServerPages = new Set<string>()
+    const changedCSSImportPages = new Set<string>()
+
     const prevClientPageHashes = new Map<string, string>()
     const prevServerPageHashes = new Map<string, string>()
     const prevEdgeServerPageHashes = new Map<string, string>()
+    const prevCSSImportModuleHashes = new Map<string, string>()
 
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
@@ -727,6 +757,7 @@ export default class HotReloader {
                   const modsIterable: any =
                     stats.chunkGraph.getChunkModulesIterable(chunk)
 
+                  let hasCSSModuleChanges = false
                   let chunksHash = new StringXor()
 
                   modsIterable.forEach((mod: any) => {
@@ -752,6 +783,21 @@ export default class HotReloader {
                         chunk.runtime
                       )
                       chunksHash.add(hash)
+
+                      // Both CSS import changes from server and client
+                      // components are tracked.
+                      if (
+                        key.startsWith('app/') &&
+                        mod.resource?.endsWith('.css')
+                      ) {
+                        const prevHash = prevCSSImportModuleHashes.get(
+                          mod.resource
+                        )
+                        if (prevHash && prevHash !== hash) {
+                          hasCSSModuleChanges = true
+                        }
+                        prevCSSImportModuleHashes.set(mod.resource, hash)
+                      }
                     }
                   })
                   const prevHash = pageHashMap.get(key)
@@ -761,6 +807,10 @@ export default class HotReloader {
                     changedItems.add(key)
                   }
                   pageHashMap.set(key, curHash)
+
+                  if (hasCSSModuleChanges) {
+                    changedCSSImportPages.add(key)
+                  }
                 }
               })
             }
@@ -806,6 +856,10 @@ export default class HotReloader {
         this.serverError = null
         this.serverStats = stats
 
+        if (!this.pagesDir) {
+          return
+        }
+
         const { compilation } = stats
 
         // We only watch `_document` for changes on the server compilation
@@ -838,18 +892,20 @@ export default class HotReloader {
         changedServerPages,
         changedClientPages
       )
-      const serverComponentChanges = serverOnlyChanges.filter((key) =>
-        key.startsWith('app/')
-      )
+      const serverComponentChanges = serverOnlyChanges
+        .filter((key) => key.startsWith('app/'))
+        .concat(Array.from(changedCSSImportPages))
       const pageChanges = serverOnlyChanges.filter((key) =>
         key.startsWith('pages/')
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
         (name) => isMiddlewareFilename(name)
       )
+
       changedClientPages.clear()
       changedServerPages.clear()
       changedEdgeServerPages.clear()
+      changedCSSImportPages.clear()
 
       if (middlewareChanges.length > 0) {
         this.send({
@@ -1016,10 +1072,7 @@ export default class HotReloader {
     )
   }
 
-  public async ensurePage(
-    page: string,
-    clientOnly: boolean = false
-  ): Promise<void> {
+  public async ensurePage(page: string, clientOnly: boolean): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return

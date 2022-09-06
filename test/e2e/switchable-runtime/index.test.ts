@@ -67,7 +67,7 @@ describe('Switchable runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const devMiddlewareManifest = await res.json()
-        expect(devMiddlewareManifest).toEqual({})
+        expect(devMiddlewareManifest).toEqual([])
       })
 
       it('should sort edge SSR routes correctly', async () => {
@@ -184,7 +184,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                regexp: '^/api/hello$',
+                matchers: [{ regexp: '^/api/hello$' }],
                 wasm: [],
               },
               '/api/edge': {
@@ -195,7 +195,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                regexp: '^/api/edge$',
+                matchers: [{ regexp: '^/api/edge$' }],
                 wasm: [],
               },
             },
@@ -286,6 +286,10 @@ describe('Switchable runtime', () => {
           isStatic: false,
           isEdge: true,
         })
+        await testRoute(context.appPort, '/rewrite/edge', {
+          isStatic: false,
+          isEdge: true,
+        })
       })
 
       // TODO: edge rsc in app dir
@@ -305,6 +309,11 @@ describe('Switchable runtime', () => {
         text = await response.text()
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
+        // Rewrite should also work
+        response = await fetchViaHTTP(context.appPort, 'rewrite/api/edge')
+        text = await response.text()
+        expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
+
         if (!(global as any).isNextDeploy) {
           const manifest = await readJson(
             join(context.appDir, '.next/server/middleware-manifest.json')
@@ -319,7 +328,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                regexp: '^/api/hello$',
+                matchers: [{ regexp: '^/api/hello$' }],
                 wasm: [],
               },
               '/api/edge': {
@@ -330,7 +339,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                regexp: '^/api/edge$',
+                matchers: [{ regexp: '^/api/edge$' }],
                 wasm: [],
               },
             },

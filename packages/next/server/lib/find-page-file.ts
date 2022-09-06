@@ -29,14 +29,16 @@ async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
 export async function findPageFile(
   pagesDir: string,
   normalizedPagePath: string,
-  pageExtensions: string[]
+  pageExtensions: string[],
+  isAppDir: boolean
 ): Promise<string | null> {
-  const pagePaths = getPagePaths(normalizedPagePath, pageExtensions)
+  const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir)
   const [existingPath, ...others] = (
     await Promise.all(
-      pagePaths.map(async (path) =>
-        (await fileExists(join(pagesDir, path))) ? path : null
-      )
+      pagePaths.map(async (path) => {
+        const filePath = join(pagesDir, path)
+        return (await fileExists(filePath)) ? path : null
+      })
     )
   ).filter(nonNullable)
 
@@ -59,4 +61,12 @@ export async function findPageFile(
   }
 
   return existingPath
+}
+
+// Determine if the file is leaf node page file under layouts,
+// The filename should start with 'page', it can be either shared,
+// client, or server components with allowed page file extension.
+// e.g. page.js, page.server.js, page.client.tsx, etc.
+export function isLayoutsLeafPage(filePath: string) {
+  return /[\\/]?page\.((server|client)\.?)?[jt]sx?$/.test(filePath)
 }

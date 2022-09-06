@@ -15,9 +15,8 @@ handlebars = "4.2.1"
 once_cell = "1.13.0"
 regex = "1.5"
 serde = "1"
-swc_cached = "0.3.5"
-swc_ecmascript = { version = "0.189.4", features = ["visit"] }
+swc_core = { version = "0.20.4", features = ["cached", "ecma_ast", "ecma_visit"] }
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.105.5"
+swc_core = { version = "0.20.4", features = ["testing_transform"] }
 testing = "0.29.4"

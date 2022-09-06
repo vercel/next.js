@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -582,6 +582,10 @@ describe('app dir', () => {
           const html = await renderViaHTTP(next.url, `/catch-all/${route}`)
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
+
+          // Components under catch-all should not be treated as route that errors during build.
+          // They should be rendered properly when imported in page route.
+          expect($('#widget').text()).toBe('widget')
         })
 
         it('should handle required segments root as not found', async () => {
@@ -717,6 +721,24 @@ describe('app dir', () => {
           expect(await browser.elementByCss('#slow-page-message').text()).toBe(
             'hello from slow page'
           )
+        })
+      })
+
+      describe('next/router', () => {
+        it('should always return null when accessed from /app', async () => {
+          const browser = await webdriver(next.url, '/old-router')
+
+          try {
+            await browser.waitForElementByCss('#old-router')
+
+            const notNull = await browser.elementsByCss('.was-not-null')
+            expect(notNull.length).toBe(0)
+
+            const wasNull = await browser.elementsByCss('.was-null')
+            expect(wasNull.length).toBe(6)
+          } finally {
+            await browser.close()
+          }
         })
       })
 
@@ -1001,31 +1023,64 @@ describe('app dir', () => {
         })
       })
 
-      it('should throw an error when getStaticProps is used', async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/client-with-errors/get-static-props'
-        )
-        expect(res.status).toBe(500)
-        expect(await res.text()).toContain(
-          isDev
-            ? 'getStaticProps is not supported on Client Components'
-            : 'Internal Server Error'
-        )
-      })
+      if (isDev) {
+        it('should throw an error when getServerSideProps is used', async () => {
+          const pageFile =
+            'app/client-with-errors/get-server-side-props/page.client.js'
+          const content = await next.readFile(pageFile)
+          const uncomment = content.replace(
+            '// export function getServerSideProps',
+            'export function getServerSideProps'
+          )
+          await next.patchFile(pageFile, uncomment)
+          const res = await fetchViaHTTP(
+            next.url,
+            '/client-with-errors/get-server-side-props'
+          )
+          await next.patchFile(pageFile, content)
 
-      it('should throw an error when getServerSideProps is used', async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/client-with-errors/get-server-side-props'
-        )
-        expect(res.status).toBe(500)
-        expect(await res.text()).toContain(
-          isDev
-            ? 'getServerSideProps is not supported on Client Components'
-            : 'Internal Server Error'
-        )
-      })
+          await check(async () => {
+            const { status } = await fetchViaHTTP(
+              next.url,
+              '/client-with-errors/get-server-side-props'
+            )
+            return status
+          }, /200/)
+
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain(
+            'getServerSideProps is not supported in client components'
+          )
+        })
+
+        it('should throw an error when getStaticProps is used', async () => {
+          const pageFile =
+            'app/client-with-errors/get-static-props/page.client.js'
+          const content = await next.readFile(pageFile)
+          const uncomment = content.replace(
+            '// export function getStaticProps',
+            'export function getStaticProps'
+          )
+          await next.patchFile(pageFile, uncomment)
+          const res = await fetchViaHTTP(
+            next.url,
+            '/client-with-errors/get-static-props'
+          )
+          await next.patchFile(pageFile, content)
+          await check(async () => {
+            const { status } = await fetchViaHTTP(
+              next.url,
+              '/client-with-errors/get-static-props'
+            )
+            return status
+          }, /200/)
+
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain(
+            'getStaticProps is not supported in client components'
+          )
+        })
+      }
     })
 
     describe('css support', () => {
@@ -1058,9 +1113,24 @@ describe('app dir', () => {
         })
       })
 
-      describe.skip('server pages', () => {
-        it('should support global css inside server pages', async () => {})
-        it('should support css modules inside server pages', async () => {})
+      describe('server pages', () => {
+        it('should support global css inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/css-page')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+
+        it('should support css modules inside server pages', async () => {
+          const browser = await webdriver(next.url, '/css/css-page')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#cssm')).color`
+            )
+          ).toBe('rgb(0, 0, 255)')
+        })
       })
 
       describe('client layouts', () => {

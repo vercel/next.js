@@ -4,6 +4,10 @@ import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type {
+  MiddlewareConfig,
+  MiddlewareMatcher,
+} from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
@@ -42,6 +46,7 @@ import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { serverComponentRegex } from './webpack/loaders/utils'
 import { ServerRuntime } from '../types'
+import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -64,12 +69,14 @@ export function createPagesMapping({
   pageExtensions,
   pagePaths,
   pagesType,
+  pagesDir,
 }: {
   hasServerComponents: boolean
   isDev: boolean
   pageExtensions: string[]
   pagePaths: string[]
   pagesType: 'pages' | 'root' | 'app'
+  pagesDir: string | undefined
 }): { [page: string]: string } {
   const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
@@ -128,7 +135,7 @@ export function createPagesMapping({
   // In development we always alias these to allow Webpack to fallback to
   // the correct source file so that HMR can work properly when a file is
   // added or removed.
-  const root = isDev ? PAGES_DIR_ALIAS : 'next/dist/pages'
+  const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
   return {
     '/_app': `${root}/_app`,
@@ -144,7 +151,7 @@ interface CreateEntrypointsParams {
   envFiles: LoadedEnvFiles
   isDev?: boolean
   pages: { [page: string]: string }
-  pagesDir: string
+  pagesDir?: string
   previewMode: __ApiPreviewProps
   rootDir: string
   rootPaths?: Record<string, string>
@@ -163,18 +170,17 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
-  middleware?: { pathMatcher?: RegExp }
+  middleware?: Partial<MiddlewareConfig>
+  pagesType?: 'app' | 'pages' | 'root'
+  appDirLoader?: string
 }) {
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
-      // pathMatcher can have special characters that break the loader params
-      // parsing so we base64 encode/decode the string
-      matcherRegexp: Buffer.from(
-        (opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source) ||
-          ''
-      ).toString('base64'),
+      matchers: opts.middleware?.matchers
+        ? encodeMatchers(opts.middleware.matchers)
+        : '',
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -203,6 +209,8 @@ export function getEdgeServerEntry(opts: {
     ),
     page: opts.page,
     stringifiedConfig: JSON.stringify(opts.config),
+    pagesType: opts.pagesType,
+    appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
   }
 
   return {
@@ -343,7 +351,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
   const nestedMiddleware: string[] = []
-  let middlewareRegex: string | undefined = undefined
+  let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
 
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
@@ -360,7 +368,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       // Handle paths that have aliases
       const pageFilePath = (() => {
-        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
+        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS) && pagesDir) {
           return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
         }
 
@@ -398,7 +406,9 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       })
 
       if (isMiddlewareFile(page)) {
-        middlewareRegex = staticInfo.middleware?.pathMatcher?.source || '.*'
+        middlewareMatchers = staticInfo.middleware?.matchers ?? [
+          { regexp: '.*' },
+        ]
 
         if (target === 'serverless') {
           throw new MiddlewareInServerlessTargetError()
@@ -436,15 +446,20 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               })
             }
           } else {
-            server[serverBundlePath] = isServerComponent
-              ? {
-                  import: mappings[page],
-                  layer: WEBPACK_LAYERS.server,
-                }
-              : [mappings[page]]
+            server[serverBundlePath] = [mappings[page]]
           }
         },
         onEdgeServer: () => {
+          const appDirLoader =
+            pagesType === 'app'
+              ? getAppEntry({
+                  name: serverBundlePath,
+                  pagePath: mappings[page],
+                  appDir: appDir!,
+                  pageExtensions,
+                }).import
+              : ''
+
           edgeServer[serverBundlePath] = getEdgeServerEntry({
             ...params,
             absolutePagePath: mappings[page],
@@ -453,6 +468,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             isServerComponent,
             page,
             middleware: staticInfo?.middleware,
+            pagesType,
+            appDirLoader,
           })
         },
       })
@@ -470,14 +487,14 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
   if (nestedMiddleware.length > 0) {
-    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir)
+    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir!)
   }
 
   return {
     client,
     server,
     edgeServer,
-    middlewareRegex,
+    middlewareMatchers,
   }
 }
 

@@ -3,9 +3,11 @@ use next_swc::{
     next_ssg::next_ssg,
 };
 use std::path::PathBuf;
-use swc_common::FileName;
-use swc_ecma_transforms_testing::test_fixture_allowing_error;
-use swc_ecmascript::parser::{EsConfig, Syntax};
+use swc_core::{
+    common::FileName,
+    ecma::parser::{EsConfig, Syntax},
+    ecma::transforms::testing::test_fixture_allowing_error,
+};
 use testing::fixture;
 
 fn syntax() -> Syntax {

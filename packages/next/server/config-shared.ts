@@ -5,7 +5,6 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-  RemotePattern,
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
 
@@ -117,11 +116,6 @@ export interface ExperimentalConfig {
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  images?: {
-    remotePatterns?: RemotePattern[]
-    unoptimized?: boolean
-    allowFutureImage?: boolean
-  }
   modularizeImports?: Record<
     string,
     {
@@ -145,6 +139,12 @@ export interface ExperimentalConfig {
   }
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
+  /**
+   * If set to `false`, webpack won't fall back to polyfill Node.js modules in the browser
+   * Full list of old polyfills is accessible here:
+   * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
+   */
+  fallbackNodePolyfills?: false
 }
 
 export type ExportPathMap = {
@@ -566,9 +566,6 @@ export const defaultConfig: NextConfig = {
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    images: {
-      remotePatterns: [],
-    },
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
