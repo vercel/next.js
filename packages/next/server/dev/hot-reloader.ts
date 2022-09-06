@@ -159,7 +159,7 @@ export default class HotReloader {
   private dir: string
   private buildId: string
   private interceptors: any[]
-  private pagesDir: string
+  private pagesDir?: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
@@ -197,7 +197,7 @@ export default class HotReloader {
       appDir,
     }: {
       config: NextConfigComplete
-      pagesDir: string
+      pagesDir?: string
       distDir: string
       buildId: string
       previewProps: __ApiPreviewProps
@@ -272,7 +272,7 @@ export default class HotReloader {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage(page, true)
+          await this.ensurePage({ page, clientOnly: true })
         } catch (error) {
           await renderScriptError(pageBundleRes, getProperError(error))
           return { finished: true }
@@ -405,14 +405,21 @@ export default class HotReloader {
       : this.config.pageExtensions
 
     return webpackConfigSpan.traceAsyncFn(async () => {
-      const pagePaths = await webpackConfigSpan
-        .traceChild('get-page-paths')
-        .traceAsyncFn(() =>
-          Promise.all([
-            findPageFile(this.pagesDir, '/_app', rawPageExtensions),
-            findPageFile(this.pagesDir, '/_document', rawPageExtensions),
-          ])
-        )
+      const pagePaths = !this.pagesDir
+        ? ([] as (string | null)[])
+        : await webpackConfigSpan
+            .traceChild('get-page-paths')
+            .traceAsyncFn(() =>
+              Promise.all([
+                findPageFile(this.pagesDir!, '/_app', rawPageExtensions, false),
+                findPageFile(
+                  this.pagesDir!,
+                  '/_document',
+                  rawPageExtensions,
+                  false
+                ),
+              ])
+            )
 
       this.pagesMapping = webpackConfigSpan
         .traceChild('create-pages-mapping')
@@ -423,8 +430,9 @@ export default class HotReloader {
             pageExtensions: this.config.pageExtensions,
             pagesType: 'pages',
             pagePaths: pagePaths.filter(
-              (i): i is string => typeof i === 'string'
+              (i: string | null): i is string => typeof i === 'string'
             ),
+            pagesDir: this.pagesDir,
           })
         )
 
@@ -608,6 +616,7 @@ export default class HotReloader {
                   isApp && this.appDir
                     ? getAppEntry({
                         name: bundlePath,
+                        appPaths: entryData.appPaths,
                         pagePath: posix.join(
                           APP_DIR_ALIAS,
                           relative(
@@ -685,6 +694,7 @@ export default class HotReloader {
                     this.appDir && bundlePath.startsWith('app/')
                       ? getAppEntry({
                           name: bundlePath,
+                          appPaths: entryData.appPaths,
                           pagePath: posix.join(
                             APP_DIR_ALIAS,
                             relative(
@@ -847,6 +857,10 @@ export default class HotReloader {
       (stats) => {
         this.serverError = null
         this.serverStats = stats
+
+        if (!this.pagesDir) {
+          return
+        }
 
         const { compilation } = stats
 
@@ -1060,10 +1074,15 @@ export default class HotReloader {
     )
   }
 
-  public async ensurePage(
-    page: string,
-    clientOnly: boolean = false
-  ): Promise<void> {
+  public async ensurePage({
+    page,
+    clientOnly,
+    appPaths,
+  }: {
+    page: string
+    clientOnly: boolean
+    appPaths?: string[] | null
+  }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
@@ -1074,6 +1093,10 @@ export default class HotReloader {
     if (error) {
       return Promise.reject(error)
     }
-    return this.onDemandEntries?.ensurePage(page, clientOnly) as any
+    return this.onDemandEntries?.ensurePage({
+      page,
+      clientOnly,
+      appPaths,
+    }) as any
   }
 }
