@@ -50,6 +50,8 @@ export const config = {
 }
 ```
 
+> **Note** the `pageExtensions` config affects middleware as well, [see related documentation here](/docs/api-reference/next.config.js/custom-page-extensions.md).
+
 ## Matching Paths
 
 Middleware will be invoked for **every route in your project**. The following is the execution order:
@@ -87,6 +89,19 @@ export const config = {
 ```
 
 > **Note:** The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
+
+Configured matchers:
+
+1. MUST start with `/`
+1. can include named parameters: `/about/:path` matches `/about/a` and `/about/b` but not `/about/a/c`
+1. can have modifiers on named parameters (starting with `:`): `/about/:path*` matches `/about/a/b/c` because `*` is _zero or more_. `?` is _zero or one_ and `+` _one or more_
+1. can use regular expression enclosed in parenthesis: `/about/(.*)` is the same as `/about/:path*`
+
+Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp#path-to-regexp-1) documentation.
+
+> **Note:** For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
+
+> **Note:** It is not possible to exclude middleware from matching static path starting with `_next/`. This allow enforcing security with middleware.
 
 ### Conditional Statements
 

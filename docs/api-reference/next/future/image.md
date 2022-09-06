@@ -1,5 +1,5 @@
 ---
-description: Try the latest Image Optimization with the experimental `next/future/image` component.
+description: Try the latest Image Optimization with the new `next/future/image` component.
 ---
 
 # next/future/image
@@ -7,55 +7,47 @@ description: Try the latest Image Optimization with the experimental `next/futur
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                      |
-| --------- | -------------------------------------------- |
-| `v12.2.4` | Support for `fill` property added.           |
-| `v12.2.0` | Experimental `next/future/image` introduced. |
+| Version   | Changes                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `v12.3.0` | `next/future/image` component stable. `remotePatterns` config stable. `unoptimized` config stable. `alt` property required. |
+| `v12.2.4` | `fill` property added.                                                                                                      |
+| `v12.2.0` | Experimental `next/future/image` component introduced.                                                                      |
 
 </details>
 
-The `next/future/image` component is an experiment to improve both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
+The `next/future/image` component improves both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
 
-This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before [Chrome 79](https://chromestatus.com/feature/5695266130755584), [Firefox 69](https://bugzilla.mozilla.org/show_bug.cgi?id=1547231), and [Safari 14.2](https://bugs.webkit.org/show_bug.cgi?id=201641). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
-
-To use `next/future/image`, add the following to your `next.config.js` file:
-
-```js
-module.exports = {
-  experimental: {
-    images: {
-      allowFutureImage: true,
-    },
-  },
-}
-```
+This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
 
 ## Comparison
 
 Compared to `next/image`, the new `next/future/image` component has the following changes:
 
-- Renders a single `<img>` without `<div>` or `<span>` wrappers
+- Removes `<span>` wrapper around `<img>` in favor of [native computed aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes)
 - Adds support for canonical `style` prop
-- Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
+  - Removes `layout` prop in favor of `style` or `className`
+  - Removes `objectFit` prop in favor of `style` or `className`
+  - Removes `objectPosition` prop in favor of `style` or `className`
 - Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
+  - Removes `lazyBoundary` prop since there is no native equivalent
+  - Removes `lazyRoot` prop since there is no native equivalent
 - Removes `loader` config in favor of [`loader`](#loader) prop
-- Note: the [`onError`](#onerror) prop might behave differently
+- Changed `alt` prop from optional to required
+
+## Known Browser Bugs
+
+- [Safari 15+](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
+  - Use CSS `@media not all and (min-resolution:.001dpcm) { img[loading="lazy"] { clip-path: inset(0.5px) } }`
+  - Use [`priority`](#priority) if the image is above the fold
+- [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading progressive jpeg. Possible solutions:
+  - Enable [AVIF `formats`](#acceptable-formats)
+  - Use [`placeholder="blur"`](#placeholder)
 
 ## Migration
 
-Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following is a comparison of the two components:
+Although `layout` is not available, you can migrate `next/image` to `next/future/image` using a few props. The following code snippets compare the two components:
 
-<table>
-<thead>
-  <tr>
-    <th>next/image</th>
-    <th>next/future/image</th>
-  </tr>
-</thead>
-<tbody>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -66,8 +58,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -79,11 +70,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -94,8 +81,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -107,11 +93,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -122,8 +104,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -134,11 +115,7 @@ function Page() {
 }
 ```
 
-</td>
-</tr>
-
-<tr>
-<td>
+#### before: `next/image`
 
 ```jsx
 import Image from 'next/image'
@@ -149,8 +126,7 @@ function Page() {
 }
 ```
 
-</td>
-<td>
+#### after: `next/future/image`
 
 ```jsx
 import Image from 'next/future/image'
@@ -160,12 +136,6 @@ function Page() {
   return <Image src={img} />
 }
 ```
-
-</td>
-</tr>
-
-</tbody>
-</table>
 
 You can also use `className` instead of `style`.
 
@@ -194,6 +164,16 @@ Required, except for [statically imported images](/docs/basic-features/image-opt
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
 Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
+
+### alt
+
+The `alt` property is used to describe the image for screen readers and search engines. It is also the fallback text if images have been disabled or an error occurs while loading the image.
+
+It should contain text that could replace the image [without changing the meaning of the page](https://html.spec.whatwg.org/multipage/images.html#general-guidelines). It is not meant to supplement the image and should not repeat information that is already provided in the captions above or below the image.
+
+If the image is [purely decorative](https://html.spec.whatwg.org/multipage/images.html#a-purely-decorative-image-that-doesn't-add-any-information) or [not intended for the user](https://html.spec.whatwg.org/multipage/images.html#an-image-not-intended-for-the-user), the `alt` property should be an empty string (`alt=""`).
+
+[Learn more](https://html.spec.whatwg.org/multipage/images.html#alt)
 
 ## Optional Props
 
@@ -237,9 +217,11 @@ A boolean that causes the image to fill the parent element instead of setting [`
 
 The parent element _must_ assign `position: "relative"`, `position: "fixed"`, or `position: "absolute"` style.
 
-By default, the img element will automatically assign `object-fit: "contain"` and `position: "absolute"` styles.
+By default, the img element will automatically be assigned the `position: "absolute"` style.
 
-Optionally, `object-fit` can be assigned any other value such as `object-fit: "cover"`. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
+The default image fit behavior will stretch the image to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
+
+Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
 
 See also:
 
@@ -249,11 +231,37 @@ See also:
 
 ### sizes
 
-A string that provides information about how wide the image will be at different breakpoints.
+A string that provides information about how wide the image will be at different breakpoints. The value of `sizes` will greatly affect performance for images using [`fill`](#fill) or which are styled to have a responsive size.
 
-It's important to assign `sizes` for responsive images that takes up less than the full viewport width. For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+The `sizes` property serves two important purposes related to image performance:
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
+First, the value of `sizes` is used by the browser to determine which size of the image to download, from `next/future/image`'s automatically-generated source set. When the browser chooses, it does not yet know the size of the image on the page, so it selects an image that is the same size or larger than the viewport. The `sizes` property allows you to tell the browser that the image will actually be smaller than full screen. If you don't specify a `sizes` value in an image with the `fill` property, a default value of `100vw` (full screen width) is used.
+
+Second, the `sizes` property configures how `next/future/image` automatically generates an image source set. If no `sizes` value is present, a small source set is generated, suitable for a fixed-size image. If `sizes` is defined, a large source set is generated, suitable for a responsive image. If the `sizes` property includes sizes such as `50vw`, which represent a percentage of the viewport width, then the source set is trimmed to not include any values which are too small to ever be necessary.
+
+For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
+
+```js
+import Image from 'next/image'
+const Example = () => (
+  <div className="grid-element">
+    <Image
+      src="/example.png"
+      layout="fill"
+      sizes="(min-width: 75em) 33vw,
+              (min-width: 48em) 50vw,
+              100vw"
+    />
+  </div>
+)
+```
+
+This example `sizes` could have a dramatic effect on performance metrics. Without the `33vw` sizes, the image selected from the server would be 3 times as wide as it needs to be. Because file size is proportional to the square of the width, without `sizes` the user would download an image that's 9 times larger than necessary.
+
+Learn more about `srcset` and `sizes`:
+
+- [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
+- [mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
 
 ### quality
 
@@ -307,15 +315,13 @@ The callback function will be called with one argument, an object with the follo
 
 A callback function that is invoked when the image is loaded.
 
-Note that the load event might occur before client-side hydration completes, so this callback might not be invoked in that case.
+Note that the load event might occur before the placeholder is removed and the image is fully decoded.
 
 Instead, use [`onLoadingComplete`](#onloadingcomplete).
 
 ### onError
 
 A callback function that is invoked if the image fails to load.
-
-Note that the error might occur before client-side hydration completes, so this callback might not be invoked in that case.
 
 ### loading
 
@@ -356,14 +362,12 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
-This prop can be assigned to all images by updating `next.config.js` with the following experimental configuration:
+This prop can be assigned to all images by updating `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      unoptimized: true,
-    },
+  images: {
+    unoptimized: true,
   },
 }
 ```
@@ -381,23 +385,19 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ### Remote Patterns
 
-> Note: The `remotePatterns` configuration is currently **experimental** and subject to change. Please use [`domains`](#domains) for production use cases.
-
 To protect your application from malicious users, configuration is required in order to use external images. This ensures that only external images from your account can be served from the Next.js Image Optimization API. These external images can be configured with the `remotePatterns` property in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      remotePatterns: [
-        {
-          protocol: 'https',
-          hostname: 'example.com',
-          port: '',
-          pathname: '/account123/**',
-        },
-      ],
-    },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'example.com',
+        port: '',
+        pathname: '/account123/**',
+      },
+    ],
   },
 }
 ```
@@ -408,15 +408,13 @@ Below is another example of the `remotePatterns` property in the `next.config.js
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      remotePatterns: [
-        {
-          protocol: 'https',
-          hostname: '**.example.com',
-        },
-      ],
-    },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.example.com',
+      },
+    ],
   },
 }
 ```

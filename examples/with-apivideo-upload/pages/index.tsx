@@ -42,6 +42,30 @@ const Home: NextPage = () => {
     fetcher
   )
 
+  const fetchVideoStatus = async (videoId: string): Promise<void> => {
+    const { status } = await fetcher(`/api/${videoId}`)
+    const { encoding, ingest } = status
+    setStatus({
+      ingested: ingest.status === 'uploaded',
+      encoded: encoding.playable,
+    })
+    if (ingest.status === 'uploaded' && encoding.playable) {
+      setSize({
+        width: encoding.metadata.width,
+        height: encoding.metadata.height,
+      })
+      setReady(true)
+    }
+  }
+
+  const clearState = (): void => {
+    setReady(false)
+    setStatus({ ingested: false, encoded: false })
+    setVideo(undefined)
+    setUploadProgress(undefined)
+    setSize(undefined)
+  }
+
   useEffect(() => {
     if (video) {
       const intervalId = window.setInterval(() => {
@@ -72,33 +96,9 @@ const Home: NextPage = () => {
     setVideo(video)
   }
 
-  const fetchVideoStatus = async (videoId: string): Promise<void> => {
-    const { status } = await fetcher(`/api/${videoId}`)
-    const { encoding, ingest } = status
-    setStatus({
-      ingested: ingest.status === 'uploaded',
-      encoded: encoding.playable,
-    })
-    if (ingest.status === 'uploaded' && encoding.playable) {
-      setSize({
-        width: encoding.metadata.width,
-        height: encoding.metadata.height,
-      })
-      setReady(true)
-    }
-  }
-
   const handleNavigate = (): void => {
     if (!video) return
     router.push(`/${video.videoId}?w=${size?.width}&h=${size?.height}`)
-  }
-
-  const clearState = (): void => {
-    setReady(false)
-    setStatus({ ingested: false, encoded: false })
-    setVideo(undefined)
-    setUploadProgress(undefined)
-    setSize(undefined)
   }
 
   return (

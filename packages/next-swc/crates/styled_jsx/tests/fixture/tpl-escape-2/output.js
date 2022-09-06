@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default function Home({ fontFamily  }) {
     return <div className={_JSXStyle.dynamic([
         [

@@ -22,10 +22,6 @@ describe('Middleware Rewrite', () => {
     })
   })
 
-  tests()
-  testsWithLocale()
-  testsWithLocale('/fr')
-
   function tests() {
     it('should not have un-necessary data request on rewrite', async () => {
       const browser = await webdriver(next.url, '/to-blog/first', {
@@ -280,21 +276,14 @@ describe('Middleware Rewrite', () => {
     })
 
     if (!(global as any).isNextDev) {
-      it('should cache data requests correctly', async () => {
+      it('should not prefetch non-SSG routes', async () => {
         const browser = await webdriver(next.url, '/')
 
         await check(async () => {
           const hrefs = await browser.eval(
             `Object.keys(window.next.router.sdc)`
           )
-          for (const url of [
-            '/en/about.json?override=external',
-            '/en/about.json?override=internal',
-            '/en/rewrite-me-external-twice.json',
-            '/en/rewrite-me-to-about.json?override=internal',
-            '/en/rewrite-me-to-vercel.json',
-            '/en/rewrite-to-ab-test.json',
-          ]) {
+          for (const url of ['/en/ssg.json']) {
             if (!hrefs.some((href) => href.includes(url))) {
               return JSON.stringify(hrefs, null, 2)
             }
@@ -576,6 +565,19 @@ describe('Middleware Rewrite', () => {
   function testsWithLocale(locale = '') {
     const label = locale ? `${locale} ` : ``
 
+    function getCookieFromResponse(res, cookieName) {
+      // node-fetch bundles the cookies as string in the Response
+      const cookieArray = res.headers.raw()['set-cookie']
+      for (const cookie of cookieArray) {
+        let individualCookieParams = cookie.split(';')
+        let individualCookie = individualCookieParams[0].split('=')
+        if (individualCookie[0] === cookieName) {
+          return individualCookie[1]
+        }
+      }
+      return -1
+    }
+
     it(`${label}should add a cookie and rewrite to a/b test`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/rewrite-to-ab-test`)
       const html = await res.text()
@@ -766,16 +768,7 @@ describe('Middleware Rewrite', () => {
     })
   }
 
-  function getCookieFromResponse(res, cookieName) {
-    // node-fetch bundles the cookies as string in the Response
-    const cookieArray = res.headers.raw()['set-cookie']
-    for (const cookie of cookieArray) {
-      let individualCookieParams = cookie.split(';')
-      let individualCookie = individualCookieParams[0].split('=')
-      if (individualCookie[0] === cookieName) {
-        return individualCookie[1]
-      }
-    }
-    return -1
-  }
+  tests()
+  testsWithLocale()
+  testsWithLocale('/fr')
 })

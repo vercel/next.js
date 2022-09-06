@@ -18,8 +18,10 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const { experimentalRemotePatterns = [], experimentalUnoptimized } =
-  (process.env.__NEXT_IMAGE_OPTS as any) || {}
+function normalizeSrc(src: string): string {
+  return src[0] === '/' ? src.slice(1) : src
+}
+
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -53,6 +55,119 @@ type ImageLoaderWithConfig = (
 ) => string
 type ImageLoaderPropsWithConfig = ImageLoaderProps & {
   config: Readonly<ImageConfig>
+}
+
+function imgixLoader({
+  config,
+  src,
+  width,
+  quality,
+}: ImageLoaderPropsWithConfig): string {
+  // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
+  const url = new URL(`${config.path}${normalizeSrc(src)}`)
+  const params = url.searchParams
+
+  // auto params can be combined with comma separation, or reiteration
+  params.set('auto', params.getAll('auto').join(',') || 'format')
+  params.set('fit', params.get('fit') || 'max')
+  params.set('w', params.get('w') || width.toString())
+
+  if (quality) {
+    params.set('q', quality.toString())
+  }
+
+  return url.href
+}
+
+function akamaiLoader({
+  config,
+  src,
+  width,
+}: ImageLoaderPropsWithConfig): string {
+  return `${config.path}${normalizeSrc(src)}?imwidth=${width}`
+}
+
+function cloudinaryLoader({
+  config,
+  src,
+  width,
+  quality,
+}: ImageLoaderPropsWithConfig): string {
+  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
+  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+  const paramsString = params.join(',') + '/'
+  return `${config.path}${paramsString}${normalizeSrc(src)}`
+}
+
+function customLoader({ src }: ImageLoaderProps): string {
+  throw new Error(
+    `Image with src "${src}" is missing "loader" prop.` +
+      `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
+  )
+}
+
+function defaultLoader({
+  config,
+  src,
+  width,
+  quality,
+}: ImageLoaderPropsWithConfig): string {
+  if (process.env.NODE_ENV !== 'production') {
+    const missingValues = []
+
+    // these should always be provided but make sure they are
+    if (!src) missingValues.push('src')
+    if (!width) missingValues.push('width')
+
+    if (missingValues.length > 0) {
+      throw new Error(
+        `Next Image Optimization requires ${missingValues.join(
+          ', '
+        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
+          { src, width, quality }
+        )}`
+      )
+    }
+
+    if (src.startsWith('//')) {
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
+      let parsedSrc: URL
+      try {
+        parsedSrc = new URL(src)
+      } catch (err) {
+        console.error(err)
+        throw new Error(
+          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+        )
+      }
+
+      if (process.env.NODE_ENV !== 'test') {
+        // We use dynamic require because this should only error in development
+        const { hasMatch } = require('../shared/lib/match-remote-pattern')
+        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+          )
+        }
+      }
+    }
+  }
+
+  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
+  }
+
+  return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
+    src
+  )}&w=${width}&q=${quality || 75}`
 }
 
 const loaders = new Map<
@@ -349,6 +464,120 @@ function handleLoading(
   })
 }
 
+const ImageElement = ({
+  imgAttributes,
+  heightInt,
+  widthInt,
+  qualityInt,
+  layout,
+  className,
+  imgStyle,
+  blurStyle,
+  isLazy,
+  placeholder,
+  loading,
+  srcString,
+  config,
+  unoptimized,
+  loader,
+  onLoadingCompleteRef,
+  setBlurComplete,
+  setIntersection,
+  onLoad,
+  onError,
+  isVisible,
+  noscriptSizes,
+  ...rest
+}: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
+  return (
+    <>
+      <img
+        {...rest}
+        {...imgAttributes}
+        decoding="async"
+        data-nimg={layout}
+        className={className}
+        style={{ ...imgStyle, ...blurStyle }}
+        ref={useCallback(
+          (img: ImgElementWithDataProp) => {
+            if (process.env.NODE_ENV !== 'production') {
+              if (img && !srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+            }
+            setIntersection(img)
+            if (img?.complete) {
+              handleLoading(
+                img,
+                srcString,
+                layout,
+                placeholder,
+                onLoadingCompleteRef,
+                setBlurComplete
+              )
+            }
+          },
+          [
+            setIntersection,
+            srcString,
+            layout,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete,
+          ]
+        )}
+        onLoad={(event) => {
+          const img = event.currentTarget as ImgElementWithDataProp
+          handleLoading(
+            img,
+            srcString,
+            layout,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete
+          )
+          if (onLoad) {
+            onLoad(event)
+          }
+        }}
+        onError={(event) => {
+          if (placeholder === 'blur') {
+            // If the real image fails to load, this will still remove the placeholder.
+            setBlurComplete(true)
+          }
+          if (onError) {
+            onError(event)
+          }
+        }}
+      />
+      {(isLazy || placeholder === 'blur') && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              config,
+              src: srcString,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes: noscriptSizes,
+              loader,
+            })}
+            decoding="async"
+            data-nimg={layout}
+            style={imgStyle}
+            className={className}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading}
+          />
+        </noscript>
+      )}
+    </>
+  )
+}
+
 export default function Image({
   src,
   sizes,
@@ -439,7 +668,7 @@ export default function Image({
   if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
     isLazy = false
   }
-  if (experimentalUnoptimized) {
+  if (config.unoptimized) {
     unoptimized = true
   }
 
@@ -844,237 +1073,4 @@ export default function Image({
       ) : null}
     </>
   )
-}
-
-const ImageElement = ({
-  imgAttributes,
-  heightInt,
-  widthInt,
-  qualityInt,
-  layout,
-  className,
-  imgStyle,
-  blurStyle,
-  isLazy,
-  placeholder,
-  loading,
-  srcString,
-  config,
-  unoptimized,
-  loader,
-  onLoadingCompleteRef,
-  setBlurComplete,
-  setIntersection,
-  onLoad,
-  onError,
-  isVisible,
-  noscriptSizes,
-  ...rest
-}: ImageElementProps) => {
-  loading = isLazy ? 'lazy' : loading
-  return (
-    <>
-      <img
-        {...rest}
-        {...imgAttributes}
-        decoding="async"
-        data-nimg={layout}
-        className={className}
-        style={{ ...imgStyle, ...blurStyle }}
-        ref={useCallback(
-          (img: ImgElementWithDataProp) => {
-            if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
-                console.error(`Image is missing required "src" property:`, img)
-              }
-            }
-            setIntersection(img)
-            if (img?.complete) {
-              handleLoading(
-                img,
-                srcString,
-                layout,
-                placeholder,
-                onLoadingCompleteRef,
-                setBlurComplete
-              )
-            }
-          },
-          [
-            setIntersection,
-            srcString,
-            layout,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete,
-          ]
-        )}
-        onLoad={(event) => {
-          const img = event.currentTarget as ImgElementWithDataProp
-          handleLoading(
-            img,
-            srcString,
-            layout,
-            placeholder,
-            onLoadingCompleteRef,
-            setBlurComplete
-          )
-          if (onLoad) {
-            onLoad(event)
-          }
-        }}
-        onError={(event) => {
-          if (placeholder === 'blur') {
-            // If the real image fails to load, this will still remove the placeholder.
-            setBlurComplete(true)
-          }
-          if (onError) {
-            onError(event)
-          }
-        }}
-      />
-      {(isLazy || placeholder === 'blur') && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            decoding="async"
-            data-nimg={layout}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
-      )}
-    </>
-  )
-}
-
-function normalizeSrc(src: string): string {
-  return src[0] === '/' ? src.slice(1) : src
-}
-
-function imgixLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
-  const url = new URL(`${config.path}${normalizeSrc(src)}`)
-  const params = url.searchParams
-
-  params.set('auto', params.get('auto') || 'format')
-  params.set('fit', params.get('fit') || 'max')
-  params.set('w', params.get('w') || width.toString())
-
-  if (quality) {
-    params.set('q', quality.toString())
-  }
-
-  return url.href
-}
-
-function akamaiLoader({
-  config,
-  src,
-  width,
-}: ImageLoaderPropsWithConfig): string {
-  return `${config.path}${normalizeSrc(src)}?imwidth=${width}`
-}
-
-function cloudinaryLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
-  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
-  const paramsString = params.join(',') + '/'
-  return `${config.path}${paramsString}${normalizeSrc(src)}`
-}
-
-function customLoader({ src }: ImageLoaderProps): string {
-  throw new Error(
-    `Image with src "${src}" is missing "loader" prop.` +
-      `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
-  )
-}
-
-function defaultLoader({
-  config,
-  src,
-  width,
-  quality,
-}: ImageLoaderPropsWithConfig): string {
-  if (process.env.NODE_ENV !== 'production') {
-    const missingValues = []
-
-    // these should always be provided but make sure they are
-    if (!src) missingValues.push('src')
-    if (!width) missingValues.push('width')
-
-    if (missingValues.length > 0) {
-      throw new Error(
-        `Next Image Optimization requires ${missingValues.join(
-          ', '
-        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
-          { src, width, quality }
-        )}`
-      )
-    }
-
-    if (src.startsWith('//')) {
-      throw new Error(
-        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
-      )
-    }
-
-    if (
-      !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
-    ) {
-      let parsedSrc: URL
-      try {
-        parsedSrc = new URL(src)
-      } catch (err) {
-        console.error(err)
-        throw new Error(
-          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
-        )
-      }
-
-      if (process.env.NODE_ENV !== 'test') {
-        // We use dynamic require because this should only error in development
-        const { hasMatch } = require('../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
-          throw new Error(
-            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
-          )
-        }
-      }
-    }
-  }
-
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
-
-  return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
-    src
-  )}&w=${width}&q=${quality || 75}`
 }

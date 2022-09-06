@@ -18,10 +18,14 @@ import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
-import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
+import type {
+  GetServerSideProps,
+  GetStaticProps,
+  PreviewData,
+  ServerRuntime,
+} from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
-import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -36,6 +40,7 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../lib/constants'
 import {
+  COMPILER_NAMES,
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
@@ -60,10 +65,7 @@ import { HtmlContext } from '../shared/lib/html-context'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
-import {
-  allowedStatusCodes,
-  getRedirectStatus,
-} from '../lib/load-custom-routes'
+import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
@@ -228,6 +230,7 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   serverComponentManifest?: any
+  serverCSSManifest?: any
   distDir?: string
   locale?: string
   locales?: string[]
@@ -304,6 +307,43 @@ function checkRedirectValues(
         '\n' +
         `See more info here: https://nextjs.org/docs/messages/invalid-redirect-gssp`
     )
+  }
+}
+
+function errorToJSON(err: Error) {
+  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
+    'server'
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
+  }
+
+  return {
+    name: err.name,
+    source,
+    message: stripAnsi(err.message),
+    stack: err.stack,
+  }
+}
+
+function serializeError(
+  dev: boolean | undefined,
+  err: Error
+): Error & {
+  statusCode?: number
+  source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+} {
+  if (dev) {
+    return errorToJSON(err)
+  }
+
+  return {
+    name: 'Internal Server Error.',
+    message: '500 - Internal Server Error.',
+    statusCode: 500,
   }
 }
 
@@ -572,40 +612,9 @@ export async function renderToHTML(
     isPreview,
     getRequestMeta(req, '__nextIsLocaleDomain')
   )
+
+  let scriptLoader: any = {}
   const jsxStyleRegistry = createStyleRegistry()
-  const ctx = {
-    err,
-    req: isAutoExport ? undefined : req,
-    res: isAutoExport ? undefined : res,
-    pathname,
-    query,
-    asPath,
-    locale: renderOpts.locale,
-    locales: renderOpts.locales,
-    defaultLocale: renderOpts.defaultLocale,
-    AppTree: (props: any) => {
-      return (
-        <AppContainerWithIsomorphicFiberStructure>
-          {renderPageTree(App, OriginComponent, { ...props, router })}
-        </AppContainerWithIsomorphicFiberStructure>
-      )
-    },
-    defaultGetInitialProps: async (
-      docCtx: DocumentContext,
-      options: { nonce?: string } = {}
-    ): Promise<DocumentInitialProps> => {
-      const enhanceApp = (AppComp: any) => {
-        return (props: any) => <AppComp {...props} />
-      }
-
-      const { html, head } = await docCtx.renderPage({ enhanceApp })
-      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
-      jsxStyleRegistry.flush()
-      return { html, head, styles }
-    },
-  }
-  let props: any
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -614,10 +623,8 @@ export async function renderToHTML(
 
   // Disable AMP under the web environment
   const inAmpMode = process.env.NEXT_RUNTIME !== 'edge' && isInAmpMode(ampState)
-
-  const reactLoadableModules: string[] = []
-
   let head: JSX.Element[] = defaultHead(inAmpMode)
+  const reactLoadableModules: string[] = []
 
   let initialScripts: any = {}
   if (hasPageScripts) {
@@ -625,16 +632,6 @@ export async function renderToHTML(
       .concat(hasPageScripts())
       .filter((script: any) => script.props.strategy === 'beforeInteractive')
       .map((script: any) => script.props)
-  }
-
-  let scriptLoader: any = {}
-  const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
-
-  const styledJsxFlushEffect = () => {
-    const styles = jsxStyleRegistry.styles()
-    jsxStyleRegistry.flush()
-    return <>{styles}</>
   }
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
@@ -697,6 +694,50 @@ export async function renderToHTML(
         </AppContainer>
       </>
     )
+  }
+
+  const ctx = {
+    err,
+    req: isAutoExport ? undefined : req,
+    res: isAutoExport ? undefined : res,
+    pathname,
+    query,
+    asPath,
+    locale: renderOpts.locale,
+    locales: renderOpts.locales,
+    defaultLocale: renderOpts.defaultLocale,
+    AppTree: (props: any) => {
+      return (
+        <AppContainerWithIsomorphicFiberStructure>
+          {renderPageTree(App, OriginComponent, { ...props, router })}
+        </AppContainerWithIsomorphicFiberStructure>
+      )
+    },
+    defaultGetInitialProps: async (
+      docCtx: DocumentContext,
+      options: { nonce?: string } = {}
+    ): Promise<DocumentInitialProps> => {
+      const enhanceApp = (AppComp: any) => {
+        return (props: any) => <AppComp {...props} />
+      }
+
+      const { html, head: renderPageHead } = await docCtx.renderPage({
+        enhanceApp,
+      })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      jsxStyleRegistry.flush()
+      return { html, head: renderPageHead, styles }
+    },
+  }
+  let props: any
+
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+
+  const styledJsxFlushEffect = () => {
+    const styles = jsxStyleRegistry.styles()
+    jsxStyleRegistry.flush()
+    return <>{styles}</>
   }
 
   props = await loadGetInitialProps(App, {
@@ -1269,6 +1310,7 @@ export async function renderToHTML(
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
           flushEffectHandler,
+          flushEffectsToHead: false,
         })
       }
 
@@ -1297,7 +1339,7 @@ export async function renderToHTML(
       }
 
       const { docProps } = (documentInitialPropsRes as any) || {}
-      const documentElement = () => {
+      const documentElement = (htmlProps: any) => {
         if (process.env.NEXT_RUNTIME === 'edge') {
           return (Document as any)()
         } else {
@@ -1485,37 +1527,4 @@ export async function renderToHTML(
       createBufferedTransformStream(postOptimize)
     )
   )
-}
-
-function errorToJSON(err: Error) {
-  let source: 'server' | 'edge-server' = 'server'
-
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    source =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
-        err
-      ) || 'server'
-  }
-
-  return {
-    name: err.name,
-    source,
-    message: stripAnsi(err.message),
-    stack: err.stack,
-  }
-}
-
-function serializeError(
-  dev: boolean | undefined,
-  err: Error
-): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
-  if (dev) {
-    return errorToJSON(err)
-  }
-
-  return {
-    name: 'Internal Server Error.',
-    message: '500 - Internal Server Error.',
-    statusCode: 500,
-  }
 }

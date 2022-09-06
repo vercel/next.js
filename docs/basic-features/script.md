@@ -65,7 +65,7 @@ With `next/script`, you decide when to load your third-party script by using the
 <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
 ```
 
-There are three different loading strategies that can be used:
+There are four different loading strategies that can be used:
 
 - `beforeInteractive`: Load before the page is interactive
 - `afterInteractive`: (**default**) Load immediately after the page becomes interactive
@@ -113,6 +113,7 @@ Scripts that use the `afterInteractive` strategy are injected client-side and wi
 
 ```jsx
 <Script
+  id="google-analytics"
   strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: `
@@ -240,6 +241,7 @@ Or by using the `dangerouslySetInnerHTML` property:
 ```jsx
 <Script
   id="show-banner"
+  strategy="lazyOnload"
   dangerouslySetInnerHTML={{
     __html: `document.getElementById('banner').classList.remove('hidden')`,
   }}
@@ -280,16 +282,19 @@ export default function Home() {
 Some third-party scripts require users to run JavaScript code after the script has finished loading and every time the component is mounted (after a route navigation for example). You can execute code after the script's `load` event when it first loads and then after every subsequent component re-mount using the `onReady` property:
 
 ```jsx
+import { useRef } from 'react'
 import Script from 'next/script'
 
 export default function Home() {
+  const mapRef = useRef()
   return (
     <>
+      <div ref={mapRef}></div>
       <Script
         id="google-maps"
         src="https://maps.googleapis.com/maps/api/js"
         onReady={() => {
-          new google.maps.Map(ref.current, {
+          new google.maps.Map(mapRef.current, {
             center: { lat: -34.397, lng: 150.644 },
             zoom: 8,
           })

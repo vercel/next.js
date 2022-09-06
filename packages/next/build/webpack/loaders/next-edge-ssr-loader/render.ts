@@ -2,7 +2,6 @@ import type { NextConfig } from '../../../../server/config-shared'
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
-import type { NextRequest } from '../../../../server/web/spec-extension/request'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -21,7 +20,10 @@ export function getRender({
   Document,
   buildManifest,
   reactLoadableManifest,
+  appRenderToHTML,
+  pagesRenderToHTML,
   serverComponentManifest,
+  serverCSSManifest,
   config,
   buildId,
 }: {
@@ -31,10 +33,13 @@ export function getRender({
   pageMod: any
   errorMod: any
   error500Mod: any
+  appRenderToHTML: any
+  pagesRenderToHTML: any
   Document: DocumentType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest: any
+  serverCSSManifest: any
   appServerMod: any
   config: NextConfig
   buildId: string
@@ -59,7 +64,10 @@ export function getRender({
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         serverComponentManifest,
+        serverCSSManifest,
       },
+      appRenderToHTML,
+      pagesRenderToHTML,
       loadComponent: async (pathname) => {
         if (pathname === page) {
           return {
@@ -104,7 +112,7 @@ export function getRender({
   })
   const requestHandler = server.getRequestHandler()
 
-  return async function render(request: NextRequest) {
+  return async function render(request: Request) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
     requestHandler(extendedReq, extendedRes)

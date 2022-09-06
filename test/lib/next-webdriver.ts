@@ -26,7 +26,7 @@ if (isBrowserStack) {
   }
 }
 
-let browserQuit
+let browserQuit: () => Promise<void>
 
 if (typeof afterAll === 'function') {
   afterAll(async () => {
@@ -81,13 +81,13 @@ export default async function webdriver(
 
   // we import only the needed interface
   if (USE_SELENIUM) {
-    const browserMod = require('./browsers/selenium')
-    CurrentInterface = browserMod.default
-    browserQuit = browserMod.quit
+    const { Selenium, quit } = await import('./browsers/selenium')
+    CurrentInterface = Selenium
+    browserQuit = quit
   } else {
-    const browserMod = require('./browsers/playwright')
-    CurrentInterface = browserMod.default
-    browserQuit = browserMod.quit
+    const { Playwright, quit } = await import('./browsers/playwright')
+    CurrentInterface = Playwright
+    browserQuit = quit
   }
 
   const browser = new CurrentInterface()

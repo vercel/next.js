@@ -13,7 +13,7 @@ export default function Form() {
       </h1>
       <p className={styles.description}>
         Get started by looking at{' '}
-        <code className={styles.code}>pages/no-js-from.js</code>
+        <code className={styles.code}>pages/no-js-form.js</code>
       </p>
 
       {/*action: The action attribute defines where the data gets sent. Its value must be a valid relative or absolute URL. If this attribute isn't provided, the data will be sent to the URL of the page containing the form — the current page.

@@ -3,15 +3,6 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { RouterProps } from './types'
 
-export const Nav: React.FC = () => {
-  return (
-    <nav className="nav">
-      <CustomLink to="home">Home</CustomLink>
-      <CustomLink to="signin">Sign in</CustomLink>
-    </nav>
-  )
-}
-
 const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({
   to,
   children,
@@ -33,5 +24,14 @@ const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({
         <a className={className}>{children}</a>
       </Link>
     </div>
+  )
+}
+
+export const Nav: React.FC = () => {
+  return (
+    <nav className="nav">
+      <CustomLink to="home">Home</CustomLink>
+      <CustomLink to="signin">Sign in</CustomLink>
+    </nav>
   )
 }

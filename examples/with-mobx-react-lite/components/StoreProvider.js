@@ -13,12 +13,6 @@ export function useStore() {
   return context
 }
 
-export function StoreProvider({ children, initialState: initialData }) {
-  const store = initializeStore(initialData)
-
-  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
-}
-
 function initializeStore(initialData = null) {
   const _store = store ?? new Store()
 
@@ -33,4 +27,10 @@ function initializeStore(initialData = null) {
   if (!store) store = _store
 
   return _store
+}
+
+export function StoreProvider({ children, initialState: initialData }) {
+  const store = initializeStore(initialData)
+
+  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
 }
