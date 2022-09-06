@@ -272,7 +272,7 @@ export default class HotReloader {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage(page, true)
+          await this.ensurePage({ page, clientOnly: true })
         } catch (error) {
           await renderScriptError(pageBundleRes, getProperError(error))
           return { finished: true }
@@ -616,6 +616,7 @@ export default class HotReloader {
                   isApp && this.appDir
                     ? getAppEntry({
                         name: bundlePath,
+                        appPaths: entryData.appPaths,
                         pagePath: posix.join(
                           APP_DIR_ALIAS,
                           relative(
@@ -693,6 +694,7 @@ export default class HotReloader {
                     this.appDir && bundlePath.startsWith('app/')
                       ? getAppEntry({
                           name: bundlePath,
+                          appPaths: entryData.appPaths,
                           pagePath: posix.join(
                             APP_DIR_ALIAS,
                             relative(
@@ -1072,7 +1074,15 @@ export default class HotReloader {
     )
   }
 
-  public async ensurePage(page: string, clientOnly: boolean): Promise<void> {
+  public async ensurePage({
+    page,
+    clientOnly,
+    appPaths,
+  }: {
+    page: string
+    clientOnly: boolean
+    appPaths?: string[] | null
+  }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
@@ -1083,6 +1093,10 @@ export default class HotReloader {
     if (error) {
       return Promise.reject(error)
     }
-    return this.onDemandEntries?.ensurePage(page, clientOnly) as any
+    return this.onDemandEntries?.ensurePage({
+      page,
+      clientOnly,
+      appPaths,
+    }) as any
   }
 }

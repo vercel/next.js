@@ -69,10 +69,20 @@ const runTests = (isDev) => {
     expect(img.attr('width')).toBe('400')
     expect(img.attr('height')).toBe('300')
   })
-  it('Should allow provided width and height to override intrinsic', async () => {
-    const img = $('#defined-size-static')
+  it('should use width and height prop to override import', async () => {
+    const img = $('#defined-width-and-height')
     expect(img.attr('width')).toBe('150')
     expect(img.attr('height')).toBe('150')
+  })
+  it('should use height prop to adjust both width and height', async () => {
+    const img = $('#defined-height-only')
+    expect(img.attr('width')).toBe('600')
+    expect(img.attr('height')).toBe('350')
+  })
+  it('should use width prop to adjust both width and height', async () => {
+    const img = $('#defined-width-only')
+    expect(img.attr('width')).toBe('400')
+    expect(img.attr('height')).toBe('233')
   })
 
   it('Should add a blur placeholder a statically imported jpg', async () => {
