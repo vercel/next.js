@@ -17,7 +17,7 @@ regex = {version = "1.5.4", features = ["std", "perf"], default-features = false
 serde = {version = "1.0.130", features = ["derive"]}
 tracing = "0.1.32"
 swc_core = { version = "0.20.4", features = [
-  "common_concurrent",
+  "common",
   "ecma_ast",
   "ecma_utils",
   "ecma_visit"

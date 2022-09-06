@@ -14,7 +14,7 @@ easy-error = "1.0.0"
 tracing = "0.1.32"
 
 swc_core = { version = "0.20.4", features = [
-  "common_concurrent",
+  "common",
   "css_ast",
   "css_codegen",
   "css_parser",
