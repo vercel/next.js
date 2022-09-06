@@ -100,10 +100,21 @@ impl PreparedApp {
     async fn dispose(self) {
         if let Some(mut server) = self.server {
             server.0.kill().unwrap();
+            server.0.wait().unwrap();
         }
         for page in self.pages {
             page.close().await.unwrap();
         }
+    }
+}
+
+fn command(bin: &str) -> Command {
+    if cfg!(windows) {
+        let mut command = Command::new("cmd.exe");
+        command.args(["/C", bin]);
+        command
+    } else {
+        Command::new(bin)
     }
 }
 
@@ -117,7 +128,7 @@ fn build_test(module_count: usize) -> PathBuf {
     .build()
     .unwrap();
 
-    let npm = Command::new("npm")
+    let npm = command("npm")
         .args(["install", "--prefer-offline", "--loglevel=error"])
         .current_dir(&test_dir)
         .output()
