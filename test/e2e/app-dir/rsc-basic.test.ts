@@ -119,7 +119,11 @@ describe('app dir - react server components', () => {
         page.on('request', (request) => {
           requestsCount++
           const url = request.url()
-          if (/\?__flight__=1/.test(url)) {
+          if (
+            url.includes('__flight__=1') &&
+            // Prefetches also include `__flight__`
+            !url.includes('__flight_prefetch__=1')
+          ) {
             hasFlightRequest = true
           }
         })
@@ -231,7 +235,11 @@ describe('app dir - react server components', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           const url = request.url()
-          if (/\?__flight__=1/.test(url)) {
+          if (
+            url.includes('__flight__=1') &&
+            // Prefetches also include `__flight__`
+            !url.includes('__flight_prefetch__=1')
+          ) {
             hasFlightRequest = true
           }
         })
