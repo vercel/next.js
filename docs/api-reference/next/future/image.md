@@ -248,9 +248,9 @@ const Example = () => (
     <Image
       src="/example.png"
       layout="fill"
-      sizes="(min-width: 1200px) 33vw,
-              (min-width: 768px) 50vw,
-              100vw"
+      sizes="(max-width: 768px) 100vw,
+              (max-width: 1200px) 50vw,
+              33vw"
     />
   </div>
 )
