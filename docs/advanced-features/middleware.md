@@ -88,6 +88,22 @@ export const config = {
 }
 ```
 
+You can also create a "negative matcher" that matches all paths except for certain paths:
+
+```js
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - static (static files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|static|favicon.ico).*)",
+  ],
+}
+```
+
 > **Note:** The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
 
 Configured matchers:
