@@ -2,7 +2,7 @@ use std::{
     fs::{self, remove_dir_all},
     future::Future,
     io::{self, BufRead, BufReader, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, ChildStdout, Command, Stdio},
     time::Duration,
 };
@@ -35,25 +35,32 @@ fn bench_startup(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for size in MODULE_COUNTS {
-        g.bench_with_input(BenchmarkId::new("modules", size), &size, |b, &s| {
-            let template_dir = build_test(*s);
-            b.to_async(&runtime).iter_batched_async(
-                || async { PreparedApp::new(template_dir.clone()).await },
-                |mut app| async {
-                    app.start_server();
-                    let page = app.new_page(browser).await;
-                    page.wait_for_navigation().await.unwrap();
-                    app.schedule_page_disposal(page);
-                    // return the PreparedApp doesn't make dropping it part of the measurement
-                    app
+    for bundler in get_bundlers() {
+        for module_count in MODULE_COUNTS {
+            let input = (bundler.as_ref(), module_count);
+            g.bench_with_input(
+                BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                &input,
+                |b, &(bundler, module_count)| {
+                    let template_dir = build_test(*module_count);
+                    b.to_async(&runtime).iter_batched_async(
+                        || async { PreparedApp::new(bundler, template_dir.clone()) },
+                        |mut app| async {
+                            app.start_server();
+                            let page = app.new_page(browser).await;
+                            page.wait_for_navigation().await.unwrap();
+                            app.schedule_page_disposal(page);
+                            // return the PreparedApp doesn't make dropping it part of the
+                            // measurement
+                            app
+                        },
+                        |app| app.dispose(),
+                    );
+                    remove_dir_all(&template_dir).unwrap();
                 },
-                |app| app.dispose(),
             );
-            remove_dir_all(&template_dir).unwrap();
-        });
+        }
     }
-
     g.finish();
 }
 
@@ -65,58 +72,68 @@ fn bench_simple_file_change(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for size in MODULE_COUNTS {
-        g.bench_with_input(BenchmarkId::new("modules", size), &size, |b, &s| {
-            let template_dir = build_test(*s);
+    for bundler in get_bundlers() {
+        for module_count in MODULE_COUNTS {
+            let input = (bundler.as_ref(), module_count);
 
-            b.to_async(Runtime::new().unwrap()).iter_batched_async(
-                || async {
-                    let mut app = PreparedApp::new(template_dir.clone()).await;
-                    app.start_server();
-                    let page = app.new_page(browser).await;
-                    page.wait_for_navigation().await.unwrap();
+            g.bench_with_input(
+                BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                &input,
+                |b, &(bundler, module_count)| {
+                    let template_dir = build_test(*module_count);
 
-                    (app, page)
-                },
-                |(mut app, page)| async {
-                    let index_path = app.test_dir.path().join("src/index.jsx");
-                    let mut contents =
-                        String::from_utf8_lossy(&fs::read(&index_path).unwrap()).to_string();
-                    contents.push_str("globalThis.__updated = true;\n");
-                    fs::write(&index_path, &contents).unwrap();
+                    b.to_async(Runtime::new().unwrap()).iter_batched_async(
+                        || async {
+                            let mut app = PreparedApp::new(bundler, template_dir.clone());
+                            app.start_server();
+                            let page = app.new_page(browser).await;
+                            page.wait_for_navigation().await.unwrap();
+                            (app, page)
+                        },
+                        |(mut app, page)| async {
+                            let index_path = &app.test_dir.path().join("src/index.jsx");
+                            let mut contents =
+                                String::from_utf8_lossy(&fs::read(&index_path).unwrap())
+                                    .to_string();
+                            contents.push_str("globalThis.__updated = true;\n");
+                            fs::write(&index_path, contents).unwrap();
 
-                    // Wait for the change introduced above to be reflected at runtime. This expects
-                    // HMR or automatic reloading to occur.
-                    loop {
-                        match page.evaluate("globalThis.__updated").await {
-                            Ok(status_res) => {
-                                if let Ok(status) = status_res.into_value::<bool>() {
-                                    assert!(status);
-                                    break;
+                            // Wait for the change introduced above to be reflected at runtime. This
+                            // expects HMR or automatic reloading to
+                            // occur.
+                            loop {
+                                match page.evaluate("globalThis.__updated").await {
+                                    Ok(status_res) => {
+                                        if let Ok(status) = status_res.into_value::<bool>() {
+                                            assert!(status);
+                                            break;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        if !e
+                                            .to_string()
+                                            // This error occurs when the page is reloading and is
+                                            // safe
+                                            // to ignore.
+                                            .contains("Cannot find context with specified id")
+                                        {
+                                            panic!("{:?}", e);
+                                        }
+                                    }
                                 }
                             }
-                            Err(e) => {
-                                if !e
-                                    .to_string()
-                                    // This error occurs when the page is reloading and is safe
-                                    // to ignore.
-                                    .contains("Cannot find context with specified id")
-                                {
-                                    panic!("{:?}", e);
-                                }
-                            }
-                        }
-                    }
 
-                    app.schedule_page_disposal(page);
-                    app
-                },
-                |app| async {
-                    app.dispose().await;
+                            app.schedule_page_disposal(page);
+                            app
+                        },
+                        |app| async {
+                            app.dispose().await;
+                        },
+                    );
+                    remove_dir_all(&template_dir).unwrap();
                 },
             );
-            remove_dir_all(&template_dir).unwrap();
-        });
+        }
     }
 }
 
@@ -128,44 +145,100 @@ fn bench_restart(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for size in [100, 1_000] {
-        g.bench_with_input(BenchmarkId::new("modules", size), &size, |b, &s| {
-            let template_dir = build_test(s);
-            b.to_async(Runtime::new().unwrap()).iter_batched_async(
-                || async {
-                    // Run a complete build, shut down, and test running it again
-                    let mut app = PreparedApp::new(template_dir.clone()).await;
-                    app.start_server();
+    for bundler in get_bundlers() {
+        for module_count in MODULE_COUNTS {
+            let input = (bundler.as_ref(), module_count);
 
-                    let page = app.new_page(browser).await;
-                    page.close().await.unwrap();
+            g.bench_with_input(
+                BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                &input,
+                |b, &(bundler, module_count)| {
+                    let template_dir = build_test(*module_count);
+                    b.to_async(Runtime::new().unwrap()).iter_batched_async(
+                        || async {
+                            // Run a complete build, shut down, and test running it again
+                            let mut app = PreparedApp::new(bundler, template_dir.clone());
+                            app.start_server();
 
-                    let mut proc = app.stop_server();
-                    proc.wait().unwrap();
-                    app
+                            let page = app.new_page(browser).await;
+                            page.close().await.unwrap();
+
+                            let mut proc = app.stop_server();
+                            proc.wait().unwrap();
+                            app
+                        },
+                        |mut app| async {
+                            app.start_server();
+                            let page = app.new_page(browser).await;
+                            page.wait_for_navigation().await.unwrap();
+                            app.schedule_page_disposal(page);
+                            app
+                        },
+                        |app| app.dispose(),
+                    );
+                    remove_dir_all(&template_dir).unwrap();
                 },
-                |mut app| async {
-                    app.start_server();
-                    let page = app.new_page(browser).await;
-                    page.wait_for_navigation().await.unwrap();
-                    app.schedule_page_disposal(page);
-                    app
-                },
-                |app| app.dispose(),
             );
-            remove_dir_all(&template_dir).unwrap();
-        });
+        }
     }
 }
 
-struct PreparedApp {
-    test_dir: tempfile::TempDir,
-    server: Option<(Child, String)>,
-    pages: Vec<Page>,
+trait Bundler {
+    fn get_name(&self) -> &str;
+    fn start_server(&self, test_dir: &Path) -> (Child, String);
 }
 
-impl PreparedApp {
-    async fn new(template_dir: PathBuf) -> Self {
+struct Turbopack;
+impl Bundler for Turbopack {
+    fn get_name(&self) -> &str {
+        "Turbopack"
+    }
+
+    fn start_server(&self, test_dir: &Path) -> (Child, String) {
+        let mut proc = Command::new(std::env!("CARGO_BIN_EXE_next-dev"))
+            .args([test_dir.to_str().unwrap(), "--no-open", "--port", "0"])
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+
+        // Wait for the devserver address to appear in stdout.
+        let addr = wait_for_match(
+            proc.stdout.as_mut().unwrap(),
+            Regex::new("server listening on: (.*)").unwrap(),
+        );
+
+        (proc, addr)
+    }
+}
+
+fn get_bundlers() -> Vec<Box<dyn Bundler>> {
+    vec![Box::new(Turbopack {})]
+}
+
+fn wait_for_match(stdout: &mut ChildStdout, re: Regex) -> String {
+    // See https://docs.rs/async-process/latest/async_process/#examples
+    let mut line_reader = BufReader::new(stdout).lines();
+    // Read until the match appears in the buffer
+    let mut matched: Option<String> = None;
+    while let Some(Ok(line)) = line_reader.next() {
+        if let Some(cap) = re.captures(&line) {
+            matched = Some(cap.get(1).unwrap().as_str().into());
+            break;
+        }
+    }
+
+    matched.unwrap()
+}
+
+struct PreparedApp<'a> {
+    bundler: &'a dyn Bundler,
+    pages: Vec<Page>,
+    server: Option<(Child, String)>,
+    test_dir: tempfile::TempDir,
+}
+
+impl<'a> PreparedApp<'a> {
+    fn new(bundler: &'a dyn Bundler, template_dir: PathBuf) -> Self {
         let test_dir = tempfile::tempdir().unwrap();
         fs_extra::dir::copy(
             &template_dir,
@@ -178,6 +251,7 @@ impl PreparedApp {
         .unwrap();
 
         Self {
+            bundler,
             pages: Vec::new(),
             server: None,
             test_dir,
@@ -186,15 +260,8 @@ impl PreparedApp {
 
     fn start_server(&mut self) {
         assert!(self.server.is_none(), "Server already started");
-        let mut proc = Command::new(std::env!("CARGO_BIN_EXE_next-dev"))
-            .args([".", "--no-open", "--port", "0"])
-            .current_dir(&self.test_dir)
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
 
-        let addr = wait_for_addr(proc.stdout.as_mut().unwrap());
-        self.server = Some((proc, addr));
+        self.server = Some(self.bundler.start_server(self.test_dir.path()));
     }
 
     async fn new_page(&self, browser: &Browser) -> Page {
@@ -281,22 +348,6 @@ async fn create_browser() -> Browser {
     });
 
     browser
-}
-
-fn wait_for_addr(stdout: &mut ChildStdout) -> String {
-    // See https://docs.rs/async-process/latest/async_process/#examples
-    let mut line_reader = BufReader::new(stdout).lines();
-    let started_regex = Regex::new("server listening on: (.*)").unwrap();
-    // Wait for "server listening on" message to appear before navigating there.
-    let mut addr: Option<String> = None;
-    while let Some(Ok(line)) = line_reader.next() {
-        if let Some(cap) = started_regex.captures(&line) {
-            addr = Some(cap.get(1).unwrap().as_str().into());
-            break;
-        }
-    }
-
-    addr.unwrap()
 }
 
 trait AsyncBencherExtension {
