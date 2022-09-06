@@ -263,7 +263,11 @@ export type NextApiResponse<T = any> = ServerResponse & {
       path?: string
     }
   ) => NextApiResponse<T>
-  clearPreviewData: () => NextApiResponse<T>
+
+  /**
+   * Clear preview data for Next.js' prerender mode
+   */
+  clearPreviewData: (options?: { path?: string }) => NextApiResponse<T>
 
   /**
    * @deprecated `unstable_revalidate` has been renamed to `revalidate`

@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 plugin = [
-  "swc/plugin"
+  "swc_core/plugin_transform_host_native"
 ]
 
 [dependencies]
@@ -26,18 +26,27 @@ swc_emotion = {path="../emotion"}
 styled_components = {path="../styled_components"}
 styled_jsx = {path="../styled_jsx"}
 modularize_imports = {path="../modularize_imports"}
-swc = "0.214.9"
-swc_atoms = "0.4.8"
-swc_common = { version = "0.27.11", features = ["concurrent", "sourcemap", "plugin_transform_schema_v1"] }
-swc_ecma_loader = { version = "0.39.4", features = ["node", "lru"] }
-swc_ecmascript = { version = "0.189.4", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_plugin_runner = { version = "0.71.15", optional = true, default-features = false, features = ["plugin_transform_schema_v1"] }
-swc_cached = "0.3.5"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
-wasmer = { version = "2.3.0", optional = true, default-features = false }
-wasmer-wasi = { version = "2.3.0", optional = true, default-features = false }
+
+swc_core = { version = "0.20.4", features = [
+  "common_concurrent",
+  "ecma_ast",
+  "ecma_visit",
+  "ecma_loader_node",
+  "ecma_loader_lru",
+  "ecma_utils",
+  "ecma_minifier",
+  "ecma_transforms",
+  "__ecma_transforms",
+  "ecma_transforms_react",
+  "ecma_transforms_typescript",
+  "ecma_parser",
+  "ecma_parser_typescript",
+  "cached",
+  "base"
+] }
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.105.5"
+swc_core = { version = "0.20.4", features = ["testing_transform"] }
 testing = "0.29.4"
 walkdir = "2.3.2"
