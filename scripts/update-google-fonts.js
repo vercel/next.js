@@ -1,5 +1,6 @@
 const fs = require('fs/promises')
 const path = require('path')
+const fetch = require('node-fetch')
 
 ;(async () => {
   const { familyMetadataList } = await fetch(
@@ -62,9 +63,12 @@ const path = require('path')
   }
 
   await Promise.all([
-    fs.writeFile(path.join(__dirname, '../src/google/index.ts'), fontFunctions),
     fs.writeFile(
-      path.join(__dirname, '../src/google/font-data.json'),
+      path.join(__dirname, '../packages/font/src/google/index.ts'),
+      fontFunctions
+    ),
+    fs.writeFile(
+      path.join(__dirname, '../packages/font/src/google/font-data.json'),
       JSON.stringify(fontData, null, 2)
     ),
   ])

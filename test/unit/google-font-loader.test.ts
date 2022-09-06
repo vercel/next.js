@@ -1,10 +1,11 @@
 import loader from '@next/font/google/loader'
+import fetch from 'next/dist/compiled/node-fetch'
 
-const self: any = global
+jest.mock('next/dist/compiled/node-fetch')
 
 describe('@next/font/google loader', () => {
-  beforeEach(() => {
-    self.fetch = jest.fn()
+  afterEach(() => {
+    jest.resetAllMocks()
   })
 
   describe('URL from options', () => {
@@ -70,7 +71,7 @@ describe('@next/font/google loader', () => {
         'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@1,9..144,100..900,0..100,0..1&display=optional',
       ],
     ])('%s', async (functionName: string, data: any, url: string) => {
-      self.fetch.mockResolvedValue({
+      fetch.mockResolvedValue({
         ok: true,
         text: async () => 'OK',
       })
@@ -81,14 +82,14 @@ describe('@next/font/google loader', () => {
         emitFontFile: jest.fn(),
       })
       expect(css).toBe('OK')
-      expect(self.fetch).toHaveBeenCalledTimes(1)
-      expect(self.fetch).toHaveBeenCalledWith(url, expect.any(Object))
+      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(fetch).toHaveBeenCalledWith(url, expect.any(Object))
     })
   })
 
   describe('Errors', () => {
     test('Failed to fetch', async () => {
-      self.fetch.mockResolvedValue({
+      fetch.mockResolvedValue({
         ok: false,
       })
 

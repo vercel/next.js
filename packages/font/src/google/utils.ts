@@ -1,3 +1,5 @@
+// @ts-ignore
+import fetch from 'next/dist/compiled/node-fetch'
 import fontData from './font-data.json'
 const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
 
