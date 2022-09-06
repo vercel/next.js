@@ -49,11 +49,11 @@ export async function loadStaticPaths(
   }
 
   workerWasUsed = true
-  return buildStaticPaths(
-    pathname,
-    components.getStaticPaths,
-    config.configFileName,
+  return buildStaticPaths({
+    page: pathname,
+    getStaticPaths: components.getStaticPaths,
+    configFileName: config.configFileName,
     locales,
-    defaultLocale
-  )
+    defaultLocale,
+  })
 }

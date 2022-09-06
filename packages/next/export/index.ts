@@ -415,51 +415,23 @@ export default async function exportApp(
           distDir,
           buildId,
         })
-
-        if (options.buildExport && nextConfig.experimental.appDir) {
-          // @ts-expect-error untyped
-          renderOpts.serverComponentManifest = require(join(
-            distDir,
-            SERVER_DIRECTORY,
-            `${FLIGHT_MANIFEST}.json`
-          )) as PagesManifest
-          // @ts-expect-error untyped
-          renderOpts.serverCSSManifest = require(join(
-            distDir,
-            SERVER_DIRECTORY,
-            FLIGHT_SERVER_CSS_MANIFEST + '.json'
-          )) as PagesManifest
-
-          const appPathsManifest = require(join(
-            distDir,
-            SERVER_DIRECTORY,
-            APP_PATHS_MANIFEST
-          )) as PagesManifest
-
-          const middlewareManifest = require(join(
-            distDir,
-            SERVER_DIRECTORY,
-            MIDDLEWARE_MANIFEST
-          ))
-
-          for (const normalizedPath of Object.keys(appPathsManifest)) {
-            const originalPath = appPathsManifest[normalizedPath]
-
-            if (middlewareManifest.functions[normalizedPath]) {
-              // TODO: edge runtime routes need to be handled inside
-              // of the edge context
-              continue
-            }
-            exportMap[normalizedPath] = {
-              page: originalPath.replace(/^app\//, '/').replace(/\.js$/, ''),
-              // @ts-expect-error internal flag signaling appDir
-              _isAppDir: true,
-            }
-          }
-        }
-
         return exportMap
       })
+
+    if (options.buildExport && nextConfig.experimental.appDir) {
+      // @ts-expect-error untyped
+      renderOpts.serverComponentManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        `${FLIGHT_MANIFEST}.json`
+      )) as PagesManifest
+      // @ts-expect-error untyped
+      renderOpts.serverCSSManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        FLIGHT_SERVER_CSS_MANIFEST + '.json'
+      )) as PagesManifest
+    }
 
     // only add missing 404 page when `buildExport` is false
     if (!options.buildExport) {
