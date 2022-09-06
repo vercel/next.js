@@ -394,6 +394,12 @@ importers:
     devDependencies:
       '@types/eslint': 7.28.0
 
+  packages/font:
+    specifiers:
+      next: '*'
+    dependencies:
+      next: link:../next
+
   packages/next:
     specifiers:
       '@ampproject/toolbox-optimizer': 2.8.3
