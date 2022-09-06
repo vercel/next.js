@@ -147,8 +147,8 @@ const Example = () => (
     <Image
       src="/example.png"
       layout="fill"
-      sizes="(min-width: 75em) 33vw,
-              (min-width: 48em) 50vw,
+      sizes="(min-width: 1200px) 33vw,
+              (min-width: 768px) 50vw,
               100vw"
     />
   </div>
