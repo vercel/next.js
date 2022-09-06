@@ -1,5 +1,5 @@
 ---
-description: Try the latest Image Optimization with the experimental `next/future/image` component.
+description: Try the latest Image Optimization with the new `next/future/image` component.
 ---
 
 # next/future/image
@@ -7,28 +7,17 @@ description: Try the latest Image Optimization with the experimental `next/futur
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                      |
-| --------- | -------------------------------------------- |
-| `v12.2.4` | Support for `fill` property added.           |
-| `v12.2.0` | Experimental `next/future/image` introduced. |
+| Version   | Changes                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `v12.3.0` | `next/future/image` component stable. `remotePatterns` config stable. `unoptimized` config stable. `alt` property required. |
+| `v12.2.4` | `fill` property added.                                                                                                      |
+| `v12.2.0` | Experimental `next/future/image` component introduced.                                                                      |
 
 </details>
 
-The `next/future/image` component is an experiment to improve both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
+The `next/future/image` component improves both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
 
-This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
-
-To use `next/future/image`, add the following to your `next.config.js` file:
-
-```js
-module.exports = {
-  experimental: {
-    images: {
-      allowFutureImage: true,
-    },
-  },
-}
-```
+This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
 
 ## Comparison
 
@@ -43,6 +32,7 @@ Compared to `next/image`, the new `next/future/image` component has the followin
   - Removes `lazyBoundary` prop since there is no native equivalent
   - Removes `lazyRoot` prop since there is no native equivalent
 - Removes `loader` config in favor of [`loader`](#loader) prop
+- Changed `alt` prop from optional to required
 
 ## Known Browser Bugs
 
@@ -51,7 +41,7 @@ Compared to `next/image`, the new `next/future/image` component has the followin
   - Use [`priority`](#priority) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading progressive jpeg. Possible solutions:
   - Enable [AVIF `formats`](#acceptable-formats)
-  - Use [`placeholder="blur"`](#blur)
+  - Use [`placeholder="blur"`](#placeholder)
 
 ## Migration
 
@@ -174,6 +164,16 @@ Required, except for [statically imported images](/docs/basic-features/image-opt
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
 Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
+
+### alt
+
+The `alt` property is used to describe the image for screen readers and search engines. It is also the fallback text if images have been disabled or an error occurs while loading the image.
+
+It should contain text that could replace the image [without changing the meaning of the page](https://html.spec.whatwg.org/multipage/images.html#general-guidelines). It is not meant to supplement the image and should not repeat information that is already provided in the captions above or below the image.
+
+If the image is [purely decorative](https://html.spec.whatwg.org/multipage/images.html#a-purely-decorative-image-that-doesn't-add-any-information) or [not intended for the user](https://html.spec.whatwg.org/multipage/images.html#an-image-not-intended-for-the-user), the `alt` property should be an empty string (`alt=""`).
+
+[Learn more](https://html.spec.whatwg.org/multipage/images.html#alt)
 
 ## Optional Props
 
@@ -362,14 +362,12 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
-This prop can be assigned to all images by updating `next.config.js` with the following experimental configuration:
+This prop can be assigned to all images by updating `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      unoptimized: true,
-    },
+  images: {
+    unoptimized: true,
   },
 }
 ```
@@ -387,23 +385,19 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ### Remote Patterns
 
-> Note: The `remotePatterns` configuration is currently **experimental** and subject to change. Please use [`domains`](#domains) for production use cases.
-
 To protect your application from malicious users, configuration is required in order to use external images. This ensures that only external images from your account can be served from the Next.js Image Optimization API. These external images can be configured with the `remotePatterns` property in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      remotePatterns: [
-        {
-          protocol: 'https',
-          hostname: 'example.com',
-          port: '',
-          pathname: '/account123/**',
-        },
-      ],
-    },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'example.com',
+        port: '',
+        pathname: '/account123/**',
+      },
+    ],
   },
 }
 ```
@@ -414,15 +408,13 @@ Below is another example of the `remotePatterns` property in the `next.config.js
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      remotePatterns: [
-        {
-          protocol: 'https',
-          hostname: '**.example.com',
-        },
-      ],
-    },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.example.com',
+      },
+    ],
   },
 }
 ```

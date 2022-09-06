@@ -28,29 +28,37 @@ function nextImageLoader(content) {
       getImageSize(content, extension)
     )
     let blurDataURL
+    let blurWidth
+    let blurHeight
 
     if (VALID_BLUR_EXT.includes(extension)) {
+      // Shrink the image's largest dimension
+      if (imageSize.width >= imageSize.height) {
+        blurWidth = BLUR_IMG_SIZE
+        blurHeight = Math.round(
+          (imageSize.height / imageSize.width) * BLUR_IMG_SIZE
+        )
+      } else {
+        blurWidth = Math.round(
+          (imageSize.width / imageSize.height) * BLUR_IMG_SIZE
+        )
+        blurHeight = BLUR_IMG_SIZE
+      }
+
       if (isDev) {
+        // During `next dev`, we don't want to generate blur placeholders with webpack
+        // because it can delay starting the dev server. Instead, we inline a
+        // special url to lazily generate the blur placeholder at request time.
         const prefix = 'http://localhost'
         const url = new URL(`${basePath || ''}/_next/image`, prefix)
         url.searchParams.set('url', outputPath)
-        url.searchParams.set('w', BLUR_IMG_SIZE)
+        url.searchParams.set('w', blurWidth)
         url.searchParams.set('q', BLUR_QUALITY)
         blurDataURL = url.href.slice(prefix.length)
       } else {
-        // Shrink the image's largest dimension
-        const dimension =
-          imageSize.width >= imageSize.height ? 'width' : 'height'
-
         const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
         const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
-          resizeImage(
-            content,
-            dimension,
-            BLUR_IMG_SIZE,
-            extension,
-            BLUR_QUALITY
-          )
+          resizeImage(content, blurWidth, blurHeight, extension, BLUR_QUALITY)
         )
         const blurDataURLSpan = imageLoaderSpan.traceChild(
           'image-base64-tostring'
@@ -70,6 +78,8 @@ function nextImageLoader(content) {
           height: imageSize.height,
           width: imageSize.width,
           blurDataURL,
+          blurWidth,
+          blurHeight,
         })
       )
 

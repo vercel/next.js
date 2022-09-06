@@ -13,6 +13,20 @@ const ArchName = arch()
 const PlatformName = platform()
 const triples = platformArchTriples[PlatformName][ArchName] || []
 
+// These are the platforms we'll try to load wasm bindings first,
+// only try to load native bindings if loading wasm binding somehow fails.
+// Fallback to native binding is for migration period only,
+// once we can verify loading-wasm-first won't cause visible regressions,
+// we'll not include native bindings for these platform at all.
+const knownDefaultWasmFallbackTriples = [
+  'aarch64-linux-android',
+  'x86_64-unknown-freebsd',
+  'aarch64-pc-windows-msvc',
+  'arm-linux-androideabi',
+  'armv7-unknown-linux-gnueabihf',
+  'i686-pc-windows-msvc',
+]
+
 let nativeBindings
 let wasmBindings
 let downloadWasmPromise
@@ -35,49 +49,71 @@ export async function loadBindings() {
     }
 
     let attempts = []
+    const shouldLoadWasmFallbackFirst = triples.some(
+      (triple) =>
+        !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
+    )
+
+    if (shouldLoadWasmFallbackFirst) {
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      if (fallbackBindings) {
+        return resolve(fallbackBindings)
+      }
+    }
+
     try {
       return resolve(loadNative())
     } catch (a) {
       attempts = attempts.concat(a)
     }
 
-    try {
-      let bindings = await loadWasm()
-      eventSwcLoadFailure({ wasm: 'enabled' })
-      return resolve(bindings)
-    } catch (a) {
-      attempts = attempts.concat(a)
-    }
-
-    try {
-      // if not installed already download wasm package on-demand
-      // we download to a custom directory instead of to node_modules
-      // as node_module import attempts are cached and can't be re-attempted
-      // x-ref: https://github.com/nodejs/modules/issues/307
-      const wasmDirectory = path.join(
-        path.dirname(require.resolve('next/package.json')),
-        'wasm'
-      )
-      if (!downloadWasmPromise) {
-        downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
+    // For these platforms we already tried to load wasm and failed, skip reattempt
+    if (!shouldLoadWasmFallbackFirst) {
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      if (fallbackBindings) {
+        return resolve(fallbackBindings)
       }
-      await downloadWasmPromise
-      let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
-      eventSwcLoadFailure({ wasm: 'fallback' })
-
-      // still log native load attempts so user is
-      // aware it failed and should be fixed
-      for (const attempt of attempts) {
-        Log.warn(attempt)
-      }
-      return resolve(bindings)
-    } catch (a) {
-      attempts = attempts.concat(a)
     }
 
     logLoadFailure(attempts, true)
   })
   return pendingBindings
+}
+
+async function tryLoadWasmWithFallback(attempts) {
+  try {
+    let bindings = await loadWasm()
+    eventSwcLoadFailure({ wasm: 'enabled' })
+    return bindings
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
+
+  try {
+    // if not installed already download wasm package on-demand
+    // we download to a custom directory instead of to node_modules
+    // as node_module import attempts are cached and can't be re-attempted
+    // x-ref: https://github.com/nodejs/modules/issues/307
+    const wasmDirectory = path.join(
+      path.dirname(require.resolve('next/package.json')),
+      'wasm'
+    )
+    if (!downloadWasmPromise) {
+      downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
+    }
+    await downloadWasmPromise
+    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
+    eventSwcLoadFailure({ wasm: 'fallback' })
+
+    // still log native load attempts so user is
+    // aware it failed and should be fixed
+    for (const attempt of attempts) {
+      Log.warn(attempt)
+    }
+    return bindings
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
 }
 
 function loadBindingsSync() {
@@ -136,7 +172,7 @@ async function loadWasm(importPath = '') {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      Log.info('Using experimental wasm build of next-swc')
+      Log.info('Using wasm build of next-swc')
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
