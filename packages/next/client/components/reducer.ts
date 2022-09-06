@@ -455,7 +455,6 @@ export const ACTION_PREFETCH = 'prefetch'
  */
 interface ReloadAction {
   type: typeof ACTION_RELOAD
-  url: URL
   cache: CacheNode
   mutable: {
     previousTree?: FlightRouterState
@@ -907,10 +906,8 @@ export function reducer(
       }
     }
     case ACTION_RELOAD: {
-      const { url, cache, mutable } = action
-      const href = url.pathname + url.search + url.hash
-      // Reload is always a replace.
-      const pendingPush = false
+      const { cache, mutable } = action
+      const href = state.canonicalUrl
 
       // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
       if (
@@ -921,7 +918,7 @@ export function reducer(
           // Set href.
           canonicalUrl: href,
           // set pendingPush (always false in this case).
-          pushRef: { pendingPush, mpaNavigation: false },
+          pushRef: state.pushRef,
           // Apply focus and scroll.
           // TODO-APP: might need to disable this for Fast Refresh.
           focusAndScrollRef: { apply: true },
@@ -933,7 +930,7 @@ export function reducer(
 
       if (!cache.data) {
         // Fetch data from the root of the tree.
-        cache.data = fetchServerResponse(url, [
+        cache.data = fetchServerResponse(new URL(href, location.origin), [
           state.tree[0],
           state.tree[1],
           state.tree[2],
@@ -990,7 +987,7 @@ export function reducer(
         // Set href, this doesn't reuse the state.canonicalUrl as because of concurrent rendering the href might change between dispatching and applying.
         canonicalUrl: href,
         // set pendingPush (always false in this case).
-        pushRef: { pendingPush, mpaNavigation: false },
+        pushRef: state.pushRef,
         // TODO-APP: might need to disable this for Fast Refresh.
         focusAndScrollRef: { apply: false },
         // Apply patched cache.
