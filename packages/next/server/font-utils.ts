@@ -82,7 +82,7 @@ export function getFontDefinitionFromManifest(
 function parseGoogleFontName(css: string): Array<string> {
   const regex = /font-family: ([^;]*)/g
   const matches = css.matchAll(regex)
-  const fontNames = new Set()
+  const fontNames = new Set<string>()
 
   for (let font of matches) {
     const fontFamily = font[1].replace(/^['"]|['"]$/g, '')
