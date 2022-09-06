@@ -700,9 +700,7 @@ export default class NextNodeServer extends BaseServer {
       proxyTimeout:
         upgradeHead && this.renderOpts.dev
           ? undefined
-          : 'proxyTimeout' in this.nextConfig.experimental
-          ? this.nextConfig.experimental.proxyTimeout
-          : 30_000,
+          : this.nextConfig.experimental.proxyTimeout || 30_000,
     })
 
     await new Promise((proxyResolve, proxyReject) => {
