@@ -46,6 +46,11 @@ type InternalLinkProps = {
   /**
    * requires experimental.newNextLinkBehavior
    */
+  onMouseLeave?: (e: any) => void
+  // e: any because as it would otherwise overlap with existing types
+  /**
+   * requires experimental.newNextLinkBehavior
+   */
   onTouchStart?: (e: any) => void
   // e: any because as it would otherwise overlap with existing types
   /**
@@ -206,6 +211,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         locale: true,
         onClick: true,
         onMouseEnter: true,
+        onMouseLeave: true,
         onTouchStart: true,
         legacyBehavior: true,
       } as const
@@ -234,7 +240,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         } else if (
           key === 'onClick' ||
           key === 'onMouseEnter' ||
-          key === 'onTouchStart'
+          key === 'onTouchStart' ||
+          key === 'onMouseLeave'
         ) {
           if (props[key] && valType !== 'function') {
             throw createPropError({
@@ -290,6 +297,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       locale,
       onClick,
       onMouseEnter,
+      onMouseLeave,
       onTouchStart,
       legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
       ...restProps
@@ -343,6 +351,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         if (onMouseEnter) {
           console.warn(
             `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
+          )
+        }
+        if (onMouseLeave) {
+          console.warn(
+            `"onMouseLeave" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseLeave be set on the child of next/link`
           )
         }
         try {
@@ -405,9 +418,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
     }, [as, href, isVisible, locale, p, router])
 
+    const onMouseEnterTimerRef = React.useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null)
+
     const childProps: {
       onTouchStart: React.TouchEventHandler
       onMouseEnter: React.MouseEventHandler
+      onMouseLeave: React.MouseEventHandler
       onClick: React.MouseEventHandler
       href?: string
       ref?: any
@@ -458,13 +476,30 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
-
         // Check for not prefetch disabled in page using appRouter
         if (!(!p && appRouter)) {
           if (isLocalURL(href)) {
-            prefetch(router, href, as, { priority: true })
+            onMouseEnterTimerRef.current = setTimeout(() => {
+              prefetch(router, href, as, { priority: true })
+            }, 65)
           }
         }
+      },
+      onMouseLeave: (e: React.MouseEvent) => {
+        if (!legacyBehavior && typeof onMouseLeave === 'function') {
+          onMouseLeave(e)
+        }
+        if (
+          legacyBehavior &&
+          child.props &&
+          typeof child.props.onMouseLeave === 'function'
+        ) {
+          child.props.onMouseLeave(e)
+        }
+        if (onMouseEnterTimerRef.current) {
+          clearTimeout(onMouseEnterTimerRef.current)
+        }
+        onMouseEnterTimerRef.current = null
       },
       onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
         if (!legacyBehavior && typeof onTouchStart === 'function') {
