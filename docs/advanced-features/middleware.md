@@ -117,8 +117,6 @@ Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp
 
 > **Note:** For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
 
-> **Note:** It is not possible to exclude middleware from matching static path starting with `_next/`. This allow enforcing security with middleware.
-
 ### Conditional Statements
 
 ```typescript
