@@ -347,7 +347,7 @@ function createOptimisticTree(
 /**
  * Apply the router state from the Flight response. Creates a new router state tree.
  */
-function applyRouterStatePatchToTree<T>(
+function applyRouterStatePatchToTree(
   flightSegmentPath: FlightData[0],
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
