@@ -120,6 +120,44 @@ fn bench_simple_file_change(c: &mut Criterion) {
     }
 }
 
+fn bench_restart(c: &mut Criterion) {
+    let mut g = c.benchmark_group("bench_restart");
+    g.sample_size(10);
+    g.measurement_time(Duration::from_secs(30));
+
+    let runtime = Runtime::new().unwrap();
+    let browser = &runtime.block_on(create_browser());
+
+    for size in [100, 1_000] {
+        g.bench_with_input(BenchmarkId::new("modules", size), &size, |b, &s| {
+            let template_dir = build_test(s);
+            b.to_async(Runtime::new().unwrap()).iter_batched_async(
+                || async {
+                    // Run a complete build, shut down, and test running it again
+                    let mut app = PreparedApp::new(template_dir.clone()).await;
+                    app.start_server();
+
+                    let page = app.new_page(browser).await;
+                    page.close().await.unwrap();
+
+                    let mut proc = app.stop_server();
+                    proc.wait().unwrap();
+                    app
+                },
+                |mut app| async {
+                    app.start_server();
+                    let page = app.new_page(browser).await;
+                    page.wait_for_navigation().await.unwrap();
+                    app.schedule_page_disposal(page);
+                    app
+                },
+                |app| app.dispose(),
+            );
+            remove_dir_all(&template_dir).unwrap();
+        });
+    }
+}
+
 struct PreparedApp {
     test_dir: tempfile::TempDir,
     server: Option<(Child, String)>,
@@ -184,6 +222,12 @@ impl PreparedApp {
         for page in self.pages {
             page.close().await.unwrap();
         }
+    }
+
+    fn stop_server(&mut self) -> Child {
+        let mut proc = self.server.take().expect("Server never started").0;
+        proc.kill().unwrap();
+        proc
     }
 }
 
@@ -337,6 +381,6 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_startup, bench_simple_file_change
+    targets = bench_startup, bench_simple_file_change, bench_restart
 );
 criterion_main!(benches);
