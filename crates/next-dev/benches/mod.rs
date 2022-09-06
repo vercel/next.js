@@ -1,5 +1,5 @@
 use std::{
-    fs::remove_dir_all,
+    fs::{self, remove_dir_all},
     future::Future,
     io::{self, BufRead, BufReader, Write},
     path::PathBuf,
@@ -25,6 +25,8 @@ use tokio::runtime::Runtime;
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbopack_create_test_app::test_app_builder::TestAppBuilder;
 
+static MODULE_COUNTS: &[usize] = &[100, 1_000];
+
 fn bench_startup(c: &mut Criterion) {
     let mut g = c.benchmark_group("bench_startup");
     g.sample_size(10);
@@ -33,13 +35,13 @@ fn bench_startup(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for size in [100, 1_000] {
+    for size in MODULE_COUNTS {
         g.bench_with_input(BenchmarkId::new("modules", size), &size, |b, &s| {
-            let test_dir = build_test(s);
+            let template_dir = build_test(*s);
             b.to_async(&runtime).iter_batched_async(
-                PreparedApp::new,
+                || async { PreparedApp::new(template_dir.clone()).await },
                 |mut app| async {
-                    app.start_server(&test_dir);
+                    app.start_server();
                     let page = app.new_page(browser).await;
                     page.wait_for_navigation().await.unwrap();
                     app.schedule_page_disposal(page);
@@ -48,30 +50,107 @@ fn bench_startup(c: &mut Criterion) {
                 },
                 |app| app.dispose(),
             );
-            remove_dir_all(&test_dir).unwrap();
+            remove_dir_all(&template_dir).unwrap();
         });
     }
 
     g.finish();
 }
+
+fn bench_simple_file_change(c: &mut Criterion) {
+    let mut g = c.benchmark_group("bench_simple_file_change");
+    g.sample_size(10);
+    g.measurement_time(Duration::from_secs(30));
+
+    let runtime = Runtime::new().unwrap();
+    let browser = &runtime.block_on(create_browser());
+
+    for size in MODULE_COUNTS {
+        g.bench_with_input(BenchmarkId::new("modules", size), &size, |b, &s| {
+            let template_dir = build_test(*s);
+
+            b.to_async(Runtime::new().unwrap()).iter_batched_async(
+                || async {
+                    let mut app = PreparedApp::new(template_dir.clone()).await;
+                    app.start_server();
+                    let page = app.new_page(browser).await;
+                    page.wait_for_navigation().await.unwrap();
+
+                    (app, page)
+                },
+                |(mut app, page)| async {
+                    let index_path = app.test_dir.path().join("src/index.jsx");
+                    let mut contents =
+                        String::from_utf8_lossy(&fs::read(&index_path).unwrap()).to_string();
+                    contents.push_str("globalThis.__updated = true;\n");
+                    fs::write(&index_path, &contents).unwrap();
+
+                    // Wait for the change introduced above to be reflected at runtime. This expects
+                    // HMR or automatic reloading to occur.
+                    loop {
+                        match page.evaluate("globalThis.__updated").await {
+                            Ok(status_res) => {
+                                if let Ok(status) = status_res.into_value::<bool>() {
+                                    assert!(status);
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                if !e
+                                    .to_string()
+                                    // This error occurs when the page is reloading and is safe
+                                    // to ignore.
+                                    .contains("Cannot find context with specified id")
+                                {
+                                    panic!("{:?}", e);
+                                }
+                            }
+                        }
+                    }
+
+                    app.schedule_page_disposal(page);
+                    app
+                },
+                |app| async {
+                    app.dispose().await;
+                },
+            );
+            remove_dir_all(&template_dir).unwrap();
+        });
+    }
+}
+
 struct PreparedApp {
+    test_dir: tempfile::TempDir,
     server: Option<(Child, String)>,
     pages: Vec<Page>,
 }
 
 impl PreparedApp {
-    async fn new() -> Self {
+    async fn new(template_dir: PathBuf) -> Self {
+        let test_dir = tempfile::tempdir().unwrap();
+        fs_extra::dir::copy(
+            &template_dir,
+            &test_dir,
+            &fs_extra::dir::CopyOptions {
+                content_only: true,
+                ..fs_extra::dir::CopyOptions::default()
+            },
+        )
+        .unwrap();
+
         Self {
-            server: None,
             pages: Vec::new(),
+            server: None,
+            test_dir,
         }
     }
 
-    fn start_server(&mut self, test_dir: &PathBuf) {
+    fn start_server(&mut self) {
         assert!(self.server.is_none(), "Server already started");
         let mut proc = Command::new(std::env!("CARGO_BIN_EXE_next-dev"))
             .args([".", "--no-open", "--port", "0"])
-            .current_dir(test_dir)
+            .current_dir(&self.test_dir)
             .stdout(Stdio::piped())
             .spawn()
             .unwrap();
@@ -255,5 +334,9 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
     }
 }
 
-criterion_group!(benches, bench_startup);
+criterion_group!(
+    name = benches;
+    config = Criterion::default();
+    targets = bench_startup, bench_simple_file_change
+);
 criterion_main!(benches);
