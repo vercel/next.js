@@ -342,7 +342,6 @@ function createOptimisticTree(
   return result
 }
 
-// type a =
 
 /**
  * Apply the router state from the Flight response. Creates a new router state tree.
