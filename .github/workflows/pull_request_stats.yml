@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 25
 
       - name: Check non-docs only change
-        run: echo ::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')
+        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
       - name: Setup node
@@ -118,7 +118,7 @@ jobs:
           fetch-depth: 25
 
       - name: Check non-docs only change
-        run: echo ::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')
+        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
       - uses: actions/download-artifact@v3
