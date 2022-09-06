@@ -48,8 +48,10 @@ chromiumoxide = { version = "0.3.5", features = [
   "tokio-runtime",
 ], default-features = false }
 criterion = { version = "0.3.5", features = ["async_tokio"] }
+fs_extra = "1.2.0"
 lazy_static = "1.4.0"
 regex = "1.6.0"
+tempfile = "3.3.0"
 test-generator = "0.3.0"
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = "0.17.3"                                                # For matching on errors from chromiumoxide. Keep in 
