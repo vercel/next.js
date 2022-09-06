@@ -1,5 +1,6 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { ServerOptions as HttpProxyOptions } from 'next/dist/compiled/http-proxy'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -147,6 +148,7 @@ export interface ExperimentalConfig {
    */
   fallbackNodePolyfills?: false
   enableUndici?: boolean
+  upstreamHttpProxyConfig?: HttpProxyOptions
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }

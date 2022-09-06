@@ -399,6 +399,9 @@ const configSchema = {
         fontLoaders: {
           type: 'object',
         },
+        upstreamHttpProxyConfig: {
+          type: 'object',
+        },
       },
       type: 'object',
     },
