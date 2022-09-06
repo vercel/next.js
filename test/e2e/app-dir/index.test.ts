@@ -293,66 +293,60 @@ describe('app dir', () => {
     })
 
     describe('<Link />', () => {
-      // TODO-APP: fix development test
-      it.skip('should hard push', async () => {
-        const browser = await webdriver(next.url, '/link-hard-push')
+      it('should hard push', async () => {
+        const browser = await webdriver(next.url, '/link-hard-push/123')
 
         try {
           // Click the link on the page, and verify that the history entry was
           // added.
           expect(await browser.eval('window.history.length')).toBe(2)
           await browser.elementById('link').click()
-          await browser.waitForElementByCss('#render-id')
+          await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(3)
 
           // Get the id on the rendered page.
-          const firstID = await browser.elementById('render-id').text()
+          const firstID = await browser.elementById('render-id-456').text()
 
           // Go back, and redo the navigation by clicking the link.
           await browser.back()
           await browser.elementById('link').click()
-          await browser.waitForElementByCss('#render-id')
+          await browser.waitForElementByCss('#render-id-456')
 
           // Get the id again, and compare, they should not be the same.
-          const secondID = await browser.elementById('render-id').text()
+          const secondID = await browser.elementById('render-id-456').text()
           expect(secondID).not.toBe(firstID)
         } finally {
           await browser.close()
         }
       })
 
-      // TODO-APP: fix development test
-      it.skip('should hard replace', async () => {
-        const browser = await webdriver(next.url, '/link-hard-replace')
+      it('should hard replace', async () => {
+        const browser = await webdriver(next.url, '/link-hard-replace/123')
 
         try {
-          // Get the render ID so we can compare it.
-          const firstID = await browser.elementById('render-id').text()
-
           // Click the link on the page, and verify that the history entry was NOT
           // added.
           expect(await browser.eval('window.history.length')).toBe(2)
-          await browser.elementById('self-link').click()
-          await browser.waitForElementByCss('#render-id')
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
 
           // Get the date again, and compare, they should not be the same.
-          const secondID = await browser.elementById('render-id').text()
-          expect(secondID).not.toBe(firstID)
+          const firstId = await browser.elementById('render-id-456').text()
 
           // Navigate to the subpage, verify that the history entry was NOT added.
-          await browser.elementById('subpage-link').click()
-          await browser.waitForElementByCss('#back-link')
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#render-id-123')
           expect(await browser.eval('window.history.length')).toBe(2)
 
           // Navigate back again, verify that the history entry was NOT added.
-          await browser.elementById('back-link').click()
-          await browser.waitForElementByCss('#render-id')
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
 
           // Get the date again, and compare, they should not be the same.
-          const thirdID = await browser.elementById('render-id').text()
-          expect(thirdID).not.toBe(secondID)
+          const secondId = await browser.elementById('render-id-456').text()
+          expect(firstId).not.toBe(secondId)
         } finally {
           await browser.close()
         }
