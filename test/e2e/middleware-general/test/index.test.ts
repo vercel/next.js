@@ -157,6 +157,17 @@ describe('Middleware Runtime', () => {
       })
     }
 
+    it('passes search params with rewrites', async () => {
+      const response = await fetchViaHTTP(next.url, `/api/edge-search-params`, {
+        a: 'b',
+      })
+      await expect(response.json()).resolves.toMatchObject({
+        a: 'b',
+        // included from middleware
+        foo: 'bar',
+      })
+    })
+
     it('should have init header for NextResponse.redirect', async () => {
       const res = await fetchViaHTTP(
         next.url,
