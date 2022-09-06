@@ -11,6 +11,10 @@ use syn::{
 };
 use turbo_tasks_macros_shared::{get_ref_ident, get_register_value_type_ident};
 
+fn get_read_ref_ident(ident: &Ident) -> Ident {
+    Ident::new(&(ident.to_string() + "ReadRef"), ident.span())
+}
+
 fn get_value_type_ident(ident: &Ident) -> Ident {
     Ident::new(
         &format!("{}_VALUE_TYPE", ident.to_string().to_uppercase()),
@@ -230,6 +234,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let ref_ident = get_ref_ident(ident);
+    let read_ref_ident = get_read_ref_ident(ident);
     let value_type_init_ident = get_value_type_init_ident(ident);
     let value_type_ident = get_value_type_ident(ident);
     let value_type_id_ident = get_value_type_id_ident(ident);
@@ -371,9 +376,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             #[derive(turbo_tasks::trace::TraceRawVcs, serde::Serialize, serde::Deserialize)]
         },
     };
-    let debug_derive = if transparent {
+    let debug_derive = if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
-        quote!()
+        quote! {
+            #[repr(transparent)]
+        }
     } else {
         quote! {
             #[derive(turbo_tasks::debug::ValueDebugFormat, turbo_tasks::debug::internal::ValueDebug)]
@@ -412,28 +419,28 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let into_future = if let Some(inner_type) = inner_type {
         quote! {
-             // #[cfg(feature = "into_future")]
              impl std::future::IntoFuture for #ref_ident {
-                type Output = turbo_tasks::Result<turbo_tasks::RawVcReadAndMapResult<#ident, #inner_type, fn(&#ident) -> &#inner_type>>;
-                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>;
+                type Output = turbo_tasks::Result<#read_ref_ident>;
+                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident, #inner_type>;
                 fn into_future(self) -> Self::IntoFuture {
-                    self.node.into_read::<#ident>().map(|r| &r.0)
+                    /// SAFETY: Types are binary identical via #[repr(transparent)]
+                    unsafe { self.node.into_transparent_read::<#ident, #inner_type>() }
                 }
             }
 
             impl std::future::IntoFuture for &#ref_ident {
-                type Output = turbo_tasks::Result<turbo_tasks::RawVcReadAndMapResult<#ident, #inner_type, fn(&#ident) -> &#inner_type>>;
-                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>;
+                type Output = turbo_tasks::Result<#read_ref_ident>;
+                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident, #inner_type>;
                 fn into_future(self) -> Self::IntoFuture {
-                    self.node.into_read::<#ident>().map(|r| &r.0)
+                    /// SAFETY: Types are binary identical via #[repr(transparent)]
+                    unsafe { self.node.into_transparent_read::<#ident, #inner_type>() }
                 }
             }
         }
     } else {
         quote! {
-             // #[cfg(feature = "into_future")]
              impl std::future::IntoFuture for #ref_ident {
-                type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
+                type Output = turbo_tasks::Result<#read_ref_ident>;
                 type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>()
@@ -441,7 +448,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             impl std::future::IntoFuture for &#ref_ident {
-                type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
+                type Output = turbo_tasks::Result<#read_ref_ident>;
                 type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>()
@@ -451,15 +458,25 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let strongly_consistent = {
-        let (return_type, map) = if let Some(inner_type) = inner_type {
+        let (return_type, read) = if let Some(inner_type) = inner_type {
             (
                 quote! {
-                   turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>
+                   turbo_tasks::ReadRawVcFuture<#ident, #inner_type>
                 },
-                quote! { .map(|r| &r.0) },
+                quote! {
+                    /// SAFETY: Types are binary identical via #[repr(transparent)]
+                    unsafe { self.node.into_transparent_strongly_consistent_read::<#ident, #inner_type>() }
+                },
             )
         } else {
-            (quote! {turbo_tasks::ReadRawVcFuture<#ident>}, quote! {})
+            (
+                quote! {
+                    turbo_tasks::ReadRawVcFuture<#ident>
+                },
+                quote! {
+                    self.node.into_strongly_consistent_read::<#ident>()
+                },
+            )
         };
         quote! {
             /// The invalidation of tasks due to changes is eventually consistent by default.
@@ -481,12 +498,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             /// reading, so it should be used with care.
             #[must_use]
             pub fn strongly_consistent(self) -> #return_type {
-                self.node.into_strongly_consistent_read::<#ident>() #map
+                #read
             }
         }
     };
 
-    let value_debug_impl = if transparent {
+    let value_debug_impl = if inner_type.is_some() {
         // For transparent values, we defer directly to the inner type's `ValueDebug`
         // implementation.
         quote! {
@@ -501,6 +518,20 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     } else {
         quote! {}
+    };
+
+    let read_ref = if let Some(inner_type) = inner_type {
+        quote! {
+            turbo_tasks::ReadRef<#ident, #inner_type>
+        }
+    } else {
+        quote! {
+            turbo_tasks::ReadRef<#ident>
+        }
+    };
+    let read_ref = quote! {
+        /// see [turbo_tasks::ReadRef]
+        #vis type #read_ref_ident = #read_ref;
     };
 
     let value_debug_format_impl = quote! {
@@ -585,6 +616,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             node: turbo_tasks::RawVc,
         }
 
+        #read_ref
+
         impl #ref_ident {
             #cell
 
@@ -601,6 +634,13 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             /// see [turbo_tasks::RawVc::cell_local]
             pub async fn cell_local(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.cell_local().await? })
+            }
+
+            /// see [turbo_tasks::RawVc::keyed_cell_local]
+            pub async fn keyed_cell_local<
+                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
+            >(self, key: K) -> turbo_tasks::Result<Self> {
+                Ok(Self { node: self.node.keyed_cell_local(key).await? })
             }
 
             pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTypeError> {

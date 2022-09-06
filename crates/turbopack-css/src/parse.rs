@@ -36,7 +36,7 @@ impl PartialEq for ParseResult {
 #[turbo_tasks::function]
 pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
     let content = source.content();
-    let fs_path = source.path().to_string().await?.clone();
+    let fs_path = source.path().to_string().await?.clone_value();
     Ok(match &*content.await? {
         FileContent::NotFound => ParseResult::NotFound.into(),
         FileContent::Content(file) => match String::from_utf8(file.content().to_vec()) {

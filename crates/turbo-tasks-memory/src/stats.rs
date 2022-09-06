@@ -99,9 +99,6 @@ impl Stats {
     }
 
     pub fn add(&mut self, backend: &MemoryBackend, task: &Task) {
-        let ty = task.get_stats_type();
-        let stats = self.tasks.entry(ty).or_default();
-        stats.count += 1;
         let TaskStatsInfo {
             total_duration,
             last_duration,
@@ -110,6 +107,12 @@ impl Stats {
             child_scopes,
             active,
         } = task.get_stats_info(backend);
+        if executions == 0 {
+            return;
+        }
+        let ty = task.get_stats_type();
+        let stats = self.tasks.entry(ty).or_default();
+        stats.count += 1;
         if active {
             stats.active_count += 1
         }

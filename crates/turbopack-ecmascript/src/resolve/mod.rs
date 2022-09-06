@@ -13,7 +13,7 @@ use turbopack_core::{
 
 #[turbo_tasks::function]
 pub async fn apply_esm_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
-    let mut options: ResolveOptions = options.await?.clone();
+    let mut options: ResolveOptions = options.await?.clone_value();
     for item in options.into_package.iter_mut() {
         match item {
             ResolveIntoPackage::ExportsField { conditions, .. } => {
@@ -28,7 +28,7 @@ pub async fn apply_esm_specific_options(options: ResolveOptionsVc) -> Result<Res
 
 #[turbo_tasks::function]
 pub async fn apply_cjs_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
-    let mut options: ResolveOptions = options.await?.clone();
+    let mut options: ResolveOptions = options.await?.clone_value();
     for item in options.into_package.iter_mut() {
         match item {
             ResolveIntoPackage::ExportsField { conditions, .. } => {

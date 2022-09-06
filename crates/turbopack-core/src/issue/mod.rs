@@ -158,21 +158,25 @@ impl IssueProcessingPath for ItemIssueProcessingPath {
         let mut shortest: Option<&Vec<_>> = None;
         for path in paths.iter().filter_map(|p| p.as_ref()) {
             if let Some(old) = shortest {
-                if old.len() > path.len() {
-                    shortest = Some(path);
-                } else if old.len() == path.len() {
-                    let (mut a, mut b) = (old.iter(), path.iter());
-                    while let (Some(a), Some(b)) = (a.next(), b.next()) {
-                        let (a, b) = (a.to_string().await?, b.to_string().await?);
-                        match a.cmp(&*b) {
-                            Ordering::Less => break,
-                            Ordering::Greater => {
-                                shortest = Some(path);
-                                break;
+                match old.cmp(path) {
+                    Ordering::Greater => {
+                        shortest = Some(path);
+                    }
+                    Ordering::Equal => {
+                        let (mut a, mut b) = (old.iter(), path.iter());
+                        while let (Some(a), Some(b)) = (a.next(), b.next()) {
+                            let (a, b) = (a.to_string().await?, b.to_string().await?);
+                            match String::cmp(&*a, &*b) {
+                                Ordering::Less => break,
+                                Ordering::Greater => {
+                                    shortest = Some(path);
+                                    break;
+                                }
+                                Ordering::Equal => {}
                             }
-                            Ordering::Equal => {}
                         }
                     }
+                    Ordering::Less => {}
                 }
             } else {
                 shortest = Some(path);

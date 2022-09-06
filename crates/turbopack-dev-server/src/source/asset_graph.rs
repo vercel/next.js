@@ -5,12 +5,10 @@ use std::{
 
 use anyhow::Result;
 use turbo_tasks::{get_invalidator, Invalidator, ValueToString};
-use turbo_tasks_fs::{FileContent, FileSystemPathVc};
-use turbopack_core::{
-    asset::AssetVc, reference::all_referenced_assets, version::VersionedContentVc,
-};
+use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_core::{asset::AssetVc, reference::all_referenced_assets};
 
-use super::{ContentSource, ContentSourceVc};
+use super::{ContentSource, ContentSourceResult, ContentSourceResultVc, ContentSourceVc};
 
 struct State {
     expanded: HashSet<AssetVc>,
@@ -112,7 +110,7 @@ impl AssetGraphContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for AssetGraphContentSource {
     #[turbo_tasks::function]
-    async fn get(self_vc: AssetGraphContentSourceVc, path: &str) -> Result<VersionedContentVc> {
+    async fn get(self_vc: AssetGraphContentSourceVc, path: &str) -> Result<ContentSourceResultVc> {
         let assets = self_vc.all_assets_map().strongly_consistent().await?;
         if let Some(asset) = assets.get(path) {
             {
@@ -126,19 +124,22 @@ impl ContentSource for AssetGraphContentSource {
                     }
                 }
             }
-            return Ok(asset.versioned_content());
+            return Ok(ContentSourceResult::Static(asset.versioned_content()).cell());
         }
-        Ok(FileContent::NotFound.into())
+        Ok(ContentSourceResult::NotFound.cell())
     }
 
     #[turbo_tasks::function]
-    async fn get_by_id(self_vc: AssetGraphContentSourceVc, id: &str) -> Result<VersionedContentVc> {
+    async fn get_by_id(
+        self_vc: AssetGraphContentSourceVc,
+        id: &str,
+    ) -> Result<ContentSourceResultVc> {
         let root_path_str = self_vc.await?.root_path.to_string().await?;
         if id.starts_with(&*root_path_str) {
             let path = &id[root_path_str.len()..];
             Ok(self_vc.get(path))
         } else {
-            Ok(FileContent::NotFound.into())
+            Ok(ContentSourceResult::NotFound.cell())
         }
     }
 }

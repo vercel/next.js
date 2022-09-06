@@ -60,7 +60,7 @@ impl CodeGenerateable for EsmBinding {
             }
         }
 
-        let mut ast_path = this.ast_path.await?.clone();
+        let mut ast_path = this.ast_path.await?.clone_value();
         let imported_module =
             if let ReferencedAsset::Some(imported_module) = &*imported_module.await? {
                 Some(get_ident(*imported_module).await?)

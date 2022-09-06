@@ -11,7 +11,7 @@ use turbo_tasks::TurboTasksApi;
 use turbopack_core::version::Update;
 
 use super::stream::UpdateStream;
-use crate::GetContentSource;
+use crate::{source::ContentSourceResult, GetContentSource};
 
 /// A server that listens for updates and sends them to connected clients.
 pub(crate) struct UpdateServer<S: GetContentSource> {
@@ -52,8 +52,18 @@ impl<S: GetContentSource> UpdateServer<S> {
                 message = client.recv() => {
                     if let Some(message) = message? {
                         let content = source.get_by_id(&message.id);
-                        let stream = UpdateStream::new(message.id, content).await?;
-                        self.add_stream(stream);
+                        match *content.await? {
+                            ContentSourceResult::NotFound => {
+                                // Client requested a non-existing asset
+                                // It might be removed in meantime, reload client
+                                // TODO add special instructions for removed assets to handled it in a better way
+                                client.send_update(&message.id, ClientUpdateInstructionType::Restart).await?;
+                            },
+                            ContentSourceResult::Static(content) => {
+                                let stream = UpdateStream::new(message.id, content).await?;
+                                self.add_stream(stream);
+                            },
+                        }
                     } else {
                         break
                     }

@@ -109,7 +109,7 @@ impl Asset for CssChunk {
             .map(|chunk_item| async {
                 let content_vc = chunk_item.content(c_context, this.context);
                 let content = &*content_vc.await?;
-                Ok((content.path.await?.clone(), content_vc)) as Result<_>
+                Ok((content.path.await?.clone_value(), content_vc)) as Result<_>
             })
             .try_join()
             .await?;

@@ -1,6 +1,8 @@
+use std::fmt::Debug;
+
 pub use turbo_tasks_macros::ValueDebugFormat;
 
-use crate as turbo_tasks;
+use crate::{self as turbo_tasks};
 
 #[doc(hidden)]
 pub mod internal;

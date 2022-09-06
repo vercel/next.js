@@ -195,14 +195,14 @@ impl ResolveResult {
 impl ResolveResultVc {
     #[turbo_tasks::function]
     pub async fn add_reference(self, reference: AssetReferenceVc) -> Result<Self> {
-        let mut this = self.await?.clone();
+        let mut this = self.await?.clone_value();
         this.add_reference(reference);
         Ok(this.into())
     }
 
     #[turbo_tasks::function]
     pub async fn add_references(self, references: Vec<AssetReferenceVc>) -> Result<Self> {
-        let mut this = self.await?.clone();
+        let mut this = self.await?.clone_value();
         for reference in references {
             this.add_reference(reference);
         }
@@ -216,7 +216,7 @@ impl ResolveResultVc {
         }
         let mut iter = results.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.await?.clone();
+            let mut current = current.await?.clone_value();
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result.await?;
@@ -245,7 +245,7 @@ impl ResolveResultVc {
         }
         let mut iter = results.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.await?.clone();
+            let mut current = current.await?.clone_value();
             for reference in references {
                 current.add_reference(reference)
             }
@@ -623,7 +623,7 @@ pub async fn resolve(
                             let request =
                                 RequestVc::parse(Value::new(normalize_request(field_value).into()));
 
-                            let result = resolve(package_path, request, options).await?;
+                            let result = &*resolve(package_path, request, options).await?;
                             // we are not that strict when a main field fails to resolve
                             // we continue to try other alternatives
                             if !result.is_unresolveable() {

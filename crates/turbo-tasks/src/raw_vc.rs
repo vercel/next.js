@@ -18,88 +18,15 @@ use thiserror::Error;
 use crate::{
     backend::CellContent,
     manager::{
-        find_cell_by_type, read_task_cell, read_task_cell_untracked, read_task_output,
-        read_task_output_untracked, TurboTasksApi,
+        find_cell_by_key, find_cell_by_type, read_task_cell, read_task_cell_untracked,
+        read_task_output, read_task_output_untracked, CurrentCellRef, TurboTasksApi,
     },
     primitives::{RawVcSet, RawVcSetVc},
     registry::get_value_type,
     turbo_tasks,
     value_type::ValueTraitVc,
-    SharedReference, TaskId, TraitTypeId, ValueTypeId,
+    ReadRef, SharedReference, TaskId, TraitTypeId, Typed, TypedForInput, ValueTypeId,
 };
-
-/// The result of reading a ValueVc.
-/// Can be dereferenced to the concrete type.
-///
-/// This type is needed because the content of the cell can change
-/// concurrently, so we can't return a reference to the data directly.
-/// Instead the data or an [Arc] to the data is cloned out of the cell
-/// and hold by this type.
-pub struct RawVcReadResult<T: Any + Send + Sync> {
-    inner: Arc<T>,
-}
-
-impl<T: Any + Send + Sync> RawVcReadResult<T> {
-    pub(crate) fn new(shared_ref: Arc<T>) -> Self {
-        Self { inner: shared_ref }
-    }
-
-    fn map_read_result<O, F: Fn(&T) -> &O>(self, func: F) -> RawVcReadAndMapResult<T, O, F> {
-        RawVcReadAndMapResult {
-            inner: self.inner,
-            func,
-        }
-    }
-
-    pub fn into_arc(self) -> Arc<T> {
-        self.inner
-    }
-}
-
-impl<T: Any + Send + Sync> std::ops::Deref for RawVcReadResult<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T: Display + Any + Send + Sync> Display for RawVcReadResult<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&**self, f)
-    }
-}
-
-impl<T: Debug + Any + Send + Sync> Debug for RawVcReadResult<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&**self, f)
-    }
-}
-
-pub struct RawVcReadAndMapResult<T: Any + Send + Sync, O, F: Fn(&T) -> &O> {
-    inner: Arc<T>,
-    func: F,
-}
-
-impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> std::ops::Deref for RawVcReadAndMapResult<T, O, F> {
-    type Target = O;
-
-    fn deref(&self) -> &Self::Target {
-        (self.func)(&*self.inner)
-    }
-}
-
-impl<T: Any + Send + Sync, O: Display, F: Fn(&T) -> &O> Display for RawVcReadAndMapResult<T, O, F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&**self, f)
-    }
-}
-
-impl<T: Any + Send + Sync, O: Debug, F: Fn(&T) -> &O> Debug for RawVcReadAndMapResult<T, O, F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&**self, f)
-    }
-}
 
 #[derive(Error, Debug)]
 pub enum ResolveTypeError {
@@ -132,12 +59,37 @@ impl RawVc {
         ReadRawVcFuture::new_strongly_consistent(self)
     }
 
+    /// # Safety
+    ///
+    /// T and U must be binary identical (#[repr(transparent)])
+    pub unsafe fn into_transparent_read<T: Any + Send + Sync, U: Any + Send + Sync>(
+        self,
+    ) -> ReadRawVcFuture<T, U> {
+        // returns a custom future to have something concrete and sized
+        // this avoids boxing in IntoFuture
+        unsafe { ReadRawVcFuture::new_transparent(self) }
+    }
+
+    /// # Safety
+    ///
+    /// T and U must be binary identical (#[repr(transparent)])
+    pub unsafe fn into_transparent_strongly_consistent_read<
+        T: Any + Send + Sync,
+        U: Any + Send + Sync,
+    >(
+        self,
+    ) -> ReadRawVcFuture<T, U> {
+        // returns a custom future to have something concrete and sized
+        // this avoids boxing in IntoFuture
+        unsafe { ReadRawVcFuture::new_transparent_strongly_consistent(self) }
+    }
+
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
     pub async fn into_read_untracked<T: Any + Send + Sync>(
         self,
         turbo_tasks: &dyn TurboTasksApi,
-    ) -> Result<RawVcReadResult<T>> {
+    ) -> Result<ReadRef<T>> {
         self.into_read_untracked_internal(false, turbo_tasks).await
     }
 
@@ -146,7 +98,7 @@ impl RawVc {
     pub async fn into_strongly_consistent_read_untracked<T: Any + Send + Sync>(
         self,
         turbo_tasks: &dyn TurboTasksApi,
-    ) -> Result<RawVcReadResult<T>> {
+    ) -> Result<ReadRef<T>> {
         self.into_read_untracked_internal(true, turbo_tasks).await
     }
 
@@ -154,7 +106,7 @@ impl RawVc {
         self,
         strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksApi,
-    ) -> Result<RawVcReadResult<T>> {
+    ) -> Result<ReadRef<T>> {
         turbo_tasks.notify_scheduled_tasks();
         let mut current = self;
         loop {
@@ -306,13 +258,10 @@ impl RawVc {
         }
     }
 
-    /// Reads the value from the cell and stores it to a new cell in the current
-    /// task. This basically create a shallow copy of the cell content.
-    /// As comparing Vcs is based on the cell location, this creates a new
-    /// identity of the value. When used in a once task, it will create Vc
-    /// that snapshots the value of a cell that is disconnected from ongoing
-    /// recomputations in the graph (as once tasks doesn't reexecute)
-    pub async fn cell_local(self) -> Result<RawVc> {
+    async fn cell_local_internal<T: FnOnce(ValueTypeId) -> CurrentCellRef>(
+        self,
+        select_cell: T,
+    ) -> Result<RawVc> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
         let mut current = self;
@@ -324,12 +273,42 @@ impl RawVc {
                     let shared_ref = content.0.ok_or_else(|| anyhow!("Cell is empty"))?;
                     let SharedReference(ty, _) = shared_ref;
                     let ty = ty.ok_or_else(|| anyhow!("Cell content is untyped"))?;
-                    let local_cell = find_cell_by_type(ty);
+                    let local_cell = select_cell(ty);
                     local_cell.update_shared_reference(shared_ref);
                     return Ok(local_cell.into());
                 }
             }
         }
+    }
+
+    /// Reads the value from the cell and stores it to a new cell in the current
+    /// task. This basically create a shallow copy of the cell content.
+    /// As comparing Vcs is based on the cell location, this creates a new
+    /// identity of the value. When used in a once task, it will create Vc
+    /// that snapshots the value of a cell that is disconnected from ongoing
+    /// recomputations in the graph (as once tasks doesn't reexecute)
+    pub async fn cell_local(self) -> Result<RawVc> {
+        self.cell_local_internal(find_cell_by_type).await
+    }
+
+    /// Like [RawVc::cell_local], but allows to specify a key for selecting the
+    /// cell.
+    pub async fn keyed_cell_local<
+        K: std::fmt::Debug
+            + std::cmp::Eq
+            + std::cmp::Ord
+            + std::hash::Hash
+            + Typed
+            + TypedForInput
+            + Send
+            + Sync
+            + 'static,
+    >(
+        self,
+        key: K,
+    ) -> Result<RawVc> {
+        self.cell_local_internal(|ty| find_cell_by_key(ty, key))
+            .await
     }
 
     pub fn peek_collectibles<T: ValueTraitVc>(&self) -> CollectiblesFuture<T> {
@@ -384,15 +363,15 @@ impl Display for RawVc {
     }
 }
 
-pub struct ReadRawVcFuture<T: Any + Send + Sync> {
+pub struct ReadRawVcFuture<T: Any + Send + Sync, U: Any + Send + Sync = T> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
     strongly_consistent: bool,
     current: RawVc,
     listener: Option<EventListener>,
-    phantom_data: PhantomData<Pin<Box<T>>>,
+    phantom_data: PhantomData<Pin<Box<(T, U)>>>,
 }
 
-impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
+impl<T: Any + Send + Sync> ReadRawVcFuture<T, T> {
     fn new(vc: RawVc) -> Self {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
@@ -416,17 +395,42 @@ impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
             phantom_data: PhantomData,
         }
     }
+}
 
-    pub fn map<O, F: Fn(&T) -> &O>(self, func: F) -> ReadAndMapRawVcFuture<T, O, F> {
-        ReadAndMapRawVcFuture {
-            inner: self,
-            func: Some(func),
+impl<T: Any + Send + Sync, U: Any + Send + Sync> ReadRawVcFuture<T, U> {
+    /// # Safety
+    ///
+    /// T and U must be binary identical (#[repr(transparent)])
+    unsafe fn new_transparent(vc: RawVc) -> Self {
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
+        ReadRawVcFuture {
+            turbo_tasks: tt,
+            strongly_consistent: false,
+            current: vc,
+            listener: None,
+            phantom_data: PhantomData,
+        }
+    }
+
+    /// # Safety
+    ///
+    /// T and U must be binary identical (#[repr(transparent)])
+    unsafe fn new_transparent_strongly_consistent(vc: RawVc) -> Self {
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
+        ReadRawVcFuture {
+            turbo_tasks: tt,
+            strongly_consistent: true,
+            current: vc,
+            listener: None,
+            phantom_data: PhantomData,
         }
     }
 }
 
-impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
-    type Output = Result<RawVcReadResult<T>>;
+impl<T: Any + Send + Sync, U: Any + Send + Sync> Future for ReadRawVcFuture<T, U> {
+    type Output = Result<ReadRef<T, U>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         self.turbo_tasks.notify_scheduled_tasks();
@@ -455,7 +459,8 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                 RawVc::TaskCell(task, index) => {
                     match this.turbo_tasks.try_read_task_cell(task, index) {
                         Ok(Ok(content)) => {
-                            return Poll::Ready(content.cast::<T>());
+                            // SAFETY: Constructor ensures that T and U are binary identical
+                            return Poll::Ready(unsafe { content.cast_transparent::<T, U>() });
                         }
                         Ok(Err(listener)) => listener,
                         Err(err) => return Poll::Ready(Err(err)),
@@ -473,27 +478,6 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
     }
 }
 
-pub struct ReadAndMapRawVcFuture<T: Any + Send + Sync, O, F: Fn(&T) -> &O> {
-    inner: ReadRawVcFuture<T>,
-    func: Option<F>,
-}
-
-impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> Future for ReadAndMapRawVcFuture<T, O, F> {
-    type Output = Result<RawVcReadAndMapResult<T, O, F>>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        let this = unsafe { self.get_unchecked_mut() };
-        let inner_pin = Pin::new(&mut this.inner);
-        match inner_pin.poll(cx) {
-            Poll::Ready(r) => Poll::Ready(match r {
-                Ok(r) => Ok(r.map_read_result(this.func.take().unwrap())),
-                Err(e) => Err(e),
-            }),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
 #[derive(Error, Debug)]
 #[error("Unable to read collectibles")]
 pub struct ReadCollectiblesError {
@@ -502,7 +486,7 @@ pub struct ReadCollectiblesError {
 
 pub struct CollectiblesFuture<T: ValueTraitVc> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
-    inner: ReadAndMapRawVcFuture<RawVcSet, HashSet<RawVc>, fn(&RawVcSet) -> &HashSet<RawVc>>,
+    inner: ReadRawVcFuture<RawVcSet, HashSet<RawVc>>,
     take: bool,
     phantom: PhantomData<fn() -> T>,
 }

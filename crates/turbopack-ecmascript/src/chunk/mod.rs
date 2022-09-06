@@ -3,12 +3,13 @@ pub mod loader;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Write,
+    slice::Iter,
 };
 
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{StringVc, StringsVc},
+    primitives::{StringReadRef, StringVc, StringsVc},
     trace::TraceRawVcs,
     TryJoinIterExt, ValueToString, ValueToStringVc,
 };
@@ -18,7 +19,7 @@ use turbopack_core::{
     chunk::{
         chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
         ChunkGroupVc, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc,
-        FromChunkableAsset, ModuleId, ModuleIdVc, ModuleIdsVc,
+        FromChunkableAsset, ModuleId, ModuleIdReadRef, ModuleIdVc, ModuleIdsVc,
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
     version::{
@@ -80,7 +81,7 @@ fn chunk_context(_context: ChunkingContextVc) -> EcmascriptChunkContextVc {
 
 #[turbo_tasks::value]
 pub struct EcmascriptChunkContentResult {
-    pub chunk_items: Vec<EcmascriptChunkItemVc>,
+    pub chunk_items: EcmascriptChunkItemsVc,
     pub chunks: Vec<ChunkVc>,
     pub async_chunk_groups: Vec<ChunkGroupVc>,
     pub external_asset_references: Vec<AssetReferenceVc>,
@@ -89,7 +90,7 @@ pub struct EcmascriptChunkContentResult {
 impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContentResult {
     fn from(from: ChunkContentResult<EcmascriptChunkItemVc>) -> Self {
         EcmascriptChunkContentResult {
-            chunk_items: from.chunk_items,
+            chunk_items: EcmascriptChunkItems(from.chunk_items).cell(),
             chunks: from.chunks,
             async_chunk_groups: from.async_chunk_groups,
             external_asset_references: from.external_asset_references,
@@ -117,14 +118,102 @@ async fn ecmascript_chunk_content(
     ))
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(serialization = "none")]
 pub struct EcmascriptChunkContent {
-    module_factories: Vec<(ModuleId, String)>,
+    module_factories: EcmascriptChunkContentEntriesSnapshotReadRef,
     chunk_id: StringVc,
     evaluate: Option<EcmascriptChunkContentEvaluateVc>,
 }
 
-impl EcmascriptChunkContent {
+#[turbo_tasks::value(transparent)]
+struct EcmascriptChunkContentEntries(Vec<EcmascriptChunkContentEntryVc>);
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkContentEntriesVc {
+    #[turbo_tasks::function]
+    async fn snapshot(self) -> Result<EcmascriptChunkContentEntriesSnapshotVc> {
+        Ok(EcmascriptChunkContentEntriesSnapshot::List(
+            self.await?.iter().copied().try_join().await?,
+        )
+        .cell())
+    }
+}
+
+/// This is a snapshot of a list of EcmascriptChunkContentEntry represented as
+/// tree of ReadRefs.
+///
+/// A tree is used instead of a plain Vec to allow to reused cached parts of the
+/// list when it only a few elements have changed
+#[turbo_tasks::value(serialization = "none")]
+enum EcmascriptChunkContentEntriesSnapshot {
+    List(Vec<EcmascriptChunkContentEntryReadRef>),
+    Nested(Vec<EcmascriptChunkContentEntriesSnapshotReadRef>),
+}
+
+impl EcmascriptChunkContentEntriesSnapshot {
+    fn iter(&self) -> EcmascriptChunkContentEntriesSnapshotIterator {
+        match self {
+            EcmascriptChunkContentEntriesSnapshot::List(l) => {
+                EcmascriptChunkContentEntriesSnapshotIterator::List(l.iter())
+            }
+            EcmascriptChunkContentEntriesSnapshot::Nested(n) => {
+                let mut it = n.iter();
+                if let Some(inner) = it.next() {
+                    EcmascriptChunkContentEntriesSnapshotIterator::Nested(
+                        Box::new(inner.iter()),
+                        it,
+                    )
+                } else {
+                    EcmascriptChunkContentEntriesSnapshotIterator::Empty
+                }
+            }
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a EcmascriptChunkContentEntriesSnapshot {
+    type Item = &'a EcmascriptChunkContentEntryReadRef;
+
+    type IntoIter = EcmascriptChunkContentEntriesSnapshotIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+enum EcmascriptChunkContentEntriesSnapshotIterator<'a> {
+    Empty,
+    List(Iter<'a, EcmascriptChunkContentEntryReadRef>),
+    Nested(
+        Box<EcmascriptChunkContentEntriesSnapshotIterator<'a>>,
+        Iter<'a, EcmascriptChunkContentEntriesSnapshotReadRef>,
+    ),
+}
+
+impl<'a> Iterator for EcmascriptChunkContentEntriesSnapshotIterator<'a> {
+    type Item = &'a EcmascriptChunkContentEntryReadRef;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            EcmascriptChunkContentEntriesSnapshotIterator::Empty => None,
+            EcmascriptChunkContentEntriesSnapshotIterator::List(i) => i.next(),
+            EcmascriptChunkContentEntriesSnapshotIterator::Nested(inner, i) => loop {
+                if let Some(r) = inner.next() {
+                    return Some(r);
+                }
+                if let Some(new) = i.next() {
+                    **inner = new.iter();
+                } else {
+                    return None;
+                }
+            },
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkContentVc {
+    #[turbo_tasks::function]
     async fn new(
         context: ChunkingContextVc,
         main_entry: EcmascriptChunkPlaceableVc,
@@ -136,22 +225,50 @@ impl EcmascriptChunkContent {
         // the risks of values not being strongly consistent with each other.
         let chunk_content = ecmascript_chunk_content(context, main_entry, runtime_entries).await?;
         let c_context = chunk_context(context);
-        let module_factories: Vec<_> = chunk_content
+        let module_factories = chunk_content
             .chunk_items
-            .iter()
-            .map(|chunk_item| async move {
-                let content = chunk_item.content(c_context, context);
-                let factory = module_factory(content);
-                let content_id = content.await?.id.await?;
-                Ok((content_id.clone(), factory.await?.clone())) as Result<_>
-            })
-            .try_join()
+            .to_entry_snapshot(c_context, context)
             .await?;
         Ok(EcmascriptChunkContent {
             module_factories,
             chunk_id,
             evaluate,
-        })
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value(serialization = "none")]
+struct EcmascriptChunkContentEntry {
+    id: ModuleIdReadRef,
+    factory: StringReadRef,
+    hash: u64,
+}
+
+impl EcmascriptChunkContentEntry {
+    fn id(&self) -> &ModuleId {
+        &self.id
+    }
+    fn factory(&self) -> &str {
+        &self.factory
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkContentEntryVc {
+    #[turbo_tasks::function]
+    async fn new(
+        chunk_item: EcmascriptChunkItemVc,
+        chunk_context: EcmascriptChunkContextVc,
+        context: ChunkingContextVc,
+    ) -> Result<Self> {
+        let content = chunk_item.content(chunk_context, context);
+        let factory = module_factory(content);
+        let id = content.await?.id;
+        let factory = factory.await?;
+        let id = id.await?;
+        let hash = hash_xxh3_hash64(factory.as_bytes());
+        Ok(EcmascriptChunkContentEntry { id, factory, hash }.cell())
     }
 }
 
@@ -195,7 +312,7 @@ impl EcmascriptChunkContentVc {
             .await?
             .module_factories
             .iter()
-            .map(|(id, factory)| (id.clone(), hash_xxh3_hash64(factory.as_bytes())))
+            .map(|element| (element.id.clone(), element.hash))
             .collect();
         Ok(EcmascriptChunkVersion {
             module_factories_hashes,
@@ -210,8 +327,13 @@ impl EcmascriptChunkContentVc {
             "(self.TURBOPACK = self.TURBOPACK || []).push([{}, {{\n",
             stringify_str(&this.chunk_id.await?)
         );
-        for (id, factory) in &this.module_factories {
-            code = code + "\n" + &stringify_module_id(id) + ": " + factory + ",";
+        for element in &this.module_factories {
+            write!(
+                &mut code,
+                "\n{}: {},",
+                &stringify_module_id(element.id()),
+                element.factory()
+            )?;
         }
         code += "\n}";
         if let Some(evaluate) = &this.evaluate {
@@ -288,35 +410,40 @@ impl VersionedContent for EcmascriptChunkContent {
 
         let to = to_version.await?;
         let from = from_version.await?;
+
+        // When to and from point to the same value we can skip comparing them.
+        // This will happen since `cell_local` will not clone the value, but only make
+        // the local cell point to the same immutable value (Arc).
+        if from.ptr_eq(&to) {
+            return Ok(Update::None.cell());
+        }
+
         let this = self_vc.await?;
 
         // TODO(alexkirsz) This should probably be stored as a HashMap already.
-        let module_factories: HashMap<_, _> = this
+        let mut module_factories: HashMap<_, _> = this
             .module_factories
             .iter()
-            .map(|(k, v)| (k, v.as_str()))
+            .map(|element| (element.id(), element))
             .collect();
         let mut added = HashMap::new();
         let mut modified = HashMap::new();
         let mut deleted = HashSet::new();
 
-        let consistency_error =
-            || anyhow!("consistency error: missing module in `EcmascriptChunkContent`");
-
-        for (id, hash) in &to.module_factories_hashes {
-            if let Some(old_hash) = from.module_factories_hashes.get(id) {
-                if old_hash != hash {
-                    modified.insert(id, *module_factories.get(id).ok_or_else(consistency_error)?);
+        for (id, hash) in &from.module_factories_hashes {
+            let id = &**id;
+            if let Some(entry) = module_factories.remove(id) {
+                if entry.hash != *hash {
+                    modified.insert(id, entry.factory());
                 }
             } else {
-                added.insert(id, *module_factories.get(id).ok_or_else(consistency_error)?);
+                deleted.insert(id);
             }
         }
 
-        for id in from.module_factories_hashes.keys() {
-            if !to.module_factories_hashes.contains_key(id) {
-                deleted.insert(id);
-            }
+        // Remaining entries are added
+        for (id, entry) in module_factories {
+            added.insert(id, entry.factory());
         }
 
         let update = if added.is_empty() && modified.is_empty() && deleted.is_empty() {
@@ -338,9 +465,9 @@ impl VersionedContent for EcmascriptChunkContent {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(serialization = "none")]
 struct EcmascriptChunkVersion {
-    module_factories_hashes: HashMap<ModuleId, u64>,
+    module_factories_hashes: HashMap<ModuleIdReadRef, u64>,
 }
 
 #[turbo_tasks::value_impl]
@@ -418,7 +545,7 @@ impl EcmascriptChunkVc {
                 for c in evaluate_chunks.iter() {
                     if let Some(ecma_chunk) = EcmascriptChunkVc::resolve_from(c).await? {
                         if ecma_chunk != self {
-                            chunks_ids.push(c.path().to_string().await?.clone());
+                            chunks_ids.push(c.path().to_string().await?.clone_value());
                         }
                     }
                 }
@@ -463,15 +590,14 @@ impl EcmascriptChunkVc {
         };
         let path = self.path();
         let chunk_id = path.to_string();
-        let content = EcmascriptChunkContent::new(
+        let content = EcmascriptChunkContentVc::new(
             this.context,
             this.main_entry,
             runtime_entries,
             chunk_id,
             evaluate,
-        )
-        .await?;
-        Ok(content.cell())
+        );
+        Ok(content)
     }
 }
 
@@ -530,7 +656,7 @@ pub struct EcmascriptChunkContext {}
 impl EcmascriptChunkContextVc {
     #[turbo_tasks::function]
     pub async fn id(self, placeable: EcmascriptChunkPlaceableVc) -> Result<ModuleIdVc> {
-        Ok(ModuleId::String(placeable.to_string().await?.clone()).into())
+        Ok(ModuleId::String(placeable.to_string().await?.clone_value()).into())
     }
 
     /// Certain assets are split into a "loader" item that can be quickly
@@ -622,5 +748,53 @@ impl FromChunkableAsset for EcmascriptChunkItemVc {
             ManifestLoaderItemVc::new(chunk).into(),
             chunk.into(),
         )))
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct EcmascriptChunkItems(Vec<EcmascriptChunkItemVc>);
+
+/// Maximum length of a Vec that is processed in only function. Longer lists
+/// will be split into LIST_CHUNK_COUNT shorter lists.
+const MAX_SHORT_LIST_LEN: usize = 100;
+
+/// Number of segments in which a long list is split. It's a trade-off between
+/// overhead of managing more functions (small values) and overhead of managing
+/// more function calls per function (large values)
+const LIST_CHUNK_COUNT: usize = 10;
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItemsVc {
+    #[turbo_tasks::function]
+    async fn to_entry_snapshot(
+        self,
+        c_context: EcmascriptChunkContextVc,
+        context: ChunkingContextVc,
+    ) -> Result<EcmascriptChunkContentEntriesSnapshotVc> {
+        let list = self.await?;
+        if list.len() > MAX_SHORT_LIST_LEN {
+            let chunk_size = list.len().div_ceil(LIST_CHUNK_COUNT);
+            Ok(EcmascriptChunkContentEntriesSnapshot::Nested(
+                list.chunks(chunk_size)
+                    .map(|chunk| {
+                        EcmascriptChunkItems(chunk.to_vec())
+                            .cell()
+                            .to_entry_snapshot(c_context, context)
+                    })
+                    .try_join()
+                    .await?,
+            )
+            .cell())
+        } else {
+            Ok(EcmascriptChunkContentEntries(
+                list.iter()
+                    .map(|chunk_item| {
+                        EcmascriptChunkContentEntryVc::new(*chunk_item, c_context, context)
+                    })
+                    .collect(),
+            )
+            .cell()
+            .snapshot())
+        }
     }
 }

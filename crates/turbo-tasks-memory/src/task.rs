@@ -1082,6 +1082,13 @@ impl Task {
         state.state_type != TaskStateType::Done
     }
 
+    pub fn reset_stats(&self) {
+        let mut state = self.state.write();
+        state.executions = 0;
+        state.total_duration = Duration::ZERO;
+        state.last_duration = Duration::ZERO;
+    }
+
     pub fn get_stats_info(&self, backend: &MemoryBackend) -> TaskStatsInfo {
         let state = self.state.read();
         TaskStatsInfo {

@@ -59,7 +59,7 @@ impl VersionedContent for VersionedFileContent {
 impl VersionedFileContentVc {
     /// Creates a new [VersionedFileContentVc] from a [FileContentVc].
     pub async fn new(file_content: FileContentVc) -> Result<Self> {
-        let file_content = file_content.strongly_consistent().await?.clone();
+        let file_content = (*file_content.strongly_consistent().await?).clone();
         Ok(Self::cell(VersionedFileContent { file_content }))
     }
 }

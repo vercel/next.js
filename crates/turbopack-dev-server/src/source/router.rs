@@ -1,7 +1,6 @@
 use anyhow::Result;
-use turbopack_core::version::VersionedContentVc;
 
-use super::{ContentSource, ContentSourceVc, FileContent};
+use super::{ContentSource, ContentSourceResult, ContentSourceResultVc, ContentSourceVc};
 
 #[turbo_tasks::value(shared)]
 pub struct RouterContentSource {
@@ -12,7 +11,7 @@ pub struct RouterContentSource {
 #[turbo_tasks::value_impl]
 impl ContentSource for RouterContentSource {
     #[turbo_tasks::function]
-    fn get(&self, path: &str) -> VersionedContentVc {
+    fn get(&self, path: &str) -> ContentSourceResultVc {
         for (route, source) in self.routes.iter() {
             if path.starts_with(route) {
                 let path = &path[route.len()..];
@@ -22,10 +21,10 @@ impl ContentSource for RouterContentSource {
         self.fallback.get(path)
     }
     #[turbo_tasks::function]
-    async fn get_by_id(&self, id: &str) -> Result<VersionedContentVc> {
+    async fn get_by_id(&self, id: &str) -> Result<ContentSourceResultVc> {
         for (_, source) in self.routes.iter() {
             let result = source.get_by_id(id);
-            if let FileContent::Content(_) = &*result.content().await? {
+            if !matches!(&*result.await?, ContentSourceResult::NotFound) {
                 return Ok(result);
             }
         }

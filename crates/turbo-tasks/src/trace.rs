@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{RawVc, RawVcReadResult};
+use crate::RawVc;
 
 pub struct TraceRawVcsContext {
     list: Vec<RawVc>,
@@ -181,12 +181,6 @@ impl<T: TraceRawVcs> TraceRawVcs for Mutex<T> {
 impl<T: TraceRawVcs> TraceRawVcs for RefCell<T> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         self.borrow().trace_raw_vcs(context);
-    }
-}
-
-impl<T: TraceRawVcs + Send + Sync + 'static> TraceRawVcs for RawVcReadResult<T> {
-    fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
-        (**self).trace_raw_vcs(context);
     }
 }
 

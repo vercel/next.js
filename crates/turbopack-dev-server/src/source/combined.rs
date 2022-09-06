@@ -1,7 +1,6 @@
 use anyhow::Result;
-use turbopack_core::version::VersionedContentVc;
 
-use super::{ContentSource, ContentSourceVc, FileContent};
+use super::{ContentSource, ContentSourceResult, ContentSourceResultVc, ContentSourceVc};
 
 #[turbo_tasks::value(shared)]
 pub struct CombinedContentSource {
@@ -11,23 +10,23 @@ pub struct CombinedContentSource {
 #[turbo_tasks::value_impl]
 impl ContentSource for CombinedContentSource {
     #[turbo_tasks::function]
-    async fn get(&self, path: &str) -> Result<VersionedContentVc> {
+    async fn get(&self, path: &str) -> Result<ContentSourceResultVc> {
         for source in self.sources.iter() {
             let result = source.get(path);
-            if let FileContent::Content(_) = &*result.content().await? {
+            if !matches!(&*result.await?, ContentSourceResult::NotFound) {
                 return Ok(result);
             }
         }
-        Ok(FileContent::NotFound.into())
+        Ok(ContentSourceResult::NotFound.cell())
     }
     #[turbo_tasks::function]
-    async fn get_by_id(&self, id: &str) -> Result<VersionedContentVc> {
+    async fn get_by_id(&self, id: &str) -> Result<ContentSourceResultVc> {
         for source in self.sources.iter() {
             let result = source.get_by_id(id);
-            if let FileContent::Content(_) = &*result.content().await? {
+            if !matches!(&*result.await?, ContentSourceResult::NotFound) {
                 return Ok(result);
             }
         }
-        Ok(FileContent::NotFound.into())
+        Ok(ContentSourceResult::NotFound.cell())
     }
 }

@@ -108,7 +108,7 @@ pub async fn resolve_options(
     .into();
     Ok(ResolveOptions {
         extensions: if emulating {
-            environment.resolve_extensions().await?.clone()
+            environment.resolve_extensions().await?.clone_value()
         } else {
             vec![
                 ".tsx".to_string(),

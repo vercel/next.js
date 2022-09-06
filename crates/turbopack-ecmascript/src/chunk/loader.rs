@@ -218,11 +218,8 @@ impl EcmascriptChunkPlaceable for ManifestChunkAsset {
 #[turbo_tasks::value_impl]
 impl ValueToString for ManifestChunkAsset {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{}",
-            self.asset.path().to_string().await?
-        )))
+    fn to_string(&self) -> StringVc {
+        self.asset.path().to_string()
     }
 }
 

@@ -38,7 +38,7 @@ pub enum EcmascriptInputTransform {
 }
 
 #[turbo_tasks::value(transparent, serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Hash, Debug, Clone)]
+#[derive(Debug, PartialOrd, Ord, Hash, Clone)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
@@ -137,7 +137,7 @@ pub async fn parse(
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<ParseResultVc> {
     let content = source.content();
-    let fs_path = source.path().to_string().await?.clone();
+    let fs_path = source.path().to_string().await?.clone_value();
     let ty = ty.into_value();
     let transforms = transforms.await?;
     Ok(match &*content.await? {

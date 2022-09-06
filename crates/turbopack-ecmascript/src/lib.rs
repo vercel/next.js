@@ -3,6 +3,7 @@
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
 #![feature(str_split_as_str)]
+#![feature(int_roundings)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;

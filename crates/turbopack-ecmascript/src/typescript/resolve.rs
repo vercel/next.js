@@ -24,7 +24,7 @@ use turbopack_core::{
 pub async fn apply_typescript_options(
     resolve_options: ResolveOptionsVc,
 ) -> Result<ResolveOptionsVc> {
-    let mut resolve_options = resolve_options.await?.clone();
+    let mut resolve_options = resolve_options.await?.clone_value();
     resolve_options.extensions.insert(0, ".ts".to_string());
     resolve_options.extensions.push(".d.ts".to_string());
     resolve_options.resolve_typescript_types = true;
@@ -108,7 +108,7 @@ pub async fn apply_tsconfig(
     if configs.is_empty() {
         return Ok(resolve_options);
     }
-    let mut resolve_options = resolve_options.await?.clone();
+    let mut resolve_options = resolve_options.await?.clone_value();
     if let Some(base_url) = read_from_tsconfigs(&configs, |json, source| {
         json["compilerOptions"]["baseUrl"]
             .as_str()
@@ -147,7 +147,7 @@ pub async fn apply_tsconfig(
     }
     if !all_paths.is_empty() {
         let mut import_map = if let Some(import_map) = resolve_options.import_map {
-            import_map.await?.clone()
+            import_map.await?.clone_value()
         } else {
             ImportMap::default()
         };
@@ -222,7 +222,7 @@ impl TypescriptTypesAssetReferenceVc {
 async fn apply_typescript_types_options(
     resolve_options: ResolveOptionsVc,
 ) -> Result<ResolveOptionsVc> {
-    let mut resolve_options = resolve_options.await?.clone();
+    let mut resolve_options = resolve_options.await?.clone_value();
     resolve_options.extensions = vec![".ts".to_string(), ".tsx".to_string(), ".d.ts".to_string()];
     resolve_options.into_package = resolve_options
         .into_package

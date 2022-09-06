@@ -387,26 +387,25 @@ fn node_file_trace<B: Backend + 'static>(
                     .await
                 }
             };
-            let handle_result =
-                |result: Result<turbo_tasks::RawVcReadResult<CommandOutput>>| match result {
-                    Ok(output) => {
-                        #[cfg(not(feature = "bench_against_node_nft"))]
-                        {
-                            if should_succeed {
-                                assert!(
-                                    output.is_empty(),
-                                    "emitted files behave differently when executed via \
-                                     node.js\n{output}"
-                                );
-                            } else {
-                                assert!(!output.is_empty(), "test case works now! enable it");
-                            }
+            let handle_result = |result: Result<CommandOutputReadRef>| match result {
+                Ok(output) => {
+                    #[cfg(not(feature = "bench_against_node_nft"))]
+                    {
+                        if should_succeed {
+                            assert!(
+                                output.is_empty(),
+                                "emitted files behave differently when executed via \
+                                 node.js\n{output}"
+                            );
+                        } else {
+                            assert!(!output.is_empty(), "test case works now! enable it");
                         }
                     }
-                    Err(err) => {
-                        panic!("Execution crashed {err}");
-                    }
-                };
+                }
+                Err(err) => {
+                    panic!("Execution crashed {err}");
+                }
+            };
 
             let tt = create_turbo_tasks(directory_path.as_path());
             let output = timeout(Duration::from_secs(timeout_len), tt.run_once(task)).await;

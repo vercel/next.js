@@ -51,6 +51,7 @@ mod once_map;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
+mod read_ref;
 pub mod registry;
 mod task_input;
 mod timed_future;
@@ -76,10 +77,8 @@ pub use manager::{
 };
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
-pub use raw_vc::{
-    CollectiblesFuture, RawVc, RawVcReadAndMapResult, RawVcReadResult, ReadAndMapRawVcFuture,
-    ReadRawVcFuture, ResolveTypeError,
-};
+pub use raw_vc::{CollectiblesFuture, RawVc, ReadRawVcFuture, ResolveTypeError};
+pub use read_ref::ReadRef;
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait};
 pub use value::{TransientInstance, TransientValue, Value};

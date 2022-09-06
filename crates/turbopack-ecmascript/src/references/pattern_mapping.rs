@@ -133,7 +133,7 @@ impl PatternMappingVc {
         };
 
         if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-            let name = if *resolve_type == ResolveType::EsmAsync {
+            let name = &*if *resolve_type == ResolveType::EsmAsync {
                 chunk_context.manifest_loader_id(*asset)
             } else {
                 chunk_context.id(placeable)

@@ -8,8 +8,9 @@ use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
     viz, MemoryBackend,
 };
-use turbopack_core::version::VersionedContentVc;
-use turbopack_dev_server::source::{ContentSource, ContentSourceVc};
+use turbopack_dev_server::source::{
+    ContentSource, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+};
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
 pub struct TurboTasksSource {
@@ -28,7 +29,7 @@ const INVALIDATION_INTERVAL: Duration = Duration::from_secs(3);
 #[turbo_tasks::value_impl]
 impl ContentSource for TurboTasksSource {
     #[turbo_tasks::function]
-    fn get(&self, path: &str) -> Result<VersionedContentVc> {
+    fn get(&self, path: &str) -> Result<ContentSourceResultVc> {
         let tt = &self.turbo_tasks;
         let invalidator = get_invalidator();
         tokio::spawn({
@@ -37,7 +38,7 @@ impl ContentSource for TurboTasksSource {
                 invalidator.invalidate();
             }
         });
-        match path {
+        let html = match path {
             "graph" => {
                 let mut stats = Stats::new();
                 let b = tt.backend();
@@ -46,11 +47,7 @@ impl ContentSource for TurboTasksSource {
                 });
                 let tree = stats.treeify(ReferenceType::Dependency);
                 let graph = viz::graph::visualize_stats_tree(tree, ReferenceType::Dependency);
-                Ok(FileContent::Content(
-                    File::from_source(viz::graph::wrap_html(&graph))
-                        .with_content_type(Mime::from_str("text/html")?),
-                )
-                .into())
+                viz::graph::wrap_html(&graph)
             }
             "call-graph" => {
                 let mut stats = Stats::new();
@@ -60,11 +57,7 @@ impl ContentSource for TurboTasksSource {
                 });
                 let tree = stats.treeify(ReferenceType::Child);
                 let graph = viz::graph::visualize_stats_tree(tree, ReferenceType::Child);
-                Ok(FileContent::Content(
-                    File::from_source(viz::graph::wrap_html(&graph))
-                        .with_content_type(Mime::from_str("text/html")?),
-                )
-                .into())
+                viz::graph::wrap_html(&graph)
             }
             "table" => {
                 let mut stats = Stats::new();
@@ -74,18 +67,28 @@ impl ContentSource for TurboTasksSource {
                 });
                 let tree = stats.treeify(ReferenceType::Dependency);
                 let table = viz::table::create_table(tree);
-                Ok(FileContent::Content(
-                    File::from_source(viz::table::wrap_html(&table))
-                        .with_content_type(Mime::from_str("text/html")?),
-                )
-                .into())
+                viz::table::wrap_html(&table)
             }
-            _ => Ok(FileContent::NotFound.into()),
-        }
+            "reset" => {
+                let b = tt.backend();
+                b.with_all_cached_tasks(|task| {
+                    b.with_task(task, |task| task.reset_stats());
+                });
+                "Done".to_string()
+            }
+            _ => return Ok(ContentSourceResult::NotFound.cell()),
+        };
+        Ok(ContentSourceResult::Static(
+            FileContent::Content(
+                File::from_source(html).with_content_type(Mime::from_str("text/html")?),
+            )
+            .into(),
+        )
+        .cell())
     }
 
     #[turbo_tasks::function]
-    fn get_by_id(&self, _id: &str) -> VersionedContentVc {
-        FileContent::NotFound.into()
+    fn get_by_id(&self, _id: &str) -> ContentSourceResultVc {
+        ContentSourceResult::NotFound.cell()
     }
 }

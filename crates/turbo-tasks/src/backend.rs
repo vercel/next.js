@@ -18,8 +18,7 @@ use crate::{
     manager::TurboTasksBackendApi,
     registry,
     task_input::{SharedReference, SharedValue},
-    FunctionId, RawVc, RawVcReadResult, TaskId, TaskIdProvider, TaskInput, TraitTypeId,
-    ValueTypeId,
+    FunctionId, RawVc, ReadRef, TaskId, TaskIdProvider, TaskInput, TraitTypeId, ValueTypeId,
 };
 
 /// Different Task types
@@ -138,21 +137,28 @@ impl Display for CellContent {
 }
 
 impl CellContent {
-    pub fn cast<T: Any + Send + Sync>(self) -> Result<RawVcReadResult<T>> {
-        match self.0 {
-            None => Err(anyhow!("Cell it empty")),
-            Some(data) => match data.downcast() {
-                Some(data) => Ok(RawVcReadResult::new(data)),
-                None => Err(anyhow!("Unexpected type in cell")),
-            },
-        }
+    pub fn cast<T: Any + Send + Sync>(self) -> Result<ReadRef<T>> {
+        let data = self.0.ok_or_else(|| anyhow!("Cell is empty"))?;
+        let data = data
+            .downcast()
+            .ok_or_else(|| anyhow!("Unexpected type in cell"))?;
+        Ok(ReadRef::new(data))
     }
 
-    pub fn try_cast<T: Any + Send + Sync>(self) -> Option<RawVcReadResult<T>> {
-        match self.0 {
-            None => None,
-            Some(data) => data.downcast().map(|data| RawVcReadResult::new(data)),
-        }
+    /// # Safety
+    ///
+    /// T and U must be binary identical (#[repr(transparent)])
+    pub unsafe fn cast_transparent<T: Any + Send + Sync, U>(self) -> Result<ReadRef<T, U>> {
+        let data = self.0.ok_or_else(|| anyhow!("Cell is empty"))?;
+        let data = data
+            .downcast()
+            .ok_or_else(|| anyhow!("Unexpected type in cell"))?;
+        Ok(unsafe { ReadRef::new_transparent(data) })
+    }
+
+    pub fn try_cast<T: Any + Send + Sync>(self) -> Option<ReadRef<T>> {
+        self.0
+            .and_then(|data| data.downcast().map(|data| ReadRef::new(data)))
     }
 }
 
