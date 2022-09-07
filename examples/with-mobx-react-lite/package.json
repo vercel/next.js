@@ -11,9 +11,5 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@babel/core": "7.19.0",
-    "@babel/plugin-proposal-class-properties": "^7.18.6"
   }
 }
