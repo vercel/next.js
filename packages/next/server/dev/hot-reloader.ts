@@ -602,6 +602,7 @@ export default class HotReloader {
               ? await getPageStaticInfo({
                   pageFilePath: entryData.absolutePagePath,
                   nextConfig: this.config,
+                  isDev: true,
                 })
               : {}
 
