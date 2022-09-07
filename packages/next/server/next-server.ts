@@ -759,6 +759,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           page,
+          appPaths: null,
           isAppPath: false,
         })
 
@@ -889,40 +890,47 @@ export default class NextNodeServer extends BaseServer {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const appPath = this.getOriginalAppPath(ctx.pathname) || undefined
-    let page = ctx.pathname
-
-    const isAppPath = typeof appPath === 'string'
-    if (isAppPath) {
-      page = appPath
-    }
-
     const edgeFunctions = this.getEdgeFunctions() || []
+    if (edgeFunctions.length) {
+      const appPaths = this.getOriginalAppPaths(ctx.pathname)
+      const isAppPath = Array.isArray(appPaths)
 
-    for (const item of edgeFunctions) {
-      if (item.page === page) {
-        await this.runEdgeFunction({
-          req: ctx.req,
-          res: ctx.res,
-          query: ctx.query,
-          params: ctx.renderOpts.params,
-          page: ctx.pathname,
-          appPath,
-          isAppPath: isAppPath,
-        })
-        return null
+      let page = ctx.pathname
+      if (isAppPath) {
+        // When it's an array, we need to pass all parallel routes to the loader.
+        page = appPaths[0]
+      }
+
+      for (const item of edgeFunctions) {
+        if (item.page === page) {
+          await this.runEdgeFunction({
+            req: ctx.req,
+            res: ctx.res,
+            query: ctx.query,
+            params: ctx.renderOpts.params,
+            page,
+            appPaths,
+            isAppPath,
+          })
+          return null
+        }
       }
     }
 
     return super.renderPageComponent(ctx, bubbleNoFallback)
   }
 
-  protected async findPageComponents(
-    pathname: string,
-    query: NextParsedUrlQuery,
-    params: Params,
+  protected async findPageComponents({
+    pathname,
+    query,
+    params,
+    isAppPath,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
     isAppPath: boolean
-  ): Promise<FindComponentsResult | null> {
+  }): Promise<FindComponentsResult | null> {
     let paths = [
       // try serving a static AMP version first
       query.amp
@@ -1668,7 +1676,10 @@ export default class NextNodeServer extends BaseServer {
    * so that we can run it.
    */
   protected async ensureMiddleware() {}
-  protected async ensureEdgeFunction(_pathname: string) {}
+  protected async ensureEdgeFunction(_params: {
+    page: string
+    appPaths: string[] | null
+  }) {}
 
   /**
    * This method gets all middleware matchers and execute them when the request
@@ -2016,17 +2027,16 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    appPaths: string[] | null
     isAppPath: boolean
-    appPath?: string
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    // If it's edge app route, use appPath to find the edge SSR page
-    const page = params.isAppPath ? params.appPath! : params.page
-    await this.ensureEdgeFunction(page)
+    const page = params.page
+    await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     middlewareInfo = this.getEdgeFunctionInfo({
-      page: page,
+      page,
       middleware: false,
     })
 
