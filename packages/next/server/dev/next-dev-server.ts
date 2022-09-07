@@ -311,7 +311,7 @@ export default class DevServer extends Server {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
-        const appPaths: Record<string, string> = {}
+        const appPaths: Record<string, string[]> = {}
         const edgeRoutesSet = new Set<string>()
 
         let envChange = false
@@ -396,7 +396,10 @@ export default class DevServer extends Server {
 
             const originalPageName = pageName
             pageName = normalizeAppPath(pageName) || '/'
-            appPaths[pageName] = originalPageName
+            if (!appPaths[pageName]) {
+              appPaths[pageName] = []
+            }
+            appPaths[pageName].push(originalPageName)
 
             if (routedPages.includes(pageName)) {
               continue
@@ -542,13 +545,15 @@ export default class DevServer extends Server {
           nestedMiddleware = []
         }
 
-        this.appPathRoutes = appPaths
+        // Make sure to sort parallel routes to make the result deterministic.
+        this.appPathRoutes = Object.fromEntries(
+          Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+        )
         const edgeRoutes = Array.from(edgeRoutesSet)
         this.edgeFunctions = getSortedRoutes(edgeRoutes).map((page) => {
-          const appPath = this.getOriginalAppPath(page)
-
-          if (typeof appPath === 'string') {
-            page = appPath
+          const matchedAppPaths = this.getOriginalAppPaths(page)
+          if (Array.isArray(matchedAppPaths)) {
+            page = matchedAppPaths[0]
           }
           const edgeRegex = getRouteRegex(page)
           return {
@@ -902,6 +907,7 @@ export default class DevServer extends Server {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    appPaths: string[] | null
     isAppPath: boolean
   }) {
     try {
@@ -1118,11 +1124,20 @@ export default class DevServer extends Server {
   }
 
   protected async ensureMiddleware() {
-    return this.hotReloader!.ensurePage(this.actualMiddlewareFile!, false)
+    return this.hotReloader!.ensurePage({
+      page: this.actualMiddlewareFile!,
+      clientOnly: false,
+    })
   }
 
-  protected async ensureEdgeFunction(pathname: string) {
-    return this.hotReloader!.ensurePage(pathname, false)
+  protected async ensureEdgeFunction({
+    page,
+    appPaths,
+  }: {
+    page: string
+    appPaths: string[] | null
+  }) {
+    return this.hotReloader!.ensurePage({ page, appPaths, clientOnly: false })
   }
 
   generateRoutes() {
@@ -1288,15 +1303,22 @@ export default class DevServer extends Server {
   }
 
   protected async ensureApiPage(pathname: string): Promise<void> {
-    return this.hotReloader!.ensurePage(pathname, false)
+    return this.hotReloader!.ensurePage({ page: pathname, clientOnly: false })
   }
 
-  protected async findPageComponents(
-    pathname: string,
-    query: ParsedUrlQuery,
-    params: Params,
+  protected async findPageComponents({
+    pathname,
+    query,
+    params,
+    isAppPath,
+    appPaths,
+  }: {
+    pathname: string
+    query: ParsedUrlQuery
+    params: Params
     isAppPath: boolean
-  ): Promise<FindComponentsResult | null> {
+    appPaths?: string[] | null
+  }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -1304,7 +1326,11 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      await this.hotReloader!.ensurePage(pathname, false)
+      await this.hotReloader!.ensurePage({
+        page: pathname,
+        appPaths,
+        clientOnly: false,
+      })
 
       const serverComponents = this.nextConfig.experimental.serverComponents
 
@@ -1315,7 +1341,7 @@ export default class DevServer extends Server {
         this.serverCSSManifest = super.getServerCSSManifest()
       }
 
-      return super.findPageComponents(pathname, query, params, isAppPath)
+      return super.findPageComponents({ pathname, query, params, isAppPath })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw err
@@ -1328,7 +1354,7 @@ export default class DevServer extends Server {
     await this.hotReloader!.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
-    await this.hotReloader!.ensurePage('/_error', false)
+    await this.hotReloader!.ensurePage({ page: '/_error', clientOnly: false })
     return await loadDefaultErrorComponents(this.distDir)
   }
 

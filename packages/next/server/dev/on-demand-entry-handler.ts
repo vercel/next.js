@@ -41,7 +41,9 @@ function treePathToEntrypoint(
   // TODO-APP: modify this path to cover parallelRouteKey convention
   const path =
     (parentPath ? parentPath + '/' : '') +
-    (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +
+    (parallelRouteKey !== 'children' && !segment.startsWith('@')
+      ? parallelRouteKey + '/'
+      : '') +
     (segment === '' ? 'page' : segment)
 
   // Last segment
@@ -143,6 +145,11 @@ interface Entry extends EntryType {
    * `/Users/Rick/project/pages/about/index.js`
    */
   absolutePagePath: string
+  /**
+   * All parallel pages that match the same entry, for example:
+   * ['/parallel/@bar/nested/@a/page', '/parallel/@bar/nested/@b/page', '/parallel/@foo/nested/@a/page', '/parallel/@foo/nested/@b/page']
+   */
+  appPaths: string[] | null
 }
 
 interface ChildEntry extends EntryType {
@@ -499,6 +506,7 @@ export function onDemandEntryHandler({
         toSend = { success: true }
       }
     }
+
     return toSend
   }
 
@@ -545,7 +553,15 @@ export function onDemandEntryHandler({
   }
 
   return {
-    async ensurePage(page: string, clientOnly: boolean): Promise<void> {
+    async ensurePage({
+      page,
+      clientOnly,
+      appPaths = null,
+    }: {
+      page: string
+      clientOnly: boolean
+      appPaths?: string[] | null
+    }): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
         debug(
@@ -597,6 +613,7 @@ export function onDemandEntryHandler({
 
           entries[entryKey] = {
             type: EntryTypes.ENTRY,
+            appPaths,
             absolutePagePath: pagePathData.absolutePagePath,
             request: pagePathData.absolutePagePath,
             bundlePath: pagePathData.bundlePath,
