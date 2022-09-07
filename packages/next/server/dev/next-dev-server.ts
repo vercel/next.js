@@ -66,7 +66,10 @@ import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
+import {
+  getPageStaticInfo,
+  PageStaticInfo,
+} from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -365,11 +368,21 @@ export default class DevServer extends Server {
             extensions: this.nextConfig.pageExtensions,
           })
 
-          const staticInfo = await getPageStaticInfo({
-            pageFilePath: fileName,
-            nextConfig: this.nextConfig,
-            page: rootFile,
-          })
+          let staticInfo: PageStaticInfo | undefined
+          try {
+            staticInfo = await getPageStaticInfo({
+              pageFilePath: fileName,
+              nextConfig: this.nextConfig,
+              page: rootFile,
+            })
+          } catch (e: unknown) {
+            if (!resolved) {
+              reject(e)
+              resolved = true
+              return
+            }
+            throw e
+          }
 
           if (isMiddlewareFile(rootFile)) {
             this.actualMiddlewareFile = rootFile
