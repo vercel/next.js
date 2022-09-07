@@ -1,11 +1,10 @@
+import type { AppProps } from 'next/app'
 import { CounterProvider } from '../components/Counter'
 
-function MyApp({ Component, pageProps }) {
+export default function MyApp({ Component, pageProps }: AppProps) {
   return (
     <CounterProvider>
       <Component {...pageProps} />
     </CounterProvider>
   )
 }
-
-export default MyApp
