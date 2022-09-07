@@ -958,7 +958,7 @@ export default class NextNodeServer extends BaseServer {
           pathname: pagePath,
           serverless: !this.renderOpts.dev && this._isLikeServerless,
           hasServerComponents: !!this.renderOpts.serverComponents,
-          isAppPath: !!this.nextConfig.experimental.appDir,
+          isAppPath,
         })
 
         if (
