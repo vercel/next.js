@@ -632,6 +632,7 @@ export function onDemandEntryHandler({
         const staticInfo = await getPageStaticInfo({
           pageFilePath: pagePathData.absolutePagePath,
           nextConfig,
+          isDev: true,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
