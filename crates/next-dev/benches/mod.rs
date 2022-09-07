@@ -1,12 +1,13 @@
 use std::{
     fs::{self, remove_dir_all},
     future::Future,
-    io::{self, BufRead, BufReader, Write},
-    path::{Path, PathBuf},
-    process::{Child, ChildStdout, Command, Stdio},
+    io::{self, Write},
+    path::PathBuf,
+    process::Child,
     time::Duration,
 };
 
+use bundlers::{command, get_bundlers, Bundler};
 use chromiumoxide::{
     browser::{Browser, BrowserConfig},
     cdp::js_protocol::runtime::EventExceptionThrown,
@@ -20,12 +21,13 @@ use criterion::{
     AsyncBencher, BenchmarkId, Criterion,
 };
 use futures::{FutureExt, StreamExt};
-use regex::Regex;
 use tokio::runtime::Runtime;
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbopack_create_test_app::test_app_builder::TestAppBuilder;
 
 static MODULE_COUNTS: &[usize] = &[100, 1_000];
+
+mod bundlers;
 
 fn bench_startup(c: &mut Criterion) {
     let mut g = c.benchmark_group("bench_startup");
@@ -67,7 +69,7 @@ fn bench_startup(c: &mut Criterion) {
 fn bench_simple_file_change(c: &mut Criterion) {
     let mut g = c.benchmark_group("bench_simple_file_change");
     g.sample_size(10);
-    g.measurement_time(Duration::from_secs(30));
+    g.measurement_time(Duration::from_secs(60));
 
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
@@ -183,56 +185,6 @@ fn bench_restart(c: &mut Criterion) {
     }
 }
 
-trait Bundler {
-    fn get_name(&self) -> &str;
-    fn start_server(&self, test_dir: &Path) -> (Child, String);
-}
-
-struct Turbopack;
-impl Bundler for Turbopack {
-    fn get_name(&self) -> &str {
-        "Turbopack"
-    }
-
-    fn start_server(&self, test_dir: &Path) -> (Child, String) {
-        let mut proc = Command::new(
-            std::env::var("CARGO_BIN_EXE_next-dev")
-                .unwrap_or_else(|_| std::env!("CARGO_BIN_EXE_next-dev").to_string()),
-        )
-        .args([test_dir.to_str().unwrap(), "--no-open", "--port", "0"])
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-
-        // Wait for the devserver address to appear in stdout.
-        let addr = wait_for_match(
-            proc.stdout.as_mut().unwrap(),
-            Regex::new("server listening on: (.*)").unwrap(),
-        );
-
-        (proc, addr)
-    }
-}
-
-fn get_bundlers() -> Vec<Box<dyn Bundler>> {
-    vec![Box::new(Turbopack {})]
-}
-
-fn wait_for_match(stdout: &mut ChildStdout, re: Regex) -> String {
-    // See https://docs.rs/async-process/latest/async_process/#examples
-    let mut line_reader = BufReader::new(stdout).lines();
-    // Read until the match appears in the buffer
-    let mut matched: Option<String> = None;
-    while let Some(Ok(line)) = line_reader.next() {
-        if let Some(cap) = re.captures(&line) {
-            matched = Some(cap.get(1).unwrap().as_str().into());
-            break;
-        }
-    }
-
-    matched.unwrap()
-}
-
 struct PreparedApp<'a> {
     bundler: &'a dyn Bundler,
     pages: Vec<Page>,
@@ -297,17 +249,8 @@ impl<'a> PreparedApp<'a> {
     fn stop_server(&mut self) -> Child {
         let mut proc = self.server.take().expect("Server never started").0;
         proc.kill().unwrap();
+        proc.wait().unwrap();
         proc
-    }
-}
-
-fn command(bin: &str) -> Command {
-    if cfg!(windows) {
-        let mut command = Command::new("cmd.exe");
-        command.args(["/C", bin]);
-        command
-    } else {
-        Command::new(bin)
     }
 }
 
