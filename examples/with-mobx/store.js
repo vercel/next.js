@@ -7,7 +7,7 @@ enableStaticRendering(typeof window === 'undefined')
 
 const StoreContext = createContext(null)
 
-class Store {
+class GlobalStore {
   constructor() {
     makeObservable(this, {
       lastUpdate: observable,
@@ -50,8 +50,8 @@ class Store {
 }
 
 let store
-function initializeStore(initialData = null) {
-  const _store = store ?? new Store()
+function initializeGlobalStore(initialData = null) {
+  const _store = store ?? new GlobalStore()
 
   // If your page has Next.js data fetching methods that use a Mobx store, it will
   // get hydrated here, check `pages/ssg.js` and `pages/ssr.js` for more details
@@ -67,7 +67,7 @@ function initializeStore(initialData = null) {
 }
 
 export function StoreProvider({ children, initialState }) {
-  const store = useLocalObservable(() => initializeStore(initialState))
+  const store = useLocalObservable(() => initializeGlobalStore(initialState))
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
 }
 
