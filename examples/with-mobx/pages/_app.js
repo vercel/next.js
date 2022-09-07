@@ -1,12 +1,12 @@
-import { Provider } from 'mobx-react'
-import { useStore } from '../store'
+import { StoreProvider } from '../store'
 
-export default function App({ Component, pageProps }) {
-  const store = useStore(pageProps.initialState)
-
+export default function App({
+  Component,
+  pageProps: { initialState, ...pageProps },
+}) {
   return (
-    <Provider store={store}>
+    <StoreProvider initialState={initialState}>
       <Component {...pageProps} />
-    </Provider>
+    </StoreProvider>
   )
 }

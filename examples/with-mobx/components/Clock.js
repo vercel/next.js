@@ -1,8 +1,16 @@
-import { observer } from 'mobx-react'
-const Clock = observer((props) => {
+import { observer } from 'mobx-react-lite'
+import { useEffect } from 'react'
+import { useStore } from '../store'
+
+export default observer(function Clock() {
+  const { start, stop, light, timeString } = useStore()
+  useEffect(() => {
+    start()
+    return () => stop()
+  }, [start, stop])
   return (
-    <div className={props.light ? 'light' : ''}>
-      {props.timeString}
+    <div className={light ? 'light' : ''}>
+      {timeString}
       <style jsx>{`
         div {
           padding: 15px;
@@ -19,4 +27,3 @@ const Clock = observer((props) => {
     </div>
   )
 })
-export default Clock

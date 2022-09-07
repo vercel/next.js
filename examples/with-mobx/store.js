@@ -1,10 +1,11 @@
 import { action, observable, computed, runInAction, makeObservable } from 'mobx'
-import { enableStaticRendering } from 'mobx-react'
-import { useMemo } from 'react'
+import { enableStaticRendering, useLocalObservable } from 'mobx-react-lite'
+import { createContext, useContext } from 'react'
+
 // eslint-disable-next-line react-hooks/rules-of-hooks
 enableStaticRendering(typeof window === 'undefined')
 
-let store
+const StoreContext = createContext(null)
 
 class Store {
   constructor() {
@@ -48,6 +49,7 @@ class Store {
   }
 }
 
+let store
 function initializeStore(initialData = null) {
   const _store = store ?? new Store()
 
@@ -64,7 +66,11 @@ function initializeStore(initialData = null) {
   return _store
 }
 
-export function useStore(initialState) {
-  const store = useMemo(() => initializeStore(initialState), [initialState])
-  return store
+export function StoreProvider({ children, initialState }) {
+  const store = useLocalObservable(() => initializeStore(initialState))
+  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
+}
+
+export function useStore() {
+  return useContext(StoreContext)
 }

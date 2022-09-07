@@ -1,33 +1,16 @@
-import React from 'react'
 import Link from 'next/link'
-import { inject, observer } from 'mobx-react'
 import Clock from './Clock'
 
-class Page extends React.Component {
-  componentDidMount() {
-    this.props.store.start()
-  }
-
-  componentWillUnmount() {
-    this.props.store.stop()
-  }
-
-  render() {
-    return (
-      <div>
-        <h1>{this.props.title}</h1>
-        <Clock
-          timeString={this.props.store.timeString}
-          light={this.props.store.light}
-        />
-        <nav>
-          <Link href={this.props.linkTo}>
-            <a>Navigate</a>
-          </Link>
-        </nav>
-      </div>
-    )
-  }
+export default function Page({ title, linkTo }) {
+  return (
+    <div>
+      <h1>{title}</h1>
+      <Clock />
+      <nav>
+        <Link href={linkTo}>
+          <a>Navigate</a>
+        </Link>
+      </nav>
+    </div>
+  )
 }
-
-export default inject('store')(observer(Page))
