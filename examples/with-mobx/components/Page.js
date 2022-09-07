@@ -3,8 +3,6 @@ import Link from 'next/link'
 import { inject, observer } from 'mobx-react'
 import Clock from './Clock'
 
-@inject('store')
-@observer
 class Page extends React.Component {
   componentDidMount() {
     this.props.store.start()
@@ -32,4 +30,4 @@ class Page extends React.Component {
   }
 }
 
-export default Page
+export default inject('store')(observer(Page))

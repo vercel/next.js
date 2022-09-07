@@ -8,13 +8,19 @@ let store
 
 class Store {
   constructor() {
-    makeObservable(this)
+    makeObservable(this, {
+      lastUpdate: observable,
+      light: observable,
+      start: action,
+      timeString: computed,
+      hydrate: action,
+    })
   }
 
-  @observable lastUpdate = 0
-  @observable light = false
+  lastUpdate = 0
+  light = false
 
-  @action start = () => {
+  start = () => {
     this.timer = setInterval(() => {
       runInAction(() => {
         this.lastUpdate = Date.now()
@@ -23,7 +29,7 @@ class Store {
     }, 1000)
   }
 
-  @computed get timeString() {
+  get timeString() {
     const pad = (n) => (n < 10 ? `0${n}` : n)
     const format = (t) =>
       `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(
@@ -34,7 +40,7 @@ class Store {
 
   stop = () => clearInterval(this.timer)
 
-  @action hydrate = (data) => {
+  hydrate = (data) => {
     if (!data) return
 
     this.lastUpdate = data.lastUpdate !== null ? data.lastUpdate : Date.now()
