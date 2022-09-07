@@ -15,8 +15,6 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@babel/core": "7.19.0",
-    "@babel/plugin-proposal-decorators": "^7.19.0",
     "@types/node": "^18.7.15",
     "@types/react": "^18.0.18",
     "typescript": "^4.8.2"
