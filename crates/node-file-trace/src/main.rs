@@ -29,7 +29,9 @@ use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
     viz, MemoryBackend,
 };
-use turbopack::{emit, rebase::RebasedAssetVc, ModuleAssetContextVc};
+use turbopack::{
+    emit, rebase::RebasedAssetVc, transition::TransitionsByNameVc, ModuleAssetContextVc,
+};
 use turbopack_cli_utils::issue::{group_and_display_issues, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
     asset::{AssetVc, AssetsVc},
@@ -39,7 +41,6 @@ use turbopack_core::{
     reference::all_assets,
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
-    transition::TransitionsByNameVc,
 };
 
 use crate::nft_json::NftJsonAssetVc;

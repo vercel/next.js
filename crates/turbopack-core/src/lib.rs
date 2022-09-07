@@ -10,7 +10,6 @@ pub mod reference;
 pub mod resolve;
 pub mod source_asset;
 pub mod target;
-pub mod transition;
 mod utils;
 pub mod version;
 pub mod wrapper_asset;

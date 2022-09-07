@@ -3,11 +3,11 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc, ValueToString};
-use turbo_tasks_fs::{embed_file, File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkGroupVc, ChunkReferenceVc},
-    reference::{AssetReferencesVc, SingleAssetReferenceVc},
+    reference::AssetReferencesVc,
     version::{Update, UpdateVc, Version, VersionVc, VersionedContent, VersionedContentVc},
 };
 use turbopack_hash::{encode_hex, Xxh3Hash64Hasher};
@@ -43,57 +43,12 @@ impl Asset for DevHtmlAsset {
                 references.push(ChunkReferenceVc::new(*chunk).into());
             }
         }
-        references.push(self_vc.html_runtime_reference().into());
         Ok(AssetReferencesVc::cell(references))
     }
 
     #[turbo_tasks::function]
     fn versioned_content(self_vc: DevHtmlAssetVc) -> VersionedContentVc {
         self_vc.html_content().into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl DevHtmlAssetVc {
-    #[turbo_tasks::function]
-    async fn html_runtime_reference(self) -> Result<SingleAssetReferenceVc> {
-        let path = self.await?.path.parent().join("_turbopack/html-runtime.js");
-        Ok(SingleAssetReferenceVc::new(
-            HtmlRuntimeAssetVc::new(path).into(),
-            StringVc::cell(format!("html-runtime {}", path.await?)),
-        ))
-    }
-}
-
-/// The HTML runtime asset.
-#[turbo_tasks::value]
-struct HtmlRuntimeAsset {
-    path: FileSystemPathVc,
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for HtmlRuntimeAsset {
-    #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.path
-    }
-
-    #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
-        embed_file!("html-runtime.js")
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl HtmlRuntimeAssetVc {
-    #[turbo_tasks::function]
-    fn new(path: FileSystemPathVc) -> Self {
-        Self::cell(HtmlRuntimeAsset { path })
     }
 }
 
@@ -122,26 +77,19 @@ impl DevHtmlAssetVc {
             }
         }
 
-        let html_runtime_reference = &*self.html_runtime_reference().asset().path().await?;
-        let html_runtime_path = context_path
-            .get_relative_path_to(html_runtime_reference)
-            .ok_or_else(|| anyhow!("html runtime path is not relative to context path"))?;
-
-        Ok(DevHtmlAssetContent::new(chunk_paths, html_runtime_path).cell())
+        Ok(DevHtmlAssetContent::new(chunk_paths).cell())
     }
 }
 
 #[turbo_tasks::value]
 struct DevHtmlAssetContent {
     chunk_paths: Arc<Vec<(String, String)>>,
-    html_runtime_path: String,
 }
 
 impl DevHtmlAssetContent {
-    pub fn new(chunk_paths: Vec<(String, String)>, html_runtime_path: String) -> Self {
+    pub fn new(chunk_paths: Vec<(String, String)>) -> Self {
         DevHtmlAssetContent {
             chunk_paths: Arc::new(chunk_paths),
-            html_runtime_path,
         }
     }
 }
@@ -154,12 +102,6 @@ impl DevHtmlAssetContentVc {
 
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();
-
-        // The HTML runtime MUST be the first script to be loaded.
-        scripts.push(format!(
-            "<script src=\"{}\"></script>",
-            this.html_runtime_path
-        ));
 
         for (relative_path, chunk_id) in &*this.chunk_paths {
             if relative_path.ends_with(".js") {

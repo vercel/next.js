@@ -18,7 +18,10 @@ use turbo_tasks_fs::{
     FileSystemEntryType, FileSystemPathVc,
 };
 use turbo_tasks_memory::MemoryBackend;
-use turbopack::{ecmascript::EcmascriptModuleAssetVc, register, ModuleAssetContextVc};
+use turbopack::{
+    ecmascript::EcmascriptModuleAssetVc, register, transition::TransitionsByNameVc,
+    ModuleAssetContextVc,
+};
 use turbopack_core::{
     asset::AssetVc,
     chunk::{
@@ -29,7 +32,6 @@ use turbopack_core::{
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     reference::all_referenced_assets,
     source_asset::SourceAssetVc,
-    transition::TransitionsByNameVc,
 };
 
 lazy_static! {

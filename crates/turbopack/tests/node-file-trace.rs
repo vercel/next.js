@@ -29,14 +29,16 @@ use tokio::{process::Command, time::timeout};
 use turbo_tasks::{backend::Backend, TurboTasks, Value, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
-use turbopack::{emit_with_completion, rebase::RebasedAssetVc, register, ModuleAssetContextVc};
+use turbopack::{
+    emit_with_completion, rebase::RebasedAssetVc, register, transition::TransitionsByNameVc,
+    ModuleAssetContextVc,
+};
 use turbopack_core::{
     asset::Asset,
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
-    transition::TransitionsByNameVc,
 };
 
 #[template]

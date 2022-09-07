@@ -1,6 +1,6 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use json::JsonValue;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -15,7 +15,8 @@ use crate::{
     chunk::{
         EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkItemContentVc, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-        EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+        EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
+        EcmascriptExports, EcmascriptExportsVc,
     },
     EcmascriptModuleAssetVc,
 };
@@ -27,6 +28,7 @@ pub struct ChunkGroupFilesAsset {
     pub asset: ChunkableAssetVc,
     pub chunking_context: ChunkingContextVc,
     pub base_path: FileSystemPathVc,
+    pub runtime_references: Option<AssetReferencesVc>,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,9 +36,36 @@ impl ChunkGroupFilesAssetVc {
     #[turbo_tasks::function]
     async fn chunks(self) -> Result<ChunksVc> {
         let this = self.await?;
+        let runtime_entries = if let Some(runtime_references) = this.runtime_references {
+            let mut runtime_entries = Vec::new();
+            for asset in runtime_references
+                .await?
+                .iter()
+                .map(|r| r.resolve_reference().primary_assets())
+                .try_join()
+                .await?
+                .iter()
+                .flat_map(|vec| vec.iter().copied())
+            {
+                if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
+                    runtime_entries.push(placeable);
+                } else {
+                    return Err(anyhow!(
+                        "runtime reference resolved to an asset ({}) that is not placeable into \
+                         an ecmascript chunk",
+                        asset.path().to_string().await?
+                    ));
+                }
+            }
+            Some(EcmascriptChunkPlaceablesVc::cell(runtime_entries))
+        } else {
+            None
+        };
         let chunk_group =
             if let Some(ecma) = EcmascriptModuleAssetVc::resolve_from(this.asset).await? {
-                ChunkGroupVc::from_chunk(ecma.as_evaluated_chunk(this.chunking_context, None))
+                ChunkGroupVc::from_chunk(
+                    ecma.as_evaluated_chunk(this.chunking_context, runtime_entries),
+                )
             } else {
                 ChunkGroupVc::from_asset(this.asset, this.chunking_context)
             };

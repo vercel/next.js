@@ -18,13 +18,12 @@ use turbo_tasks_memory::{
     viz::graph::{visualize_stats_tree, wrap_html},
     MemoryBackend,
 };
-use turbopack::{emit, rebase::RebasedAssetVc, register};
+use turbopack::{emit, rebase::RebasedAssetVc, register, transition::TransitionsByNameVc};
 use turbopack_core::{
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
-    transition::TransitionsByNameVc,
 };
 
 #[tokio::main]

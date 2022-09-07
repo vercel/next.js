@@ -3,6 +3,7 @@
 
 pub mod fs;
 pub mod html;
+pub mod html_runtime_asset;
 pub mod source;
 pub mod update;
 
@@ -178,5 +179,6 @@ pub fn register() {
     turbo_tasks_fs::register();
     turbopack_core::register();
     turbopack_cli_utils::register();
+    turbopack_ecmascript::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

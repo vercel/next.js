@@ -28,7 +28,6 @@ use turbopack_core::{
     environment::EnvironmentVc,
     reference::all_referenced_assets,
     resolve::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc},
-    transition::{TransitionVc, TransitionsByNameVc},
 };
 
 mod graph;
@@ -36,19 +35,17 @@ pub mod json;
 pub mod module_options;
 pub mod rebase;
 pub mod resolve;
+pub mod transition;
 
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 
+use self::transition::{TransitionVc, TransitionsByNameVc};
+
 #[turbo_tasks::function]
-async fn module(
-    source: AssetVc,
-    transitions: TransitionsByNameVc,
-    environment: EnvironmentVc,
-    module_options_context: ModuleOptionsContextVc,
-) -> Result<AssetVc> {
+async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetVc> {
     let path = source.path();
-    let options = ModuleOptionsVc::new(path.parent(), module_options_context);
+    let options = ModuleOptionsVc::new(path.parent(), context.module_options_context());
     let options = options.await?;
     let path_value = path.await?;
 
@@ -74,75 +71,39 @@ async fn module(
             ModuleType::Ecmascript(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    ModuleAssetContextVc::new(
-                        transitions,
-                        path.parent(),
-                        environment,
-                        module_options_context,
-                    )
-                    .into(),
+                    context.into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
                     *transforms,
-                    environment,
+                    context.environment(),
                 )
                 .into()
             }
             ModuleType::Typescript(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    ModuleAssetContextVc::new(
-                        transitions,
-                        path.parent(),
-                        environment.with_typescript(),
-                        module_options_context,
-                    )
-                    .into(),
+                    context.into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
                     *transforms,
-                    environment,
+                    context.environment(),
                 )
                 .into()
             }
             ModuleType::TypescriptDeclaration(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    ModuleAssetContextVc::new(
-                        transitions,
-                        path.parent(),
-                        environment.with_typescript(),
-                        module_options_context,
-                    )
-                    .into(),
+                    context.into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
                     *transforms,
-                    environment,
+                    context.environment(),
                 )
                 .into()
             }
             ModuleType::Json => json::JsonModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
-            ModuleType::Css => turbopack_css::CssModuleAssetVc::new(
-                source,
-                ModuleAssetContextVc::new(
-                    transitions,
-                    path.parent(),
-                    environment,
-                    module_options_context,
-                )
-                .into(),
-            )
-            .into(),
-            ModuleType::Static => turbopack_static::StaticModuleAssetVc::new(
-                source,
-                ModuleAssetContextVc::new(
-                    transitions,
-                    path.parent(),
-                    environment,
-                    module_options_context,
-                )
-                .into(),
-            )
-            .into(),
+            ModuleType::Css => turbopack_css::CssModuleAssetVc::new(source, context.into()).into(),
+            ModuleType::Static => {
+                turbopack_static::StaticModuleAssetVc::new(source, context.into()).into()
+            }
             ModuleType::Custom(_) => todo!(),
         },
     )
@@ -190,6 +151,11 @@ impl ModuleAssetContextVc {
             module_options_context,
             transition: Some(transition),
         })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_options_context(self) -> Result<ModuleOptionsContextVc> {
+        Ok(self.await?.module_options_context)
     }
 }
 
@@ -261,20 +227,24 @@ impl AssetContext for ModuleAssetContext {
         if let Some(transition) = this.transition {
             let asset = transition.process_source(asset);
             let environment = transition.process_environment(this.environment);
-            let m = module(
-                asset,
+            let module_options_context =
+                transition.process_module_options_context(this.module_options_context);
+            let context = ModuleAssetContextVc::new(
                 this.transitions,
+                asset.path().parent(),
                 environment,
-                this.module_options_context,
+                module_options_context,
             );
-            Ok(transition.process_module(m))
+            let m = module(asset, context);
+            Ok(transition.process_module(m, context))
         } else {
-            Ok(module(
-                asset,
+            let context = ModuleAssetContextVc::new(
                 this.transitions,
+                asset.path().parent(),
                 this.environment,
                 this.module_options_context,
-            ))
+            );
+            Ok(module(asset, context))
         }
     }
 

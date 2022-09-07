@@ -661,7 +661,8 @@
    * Subscribes to chunk updates from the update server and applies them.
    */
   function subscribeToChunkUpdates(chunkId) {
-    self.TURBOPACK_UPDATE_CLIENT.onChunkUpdate(
+    // This adds a chunk update listener once the handler code has been loaded
+    self.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
       chunkId,
       (updateType, instruction) => {
         switch (updateType) {
@@ -675,7 +676,7 @@
             throw new Error(`Unknown update type: ${updateType}`)
         }
       },
-    )
+    ])
   }
 
   var runtime = {
@@ -700,6 +701,8 @@
     runnable.push(...run)
     runnable = runnable.filter((r) => r(runtime))
   }
+  self.TURBOPACK_CHUNK_UPDATE_LISTENERS =
+    self.TURBOPACK_CHUNK_UPDATE_LISTENERS || []
   self.TURBOPACK = { push: registerChunk }
   chunksToRegister.forEach(registerChunk)
 })()

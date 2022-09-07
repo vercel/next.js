@@ -51,6 +51,7 @@ impl EcmascriptChunkVc {
             evaluate: None,
         })
     }
+
     #[turbo_tasks::function]
     pub fn new_evaluate(
         context: ChunkingContextVc,
@@ -693,7 +694,7 @@ pub trait EcmascriptChunkPlaceable: Asset + ValueToString {
     fn get_exports(&self) -> EcmascriptExportsVc;
 }
 
-#[turbo_tasks::value(shared, transparent)]
+#[turbo_tasks::value(transparent)]
 pub struct EcmascriptChunkPlaceables(Vec<EcmascriptChunkPlaceableVc>);
 
 #[turbo_tasks::value_impl]

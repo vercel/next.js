@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{asset::AssetVc, environment::EnvironmentVc};
+use turbopack_core::{asset::AssetVc, environment::EnvironmentVc};
+
+use crate::{module_options::ModuleOptionsContextVc, ModuleAssetContextVc};
 
 /// Some kind of operation that is executed during reference processing. e. g.
 /// you can transition to a different environment on a specific import
@@ -15,8 +17,15 @@ pub trait Transition {
     fn process_environment(&self, environment: EnvironmentVc) -> EnvironmentVc {
         environment
     }
+    /// Apply modifications/wrapping to the module options context
+    fn process_module_options_context(
+        &self,
+        context: ModuleOptionsContextVc,
+    ) -> ModuleOptionsContextVc {
+        context
+    }
     /// Apply modifications/wrapping to the final asset
-    fn process_module(&self, asset: AssetVc) -> AssetVc {
+    fn process_module(&self, asset: AssetVc, _context: ModuleAssetContextVc) -> AssetVc {
         asset
     }
 }

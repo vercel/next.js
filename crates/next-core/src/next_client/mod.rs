@@ -1,14 +1,26 @@
+pub(crate) mod runtime_reference;
+
 use anyhow::{anyhow, Result};
-use turbo_tasks::ValueToString;
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ValueToString};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
-use turbopack::ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset;
+use turbopack::{
+    ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
+    module_options::ModuleOptionsContextVc,
+    transition::{Transition, TransitionVc},
+    ModuleAssetContextVc,
+};
 use turbopack_core::{
     asset::AssetVc,
     chunk::{ChunkableAssetVc, ChunkingContextVc},
+    context::AssetContext,
     environment::EnvironmentVc,
-    transition::{Transition, TransitionVc},
+    reference::{AssetReferenceVc, AssetReferencesVc},
+    resolve::parse::RequestVc,
     wrapper_asset::WrapperAssetVc,
 };
+
+use self::runtime_reference::RuntimeAssetReferenceVc;
 
 #[turbo_tasks::function]
 fn get_next_hydrater() -> FileContentVc {
@@ -16,6 +28,12 @@ fn get_next_hydrater() -> FileContentVc {
         include_str!("next_hydrater.js").to_string(),
     ))
     .cell()
+}
+
+#[derive(ValueDebugFormat, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+pub enum RuntimeReference {
+    Request(RequestVc, FileSystemPathVc),
+    Reference(AssetReferenceVc),
 }
 
 /// Makes a transition into a next.js client context.
@@ -26,8 +44,10 @@ fn get_next_hydrater() -> FileContentVc {
 #[turbo_tasks::value(shared)]
 pub struct NextClientTransition {
     pub client_environment: EnvironmentVc,
+    pub client_module_options_context: ModuleOptionsContextVc,
     pub client_chunking_context: ChunkingContextVc,
     pub server_root: FileSystemPathVc,
+    pub runtime_references: Vec<RuntimeReference>,
 }
 
 #[turbo_tasks::value_impl]
@@ -43,12 +63,41 @@ impl Transition for NextClientTransition {
     }
 
     #[turbo_tasks::function]
-    async fn process_module(&self, asset: AssetVc) -> Result<AssetVc> {
+    fn process_module_options_context(
+        &self,
+        _context: ModuleOptionsContextVc,
+    ) -> ModuleOptionsContextVc {
+        self.client_module_options_context
+    }
+
+    #[turbo_tasks::function]
+    async fn process_module(
+        &self,
+        asset: AssetVc,
+        context: ModuleAssetContextVc,
+    ) -> Result<AssetVc> {
         if let Some(chunkable_asset) = ChunkableAssetVc::resolve_from(asset).await? {
+            let runtime_references = self
+                .runtime_references
+                .iter()
+                .map(|r| match *r {
+                    RuntimeReference::Request(r, context_path) => {
+                        RuntimeAssetReferenceVc::new(context.with_context_path(context_path), r)
+                            .as_asset_reference()
+                    }
+                    RuntimeReference::Reference(r) => r,
+                })
+                .collect::<Vec<_>>();
+            let runtime_references = if runtime_references.is_empty() {
+                None
+            } else {
+                Some(AssetReferencesVc::cell(runtime_references))
+            };
             Ok(ChunkGroupFilesAsset {
                 asset: chunkable_asset,
                 chunking_context: self.client_chunking_context,
                 base_path: self.server_root,
+                runtime_references,
             }
             .cell()
             .into())
