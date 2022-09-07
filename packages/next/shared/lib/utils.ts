@@ -321,7 +321,7 @@ export function getLocationOrigin() {
 export function getURL() {
   const { href } = window.location
   const origin = getLocationOrigin()
-  return href.substring(origin.length)
+  return decodeURIComponent(href.substring(origin.length))
 }
 
 export function getDisplayName<P>(Component: ComponentType<P>) {

@@ -127,6 +127,19 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should navigate via the client side with different encoding', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+
+      await browser
+        .elementByCss('#different-encoding')
+        .click()
+        .waitForElementByCss('#different-encoding-page')
+
+      const text = await browser.elementByCss('#different-encoding-page').text()
+
+      expect(text).toBe('Different encoding')
+    })
+
     it('should navigate an absolute url', async () => {
       const browser = await webdriver(
         context.appPort,
@@ -347,6 +360,14 @@ describe('Client Navigation', () => {
       await browser.back().waitForElementByCss('.nav-home')
 
       await browser.close()
+    })
+
+    it('should navigate with different encoding', async () => {
+      const browser = await webdriver(context.appPort, '/nav/ööö')
+
+      const text = await browser.elementByCss('#different-encoding-page').text()
+
+      expect(text).toBe('Different encoding')
     })
   })
 

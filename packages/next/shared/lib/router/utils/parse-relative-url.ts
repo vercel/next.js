@@ -38,10 +38,10 @@ export function parseRelativeUrl(
     throw new Error(`invariant: invalid relative URL, router received ${url}`)
   }
   return {
-    pathname,
+    pathname: decodeURIComponent(pathname),
     query: searchParamsToUrlQuery(searchParams),
     search,
-    hash,
+    hash: decodeURIComponent(hash),
     href: href.slice(globalBase.origin.length),
   }
 }

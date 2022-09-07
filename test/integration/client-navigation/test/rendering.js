@@ -252,6 +252,12 @@ export default function (render, fetch, ctx) {
       expect(link.text()).toBe('About')
     })
 
+    test('renders a ööö component', async () => {
+      const $ = await get$('/nav/ööö')
+      const pTag = $('#different-encoding-page')
+      expect(pTag.text()).toBe('Different encoding')
+    })
+
     test('getInitialProps circular structure', async () => {
       const browser = await webdriver(ctx.appPort, '/circular-json-error')
       const expectedErrorMessage =

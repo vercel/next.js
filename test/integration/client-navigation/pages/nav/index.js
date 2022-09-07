@@ -86,6 +86,9 @@ export default class extends Component {
             An element with target
           </a>
         </Link>
+        <Link href="/nav/ööö">
+          <a id="different-encoding">A different encoding (ööö)</a>
+        </Link>
 
         <svg
           width={24}
