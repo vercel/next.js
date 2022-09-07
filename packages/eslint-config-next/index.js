@@ -60,6 +60,7 @@ module.exports = {
   plugins: ['import', 'react', 'jsx-a11y'],
   rules: {
     'import/no-anonymous-default-export': 'warn',
+    'react/no-unknown-property': [1, { allow: ['style', 'jsx'] }],
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
     'jsx-a11y/alt-text': [
