@@ -72,7 +72,7 @@ async function createTreeCodeFromPath({
         Object.values(FILE_TYPES).map(async (file) => {
           return [
             file,
-            await resolve(`${appDirPrefix}${segmentPath}/${file}`),
+            await resolve(`${appDirPrefix}${parallelSegmentPath}/${file}`),
           ] as const
         })
       )
