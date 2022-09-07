@@ -46,12 +46,6 @@ interface EntryMetadata {
 }
 
 const NAME = 'MiddlewarePlugin'
-const middlewareManifest: MiddlewareManifest = {
-  sortedMiddleware: [],
-  middleware: {},
-  functions: {},
-  version: 2,
-}
 
 /**
  * Checks the value of usingIndirectEval and when it is a set of modules it
@@ -121,6 +115,12 @@ function getCreateAssets(params: {
 }) {
   const { compilation, metadataByEntry } = params
   return (assets: any) => {
+    const middlewareManifest: MiddlewareManifest = {
+      sortedMiddleware: [],
+      middleware: {},
+      functions: {},
+      version: 2,
+    }
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
         continue

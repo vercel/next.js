@@ -649,12 +649,22 @@ export function onDemandEntryHandler({
           },
           onServer: () => {
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
+            const edgeServerEntry = `${COMPILER_NAMES.edgeServer}${pagePathData.page}`
+            if (entries[edgeServerEntry]) {
+              // Runtime switched from edge to server
+              delete entries[edgeServerEntry]
+            }
           },
           onEdgeServer: () => {
             added.set(
               COMPILER_NAMES.edgeServer,
               addEntry(COMPILER_NAMES.edgeServer)
             )
+            const serverEntry = `${COMPILER_NAMES.server}${pagePathData.page}`
+            if (entries[serverEntry]) {
+              // Runtime switched from server to edge
+              delete entries[serverEntry]
+            }
           },
         })
 

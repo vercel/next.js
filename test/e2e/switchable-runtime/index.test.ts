@@ -203,6 +203,190 @@ describe('Switchable runtime', () => {
         }
       })
 
+      it('should be possible to switch between runtimes in API routes', async () => {
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'server response'
+        )
+
+        // Edge
+        await next.patchFile(
+          'pages/api/switch-in-dev.js',
+          `
+          export const config = {
+            runtime: 'experimental-edge',
+          }
+  
+          export default () => new Response('edge response')
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'edge response'
+        )
+
+        // Server
+        await next.patchFile(
+          'pages/api/switch-in-dev.js',
+          `
+          export default function (req, res) {
+            res.send('server response again')
+          }
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'server response again'
+        )
+
+        // Edge
+        await next.patchFile(
+          'pages/api/switch-in-dev.js',
+          `
+          export const config = {
+            runtime: 'experimental-edge',
+          }
+  
+          export default () => new Response('edge response again')
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'edge response again'
+        )
+      })
+
+      it('should be possible to switch between runtimes in pages', async () => {
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from edge page/
+        )
+
+        // Server
+        await next.patchFile(
+          'pages/switch-in-dev.js',
+          `
+          export default function Page() {
+            return <p>Hello from server page</p>
+          }
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from server page/
+        )
+
+        // Edge
+        await next.patchFile(
+          'pages/switch-in-dev.js',
+          `
+      export default function Page() {
+        return <p>Hello from edge page again</p>
+      }
+
+      export const config = {
+        runtime: 'experimental-edge',
+      }
+      `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from edge page again/
+        )
+
+        // Server
+        await next.patchFile(
+          'pages/switch-in-dev.js',
+          `
+            export default function Page() {
+              return <p>Hello from server page again</p>
+            }
+            `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from server page again/
+        )
+      })
+
+      // Doesn't work, see https://github.com/vercel/next.js/pull/39327
+      it.skip('should be possible to switch between runtimes with same content', async () => {
+        const fileContent = await next.readFile(
+          'pages/api/switch-in-dev-same-content.js'
+        )
+        console.log({ fileContent })
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev-same-content'),
+          'server response'
+        )
+
+        // Edge
+        await next.patchFile(
+          'pages/api/switch-in-dev-same-content.js',
+          `
+          export const config = {
+            runtime: 'experimental-edge',
+          }
+  
+          export default () => new Response('edge response')
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev-same-content'),
+          'edge response'
+        )
+
+        // Server - same content as first compilation of the server runtime version
+        await next.patchFile(
+          'pages/api/switch-in-dev-same-content.js',
+          fileContent
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev-same-content'),
+          'server response'
+        )
+      })
+
+      it('should recover from syntax error when using edge runtime', async () => {
+        await check(
+          () => renderViaHTTP(next.url, '/api/syntax-error-in-dev'),
+          'edge response'
+        )
+
+        // Syntax error
+        await next.patchFile(
+          'pages/api/syntax-error-in-dev.js',
+          `
+        export const config = {
+          runtime: 'experimental-edge',
+        }
+    
+        export default  => new Response('edge response')
+        `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/syntax-error-in-dev'),
+          /Unexpected token/
+        )
+
+        // Fix syntax error
+        await next.patchFile(
+          'pages/api/syntax-error-in-dev.js',
+          `
+          export default () => new Response('edge response again')
+
+          export const config = {
+            runtime: 'experimental-edge',
+          }
+          
+        `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/syntax-error-in-dev'),
+          'edge response again'
+        )
+      })
+
       it('should not crash the dev server when invalid runtime is configured', async () => {
         await check(
           () => renderViaHTTP(next.url, '/invalid-runtime'),
