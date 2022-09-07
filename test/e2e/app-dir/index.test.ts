@@ -1195,8 +1195,7 @@ describe('app dir', () => {
         })
       })
     })
-
-    describe('Subresource Integrity', () => {
+    ;(isDev ? describe.skip : describe)('Subresource Integrity', () => {
       function fetchWithPolicy(policy: string | null) {
         return fetchViaHTTP(next.url, '/dashboard', undefined, {
           headers: policy
