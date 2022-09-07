@@ -1,0 +1,47 @@
+{
+  "scripts": {
+    "start": "nx serve",
+    "build": "nx build",
+    "test": "nx test"
+  },
+  "private": true,
+  "dependencies": {
+    "@nrwl/next": "14.6.3",
+    "next": "12.2.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@nrwl/cli": "14.6.3",
+    "@nrwl/eslint-plugin-nx": "14.6.3",
+    "@nrwl/jest": "14.6.3",
+    "@nrwl/linter": "14.6.3",
+    "@nrwl/nx-cloud": "latest",
+    "@nrwl/react": "14.6.3",
+    "@nrwl/web": "14.6.3",
+    "@nrwl/workspace": "14.6.3",
+    "@testing-library/react": "13.3.0",
+    "@types/jest": "28.1.1",
+    "@types/node": "16.11.7",
+    "@types/react": "18.0.18",
+    "@types/react-dom": "18.0.6",
+    "@typescript-eslint/eslint-plugin": "~5.33.1",
+    "@typescript-eslint/parser": "~5.33.1",
+    "babel-jest": "28.1.1",
+    "eslint": "~8.15.0",
+    "eslint-config-next": "12.2.5",
+    "eslint-config-prettier": "8.1.0",
+    "eslint-plugin-import": "2.26.0",
+    "eslint-plugin-jsx-a11y": "6.6.1",
+    "eslint-plugin-react": "7.31.1",
+    "eslint-plugin-react-hooks": "4.6.0",
+    "jest": "28.1.1",
+    "jest-environment-jsdom": "28.1.1",
+    "nx": "14.6.3",
+    "prettier": "^2.6.2",
+    "react-test-renderer": "18.2.0",
+    "ts-jest": "28.0.5",
+    "ts-node": "10.9.1",
+    "typescript": "~4.7.2"
+  }
+}
