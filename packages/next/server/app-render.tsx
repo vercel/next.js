@@ -696,6 +696,12 @@ export async function renderToHTMLOrFlight(
                 parallelRouterKey={parallelRouteKey}
                 segmentPath={createSegmentPath(currentSegmentPath)}
                 loading={Loading ? <Loading /> : undefined}
+                error={ErrorComponent}
+                template={
+                  <Template>
+                    <RenderFromTemplateContext />
+                  </Template>
+                }
                 childProp={childProp}
                 rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
               />,
