@@ -67,7 +67,7 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  appDir?: boolean
+  appPaths: string[]
 }
 
 interface ExportPageResults {
@@ -93,7 +93,6 @@ interface RenderOpts {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
-  appDir?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -107,7 +106,7 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
-  appDir,
+  appPaths,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -283,6 +282,9 @@ export default async function exportPage({
         return !buildExport && getStaticProps && !isDynamicRoute(path)
       }
 
+      const isAppPath = appPaths.some((appPath: string) =>
+        appPath.startsWith(page + '.page')
+      )
       if (serverless) {
         const curUrl = url.parse(req.url!, true)
         req.url = url.format({
@@ -302,8 +304,8 @@ export default async function exportPage({
           distDir,
           page,
           serverless,
-          serverComponents,
-          appDir
+          !!serverComponents,
+          isAppPath
         )
         const ampState = {
           ampFirst: pageConfig?.amp === true,
@@ -369,8 +371,8 @@ export default async function exportPage({
           distDir,
           page,
           serverless,
-          serverComponents,
-          isAppDir
+          !!serverComponents,
+          isAppPath
         )
         curRenderOpts = {
           ...components,

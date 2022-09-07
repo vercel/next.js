@@ -1,36 +1,89 @@
 import React, { useContext, useEffect, useRef } from 'react'
-import type { ChildProp, Segment } from '../../server/app-render'
+import type {
+  ChildProp,
+  //Segment
+} from '../../server/app-render'
 import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  FlightDataPath,
+  // FlightDataPath,
 } from '../../server/app-render'
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
-import { matchSegment } from './match-segments'
+// import { matchSegment } from './match-segments'
 
 /**
  * Check if every segment in array a and b matches
  */
-function equalSegmentPaths(a: Segment[], b: Segment[]) {
-  // Comparing length is a fast path.
-  return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
-}
+// function equalSegmentPaths(a: Segment[], b: Segment[]) {
+//   // Comparing length is a fast path.
+//   return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
+// }
 
 /**
  * Check if flightDataPath matches layoutSegmentPath
  */
-function segmentPathMatches(
-  flightDataPath: FlightDataPath,
-  layoutSegmentPath: FlightSegmentPath
-): boolean {
-  // The last three items are the current segment, tree, and subTreeData
-  const pathToLayout = flightDataPath.slice(0, -3)
-  return equalSegmentPaths(layoutSegmentPath, pathToLayout)
+// function segmentPathMatches(
+//   flightDataPath: FlightDataPath,
+//   layoutSegmentPath: FlightSegmentPath
+// ): boolean {
+//   // The last three items are the current segment, tree, and subTreeData
+//   const pathToLayout = flightDataPath.slice(0, -3)
+//   return equalSegmentPaths(layoutSegmentPath, pathToLayout)
+// }
+
+/**
+ * Add refetch marker to router state at the point of the current layout segment.
+ * This ensures the response returned is not further down than the current layout segment.
+ */
+function walkAddRefetch(
+  segmentPathToWalk: FlightSegmentPath | undefined,
+  treeToRecreate: FlightRouterState
+): FlightRouterState {
+  if (segmentPathToWalk) {
+    const [segment, parallelRouteKey] = segmentPathToWalk
+    const isLast = segmentPathToWalk.length === 2
+
+    if (treeToRecreate[0] === segment) {
+      if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
+        if (isLast) {
+          const subTree = walkAddRefetch(
+            undefined,
+            treeToRecreate[1][parallelRouteKey]
+          )
+          return [
+            treeToRecreate[0],
+            {
+              ...treeToRecreate[1],
+              [parallelRouteKey]: [
+                subTree[0],
+                subTree[1],
+                subTree[2],
+                'refetch',
+              ],
+            },
+          ]
+        }
+
+        return [
+          treeToRecreate[0],
+          {
+            ...treeToRecreate[1],
+            [parallelRouteKey]: walkAddRefetch(
+              segmentPathToWalk.slice(2),
+              treeToRecreate[1][parallelRouteKey]
+            ),
+          },
+        ]
+      }
+    }
+  }
+
+  return treeToRecreate
 }
 
 /**
@@ -114,7 +167,13 @@ export function InnerLayoutRouter({
   let childNode = childNodes.get(path)
 
   // If childProp is available this means it's the Flight / SSR case.
-  if (childProp && !childNode) {
+  if (
+    childProp &&
+    // TODO-APP: verify if this can be null based on user code
+    childProp.current !== null &&
+    !childNode /*&&
+    !childProp.partial*/
+  ) {
     // Add the segment's subTreeData to the cache.
     // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
     childNodes.set(path, {
@@ -131,55 +190,6 @@ export function InnerLayoutRouter({
   // When childNode is not available during rendering client-side we need to fetch it from the server.
   if (!childNode) {
     /**
-     * Add refetch marker to router state at the point of the current layout segment.
-     * This ensures the response returned is not further down than the current layout segment.
-     */
-    const walkAddRefetch = (
-      segmentPathToWalk: FlightSegmentPath | undefined,
-      treeToRecreate: FlightRouterState
-    ): FlightRouterState => {
-      if (segmentPathToWalk) {
-        const [segment, parallelRouteKey] = segmentPathToWalk
-        const isLast = segmentPathToWalk.length === 2
-
-        if (treeToRecreate[0] === segment) {
-          if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
-            if (isLast) {
-              const subTree = walkAddRefetch(
-                undefined,
-                treeToRecreate[1][parallelRouteKey]
-              )
-              if (!subTree[2]) {
-                subTree[2] = undefined
-              }
-              subTree[3] = 'refetch'
-              return [
-                treeToRecreate[0],
-                {
-                  ...treeToRecreate[1],
-                  [parallelRouteKey]: [...subTree],
-                },
-              ]
-            }
-
-            return [
-              treeToRecreate[0],
-              {
-                ...treeToRecreate[1],
-                [parallelRouteKey]: walkAddRefetch(
-                  segmentPathToWalk.slice(2),
-                  treeToRecreate[1][parallelRouteKey]
-                ),
-              },
-            ]
-          }
-        }
-      }
-
-      return treeToRecreate
-    }
-
-    /**
      * Router state with refetch marker added
      */
     // TODO-APP: remove ''
@@ -188,9 +198,8 @@ export function InnerLayoutRouter({
     /**
      * Flight data fetch kicked off during render and put into the cache.
      */
-    const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
     childNodes.set(path, {
-      data,
+      data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
       parallelRoutes: new Map(),
     })
@@ -230,22 +239,22 @@ export function InnerLayoutRouter({
     let fastPath: boolean = false
 
     // If there are multiple patches returned in the Flight data we need to dispatch to ensure a single render.
-    if (flightData.length === 1) {
-      const flightDataPath = flightData[0]
+    // if (flightData.length === 1) {
+    //   const flightDataPath = flightData[0]
 
-      if (segmentPathMatches(flightDataPath, segmentPath)) {
-        // Ensure data is set to null as subTreeData will be set in the cache now.
-        childNode.data = null
-        // Last item is the subtreeData
-        // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
-        const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
-        // Add subTreeData into the cache
-        childNode.subTreeData = subTreeData
-        // This field is required for new items
-        childNode.parallelRoutes = new Map()
-        fastPath = true
-      }
-    }
+    //   if (segmentPathMatches(flightDataPath, segmentPath)) {
+    //     // Ensure data is set to null as subTreeData will be set in the cache now.
+    //     childNode.data = null
+    //     // Last item is the subtreeData
+    //     // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
+    //     const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
+    //     // Add subTreeData into the cache
+    //     childNode.subTreeData = subTreeData
+    //     // This field is required for new items
+    //     childNode.parallelRoutes = new Map()
+    //     fastPath = true
+    //   }
+    // }
 
     // When the fast path is not used a new action is dispatched to update the tree and cache.
     if (!fastPath) {
