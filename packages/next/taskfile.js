@@ -1916,6 +1916,7 @@ export async function ncc(task, opts) {
         'ncc_ua_parser_js',
         'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
+        'ncc_undici',
       ],
       opts
     )
