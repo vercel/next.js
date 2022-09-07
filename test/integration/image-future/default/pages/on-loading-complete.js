@@ -105,13 +105,16 @@ function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
       <div className="wrap">
         <Image
           id={`img${id}`}
-          onLoadingComplete={({ naturalWidth, naturalHeight }) => {
+          onLoadingComplete={(img) => {
+            const { naturalWidth, naturalHeight } = img
             let count = idToCount[id] || 0
             count++
             idToCount[id] = count
             setIdToCount(idToCount)
             setMsg(
-              `loaded ${count} img${id} with dimensions ${naturalWidth}x${naturalHeight}`
+              `loaded ${count} ${
+                img instanceof Image ? 'img' : ''
+              }${id} with dimensions ${naturalWidth}x${naturalHeight}`
             )
           }}
           {...props}
