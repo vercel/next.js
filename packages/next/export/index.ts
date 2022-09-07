@@ -133,6 +133,7 @@ interface ExportOptions {
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
+  appPaths?: string[]
 }
 
 export default async function exportApp(
@@ -321,8 +322,7 @@ export default async function exportApp(
 
     const {
       i18n,
-      images: { loader = 'default' },
-      experimental,
+      images: { loader = 'default', unoptimized },
     } = nextConfig
 
     if (i18n && !options.buildExport) {
@@ -344,7 +344,7 @@ export default async function exportApp(
       if (
         isNextImageImported &&
         loader === 'default' &&
-        !experimental?.images?.unoptimized &&
+        !unoptimized &&
         !hasNextSupport
       ) {
         throw new Error(
@@ -583,7 +583,6 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
-            appDir: nextConfig.experimental.appDir,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
@@ -595,6 +594,7 @@ export default async function exportApp(
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
             serverComponents: nextConfig.experimental.serverComponents,
+            appPaths: options.appPaths || [],
           })
 
           for (const validation of result.ampValidations || []) {

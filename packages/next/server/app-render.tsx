@@ -17,7 +17,6 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
@@ -295,8 +294,7 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch',
-  loading?: 'loading'
+  refresh?: 'refetch'
 ]
 
 /**
@@ -324,7 +322,7 @@ export type FlightDataPath =
       ...FlightSegmentPath,
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode
+      /* subTreeData: */ React.ReactNode | null // Can be null during prefetch if there's no loading component
     ]
 
 /**
@@ -336,7 +334,10 @@ export type FlightData = Array<FlightDataPath> | string
  * Property holding the current subTreeData.
  */
 export type ChildProp = {
-  current: React.ReactNode
+  /**
+   * Null indicates that the tree is partial
+   */
+  current: React.ReactNode | null
   segment: Segment
 }
 
@@ -390,8 +391,11 @@ function getCssInlinedLinkTags(
   const chunks = new Set<string>()
 
   for (const css of layoutOrPageCss) {
-    for (const chunk of serverComponentManifest[css].default.chunks) {
-      chunks.add(chunk)
+    const mod = serverComponentManifest[css]
+    if (mod) {
+      for (const chunk of mod.default.chunks) {
+        chunks.add(chunk)
+      }
     }
   }
 
@@ -419,12 +423,13 @@ export async function renderToHTMLOrFlight(
   const {
     buildManifest,
     serverComponentManifest,
-    serverCSSManifest,
+    serverCSSManifest = {},
     supportsDynamicHTML,
     ComponentMod,
   } = renderOpts
 
   const isFlight = query.__flight__ !== undefined
+  const isPrefetch = query.__flight_prefetch__ !== undefined
 
   // Handle client-side navigation to pages directory
   if (isFlight && isPagesDir) {
@@ -472,6 +477,11 @@ export async function renderToHTMLOrFlight(
    * The tree created in next-app-loader that holds component segments and modules
    */
   const loaderTree: LoaderTree = ComponentMod.tree
+
+  const tryGetPreviewData =
+    process.env.NEXT_RUNTIME === 'edge'
+      ? () => false
+      : require('./api-utils/node').tryGetPreviewData
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
@@ -556,9 +566,7 @@ export async function renderToHTMLOrFlight(
   const createFlightRouterStateFromLoaderTree = ([
     segment,
     parallelRoutes,
-    { loading },
   ]: LoaderTree): FlightRouterState => {
-    const hasLoading = Boolean(loading)
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
@@ -578,9 +586,6 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    if (hasLoading) {
-      segmentTree[4] = 'loading'
-    }
     return segmentTree
   }
 
@@ -640,20 +645,6 @@ export async function renderToHTMLOrFlight(
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
 
-    // Only server components can have getServerSideProps / getStaticProps
-    // TODO-APP: friendly error with correct stacktrace. Potentially this can be part of the compiler instead.
-    if (isClientComponentModule) {
-      if (layoutOrPageMod.getServerSideProps) {
-        throw new Error(
-          'getServerSideProps is not supported on Client Components'
-        )
-      }
-
-      if (layoutOrPageMod.getStaticProps) {
-        throw new Error('getStaticProps is not supported on Client Components')
-      }
-    }
-
     /**
      * The React Component to render.
      */
@@ -686,6 +677,31 @@ export async function renderToHTMLOrFlight(
             ? [parallelRouteKey]
             : [actualSegment, parallelRouteKey]
 
+          const childSegment = parallelRoutes[parallelRouteKey][0]
+          const childSegmentParam = getDynamicParamFromSegment(childSegment)
+
+          if (isPrefetch && Loading) {
+            const childProp: ChildProp = {
+              // Null indicates the tree is not fully rendered
+              current: null,
+              segment: childSegmentParam
+                ? childSegmentParam.treeSegment
+                : childSegment,
+            }
+
+            // This is turned back into an object below.
+            return [
+              parallelRouteKey,
+              <LayoutRouter
+                parallelRouterKey={parallelRouteKey}
+                segmentPath={createSegmentPath(currentSegmentPath)}
+                loading={Loading ? <Loading /> : undefined}
+                childProp={childProp}
+                rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
+              />,
+            ]
+          }
+
           // Create the child component
           const { Component: ChildComponent } = await createComponentTree({
             createSegmentPath: (child) => {
@@ -696,8 +712,6 @@ export async function renderToHTMLOrFlight(
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
-          const childSegment = parallelRoutes[parallelRouteKey][0]
-          const childSegmentParam = getDynamicParamFromSegment(childSegment)
           const childProp: ChildProp = {
             current: <ChildComponent />,
             segment: childSegmentParam
@@ -774,7 +788,7 @@ export async function renderToHTMLOrFlight(
     }
 
     // TODO-APP: pass a shared cache from previous getStaticProps/getServerSideProps calls?
-    if (layoutOrPageMod.getServerSideProps) {
+    if (!isClientComponentModule && layoutOrPageMod.getServerSideProps) {
       // TODO-APP: recommendation for i18n
       // locales: (renderOpts as any).locales, // always the same
       // locale: (renderOpts as any).locale, // /nl/something -> nl
@@ -798,7 +812,7 @@ export async function renderToHTMLOrFlight(
         )
     }
     // TODO-APP: implement layout specific caching for getStaticProps
-    if (layoutOrPageMod.getStaticProps) {
+    if (!isClientComponentModule && layoutOrPageMod.getStaticProps) {
       const getStaticPropsContext:
         | GetStaticPropsContext
         | GetStaticPropContextPage = {
@@ -921,21 +935,23 @@ export async function renderToHTMLOrFlight(
           actualSegment,
           // Create router state using the slice of the loaderTree
           createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
-          // Create component tree using the slice of the loaderTree
-          React.createElement(
-            (
-              await createComponentTree(
-                // This ensures flightRouterPath is valid and filters down the tree
-                {
-                  createSegmentPath: (child) => child,
-                  loaderTree: loaderTreeToFilter,
-                  parentParams: currentParams,
-                  firstItem: true,
-                  // parentSegmentPath: '',
-                }
-              )
-            ).Component
-          ),
+          // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
+          isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
+            ? null
+            : // Create component tree using the slice of the loaderTree
+              React.createElement(
+                (
+                  await createComponentTree(
+                    // This ensures flightRouterPath is valid and filters down the tree
+                    {
+                      createSegmentPath: (child) => child,
+                      loaderTree: loaderTreeToFilter,
+                      parentParams: currentParams,
+                      firstItem: true,
+                    }
+                  )
+                ).Component
+              ),
         ]
       }
 

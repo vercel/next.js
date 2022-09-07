@@ -48,8 +48,8 @@ export class NextStartInstance extends NextInstance {
         ...process.env,
         ...this.env,
         NODE_ENV: '' as any,
+        PORT: this.forcedPort || '0',
         __NEXT_TEST_MODE: '1',
-        __NEXT_FORCED_PORT: this.forcedPort || '0',
       },
     }
     let buildArgs = ['yarn', 'next', 'build']

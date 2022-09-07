@@ -40,8 +40,10 @@ export function getClientStyleLoader({
   const MiniCssExtractPlugin =
     require('../../../../plugins/mini-css-extract-plugin').default
   return {
-    // @ts-ignore: TODO: remove when webpack 5 is stable
     loader: MiniCssExtractPlugin.loader,
-    options: { publicPath: `${assetPrefix}/_next/`, esModule: false },
+    options: {
+      publicPath: `${assetPrefix}/_next/`,
+      esModule: false,
+    },
   }
 }

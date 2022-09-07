@@ -36,14 +36,15 @@ use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
-use swc::config::ModuleConfig;
-use swc_common::comments::Comments;
-use swc_common::{self, chain, pass::Optional};
-use swc_common::{FileName, SourceFile, SourceMap};
-use swc_ecmascript::ast::EsVersion;
-use swc_ecmascript::parser::parse_file_as_module;
-use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::visit::Fold;
+
+use swc_core::{
+    base::config::ModuleConfig,
+    common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
+    ecma::ast::EsVersion,
+    ecma::parser::parse_file_as_module,
+    ecma::transforms::base::pass::noop,
+    ecma::visit::Fold,
+};
 
 pub mod amp_attributes;
 mod auto_cjs;
@@ -63,7 +64,7 @@ mod top_level_binding_collector;
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
-    pub swc: swc::config::Options,
+    pub swc: swc_core::base::config::Options,
 
     #[serde(default)]
     pub disable_next_ssg: bool,

@@ -58,10 +58,10 @@ function getDesiredCompilerOptions(
       // All of these values work:
       parsedValues: [
         ts.ModuleResolutionKind.NodeJs,
-        ts.ModuleResolutionKind.Node12,
         // only newer TypeScript versions have this field, it
-        // will be filtered for older ones
-        (ts.ModuleResolutionKind as any).Node16,
+        // will be filtered for new versions of TypeScript
+        (ts.ModuleResolutionKind as any).Node12,
+        ts.ModuleResolutionKind.Node16,
         ts.ModuleResolutionKind.NodeNext,
       ].filter((val) => typeof val !== 'undefined'),
       value: 'node',
@@ -90,9 +90,6 @@ export function getRequiredConfiguration(
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const ev = desiredCompilerOptions[optionKey]
-    if (optionKey === 'moduleResolution') {
-      console.log({ optionKey, ev, current: res[optionKey] })
-    }
     if (!('value' in ev)) {
       continue
     }

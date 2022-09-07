@@ -5,9 +5,12 @@ use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContex
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
-use swc_cached::regex::CachedRegex;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{noop_fold_type, Fold};
+
+use swc_core::{
+    cached::regex::CachedRegex,
+    ecma::ast::*,
+    ecma::visit::{noop_fold_type, Fold},
+};
 
 static DUP_SLASH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"//").unwrap());
 

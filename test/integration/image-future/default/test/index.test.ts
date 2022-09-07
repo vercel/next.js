@@ -536,7 +536,7 @@ function runTests(mode) {
     )
     expect(await browser.elementById('blur1').getAttribute('sizes')).toBeNull()
     expect(await browser.elementById('blur1').getAttribute('style')).toMatch(
-      'background-size:cover;background-position:0% 0%;'
+      'color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;'
     )
     expect(await browser.elementById('blur1').getAttribute('height')).toBe(
       '400'
@@ -559,7 +559,9 @@ function runTests(mode) {
       'lazy'
     )
     expect(await browser.elementById('blur1').getAttribute('sizes')).toBeNull()
-    expect(await browser.elementById('blur1').getAttribute('style')).toMatch('')
+    expect(await browser.elementById('blur1').getAttribute('style')).toBe(
+      'color: transparent;'
+    )
     expect(await browser.elementById('blur1').getAttribute('height')).toBe(
       '400'
     )
@@ -579,7 +581,7 @@ function runTests(mode) {
       'lazy'
     )
     expect(await browser.elementById('blur2').getAttribute('style')).toMatch(
-      'background-size:cover;background-position:0% 0%;'
+      'color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat'
     )
     expect(await browser.elementById('blur2').getAttribute('height')).toBe(
       '400'
@@ -604,7 +606,9 @@ function runTests(mode) {
     expect(await browser.elementById('blur2').getAttribute('loading')).toBe(
       'lazy'
     )
-    expect(await browser.elementById('blur2').getAttribute('style')).toBe('')
+    expect(await browser.elementById('blur2').getAttribute('style')).toBe(
+      'color: transparent;'
+    )
     expect(await browser.elementById('blur2').getAttribute('height')).toBe(
       '400'
     )
@@ -679,6 +683,16 @@ function runTests(mode) {
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
       )
+    })
+
+    it('should show missing alt error', async () => {
+      const browser = await webdriver(appPort, '/missing-alt')
+
+      expect(await hasRedbox(browser)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log()).map((log) => log.message).join('\n')
+      }, /Image is missing required "alt" property/gm)
     })
 
     it('should show error when missing width prop', async () => {
@@ -1028,6 +1042,9 @@ function runTests(mode) {
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
+        expect(warnings).not.toMatch(
+          /Image with src (.*) is smaller than 40x40. Consider removing(.*)/gm
+        )
       })
       it('should log warnings when using fill mode incorrectly', async () => {
         browser = await webdriver(appPort, '/fill-warnings')
@@ -1082,21 +1099,12 @@ function runTests(mode) {
     $html('noscript > img').attr('id', 'unused')
 
     expect($html('#blurry-placeholder-raw')[0].attribs.style).toContain(
-      `background-size:cover;background-position:0% 0%;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8P4nhDwAGuAKPn6cicwAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8P4nhDwAGuAKPn6cicwAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
 
     expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
-      `background-size:cover;background-position:0% 0%;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
-  })
-
-  it('should not use blurry placeholder for <noscript> image', async () => {
-    const html = await renderViaHTTP(appPort, '/blurry-placeholder')
-    const $html = cheerio.load(html)
-    const img = $html('noscript > img')[0]
-    expect(img).toBeDefined()
-    expect(img.attribs.id).toBe('blurry-placeholder-raw')
-    expect(img.attribs.style).toBeUndefined()
   })
 
   it('should remove blurry placeholder after image loads', async () => {
@@ -1117,7 +1125,7 @@ function runTests(mode) {
         'background-image'
       )
     ).toBe(
-      `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+      `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
 
     await browser.eval('document.getElementById("spacer").remove()')
