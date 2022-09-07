@@ -1172,6 +1172,7 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   hasServerComponents,
+  originalAppPath,
 }: {
   page: string
   distDir: string
@@ -1237,7 +1238,7 @@ export async function isPageStatic({
       } else {
         componentsResult = await loadComponents(
           distDir,
-          page,
+          originalAppPath || page,
           serverless,
           !!hasServerComponents,
           pageType === 'app'
