@@ -1047,6 +1047,7 @@ export async function isPageStatic({
   encodedPrerenderRoutes?: string[]
   prerenderFallback?: boolean | 'blocking'
   isNextImageImported?: boolean
+  isNextFutureImageImported?: boolean
   traceIncludes?: string[]
   traceExcludes?: string[]
 }> {
@@ -1181,6 +1182,8 @@ export async function isPageStatic({
       }
 
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
+      const isNextFutureImageImported = (global as any)
+        .__NEXT_IMAGE_FUTURE_IMPORTED
       const config: PageConfig = componentsResult.pageConfig
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
@@ -1192,6 +1195,7 @@ export async function isPageStatic({
         hasStaticProps,
         hasServerProps,
         isNextImageImported,
+        isNextFutureImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
       }

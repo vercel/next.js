@@ -332,17 +332,18 @@ export default async function exportApp(
     }
 
     if (!options.buildExport) {
-      const { isNextImageImported } = await nextExportSpan
-        .traceChild('is-next-image-imported')
-        .traceAsyncFn(() =>
-          promises
-            .readFile(join(distDir, EXPORT_MARKER), 'utf8')
-            .then((text) => JSON.parse(text))
-            .catch(() => ({}))
-        )
+      const { isNextImageImported, isNextFutureImageImported } =
+        await nextExportSpan
+          .traceChild('is-next-image-imported')
+          .traceAsyncFn(() =>
+            promises
+              .readFile(join(distDir, EXPORT_MARKER), 'utf8')
+              .then((text) => JSON.parse(text))
+              .catch(() => ({}))
+          )
 
       if (
-        isNextImageImported &&
+        (isNextImageImported || isNextFutureImageImported) &&
         loader === 'default' &&
         !unoptimized &&
         !hasNextSupport

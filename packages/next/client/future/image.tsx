@@ -23,7 +23,7 @@ const allImgs = new Map<
 let perfObserver: PerformanceObserver | undefined
 
 if (typeof window === 'undefined') {
-  ;(global as any).__NEXT_IMAGE_IMPORTED = true
+  ;(global as any).__NEXT_IMAGE_FUTURE_IMPORTED = true
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const

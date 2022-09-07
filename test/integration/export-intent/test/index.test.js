@@ -29,6 +29,7 @@ describe('Application Export Intent Output', () => {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,
+          "isNextFutureImageImported": false,
           "version": 1,
         }
       `)
@@ -70,6 +71,7 @@ describe('Application Export Intent Output', () => {
           "exportTrailingSlash": false,
           "hasExportPathMap": true,
           "isNextImageImported": false,
+          "isNextFutureImageImported": false,
           "version": 1,
         }
       `)
@@ -111,6 +113,7 @@ describe('Application Export Intent Output', () => {
           "exportTrailingSlash": true,
           "hasExportPathMap": false,
           "isNextImageImported": false,
+          "isNextFutureImageImported": false,
           "version": 1,
         }
       `)
@@ -152,6 +155,7 @@ describe('Application Export Intent Output', () => {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,
+          "isNextFutureImageImported": false,
           "version": 1,
         }
       `)
@@ -192,6 +196,7 @@ describe('Application Export Intent Output', () => {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,
+          "isNextFutureImageImported": false,
           "version": 1,
         }
       `)

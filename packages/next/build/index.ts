@@ -1148,6 +1148,7 @@ export default async function build(
         customAppGetInitialProps,
         namedExports,
         isNextImageImported,
+        isNextFutureImageImported,
         hasSsrAmpPages,
         hasNonStaticErrorPage,
       } = await staticCheckSpan.traceAsyncFn(async () => {
@@ -1209,6 +1210,7 @@ export default async function build(
 
         // eslint-disable-next-line no-shadow
         let isNextImageImported: boolean | undefined
+        let isNextFutureImageImported: boolean | undefined
         // eslint-disable-next-line no-shadow
         let hasSsrAmpPages = false
 
@@ -1361,6 +1363,10 @@ export default async function build(
                       isNextImageImported = true
                     }
 
+                    if (workerResult.isNextFutureImageImported) {
+                      isNextFutureImageImported = true
+                    }
+
                     if (workerResult.hasStaticProps) {
                       ssgPages.add(page)
                       isSsg = true
@@ -1464,6 +1470,7 @@ export default async function build(
           customAppGetInitialProps: await customAppGetInitialPropsPromise,
           namedExports: await namedExportsPromise,
           isNextImageImported,
+          isNextFutureImageImported,
           hasSsrAmpPages,
           hasNonStaticErrorPage: nonStaticErrorPage,
         }
@@ -2442,6 +2449,7 @@ export default async function build(
           hasExportPathMap: typeof config.exportPathMap === 'function',
           exportTrailingSlash: config.trailingSlash === true,
           isNextImageImported: isNextImageImported === true,
+          isNextFutureImageImported: isNextFutureImageImported === true,
         }),
         'utf8'
       )
