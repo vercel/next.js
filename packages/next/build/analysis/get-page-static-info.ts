@@ -53,6 +53,19 @@ export function checkExports(swcAST: any): { ssr: boolean; ssg: boolean } {
           }
         }
 
+        if (
+          node.type === 'ExportDeclaration' &&
+          node.declaration?.type === 'VariableDeclaration'
+        ) {
+          const id = node.declaration?.declarations[0]?.id.value
+          if (['getStaticProps', 'getServerSideProps'].includes(id)) {
+            return {
+              ssg: id === 'getStaticProps',
+              ssr: id === 'getServerSideProps',
+            }
+          }
+        }
+
         if (node.type === 'ExportNamedDeclaration') {
           const values = node.specifiers.map(
             (specifier: any) =>
