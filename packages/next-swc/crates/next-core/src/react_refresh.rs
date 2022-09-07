@@ -13,7 +13,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::function]
-fn react_refresh_request() -> RequestVc {
+pub fn react_refresh_request() -> RequestVc {
     RequestVc::parse_string("@next/react-refresh-utils/dist/runtime".to_string())
 }
 

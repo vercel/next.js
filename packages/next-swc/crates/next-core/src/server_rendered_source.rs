@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack::ModuleAssetContextVc;
+use turbopack::{
+    module_options::ModuleOptionsContext, transition::TransitionsByNameVc, ModuleAssetContextVc,
+};
 use turbopack_core::{
     chunk::dev::DevChunkingContext,
     context::AssetContextVc,
@@ -11,17 +13,24 @@ use turbopack_core::{
         BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
         NodeJsEnvironment,
     },
+    reference::SingleAssetReferenceVc,
     source_asset::SourceAssetVc,
     target::CompileTargetVc,
-    transition::TransitionsByNameVc,
 };
-use turbopack_dev_server::source::{
-    asset_graph::AssetGraphContentSourceVc,
-    combined::{CombinedContentSource, CombinedContentSourceVc},
-    ContentSourceVc, NoContentSourceVc,
+use turbopack_dev_server::{
+    html_runtime_asset::HtmlRuntimeAssetVc,
+    source::{
+        asset_graph::AssetGraphContentSourceVc,
+        combined::{CombinedContentSource, CombinedContentSourceVc},
+        ContentSourceVc, NoContentSourceVc,
+    },
 };
 
-use crate::{next_client::NextClientTransition, server_render::asset::ServerRenderedAssetVc};
+use crate::{
+    next_client::{NextClientTransition, RuntimeReference},
+    react_refresh::{assert_can_resolve_react_refresh, react_refresh_request},
+    server_render::asset::ServerRenderedAssetVc,
+};
 
 /// Create a content source serving the `pages` or `src/pages` directory as
 /// Node.js pages folder.
@@ -60,10 +69,32 @@ pub async fn create_server_rendered_source(
         )),
         Value::new(EnvironmentIntention::Client),
     );
+    let enable_react_refresh =
+        *assert_can_resolve_react_refresh(root_path, client_environment).await?;
+    let runtime_references = if enable_react_refresh {
+        vec![
+            RuntimeReference::Request(react_refresh_request(), root_path),
+            RuntimeReference::Reference(
+                SingleAssetReferenceVc::new(
+                    HtmlRuntimeAssetVc::new().into(),
+                    StringVc::cell("html-runtime".to_string()),
+                )
+                .into(),
+            ),
+        ]
+    } else {
+        Vec::new()
+    };
+    let client_module_options_context = ModuleOptionsContext {
+        enable_react_refresh,
+    }
+    .cell();
     let next_client_transition = NextClientTransition {
         client_chunking_context,
+        client_module_options_context,
         client_environment,
         server_root: target_root,
+        runtime_references,
     }
     .cell()
     .into();
@@ -84,7 +115,10 @@ pub async fn create_server_rendered_source(
             )),
             Value::new(EnvironmentIntention::Client),
         ),
-        Default::default(),
+        ModuleOptionsContext {
+            ..Default::default()
+        }
+        .cell(),
     )
     .into();
 

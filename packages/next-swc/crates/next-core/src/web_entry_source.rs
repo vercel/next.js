@@ -6,6 +6,7 @@ use turbo_tasks_fs::{FileSystemPathVc, FileSystemVc};
 use turbopack::{
     ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
     module_options::ModuleOptionsContext,
+    transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
 use turbopack_core::{
@@ -16,10 +17,10 @@ use turbopack_core::{
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     resolve::parse::RequestVc,
-    transition::TransitionsByNameVc,
 };
 use turbopack_dev_server::{
     html::DevHtmlAsset,
+    html_runtime_asset::HtmlRuntimeAssetVc,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
 
@@ -45,7 +46,7 @@ pub async fn create_web_entry_source(
         Value::new(EnvironmentIntention::Client),
     );
 
-    let can_resolve_react_refresh = *assert_can_resolve_react_refresh(root, environment).await?;
+    let enable_react_refresh = *assert_can_resolve_react_refresh(root, environment).await?;
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
@@ -55,7 +56,7 @@ pub async fn create_web_entry_source(
             // We don't need to resolve React Refresh for each module. Instead,
             // we try resolve it once at the root and pass down a context to all
             // the modules.
-            enable_react_refresh: can_resolve_react_refresh,
+            enable_react_refresh,
         }
         .into(),
     )
@@ -68,13 +69,11 @@ pub async fn create_web_entry_source(
     }
     .into();
 
-    let runtime_entries = if can_resolve_react_refresh {
-        Some(EcmascriptChunkPlaceablesVc::cell(vec![
-            resolve_react_refresh(context),
-        ]))
-    } else {
-        None
-    };
+    let mut runtime_entries = vec![HtmlRuntimeAssetVc::new().as_ecmascript_chunk_placeable()];
+    if enable_react_refresh {
+        runtime_entries.push(resolve_react_refresh(context))
+    }
+    let runtime_entries = EcmascriptChunkPlaceablesVc::cell(runtime_entries);
 
     let modules = entry_requests
         .into_iter()
@@ -92,8 +91,10 @@ pub async fn create_web_entry_source(
     let chunks = modules
         .map(|module| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), runtime_entries))
+                Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), Some(runtime_entries)))
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
+                // TODO this is missing runtime code, so it's probably broken and we should also
+                // add an ecmascript chunk with the runtime code
                 Ok(chunkable.as_chunk(chunking_context.into()))
             } else {
                 // TODO convert into a serve-able asset
@@ -102,7 +103,6 @@ pub async fn create_web_entry_source(
                      application"
                 ))
             }
-            // ChunkGroupVc::from_chunk(m)
         })
         .try_join()
         .await?;
