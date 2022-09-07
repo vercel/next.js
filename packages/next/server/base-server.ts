@@ -225,7 +225,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private responseCache: ResponseCacheBase
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
-  protected appPathRoutes?: Record<string, string>
+  protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
   protected serverCSSManifest?: any
@@ -239,12 +239,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getBuildId(): string
 
   protected abstract getFilesystemPaths(): Set<string>
-  protected abstract findPageComponents(
-    pathname: string,
-    query: NextParsedUrlQuery,
-    params: Params,
+  protected abstract findPageComponents(params: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params
     isAppPath: boolean
-  ): Promise<FindComponentsResult | null>
+    appPaths?: string[] | null
+  }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
@@ -758,11 +759,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       .filter((item): item is RoutingItem => Boolean(item))
   }
 
-  protected getAppPathRoutes(): Record<string, string> {
-    const appPathRoutes: Record<string, string> = {}
+  protected getAppPathRoutes(): Record<string, string[]> {
+    const appPathRoutes: Record<string, string[]> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      appPathRoutes[normalizeAppPath(entry) || '/'] = entry
+      const normalizedPath = normalizeAppPath(entry) || '/'
+      if (!appPathRoutes[normalizedPath]) {
+        appPathRoutes[normalizedPath] = []
+      }
+      appPathRoutes[normalizedPath].push(entry)
     })
     return appPathRoutes
   }
@@ -1504,7 +1509,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   // map the route to the actual bundle name
-  protected getOriginalAppPath(route: string) {
+  protected getOriginalAppPaths(route: string) {
     if (this.nextConfig.experimental.appDir) {
       const originalAppPath = this.appPathRoutes?.[route]
 
@@ -1523,18 +1528,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ) {
     const { query, pathname } = ctx
 
+    const appPaths = this.getOriginalAppPaths(pathname)
+
     let page = pathname
-    const appPath = this.getOriginalAppPath(pathname)
-    if (typeof appPath === 'string') {
-      page = appPath
+    if (Array.isArray(appPaths)) {
+      // When it's an array, we need to pass all parallel routes to the loader.
+      page = appPaths[0]
     }
 
-    const result = await this.findPageComponents(
-      page,
+    const result = await this.findPageComponents({
+      pathname: page,
       query,
-      ctx.renderOpts.params || {},
-      typeof appPath === 'string'
-    )
+      params: ctx.renderOpts.params || {},
+      isAppPath: Array.isArray(appPaths),
+      appPaths,
+    })
+
     if (result) {
       try {
         return await this.renderToResponseWithComponents(ctx, result)
@@ -1737,7 +1746,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // use static 404 page if available and is 404 response
       if (is404 && (await this.hasPage('/404'))) {
-        result = await this.findPageComponents('/404', query, {}, false)
+        result = await this.findPageComponents({
+          pathname: '/404',
+          query,
+          params: {},
+          isAppPath: false,
+        })
         using404Page = result !== null
       }
       let statusPage = `/${res.statusCode}`
@@ -1750,12 +1764,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
         if (statusPage !== '/500' || !this.renderOpts.dev) {
-          result = await this.findPageComponents(statusPage, query, {}, false)
+          result = await this.findPageComponents({
+            pathname: statusPage,
+            query,
+            params: {},
+            isAppPath: false,
+          })
         }
       }
 
       if (!result) {
-        result = await this.findPageComponents('/_error', query, {}, false)
+        result = await this.findPageComponents({
+          pathname: '/_error',
+          query,
+          params: {},
+          isAppPath: false,
+        })
         statusPage = '/_error'
       }
 
