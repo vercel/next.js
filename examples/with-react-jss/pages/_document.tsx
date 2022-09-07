@@ -1,8 +1,8 @@
-import Document from 'next/document'
+import Document, { DocumentContext } from 'next/document'
 import { SheetsRegistry, JssProvider, createGenerateId } from 'react-jss'
 
 export default class JssDocument extends Document {
-  static async getInitialProps(ctx) {
+  static async getInitialProps(ctx: DocumentContext) {
     const registry = new SheetsRegistry()
     const generateId = createGenerateId()
     const originalRenderPage = ctx.renderPage
