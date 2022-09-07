@@ -202,6 +202,74 @@ describe('Switchable runtime', () => {
           })
         }
       })
+
+      it('should not crash the dev server when invalid runtime is configured', async () => {
+        await check(
+          () => renderViaHTTP(next.url, '/invalid-runtime'),
+          /Hello from page without errors/
+        )
+
+        // Invalid runtime type
+        await next.patchFile(
+          'pages/invalid-runtime.js',
+          `
+          export default function Page() {
+            return <p>Hello from page with invalid type</p>
+          }
+          
+          export const config = {
+            runtime: 10,
+          }
+            `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/invalid-runtime'),
+          /Hello from page with invalid type/
+        )
+        expect(next.cliOutput).toInclude(
+          'error - The `runtime` config must be a string. Please leave it empty or choose one of:'
+        )
+
+        // Invalid runtime
+        await next.patchFile(
+          'pages/invalid-runtime.js',
+          `
+            export default function Page() {
+              return <p>Hello from page with invalid runtime</p>
+            }
+            
+            export const config = {
+              runtime: "asd"
+            }
+              `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/invalid-runtime'),
+          /Hello from page with invalid runtime/
+        )
+        expect(next.cliOutput).toInclude(
+          'error - Provided runtime "asd" is not supported. Please leave it empty or choose one of:'
+        )
+
+        // Fix the runtime
+        await next.patchFile(
+          'pages/invalid-runtime.js',
+          `
+        export default function Page() {
+          return <p>Hello from page without errors</p>
+        }
+        
+        export const config = {
+          runtime: 'experimental-edge',
+        }
+  
+        `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/invalid-runtime'),
+          /Hello from page without errors/
+        )
+      })
     })
   } else {
     describe('Switchable runtime (prod)', () => {
