@@ -8,7 +8,7 @@ To illustrate SSG and SSR, go to `/ssg` and `/ssr`, those pages are using Next.j
 
 The trick here for supporting universal mobx is to separate the cases for the client and the server. When we are on the server we want to create a new store every time, otherwise different users data will be mixed up. If we are in the client we want to use always the same store. That's what we accomplish on `store.js`.
 
-The clock, under `components/Clock.js`, has access to the state using the `inject` and `observer` functions from `mobx-react`. In this case Clock is a direct child from the page but it could be deep down the render tree.
+The clock, under `components/Clock.js`, has access to the state using the `observer` functions from `mobx-react-lite`. In this case Clock is a direct child from the page but it could be deep down the render tree.
 
 ## Deploy your own
 
