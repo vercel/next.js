@@ -959,7 +959,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Toggle whether or not this is a Data request
     const isDataReq =
-      !!(query.__nextDataReq || req.headers['x-nextjs-data']) &&
+      !!(
+        query.__nextDataReq ||
+        (req.headers['x-nextjs-data'] &&
+          (this.serverOptions as any).webServerConfig)
+      ) &&
       (isSSG || hasServerProps || isServerComponent)
 
     delete query.__nextDataReq

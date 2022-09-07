@@ -324,6 +324,12 @@ describe('should set-up next', () => {
   it('should de-dupe HTML/data requests', async () => {
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
       redirect: 'manual',
+      headers: {
+        // ensure the nextjs-data header being present
+        // doesn't incorrectly return JSON for HTML path
+        // during prerendering
+        'x-nextjs-data': '1',
+      },
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('x-nextjs-cache')).toBeFalsy()
