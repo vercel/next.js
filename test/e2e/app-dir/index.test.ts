@@ -1194,6 +1194,27 @@ describe('app dir', () => {
         })
       })
     })
+
+    describe('template component', () => {
+      it('should render the template that holds state in a client component and reset on navigation', async () => {
+        const browser = await webdriver(next.url, '/template/clientcomponent')
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+        await browser.elementByCss('button').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Template 1')
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#other-page')
+
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+        await browser.elementByCss('button').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Template 1')
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#page')
+
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+      })
+    })
   }
 
   describe('without assetPrefix', () => {
