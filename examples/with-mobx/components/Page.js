@@ -3,7 +3,7 @@ import Clock from './Clock'
 
 export default function Page({ title, linkTo }) {
   return (
-    <div>
+    <>
       <h1>{title}</h1>
       <Clock />
       <nav>
@@ -11,6 +11,6 @@ export default function Page({ title, linkTo }) {
           <a>Navigate</a>
         </Link>
       </nav>
-    </div>
+    </>
   )
 }
