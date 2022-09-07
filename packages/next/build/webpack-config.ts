@@ -28,7 +28,6 @@ import {
   MODERN_BROWSERSLIST_TARGET,
   COMPILER_NAMES,
   CompilerNameValues,
-  EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
@@ -1408,16 +1407,8 @@ export default async function getBaseWebpackConfig(
       // On the server we don't use hashes
       filename:
         isNodeServer || isEdgeServer
-          ? isEdgeServer
-            ? '[name].js'
-            : dev
-            ? ({ runtime, chunk }) =>
-                chunk?.name?.startsWith('pages/')
-                  ? runtime === EDGE_RUNTIME_WEBPACK
-                    ? // Append the runtime to the filename in dev to prevent both compilers outputting to the same file when switching between runtimes
-                      '[name]-e.js'
-                    : '[name]-s.js'
-                  : '[name].js'
+          ? dev || isEdgeServer
+            ? `[name].js`
             : `../[name].js`
           : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
               dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
