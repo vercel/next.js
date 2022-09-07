@@ -13,7 +13,6 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   FLIGHT_MANIFEST,
-  SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -61,14 +60,19 @@ export async function loadDefaultErrorComponents(distDir: string) {
   }
 }
 
-export async function loadComponents(
-  distDir: string,
-  pathname: string,
-  serverless: boolean,
-  hasServerComponents: boolean,
-  isAppPath: boolean,
-  sriEnabled?: boolean
-): Promise<LoadComponentsReturnType> {
+export async function loadComponents({
+  distDir,
+  pathname,
+  serverless,
+  hasServerComponents,
+  isAppPath,
+}: {
+  distDir: string
+  pathname: string
+  serverless: boolean
+  hasServerComponents: boolean
+  isAppPath: boolean
+}): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
     if (typeof ComponentMod === 'string') {
@@ -118,21 +122,14 @@ export async function loadComponents(
     requirePage(pathname, distDir, serverless, isAppPath)
   )
 
-  const [
-    buildManifest,
-    reactLoadableManifest,
-    serverComponentManifest,
-    subresourceIntegrityManifest,
-  ] = await Promise.all([
-    require(join(distDir, BUILD_MANIFEST)),
-    require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    hasServerComponents
-      ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
-      : null,
-    sriEnabled
-      ? require(join(distDir, SUBRESOURCE_INTEGRITY_MANIFEST))
-      : undefined,
-  ])
+  const [buildManifest, reactLoadableManifest, serverComponentManifest] =
+    await Promise.all([
+      require(join(distDir, BUILD_MANIFEST)),
+      require(join(distDir, REACT_LOADABLE_MANIFEST)),
+      hasServerComponents
+        ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
+        : null,
+    ])
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
@@ -145,7 +142,6 @@ export async function loadComponents(
     Document,
     Component,
     buildManifest,
-    subresourceIntegrityManifest,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     ComponentMod,

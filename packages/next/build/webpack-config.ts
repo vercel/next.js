@@ -1751,7 +1751,11 @@ export default async function getBaseWebpackConfig(
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      isEdgeServer && new MiddlewarePlugin({ dev }),
+      isEdgeServer &&
+        new MiddlewarePlugin({
+          dev,
+          sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+        }),
       isClient &&
         new BuildManifestPlugin({
           buildId,
@@ -1803,7 +1807,7 @@ export default async function getBaseWebpackConfig(
             })),
       !dev &&
         isClient &&
-        config.experimental.sri?.algorithm &&
+        !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       !dev &&
         isClient &&

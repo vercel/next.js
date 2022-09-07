@@ -421,17 +421,14 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 
   // First try to find the directive for the 'script-src', otherwise try to
   // fallback to the 'default-src'.
-  let directive = directives.find((dir) => dir.startsWith('script-src'))
-  if (!directive) {
-    directive = directives.find((dir) => dir.startsWith('default-src'))
-  }
+  const directive =
+    directives.find((dir) => dir.startsWith('script-src')) ||
+    directives.find((dir) => dir.startsWith('default-src'))
 
   // If no directive could be found, then we're done.
   if (!directive) {
     return
   }
-
-  debugger
 
   // Extract the nonce from the directive
   const nonce = directive
