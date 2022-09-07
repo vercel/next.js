@@ -67,31 +67,33 @@ async function createTreeCodeFromPath({
         parallelSegment,
       ])
 
-      // For segmentPath === '' avoid double `/`
-      const layoutPath = `${appDirPrefix}${parallelSegmentPath}/layout`
-      // For segmentPath === '' avoid double `/`
-      const loadingPath = `${appDirPrefix}${parallelSegmentPath}/loading`
-
-      const resolvedLayoutPath = await resolve(layoutPath)
-      const resolvedLoadingPath = await resolve(loadingPath)
+      // `page` is not included here as it's added above.
+      const filePaths = await Promise.all(
+        Object.values(FILE_TYPES).map(async (file) => {
+          return [
+            file,
+            await resolve(`${appDirPrefix}${segmentPath}/${file}`),
+          ] as const
+        })
+      )
 
       props[parallelKey] = `[
         '${parallelSegment}',
         ${subtree},
         {
-          filePath: ${JSON.stringify(resolvedLayoutPath)},
-          ${
-            resolvedLayoutPath
-              ? `layout: () => require(${JSON.stringify(resolvedLayoutPath)}),`
-              : ''
-          }
-          ${
-            resolvedLoadingPath
-              ? `loading: () => require(${JSON.stringify(
-                  resolvedLoadingPath
-                )}),`
-              : ''
-          }
+          ${filePaths
+            .filter(([, filePath]) => filePath !== undefined)
+            .map(([file, filePath]) => {
+              if (filePath === undefined) {
+                return ''
+              }
+              return `${
+                file === FILE_TYPES.layout
+                  ? `layoutOrPagePath: '${filePath}',`
+                  : ''
+              }${file}: () => require(${JSON.stringify(filePath)}),`
+            })
+            .join('\n')}
         }
       ]`
     }
