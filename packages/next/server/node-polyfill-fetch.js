@@ -1,8 +1,18 @@
-import fetch, {
-  Headers,
-  Request,
-  Response,
-} from 'next/dist/compiled/node-fetch'
+let fetch, Headers, Request, Response
+
+if (process.env.NEXT_USE_UNDICI) {
+  const undici = require('next/dist/compiled/undici')
+  fetch = undici.fetch
+  Headers = undici.Headers
+  Request = undici.Request
+  Response = undici.Response
+} else {
+  const nodeFetch = require('next/dist/compiled/node-fetch')
+  fetch = nodeFetch.fetch
+  Headers = nodeFetch.Headers
+  Request = nodeFetch.Request
+  Response = nodeFetch.Response
+}
 
 // Polyfill fetch() in the Node.js environment
 if (!global.fetch) {

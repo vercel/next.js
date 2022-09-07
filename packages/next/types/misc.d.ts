@@ -28,6 +28,12 @@ declare module 'next/dist/compiled/node-fetch' {
   export * from 'node-fetch'
 }
 
+declare module 'next/dist/compiled/undici' {
+  import m from 'undici'
+  export default m
+  export * from 'undici'
+}
+
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
 }
