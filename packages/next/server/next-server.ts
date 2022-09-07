@@ -697,7 +697,10 @@ export default class NextNodeServer extends BaseServer {
       ws: true,
       // we limit proxy requests to 30s by default, in development
       // we don't time out WebSocket requests to allow proxying
-      proxyTimeout: upgradeHead && this.renderOpts.dev ? undefined : 30_000,
+      proxyTimeout:
+        upgradeHead && this.renderOpts.dev
+          ? undefined
+          : this.nextConfig.experimental.proxyTimeout || 30_000,
     })
 
     await new Promise((proxyResolve, proxyReject) => {
