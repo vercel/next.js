@@ -729,6 +729,10 @@
         {
           "title": "middleware-parse-user-agent",
           "path": "/errors/middleware-parse-user-agent.md"
+        },
+        {
+          "title": "nonce-contained-invalid-characters",
+          "path": "/errors/nonce-contained-invalid-characters.md"
         }
       ]
     }

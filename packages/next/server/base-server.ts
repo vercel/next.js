@@ -245,6 +245,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     params: Params
     isAppPath: boolean
     appPaths?: string[] | null
+    sriEnabled?: boolean
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -1546,8 +1547,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       params: ctx.renderOpts.params || {},
       isAppPath: Array.isArray(appPaths),
       appPaths,
+      sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
     })
-
     if (result) {
       try {
         return await this.renderToResponseWithComponents(ctx, result)
