@@ -14,7 +14,7 @@ If you were using Middleware prior to `12.2`, please see the [upgrade guide](htt
 
 The minimum Node.js version has been bumped from 12.0.0 to 12.22.0 which is the first version of Node.js with native ES Modules support.
 
-### Upgrade React version to the latest
+### Upgrade React version to latest
 
 The minimum required React version is `17.0.2`. To upgrade you can run the following command in the terminal:
 
@@ -44,9 +44,9 @@ yarn add next@12
 
 ### SWC replacing Babel
 
-Next.js now uses Rust-based compiler, [SWC](https://swc.rs/) to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and up to 5x faster than Fast Refresh.
+Next.js now uses a Rust-based compiler, [SWC](https://swc.rs/) to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and allows for up to 5x faster Fast Refresh.
 
-Next.js provides full backward compatibility with applications that have [custom Babel configuration](https://nextjs.org/docs/advanced-features/customizing-babel-config). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
+Next.js provides full backwards compatibility with applications that have [custom Babel configuration](https://nextjs.org/docs/advanced-features/customizing-babel-config). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
 
 When an application has a custom Babel configuration, Next.js will automatically opt-out of using SWC for compiling JavaScript/Typescript and will fall back to using Babel in the same way that it was used in Next.js 11.
 
@@ -72,9 +72,9 @@ Minification using SWC is an opt-in flag to ensure it can be tested against more
 
 ### Improvements to styled-jsx CSS parsing
 
-On top of the Rust-based compiler we've implemented a new CSS parser based on the CSS parser that was used for the styled-jsx Babel transform. This new parser has improved the handling of CSS and now errors when invalid CSS is used that would previously slip through and cause unexpected behavior.
+On top of the Rust-based compiler, we've implemented a new CSS parser based on the CSS parser that was used for the styled-jsx Babel transform. This new parser has improved handling of CSS and now errors when invalid CSS is used that would previously slip through and cause unexpected behavior.
 
-Because of this change, invalid CSS will throw an error during development and the `next build`. This change only affects styled-jsx usage.
+Because of this change, invalid CSS will throw an error during development and `next build`. This change only affects styled-jsx usage.
 
 ### `next/image` changed wrapping element
 
@@ -117,21 +117,21 @@ If you are already using webpack 5 you can skip this section.
 
 Next.js has adopted webpack 5 as the default for compilation in Next.js 11. As communicated in the [webpack 5 upgrading documentation](https://nextjs.org/docs/messages/webpack5) Next.js 12 removes support for webpack 4.
 
-If your application is still using webpack 4 using the opt out flag you will now see an error linking to the [webpack 5 upgrading documentation](https://nextjs.org/docs/messages/webpack5).
+If your application is still using webpack 4 using the opt-out flag you will now see an error linking to the [webpack 5 upgrading documentation](https://nextjs.org/docs/messages/webpack5).
 
 ### `target` option deprecated
 
-If you do not have a `target` in `next.config.js` you can skip this section.
+If you do not have `target` in `next.config.js` you can skip this section.
 
 The target option has been deprecated in favor of built-in support for tracing what dependencies are needed to run a page.
 
-During the `next build`, Next.js will automatically trace each page and its dependencies to determine all of the files that are needed for deploying a production version of your application.
+During `next build`, Next.js will automatically trace each page and its dependencies to determine all of the files that are needed for deploying a production version of your application.
 
 If you are currently using the `target` option set to `serverless` please read the [documentation on how to leverage the new output](https://nextjs.org/docs/advanced-features/output-file-tracing).
 
 ## Upgrading from version 10 to 11
 
-### Upgrade React version to the latest
+### Upgrade React version to latest
 
 Most applications already use the latest version of React, with Next.js 11 the minimum React version has been updated to 17.0.2.
 
@@ -213,7 +213,7 @@ You can learn more in [the documentation](https://nextjs.org/docs/messages/url-d
 
 ### Remove `unsized` property on `next/image`
 
-The `unsized` property on `next/image` was deprecated in Next.js 10.0.1. You can use `layout="fill"` instead. In Next.js 11 `unsized` were removed.
+The `unsized` property on `next/image` was deprecated in Next.js 10.0.1. You can use `layout="fill"` instead. In Next.js 11 `unsized` was removed.
 
 ### Remove `modules` property on `next/dynamic`
 
@@ -227,7 +227,7 @@ If your application does use `modules` and `render` you can refer to [the docume
 
 `Head.rewind` has been a no-op since Next.js 9.5, in Next.js 11 it was removed. You can safely remove your usage of `Head.rewind`.
 
-### Moment.js locales are excluded by default
+### Moment.js locales excluded by default
 
 Moment.js includes translations for a lot of locales by default. Next.js now automatically excludes these locales by default to optimize bundle size for applications using Moment.js.
 
@@ -244,7 +244,7 @@ You can opt-out of this new default by adding `excludeDefaultMomentLocales: fals
 
 ### Update usage of `router.events`
 
-In case you're accessing `router.events` during rendering, in Next.js 11 `router.events` are no longer provided during pre-rendering. Ensure you're accessing `router.events` in `useEffect`:
+In case you're accessing `router.events` during rendering, in Next.js 11 `router.events` is no longer provided during pre-rendering. Ensure you're accessing `router.events` in `useEffect`:
 
 ```js
 useEffect(() => {
@@ -274,7 +274,7 @@ React 17 introduced a new [JSX Transform](https://reactjs.org/blog/2020/09/22/in
 
 ## Upgrading from version 9 to 10
 
-There were no breaking changes between versions 9 and 10.
+There were no breaking changes between version 9 and 10.
 
 To upgrade run the following command:
 
@@ -359,7 +359,7 @@ import { AppContext, AppInitialProps } from 'next/app'
 import { DocumentContext, DocumentInitialProps } from 'next/document'
 ```
 
-#### The `config` key is now export on a page
+#### The `config` key is now a named export on a page
 
 You may no longer export a custom variable named `config` from a page (i.e. `export { config }` / `export const config ...`).
 This exported variable is now used to specify page-level Next.js configuration like Opt-in AMP and API Route features.
