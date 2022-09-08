@@ -145,7 +145,7 @@ Playwright is a testing framework that lets you automate Chromium, Firefox, and 
 
 ### Quickstart
 
-The fastest way to get started, is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all set up.
+The fastest way to get started is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all setup.
 
 ```bash
 npx create-next-app@latest --example with-playwright with-playwright-app
@@ -214,7 +214,7 @@ test('should navigate to the about page', async ({ page }) => {
   await page.goto('http://localhost:3000/')
   // Find an element with the text 'About Page' and click on it
   await page.click('text=About')
-  // The new url should be "/about" (baseURL is used there)
+  // The new URL should be "/about" (baseURL is used there)
   await expect(page).toHaveURL('http://localhost:3000/about')
   // The new page should contain an h1 with "About Page"
   await expect(page.locator('h1')).toContainText('About Page')
@@ -261,7 +261,7 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 ### Setting up Jest (with the Rust Compiler)
 
-Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
+Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has a built-in configuration for Jest.
 
 To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/react`, `@testing-library/jest-dom`:
 
@@ -290,7 +290,7 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
 }
 
-// createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
+// createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is an async
 module.exports = createJestConfig(customJestConfig)
 ```
 
@@ -307,7 +307,7 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 
 ### Setting up Jest (with Babel)
 
-If you opt-out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
+If you opt out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
 
 Here are the recommended options to configure Jest for Next.js:
 
@@ -380,9 +380,9 @@ module.exports = {}
 
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
 
-**Optional: Extend Jest with custom matchers**
+**Optional: Extend Jest with custom matches**
 
-`@testing-library/jest-dom` includes a set of convenient [custom matchers](https://github.com/testing-library/jest-dom#custom-matchers) such as `.toBeInTheDocument()` making it easier to write tests. You can import the custom matchers for every test by adding the following option to the Jest configuration file:
+`@testing-library/jest-dom` includes a set of convenient [custom matches](https://github.com/testing-library/jest-dom#custom-matchers) such as `.toBeInTheDocument()` making it easier to write tests. You can import the custom matches for every test by adding the following option to the Jest configuration file:
 
 ```js
 // jest.config.js
@@ -440,7 +440,7 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 
 **Create your first tests**
 
-Your project is now ready to run tests. Follow Jests convention by adding tests to the `__tests__` folder in your project's root directory.
+Your project is now ready to run tests. Follow the Jests convention by adding tests to the `__tests__` folder in your project's root directory.
 
 For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 
