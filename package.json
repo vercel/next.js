@@ -22,7 +22,7 @@
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
-    "lint-typescript": "lerna run typescript",
+    "lint-typescript": "turbo run typescript",
     "lint-eslint": "eslint . --ext js,jsx,ts,tsx --max-warnings=0 --config .eslintrc.json --no-eslintrc",
     "lint-no-typescript": "run-p prettier-check lint-eslint",
     "lint": "run-p test-types lint-typescript prettier-check lint-eslint lint-language",

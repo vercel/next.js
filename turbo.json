@@ -19,6 +19,7 @@
     "dev": {
       "dependsOn": ["^dev"],
       "outputs": ["dist/**"]
-    }
+    },
+    "typescript": {}
   }
 }
