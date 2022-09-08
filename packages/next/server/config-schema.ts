@@ -320,6 +320,10 @@ const configSchema = {
         profiling: {
           type: 'boolean',
         },
+        proxyTimeout: {
+          minimum: 0,
+          type: 'number',
+        },
         runtime: {
           // automatic typing doesn't like enum
           enum: ['experimental-edge', 'nodejs'] as any,

@@ -697,7 +697,10 @@ export default class NextNodeServer extends BaseServer {
       ws: true,
       // we limit proxy requests to 30s by default, in development
       // we don't time out WebSocket requests to allow proxying
-      proxyTimeout: upgradeHead && this.renderOpts.dev ? undefined : 30_000,
+      proxyTimeout:
+        upgradeHead && this.renderOpts.dev
+          ? undefined
+          : this.nextConfig.experimental.proxyTimeout || 30_000,
     })
 
     await new Promise((proxyResolve, proxyReject) => {
@@ -2046,9 +2049,7 @@ export default class NextNodeServer extends BaseServer {
 
     // For middleware to "fetch" we must always provide an absolute URL
     const isDataReq = !!params.query.__nextDataReq
-    const query = urlQueryToSearchParams(
-      Object.assign({}, getRequestMeta(params.req, '__NEXT_INIT_QUERY') || {})
-    ).toString()
+    const query = urlQueryToSearchParams(params.query).toString()
     const locale = params.query.__nextLocale
     // Use original pathname (without `/page`) instead of appPath for url
     let normalizedPathname = params.page

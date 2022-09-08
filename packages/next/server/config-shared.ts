@@ -90,6 +90,7 @@ export interface ExperimentalConfig {
   cpus?: number
   sharedPool?: boolean
   profiling?: boolean
+  proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
   pageEnv?: boolean
@@ -556,7 +557,8 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
-    optimizeCss: { a: 'a' },
+    proxyTimeout: undefined,
+    optimizeCss: false,
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
