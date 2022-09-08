@@ -205,7 +205,7 @@ importers:
       '@types/trusted-types': 2.0.2
       '@typescript-eslint/eslint-plugin': 4.29.1_qxyn66xcaddhgaahwkbomftvi4
       '@typescript-eslint/parser': 4.29.1_6x3mpmmsttbpxxsctsorxedanu
-      '@vercel/fetch': 6.1.1_wbqoqouw2iimn65bqgaw3lwmza
+      '@vercel/fetch': 6.1.1_fii5qhbaymjqmfm7e2spxc5z4m
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -365,7 +365,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.3.0
+      '@next/eslint-plugin-next': 12.3.1-canary.0
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -421,12 +421,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.3.0
-      '@next/polyfill-module': 12.3.0
-      '@next/polyfill-nomodule': 12.3.0
-      '@next/react-dev-overlay': 12.3.0
-      '@next/react-refresh-utils': 12.3.0
-      '@next/swc': 12.3.0
+      '@next/env': 12.3.1-canary.0
+      '@next/polyfill-module': 12.3.1-canary.0
+      '@next/polyfill-nomodule': 12.3.1-canary.0
+      '@next/react-dev-overlay': 12.3.1-canary.0
+      '@next/react-refresh-utils': 12.3.1-canary.0
+      '@next/swc': 12.3.1-canary.0
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.11
       '@taskr/clear': 1.1.0
@@ -7277,16 +7277,6 @@ packages:
       form-data: 3.0.1
     dev: true
 
-  /@types/node-fetch/2.6.2:
-    resolution:
-      {
-        integrity: sha512-DHqhlq5jeESLy19TYhLakJ07kNumXWjcDdxXsLUMJZ6ue8VZJj4kLPQVE/2mdHh3xZziNF1xppu5lwmS53HR+A==,
-      }
-    dependencies:
-      '@types/node': 17.0.21
-      form-data: 3.0.1
-    dev: true
-
   /@types/node/10.12.18:
     resolution:
       {
@@ -7892,7 +7882,7 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/fetch/6.1.1_wbqoqouw2iimn65bqgaw3lwmza:
+  /@vercel/fetch/6.1.1_fii5qhbaymjqmfm7e2spxc5z4m:
     resolution:
       {
         integrity: sha512-nddCkgpA0aVIqOlzh+qVlzDNcQq0cSnqefM+x6SciGI4GCvVZeaZ7WEowgX8I/HwBAq8Uj5Bdnd+r0+sYsJsig==,
@@ -7902,7 +7892,7 @@ packages:
       node-fetch: '2'
     dependencies:
       '@types/async-retry': 1.2.1
-      '@types/node-fetch': 2.6.2
+      '@types/node-fetch': 2.6.1
       '@vercel/fetch-cached-dns': 2.0.2_node-fetch@2.6.7
       '@vercel/fetch-retry': 5.0.3_node-fetch@2.6.7
       agentkeepalive: 3.4.1
