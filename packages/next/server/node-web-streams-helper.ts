@@ -140,12 +140,18 @@ export function renderToInitialStream({
   ReactDOMServer,
   element,
   streamOptions,
+  renderOpts,
 }: {
   ReactDOMServer: any
   element: React.ReactElement
   streamOptions?: any
+  renderOpts?: any
 }): Promise<ReactReadableStream> {
-  return ReactDOMServer.renderToReadableStream(element, streamOptions)
+  return ReactDOMServer.renderToReadableStream(
+    element,
+    streamOptions,
+    renderOpts
+  )
 }
 
 export function createHeadInjectionTransformStream(

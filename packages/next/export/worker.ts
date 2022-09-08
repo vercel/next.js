@@ -29,6 +29,7 @@ import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { Writable } from 'stream'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { DynamicServerError } from '../client/components/hooks-server-context'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -282,9 +283,6 @@ export default async function exportPage({
         return !buildExport && getStaticProps && !isDynamicRoute(path)
       }
 
-      const isAppPath = appPaths.some((appPath: string) =>
-        appPath.startsWith(page + '.page')
-      )
       if (serverless) {
         const curUrl = url.parse(req.url!, true)
         req.url = url.format({
@@ -305,7 +303,7 @@ export default async function exportPage({
           page,
           serverless,
           !!serverComponents,
-          isAppPath
+          isAppDir
         )
         const ampState = {
           ampFirst: pageConfig?.amp === true,
@@ -372,7 +370,7 @@ export default async function exportPage({
           page,
           serverless,
           !!serverComponents,
-          isAppPath
+          isAppDir
         )
         curRenderOpts = {
           ...components,
@@ -395,8 +393,33 @@ export default async function exportPage({
           const { renderToHTMLOrFlight } =
             require('../server/app-render') as typeof import('../server/app-render')
 
+          const origFetch = (global as any).fetch
+          let fetchRevalidate: undefined | number = undefined
+          let hasNoStore = false
+
           try {
             curRenderOpts.params ||= {}
+            ;(global as any).fetch = (init: any, opts: any) => {
+              // TODO: use react context here so that we can detect
+              // accurately with concurrent renders
+              if (opts && typeof opts === 'object') {
+                // TODO: validate the option values here?
+                if (opts.cache === 'no-store') {
+                  hasNoStore = true
+                  throw new DynamicServerError(`no-store fetch ${init} ${path}`)
+                }
+
+                if (
+                  typeof opts.revalidate === 'number' &&
+                  (typeof fetchRevalidate === 'undefined' ||
+                    opts.revalidate < fetchRevalidate)
+                ) {
+                  fetchRevalidate = opts.revalidate
+                }
+              }
+              return origFetch(init, opts)
+            }
+
             const getResult = async () => {
               const result = await renderToHTMLOrFlight(
                 req as any,
@@ -441,8 +464,19 @@ export default async function exportPage({
               htmlFilepath.replace(/\.html$/, '.rsc'),
               flightData
             )
+            console.error({ page, fetchRevalidate, hasNoStore })
           } catch (err) {
-            // TODO: only tolerate dynamic data errors
+            if (!(err instanceof DynamicServerError)) {
+              throw err
+            }
+          } finally {
+            ;(global as any).fetch = origFetch
+          }
+
+          if (hasNoStore) {
+            results.fromBuildExportRevalidate = 0
+          } else if (typeof fetchRevalidate === 'number') {
+            results.fromBuildExportRevalidate = fetchRevalidate
           }
           return { ...results, duration: Date.now() - start }
         }

@@ -26,6 +26,7 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
+import { DynamicServerError } from '../client/components/hooks-server-context'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -51,6 +52,14 @@ export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
  */
 function interopDefault(mod: any) {
   return mod.default || mod
+}
+
+// tolerate dynamic server errors during prerendering so console
+// isn't spammed with unactionable errors
+function onError(err: any) {
+  if (!(err instanceof DynamicServerError)) {
+    console.error(err)
+  }
 }
 
 const rscCache = new Map()
@@ -227,6 +236,7 @@ function createServerComponentRenderer(
         serverComponentManifest,
         {
           context: serverContexts,
+          onError,
         }
       )
     }
@@ -447,9 +457,9 @@ export async function renderToHTMLOrFlight(
     // Empty so that the client-side router will do a full page navigation.
     const flightData: FlightData = pathname + (search ? `?${search}` : '')
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
-        createBufferedTransformStream()
-      )
+      renderToReadableStream(flightData, serverComponentManifest, {
+        onError,
+      }).pipeThrough(createBufferedTransformStream())
     )
   }
 
@@ -982,6 +992,7 @@ export async function renderToHTMLOrFlight(
     return new RenderResult(
       renderToReadableStream(flightData, serverComponentManifest, {
         context: serverContexts,
+        onError,
       }).pipeThrough(createBufferedTransformStream())
     )
   }
@@ -1093,6 +1104,9 @@ export async function renderToHTMLOrFlight(
         bootstrapScripts: buildManifest.rootMainFiles.map(
           (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
         ),
+      },
+      renderOpts: {
+        onError,
       },
     })
 

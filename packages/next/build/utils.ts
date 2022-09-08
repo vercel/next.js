@@ -833,7 +833,6 @@ export async function buildStaticPaths({
     encodedPaths: string[]
   }
 > {
-  console.error({ getStaticPaths, page })
   const prerenderPaths = new Set<string>()
   const encodedPrerenderPaths = new Set<string>()
   const _routeRegex = getRouteRegex(page)
@@ -1030,7 +1029,7 @@ export async function buildStaticPaths({
   }
 }
 
-type AppConfig = {
+export type AppConfig = {
   revalidate?: number | false
   dynamicParams?: true | false
   dynamic?: 'auto' | 'error' | 'force-static'
@@ -1045,52 +1044,52 @@ type GenerateParams = Array<{
   isLayout?: boolean
 }>
 
+const collectGenerateParams = (
+  segment: any,
+  parentSegments: string[] = [],
+  generateParams: GenerateParams = []
+): GenerateParams => {
+  if (!Array.isArray(segment)) return generateParams
+  const isLayout = !!segment[2]?.layout
+  const mod = isLayout ? segment[2]?.layout?.() : segment[2]?.page?.()
+
+  const result = {
+    isLayout,
+    segmentPath: `/${parentSegments.join('/')}${
+      segment[0] && parentSegments.length > 0 ? '/' : ''
+    }${segment[0]}`,
+    config: mod?.config,
+    getStaticPaths: mod?.getStaticPaths,
+    generateStaticParams: mod?.generateStaticParams,
+  }
+
+  if (segment[0]) {
+    parentSegments.push(segment[0])
+  }
+
+  if (result.config || result.generateStaticParams || result.getStaticPaths) {
+    generateParams.push(result)
+  }
+  return collectGenerateParams(
+    segment[1]?.children,
+    parentSegments,
+    generateParams
+  )
+}
+
 export async function buildAppStaticPaths({
-  tree,
   page,
   configFileName,
+  generateParams,
 }: {
-  tree: any
   page: string
   configFileName: string
+  generateParams: GenerateParams
 }) {
-  const collectGenerateParams = (
-    segment: any,
-    parentSegments: string[] = [],
-    generateParams: GenerateParams = []
-  ): GenerateParams => {
-    if (!Array.isArray(segment)) return generateParams
-    const isLayout = !!segment[2]?.layout
-    const mod = isLayout ? segment[2]?.layout?.() : segment[2]?.page?.()
-
-    const result = {
-      isLayout,
-      segmentPath: `/${parentSegments.join('/')}${
-        segment[0] && parentSegments.length > 0 ? '/' : ''
-      }${segment[0]}`,
-      config: mod?.config,
-      getStaticPaths: mod?.getStaticPaths,
-      generateStaticParams: mod?.generateStaticParams,
-    }
-
-    if (segment[0]) {
-      parentSegments.push(segment[0])
-    }
-
-    if (result.config || result.generateStaticParams || result.getStaticPaths) {
-      generateParams.push(result)
-    }
-    return collectGenerateParams(
-      segment[1]?.children,
-      parentSegments,
-      generateParams
-    )
-  }
-  const generateParams = collectGenerateParams(tree)
   const pageEntry = generateParams[generateParams.length - 1]
 
   // if the page has legacy getStaticPaths we call it like normal
-  if (pageEntry?.getStaticPaths) {
+  if (typeof pageEntry?.getStaticPaths === 'function') {
     return buildStaticPaths({
       page,
       configFileName,
@@ -1111,7 +1110,10 @@ export async function buildAppStaticPaths({
       if (idx === generateParams.length) {
         return paramsItems
       }
-      if (!curGenerate.generateStaticParams && idx < generateParams.length) {
+      if (
+        typeof curGenerate.generateStaticParams !== 'function' &&
+        idx < generateParams.length
+      ) {
         return buildParams(paramsItems, idx + 1)
       }
       hadGenerateParams = true
@@ -1200,6 +1202,7 @@ export async function isPageStatic({
   isNextImageImported?: boolean
   traceIncludes?: string[]
   traceExcludes?: string[]
+  appConfig?: AppConfig
 }> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
@@ -1211,6 +1214,7 @@ export async function isPageStatic({
       let prerenderRoutes: Array<string> | undefined
       let encodedPrerenderRoutes: Array<string> | undefined
       let prerenderFallback: boolean | 'blocking' | undefined
+      let appConfig: AppConfig = {}
 
       if (pageRuntime === SERVER_RUNTIME.edge) {
         const runtime = await getRuntimeContext({
@@ -1250,16 +1254,56 @@ export async function isPageStatic({
         | undefined
 
       if (pageType === 'app') {
+        const tree = componentsResult.ComponentMod.tree
+        const generateParams = collectGenerateParams(tree)
+
+        appConfig = generateParams.reduce(
+          (builtConfig: AppConfig, curGenParams): AppConfig => {
+            const {
+              dynamic,
+              fetchCache,
+              preferredRegion,
+              revalidate: curRevalidate,
+            } = curGenParams?.config || {}
+
+            // TODO: should conflicting configs here throw an error
+            // e.g. if layout defines one region but page defines another
+            if (typeof builtConfig.preferredRegion === 'undefined') {
+              builtConfig.preferredRegion = preferredRegion
+            }
+            if (typeof builtConfig.dynamic === 'undefined') {
+              builtConfig.dynamic = dynamic
+            }
+            if (typeof builtConfig.fetchCache === 'undefined') {
+              builtConfig.fetchCache = fetchCache
+            }
+
+            // any revalidate number overrides false
+            // shorter revalidate overrides longer (initially)
+            if (typeof builtConfig.revalidate === 'undefined') {
+              builtConfig.revalidate = curRevalidate
+            }
+            if (
+              typeof curRevalidate === 'number' &&
+              (typeof builtConfig.revalidate !== 'number' ||
+                curRevalidate < builtConfig.revalidate)
+            ) {
+              builtConfig.revalidate = curRevalidate
+            }
+            return builtConfig
+          },
+          {}
+        )
+
         if (isDynamicRoute(page)) {
-          const tree = componentsResult.ComponentMod.tree
           ;({
             paths: prerenderRoutes,
             fallback: prerenderFallback,
             encodedPaths: encodedPrerenderRoutes,
           } = await buildAppStaticPaths({
-            tree,
             page,
             configFileName,
+            generateParams,
           }))
         }
       } else {
@@ -1364,6 +1408,7 @@ export async function isPageStatic({
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
+        appConfig,
       }
     })
     .catch((err) => {

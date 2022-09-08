@@ -97,6 +97,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isServerComponentPage,
+  AppConfig,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -1070,7 +1071,9 @@ export default async function build(
       const additionalSsgPathsEncoded = new Map<string, Array<string>>()
       const appStaticPaths = new Map<string, Array<string>>()
       const appStaticPathsEncoded = new Map<string, Array<string>>()
+      const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
+      const appDefaultConfigs = new Map<string, AppConfig>()
       const pageTraceIncludes = new Map<string, Array<string>>()
       const pageTraceExcludes = new Map<string, Array<string>>()
       const pageInfos = new Map<string, PageInfo>()
@@ -1366,6 +1369,8 @@ export default async function build(
                     )
 
                     if (pageType === 'app' && originalAppPath) {
+                      appNormalizedPaths.set(originalAppPath, page)
+
                       if (
                         workerResult.encodedPrerenderRoutes &&
                         workerResult.prerenderRoutes
@@ -1388,6 +1393,10 @@ export default async function build(
                         // returned from generateStaticParams
                         appDynamicParamPaths.add(originalAppPath)
                       }
+                      appDefaultConfigs.set(
+                        originalAppPath,
+                        workerResult.appConfig || {}
+                      )
                       return
                     }
 
@@ -2115,6 +2124,26 @@ export default async function build(
           for (const page of staticPages) {
             const serverBundle = getPagePath(page, distDir, isLikeServerless)
             await promises.unlink(serverBundle)
+          }
+
+          for (const [originalAppPath, routes] of appStaticPaths) {
+            const page = appNormalizedPaths.get(originalAppPath) || ''
+
+            routes.forEach((route) => {
+              const revalidate = exportConfig.initialPageRevalidationMap[route]
+
+              console.log({ route, revalidate, page })
+
+              if (typeof revalidate !== 'undefined') {
+                finalPrerenderRoutes[route] = {
+                  initialRevalidateSeconds:
+                    exportConfig.initialPageRevalidationMap[route],
+                  srcRoute: page,
+                  // TODO: this needs to be the flight data path
+                  dataRoute: '',
+                }
+              }
+            })
           }
 
           const moveExportedPage = async (
