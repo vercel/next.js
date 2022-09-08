@@ -1,7 +1,11 @@
 use anyhow::Result;
-use swc_common::errors::{Handler, HANDLER};
-use swc_ecma_ast::{CallExpr, Expr, ExprOrSpread};
-use swc_ecma_visit::{self, Visit, VisitWith};
+use swc_core::{
+    common::errors::{Handler, HANDLER},
+    ecma::{
+        ast::{CallExpr, Expr, ExprOrSpread},
+        visit::{Visit, VisitWith},
+    },
+};
 use turbo_tasks::Value;
 use turbopack_core::{
     asset::AssetVc,

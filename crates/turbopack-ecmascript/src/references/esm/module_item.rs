@@ -1,12 +1,14 @@
 use std::mem::replace;
 
 use anyhow::Result;
-use swc_common::DUMMY_SP;
-use swc_ecma_ast::{
-    ClassDecl, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl, ExportDefaultExpr, FnDecl, Ident,
-    ModuleDecl, ModuleItem, Stmt,
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{
+        ClassDecl, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl, ExportDefaultExpr, FnDecl,
+        Ident, ModuleDecl, ModuleItem, Stmt,
+    },
+    quote,
 };
-use swc_ecma_quote::quote;
 use turbopack_core::chunk::ChunkingContextVc;
 
 use crate::{

@@ -1,10 +1,14 @@
 use std::{collections::BTreeMap, fmt::Display, mem::take};
 
 use indexmap::IndexSet;
-use swc_atoms::{js_word, JsWord};
-use swc_common::collections::AHashMap;
-use swc_ecma_ast::*;
-use swc_ecma_visit::{Visit, VisitWith};
+use swc_core::{
+    common::collections::AHashMap,
+    ecma::{
+        ast::*,
+        atoms::{js_word, JsWord},
+        visit::{Visit, VisitWith},
+    },
+};
 
 use super::{JsValue, ModuleValue};
 use crate::utils::unparen;

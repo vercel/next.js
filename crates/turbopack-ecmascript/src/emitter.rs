@@ -1,4 +1,4 @@
-use swc_common::{
+use swc_core::common::{
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
     source_map::Pos,
 };

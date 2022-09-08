@@ -1,6 +1,8 @@
 use anyhow::Result;
-use swc_ecma_ast::{Callee, ExprOrSpread};
-use swc_ecma_quote::quote_expr;
+use swc_core::{
+    ecma::ast::{Callee, ExprOrSpread},
+    quote_expr,
+};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     Value, ValueToString,

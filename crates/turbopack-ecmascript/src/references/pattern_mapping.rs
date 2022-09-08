@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use swc_ecma_ast::{Expr, Lit};
-use swc_ecma_quote::quote;
+use swc_core::{
+    ecma::ast::{Expr, Lit},
+    quote,
+};
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{

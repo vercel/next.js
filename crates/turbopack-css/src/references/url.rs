@@ -1,6 +1,8 @@
 use anyhow::Result;
-use swc_common::DUMMY_SP;
-use swc_css_ast::{Str, UrlValue};
+use swc_core::{
+    common::DUMMY_SP,
+    css::ast::{Str, UrlValue},
+};
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbopack_core::{
     asset::AssetVc,

@@ -1,7 +1,11 @@
 use anyhow::Result;
-use swc_common::DUMMY_SP;
-use swc_css_ast::*;
-use swc_css_codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit};
+use swc_core::{
+    common::DUMMY_SP,
+    css::{
+        ast::*,
+        codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit},
+    },
+};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     ValueToString,

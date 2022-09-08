@@ -1,10 +1,14 @@
 use anyhow::Result;
-use swc_common::{
-    errors::{Handler, HANDLER},
-    Globals, GLOBALS,
+use swc_core::{
+    common::{
+        errors::{Handler, HANDLER},
+        Globals, GLOBALS,
+    },
+    css::{
+        ast::{ImportPrelude, ImportPreludeHref, Url, UrlValue},
+        visit::{AstNodePath, AstParentKind, VisitAstPath, VisitWithPath},
+    },
 };
-use swc_css_ast::{ImportPrelude, ImportPreludeHref, Url, UrlValue};
-use swc_css_visit::{self, AstNodePath, AstParentKind, VisitAstPath, VisitWithPath};
 use turbo_tasks::Value;
 use turbopack_core::{
     asset::AssetVc,

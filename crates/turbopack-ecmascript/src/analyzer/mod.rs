@@ -10,9 +10,13 @@ use std::{
 
 use indexmap::IndexSet;
 use num_bigint::BigInt;
-use swc_atoms::{Atom, JsWord};
-use swc_common::Mark;
-use swc_ecma_ast::{Id, Ident, Lit};
+use swc_core::{
+    common::Mark,
+    ecma::{
+        ast::{Id, Ident, Lit},
+        atoms::{Atom, JsWord},
+    },
+};
 use url::Url;
 
 use self::imports::ImportAnnotations;
@@ -230,8 +234,8 @@ impl From<String> for JsValue {
     }
 }
 
-impl From<swc_ecma_ast::Str> for JsValue {
-    fn from(v: swc_ecma_ast::Str) -> Self {
+impl From<swc_core::ecma::ast::Str> for JsValue {
+    fn from(v: swc_core::ecma::ast::Str) -> Self {
         ConstantValue::StrWord(v.value).into()
     }
 }
@@ -1956,11 +1960,13 @@ pub mod test_utils {
 mod tests {
     use std::{path::PathBuf, sync::Mutex, time::Instant};
 
-    use swc_common::Mark;
-    use swc_ecma_ast::EsVersion;
-    use swc_ecma_parser::parse_file_as_program;
-    use swc_ecma_transforms_base::resolver;
-    use swc_ecma_visit::VisitMutWith;
+    use swc_core::{
+        common::Mark,
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
+            visit::VisitMutWith,
+        },
+    };
     use testing::NormalizedOutput;
     use turbo_tasks::{util::FormatDuration, Value};
     use turbopack_core::{

@@ -1,8 +1,10 @@
 use anyhow::Result;
 use lazy_static::lazy_static;
-use swc_common::DUMMY_SP;
-use swc_ecma_ast::{Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Script, Stmt};
-use swc_ecma_quote::quote;
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Script, Stmt},
+    quote,
+};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     Value, ValueToString,

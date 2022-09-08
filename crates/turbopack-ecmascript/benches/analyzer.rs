@@ -6,11 +6,15 @@ use std::{
 };
 
 use criterion::{Bencher, BenchmarkId, Criterion};
-use swc_common::{FilePathMapping, Mark, SourceMap, GLOBALS};
-use swc_ecma_ast::{EsVersion, Program};
-use swc_ecma_parser::parse_file_as_program;
-use swc_ecma_transforms_base::resolver;
-use swc_ecma_visit::VisitMutWith;
+use swc_core::{
+    common::{FilePathMapping, Mark, SourceMap, GLOBALS},
+    ecma::{
+        ast::{EsVersion, Program},
+        parser::parse_file_as_program,
+        transforms::base::resolver,
+        visit::VisitMutWith,
+    },
+};
 use turbo_tasks::Value;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
@@ -41,7 +45,7 @@ pub fn benchmark(c: &mut Criterion) {
 
             let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
             let fm = cm.load_file(&input).unwrap();
-            GLOBALS.set(&swc_common::Globals::new(), || {
+            GLOBALS.set(&swc_core::common::Globals::new(), || {
                 let mut program = parse_file_as_program(
                     &fm,
                     Default::default(),

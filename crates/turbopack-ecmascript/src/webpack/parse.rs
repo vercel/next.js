@@ -1,12 +1,16 @@
 use std::borrow::Cow;
 
 use anyhow::Result;
-use swc_common::GLOBALS;
-use swc_ecma_ast::{
-    ArrowExpr, AssignOp, BinExpr, BinaryOp, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt, FnExpr,
-    Lit, Module, ModuleItem, Program, Script, Stmt,
+use swc_core::{
+    common::GLOBALS,
+    ecma::{
+        ast::{
+            ArrowExpr, AssignOp, BinExpr, BinaryOp, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
+            FnExpr, Lit, Module, ModuleItem, Program, Script, Stmt,
+        },
+        visit::{Visit, VisitWith},
+    },
 };
-use swc_ecma_visit::{self, Visit, VisitWith};
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::asset::AssetVc;

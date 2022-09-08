@@ -7,18 +7,24 @@ use std::{
 };
 
 use anyhow::Result;
-use swc_common::{
-    comments::{SingleThreadedComments, SingleThreadedCommentsMapInner},
-    errors::{Handler, HANDLER},
-    input::StringInput,
-    sync::Lrc,
-    FileName, Globals, Mark, SourceMap, GLOBALS,
+use swc_core::{
+    common::{
+        comments::{SingleThreadedComments, SingleThreadedCommentsMapInner},
+        errors::{Handler, HANDLER},
+        input::StringInput,
+        sync::Lrc,
+        FileName, Globals, Mark, SourceMap, GLOBALS,
+    },
+    ecma::{
+        ast::{EsVersion, Program},
+        parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig},
+        transforms::{
+            base::{helpers::Helpers, resolver},
+            react::react,
+        },
+        visit::VisitMutWith,
+    },
 };
-use swc_ecma_ast::{EsVersion, Program};
-use swc_ecma_parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig};
-use swc_ecma_transforms_base::{helpers::Helpers, resolver};
-use swc_ecma_transforms_react::react;
-use swc_ecma_visit::VisitMutWith;
 use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::asset::AssetVc;
@@ -219,7 +225,7 @@ pub async fn parse(
                                         false,
                                     ));
 
-                                    swc_ecma_transforms_base::helpers::HELPERS.set(
+                                    swc_core::ecma::transforms::base::helpers::HELPERS.set(
                                         &Helpers::new(true),
                                         || {
                                             for transform in transforms.iter() {
@@ -228,13 +234,13 @@ pub async fn parse(
                                                         parsed_program.visit_mut_with(&mut react(
                                                             cm.clone(),
                                                             Some(comments.clone()),
-                                                            swc_ecma_transforms_react::Options {
+                                                            swc_core::ecma::transforms::react::Options {
                                                                 runtime: Some(
-                                                                    swc_ecma_transforms_react::Runtime::Automatic,
+                                                                    swc_core::ecma::transforms::react::Runtime::Automatic,
                                                                 ),
                                                                 refresh: if *refresh {
                                                                     Some(
-                                                                        swc_ecma_transforms_react::RefreshOptions {
+                                                                        swc_core::ecma::transforms::react::RefreshOptions {
                                                                             ..Default::default()
                                                                         }
                                                                     )
@@ -246,14 +252,14 @@ pub async fn parse(
                                                     }
                                                     EcmascriptInputTransform::CommonJs => {
                                                         parsed_program.visit_mut_with(
-                                                            &mut swc_ecma_transforms_module::common_js(
+                                                            &mut swc_core::ecma::transforms::module::common_js(
                                                                 unresolved_mark,
-                                                                swc_ecma_transforms_module::util::Config {
+                                                                swc_core::ecma::transforms::module::util::Config {
                                                                     allow_top_level_this: true,
-                                                                    import_interop: Some(swc_ecma_transforms_module::util::ImportInterop::Swc),
+                                                                    import_interop: Some(swc_core::ecma::transforms::module::util::ImportInterop::Swc),
                                                                     ..Default::default()
                                                                 },
-                                                                swc_ecma_transforms_base::feature::FeatureFlag::all(),
+                                                                swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
                                                                 Some(comments.clone()),
                                                             ),
                                                         );

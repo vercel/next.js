@@ -3,10 +3,14 @@ use std::{io::stdin, sync::Arc};
 use anyhow::Result;
 use clap::Parser;
 use regex::{NoExpand, Regex};
-use swc::{config::IsModule, try_with_handler, Compiler, HandlerOpts};
-use swc_common::{errors::ColorConfig, source_map::FileName, SourceMap};
-use swc_ecma_ast::EsVersion;
-use swc_ecma_parser::{Syntax, TsConfig};
+use swc_core::{
+    base::{config::IsModule, try_with_handler, Compiler, HandlerOpts},
+    common::{errors::ColorConfig, source_map::FileName, SourceMap},
+    ecma::{
+        ast::EsVersion,
+        parser::{Syntax, TsConfig},
+    },
+};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]

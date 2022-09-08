@@ -1,4 +1,4 @@
-use swc_ecma_visit::{AstParentKind, VisitMut};
+use swc_core::ecma::visit::{AstParentKind, VisitMut};
 use turbopack_core::chunk::ChunkingContextVc;
 
 use crate::chunk::EcmascriptChunkContextVc;
@@ -53,7 +53,7 @@ pub fn path_to(
 /// path exactly. Otherwise, the visitor will visit the closest matching parent
 /// node in the path.
 ///
-/// Refer to the [swc_ecma_visit::VisitMut] trait for a list of all
+/// Refer to the [swc_core::ecma::visit::VisitMut] trait for a list of all
 /// possible visit methods.
 #[macro_export]
 macro_rules! create_visitor {
@@ -62,26 +62,26 @@ macro_rules! create_visitor {
     };
     ($ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {
         $crate::create_visitor!(__ $crate::code_gen::path_to(&$ast_path, |n| {
-            matches!(n, swc_ecma_visit::AstParentKind::$ty(_))
+            matches!(n, swc_core::ecma::visit::AstParentKind::$ty(_))
         }), $name($arg: &mut $ty) $b)
     };
     (__ $ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {{
-        struct Visitor<T: Fn(&mut swc_ecma_ast::$ty) + Send + Sync> {
+        struct Visitor<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> {
             $name: T,
         }
 
-        impl<T: Fn(&mut swc_ecma_ast::$ty) + Send + Sync> $crate::code_gen::VisitorFactory
+        impl<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::VisitorFactory
             for Box<Visitor<T>>
         {
-            fn create<'a>(&'a self) -> Box<dyn swc_ecma_visit::VisitMut + Send + Sync + 'a> {
+            fn create<'a>(&'a self) -> Box<dyn swc_core::ecma::visit::VisitMut + Send + Sync + 'a> {
                 box &**self
             }
         }
 
-        impl<'a, T: Fn(&mut swc_ecma_ast::$ty) + Send + Sync> swc_ecma_visit::VisitMut
+        impl<'a, T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> swc_core::ecma::visit::VisitMut
             for &'a Visitor<T>
         {
-            fn $name(&mut self, $arg: &mut swc_ecma_ast::$ty) {
+            fn $name(&mut self, $arg: &mut swc_core::ecma::ast::$ty) {
                 (self.$name)($arg);
             }
         }
@@ -89,27 +89,27 @@ macro_rules! create_visitor {
         (
             $ast_path,
             box box Visitor {
-                $name: move |$arg: &mut swc_ecma_ast::$ty| $b,
+                $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
             } as Box<dyn $crate::code_gen::VisitorFactory>,
         )
     }};
     (visit_mut_program($arg:ident: &mut Program) $b:block) => {{
-        struct Visitor<T: Fn(&mut swc_ecma_ast::Program) + Send + Sync> {
+        struct Visitor<T: Fn(&mut swc_core::ecma::ast::Program) + Send + Sync> {
             visit_mut_program: T,
         }
 
-        impl<T: Fn(&mut swc_ecma_ast::Program) + Send + Sync> $crate::code_gen::VisitorFactory
+        impl<T: Fn(&mut swc_core::ecma::ast::Program) + Send + Sync> $crate::code_gen::VisitorFactory
             for Box<Visitor<T>>
         {
-            fn create<'a>(&'a self) -> Box<dyn swc_ecma_visit::VisitMut + Send + Sync + 'a> {
+            fn create<'a>(&'a self) -> Box<dyn swc_core::ecma::visit::VisitMut + Send + Sync + 'a> {
                 box &**self
             }
         }
 
-        impl<'a, T: Fn(&mut swc_ecma_ast::Program) + Send + Sync> swc_ecma_visit::VisitMut
+        impl<'a, T: Fn(&mut swc_core::ecma::ast::Program) + Send + Sync> swc_core::ecma::visit::VisitMut
             for &'a Visitor<T>
         {
-            fn visit_mut_program(&mut self, $arg: &mut swc_ecma_ast::Program) {
+            fn visit_mut_program(&mut self, $arg: &mut swc_core::ecma::ast::Program) {
                 (self.visit_mut_program)($arg);
             }
         }
@@ -117,7 +117,7 @@ macro_rules! create_visitor {
         (
             Vec::new(),
             box box Visitor {
-                visit_mut_program: move |$arg: &mut swc_ecma_ast::Program| $b,
+                visit_mut_program: move |$arg: &mut swc_core::ecma::ast::Program| $b,
             } as Box<dyn $crate::code_gen::VisitorFactory>,
         )
     }};

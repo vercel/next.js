@@ -1,9 +1,14 @@
 use anyhow::Result;
-use swc_common::DUMMY_SP;
-use swc_ecma_ast::{
-    ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Prop, PropName, Str,
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::{
+        ast::{
+            ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Prop,
+            PropName, Str,
+        },
+        visit::fields::{ExprField, PropField},
+    },
 };
-use swc_ecma_visit::fields::{ExprField, PropField};
 use turbopack_core::chunk::ChunkingContextVc;
 
 use super::EsmAssetReferenceVc;
@@ -70,7 +75,7 @@ impl CodeGenerateable for EsmBinding {
 
         loop {
             match ast_path.last() {
-                Some(swc_ecma_visit::AstParentKind::Expr(ExprField::Ident)) => {
+                Some(swc_core::ecma::visit::AstParentKind::Expr(ExprField::Ident)) => {
                     ast_path.pop();
                     visitors.push(
                         create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
@@ -79,7 +84,7 @@ impl CodeGenerateable for EsmBinding {
                     );
                     break;
                 }
-                Some(swc_ecma_visit::AstParentKind::Prop(PropField::Shorthand)) => {
+                Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
                     ast_path.pop();
                     visitors.push(
                         create_visitor!(ast_path, visit_mut_prop(prop: &mut Prop) {

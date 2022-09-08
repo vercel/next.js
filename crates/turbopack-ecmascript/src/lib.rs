@@ -32,9 +32,13 @@ use parse::{parse, ParseResult};
 pub use parse::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use path_visitor::ApplyVisitors;
 use references::AnalyzeEcmascriptModuleResult;
-use swc_common::GLOBALS;
-use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
-use swc_ecma_visit::{VisitMutWith, VisitMutWithPath};
+use swc_core::{
+    common::GLOBALS,
+    ecma::{
+        codegen::{text_writer::JsWriter, Emitter},
+        visit::{VisitMutWith, VisitMutWithPath},
+    },
+};
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
@@ -245,14 +249,14 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 for visitor in root_visitors {
                     program.visit_mut_with(&mut visitor.create());
                 }
-                program.visit_mut_with(&mut swc_ecma_transforms_base::fixer::fixer(None));
+                program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
             });
 
             let mut bytes =
                 format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
 
             let mut emitter = Emitter {
-                cfg: swc_ecma_codegen::Config {
+                cfg: swc_core::ecma::codegen::Config {
                     ..Default::default()
                 },
                 cm: source_map.clone(),

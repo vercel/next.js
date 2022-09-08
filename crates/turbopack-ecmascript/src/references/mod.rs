@@ -17,14 +17,18 @@ use std::{
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use swc_common::{
-    comments::CommentKind,
-    errors::{DiagnosticId, Handler, HANDLER},
-    pass::AstNodePath,
-    Span, Spanned, GLOBALS,
+use swc_core::{
+    common::{
+        comments::CommentKind,
+        errors::{DiagnosticId, Handler, HANDLER},
+        pass::AstNodePath,
+        Span, Spanned, GLOBALS,
+    },
+    ecma::{
+        ast::*,
+        visit::{AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath},
+    },
 };
-use swc_ecma_ast::*;
-use swc_ecma_visit::{AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath};
 use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{

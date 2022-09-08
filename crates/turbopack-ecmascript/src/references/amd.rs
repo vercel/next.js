@@ -1,6 +1,8 @@
 use anyhow::Result;
-use swc_common::DUMMY_SP;
-use swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident};
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident},
+};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     TryJoinIterExt, Value, ValueToString,

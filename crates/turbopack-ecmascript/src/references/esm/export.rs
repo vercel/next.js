@@ -5,12 +5,14 @@ use std::{
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use swc_common::DUMMY_SP;
-use swc_ecma_ast::{
-    ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Module, ModuleItem,
-    ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Str,
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{
+        ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Module,
+        ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Str,
+    },
+    quote,
 };
-use swc_ecma_quote::quote;
 use turbo_tasks::{
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,

@@ -1,6 +1,8 @@
 use json::codegen::Generator;
-use swc_common::DUMMY_SP;
-use swc_ecma_ast::{Expr, Lit, Str};
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{Expr, Lit, Str},
+};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{ConstantNumber, ConstantValue, JsValue};
