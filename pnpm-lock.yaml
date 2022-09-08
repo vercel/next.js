@@ -419,7 +419,7 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.6-canary.10
+      '@next/env': 12.2.6-canary.12
       '@next/polyfill-module': workspace:*
       '@next/polyfill-nomodule': workspace:*
       '@next/react-dev-overlay': workspace:*
