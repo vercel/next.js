@@ -27,7 +27,7 @@ import type { NextConfig } from './config-shared'
 import type { DynamicRoutes, PageChecker } from './router'
 
 import fs from 'fs'
-import { join, relative, resolve, sep } from 'path'
+import path, { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { isDynamicRoute } from '../shared/lib/router/utils'
@@ -2033,8 +2033,8 @@ export default class NextNodeServer extends BaseServer {
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    const { query, page, req } = params
-    const { pathname } = parseUrl(req.url)
+    const { query, page } = params
+
     await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     middlewareInfo = this.getEdgeFunctionInfo({
       page,
@@ -2054,11 +2054,11 @@ export default class NextNodeServer extends BaseServer {
       params.req.headers['x-nextjs-data'] = '1'
     }
 
-    let normalizedPathname = params.page
+    let normalizedPathname = normalizeAppPath(page)
     if (isDynamicRoute(normalizedPathname)) {
-      const routeRegex = getNamedRouteRegex(params.page)
+      const routeRegex = getNamedRouteRegex(normalizedPathname)
       normalizedPathname = interpolateDynamicPath(
-        params.page,
+        normalizedPathname,
         Object.assign({}, params.params, query),
         routeRegex
       )
@@ -2066,7 +2066,7 @@ export default class NextNodeServer extends BaseServer {
 
     const url = `${getRequestMeta(params.req, '_protocol')}://${
       this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${pathname}${
+    }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
       queryString ? `?${queryString}` : ''
     }`
 

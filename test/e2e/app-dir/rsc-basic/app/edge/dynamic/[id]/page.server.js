@@ -2,6 +2,6 @@ export default function page() {
   return 'dynamic route [id] page'
 }
 
-export const runtime = {
+export const config = {
   runtime: 'experimental-edge',
 }
