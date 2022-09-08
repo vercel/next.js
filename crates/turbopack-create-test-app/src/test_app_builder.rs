@@ -2,10 +2,11 @@ use std::{
     collections::VecDeque,
     fs::{create_dir_all, File},
     io::prelude::*,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
+use tempfile::TempDir;
 
 fn decide(remaining: usize, min_remaining_decisions: usize) -> bool {
     if remaining == 0 {
@@ -52,12 +53,14 @@ impl Default for TestAppBuilder {
 }
 
 impl TestAppBuilder {
-    pub fn build(&self) -> Result<PathBuf> {
-        let path = if let Some(target) = self.target.clone() {
-            target
+    pub fn build(&self) -> Result<TestApp> {
+        let target = if let Some(target) = self.target.clone() {
+            TestAppTarget::Set(target)
         } else {
-            tempfile::tempdir().context("creating tempdir")?.into_path()
+            TestAppTarget::Temp(tempfile::tempdir().context("creating tempdir")?)
         };
+        let app = TestApp { target };
+        let path = app.path();
         let src = path.join("src");
         create_dir_all(&src).context("creating src dir")?;
 
@@ -181,6 +184,9 @@ import { createRoot } from "react-dom/client";
 import Triangle from "./triangle.jsx";
 
 function App() {
+    React.useEffect(() => {
+        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
+    })
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ }}>
         <Triangle style={{ fill: "white" }}/>
     </svg>
@@ -204,8 +210,11 @@ createRoot(root).render(<App />);
 import Triangle from "../triangle.jsx";
 
 export default function Page() {
+    React.useEffect(() => {
+        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
+    })
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
-    <Triangle style={{ fill: "white" }}/>
+        <Triangle style={{ fill: "white" }}/>
     </svg>
 }
 "#;
@@ -219,8 +228,11 @@ export default function Page() {
 import Triangle from "../triangle.jsx";
 
 export default function Page() {
+    React.useEffect(() => {
+        globalThis.__turbopackBenchBinding && globalThis.__turbopackBenchBinding("Hydration done");
+    })
     return <svg height="100%" viewBox="-5 -4.33 10 8.66" style={{ backgroundColor: "black" }}>
-    <Triangle style={{ fill: "white" }}/>
+        <Triangle style={{ fill: "white" }}/>
     </svg>
 }
 
@@ -294,6 +306,27 @@ export function getStaticProps() {
                 .context("writing package.json")?;
         }
 
-        Ok(path)
+        Ok(app)
+    }
+}
+
+#[derive(Debug)]
+enum TestAppTarget {
+    Set(PathBuf),
+    Temp(TempDir),
+}
+
+#[derive(Debug)]
+pub struct TestApp {
+    target: TestAppTarget,
+}
+
+impl TestApp {
+    /// Returns the path to the directory containing the app.
+    pub fn path(&self) -> &Path {
+        match &self.target {
+            TestAppTarget::Set(target) => target.as_path(),
+            TestAppTarget::Temp(target) => target.path(),
+        }
     }
 }

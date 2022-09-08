@@ -42,6 +42,7 @@ fn main() -> Result<()> {
             package_json: args.package_json
         }
         .build()?
+        .path()
         .display()
     );
 
