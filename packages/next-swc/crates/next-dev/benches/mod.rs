@@ -28,7 +28,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbopack_create_test_app::test_app_builder::{TestApp, TestAppBuilder};
+use turbopack_create_test_app::test_app_builder::{PackageJsonConfig, TestApp, TestAppBuilder};
 use url::Url;
 
 mod bundlers;
@@ -135,7 +135,7 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, wait_for_hydration: b
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for bundler in retry_default((), |_| get_bundlers()).expect("failed to get bundlers") {
+    for bundler in get_bundlers() {
         for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
             g.bench_with_input(
@@ -178,7 +178,7 @@ fn bench_simple_file_change(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for bundler in retry_default((), |_| get_bundlers()).expect("failed to get bundlers") {
+    for bundler in get_bundlers() {
         for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
             g.bench_with_input(
@@ -265,7 +265,7 @@ fn bench_restart(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for bundler in retry_default((), |_| get_bundlers()).expect("failed to get bundlers") {
+    for bundler in get_bundlers() {
         for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
 
@@ -512,7 +512,9 @@ fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
     let test_app = TestAppBuilder {
         module_count,
         directories_count: module_count / 20,
-        package_json: true,
+        package_json: Some(PackageJsonConfig {
+            react_version: bundler.react_version().to_string(),
+        }),
         ..Default::default()
     }
     .build()
