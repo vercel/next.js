@@ -763,7 +763,6 @@ export default class NextNodeServer extends BaseServer {
           params,
           page,
           appPaths: null,
-          isAppPath: false,
         })
 
         if (handledAsEdgeFunction) {
@@ -913,7 +912,6 @@ export default class NextNodeServer extends BaseServer {
             params: ctx.renderOpts.params,
             page,
             appPaths,
-            isAppPath,
           })
           return null
         }
@@ -2031,12 +2029,12 @@ export default class NextNodeServer extends BaseServer {
     params: Params | undefined
     page: string
     appPaths: string[] | null
-    isAppPath: boolean
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    const page = params.page
+    const { query, page } = params
+
     await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     middlewareInfo = this.getEdgeFunctionInfo({
       page,
@@ -2048,21 +2046,20 @@ export default class NextNodeServer extends BaseServer {
     }
 
     // For middleware to "fetch" we must always provide an absolute URL
-    const isDataReq = !!params.query.__nextDataReq
-    const query = urlQueryToSearchParams(params.query).toString()
-    const locale = params.query.__nextLocale
-    // Use original pathname (without `/page`) instead of appPath for url
-    let normalizedPathname = params.page
+    const locale = query.__nextLocale
+    const isDataReq = !!query.__nextDataReq
+    const queryString = urlQueryToSearchParams(query).toString()
 
     if (isDataReq) {
       params.req.headers['x-nextjs-data'] = '1'
     }
 
+    let normalizedPathname = normalizeAppPath(page)
     if (isDynamicRoute(normalizedPathname)) {
-      const routeRegex = getNamedRouteRegex(params.page)
+      const routeRegex = getNamedRouteRegex(normalizedPathname)
       normalizedPathname = interpolateDynamicPath(
-        params.page,
-        Object.assign({}, params.params, params.query),
+        normalizedPathname,
+        Object.assign({}, params.params, query),
         routeRegex
       )
     }
@@ -2070,7 +2067,7 @@ export default class NextNodeServer extends BaseServer {
     const url = `${getRequestMeta(params.req, '_protocol')}://${
       this.hostname
     }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
-      query ? `?${query}` : ''
+      queryString ? `?${queryString}` : ''
     }`
 
     if (!url.startsWith('http')) {
