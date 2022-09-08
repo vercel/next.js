@@ -7,11 +7,11 @@ description: Try the latest Image Optimization with the new `next/future/image` 
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                                     |
-| --------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `v12.3.0` | `next/future/image` component stable. `remotePatterns` config stable. `unoptimized` config stable. `alt` property required. |
-| `v12.2.4` | `fill` property added.                                                                                                      |
-| `v12.2.0` | Experimental `next/future/image` component introduced.                                                                      |
+| Version   | Changes                                                                                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.3.0` | `next/future/image` component stable. `remotePatterns` config stable. `unoptimized` config stable. `alt` property required. `onLoadingComplete` receives `<img>` |
+| `v12.2.4` | `fill` property added.                                                                                                                                           |
+| `v12.2.0` | Experimental `next/future/image` component introduced.                                                                                                           |
 
 </details>
 
@@ -33,6 +33,7 @@ Compared to `next/image`, the new `next/future/image` component has the followin
   - Removes `lazyRoot` prop since there is no native equivalent
 - Removes `loader` config in favor of [`loader`](#loader) prop
 - Changed `alt` prop from optional to required
+- Changed `onLoadingComplete` callback to receive reference to `<img>` element
 
 ## Known Browser Bugs
 
@@ -306,10 +307,7 @@ Also keep in mind that the required `width` and `height` props can interact with
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
-The callback function will be called with one argument, an object with the following properties:
-
-- [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
-- [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
+The callback function will be called with one argument, a reference to the underlying `<img>` element.
 
 ### onLoad
 
