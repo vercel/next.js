@@ -340,6 +340,20 @@ describe('app dir - react server components', () => {
     expect(head).toMatch(/{color:(\s*)blue;?}/)
   })
 
+  it('should stick to the url without trailing /page suffix', async () => {
+    const browser = await webdriver(next.url, '/edge/dynamic')
+    const indexUrl = await browser.url()
+
+    await browser.loadPage(`${next.url}/edge/dynamic/123`, {
+      disableCache: false,
+      beforePageLoad: null,
+    })
+
+    const dynamicRouteUrl = await browser.url()
+    expect(indexUrl).toBe(`${next.url}/edge/dynamic`)
+    expect(dynamicRouteUrl).toBe(`${next.url}/edge/dynamic/123`)
+  })
+
   it('should support streaming for flight response', async () => {
     await fetchViaHTTP(next.url, '/?__flight__=1').then(async (response) => {
       const result = await resolveStreamResponse(response)

@@ -7,4 +7,14 @@ module.exports = {
     appDir: true,
     serverComponents: true,
   },
+  rewrites: async () => {
+    return {
+      afterFiles: [
+        {
+          source: '/rewritten-to-edge-dynamic',
+          destination: '/edge/dynamic',
+        },
+      ],
+    }
+  },
 }
