@@ -1,7 +1,6 @@
 import { stringify } from 'querystring'
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { clientComponentRegex } from '../loaders/utils'
 import {
   getInvalidator,
   entries,
@@ -240,7 +239,8 @@ export class FlightClientEntryPlugin {
       visitedBySegment[layoutOrPageRequest].add(modRequest)
 
       const isCSS = regexCSS.test(modRequest)
-      const isClientComponent = clientComponentRegex.test(modRequest)
+      const rscModuleType = mod.buildInfo.rsc?.type
+      const isClientComponent = rscModuleType === 'client-entry'
 
       if (isCSS) {
         serverCSSImports[layoutOrPageRequest] =

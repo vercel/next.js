@@ -6,8 +6,10 @@
  */
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { clientComponentRegex } from '../loaders/utils'
+import {
+  FLIGHT_MANIFEST,
+  RSC_CLIENT_ENTRY,
+} from '../../../shared/lib/constants'
 import { relative } from 'path'
 
 // This is the module that will be used to anchor all client references to.
@@ -176,11 +178,10 @@ export class FlightManifestPlugin {
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        if (!clientComponentRegex.test(resource)) {
-          return
-        }
+        const rscType = mod.buildInfo.rsc?.type
+        if (rscType !== RSC_CLIENT_ENTRY) return
 
-        if (/\/(page|layout)\.client\.(ts|js)x?$/.test(resource)) {
+        if (/\/(page|layout)\.(ts|js)x?$/.test(resource)) {
           entryFilepath = resource
         }
 

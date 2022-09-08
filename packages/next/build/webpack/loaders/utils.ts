@@ -24,33 +24,3 @@ export function buildExports(moduleExports: any, isESM: boolean) {
   })
   return ret
 }
-
-// Special cases for Next.js APIs that are considered as client components:
-// - .client.[ext]
-// - next built-in client components
-// - .[imageExt]
-export const clientComponentRegex = new RegExp(
-  '(' +
-    `\\.client(\\.(${defaultJsFileExtensions.join('|')}))?|` +
-    `next[\\\\/](${nextClientComponents.join('|')})(\\.js)?|` +
-    `\\.(${imageExtensions.join('|')})` +
-    ')$'
-)
-
-export const serverComponentRegex = new RegExp(
-  `\\.server(\\.(${defaultJsFileExtensions.join('|')}))?$`
-)
-
-export async function loadEdgeFunctionConfigFromFile(
-  absolutePagePath: string,
-  resolve: (context: string, request: string) => Promise<string>
-) {
-  const pageFilePath = await resolve('/', absolutePagePath)
-  return (
-    await getPageStaticInfo({
-      nextConfig: {},
-      pageFilePath,
-      isDev: false,
-    })
-  ).middleware
-}

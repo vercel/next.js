@@ -1151,11 +1151,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const serverComponentCodeCondition = {
-    test: serverComponentsRegex,
-    include: [dir, /next[\\/]dist[\\/]pages/],
-  }
-
   const rscSharedRegex =
     /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context|flush-effects)\.js|node_modules\/styled-jsx\/)/
 
@@ -1451,8 +1446,7 @@ export default async function getBaseWebpackConfig(
         'next-image-loader',
         'next-serverless-loader',
         'next-style-loader',
-        'next-flight-client-loader',
-        'next-flight-server-loader',
+        'next-flight-loader',
         'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
@@ -1490,25 +1484,23 @@ export default async function getBaseWebpackConfig(
         ...(hasServerComponents
           ? isNodeServer || isEdgeServer
             ? [
-                // RSC server compilation loaders
+                // Match page or layout, start applying from them
                 {
-                  ...serverComponentCodeCondition,
+                  test: /(page|layout)\.(tsx|ts|js|cjs|mjs|jsx)$/,
+                  include: [dir],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {
-                    loader: 'next-flight-server-loader',
+                    loader: 'next-flight-loader',
                   },
                 },
-                // {
-                //   test: clientComponentRegex,
-                //   issuerLayer: WEBPACK_LAYERS.server,
-                //   use: {
-                //     loader: 'next-flight-client-loader',
-                //   },
-                // },
-                // _app should be treated as a client component as well as all its dependencies.
+                // Match next dist files for internal client/server components
                 {
-                  test: new RegExp(`_app\\.(${rawPageExtensions.join('|')})$`),
-                  layer: WEBPACK_LAYERS.client,
+                  test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+                  include: [/next[\\/]dist[\\/]/],
+                  issuerLayer: WEBPACK_LAYERS.server,
+                  use: {
+                    loader: 'next-flight-loader',
+                  },
                 },
               ]
             : []

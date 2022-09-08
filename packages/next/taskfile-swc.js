@@ -109,7 +109,14 @@ module.exports = function (task) {
       }
 
       const source = file.data.toString('utf-8')
-      const output = yield transform(source, options)
+      let output = yield transform(source, options)
+
+      const hasClientEntry = /^['"]client['"]/.test(source)
+      if (options.filename.includes('.client.')) {
+        console.log('hasClientEntry', options.filename, hasClientEntry)
+        output.code = (hasClientEntry ? `"client";\n` : '\n') + output.code
+      }
+
       const ext = path.extname(file.base)
 
       // Make sure the output content keeps the `"client"` directive.
