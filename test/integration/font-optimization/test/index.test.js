@@ -26,16 +26,6 @@ async function getBuildId(appDir) {
   return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
 }
 
-const startServerlessEmulator = async (dir, port, opts = {}) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId(dir) }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env, false, opts)
-}
-
 describe('Font Optimization', () => {
   describe.each([
     [
@@ -54,22 +44,22 @@ describe('Font Optimization', () => {
       ],
       'https://fonts.gstatic.com',
     ],
-    // [
-    //   'typekit',
-    //   [
-    //     'https://use.typekit.net/plm1izr.css',
-    //     'https://use.typekit.net/erd0sed.css',
-    //     'https://use.typekit.net/ucs7mcf.css',
-    //     'https://use.typekit.net/ucs7mcf.css',
-    //   ],
-    //   [
-    //     /<style data-href="https:\/\/use.typekit.net\/plm1izr.css">.*<\/style>/,
-    //     /<style data-href="https:\/\/use.typekit.net\/erd0sed.css">.*<\/style>/,
-    //     /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
-    //     /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
-    //   ],
-    //   'https://use.typekit.net',
-    // ],
+    [
+      'typekit',
+      [
+        'https://use.typekit.net/plm1izr.css',
+        'https://use.typekit.net/erd0sed.css',
+        'https://use.typekit.net/ucs7mcf.css',
+        'https://use.typekit.net/ucs7mcf.css',
+      ],
+      [
+        /<style data-href="https:\/\/use.typekit.net\/plm1izr.css">.*<\/style>/,
+        /<style data-href="https:\/\/use.typekit.net\/erd0sed.css">.*<\/style>/,
+        /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
+        /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
+      ],
+      'https://use.typekit.net',
+    ],
   ])(
     'with-%s',
     (
@@ -250,50 +240,6 @@ describe('Font Optimization', () => {
         runTests()
       })
 
-      // describe('Font optimization for serverless apps', () => {
-      //   const origNextConfig = fs.readFileSync(nextConfig)
-
-      //   beforeAll(async () => {
-      //     await fs.writeFile(
-      //       nextConfig,
-      //       `module.exports = ({ target: 'serverless', cleanDistDir: false })`,
-      //       'utf8'
-      //     )
-      //     await nextBuild(appDir)
-      //     appPort = await findPort()
-      //     app = await nextStart(appDir, appPort)
-      //     builtServerPagesDir = join(appDir, '.next', 'serverless')
-      //     builtPage = (file) => join(builtServerPagesDir, file)
-      //   })
-      //   afterAll(async () => {
-      //     await fs.writeFile(nextConfig, origNextConfig)
-      //     await killApp(app)
-      //   })
-      //   runTests()
-      // })
-
-      // describe('Font optimization for emulated serverless apps', () => {
-      //   const origNextConfig = fs.readFileSync(nextConfig)
-
-      //   beforeAll(async () => {
-      //     await fs.writeFile(
-      //       nextConfig,
-      //       `module.exports = ({ target: 'experimental-serverless-trace', cleanDistDir: false })`,
-      //       'utf8'
-      //     )
-      //     await nextBuild(appDir)
-      //     appPort = await findPort()
-      //     app = await startServerlessEmulator(appDir, appPort)
-      //     builtServerPagesDir = join(appDir, '.next', 'serverless')
-      //     builtPage = (file) => join(builtServerPagesDir, file)
-      //   })
-      //   afterAll(async () => {
-      //     await fs.writeFile(nextConfig, origNextConfig)
-      //     await killApp(app)
-      //   })
-      //   runTests()
-      // })
-
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
           await nextBuild(appDir)
@@ -310,7 +256,6 @@ describe('Font Optimization', () => {
         afterAll(() => killApp(app))
         it('should fallback to normal stylesheet if the contents of the fonts are unreachable', async () => {
           const html = await renderViaHTTP(appPort, '/stars')
-          console.log('&&&& ', builtPage('font-manifest.json'))
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(html).toContain(`<link rel="stylesheet" href="${starsFont}"/>`)
         })
