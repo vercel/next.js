@@ -60,5 +60,8 @@ test-generator = "0.3.0"
 tungstenite = "0.17.3"                                                # For matching on errors from chromiumoxide. Keep in 
 turbopack-create-test-app = { path = "../turbopack-create-test-app" }
 
+[target.'cfg(unix)'.dev-dependencies]
+nix = "0.25.0"
+
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

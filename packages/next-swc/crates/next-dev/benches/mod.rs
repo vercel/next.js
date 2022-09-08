@@ -154,8 +154,8 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, wait_for_hydration: b
                         || async { PreparedApp::new(bundler, template_dir.to_path_buf()) },
                         |mut app| async {
                             app.start_server()?;
-                            let (page, mut events) = app.new_page(browser).await?;
-                            page.wait_for_navigation().await?;
+                            let (guard, mut events) = app.new_page(browser).await?;
+                            guard.page().wait_for_navigation().await?;
                             if wait_for_hydration {
                                 timeout(
                                     MAX_HYDRATION_TIMEOUT,
@@ -163,14 +163,13 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, wait_for_hydration: b
                                 )
                                 .await??;
                             }
-                            app.schedule_page_disposal(page);
                             // return the PreparedApp doesn't make dropping it part of the
                             // measurement
-                            Ok(app)
+                            Ok((app, guard))
                         },
-                        |app| async move {
-                            if let Err(err) = app.dispose().await {
-                                eprintln!("error disposing app: {}", err);
+                        |(_app, guard)| async move {
+                            if let Err(e) = guard.close_page().await {
+                                eprintln!("failed to close page: {:?}", e);
                             }
                         },
                     );
@@ -239,29 +238,28 @@ fn bench_simple_file_change(c: &mut Criterion) {
                         || async {
                             let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
                             app.start_server()?;
-                            let (page, mut events) = app.new_page(browser).await?;
-
-                            page.wait_for_navigation().await?;
+                            let (guard, mut events) = app.new_page(browser).await?;
+                            guard.page().wait_for_navigation().await?;
                             timeout(
                                 MAX_HYDRATION_TIMEOUT,
                                 wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
                             )
                             .await??;
+
                             // Make warmup change
                             make_change(&mut app, &mut events).await?;
 
-                            Ok((app, page, events))
+                            Ok((app, guard, events))
                         },
-                        |(mut app, page, mut events)| async move {
+                        |(mut app, guard, mut events)| async move {
                             make_change(&mut app, &mut events).await?;
 
-                            app.schedule_page_disposal(page);
-
-                            Ok(app)
+                            // Defer the dropping of the app and the page guard to `teardown`.
+                            Ok((app, guard))
                         },
-                        |app| async move {
-                            if let Err(err) = app.dispose().await {
-                                eprintln!("error disposing app: {}", err);
+                        |(_app, guard)| async move {
+                            if let Err(err) = guard.close_page().await {
+                                eprintln!("failed to close page: {:?}", err);
                             }
                         },
                     );
@@ -313,14 +311,14 @@ fn bench_restart(c: &mut Criterion) {
                             // Run a complete build, shut down, and test running it again
                             let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
                             app.start_server()?;
-                            let (page, mut events) = app.new_page(browser).await?;
-                            page.wait_for_navigation().await?;
+                            let (guard, mut events) = app.new_page(browser).await?;
+                            guard.page().wait_for_navigation().await?;
                             timeout(
                                 MAX_HYDRATION_TIMEOUT,
                                 wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
                             )
                             .await??;
-                            page.close().await?;
+                            guard.close_page().await?;
 
                             // Give it 4 seconds time to store the cache
                             sleep(Duration::from_secs(4)).await;
@@ -330,19 +328,18 @@ fn bench_restart(c: &mut Criterion) {
                         },
                         |mut app| async {
                             app.start_server()?;
-                            let (page, mut events) = app.new_page(browser).await?;
-                            page.wait_for_navigation().await?;
+                            let (guard, mut events) = app.new_page(browser).await?;
+                            guard.page().wait_for_navigation().await?;
                             timeout(
                                 MAX_HYDRATION_TIMEOUT,
                                 wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
                             )
                             .await??;
-                            app.schedule_page_disposal(page);
-                            Ok(app)
+                            Ok((app, guard))
                         },
-                        |app| async move {
-                            if let Err(err) = app.dispose().await {
-                                eprintln!("error disposing app: {}", err);
+                        |(_app, guard)| async move {
+                            if let Err(err) = guard.close_page().await {
+                                eprintln!("failed to close page: {:?}", err);
                             }
                         },
                     );
@@ -354,7 +351,6 @@ fn bench_restart(c: &mut Criterion) {
 
 struct PreparedApp<'a> {
     bundler: &'a dyn Bundler,
-    pages: Vec<Page>,
     server: Option<(Child, String)>,
     test_dir: tempfile::TempDir,
     counter: usize,
@@ -375,7 +371,6 @@ impl<'a> PreparedApp<'a> {
 
         Ok(Self {
             bundler,
-            pages: Vec::new(),
             server: None,
             test_dir,
             counter: 0,
@@ -395,7 +390,10 @@ impl<'a> PreparedApp<'a> {
         Ok(())
     }
 
-    async fn new_page(&self, browser: &Browser) -> Result<(Page, EventStream<EventBindingCalled>)> {
+    async fn new_page(
+        &self,
+        browser: &Browser,
+    ) -> Result<(PageGuard, EventStream<EventBindingCalled>)> {
         let server = self.server.as_ref().context("Server must be started")?;
         let page = browser.new_page("about:blank").await?;
         // Bindings survive page reloads. Set them up as early as possible.
@@ -410,35 +408,103 @@ impl<'a> PreparedApp<'a> {
         // Make sure no runtime errors occurred when loading the page
         assert!(errors.next().now_or_never().is_none());
 
-        Ok((page, binding_events))
-    }
-
-    fn schedule_page_disposal(&mut self, page: Page) {
-        self.pages.push(page);
-    }
-
-    async fn dispose(self) -> Result<()> {
-        if let Some(mut server) = self.server {
-            server.0.kill()?;
-            server.0.wait()?;
-        }
-        for page in self.pages {
-            page.close().await?;
-        }
-        Ok(())
+        Ok((PageGuard::new(page), binding_events))
     }
 
     fn stop_server(&mut self) -> Result<()> {
         let mut proc = self.server.take().expect("Server never started").0;
-        proc.kill()?;
-        proc.wait()?;
-
+        stop_process(&mut proc)?;
         Ok(())
     }
 
     fn path(&self) -> &Path {
         self.test_dir.path()
     }
+}
+
+impl<'a> Drop for PreparedApp<'a> {
+    fn drop(&mut self) {
+        if let Some(mut server) = self.server.take() {
+            stop_process(&mut server.0).expect("failed to stop process");
+        }
+    }
+}
+
+/// Closes a browser page on Drop.
+struct PageGuard(Option<Page>);
+
+impl PageGuard {
+    /// Creates a new guard for the given page.
+    pub fn new(page: Page) -> Self {
+        Self(Some(page))
+    }
+
+    /// Returns a reference to the page.
+    pub fn page(&self) -> &Page {
+        self.0.as_ref().unwrap()
+    }
+
+    pub async fn close_page(mut self) -> Result<()> {
+        // Invariant: the page is always Some while the guard is alive.
+        let page = self.0.take().unwrap();
+        page.close().await?;
+        Ok(())
+    }
+}
+
+impl Drop for PageGuard {
+    fn drop(&mut self) {
+        // The page might have been closed already in `close_page`.
+        if let Some(page) = self.0.take() {
+            // This is a way to block on a future in a destructor. It's not ideal, but for
+            // the purposes of this benchmark it's fine.
+            futures::executor::block_on(page.close()).expect("failed to close page");
+        }
+    }
+}
+
+#[cfg(unix)]
+fn stop_process(proc: &mut Child) -> Result<()> {
+    use nix::{
+        sys::signal::{kill, Signal},
+        unistd::Pid,
+    };
+
+    const KILL_DEADLINE: Duration = Duration::from_secs(5);
+    const KILL_DEADLINE_CHECK_STEPS: u32 = 10;
+
+    let pid = Pid::from_raw(proc.id() as _);
+    match kill(pid, Signal::SIGINT) {
+        Ok(()) => {
+            let expire = std::time::Instant::now() + KILL_DEADLINE;
+            while let Ok(None) = proc.try_wait() {
+                if std::time::Instant::now() > expire {
+                    break;
+                }
+                std::thread::sleep(KILL_DEADLINE / KILL_DEADLINE_CHECK_STEPS);
+            }
+            if let Ok(None) = proc.try_wait() {
+                eprintln!("Process {} did not exit after SIGINT, sending SIGKILL", pid);
+                kill_process(proc)?;
+            }
+        }
+        Err(_) => {
+            eprintln!("Failed to send SIGINT to process {}, sending SIGKILL", pid);
+            kill_process(proc)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn stop_process(proc: &mut Child) -> Result<()> {
+    kill_process(proc)
+}
+
+fn kill_process(proc: &mut Child) -> Result<()> {
+    proc.kill()?;
+    proc.wait()?;
+    Ok(())
 }
 
 fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
