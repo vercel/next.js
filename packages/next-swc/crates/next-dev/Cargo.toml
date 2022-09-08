@@ -33,6 +33,7 @@ futures = "0.3.21"
 json = "0.12.4"
 mime = "0.3.16"
 next-core = { path = "../next-core" }
+portpicker = "0.1.1"
 serde = "1.0.136"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks = { path = "../turbo-tasks" }
@@ -42,6 +43,7 @@ turbopack = { path = "../turbopack" }
 turbopack-cli-utils = { path = "../turbopack-cli-utils" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-dev-server = { path = "../turbopack-dev-server" }
+url = "2.3.0"
 webbrowser = "0.7.1"
 
 [dev-dependencies]

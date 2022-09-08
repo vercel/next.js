@@ -1,64 +1,179 @@
 use std::{
-    fs::{self, remove_dir_all},
+    fs::{self},
     future::Future,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::Child,
     time::Duration,
 };
 
+use anyhow::{anyhow, Context, Result};
 use bundlers::{command, get_bundlers, Bundler};
 use chromiumoxide::{
     browser::{Browser, BrowserConfig},
-    cdp::js_protocol::runtime::EventExceptionThrown,
+    cdp::js_protocol::runtime::{AddBindingParams, EventBindingCalled, EventExceptionThrown},
     error::CdpError::Ws,
+    listeners::EventStream,
     Page,
 };
 use criterion::{
     async_executor::AsyncExecutor,
     black_box, criterion_group, criterion_main,
     measurement::{Measurement, WallTime},
-    AsyncBencher, BenchmarkId, Criterion,
+    AsyncBencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
 use futures::{FutureExt, StreamExt};
-use tokio::runtime::Runtime;
+use tokio::{
+    runtime::Runtime,
+    time::{sleep, timeout},
+};
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbopack_create_test_app::test_app_builder::TestAppBuilder;
-
-static MODULE_COUNTS: &[usize] = &[100, 1_000];
+use turbopack_create_test_app::test_app_builder::{TestApp, TestAppBuilder};
+use url::Url;
 
 mod bundlers;
+
+const BINDING_NAME: &str = "__turbopackBenchBinding";
+const TEST_APP_HYDRATION_DONE: &str = "Hydration done";
+
+const MAX_UPDATE_TIMEOUT: Duration = Duration::from_secs(20);
+const MAX_HYDRATION_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn get_module_counts() -> &'static [usize] {
+    let config = std::env::var("TURBOPACK_BENCH_COUNTS").ok();
+    match config.as_deref() {
+        Some("all") => {
+            static C: &[usize] = &[100, 500, 1_000, 2_000];
+            C
+        }
+        Some("others") => {
+            static C: &[usize] = &[500, 2_000];
+            C
+        }
+        None | Some("") => {
+            static C: &[usize] = &[100, 1_000];
+            C
+        }
+        _ => panic!("Invalid value for TURBOPACK_BENCH_COUNTS"),
+    }
+}
+
+fn retry<A, F, R>(mut args: A, f: F, max_retries: usize, mut timeout: Duration) -> Result<R>
+where
+    F: Fn(&mut A) -> Result<R>,
+{
+    let mut retries = 0usize;
+    loop {
+        match f(&mut args) {
+            Ok(value) => return Ok(value),
+            Err(e) => {
+                if retries >= max_retries {
+                    return Err(e);
+                }
+                retries += 1;
+                std::thread::sleep(timeout);
+                timeout += timeout;
+            }
+        }
+    }
+}
+
+fn retry_default<A, F, R>(args: A, f: F) -> Result<R>
+where
+    F: Fn(&mut A) -> Result<R>,
+{
+    // waits 5, 10, 20, 40, 80, 160 seconds = 315 seconds total
+    retry(args, f, 5, Duration::from_secs(5))
+}
+
+async fn retry_async<A, F, Fut, R>(
+    mut args: A,
+    f: F,
+    max_retries: usize,
+    mut timeout: Duration,
+) -> Result<R>
+where
+    F: Fn(&mut A) -> Fut,
+    Fut: Future<Output = Result<R>>,
+{
+    let mut retries = 0usize;
+    loop {
+        match f(&mut args).await {
+            Ok(value) => return Ok(value),
+            Err(e) => {
+                if retries >= max_retries {
+                    return Err(e);
+                }
+                retries += 1;
+                tokio::time::sleep(timeout).await;
+                timeout += timeout;
+            }
+        }
+    }
+}
+
+async fn retry_async_default<A, F, Fut, R>(args: A, f: F) -> Result<R>
+where
+    F: Fn(&mut A) -> Fut,
+    Fut: Future<Output = Result<R>>,
+{
+    // waits 5, 10, 20, 40, 80, 160 seconds = 315 seconds total
+    retry_async(args, f, 5, Duration::from_secs(5)).await
+}
 
 fn bench_startup(c: &mut Criterion) {
     let mut g = c.benchmark_group("bench_startup");
     g.sample_size(10);
     g.measurement_time(Duration::from_secs(80));
 
+    bench_startup_internal(g, false);
+}
+
+fn bench_hydration(c: &mut Criterion) {
+    let mut g = c.benchmark_group("bench_hydration");
+    g.sample_size(10);
+    g.measurement_time(Duration::from_secs(80));
+
+    bench_startup_internal(g, true);
+}
+
+fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, wait_for_hydration: bool) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for bundler in get_bundlers() {
-        for module_count in MODULE_COUNTS {
+    for bundler in retry_default((), |_| get_bundlers()).expect("failed to get bundlers") {
+        for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
             g.bench_with_input(
                 BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                 &input,
                 |b, &(bundler, module_count)| {
-                    let template_dir = build_test(*module_count);
-                    b.to_async(&runtime).iter_batched_async(
-                        || async { PreparedApp::new(bundler, template_dir.clone()) },
+                    let test_app = build_test(*module_count, bundler);
+                    let template_dir = test_app.path();
+                    b.to_async(&runtime).try_iter_async(
+                        || async { PreparedApp::new(bundler, template_dir.to_path_buf()) },
                         |mut app| async {
-                            app.start_server();
-                            let page = app.new_page(browser).await;
-                            page.wait_for_navigation().await.unwrap();
+                            app.start_server()?;
+                            let (page, mut events) = app.new_page(browser).await?;
+                            page.wait_for_navigation().await?;
+                            if wait_for_hydration {
+                                timeout(
+                                    MAX_HYDRATION_TIMEOUT,
+                                    wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
+                                )
+                                .await??;
+                            }
                             app.schedule_page_disposal(page);
                             // return the PreparedApp doesn't make dropping it part of the
                             // measurement
-                            app
+                            Ok(app)
                         },
-                        |app| app.dispose(),
+                        |app| async move {
+                            if let Err(err) = app.dispose().await {
+                                eprintln!("error disposing app: {}", err);
+                            }
+                        },
                     );
-                    remove_dir_all(&template_dir).unwrap();
                 },
             );
         }
@@ -74,111 +189,163 @@ fn bench_simple_file_change(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for bundler in get_bundlers() {
-        for module_count in MODULE_COUNTS {
+    for bundler in retry_default((), |_| get_bundlers()).expect("failed to get bundlers") {
+        for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
 
             g.bench_with_input(
                 BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                 &input,
                 |b, &(bundler, module_count)| {
-                    let template_dir = build_test(*module_count);
+                    let test_app = build_test(*module_count, bundler);
+                    let template_dir = test_app.path();
+                    fn add_code<'a>(app: &mut PreparedApp<'a>, code: &str) -> Result<()> {
+                        let triangle_path = app.path().join("src/triangle.jsx");
+                        let mut contents = fs::read_to_string(&triangle_path)?;
+                        const COMPONENT_START: &str =
+                            "export default function Container({ style }) {\n";
+                        let a = contents
+                            .find(COMPONENT_START)
+                            .ok_or_else(|| anyhow!("unable to find component start"))?;
+                        let b = contents
+                            .find("\n    return <>")
+                            .ok_or_else(|| anyhow!("unable to find component start"))?;
+                        contents.replace_range(a..b, &format!("{COMPONENT_START}{code}"));
+                        fs::write(&triangle_path, contents)?;
+                        Ok(())
+                    }
+                    async fn make_change<'a>(
+                        app: &mut PreparedApp<'a>,
+                        events: &mut EventStream<EventBindingCalled>,
+                    ) -> Result<()> {
+                        let msg = format!("TURBOPACK_BENCH_CHANGE_{}", app.counter());
+                        add_code(
+                            app,
+                            &format!(
+                                "    React.useEffect(() => {{ globalThis.{BINDING_NAME}('{msg}'); \
+                                 }});\n"
+                            ),
+                        )?;
 
-                    b.to_async(Runtime::new().unwrap()).iter_batched_async(
+                        // Wait for the change introduced above to be reflected at runtime.
+                        // This expects HMR or automatic reloading to occur.
+                        timeout(MAX_UPDATE_TIMEOUT, wait_for_binding(events, &msg))
+                            .await?
+                            .context("update was not registered by bundler")?;
+
+                        Ok(())
+                    }
+                    b.to_async(Runtime::new().unwrap()).try_iter_async(
                         || async {
-                            let mut app = PreparedApp::new(bundler, template_dir.clone());
-                            app.start_server();
-                            let page = app.new_page(browser).await;
-                            page.wait_for_navigation().await.unwrap();
-                            (app, page)
-                        },
-                        |(mut app, page)| async {
-                            let index_path = &app.test_dir.path().join("src/index.jsx");
-                            let mut contents =
-                                String::from_utf8_lossy(&fs::read(&index_path).unwrap())
-                                    .to_string();
-                            contents.push_str("globalThis.__updated = true;\n");
-                            fs::write(&index_path, contents).unwrap();
+                            let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
+                            app.start_server()?;
+                            let (page, mut events) = app.new_page(browser).await?;
 
-                            // Wait for the change introduced above to be reflected at runtime. This
-                            // expects HMR or automatic reloading to
-                            // occur.
-                            loop {
-                                match page.evaluate("globalThis.__updated").await {
-                                    Ok(status_res) => {
-                                        if let Ok(status) = status_res.into_value::<bool>() {
-                                            assert!(status);
-                                            break;
-                                        }
-                                    }
-                                    Err(e) => {
-                                        if !e
-                                            .to_string()
-                                            // This error occurs when the page is reloading and is
-                                            // safe
-                                            // to ignore.
-                                            .contains("Cannot find context with specified id")
-                                        {
-                                            panic!("{:?}", e);
-                                        }
-                                    }
-                                }
-                            }
+                            page.wait_for_navigation().await?;
+                            timeout(
+                                MAX_HYDRATION_TIMEOUT,
+                                wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
+                            )
+                            .await??;
+                            // Make warmup change
+                            make_change(&mut app, &mut events).await?;
+
+                            Ok((app, page, events))
+                        },
+                        |(mut app, page, mut events)| async move {
+                            make_change(&mut app, &mut events).await?;
 
                             app.schedule_page_disposal(page);
-                            app
+
+                            Ok(app)
                         },
-                        |app| async {
-                            app.dispose().await;
+                        |app| async move {
+                            if let Err(err) = app.dispose().await {
+                                eprintln!("error disposing app: {}", err);
+                            }
                         },
                     );
-                    remove_dir_all(&template_dir).unwrap();
                 },
             );
         }
     }
 }
 
+async fn wait_for_binding(
+    events: &mut EventStream<EventBindingCalled>,
+    payload: &str,
+) -> Result<()> {
+    while let Some(event) = events.next().await {
+        if event.name == BINDING_NAME && event.payload == payload {
+            return Ok(());
+        }
+    }
+
+    Err(anyhow!("event stream ended before binding was called"))
+}
+
+/// Adds benchmark-specific bindings to the page.
+async fn add_binding(page: &Page) -> Result<()> {
+    page.execute(AddBindingParams::new(BINDING_NAME)).await?;
+    Ok(())
+}
+
 fn bench_restart(c: &mut Criterion) {
     let mut g = c.benchmark_group("bench_restart");
     g.sample_size(10);
-    g.measurement_time(Duration::from_secs(30));
+    g.measurement_time(Duration::from_secs(60));
 
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
-    for bundler in get_bundlers() {
-        for module_count in MODULE_COUNTS {
+    for bundler in retry_default((), |_| get_bundlers()).expect("failed to get bundlers") {
+        for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
 
             g.bench_with_input(
                 BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                 &input,
                 |b, &(bundler, module_count)| {
-                    let template_dir = build_test(*module_count);
-                    b.to_async(Runtime::new().unwrap()).iter_batched_async(
+                    let test_app = build_test(*module_count, bundler);
+                    let template_dir = test_app.path();
+                    b.to_async(Runtime::new().unwrap()).try_iter_async(
                         || async {
                             // Run a complete build, shut down, and test running it again
-                            let mut app = PreparedApp::new(bundler, template_dir.clone());
-                            app.start_server();
+                            let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
+                            app.start_server()?;
+                            let (page, mut events) = app.new_page(browser).await?;
+                            page.wait_for_navigation().await?;
+                            timeout(
+                                MAX_HYDRATION_TIMEOUT,
+                                wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
+                            )
+                            .await??;
+                            page.close().await?;
 
-                            let page = app.new_page(browser).await;
-                            page.close().await.unwrap();
+                            // Give it 4 seconds time to store the cache
+                            sleep(Duration::from_secs(4)).await;
 
-                            let mut proc = app.stop_server();
-                            proc.wait().unwrap();
-                            app
+                            app.stop_server()?;
+                            Ok(app)
                         },
                         |mut app| async {
-                            app.start_server();
-                            let page = app.new_page(browser).await;
-                            page.wait_for_navigation().await.unwrap();
+                            app.start_server()?;
+                            let (page, mut events) = app.new_page(browser).await?;
+                            page.wait_for_navigation().await?;
+                            timeout(
+                                MAX_HYDRATION_TIMEOUT,
+                                wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
+                            )
+                            .await??;
                             app.schedule_page_disposal(page);
-                            app
+                            Ok(app)
                         },
-                        |app| app.dispose(),
+                        |app| async move {
+                            if let Err(err) = app.dispose().await {
+                                eprintln!("error disposing app: {}", err);
+                            }
+                        },
                     );
-                    remove_dir_all(&template_dir).unwrap();
                 },
             );
         }
@@ -190,11 +357,13 @@ struct PreparedApp<'a> {
     pages: Vec<Page>,
     server: Option<(Child, String)>,
     test_dir: tempfile::TempDir,
+    counter: usize,
 }
 
 impl<'a> PreparedApp<'a> {
-    fn new(bundler: &'a dyn Bundler, template_dir: PathBuf) -> Self {
-        let test_dir = tempfile::tempdir().unwrap();
+    fn new(bundler: &'a dyn Bundler, template_dir: PathBuf) -> Result<Self> {
+        let test_dir = tempfile::tempdir()?;
+
         fs_extra::dir::copy(
             &template_dir,
             &test_dir,
@@ -202,60 +371,78 @@ impl<'a> PreparedApp<'a> {
                 content_only: true,
                 ..fs_extra::dir::CopyOptions::default()
             },
-        )
-        .unwrap();
+        )?;
 
-        Self {
+        Ok(Self {
             bundler,
             pages: Vec::new(),
             server: None,
             test_dir,
-        }
+            counter: 0,
+        })
     }
 
-    fn start_server(&mut self) {
+    fn counter(&mut self) -> usize {
+        self.counter += 1;
+        self.counter
+    }
+
+    fn start_server(&mut self) -> Result<()> {
         assert!(self.server.is_none(), "Server already started");
 
-        self.server = Some(self.bundler.start_server(self.test_dir.path()));
+        self.server = Some(self.bundler.start_server(self.test_dir.path())?);
+
+        Ok(())
     }
 
-    async fn new_page(&self, browser: &Browser) -> Page {
-        let server = self.server.as_ref().expect("Server must be started");
-        let page = browser.new_page("about:blank").await.unwrap();
-        let mut errors = page.event_listener::<EventExceptionThrown>().await.unwrap();
+    async fn new_page(&self, browser: &Browser) -> Result<(Page, EventStream<EventBindingCalled>)> {
+        let server = self.server.as_ref().context("Server must be started")?;
+        let page = browser.new_page("about:blank").await?;
+        // Bindings survive page reloads. Set them up as early as possible.
+        add_binding(&page).await?;
 
-        page.goto(&server.1).await.unwrap();
+        let mut errors = page.event_listener::<EventExceptionThrown>().await?;
+        let binding_events = page.event_listener::<EventBindingCalled>().await?;
+
+        let destination = Url::parse(&server.1)?.join(self.bundler.get_path())?;
+        page.goto(destination).await?;
 
         // Make sure no runtime errors occurred when loading the page
         assert!(errors.next().now_or_never().is_none());
 
-        page
+        Ok((page, binding_events))
     }
 
     fn schedule_page_disposal(&mut self, page: Page) {
         self.pages.push(page);
     }
 
-    async fn dispose(self) {
+    async fn dispose(self) -> Result<()> {
         if let Some(mut server) = self.server {
-            server.0.kill().unwrap();
-            server.0.wait().unwrap();
+            server.0.kill()?;
+            server.0.wait()?;
         }
         for page in self.pages {
-            page.close().await.unwrap();
+            page.close().await?;
         }
+        Ok(())
     }
 
-    fn stop_server(&mut self) -> Child {
+    fn stop_server(&mut self) -> Result<()> {
         let mut proc = self.server.take().expect("Server never started").0;
-        proc.kill().unwrap();
-        proc.wait().unwrap();
-        proc
+        proc.kill()?;
+        proc.wait()?;
+
+        Ok(())
+    }
+
+    fn path(&self) -> &Path {
+        self.test_dir.path()
     }
 }
 
-fn build_test(module_count: usize) -> PathBuf {
-    let test_dir = TestAppBuilder {
+fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
+    let test_app = TestAppBuilder {
         module_count,
         directories_count: module_count / 20,
         package_json: true,
@@ -266,7 +453,7 @@ fn build_test(module_count: usize) -> PathBuf {
 
     let npm = command("npm")
         .args(["install", "--prefer-offline", "--loglevel=error"])
-        .current_dir(&test_dir)
+        .current_dir(&test_app.path())
         .output()
         .unwrap();
 
@@ -276,7 +463,9 @@ fn build_test(module_count: usize) -> PathBuf {
         panic!("npm install failed. See above.");
     }
 
-    test_dir
+    retry_default((), |_| bundler.prepare(test_app.path())).unwrap();
+
+    test_app
 }
 
 async fn create_browser() -> Browser {
@@ -297,80 +486,68 @@ async fn create_browser() -> Browser {
 }
 
 trait AsyncBencherExtension {
-    fn iter_batched_async<I, O, S, SF, R, F, T, TF>(&mut self, setup: S, routine: R, teardown: T)
+    fn try_iter_async<I, O, S, SF, R, F, T, TF>(&mut self, setup: S, routine: R, teardown: T)
     where
         S: Fn() -> SF,
-        SF: Future<Output = I>,
+        SF: Future<Output = Result<I>>,
         R: Fn(I) -> F,
-        F: Future<Output = O>,
+        F: Future<Output = Result<O>>,
         T: Fn(O) -> TF,
         TF: Future<Output = ()>;
 }
 
 impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A, WallTime> {
     #[inline(never)]
-    fn iter_batched_async<I, O, S, SF, R, F, T, TF>(&mut self, setup: S, routine: R, teardown: T)
+    fn try_iter_async<I, O, S, SF, R, F, T, TF>(&mut self, setup: S, routine: R, teardown: T)
     where
         S: Fn() -> SF,
-        SF: Future<Output = I>,
+        SF: Future<Output = Result<I>>,
         R: Fn(I) -> F,
-        F: Future<Output = O>,
+        F: Future<Output = Result<O>>,
         T: Fn(O) -> TF,
         TF: Future<Output = ()>,
     {
         let setup = &setup;
         let routine = &routine;
         let teardown = &teardown;
-        self.iter_custom(|iters| {
-            async move {
-                let batch_size = std::cmp::min(iters, 50);
-                let measurement = WallTime;
-                let mut value = measurement.zero();
+        self.iter_custom(|iters| async move {
+            let measurement = WallTime;
+            let mut value = measurement.zero();
 
-                if batch_size == 1 {
-                    for _ in 0..iters {
-                        let input = black_box(setup().await);
+            let mut iter = 0u64;
+            let mut failures = 0u64;
+            while iter < iters {
+                let output = loop {
+                    let input = black_box(
+                        retry_async_default((), |_| setup())
+                            .await
+                            .expect("failed to setup"),
+                    );
 
-                        let start = measurement.start();
-                        let output = routine(input).await;
-                        let end = measurement.end(start);
-                        value = measurement.add(&value, &end);
-
-                        teardown(black_box(output)).await;
-                    }
-                } else {
-                    let mut iteration_counter = 0;
-
-                    while iteration_counter < iters {
-                        let batch_size = std::cmp::min(batch_size, iters - iteration_counter);
-
-                        let inputs = black_box({
-                            let mut inputs = Vec::new();
-                            for _ in 0..batch_size {
-                                inputs.push(setup().await)
+                    let start = measurement.start();
+                    match routine(input).await {
+                        Ok(output) => {
+                            let duration = measurement.end(start);
+                            value = measurement.add(&value, &duration);
+                            iter += 1;
+                            break output;
+                        }
+                        Err(err) => {
+                            failures += 1;
+                            if failures > iters {
+                                panic!("Routine failed {failures} times, aborting\n{:?}", err)
+                            } else {
+                                eprintln!("Routine failed, will be retried: {:?}", err);
+                                continue;
                             }
-                            inputs
-                        });
-                        let mut outputs = Vec::with_capacity(batch_size as usize);
-
-                        let start = measurement.start();
-                        // Can't use .extend here like the sync version does
-                        for input in inputs {
-                            outputs.push(routine(input).await);
                         }
-                        let end = measurement.end(start);
-                        value = measurement.add(&value, &end);
-
-                        for output in black_box(outputs) {
-                            teardown(output).await;
-                        }
-
-                        iteration_counter += batch_size;
                     }
-                }
+                };
 
-                value
+                teardown(black_box(output)).await;
             }
+
+            value
         })
     }
 }
@@ -378,6 +555,6 @@ impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension for AsyncBencher<'a, 'b, A,
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_startup, bench_simple_file_change, bench_restart
+    targets = bench_startup, bench_hydration, bench_simple_file_change, bench_restart
 );
 criterion_main!(benches);
