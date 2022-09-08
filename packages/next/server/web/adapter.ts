@@ -9,6 +9,31 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 
+class NextRequestHint extends NextRequest {
+  sourcePage: string
+
+  constructor(params: {
+    init: RequestInit
+    input: Request | string
+    page: string
+  }) {
+    super(params.input, params.init)
+    this.sourcePage = params.page
+  }
+
+  get request() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+
+  respondWith() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+
+  waitUntil() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+}
+
 export async function adapter(params: {
   handler: NextMiddleware
   page: string
@@ -162,27 +187,46 @@ export function blockUnallowedResponse(
   })
 }
 
-class NextRequestHint extends NextRequest {
-  sourcePage: string
+function getUnsupportedModuleErrorMessage(module: string) {
+  // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
+  return `The edge runtime does not support Node.js '${module}' module.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
+}
 
-  constructor(params: {
-    init: RequestInit
-    input: Request | string
-    page: string
-  }) {
-    super(params.input, params.init)
-    this.sourcePage = params.page
+function __import_unsupported(moduleName: string) {
+  const proxy: any = new Proxy(function () {}, {
+    get(_obj, prop) {
+      if (prop === 'then') {
+        return {}
+      }
+      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
+    },
+    construct() {
+      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
+    },
+    apply(_target, _this, args) {
+      if (typeof args[0] === 'function') {
+        return args[0](proxy)
+      }
+      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
+    },
+  })
+  return new Proxy({}, { get: () => proxy })
+}
+
+export function enhanceGlobals() {
+  // The condition is true when the "process" module is provided
+  if (process !== global.process) {
+    // prefer local process but global.process has correct "env"
+    process.env = global.process.env
+    global.process = process
   }
 
-  get request() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
-
-  respondWith() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
-
-  waitUntil() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
+  // to allow building code that import but does not use node.js modules,
+  // webpack will expect this function to exist in global scope
+  Object.defineProperty(globalThis, '__import_unsupported', {
+    value: __import_unsupported,
+    enumerable: false,
+    configurable: false,
+  })
 }

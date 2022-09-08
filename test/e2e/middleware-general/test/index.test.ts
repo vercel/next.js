@@ -62,15 +62,13 @@ describe('Middleware Runtime', () => {
     })
   }
 
-  describe('with i18n', () => {
-    setup({ i18n: true })
-    runTests({ i18n: true })
-  })
+  function readMiddlewareJSON(response) {
+    return JSON.parse(response.headers.get('data'))
+  }
 
-  describe('without i18n', () => {
-    setup({ i18n: false })
-    runTests({ i18n: false })
-  })
+  function readMiddlewareError(response) {
+    return response.headers.get('error')
+  }
 
   function runTests({ i18n }: { i18n?: boolean }) {
     if ((global as any).isNextDev) {
@@ -95,6 +93,15 @@ describe('Middleware Runtime', () => {
           await browser.close()
         }
       })
+
+      it('should only contain middleware route in dev middleware manifest', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
+        )
+        const matchers = await res.json()
+        expect(matchers).toEqual([{ regexp: '.*' }])
+      })
     }
 
     if ((global as any).isNextStart) {
@@ -109,11 +116,15 @@ describe('Middleware Runtime', () => {
               'ANOTHER_MIDDLEWARE_TEST',
               'STRING_ENV_VAR',
             ],
-            files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
+            files: expect.arrayContaining([
+              'server/edge-runtime-webpack.js',
+              'server/middleware.js',
+            ]),
             name: 'middleware',
             page: '/',
-            regexp: '^/.*$',
+            matchers: [{ regexp: '^/.*$' }],
             wasm: [],
+            assets: [],
           },
         })
       })
@@ -148,6 +159,33 @@ describe('Middleware Runtime', () => {
         expect(res.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
       })
     }
+
+    it('passes search params with rewrites', async () => {
+      const response = await fetchViaHTTP(next.url, `/api/edge-search-params`, {
+        a: 'b',
+      })
+      await expect(response.json()).resolves.toMatchObject({
+        a: 'b',
+        // included from middleware
+        foo: 'bar',
+      })
+    })
+
+    it('should have init header for NextResponse.redirect', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/redirect-to-somewhere',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere'
+      )
+      expect(res.headers.get('x-redirect-header')).toBe('hi')
+    })
 
     it('should have correct query values for rewrite to ssg page', async () => {
       const browser = await webdriver(next.url, '/to-ssg')
@@ -592,12 +630,13 @@ describe('Middleware Runtime', () => {
       ])
     })
   }
+  describe('with i18n', () => {
+    setup({ i18n: true })
+    runTests({ i18n: true })
+  })
+
+  describe('without i18n', () => {
+    setup({ i18n: false })
+    runTests({ i18n: false })
+  })
 })
-
-function readMiddlewareJSON(response) {
-  return JSON.parse(response.headers.get('data'))
-}
-
-function readMiddlewareError(response) {
-  return response.headers.get('error')
-}

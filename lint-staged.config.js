@@ -15,6 +15,7 @@ module.exports = {
         .filter((file) => !eslint.isPathIgnored(file))
         .map((f) => `"${f}"`)
         .join(' ')}`,
+      `git add ${escapedFileNames}`,
     ]
   },
   '**/*.{json,md,mdx,css,html,yml,yaml,scss}': (filenames) => {
@@ -23,6 +24,7 @@ module.exports = {
       .join(' ')
     return [
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,
+      `git add ${escapedFileNames}`,
     ]
   },
 }

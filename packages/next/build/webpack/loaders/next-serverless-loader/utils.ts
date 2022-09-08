@@ -9,6 +9,7 @@ import type {
   GetStaticProps,
 } from '../../../../types'
 import type { BaseNextRequest } from '../../../../server/base-http'
+import type { __ApiPreviewProps } from '../../../../server/api-utils'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
@@ -20,7 +21,6 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../../shared/lib/router/utils/prepare-destination'
-import { __ApiPreviewProps } from '../../../../server/api-utils'
 import { acceptLanguage } from '../../../../server/accept-header'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
@@ -68,18 +68,59 @@ export type ServerlessHandlerCtx = {
   i18n?: NextConfig['i18n']
 }
 
+export function interpolateDynamicPath(
+  pathname: string,
+  params: ParsedUrlQuery,
+  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined
+) {
+  if (!defaultRouteRegex) return pathname
+
+  for (const param of Object.keys(defaultRouteRegex.groups)) {
+    const { optional, repeat } = defaultRouteRegex.groups[param]
+    let builtParam = `[${repeat ? '...' : ''}${param}]`
+
+    if (optional) {
+      builtParam = `[${builtParam}]`
+    }
+
+    const paramIdx = pathname!.indexOf(builtParam)
+
+    if (paramIdx > -1) {
+      let paramValue: string
+
+      if (Array.isArray(params[param])) {
+        paramValue = (params[param] as string[])
+          .map((v) => v && encodeURIComponent(v))
+          .join('/')
+      } else {
+        paramValue =
+          params[param] && encodeURIComponent(params[param] as string)
+      }
+
+      pathname =
+        pathname.slice(0, paramIdx) +
+        (paramValue || '') +
+        pathname.slice(paramIdx + builtParam.length)
+    }
+  }
+
+  return pathname
+}
+
 export function getUtils({
   page,
   i18n,
   basePath,
   rewrites,
   pageIsDynamic,
+  trailingSlash,
 }: {
   page: ServerlessHandlerCtx['page']
   i18n?: ServerlessHandlerCtx['i18n']
   basePath: ServerlessHandlerCtx['basePath']
   rewrites: ServerlessHandlerCtx['rewrites']
   pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
+  trailingSlash?: boolean
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
   let dynamicRouteMatcher: RouteMatch | undefined
@@ -107,10 +148,13 @@ export function getUtils({
     }
 
     const checkRewrite = (rewrite: Rewrite): boolean => {
-      const matcher = getPathMatch(rewrite.source, {
-        removeUnnamedParams: true,
-        strict: true,
-      })
+      const matcher = getPathMatch(
+        rewrite.source + (trailingSlash ? '(/)?' : ''),
+        {
+          removeUnnamedParams: true,
+          strict: true,
+        }
+      )
       let params = matcher(parsedUrl.pathname)
 
       if (rewrite.has && params) {
@@ -290,41 +334,6 @@ export function getUtils({
         }
       })() as any
     )(req.headers['x-now-route-matches'] as string) as ParsedUrlQuery
-  }
-
-  function interpolateDynamicPath(pathname: string, params: ParsedUrlQuery) {
-    if (!defaultRouteRegex) return pathname
-
-    for (const param of Object.keys(defaultRouteRegex.groups)) {
-      const { optional, repeat } = defaultRouteRegex.groups[param]
-      let builtParam = `[${repeat ? '...' : ''}${param}]`
-
-      if (optional) {
-        builtParam = `[${builtParam}]`
-      }
-
-      const paramIdx = pathname!.indexOf(builtParam)
-
-      if (paramIdx > -1) {
-        let paramValue: string
-
-        if (Array.isArray(params[param])) {
-          paramValue = (params[param] as string[])
-            .map((v) => v && encodeURIComponent(v))
-            .join('/')
-        } else {
-          paramValue =
-            params[param] && encodeURIComponent(params[param] as string)
-        }
-
-        pathname =
-          pathname.slice(0, paramIdx) +
-          (paramValue || '') +
-          pathname.slice(paramIdx + builtParam.length)
-      }
-    }
-
-    return pathname
   }
 
   function normalizeVercelUrl(
@@ -565,8 +574,11 @@ export function getUtils({
     normalizeVercelUrl,
     dynamicRouteMatcher,
     defaultRouteMatches,
-    interpolateDynamicPath,
     getParamsFromRouteMatches,
     normalizeDynamicRouteParams,
+    interpolateDynamicPath: (
+      pathname: string,
+      params: Record<string, string | string[]>
+    ) => interpolateDynamicPath(pathname, params, defaultRouteRegex),
   }
 }

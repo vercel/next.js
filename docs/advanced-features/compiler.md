@@ -66,11 +66,12 @@ module.exports = {
       transpileTemplateLiterals?: boolean,
       // Not supported yet.
       pure?: boolean,
+    },
   },
 }
 ```
 
-Currently, only the `ssr` and `displayName` transforms have been implemented. These two transforms are the main requirement for using `styled-components` in Next.js.
+`minify`, `transpileTemplateLiterals` and `pure` are not yet implemented. You can follow the progress [here](https://github.com/vercel/next.js/issues/30802). `ssr` and `displayName` transforms are the main requirement for using `styled-components` in Next.js.
 
 ### Jest
 
@@ -357,7 +358,7 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 
 1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 2. `member`: Has type `string`. The name of the member import.
-3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
+3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
 
 ### SWC Trace profiling
 
@@ -385,11 +386,14 @@ You can configure swc's transform to use SWC's experimental plugin support writt
 module.exports = {
   experimental: {
     swcPlugins: [
-      ['plugin', {
-        ..pluginOptions
-      }]
-    ]
-  }
+      [
+        'plugin',
+        {
+          ...pluginOptions,
+        },
+      ],
+    ],
+  },
 }
 ```
 

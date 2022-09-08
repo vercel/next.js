@@ -61,6 +61,11 @@ function runTestsAgainstRuntime(runtime) {
           )
         })
       }
+
+      it('should not have invalid config warning', async () => {
+        await renderViaHTTP(context.appPort, '/')
+        expect(context.stderr).not.toContain('not exist in this version')
+      })
     },
     {
       beforeAll: (env) => {

@@ -35,14 +35,6 @@ const Page = () => {
         height="700"
         layout="responsive"
       />
-      <Image
-        priority
-        id="raw1"
-        src="/test.webp"
-        width="1200"
-        height="700"
-        layout="raw"
-      />
       <p id="stubtext">This is the priority page</p>
     </div>
   )

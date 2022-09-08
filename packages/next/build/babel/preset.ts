@@ -16,7 +16,7 @@ type StyledJsxBabelOptions =
 // Resolve styled-jsx plugins
 function styledJsxOptions(options: StyledJsxBabelOptions) {
   options = options || {}
-  options.styleModule = 'next/dist/shared/lib/styled-jsx'
+  options.styleModule = 'styled-jsx/style'
 
   if (!Array.isArray(options.plugins)) {
     return options

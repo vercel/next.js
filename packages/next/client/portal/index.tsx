@@ -1,4 +1,4 @@
-import React from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 type PortalProps = {
@@ -6,19 +6,17 @@ type PortalProps = {
   type: string
 }
 
-export const Portal: React.FC<PortalProps> = ({ children, type }) => {
-  let portalNode = React.useRef<HTMLElement | null>(null)
-  let [, forceUpdate] = React.useState<{}>()
-  React.useEffect(() => {
-    portalNode.current = document.createElement(type)
-    document.body.appendChild(portalNode.current)
-    forceUpdate({})
+export const Portal = ({ children, type }: PortalProps) => {
+  const [portalNode, setPortalNode] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const element = document.createElement(type)
+    document.body.appendChild(element)
+    setPortalNode(element)
     return () => {
-      if (portalNode.current) {
-        document.body.removeChild(portalNode.current)
-      }
+      document.body.removeChild(element)
     }
   }, [type])
 
-  return portalNode.current ? createPortal(children, portalNode.current) : null
+  return portalNode ? createPortal(children, portalNode) : null
 }

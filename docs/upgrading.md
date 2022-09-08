@@ -4,6 +4,10 @@ description: Learn how to upgrade Next.js.
 
 # Upgrade Guide
 
+## Upgrading to 12.2
+
+If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide) for more information.
+
 ## Upgrading from 11 to 12
 
 ### Minimum Node.js version
@@ -292,7 +296,7 @@ yarn add next@10
 
 If you previously configured `routes` in your `vercel.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](/docs/routing/dynamic-routes.md).
 
-Next.js 9's dynamic routes are **automatically configured on [Vercel](https://vercel.com/)** and do not require any `vercel.json` customization.
+Next.js 9's dynamic routes are **automatically configured on [Vercel](https://vercel.com?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)** and do not require any `vercel.json` customization.
 
 You can read more about [Dynamic Routing here](/docs/routing/dynamic-routes.md).
 

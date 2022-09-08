@@ -2,8 +2,8 @@ import React, { Children, useEffect, useLayoutEffect } from 'react'
 
 type State = JSX.Element[] | undefined
 
-type SideEffectProps = {
-  reduceComponentsToState: <T>(
+export type SideEffectProps = {
+  reduceComponentsToState: <T extends {}>(
     components: Array<React.ReactElement<any>>,
     props: T
   ) => State
@@ -23,8 +23,8 @@ export default function SideEffect(props: SideEffectProps) {
   function emitChange() {
     if (headManager && headManager.mountedInstances) {
       const headElements = Children.toArray(
-        headManager.mountedInstances
-      ).filter(Boolean) as React.ReactElement[]
+        Array.from(headManager.mountedInstances as Set<unknown>).filter(Boolean)
+      ) as React.ReactElement[]
       headManager.updateHead(reduceComponentsToState(headElements, props))
     }
   }

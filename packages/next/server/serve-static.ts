@@ -1,6 +1,12 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import send from 'next/dist/compiled/send'
 
+// TODO: Remove this once "send" has updated the "mime", or next.js use custom version of "mime"
+// Although "mime" has already add avif in version 2.4.7, "send" is still using mime@1.6.0
+send.mime.define({
+  'image/avif': ['avif'],
+})
+
 export function serveStatic(
   req: IncomingMessage,
   res: ServerResponse,
@@ -21,10 +27,6 @@ export function serveStatic(
 }
 
 export function getContentType(extWithoutDot: string): string | null {
-  if (extWithoutDot === 'avif') {
-    // TODO: update "mime" package
-    return 'image/avif'
-  }
   const { mime } = send
   if ('getType' in mime) {
     // 2.0
@@ -35,10 +37,6 @@ export function getContentType(extWithoutDot: string): string | null {
 }
 
 export function getExtension(contentType: string): string | null {
-  if (contentType === 'image/avif') {
-    // TODO: update "mime" package
-    return 'avif'
-  }
   const { mime } = send
   if ('getExtension' in mime) {
     // 2.0

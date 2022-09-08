@@ -1,5 +1,7 @@
-import { existsSync } from 'fs'
-import { join, relative } from 'path'
+import { promises as fs } from 'fs'
+import { fileExists } from './file-exists'
+import { resolveFrom } from './resolve-from'
+import { dirname, join, relative } from 'path'
 
 export interface MissingDependency {
   file: string
@@ -17,31 +19,36 @@ export async function hasNecessaryDependencies(
   requiredPackages: MissingDependency[]
 ): Promise<NecessaryDependencies> {
   let resolutions = new Map<string, string>()
-  const missingPackages = requiredPackages.filter((p) => {
-    try {
-      if (p.exportsRestrict) {
-        const pkgPath = require.resolve(`${p.pkg}/package.json`, {
-          paths: [baseDir],
-        })
-        const fileNameToVerify = relative(p.pkg, p.file)
-        if (fileNameToVerify) {
-          const fileToVerify = join(pkgPath, '..', fileNameToVerify)
-          if (existsSync(fileToVerify)) {
-            resolutions.set(p.pkg, join(pkgPath, '..'))
+  const missingPackages: MissingDependency[] = []
+
+  await Promise.all(
+    requiredPackages.map(async (p) => {
+      try {
+        const pkgPath = await fs.realpath(
+          resolveFrom(baseDir, `${p.pkg}/package.json`)
+        )
+        const pkgDir = dirname(pkgPath)
+
+        if (p.exportsRestrict) {
+          const fileNameToVerify = relative(p.pkg, p.file)
+          if (fileNameToVerify) {
+            const fileToVerify = join(pkgDir, fileNameToVerify)
+            if (await fileExists(fileToVerify)) {
+              resolutions.set(p.pkg, fileToVerify)
+            } else {
+              return missingPackages.push(p)
+            }
           } else {
-            return true
+            resolutions.set(p.pkg, pkgPath)
           }
         } else {
-          resolutions.set(p.pkg, pkgPath)
+          resolutions.set(p.pkg, resolveFrom(baseDir, p.file))
         }
-      } else {
-        resolutions.set(p.pkg, require.resolve(p.file, { paths: [baseDir] }))
+      } catch (_) {
+        return missingPackages.push(p)
       }
-      return false
-    } catch (_) {
-      return true
-    }
-  })
+    })
+  )
 
   return {
     resolved: resolutions,

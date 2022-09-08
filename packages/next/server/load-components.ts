@@ -13,13 +13,11 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   FLIGHT_MANIFEST,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../shared/lib/constants'
 import { join } from 'path'
-import { requirePage, getPagePath } from './require'
+import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type ManifestItem = {
   id: number | string
@@ -65,8 +63,8 @@ export async function loadComponents(
   distDir: string,
   pathname: string,
   serverless: boolean,
-  hasServerComponents?: boolean,
-  appDirEnabled?: boolean
+  hasServerComponents: boolean,
+  isAppPath: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
@@ -101,17 +99,21 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
-    Promise.resolve().then(() =>
-      requirePage('/_document', distDir, serverless, appDirEnabled)
-    ),
-    Promise.resolve().then(() =>
-      requirePage('/_app', distDir, serverless, appDirEnabled)
-    ),
-    Promise.resolve().then(() =>
-      requirePage(pathname, distDir, serverless, appDirEnabled)
-    ),
-  ])
+  let DocumentMod = {}
+  let AppMod = {}
+  if (!isAppPath) {
+    ;[DocumentMod, AppMod] = await Promise.all([
+      Promise.resolve().then(() =>
+        requirePage('/_document', distDir, serverless, false)
+      ),
+      Promise.resolve().then(() =>
+        requirePage('/_app', distDir, serverless, false)
+      ),
+    ])
+  }
+  const ComponentMod = await Promise.resolve().then(() =>
+    requirePage(pathname, distDir, serverless, isAppPath)
+  )
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
     await Promise.all([
@@ -122,40 +124,11 @@ export async function loadComponents(
         : null,
     ])
 
-  if (hasServerComponents) {
-    try {
-      // Make sure to also load the client entry in cache.
-      await requirePage(
-        normalizePagePath(pathname) + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-        distDir,
-        serverless,
-        appDirEnabled
-      )
-    } catch (_) {
-      // This page might not be a server component page, so there is no
-      // client entry to load.
-    }
-  }
-
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
   const App = interopDefault(AppMod)
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
-
-  let isAppPath = false
-
-  if (appDirEnabled) {
-    const pagePath = getPagePath(
-      pathname,
-      distDir,
-      serverless,
-      false,
-      undefined,
-      appDirEnabled
-    )
-    isAppPath = !!pagePath?.match(/server[/\\]app[/\\]/)
-  }
 
   return {
     App,
