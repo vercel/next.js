@@ -1,4 +1,5 @@
 {
+  "$schema": "https://turborepo.org/schema.json",
   "pipeline": {
     "build-native": {
       "dependsOn": ["^build-native"],
