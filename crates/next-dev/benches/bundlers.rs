@@ -43,6 +43,14 @@ impl Bundler for Turbopack {
         &self.path
     }
 
+    fn prepare(&self, install_dir: &Path) -> Result<()> {
+        install_from_npm(install_dir, "react-refresh", "^0.12.0")
+            .context("failed to install `parcel` module")?;
+        install_from_npm(install_dir, "@next/react-refresh-utils", "^12.2.5")
+            .context("failed to install `process` module")?;
+        Ok(())
+    }
+
     fn start_server(&self, test_dir: &Path) -> Result<(Child, String)> {
         let mut proc = Command::new(std::env!("CARGO_BIN_EXE_next-dev"))
             .args([
@@ -62,6 +70,57 @@ impl Bundler for Turbopack {
                 .as_mut()
                 .ok_or_else(|| anyhow!("missing stdout"))?,
             Regex::new("server listening on: (.*)")?,
+        )
+        .ok_or_else(|| anyhow!("failed to find devserver address"))?;
+
+        Ok((proc, addr))
+    }
+}
+
+struct Parcel;
+impl Bundler for Parcel {
+    fn get_name(&self) -> &str {
+        "Parcel CSR"
+    }
+
+    fn prepare(&self, install_dir: &Path) -> Result<()> {
+        install_from_npm(install_dir, "parcel", "2.7.0")
+            .context("failed to install `parcel` module")?;
+
+        // `process` would otherwise be auto-installed by Parcel. Do this in advance as
+        // to not influence the benchmark.
+        install_from_npm(install_dir, "process", "^0.11.0")
+            .context("failed to install `process` module")?;
+        Ok(())
+    }
+
+    fn start_server(&self, test_dir: &Path) -> Result<(Child, String)> {
+        let mut proc = Command::new("node")
+            .args([
+                (test_dir
+                    .join("node_modules")
+                    .join("parcel")
+                    .join("lib")
+                    .join("bin.js")
+                    .to_str()
+                    .unwrap()),
+                "--port",
+                &portpicker::pick_unused_port()
+                    .ok_or_else(|| anyhow!("failed to pick unused port"))?
+                    .to_string(),
+                "index.html",
+            ])
+            .current_dir(test_dir)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .context("failed to run `parcel` command")?;
+
+        let addr = wait_for_match(
+            proc.stdout
+                .as_mut()
+                .ok_or_else(|| anyhow!("missing stdout"))?,
+            Regex::new("Server running at\\s+(.*)")?,
         )
         .ok_or_else(|| anyhow!("failed to find devserver address"))?;
 
@@ -214,6 +273,7 @@ pub fn get_bundlers() -> Result<Vec<Box<dyn Bundler>>> {
     }
 
     if others {
+        bundlers.push(Box::new(Parcel {}));
         bundlers.push(Box::new(Vite::new()?));
         bundlers.push(Box::new(NextJs::new(12)));
         bundlers.push(Box::new(NextJs::new(11)));

@@ -294,10 +294,8 @@ export function getStaticProps() {
                 private: true,
                 version: "0.0.0",
                 dependencies: json::object! {
-                    "@next/react-refresh-utils": "^12.2.5",
                     "react": "^18.2.0",
                     "react-dom": "^18.2.0",
-                    "react-refresh": "^0.12.0",
                 }
             };
             File::create(path.join("package.json"))
