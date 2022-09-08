@@ -106,14 +106,14 @@ function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
         <Image
           id={`img${id}`}
           onLoadingComplete={(img) => {
-            const { naturalWidth, naturalHeight } = img
+            const { naturalWidth, naturalHeight, nodeName } = img
             let count = idToCount[id] || 0
             count++
             idToCount[id] = count
             setIdToCount(idToCount)
-            const nodeName = img.nodeName.toLocaleLowerCase()
+            const name = nodeName.toLocaleLowerCase()
             setMsg(
-              `loaded ${count} ${nodeName}${id} with dimensions ${naturalWidth}x${naturalHeight}`
+              `loaded ${count} ${name}${id} with dimensions ${naturalWidth}x${naturalHeight}`
             )
           }}
           {...props}
