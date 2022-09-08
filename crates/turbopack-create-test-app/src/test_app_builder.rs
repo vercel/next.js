@@ -266,7 +266,7 @@ export function getStaticProps() {
             .write_all(bootstrap_html.as_bytes())
             .context("writing bootstrap html in root")?;
 
-        // This HTML is used e. g. by Vite
+        // This HTML is used e. g. by webpack
         let bootstrap_html2 = r#"<!DOCTYPE html>
 <html lang="en">
     <head>

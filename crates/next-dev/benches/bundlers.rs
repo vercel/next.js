@@ -17,6 +17,11 @@ pub trait Bundler {
     fn react_version(&self) -> &str {
         "^18.2.0"
     }
+    /// The initial HTML is enough to render the page even without JavaScript
+    /// loaded
+    fn has_server_rendered_html(&self) -> bool {
+        false
+    }
     fn prepare(&self, _template_dir: &Path) -> Result<()> {
         Ok(())
     }
@@ -26,13 +31,15 @@ pub trait Bundler {
 struct Turbopack {
     name: String,
     path: String,
+    has_server_rendered_html: bool,
 }
 
 impl Turbopack {
-    fn new(name: &str, path: &str) -> Self {
+    fn new(name: &str, path: &str, has_server_rendered_html: bool) -> Self {
         Turbopack {
             name: name.to_owned(),
             path: path.to_owned(),
+            has_server_rendered_html,
         }
     }
 }
@@ -44,6 +51,10 @@ impl Bundler for Turbopack {
 
     fn get_path(&self) -> &str {
         &self.path
+    }
+
+    fn has_server_rendered_html(&self) -> bool {
+        self.has_server_rendered_html
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
@@ -210,6 +221,10 @@ impl Bundler for NextJs {
         self.version.react_version()
     }
 
+    fn has_server_rendered_html(&self) -> bool {
+        true
+    }
+
     fn prepare(&self, install_dir: &Path) -> Result<()> {
         install_from_npm(install_dir, "next", self.version.version())
             .context("failed to install `next` module")?;
@@ -306,8 +321,8 @@ pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
     }
     let mut bundlers: Vec<Box<dyn Bundler>> = Vec::new();
     if turbopack {
-        bundlers.push(Box::new(Turbopack::new("Turbopack CSR", "/")));
-        bundlers.push(Box::new(Turbopack::new("Turbopack SSR", "/page")));
+        bundlers.push(Box::new(Turbopack::new("Turbopack CSR", "/", false)));
+        bundlers.push(Box::new(Turbopack::new("Turbopack SSR", "/page", true)));
     }
 
     if others {

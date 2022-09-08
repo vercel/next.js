@@ -11,7 +11,10 @@ use anyhow::{anyhow, Context, Result};
 use bundlers::{command, get_bundlers, Bundler};
 use chromiumoxide::{
     browser::{Browser, BrowserConfig},
-    cdp::js_protocol::runtime::{AddBindingParams, EventBindingCalled, EventExceptionThrown},
+    cdp::{
+        browser_protocol::network::EventResponseReceived,
+        js_protocol::runtime::{AddBindingParams, EventBindingCalled, EventExceptionThrown},
+    },
     error::CdpError::Ws,
     listeners::EventStream,
     Page,
@@ -131,11 +134,23 @@ fn bench_hydration(c: &mut Criterion) {
     bench_startup_internal(g, true);
 }
 
-fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, wait_for_hydration: bool) {
+fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, hydration: bool) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
     for bundler in get_bundlers() {
+        let wait_for_hydration = if !bundler.has_server_rendered_html() {
+            // For bundlers without server rendered html "startup" means time to hydration
+            // as they only render an empty screen without hydration. Since startup and
+            // hydration would be the same we skip the hydration benchmark for them.
+            if hydration {
+                continue;
+            } else {
+                true
+            }
+        } else {
+            hydration
+        };
         for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
             g.bench_with_input(
@@ -149,13 +164,8 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, wait_for_hydration: b
                         |mut app| async {
                             app.start_server()?;
                             let mut guard = app.with_page(browser).await?;
-                            guard.page().wait_for_navigation().await?;
                             if wait_for_hydration {
-                                timeout(
-                                    MAX_HYDRATION_TIMEOUT,
-                                    guard.wait_for_binding(TEST_APP_HYDRATION_DONE),
-                                )
-                                .await??;
+                                guard.wait_for_hydration().await?;
                             }
 
                             // Defer the dropping of the guard to `teardown`.
@@ -225,12 +235,7 @@ fn bench_simple_file_change(c: &mut Criterion) {
                             let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
                             app.start_server()?;
                             let mut guard = app.with_page(browser).await?;
-                            guard.page().wait_for_navigation().await?;
-                            timeout(
-                                MAX_HYDRATION_TIMEOUT,
-                                guard.wait_for_binding(TEST_APP_HYDRATION_DONE),
-                            )
-                            .await??;
+                            guard.wait_for_hydration().await?;
 
                             // Make warmup change
                             make_change(&mut guard).await?;
@@ -281,12 +286,8 @@ fn bench_restart(c: &mut Criterion) {
                             let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
                             app.start_server()?;
                             let mut guard = app.with_page(browser).await?;
-                            guard.page().wait_for_navigation().await?;
-                            timeout(
-                                MAX_HYDRATION_TIMEOUT,
-                                guard.wait_for_binding(TEST_APP_HYDRATION_DONE),
-                            )
-                            .await??;
+                            guard.wait_for_hydration().await?;
+
                             let mut app = guard.close_page().await?;
 
                             // Give it 4 seconds time to store the cache
@@ -298,12 +299,7 @@ fn bench_restart(c: &mut Criterion) {
                         |mut app| async {
                             app.start_server()?;
                             let mut guard = app.with_page(browser).await?;
-                            guard.page().wait_for_navigation().await?;
-                            timeout(
-                                MAX_HYDRATION_TIMEOUT,
-                                guard.wait_for_binding(TEST_APP_HYDRATION_DONE),
-                            )
-                            .await??;
+                            guard.wait_for_hydration().await?;
 
                             // Defer the dropping of the guard to `teardown`.
                             Ok(guard)
@@ -365,9 +361,29 @@ impl<'a> PreparedApp<'a> {
 
         let mut errors = page.event_listener::<EventExceptionThrown>().await?;
         let binding_events = page.event_listener::<EventBindingCalled>().await?;
+        let mut network_response_events = page.event_listener::<EventResponseReceived>().await?;
 
         let destination = Url::parse(&server.1)?.join(self.bundler.get_path())?;
-        page.goto(destination).await?;
+        // We can't use page.goto() here since this will wait for the naviation to be
+        // completed. A naviation would be complete when all sync script are
+        // evaluated, but the page actually can rendered earlier without JavaScript
+        // needing to be evaluated.
+        // So instead we navigate via JavaScript and wait only for the HTML response to
+        // be completed.
+        page.evaluate_expression(format!("window.location='{destination}'"))
+            .await?;
+
+        // Wait for HTML response completed
+        loop {
+            match network_response_events.next().await {
+                Some(event) => {
+                    if event.response.url == destination.as_str() {
+                        break;
+                    }
+                }
+                None => return Err(anyhow!("event stream ended too early")),
+            }
+        }
 
         // Make sure no runtime errors occurred when loading the page
         assert!(errors.next().now_or_never().is_none());
@@ -413,12 +429,6 @@ impl<'a> PageGuard<'a> {
         }
     }
 
-    /// Returns a reference to the page.
-    pub fn page(&self) -> &Page {
-        // Invariant: page is always Some while the guard is alive.
-        self.page.as_ref().unwrap()
-    }
-
     /// Returns a reference to the app.
     pub fn app(&self) -> &PreparedApp<'a> {
         // Invariant: app is always Some while the guard is alive.
@@ -450,6 +460,16 @@ impl<'a> PageGuard<'a> {
         }
 
         Err(anyhow!("event stream ended before binding was called"))
+    }
+
+    /// Waits until the page and the page JavaScript is hydrated.
+    pub async fn wait_for_hydration(&mut self) -> Result<()> {
+        timeout(
+            MAX_HYDRATION_TIMEOUT,
+            self.wait_for_binding(TEST_APP_HYDRATION_DONE),
+        )
+        .await??;
+        Ok(())
     }
 }
 
