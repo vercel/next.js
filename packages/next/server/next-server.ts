@@ -763,7 +763,6 @@ export default class NextNodeServer extends BaseServer {
           params,
           page,
           appPaths: null,
-          isAppPath: false,
         })
 
         if (handledAsEdgeFunction) {
@@ -913,7 +912,6 @@ export default class NextNodeServer extends BaseServer {
             params: ctx.renderOpts.params,
             page,
             appPaths,
-            isAppPath,
           })
           return null
         }
@@ -2031,7 +2029,6 @@ export default class NextNodeServer extends BaseServer {
     params: Params | undefined
     page: string
     appPaths: string[] | null
-    isAppPath: boolean
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
@@ -2047,12 +2044,16 @@ export default class NextNodeServer extends BaseServer {
       return null
     }
 
+    // Erase extra queries
+    const locale = params.query.__nextLocale
+    delete params.query.__nextLocale
+    delete params.query.__nextDefaultLocale
+
     // For middleware to "fetch" we must always provide an absolute URL
     const isDataReq = !!params.query.__nextDataReq
     const query = urlQueryToSearchParams(params.query).toString()
-    const locale = params.query.__nextLocale
-    // Use original pathname (without `/page`) instead of appPath for url
-    let normalizedPathname = params.page
+
+    let normalizedPathname = params.req.url
 
     if (isDataReq) {
       params.req.headers['x-nextjs-data'] = '1'
