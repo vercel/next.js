@@ -338,6 +338,15 @@ const configSchema = {
         sharedPool: {
           type: 'boolean',
         },
+        sri: {
+          properties: {
+            algorithm: {
+              enum: ['sha256', 'sha384', 'sha512'] as any,
+              type: 'string',
+            },
+          },
+          type: 'object',
+        },
         swcFileReading: {
           type: 'boolean',
         },
