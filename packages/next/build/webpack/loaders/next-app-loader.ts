@@ -56,7 +56,7 @@ async function createTreeCodeFromPath({
         const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
         const resolvedPagePath = await resolve(matchedPagePath)
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[parallelKey] = `['', {}, {filePath: ${JSON.stringify(
+        props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
           resolvedPagePath
         )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
         continue
