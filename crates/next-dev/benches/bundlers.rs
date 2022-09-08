@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     fs::{self, File},
     io::{self, BufRead, BufReader, Write},
     path::Path,
@@ -7,12 +8,14 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
-use tempfile::TempDir;
 
 pub trait Bundler {
     fn get_name(&self) -> &str;
     fn get_path(&self) -> &str {
         "/"
+    }
+    fn react_version(&self) -> &str {
+        "^18.2.0"
     }
     fn prepare(&self, _template_dir: &Path) -> Result<()> {
         Ok(())
@@ -128,19 +131,11 @@ impl Bundler for Parcel {
     }
 }
 
-struct Vite {
-    install_dir: TempDir,
-}
+struct Vite {}
 
 impl Vite {
-    fn new() -> Result<Self> {
-        // Manage our own installation and avoid `npm exec`, `npx`, etc. to avoid their
-        // overhead influencing benchmarks.
-        let install_dir = tempfile::tempdir()?;
-        install_from_npm(install_dir.path(), "vite", "3.0.9")
-            .context("failed to install `vite` module")?;
-
-        Ok(Vite { install_dir })
+    fn new() -> Self {
+        Vite {}
     }
 }
 
@@ -149,12 +144,16 @@ impl Bundler for Vite {
         "Vite CSR"
     }
 
+    fn prepare(&self, install_dir: &Path) -> Result<()> {
+        install_from_npm(install_dir, "vite", "3.0.9")
+            .context("failed to install `vite` module")?;
+        Ok(())
+    }
+
     fn start_server(&self, test_dir: &Path) -> Result<(Child, String)> {
         let mut proc = Command::new("node")
             .args([
-                (self
-                    .install_dir
-                    .path()
+                (test_dir
                     .join("node_modules")
                     .join("vite")
                     .join("bin")
@@ -183,16 +182,17 @@ impl Bundler for Vite {
     }
 }
 
+#[derive(Debug)]
 struct NextJs {
-    version: u32,
+    version: NextJsVersion,
     name: String,
 }
 
 impl NextJs {
-    fn new(version: u32) -> Self {
+    fn new(version: NextJsVersion) -> Self {
         Self {
+            name: format!("{version} SSR"),
             version,
-            name: format!("Next.js {version} SSR"),
         }
     }
 }
@@ -206,8 +206,12 @@ impl Bundler for NextJs {
         "/page"
     }
 
+    fn react_version(&self) -> &str {
+        self.version.react_version()
+    }
+
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        install_from_npm(install_dir, "next", &format!("^{}", self.version))
+        install_from_npm(install_dir, "next", self.version.version())
             .context("failed to install `next` module")?;
         Ok(())
     }
@@ -251,7 +255,41 @@ impl Bundler for NextJs {
     }
 }
 
-pub fn get_bundlers() -> Result<Vec<Box<dyn Bundler>>> {
+#[derive(Debug)]
+enum NextJsVersion {
+    V11,
+    V12,
+}
+
+impl Display for NextJsVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NextJsVersion::V11 => write!(f, "Next.js 11"),
+            NextJsVersion::V12 => write!(f, "Next.js 12"),
+        }
+    }
+}
+
+impl NextJsVersion {
+    /// Returns the version of Next.js to install from npm.
+    pub fn version(&self) -> &'static str {
+        match self {
+            NextJsVersion::V11 => "^11",
+            NextJsVersion::V12 => "^12",
+        }
+    }
+
+    /// Returns the version of React to install from npm alongside this version
+    /// of Next.js.
+    pub fn react_version(&self) -> &'static str {
+        match self {
+            NextJsVersion::V11 => "^17.0.2",
+            NextJsVersion::V12 => "^18.2.0",
+        }
+    }
+}
+
+pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
     let config = std::env::var("TURBOPACK_BENCH_BUNDLERS").ok();
     let mut turbopack = false;
     let mut others = false;
@@ -274,12 +312,12 @@ pub fn get_bundlers() -> Result<Vec<Box<dyn Bundler>>> {
 
     if others {
         bundlers.push(Box::new(Parcel {}));
-        bundlers.push(Box::new(Vite::new()?));
-        bundlers.push(Box::new(NextJs::new(12)));
-        bundlers.push(Box::new(NextJs::new(11)));
+        bundlers.push(Box::new(Vite::new()));
+        bundlers.push(Box::new(NextJs::new(NextJsVersion::V12)));
+        bundlers.push(Box::new(NextJs::new(NextJsVersion::V11)));
     }
 
-    Ok(bundlers)
+    bundlers
 }
 
 fn wait_for_match(stdout: &mut ChildStdout, re: Regex) -> Option<String> {

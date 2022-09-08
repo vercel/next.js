@@ -30,13 +30,14 @@ fn decide_early(remaining: usize, min_remaining_decisions: usize) -> bool {
     }
 }
 
+#[derive(Debug)]
 pub struct TestAppBuilder {
     pub target: Option<PathBuf>,
     pub module_count: usize,
     pub directories_count: usize,
     pub dynamic_import_count: usize,
     pub flatness: usize,
-    pub package_json: bool,
+    pub package_json: Option<PackageJsonConfig>,
 }
 
 impl Default for TestAppBuilder {
@@ -47,7 +48,7 @@ impl Default for TestAppBuilder {
             directories_count: 50,
             dynamic_import_count: 0,
             flatness: 5,
-            package_json: false,
+            package_json: Some(Default::default()),
         }
     }
 }
@@ -287,15 +288,15 @@ export function getStaticProps() {
             .write_all(bootstrap_html2.as_bytes())
             .context("writing bootstrap html in public")?;
 
-        if self.package_json {
+        if let Some(package_json) = &self.package_json {
             // These dependencies are needed
             let package_json = json::object! {
                 name: "turbopack-test-app",
                 private: true,
                 version: "0.0.0",
                 dependencies: json::object! {
-                    "react": "^18.2.0",
-                    "react-dom": "^18.2.0",
+                    "react": package_json.react_version.clone(),
+                    "react-dom": package_json.react_version.clone(),
                 }
             };
             File::create(path.join("package.json"))
@@ -305,6 +306,21 @@ export function getStaticProps() {
         }
 
         Ok(app)
+    }
+}
+
+/// Configuration struct to generate the `package.json` file of the test app.
+#[derive(Debug)]
+pub struct PackageJsonConfig {
+    /// The version of React to use.
+    pub react_version: String,
+}
+
+impl Default for PackageJsonConfig {
+    fn default() -> Self {
+        Self {
+            react_version: "^18.2.0".to_string(),
+        }
     }
 }
 
