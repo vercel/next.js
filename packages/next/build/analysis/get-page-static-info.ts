@@ -239,20 +239,21 @@ export async function getPageStaticInfo(params: {
     }
 
     if (
-      typeof config.runtime !== 'string' &&
-      typeof config.runtime !== 'undefined'
+      typeof config.runtime !== 'undefined' &&
+      !isServerRuntime(config.runtime)
     ) {
-      throw new Error(`Provided runtime `)
-    } else if (!isServerRuntime(config.runtime)) {
       const options = Object.values(SERVER_RUNTIME).join(', ')
       if (typeof config.runtime !== 'string') {
-        throw new Error(
+        Log.error(
           `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
         )
       } else {
-        throw new Error(
+        Log.error(
           `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
         )
+      }
+      if (!isDev) {
+        process.exit(1)
       }
     }
 
