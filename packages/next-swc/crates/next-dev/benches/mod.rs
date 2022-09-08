@@ -39,22 +39,16 @@ const TEST_APP_HYDRATION_DONE: &str = "Hydration done";
 const MAX_UPDATE_TIMEOUT: Duration = Duration::from_secs(20);
 const MAX_HYDRATION_TIMEOUT: Duration = Duration::from_secs(30);
 
-fn get_module_counts() -> &'static [usize] {
+fn get_module_counts() -> Vec<usize> {
     let config = std::env::var("TURBOPACK_BENCH_COUNTS").ok();
     match config.as_deref() {
-        Some("all") => {
-            static C: &[usize] = &[100, 500, 1_000, 2_000];
-            C
-        }
-        Some("others") => {
-            static C: &[usize] = &[500, 2_000];
-            C
-        }
         None | Some("") => {
-            static C: &[usize] = &[100, 1_000];
-            C
+            vec![100, 1_000]
         }
-        _ => panic!("Invalid value for TURBOPACK_BENCH_COUNTS"),
+        Some(config) => config
+            .split(",")
+            .map(|s| s.parse().expect("Invalid value for TURBOPACK_BENCH_COUNTS"))
+            .collect(),
     }
 }
 
@@ -148,7 +142,7 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, wait_for_hydration: b
                 BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                 &input,
                 |b, &(bundler, module_count)| {
-                    let test_app = build_test(*module_count, bundler);
+                    let test_app = build_test(module_count, bundler);
                     let template_dir = test_app.path();
                     b.to_async(&runtime).try_iter_async(
                         || async { PreparedApp::new(bundler, template_dir.to_path_buf()) },
@@ -191,7 +185,7 @@ fn bench_simple_file_change(c: &mut Criterion) {
                 BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                 &input,
                 |b, &(bundler, module_count)| {
-                    let test_app = build_test(*module_count, bundler);
+                    let test_app = build_test(module_count, bundler);
                     let template_dir = test_app.path();
                     fn add_code(app_path: &Path, code: &str) -> Result<()> {
                         let triangle_path = app_path.join("src/triangle.jsx");
@@ -279,7 +273,7 @@ fn bench_restart(c: &mut Criterion) {
                 BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                 &input,
                 |b, &(bundler, module_count)| {
-                    let test_app = build_test(*module_count, bundler);
+                    let test_app = build_test(module_count, bundler);
                     let template_dir = test_app.path();
                     b.to_async(Runtime::new().unwrap()).try_iter_async(
                         || async {
