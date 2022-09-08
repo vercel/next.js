@@ -98,9 +98,9 @@ function calculateOverrideCSS(font: string, fontMetrics: any) {
   const { category, ascentOverride, descentOverride, lineGapOverride } =
     fontMetrics[fontKey]
   const fallbackFont = category === 'serif' ? 'Times New Roman' : 'Arial'
-  const ascent = ascentOverride * 100
-  const descent = descentOverride * 100
-  const lineGap = lineGapOverride * 100
+  const ascent = (ascentOverride * 100).toFixed(2)
+  const descent = (descentOverride * 100).toFixed(2)
+  const lineGap = (lineGapOverride * 100).toFixed(2)
 
   return `
     @font-face {
