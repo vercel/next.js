@@ -2049,9 +2049,7 @@ export default class NextNodeServer extends BaseServer {
 
     // For middleware to "fetch" we must always provide an absolute URL
     const isDataReq = !!params.query.__nextDataReq
-    const query = urlQueryToSearchParams(
-      Object.assign({}, getRequestMeta(params.req, '__NEXT_INIT_QUERY') || {})
-    ).toString()
+    const query = urlQueryToSearchParams(params.query).toString()
     const locale = params.query.__nextLocale
     // Use original pathname (without `/page`) instead of appPath for url
     let normalizedPathname = params.page
