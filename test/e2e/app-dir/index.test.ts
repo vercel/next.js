@@ -1242,7 +1242,8 @@ describe('app dir', () => {
       })
     })
 
-    describe('error component', () => {
+    // TODO-APP: This is disabled for development as the error overlay needs to be reworked.
+    ;(isDev ? describe.skip : describe)('error component', () => {
       it('should trigger error component when an error happens during rendering', async () => {
         const browser = await webdriver(next.url, '/error/clientcomponent')
         await browser
