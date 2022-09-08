@@ -154,24 +154,20 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, wait_for_hydration: b
                         || async { PreparedApp::new(bundler, template_dir.to_path_buf()) },
                         |mut app| async {
                             app.start_server()?;
-                            let (guard, mut events) = app.new_page(browser).await?;
+                            let mut guard = app.with_page(browser).await?;
                             guard.page().wait_for_navigation().await?;
                             if wait_for_hydration {
                                 timeout(
                                     MAX_HYDRATION_TIMEOUT,
-                                    wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
+                                    guard.wait_for_binding(TEST_APP_HYDRATION_DONE),
                                 )
                                 .await??;
                             }
-                            // return the PreparedApp doesn't make dropping it part of the
-                            // measurement
-                            Ok((app, guard))
+
+                            // Defer the dropping of the guard to `teardown`.
+                            Ok(guard)
                         },
-                        |(_app, guard)| async move {
-                            if let Err(e) = guard.close_page().await {
-                                eprintln!("failed to close page: {:?}", e);
-                            }
-                        },
+                        |_guard| async move {},
                     );
                 },
             );
@@ -191,15 +187,14 @@ fn bench_simple_file_change(c: &mut Criterion) {
     for bundler in retry_default((), |_| get_bundlers()).expect("failed to get bundlers") {
         for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
-
             g.bench_with_input(
                 BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
                 &input,
                 |b, &(bundler, module_count)| {
                     let test_app = build_test(*module_count, bundler);
                     let template_dir = test_app.path();
-                    fn add_code<'a>(app: &mut PreparedApp<'a>, code: &str) -> Result<()> {
-                        let triangle_path = app.path().join("src/triangle.jsx");
+                    fn add_code(app_path: &Path, code: &str) -> Result<()> {
+                        let triangle_path = app_path.join("src/triangle.jsx");
                         let mut contents = fs::read_to_string(&triangle_path)?;
                         const COMPONENT_START: &str =
                             "export default function Container({ style }) {\n";
@@ -213,13 +208,10 @@ fn bench_simple_file_change(c: &mut Criterion) {
                         fs::write(&triangle_path, contents)?;
                         Ok(())
                     }
-                    async fn make_change<'a>(
-                        app: &mut PreparedApp<'a>,
-                        events: &mut EventStream<EventBindingCalled>,
-                    ) -> Result<()> {
-                        let msg = format!("TURBOPACK_BENCH_CHANGE_{}", app.counter());
+                    async fn make_change<'a>(guard: &mut PageGuard<'a>) -> Result<()> {
+                        let msg = format!("TURBOPACK_BENCH_CHANGE_{}", guard.app_mut().counter());
                         add_code(
-                            app,
+                            guard.app().path(),
                             &format!(
                                 "    React.useEffect(() => {{ globalThis.{BINDING_NAME}('{msg}'); \
                                  }});\n"
@@ -228,7 +220,7 @@ fn bench_simple_file_change(c: &mut Criterion) {
 
                         // Wait for the change introduced above to be reflected at runtime.
                         // This expects HMR or automatic reloading to occur.
-                        timeout(MAX_UPDATE_TIMEOUT, wait_for_binding(events, &msg))
+                        timeout(MAX_UPDATE_TIMEOUT, guard.wait_for_binding(&msg))
                             .await?
                             .context("update was not registered by bundler")?;
 
@@ -238,48 +230,31 @@ fn bench_simple_file_change(c: &mut Criterion) {
                         || async {
                             let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
                             app.start_server()?;
-                            let (guard, mut events) = app.new_page(browser).await?;
+                            let mut guard = app.with_page(browser).await?;
                             guard.page().wait_for_navigation().await?;
                             timeout(
                                 MAX_HYDRATION_TIMEOUT,
-                                wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
+                                guard.wait_for_binding(TEST_APP_HYDRATION_DONE),
                             )
                             .await??;
 
                             // Make warmup change
-                            make_change(&mut app, &mut events).await?;
+                            make_change(&mut guard).await?;
 
-                            Ok((app, guard, events))
+                            Ok(guard)
                         },
-                        |(mut app, guard, mut events)| async move {
-                            make_change(&mut app, &mut events).await?;
+                        |mut guard| async move {
+                            make_change(&mut guard).await?;
 
-                            // Defer the dropping of the app and the page guard to `teardown`.
-                            Ok((app, guard))
+                            // Defer the dropping of the guard to `teardown`.
+                            Ok(guard)
                         },
-                        |(_app, guard)| async move {
-                            if let Err(err) = guard.close_page().await {
-                                eprintln!("failed to close page: {:?}", err);
-                            }
-                        },
+                        |_guard| async move {},
                     );
                 },
             );
         }
     }
-}
-
-async fn wait_for_binding(
-    events: &mut EventStream<EventBindingCalled>,
-    payload: &str,
-) -> Result<()> {
-    while let Some(event) = events.next().await {
-        if event.name == BINDING_NAME && event.payload == payload {
-            return Ok(());
-        }
-    }
-
-    Err(anyhow!("event stream ended before binding was called"))
 }
 
 /// Adds benchmark-specific bindings to the page.
@@ -311,14 +286,14 @@ fn bench_restart(c: &mut Criterion) {
                             // Run a complete build, shut down, and test running it again
                             let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
                             app.start_server()?;
-                            let (guard, mut events) = app.new_page(browser).await?;
+                            let mut guard = app.with_page(browser).await?;
                             guard.page().wait_for_navigation().await?;
                             timeout(
                                 MAX_HYDRATION_TIMEOUT,
-                                wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
+                                guard.wait_for_binding(TEST_APP_HYDRATION_DONE),
                             )
                             .await??;
-                            guard.close_page().await?;
+                            let mut app = guard.close_page().await?;
 
                             // Give it 4 seconds time to store the cache
                             sleep(Duration::from_secs(4)).await;
@@ -328,20 +303,18 @@ fn bench_restart(c: &mut Criterion) {
                         },
                         |mut app| async {
                             app.start_server()?;
-                            let (guard, mut events) = app.new_page(browser).await?;
+                            let mut guard = app.with_page(browser).await?;
                             guard.page().wait_for_navigation().await?;
                             timeout(
                                 MAX_HYDRATION_TIMEOUT,
-                                wait_for_binding(&mut events, TEST_APP_HYDRATION_DONE),
+                                guard.wait_for_binding(TEST_APP_HYDRATION_DONE),
                             )
                             .await??;
-                            Ok((app, guard))
+
+                            // Defer the dropping of the guard to `teardown`.
+                            Ok(guard)
                         },
-                        |(_app, guard)| async move {
-                            if let Err(err) = guard.close_page().await {
-                                eprintln!("failed to close page: {:?}", err);
-                            }
-                        },
+                        |_guard| async move {},
                     );
                 },
             );
@@ -390,10 +363,7 @@ impl<'a> PreparedApp<'a> {
         Ok(())
     }
 
-    async fn new_page(
-        &self,
-        browser: &Browser,
-    ) -> Result<(PageGuard, EventStream<EventBindingCalled>)> {
+    async fn with_page(self, browser: &Browser) -> Result<PageGuard<'a>> {
         let server = self.server.as_ref().context("Server must be started")?;
         let page = browser.new_page("about:blank").await?;
         // Bindings survive page reloads. Set them up as early as possible.
@@ -408,7 +378,9 @@ impl<'a> PreparedApp<'a> {
         // Make sure no runtime errors occurred when loading the page
         assert!(errors.next().now_or_never().is_none());
 
-        Ok((PageGuard::new(page), binding_events))
+        let page_guard = PageGuard::new(page, binding_events, self);
+
+        Ok(page_guard)
     }
 
     fn stop_server(&mut self) -> Result<()> {
@@ -431,31 +403,66 @@ impl<'a> Drop for PreparedApp<'a> {
 }
 
 /// Closes a browser page on Drop.
-struct PageGuard(Option<Page>);
+struct PageGuard<'a> {
+    page: Option<Page>,
+    app: Option<PreparedApp<'a>>,
+    events: EventStream<EventBindingCalled>,
+}
 
-impl PageGuard {
+impl<'a> PageGuard<'a> {
     /// Creates a new guard for the given page.
-    pub fn new(page: Page) -> Self {
-        Self(Some(page))
+    pub fn new(page: Page, events: EventStream<EventBindingCalled>, app: PreparedApp<'a>) -> Self {
+        Self {
+            page: Some(page),
+            app: Some(app),
+            events,
+        }
     }
 
     /// Returns a reference to the page.
     pub fn page(&self) -> &Page {
-        self.0.as_ref().unwrap()
+        // Invariant: page is always Some while the guard is alive.
+        self.page.as_ref().unwrap()
     }
 
-    pub async fn close_page(mut self) -> Result<()> {
+    /// Returns a reference to the app.
+    pub fn app(&self) -> &PreparedApp<'a> {
+        // Invariant: app is always Some while the guard is alive.
+        self.app.as_ref().unwrap()
+    }
+
+    /// Returns a mutable reference to the app.
+    pub fn app_mut(&mut self) -> &mut PreparedApp<'a> {
+        // Invariant: app is always Some while the guard is alive.
+        self.app.as_mut().unwrap()
+    }
+
+    /// Closes the page, returns the app.
+    pub async fn close_page(mut self) -> Result<PreparedApp<'a>> {
         // Invariant: the page is always Some while the guard is alive.
-        let page = self.0.take().unwrap();
-        page.close().await?;
-        Ok(())
+        self.page.take().unwrap().close().await?;
+        Ok(
+            // Invariant: the app is always Some while the guard is alive.
+            self.app.take().unwrap(),
+        )
+    }
+
+    /// Waits until the binding is called with the given payload.
+    pub async fn wait_for_binding(&mut self, payload: &str) -> Result<()> {
+        while let Some(event) = self.events.next().await {
+            if event.name == BINDING_NAME && event.payload == payload {
+                return Ok(());
+            }
+        }
+
+        Err(anyhow!("event stream ended before binding was called"))
     }
 }
 
-impl Drop for PageGuard {
+impl<'a> Drop for PageGuard<'a> {
     fn drop(&mut self) {
         // The page might have been closed already in `close_page`.
-        if let Some(page) = self.0.take() {
+        if let Some(page) = self.page.take() {
             // This is a way to block on a future in a destructor. It's not ideal, but for
             // the purposes of this benchmark it's fine.
             futures::executor::block_on(page.close()).expect("failed to close page");
