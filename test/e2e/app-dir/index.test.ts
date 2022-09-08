@@ -1280,6 +1280,19 @@ describe('app dir', () => {
           ).toBe('Trigger Error!')
         }
       })
+
+      it('should hydrate empty shell to handle server-side rendering errors', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/error/ssr-error-client-component'
+        )
+        const logs = await browser.log()
+        const errors = logs
+          .filter((x) => x.source === 'error')
+          .map((x) => x.message)
+          .join('\n')
+        expect(errors).toInclude('Error during SSR')
+      })
     })
   }
 
