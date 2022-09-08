@@ -6,8 +6,7 @@ use turbo_tasks::{NothingVc, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, NullFileSystem, NullFileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit, emit_with_completion, rebase::RebasedAssetVc, register, transition::TransitionsByNameVc,
-    ModuleAssetContextVc,
+    emit, rebase::RebasedAssetVc, register, transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
 use turbopack_core::{
     context::AssetContext,
