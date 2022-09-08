@@ -116,7 +116,10 @@ describe('Middleware Runtime', () => {
               'ANOTHER_MIDDLEWARE_TEST',
               'STRING_ENV_VAR',
             ],
-            files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
+            files: expect.arrayContaining([
+              'server/edge-runtime-webpack.js',
+              'server/middleware.js',
+            ]),
             name: 'middleware',
             page: '/',
             matchers: [{ regexp: '^/.*$' }],
