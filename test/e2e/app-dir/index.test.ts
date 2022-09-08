@@ -1214,6 +1214,32 @@ describe('app dir', () => {
 
         expect(await browser.elementByCss('h1').text()).toBe('Template 0')
       })
+
+      it('should render the template that is a server component and rerender on navigation', async () => {
+        const browser = await webdriver(next.url, '/template/servercomponent')
+        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+
+        const currentTime = await browser
+          .elementByCss('#performance-now')
+          .text()
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#other-page')
+
+        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+
+        // template should rerender on navigation even when it's a server component
+        expect(await browser.elementByCss('#performance-now').text()).toBe(
+          currentTime
+        )
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#page')
+
+        expect(await browser.elementByCss('#performance-now').text()).toBe(
+          currentTime
+        )
+      })
     })
   }
 

@@ -444,9 +444,10 @@ export default function OuterLayoutRouter({
               - Rendered for each segment to ensure they have their own loading state.
               - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
           */
-          <ErrorBoundary errorComponent={error} key={preservedSegment}>
-            <TemplateContext.Provider
-              value={
+          <TemplateContext.Provider
+            key={preservedSegment}
+            value={
+              <ErrorBoundary errorComponent={error}>
                 <LoadingBoundary loading={loading}>
                   <InnerLayoutRouter
                     parallelRouterKey={parallelRouterKey}
@@ -462,11 +463,11 @@ export default function OuterLayoutRouter({
                     rootLayoutIncluded={rootLayoutIncluded}
                   />
                 </LoadingBoundary>
-              }
-            >
-              {template}
-            </TemplateContext.Provider>
-          </ErrorBoundary>
+              </ErrorBoundary>
+            }
+          >
+            {template}
+          </TemplateContext.Provider>
         )
       })}
     </>
