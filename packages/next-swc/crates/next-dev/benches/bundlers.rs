@@ -45,9 +45,9 @@ impl Bundler for Turbopack {
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
         install_from_npm(install_dir, "react-refresh", "^0.12.0")
-            .context("failed to install `parcel` module")?;
+            .context("failed to install `react-refresh` module")?;
         install_from_npm(install_dir, "@next/react-refresh-utils", "^12.2.5")
-            .context("failed to install `process` module")?;
+            .context("failed to install `@next/react-refresh-utils` module")?;
         Ok(())
     }
 
