@@ -307,7 +307,7 @@ Also keep in mind that the required `width` and `height` props can interact with
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
-The callback function will be called with one argument, a reference to the underlying `img` element.
+The callback function will be called with one argument, a reference to the underlying `<img>` element.
 
 ### onLoad
 
