@@ -5,7 +5,7 @@ import ViewSource from '../components/view-source'
 import vercel from '../public/vercel.png'
 import type { PropsWithChildren } from 'react'
 
-const Code = (props: PropsWithChildren) => (
+const Code = (props: PropsWithChildren<{}>) => (
   <code className={styles.inlineCode} {...props} />
 )
 
