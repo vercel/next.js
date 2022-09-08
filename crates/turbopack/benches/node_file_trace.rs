@@ -42,11 +42,6 @@ pub fn benchmark(c: &mut Criterion) {
             let bench_input = BenchInput { tests_root, input };
 
             group.bench_with_input(
-                BenchmarkId::new("emit_with_completion", &bench_input.input),
-                &bench_input,
-                bench_emit_with_completion,
-            );
-            group.bench_with_input(
                 BenchmarkId::new("emit", &bench_input.input),
                 &bench_input,
                 bench_emit,
@@ -60,55 +55,6 @@ pub fn benchmark(c: &mut Criterion) {
 struct BenchInput {
     tests_root: String,
     input: String,
-}
-
-fn bench_emit_with_completion(b: &mut Bencher, bench_input: &BenchInput) {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    b.to_async(rt).iter(move || {
-        let tt = TurboTasks::new(MemoryBackend::new());
-        let tests_root = bench_input.tests_root.clone();
-        let input = bench_input.input.clone();
-        async move {
-            tt.run_once(async move {
-                let input_fs = DiskFileSystemVc::new("tests".to_string(), tests_root.clone());
-                let input = FileSystemPathVc::new(input_fs.into(), &input);
-
-                let input_dir = input.parent().parent();
-                let output_fs: NullFileSystemVc = NullFileSystem.into();
-                let output_dir = FileSystemPathVc::new(output_fs.into(), "");
-
-                let source = SourceAssetVc::new(input);
-                let context = ModuleAssetContextVc::new(
-                    TransitionsByNameVc::cell(HashMap::new()),
-                    input_dir,
-                    EnvironmentVc::new(
-                        Value::new(ExecutionEnvironment::NodeJsLambda(
-                            NodeJsEnvironment {
-                                typescript_enabled: false,
-                                compile_target: CompileTargetVc::current(),
-                                node_version: 0,
-                            }
-                            .into(),
-                        )),
-                        Value::new(EnvironmentIntention::ServerRendering),
-                    ),
-                    Default::default(),
-                );
-                let module = context.process(source.into());
-                let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
-
-                emit_with_completion(rebased.into(), output_dir).await?;
-
-                Ok(())
-            })
-            .await
-            .unwrap();
-        }
-    })
 }
 
 fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
