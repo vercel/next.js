@@ -80,7 +80,7 @@ Because of this change, invalid CSS will throw an error during development and `
 
 `next/image` now renders the `<img>` inside a `<span>` instead of `<div>`.
 
-If your application has a specific CSS targeting span, for example, `.container span`, upgrading to Next.js 12 might incorrectly match the wrapping element inside the `<Image>` component. You can avoid this by restricting the selector to a specific class such as `.container span.item` and updating the relevant component with that className, such as `<span className="item" />`.
+If your application has specific CSS targeting span, for example, `.container span`, upgrading to Next.js 12 might incorrectly match the wrapping element inside the `<Image>` component. You can avoid this by restricting the selector to a specific class such as `.container span.item` and updating the relevant component with that className, such as `<span className="item" />`.
 
 If your application has specific CSS targeting the `next/image` `<div>` tag, for example `.container div`, it may not match anymore. You can update the selector `.container span`, or preferably, add a new `<div className="wrapper">` wrapping the `<Image>` component and target that instead such as `.container .wrapper`.
 
@@ -163,7 +163,7 @@ yarn add next@11
 
 ### Webpack 5
 
-Webpack 5 is now the default for all Next.js applications. If you did not have a custom webpack configuration your application is already using webpack 5. If you do have a custom webpack configuration you can refer to the [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
+Webpack 5 is now the default for all Next.js applications. If you did not have custom webpack configuration your application is already using webpack 5. If you do have custom webpack configuration you can refer to the [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
 
 ### Cleaning the `distDir` is now a default
 
