@@ -1241,6 +1241,45 @@ describe('app dir', () => {
         )
       })
     })
+
+    describe('error component', () => {
+      it('should trigger error component when an error happens during rendering', async () => {
+        const browser = await webdriver(next.url, '/error/clientcomponent')
+        await browser
+          .elementByCss('#error-trigger-button')
+          .click()
+          .waitForElementByCss('#error-boundary-message')
+
+        expect(
+          await browser.elementByCss('#error-boundary-message').text()
+        ).toBe('An error occurred: this is a test')
+      })
+
+      it('should allow resetting error boundary', async () => {
+        const browser = await webdriver(next.url, '/error/clientcomponent')
+
+        // Try triggering and resetting a few times in a row
+        for (let i = 0; i < 5; i++) {
+          await browser
+            .elementByCss('#error-trigger-button')
+            .click()
+            .waitForElementByCss('#error-boundary-message')
+
+          expect(
+            await browser.elementByCss('#error-boundary-message').text()
+          ).toBe('An error occurred: this is a test')
+
+          await browser
+            .elementByCss('#reset')
+            .click()
+            .waitForElementByCss('#error-trigger-button')
+
+          expect(
+            await browser.elementByCss('#error-trigger-button').text()
+          ).toBe('Trigger Error!')
+        }
+      })
+    })
   }
 
   describe('without assetPrefix', () => {
