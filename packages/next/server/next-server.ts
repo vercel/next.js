@@ -2033,7 +2033,8 @@ export default class NextNodeServer extends BaseServer {
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    const page = params.page
+    const { query, page, req } = params
+    const { pathname } = parseUrl(req.url)
     await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     middlewareInfo = this.getEdgeFunctionInfo({
       page,
@@ -2044,34 +2045,29 @@ export default class NextNodeServer extends BaseServer {
       return null
     }
 
-    // Erase extra queries
-    const locale = params.query.__nextLocale
-    delete params.query.__nextLocale
-    delete params.query.__nextDefaultLocale
-
     // For middleware to "fetch" we must always provide an absolute URL
-    const isDataReq = !!params.query.__nextDataReq
-    const query = urlQueryToSearchParams(params.query).toString()
-
-    let normalizedPathname = params.req.url
+    const locale = query.__nextLocale
+    const isDataReq = !!query.__nextDataReq
+    const queryString = urlQueryToSearchParams(query).toString()
 
     if (isDataReq) {
       params.req.headers['x-nextjs-data'] = '1'
     }
 
+    let normalizedPathname = params.page
     if (isDynamicRoute(normalizedPathname)) {
       const routeRegex = getNamedRouteRegex(params.page)
       normalizedPathname = interpolateDynamicPath(
         params.page,
-        Object.assign({}, params.params, params.query),
+        Object.assign({}, params.params, query),
         routeRegex
       )
     }
 
     const url = `${getRequestMeta(params.req, '_protocol')}://${
       this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
-      query ? `?${query}` : ''
+    }:${this.port}${locale ? `/${locale}` : ''}${pathname}${
+      queryString ? `?${queryString}` : ''
     }`
 
     if (!url.startsWith('http')) {
