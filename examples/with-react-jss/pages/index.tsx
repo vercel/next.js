@@ -12,7 +12,7 @@ const useStyles = createUseStyles({
   },
 })
 
-function Index() {
+export default function IndexPage() {
   const classes = useStyles()
 
   return (
@@ -23,5 +23,3 @@ function Index() {
     </div>
   )
 }
-
-export default Index
