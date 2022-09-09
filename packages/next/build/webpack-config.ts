@@ -61,6 +61,7 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
+import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 
 const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
@@ -1750,7 +1751,11 @@ export default async function getBaseWebpackConfig(
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      isEdgeServer && new MiddlewarePlugin({ dev }),
+      isEdgeServer &&
+        new MiddlewarePlugin({
+          dev,
+          sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+        }),
       isClient &&
         new BuildManifestPlugin({
           buildId,
@@ -1800,6 +1805,10 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
             })),
+      !dev &&
+        isClient &&
+        !!config.experimental.sri?.algorithm &&
+        new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(

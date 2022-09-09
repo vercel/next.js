@@ -23,6 +23,7 @@ export function getRender({
   appRenderToHTML,
   pagesRenderToHTML,
   serverComponentManifest,
+  subresourceIntegrityManifest,
   serverCSSManifest,
   config,
   buildId,
@@ -38,6 +39,7 @@ export function getRender({
   Document: DocumentType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
+  subresourceIntegrityManifest?: Record<string, string>
   serverComponentManifest: any
   serverCSSManifest: any
   appServerMod: any
@@ -48,6 +50,7 @@ export function getRender({
     dev,
     buildManifest,
     reactLoadableManifest,
+    subresourceIntegrityManifest,
     Document,
     App: appMod.default as AppType,
   }
