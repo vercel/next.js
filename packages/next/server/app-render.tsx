@@ -1200,9 +1200,14 @@ export async function renderToHTMLOrFlight(
         ),
         streamOptions: {
           // Include hydration scripts in the HTML
-          bootstrapScripts: buildManifest.rootMainFiles.map(
-            (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-          ),
+          bootstrapScripts: subresourceIntegrityManifest
+            ? buildManifest.rootMainFiles.map((src) => ({
+                src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                integrity: subresourceIntegrityManifest[src],
+              }))
+            : buildManifest.rootMainFiles.map(
+                (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+              ),
         },
       })
 
