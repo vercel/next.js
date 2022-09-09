@@ -27,10 +27,10 @@ export type DocumentType = NextComponentType<
   DocumentProps
 >
 
-export type AppType = NextComponentType<
+export type AppType<P = {}> = NextComponentType<
   AppContextType,
-  AppInitialProps,
-  AppPropsType
+  AppInitialProps<P>,
+  AppPropsType<NextRouter, P>
 >
 
 export type AppTreeType = ComponentType<
