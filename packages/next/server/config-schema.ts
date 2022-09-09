@@ -258,8 +258,7 @@ const configSchema = {
               type: 'boolean',
             },
             {
-              type: 'string',
-              pattern: 'loose',
+              const: 'loose',
             },
           ] as any,
         },
