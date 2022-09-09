@@ -1,4 +1,4 @@
-type ValueOf<T> = Required<T>[keyof T]
+export type ValueOf<T> = Required<T>[keyof T]
 
 export const COMPILER_NAMES = {
   client: 'client',
