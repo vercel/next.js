@@ -1417,6 +1417,24 @@ describe('app dir', () => {
         expect(errors).toInclude('Error during SSR')
       })
     })
+
+    describe('redirect', () => {
+      it('should redirect in a server component', async () => {
+        const browser = await webdriver(next.url, '/redirect/servercomponent')
+        await browser.waitForElementByCss('#result-page')
+        expect(await browser.elementByCss('#result-page').text()).toBe(
+          'Result Page'
+        )
+      })
+
+      it('should redirect in a client component', async () => {
+        const browser = await webdriver(next.url, '/redirect/clientcomponent')
+        await browser.waitForElementByCss('#result-page')
+        expect(await browser.elementByCss('#result-page').text()).toBe(
+          'Result Page'
+        )
+      })
+    })
   }
 
   describe('without assetPrefix', () => {

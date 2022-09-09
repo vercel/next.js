@@ -27,6 +27,7 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
+import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -1189,6 +1190,10 @@ export async function renderToHTMLOrFlight(
         flushEffectsToHead: true,
       })
     } catch (err) {
+      if (err.code === REDIRECT_ERROR_CODE) {
+        throw err
+      }
+
       // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
       const renderStream = await renderToInitialStream({
         ReactDOMServer,
@@ -1221,5 +1226,19 @@ export async function renderToHTMLOrFlight(
     }
   }
 
-  return new RenderResult(await bodyResult())
+  try {
+    return new RenderResult(await bodyResult())
+  } catch (err) {
+    if (err.code === REDIRECT_ERROR_CODE) {
+      ;(renderOpts as any).pageData = {
+        pageProps: {
+          __N_REDIRECT: err.url,
+          __N_REDIRECT_STATUS: 307,
+        },
+      }
+      ;(renderOpts as any).isRedirect = true
+      return RenderResult.fromStatic('')
+    }
+    throw err
+  }
 }
