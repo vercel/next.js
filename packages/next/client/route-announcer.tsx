@@ -36,14 +36,9 @@ export const RouteAnnouncer = () => {
       if (previouslyLoadedPath.current === asPath) return
       previouslyLoadedPath.current = asPath
 
-      if (document.title) {
-        setRouteAnnouncement(document.title)
-      } else {
-        const pageHeader = document.querySelector('h1')
-        const content = pageHeader?.innerText ?? pageHeader?.textContent
+      const pageHeader = document.querySelector('h1')
 
-        setRouteAnnouncement(content || asPath)
-      }
+      setRouteAnnouncement(document?.title || (pageHeader?.innerText ?? pageHeader?.textContent) || asPath)
     },
     // TODO: switch to pathname + query object of dynamic route requirements
     [asPath]
