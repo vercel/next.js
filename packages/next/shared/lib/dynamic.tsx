@@ -138,8 +138,8 @@ export default function dynamic<P = {}>(
       }
     }
 
-    loadableOptions.ssr = true
-    loadableOptions.loading = undefined
+    delete loadableOptions.ssr
+    delete loadableOptions.loading
   }
 
   // coming from build/babel/plugins/react-loadable-plugin.js
