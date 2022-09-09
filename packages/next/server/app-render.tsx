@@ -1135,7 +1135,7 @@ export async function renderToHTMLOrFlight(
       </FlushEffects>
     )
 
-    const flushEffectHandler = (): string => {
+    const flushEffectHandler = async (): Promise<string> => {
       const flushed = ReactDOMServer.renderToString(
         <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
       )
