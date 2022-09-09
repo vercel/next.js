@@ -1,5 +1,5 @@
 import type webpack from 'webpack'
-import { ValueOf } from '../../../shared/lib/constants'
+import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 
