@@ -273,9 +273,6 @@ export default class DevServer extends Server {
         })
       }
 
-      const wp = (this.webpackWatcher = new Watchpack({
-        ignored: /([/\\]node_modules[/\\]|[/\\]\.next[/\\]|[/\\]\.git[/\\])/,
-      }))
       const pages = this.pagesDir ? [this.pagesDir] : []
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
@@ -302,6 +299,24 @@ export default class DevServer extends Server {
         pathJoin(this.dir, 'jsconfig.json'),
       ]
       files.push(...tsconfigPaths)
+
+      // ignored receives a forward slash normalized path so
+      // pre-normalize for comparing against
+      const normalizedFiles = new Set(
+        files.map((file) => file.replace(/\\/g, '/'))
+      )
+      const normalizedDirectories = directories.map((dir) =>
+        dir.replace(/\\/g, '/')
+      )
+
+      const wp = (this.webpackWatcher = new Watchpack({
+        ignored: (fileName: string) => {
+          return (
+            !normalizedFiles.has(fileName) &&
+            !normalizedDirectories.some((dir) => fileName.startsWith(dir))
+          )
+        },
+      }))
 
       wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
