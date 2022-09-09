@@ -1041,6 +1041,7 @@ export default function Image({
                     padding: 0,
                   }}
                   alt=""
+                  decoding="async"
                   aria-hidden={true}
                   src={sizerSvgUrl}
                 />
