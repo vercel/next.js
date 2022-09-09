@@ -1,12 +1,14 @@
 import findUp from 'next/dist/compiled/find-up'
+import path from 'path'
+import { fileExists } from '../../lib/file-exists'
 import type { NextConfig } from '../../server/config-shared'
 
 const EVENT_SWC_PLUGIN_PRESENT = 'NEXT_SWC_PLUGIN_DETECTED'
 type SwcPluginsEvent = {
   eventName: string
   payload: {
-    packageName: string
-    packageVersion?: string
+    pluginName: string
+    pluginVersion?: string
   }
 }
 
@@ -26,22 +28,23 @@ export async function eventSwcPlugins(
     const swcPluginPackages =
       config.experimental?.swcPlugins?.map(([name, _]) => name) ?? []
 
-    return swcPluginPackages.reduce(
-      (events: SwcPluginsEvent[], plugin: string): SwcPluginsEvent[] => {
+    return Promise.all(
+      swcPluginPackages.map(async (plugin) => {
         // swc plugins can be non-npm pkgs with absolute path doesn't have version
         const version = deps[plugin] ?? undefined
+        let pluginName = plugin
+        if (await fileExists(pluginName)) {
+          pluginName = path.basename(plugin, '.wasm')
+        }
 
-        events.push({
+        return {
           eventName: EVENT_SWC_PLUGIN_PRESENT,
           payload: {
-            packageName: plugin,
-            packageVersion: version,
+            pluginName: pluginName,
+            pluginVersion: version,
           },
-        })
-
-        return events
-      },
-      []
+        }
+      })
     )
   } catch (_) {
     return []

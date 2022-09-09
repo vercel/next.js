@@ -12,6 +12,9 @@ describe('Edge API endpoints can receive body', () => {
         'pages/api/edge.js': new FileRef(
           path.resolve(__dirname, './app/pages/api/edge.js')
         ),
+        'pages/api/index.js': new FileRef(
+          path.resolve(__dirname, './app/pages/api/index.js')
+        ),
       },
       dependencies: {},
     })
@@ -22,6 +25,21 @@ describe('Edge API endpoints can receive body', () => {
     const res = await fetchViaHTTP(
       next.url,
       '/api/edge',
+      {},
+      {
+        body: 'hello, world.',
+        method: 'POST',
+      }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('got: hello, world.')
+  })
+
+  it('reads the body from index', async () => {
+    const res = await fetchViaHTTP(
+      next.url,
+      '/api',
       {},
       {
         body: 'hello, world.',

@@ -25,6 +25,6 @@ There are no zone related APIs. You only need to do the following:
 
 ## How to merge zones
 
-You can merge zones using [Rewrites](/docs/api-reference/next.config.js/rewrites.md) in one of the apps or any HTTP proxy.
+You can merge zones using [`rewrites`](/docs/api-reference/next.config.js/rewrites.md) in one of the apps or any HTTP proxy.
 
-For [Vercel](https://vercel.com/), you can use a [monorepo](https://vercel.com/blog/monorepos) to deploy both apps. Check the [Monorepos blog post](https://vercel.com/blog/monorepos) for more details on how it works and our [`with-zones` example](https://github.com/vercel/next.js/tree/canary/examples/with-zones) for a detailed guide using multiple Next.js applications.
+For [Next.js on Vercel](https://vercel.com?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) applications, you can use a [monorepo](https://vercel.com/blog/monorepos-are-changing-how-teams-build-software?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) to deploy both apps with a single `git push`.
