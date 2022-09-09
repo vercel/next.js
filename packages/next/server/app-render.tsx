@@ -26,7 +26,6 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
-import { DynamicServerError } from '../client/components/hooks-server-context'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -57,6 +56,9 @@ function interopDefault(mod: any) {
 // tolerate dynamic server errors during prerendering so console
 // isn't spammed with unactionable errors
 function onError(err: any) {
+  const { DynamicServerError } =
+    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+
   if (!(err instanceof DynamicServerError)) {
     console.error(err)
   }
@@ -144,7 +146,8 @@ function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   cachePrefix: string,
   req: ReadableStream<Uint8Array>,
-  serverComponentManifest: any
+  serverComponentManifest: any,
+  rscChunks: Uint8Array[]
 ) {
   const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
@@ -161,6 +164,10 @@ function useFlightResponse(
     const writer = writable.getWriter()
     function process() {
       forwardReader.read().then(({ done, value }) => {
+        if (value) {
+          rscChunks.push(value)
+        }
+
         if (!bootstrapped) {
           bootstrapped = true
           writer.write(
@@ -207,6 +214,7 @@ function createServerComponentRenderer(
     transformStream,
     serverComponentManifest,
     serverContexts,
+    rscChunks,
   }: {
     cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
@@ -214,6 +222,7 @@ function createServerComponentRenderer(
     serverContexts: Array<
       [ServerContextName: string, JSONValue: Object | number | string]
     >
+    rscChunks: Uint8Array[]
   }
 ) {
   // We need to expose the `__webpack_require__` API globally for
@@ -250,7 +259,8 @@ function createServerComponentRenderer(
       writable,
       cachePrefix,
       reqStream,
-      serverComponentManifest
+      serverComponentManifest,
+      rscChunks
     )
     return response.readRoot()
   }
@@ -889,6 +899,21 @@ export async function renderToHTMLOrFlight(
     }
   }
 
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
+  const generateStaticHTML = supportsDynamicHTML !== true
+
   // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
   if (isFlight) {
     // TODO-APP: throw on invalid flightRouterState
@@ -989,12 +1014,22 @@ export async function renderToHTMLOrFlight(
       ).slice(1),
     ]
 
-    return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest, {
+    const readable = renderToReadableStream(
+      flightData,
+      serverComponentManifest,
+      {
         context: serverContexts,
         onError,
-      }).pipeThrough(createBufferedTransformStream())
-    )
+      }
+    ).pipeThrough(createBufferedTransformStream())
+
+    if (generateStaticHTML) {
+      let staticHtml = Buffer.from(
+        (await readable.getReader().read()).value || ''
+      ).toString()
+      return new RenderResult(staticHtml)
+    }
+    return new RenderResult(readable)
   }
 
   // Below this line is handling for rendering to HTML.
@@ -1019,6 +1054,14 @@ export async function renderToHTMLOrFlight(
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
 
+  const serverComponentsRenderOpts = {
+    cachePrefix: initialCanonicalUrl,
+    transformStream: serverComponentsInlinedTransformStream,
+    serverComponentManifest,
+    serverContexts,
+    rscChunks: [],
+  }
+
   /**
    * A new React Component that renders the provided React Component
    * using Flight which can then be rendered to HTML.
@@ -1042,12 +1085,7 @@ export async function renderToHTMLOrFlight(
       )
     },
     ComponentMod,
-    {
-      cachePrefix: initialCanonicalUrl,
-      transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
-      serverContexts,
-    }
+    serverComponentsRenderOpts
   )
 
   const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
@@ -1068,20 +1106,6 @@ export async function renderToHTMLOrFlight(
     )
   }
 
-  /**
-   * Rules of Static & Dynamic HTML:
-   *
-   *    1.) We must generate static HTML unless the caller explicitly opts
-   *        in to dynamic HTML support.
-   *
-   *    2.) If dynamic HTML support is requested, we must honor that request
-   *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
-   *
-   * These rules help ensure that other existing features like request caching,
-   * coalescing, and ISR continue working as intended.
-   */
-  const generateStaticHTML = supportsDynamicHTML !== true
   const bodyResult = async () => {
     const content = (
       <FlushEffects>
@@ -1105,12 +1129,9 @@ export async function renderToHTMLOrFlight(
           (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
         ),
       },
-      renderOpts: {
-        onError,
-      },
     })
 
-    return await continueFromInitialStream(renderStream, {
+    return continueFromInitialStream(renderStream, {
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML,
       flushEffectHandler,
@@ -1118,5 +1139,19 @@ export async function renderToHTMLOrFlight(
     })
   }
 
-  return new RenderResult(await bodyResult())
+  const readable = await bodyResult()
+
+  if (generateStaticHTML) {
+    let staticHtml = Buffer.from(
+      (await readable.getReader().read()).value || ''
+    ).toString()
+
+    // TODO: pass up revalidate when rendered lazily with
+    // dynamicParams: true
+    ;(renderOpts as any).pageData = Buffer.concat(
+      serverComponentsRenderOpts.rscChunks
+    ).toString()
+    return new RenderResult(staticHtml)
+  }
+  return new RenderResult(readable)
 }

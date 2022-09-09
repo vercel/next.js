@@ -1,15 +1,5 @@
 // TODO: replace use/cache with react imports when available
-export const cache = (cb, ...args) => cb(...args)
+import { experimental_use } from 'react'
 
-const resolved = {}
-export const use = (promise) => {
-  const cached = resolved[promise]
-  if (cached) {
-    delete resolved[promise]
-    return cached
-  }
-  promise.then((res) => {
-    resolved[promise] = res
-  })
-  throw promise
-}
+export const cache = (cb, ...args) => cb(...args)
+export const use = experimental_use

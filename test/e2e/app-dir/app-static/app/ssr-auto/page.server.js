@@ -14,6 +14,7 @@ export default function Page() {
     <>
       <p id="page">/ssr-forced</p>
       <div id="example-dat">{data}</div>
+      <p id="date">{Date.now()}</p>
     </>
   )
 }

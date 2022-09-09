@@ -1932,6 +1932,7 @@ export default async function build(
       }
 
       const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
+      const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
       const tbdPrerenderRoutes: string[] = []
       let ssgNotFoundPaths: string[] = []
 
@@ -2068,7 +2069,6 @@ export default async function build(
                 const encodedRoutes = appStaticPathsEncoded.get(originalAppPath)
 
                 routes.forEach((route, routeIdx) => {
-                  console.log('adding', { route, originalAppPath })
                   defaultMap[route] = {
                     page: originalAppPath,
                     query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
@@ -2128,19 +2128,47 @@ export default async function build(
 
           for (const [originalAppPath, routes] of appStaticPaths) {
             const page = appNormalizedPaths.get(originalAppPath) || ''
+            const appConfig = appDefaultConfigs.get(originalAppPath) || {}
+
+            if (
+              isDynamicRoute(originalAppPath) &&
+              appDynamicParamPaths.has(originalAppPath)
+            ) {
+              const normalizedRoute = normalizePagePath(page)
+              const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+
+              // TODO: create a separate manifest to allow enforcing
+              // dynamicParams for non-static paths?
+              finalDynamicRoutes[page] = {
+                routeRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(page).re.source
+                ),
+                dataRoute,
+                fallback: null,
+                dataRouteRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(
+                    dataRoute.replace(/\.rsc$/, '')
+                  ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                ),
+              }
+            }
 
             routes.forEach((route) => {
-              const revalidate = exportConfig.initialPageRevalidationMap[route]
+              let revalidate = exportConfig.initialPageRevalidationMap[route]
 
-              console.log({ route, revalidate, page })
-
-              if (typeof revalidate !== 'undefined') {
+              if (typeof revalidate === 'undefined') {
+                revalidate =
+                  typeof appConfig.revalidate !== 'undefined'
+                    ? appConfig.revalidate
+                    : false
+              }
+              if (revalidate !== 0) {
+                const normalizedRoute = normalizePagePath(route)
+                const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
                 finalPrerenderRoutes[route] = {
-                  initialRevalidateSeconds:
-                    exportConfig.initialPageRevalidationMap[route],
+                  initialRevalidateSeconds: revalidate,
                   srcRoute: page,
-                  // TODO: this needs to be the flight data path
-                  dataRoute: '',
+                  dataRoute,
                 }
               }
             })
@@ -2458,8 +2486,7 @@ export default async function build(
         telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
       }
 
-      if (ssgPages.size > 0) {
-        const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
+      if (ssgPages.size > 0 || appDir) {
         tbdPrerenderRoutes.forEach((tbdRoute) => {
           const normalizedRoute = normalizePagePath(tbdRoute)
           const dataRoute = path.posix.join(

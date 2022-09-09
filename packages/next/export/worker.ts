@@ -27,7 +27,6 @@ import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
-import { Writable } from 'stream'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { DynamicServerError } from '../client/components/hooks-server-context'
 
@@ -107,7 +106,6 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
-  appPaths,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -399,13 +397,15 @@ export default async function exportPage({
 
           try {
             curRenderOpts.params ||= {}
-            ;(global as any).fetch = (init: any, opts: any) => {
+            ;(global as any).fetch = async (init: any, opts: any) => {
               // TODO: use react context here so that we can detect
-              // accurately with concurrent renders
+              // accurately with concurrent renders in same worker
               if (opts && typeof opts === 'object') {
                 // TODO: validate the option values here?
                 if (opts.cache === 'no-store') {
                   hasNoStore = true
+                  // TODO: ensure this error isn't logged to the user
+                  // seems it's slipping through currently
                   throw new DynamicServerError(`no-store fetch ${init} ${path}`)
                 }
 
@@ -420,51 +420,23 @@ export default async function exportPage({
               return origFetch(init, opts)
             }
 
-            const getResult = async () => {
-              const result = await renderToHTMLOrFlight(
-                req as any,
-                res as any,
-                page,
-                query,
-                curRenderOpts as any,
-                false,
-                true
-              )
-              const chunks: any = []
-              const stream = new Writable({
-                write(chunk, _encoding, callback) {
-                  chunks.push(chunk)
-                  callback()
-                },
-              })
-              let streamResolve: any
-              let streamReject: any
-              let streamPromise = new Promise<void>((resolve, reject) => {
-                streamResolve = resolve
-                streamReject = reject
-              })
-              stream.on('finish', () => streamResolve())
-              stream.on('error', (err) => streamReject(err))
-
-              result?.pipe(stream as any)
-
-              await streamPromise
-              return Buffer.concat(chunks).toString()
-            }
-            // TODO: collect revalidate information from renderOpts,
-            // initial revalidate can be for lowest revalidate for entire
-            // tree until props are cached at segment level
-            const html = await getResult()
-            query.__flight__ = '1'
-
-            const flightData = await getResult()
+            const result = await renderToHTMLOrFlight(
+              req as any,
+              res as any,
+              page,
+              query,
+              curRenderOpts as any,
+              false,
+              true
+            )
+            const html = result?.toUnchunkedString()
+            const flightData = (curRenderOpts as any).pageData
 
             await promises.writeFile(htmlFilepath, html, 'utf8')
             await promises.writeFile(
               htmlFilepath.replace(/\.html$/, '.rsc'),
               flightData
             )
-            console.error({ page, fetchRevalidate, hasNoStore })
           } catch (err) {
             if (!(err instanceof DynamicServerError)) {
               throw err

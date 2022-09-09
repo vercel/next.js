@@ -17,7 +17,6 @@ import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
-  APP_PATHS_MANIFEST,
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
@@ -25,7 +24,6 @@ import {
   EXPORT_MARKER,
   FLIGHT_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
-  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,

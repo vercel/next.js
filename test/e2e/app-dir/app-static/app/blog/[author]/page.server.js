@@ -7,6 +7,7 @@ export default function Page({ params }) {
     <>
       <p id="page">/blog/[author]</p>
       <p id="params">{JSON.stringify(params)}</p>
+      <p id="date">{Date.now()}</p>
     </>
   )
 }
