@@ -294,9 +294,6 @@ export default class DevServer extends Server {
 
       files.push(...envFiles)
 
-      console.log('directories', directories)
-      console.log('files', files)
-
       // tsconfig/jsonfig paths hot-reloading
       const tsconfigPaths = [
         pathJoin(this.dir, 'tsconfig.json'),
