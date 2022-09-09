@@ -1434,6 +1434,17 @@ describe('app dir', () => {
           'Result Page'
         )
       })
+
+      it('should redirect client-side', async () => {
+        const browser = await webdriver(next.url, '/redirect/client-side')
+        await browser
+          .elementByCss('button')
+          .click()
+          .waitForElementByCss('#result-page')
+        expect(await browser.elementByCss('#result-page').text()).toBe(
+          'Result Page'
+        )
+      })
     })
   }
 
