@@ -1199,6 +1199,7 @@ export async function renderToHTMLOrFlight(
           </html>
         ),
         streamOptions: {
+          nonce,
           // Include hydration scripts in the HTML
           bootstrapScripts: subresourceIntegrityManifest
             ? buildManifest.rootMainFiles.map((src) => ({
