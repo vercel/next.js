@@ -308,10 +308,12 @@ export default class DevServer extends Server {
       const normalizedDirectories = directories.map((dir) =>
         dir.replace(/\\/g, '/')
       )
+      const normalizedDir = this.dir.replace(/\\/g, '/')
 
       const wp = (this.webpackWatcher = new Watchpack({
         ignored: (fileName: string) => {
           return (
+            fileName !== normalizedDir &&
             !normalizedFiles.has(fileName) &&
             !normalizedDirectories.some((dir) => fileName.startsWith(dir))
           )
