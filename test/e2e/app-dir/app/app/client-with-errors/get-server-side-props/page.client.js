@@ -1,7 +1,5 @@
-export function getServerSideProps() {
-  return { props: {} }
-}
+// export function getServerSideProps() { { props: {} } }
 
 export default function Page() {
-  return null
+  return 'client-gssp'
 }

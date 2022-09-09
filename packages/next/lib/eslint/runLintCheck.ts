@@ -83,12 +83,22 @@ async function lint(
   lintDirs: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
-  lintDuringBuild: boolean = false,
-  eslintOptions: any = null,
-  reportErrorsOnly: boolean = false,
-  maxWarnings: number = -1,
-  formatter: string | null = null,
-  outputFile: string | null = null
+  hasAppDir: boolean,
+  {
+    lintDuringBuild = false,
+    eslintOptions = null,
+    reportErrorsOnly = false,
+    maxWarnings = -1,
+    formatter = null,
+    outputFile = null,
+  }: {
+    lintDuringBuild: boolean
+    eslintOptions: any
+    reportErrorsOnly: boolean
+    maxWarnings: number
+    formatter: string | null
+    outputFile: string | null
+  }
 ): Promise<
   | string
   | null
@@ -176,8 +186,7 @@ async function lint(
       }
     }
 
-    // TODO: should we apply these rules to "root" dir as well?
-    const pagesDir = findPagesDir(baseDir).pages
+    const pagesDir = findPagesDir(baseDir, hasAppDir).pages
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false
@@ -268,14 +277,27 @@ async function lint(
 export async function runLintCheck(
   baseDir: string,
   lintDirs: string[],
-  lintDuringBuild: boolean = false,
-  eslintOptions: any = null,
-  reportErrorsOnly: boolean = false,
-  maxWarnings: number = -1,
-  formatter: string | null = null,
-  outputFile: string | null = null,
-  strict: boolean = false
+  opts: {
+    lintDuringBuild?: boolean
+    eslintOptions?: any
+    reportErrorsOnly?: boolean
+    maxWarnings?: number
+    formatter?: string | null
+    outputFile?: string | null
+    strict?: boolean
+    hasAppDir: boolean
+  }
 ): ReturnType<typeof lint> {
+  const {
+    lintDuringBuild = false,
+    eslintOptions = null,
+    reportErrorsOnly = false,
+    maxWarnings = -1,
+    formatter = null,
+    outputFile = null,
+    strict = false,
+    hasAppDir,
+  } = opts
   try {
     // Find user's .eslintrc file
     // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
@@ -313,12 +335,15 @@ export async function runLintCheck(
         lintDirs,
         eslintrcFile,
         pkgJsonPath,
-        lintDuringBuild,
-        eslintOptions,
-        reportErrorsOnly,
-        maxWarnings,
-        formatter,
-        outputFile
+        hasAppDir,
+        {
+          lintDuringBuild,
+          eslintOptions,
+          reportErrorsOnly,
+          maxWarnings,
+          formatter,
+          outputFile,
+        }
       )
     } else {
       // Display warning if no ESLint configuration is present inside

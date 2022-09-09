@@ -69,17 +69,27 @@ const runTests = (isDev) => {
     expect(img.attr('width')).toBe('400')
     expect(img.attr('height')).toBe('300')
   })
-  it('Should allow provided width and height to override intrinsic', async () => {
-    const img = $('#defined-size-static')
+  it('should use width and height prop to override import', async () => {
+    const img = $('#defined-width-and-height')
     expect(img.attr('width')).toBe('150')
     expect(img.attr('height')).toBe('150')
+  })
+  it('should use height prop to adjust both width and height', async () => {
+    const img = $('#defined-height-only')
+    expect(img.attr('width')).toBe('600')
+    expect(img.attr('height')).toBe('350')
+  })
+  it('should use width prop to adjust both width and height', async () => {
+    const img = $('#defined-width-only')
+    expect(img.attr('width')).toBe('400')
+    expect(img.attr('height')).toBe('233')
   })
 
   it('Should add a blur placeholder a statically imported jpg', async () => {
     const style = $('#basic-static').attr('style')
     if (isDev) {
       expect(style).toBe(
-        `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;filter:blur(20px);background-image:url("/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest-rect.f323a148.jpg&w=8&q=70")`
+        `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest-rect.f323a148.jpg&w=8&q=70")`
       )
     } else {
       expect(style).toBe(
@@ -92,7 +102,7 @@ const runTests = (isDev) => {
     const style = $('#blur-png').attr('style')
     if (isDev) {
       expect(style).toBe(
-        `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;filter:blur(20px);background-image:url("/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=8&q=70")`
+        `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=8&q=70")`
       )
     } else {
       expect(style).toBe(

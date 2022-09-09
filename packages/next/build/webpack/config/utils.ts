@@ -4,7 +4,7 @@ import type { NextConfigComplete } from '../../../server/config-shared'
 export type ConfigurationContext = {
   supportedBrowsers: string[] | undefined
   rootDirectory: string
-  customAppFile: RegExp
+  customAppFile: RegExp | undefined
 
   isDevelopment: boolean
   isProduction: boolean

@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://nextjs.org">
-    <img src="https://assets.vercel.com/image/upload/v1607554385/repositories/next-js/next-logo.png" height="128">
+    <img src="https://assets.vercel.com/image/upload/v1662130559/nextjs/Icon_light_background.png" height="128">
     <h1 align="center">Next.js</h1>
   </a>
 </p>
@@ -46,7 +46,7 @@ Please see our [contributing.md](/contributing.md).
 
 ### Good First Issues
 
-We have a list of [good first issues](https://github.com/vercel/next.js/labels/good%20first%20issue) that contain bugs which have a relatively limited scope. This is a great place to get started, gain experience, and get familiar with our contribution process.
+We have a list of [good first issues](https://github.com/vercel/next.js/labels/good%20first%20issue) that contain bugs that have a relatively limited scope. This is a great place to get started, gain experience, and get familiar with our contribution process.
 
 ## Authors
 

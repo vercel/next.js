@@ -256,7 +256,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
-    const remotePatterns = result.experimental?.images?.remotePatterns
+    const remotePatterns = result?.images?.remotePatterns
     if (remotePatterns) {
       if (!Array.isArray(remotePatterns)) {
         throw new Error(
@@ -437,7 +437,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    const unoptimized = result.experimental?.images?.unoptimized
+    const unoptimized = result?.images?.unoptimized
     if (
       typeof unoptimized !== 'undefined' &&
       typeof unoptimized !== 'boolean'
@@ -509,10 +509,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
     result.compiler = result.compiler || {}
     result.compiler.removeConsole = (result.experimental as any).removeConsole
-  }
-
-  if (result.swcMinify) {
-    Log.info('SWC minify release candidate enabled. https://nextjs.link/swcmin')
   }
 
   if (result.experimental?.swcMinifyDebugOptions) {
