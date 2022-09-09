@@ -839,6 +839,10 @@ export default async function loadConfig(
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
+    if (userConfig.experimental.useUndici) {
+      ;(global as any).__NEXT_USE_UNDICI = true
+    }
+
     return assignDefaults({
       configOrigin: relative(dir, path),
       configFile: path,

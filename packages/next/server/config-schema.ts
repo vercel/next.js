@@ -368,6 +368,9 @@ const configSchema = {
           },
           type: 'array',
         },
+        useUndici: {
+          type: 'boolean',
+        },
         workerThreads: {
           type: 'boolean',
         },
