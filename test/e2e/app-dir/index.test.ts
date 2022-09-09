@@ -1317,6 +1317,106 @@ describe('app dir', () => {
         expect(res.status).toBe(500)
       })
     })
+
+    describe('template component', () => {
+      it('should render the template that holds state in a client component and reset on navigation', async () => {
+        const browser = await webdriver(next.url, '/template/clientcomponent')
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+        await browser.elementByCss('button').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Template 1')
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#other-page')
+
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+        await browser.elementByCss('button').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Template 1')
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#page')
+
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+      })
+
+      it('should render the template that is a server component and rerender on navigation', async () => {
+        const browser = await webdriver(next.url, '/template/servercomponent')
+        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+
+        const currentTime = await browser
+          .elementByCss('#performance-now')
+          .text()
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#other-page')
+
+        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+
+        // template should rerender on navigation even when it's a server component
+        expect(await browser.elementByCss('#performance-now').text()).toBe(
+          currentTime
+        )
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#page')
+
+        expect(await browser.elementByCss('#performance-now').text()).toBe(
+          currentTime
+        )
+      })
+    })
+
+    // TODO-APP: This is disabled for development as the error overlay needs to be reworked.
+    ;(isDev ? describe.skip : describe)('error component', () => {
+      it('should trigger error component when an error happens during rendering', async () => {
+        const browser = await webdriver(next.url, '/error/clientcomponent')
+        await browser
+          .elementByCss('#error-trigger-button')
+          .click()
+          .waitForElementByCss('#error-boundary-message')
+
+        expect(
+          await browser.elementByCss('#error-boundary-message').text()
+        ).toBe('An error occurred: this is a test')
+      })
+
+      it('should allow resetting error boundary', async () => {
+        const browser = await webdriver(next.url, '/error/clientcomponent')
+
+        // Try triggering and resetting a few times in a row
+        for (let i = 0; i < 5; i++) {
+          await browser
+            .elementByCss('#error-trigger-button')
+            .click()
+            .waitForElementByCss('#error-boundary-message')
+
+          expect(
+            await browser.elementByCss('#error-boundary-message').text()
+          ).toBe('An error occurred: this is a test')
+
+          await browser
+            .elementByCss('#reset')
+            .click()
+            .waitForElementByCss('#error-trigger-button')
+
+          expect(
+            await browser.elementByCss('#error-trigger-button').text()
+          ).toBe('Trigger Error!')
+        }
+      })
+
+      it('should hydrate empty shell to handle server-side rendering errors', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/error/ssr-error-client-component'
+        )
+        const logs = await browser.log()
+        const errors = logs
+          .filter((x) => x.source === 'error')
+          .map((x) => x.message)
+          .join('\n')
+        expect(errors).toInclude('Error during SSR')
+      })
+    })
   }
 
   describe('without assetPrefix', () => {

@@ -6,13 +6,13 @@ const cspHashOf = (text) => {
   hash.update(text)
   return `'sha256-${hash.digest('base64')}'`
 }
-export default function Document() {
+export default function Document(ctx) {
   let csp = `default-src 'self'; script-src 'self' ${cspHashOf(
-    NextScript.getInlineScriptSource(this.props)
+    NextScript.getInlineScriptSource(ctx)
   )}`
   if (process.env.NODE_ENV !== 'production') {
     csp = `style-src 'self' 'unsafe-inline'; font-src 'self' data:; default-src 'self'; script-src 'unsafe-eval' 'self' ${cspHashOf(
-      NextScript.getInlineScriptSource(this.props)
+      NextScript.getInlineScriptSource(ctx)
     )}`
   }
 
