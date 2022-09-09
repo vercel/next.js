@@ -1,13 +1,7 @@
 import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import {
-  getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,
-  getUnresolvedModuleFromError,
-  isEdgeRuntimeCompiled,
-} from '../../../utils'
-import { NextConfig } from '../../../../server/config-shared'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const chalk = new Chalk.constructor({ enabled: true })
 
@@ -52,10 +46,9 @@ function getModuleTrace(input: any, compilation: any) {
 }
 
 export async function getNotFoundError(
-  compilation: webpack5.Compilation,
+  compilation: webpack.Compilation,
   input: any,
-  fileName: string,
-  config: NextConfig
+  fileName: string
 ) {
   if (input.name !== 'ModuleNotFoundError') {
     return false
@@ -113,15 +106,6 @@ export async function getNotFoundError(
       (frame !== '' ? '\n' : '') +
       importTrace() +
       '\nhttps://nextjs.org/docs/messages/module-not-found'
-
-    const moduleName = getUnresolvedModuleFromError(input.message)
-    if (moduleName) {
-      if (await isEdgeRuntimeCompiled(compilation, input.module, config)) {
-        message +=
-          '\n\n' +
-          getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
-      }
-    }
 
     return new SimpleWebpackError(
       `${chalk.cyan(fileName)}:${chalk.yellow(

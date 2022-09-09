@@ -1,17 +1,4 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-# @generated: @expo/next-adapter@2.1.5
-node_modules/**/*
-.expo/*
-npm-debug.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-web-build/
-web-report/
-.next/*
 
 # dependencies
 /node_modules
@@ -36,12 +23,14 @@ web-report/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
 # local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*.local
 
 # vercel
 .vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

@@ -1,15 +1,26 @@
-import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
+import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
-import { tryToExtractExportedConstValue } from './extract-const-value'
-import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
+import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
+import {
+  extractExportedConstValue,
+  UnsupportedValueError,
+} from './extract-const-value'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
+import { ServerRuntime } from 'next/types'
+import { checkCustomRoutes } from '../../lib/load-custom-routes'
 
-interface MiddlewareConfig {
-  pathMatcher: RegExp
+export interface MiddlewareConfig {
+  matchers: MiddlewareMatcher[]
+}
+
+export interface MiddlewareMatcher {
+  regexp: string
+  locale?: false
+  has?: RouteHas[]
 }
 
 export interface PageStaticInfo {
@@ -20,75 +31,12 @@ export interface PageStaticInfo {
 }
 
 /**
- * For a given pageFilePath and nextConfig, if the config supports it, this
- * function will read the file and return the runtime that should be used.
- * It will look into the file content only if the page *requires* a runtime
- * to be specified, that is, when gSSP or gSP is used.
- * Related discussion: https://github.com/vercel/next.js/discussions/34179
- */
-export async function getPageStaticInfo(params: {
-  nextConfig: Partial<NextConfig>
-  pageFilePath: string
-  isDev?: boolean
-  page?: string
-}): Promise<PageStaticInfo> {
-  const { isDev, pageFilePath, nextConfig } = params
-
-  const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
-    const swcAST = await parseModule(pageFilePath, fileContent)
-    const { ssg, ssr } = checkExports(swcAST)
-    const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
-
-    if (
-      typeof config.runtime !== 'string' &&
-      typeof config.runtime !== 'undefined'
-    ) {
-      throw new Error(`Provided runtime `)
-    } else if (!isServerRuntime(config.runtime)) {
-      const options = Object.values(SERVER_RUNTIME).join(', ')
-      if (typeof config.runtime !== 'string') {
-        throw new Error(
-          `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
-        )
-      } else {
-        throw new Error(
-          `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
-        )
-      }
-    }
-
-    let runtime =
-      SERVER_RUNTIME.edge === config?.runtime
-        ? SERVER_RUNTIME.edge
-        : ssr || ssg
-        ? config?.runtime || nextConfig.experimental?.runtime
-        : undefined
-
-    if (runtime === SERVER_RUNTIME.edge) {
-      warnAboutExperimentalEdgeApiFunctions()
-    }
-
-    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
-
-    return {
-      ssr,
-      ssg,
-      ...(middlewareConfig && { middleware: middlewareConfig }),
-      ...(runtime && { runtime }),
-    }
-  }
-
-  return { ssr: false, ssg: false }
-}
-
-/**
  * Receives a parsed AST from SWC and checks if it belongs to a module that
  * requires a runtime to be specified. Those are:
  *   - Modules with `export function getStaticProps | getServerSideProps`
  *   - Modules with `export { getStaticProps | getServerSideProps } <from ...>`
  */
-function checkExports(swcAST: any) {
+export function checkExports(swcAST: any): { ssr: boolean; ssg: boolean } {
   if (Array.isArray(swcAST?.body)) {
     try {
       for (const node of swcAST.body) {
@@ -102,6 +50,19 @@ function checkExports(swcAST: any) {
           return {
             ssg: node.declaration.identifier.value === 'getStaticProps',
             ssr: node.declaration.identifier.value === 'getServerSideProps',
+          }
+        }
+
+        if (
+          node.type === 'ExportDeclaration' &&
+          node.declaration?.type === 'VariableDeclaration'
+        ) {
+          const id = node.declaration?.declarations[0]?.id.value
+          if (['getStaticProps', 'getServerSideProps'].includes(id)) {
+            return {
+              ssg: id === 'getStaticProps',
+              ssr: id === 'getServerSideProps',
+            }
           }
         }
 
@@ -141,6 +102,65 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
+function getMiddlewareMatchers(
+  matcherOrMatchers: unknown,
+  nextConfig: NextConfig
+): MiddlewareMatcher[] {
+  let matchers: unknown[] = []
+  if (Array.isArray(matcherOrMatchers)) {
+    matchers = matcherOrMatchers
+  } else {
+    matchers.push(matcherOrMatchers)
+  }
+  const { i18n } = nextConfig
+
+  let routes = matchers.map(
+    (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
+  )
+
+  // check before we process the routes and after to ensure
+  // they are still valid
+  checkCustomRoutes(routes, 'middleware')
+
+  routes = routes.map((r) => {
+    let { source } = r
+
+    const isRoot = source === '/'
+
+    if (i18n?.locales && r.locale !== false) {
+      source = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : source}`
+    }
+
+    source = `/:nextData(_next/data/[^/]{1,})?${source}${
+      isRoot
+        ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
+        : '(.json)?'
+    }`
+
+    if (nextConfig.basePath) {
+      source = `${nextConfig.basePath}${source}`
+    }
+
+    return { ...r, source }
+  })
+
+  checkCustomRoutes(routes, 'middleware')
+
+  return routes.map((r) => {
+    const { source, ...rest } = r
+    const parsedPage = tryToParsePath(source)
+
+    if (parsedPage.error || !parsedPage.regexStr) {
+      throw new Error(`Invalid source: ${source}`)
+    }
+
+    return {
+      ...rest,
+      regexp: parsedPage.regexStr,
+    }
+  })
+}
+
 function getMiddlewareConfig(
   config: any,
   nextConfig: NextConfig
@@ -148,67 +168,13 @@ function getMiddlewareConfig(
   const result: Partial<MiddlewareConfig> = {}
 
   if (config.matcher) {
-    result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
-    )
-
-    if (result.pathMatcher.source.length > 4096) {
-      throw new Error(
-        `generated matcher config must be less than 4096 characters.`
-      )
-    }
+    result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
   return result
 }
 
-function getMiddlewareRegExpStrings(
-  matcherOrMatchers: unknown,
-  nextConfig: NextConfig
-): string[] {
-  if (Array.isArray(matcherOrMatchers)) {
-    return matcherOrMatchers.flatMap((matcher) =>
-      getMiddlewareRegExpStrings(matcher, nextConfig)
-    )
-  }
-
-  if (typeof matcherOrMatchers !== 'string') {
-    throw new Error(
-      '`matcher` must be a path matcher or an array of path matchers'
-    )
-  }
-
-  let matcher: string = matcherOrMatchers
-
-  if (!matcher.startsWith('/')) {
-    throw new Error('`matcher`: path matcher must start with /')
-  }
-
-  if (nextConfig.i18n?.locales) {
-    matcher = `/:nextInternalLocale(${nextConfig.i18n.locales
-      .map((locale) => escapeStringRegexp(locale))
-      .join('|')})${
-      matcher === '/' && !nextConfig.trailingSlash ? '' : matcher
-    }`
-  }
-
-  if (nextConfig.basePath) {
-    matcher = `${nextConfig.basePath}${matcher === '/' ? '' : matcher}`
-  }
-
-  const parsedPage = tryToParsePath(matcher)
-  if (parsedPage.error) {
-    throw new Error(`Invalid path matcher: ${matcher}`)
-  }
-
-  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
-  if (regexes.length < 1) {
-    throw new Error("Can't parse matcher")
-  } else {
-    return regexes
-  }
-}
-
+let warnedAboutExperimentalEdgeApiFunctions = false
 function warnAboutExperimentalEdgeApiFunctions() {
   if (warnedAboutExperimentalEdgeApiFunctions) {
     return
@@ -217,4 +183,100 @@ function warnAboutExperimentalEdgeApiFunctions() {
   warnedAboutExperimentalEdgeApiFunctions = true
 }
 
-let warnedAboutExperimentalEdgeApiFunctions = false
+const warnedUnsupportedValueMap = new Map<string, boolean>()
+function warnAboutUnsupportedValue(
+  pageFilePath: string,
+  page: string | undefined,
+  error: UnsupportedValueError
+) {
+  if (warnedUnsupportedValueMap.has(pageFilePath)) {
+    return
+  }
+
+  Log.warn(
+    `Next.js can't recognize the exported \`config\` field in ` +
+      (page ? `route "${page}"` : `"${pageFilePath}"`) +
+      ':\n' +
+      error.message +
+      (error.path ? ` at "${error.path}"` : '') +
+      '.\n' +
+      'The default config will be used instead.\n' +
+      'Read More - https://nextjs.org/docs/messages/invalid-page-config'
+  )
+
+  warnedUnsupportedValueMap.set(pageFilePath, true)
+}
+
+/**
+ * For a given pageFilePath and nextConfig, if the config supports it, this
+ * function will read the file and return the runtime that should be used.
+ * It will look into the file content only if the page *requires* a runtime
+ * to be specified, that is, when gSSP or gSP is used.
+ * Related discussion: https://github.com/vercel/next.js/discussions/34179
+ */
+export async function getPageStaticInfo(params: {
+  nextConfig: Partial<NextConfig>
+  pageFilePath: string
+  isDev?: boolean
+  page?: string
+}): Promise<PageStaticInfo> {
+  const { isDev, pageFilePath, nextConfig, page } = params
+
+  const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
+  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
+    const swcAST = await parseModule(pageFilePath, fileContent)
+    const { ssg, ssr } = checkExports(swcAST)
+
+    // default / failsafe value for config
+    let config: any = {}
+    try {
+      config = extractExportedConstValue(swcAST, 'config')
+    } catch (e) {
+      if (e instanceof UnsupportedValueError) {
+        warnAboutUnsupportedValue(pageFilePath, page, e)
+      }
+      // `export config` doesn't exist, or other unknown error throw by swc, silence them
+    }
+
+    if (
+      typeof config.runtime !== 'undefined' &&
+      !isServerRuntime(config.runtime)
+    ) {
+      const options = Object.values(SERVER_RUNTIME).join(', ')
+      if (typeof config.runtime !== 'string') {
+        Log.error(
+          `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
+        )
+      } else {
+        Log.error(
+          `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
+        )
+      }
+      if (!isDev) {
+        process.exit(1)
+      }
+    }
+
+    let runtime =
+      SERVER_RUNTIME.edge === config?.runtime
+        ? SERVER_RUNTIME.edge
+        : ssr || ssg
+        ? config?.runtime || nextConfig.experimental?.runtime
+        : undefined
+
+    if (runtime === SERVER_RUNTIME.edge) {
+      warnAboutExperimentalEdgeApiFunctions()
+    }
+
+    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
+
+    return {
+      ssr,
+      ssg,
+      ...(middlewareConfig && { middleware: middlewareConfig }),
+      ...(runtime && { runtime }),
+    }
+  }
+
+  return { ssr: false, ssg: false, runtime: nextConfig.experimental?.runtime }
+}

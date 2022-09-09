@@ -37,7 +37,10 @@ const cleanUpAndExit = async (code) => {
     await fs.remove(process.env.NEXT_TEST_STARTER)
   }
   console.log(`exiting with code ${code}`)
-  process.exit(code)
+
+  setTimeout(() => {
+    process.exit(code)
+  }, 1)
 }
 
 async function getTestTimings() {
@@ -269,33 +272,31 @@ async function main() {
           },
         }
       )
-      const handleOutput = (chunk) => {
-        if (hideOutput) {
-          outputChunks.push(chunk)
+      const handleOutput = (type) => (chunk) => {
+        if (hideOutput && !isFinalRun) {
+          outputChunks.push({ type, chunk })
         } else {
           process.stderr.write(chunk)
         }
       }
-      child.stdout.on('data', handleOutput)
-      child.stderr.on('data', handleOutput)
+      child.stdout.on('data', handleOutput('stdout'))
+      child.stderr.on('data', handleOutput('stderr'))
 
       children.add(child)
 
       child.on('exit', async (code, signal) => {
         children.delete(child)
         if (code !== 0 || signal !== null) {
-          if (isFinalRun && hideOutput) {
+          if (hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            const trimmedOutput = []
-
-            for (let i = outputChunks.length; i >= 0; i--) {
-              const chunk = outputChunks[i]
-              if (!chunk) continue
-
-              trimmedOutput.unshift(chunk)
-            }
-            trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
+            outputChunks.forEach(({ type, chunk }) => {
+              if (type === 'stdout') {
+                process.stdout.write(chunk)
+              } else {
+                process.stderr.write(chunk)
+              }
+            })
           }
           return reject(
             new Error(

@@ -18,10 +18,6 @@ describe('Middleware Responses', () => {
       },
     })
   })
-
-  testsWithLocale()
-  testsWithLocale('/fr')
-
   function testsWithLocale(locale = '') {
     const label = locale ? `${locale} ` : ``
 
@@ -92,4 +88,6 @@ describe('Middleware Responses', () => {
       expect(res.headers.raw()['set-cookie']).toEqual(['bar=chocochip'])
     })
   }
+  testsWithLocale()
+  testsWithLocale('/fr')
 })

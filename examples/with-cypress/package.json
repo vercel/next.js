@@ -11,11 +11,15 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
-    "cypress": "8.2.0",
-    "start-server-and-test": "1.13.1"
+    "@types/node": "18.0.6",
+    "@types/react": "18.0.15",
+    "@types/react-dom": "18.0.6",
+    "cypress": "10.3.1",
+    "start-server-and-test": "1.14.0",
+    "typescript": "4.7.4"
   }
 }
