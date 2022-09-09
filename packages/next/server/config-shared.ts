@@ -7,6 +7,7 @@ import {
   imageConfigDefault,
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
+import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -147,6 +148,9 @@ export interface ExperimentalConfig {
    */
   fallbackNodePolyfills?: false
   useUndici?: boolean
+  sri?: {
+    algorithm?: SubresourceIntegrityAlgorithm
+  }
 }
 
 export type ExportPathMap = {

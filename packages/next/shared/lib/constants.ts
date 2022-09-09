@@ -1,4 +1,4 @@
-type ValueOf<T> = Required<T>[keyof T]
+export type ValueOf<T> = Required<T>[keyof T]
 
 export const COMPILER_NAMES = {
   client: 'client',
@@ -26,6 +26,7 @@ export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const APP_BUILD_MANIFEST = 'app-build-manifest.json'
+export const SUBRESOURCE_INTEGRITY_MANIFEST = 'subresource-integrity-manifest'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'

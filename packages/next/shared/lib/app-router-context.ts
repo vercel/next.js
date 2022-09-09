@@ -66,8 +66,11 @@ export const GlobalLayoutRouterContext = React.createContext<{
   focusAndScrollRef: FocusAndScrollRef
 }>(null as any)
 
+export const TemplateContext = React.createContext<React.ReactNode>(null as any)
+
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
   LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
+  TemplateContext.displayName = 'TemplateContext'
 }

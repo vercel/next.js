@@ -511,10 +511,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.compiler.removeConsole = (result.experimental as any).removeConsole
   }
 
-  if (result.swcMinify) {
-    Log.info('SWC minify release candidate enabled. https://nextjs.link/swcmin')
-  }
-
   if (result.experimental?.swcMinifyDebugOptions) {
     Log.warn(
       'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
