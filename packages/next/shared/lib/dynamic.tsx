@@ -65,28 +65,32 @@ export default function dynamic<P = {}>(
   options?: DynamicOptions<P>
 ): React.ComponentType<P> {
   let loadableFn: LoadableFn<P> = Loadable
-  let loadableOptions: LoadableOptions<P> = {
-    // A loading component is not required, so we default it
-    loading: ({ error, isLoading, pastDelay }) => {
-      if (!pastDelay) return null
-      if (process.env.NODE_ENV === 'development') {
-        if (isLoading) {
-          return null
-        }
-        if (error) {
-          return (
-            <p>
-              {error.message}
-              <br />
-              {error.stack}
-            </p>
-          )
-        }
-      }
 
-      return null
-    },
-  }
+  let loadableOptions: LoadableOptions<P> = options?.suspense
+    ? {}
+    : // only provide a default loading component when suspense is disabled
+      {
+        // A loading component is not required, so we default it
+        loading: ({ error, isLoading, pastDelay }) => {
+          if (!pastDelay) return null
+          if (process.env.NODE_ENV === 'development') {
+            if (isLoading) {
+              return null
+            }
+            if (error) {
+              return (
+                <p>
+                  {error.message}
+                  <br />
+                  {error.stack}
+                </p>
+              )
+            }
+          }
+
+          return null
+        },
+      }
 
   // Support for direct import(), eg: dynamic(import('../hello-world'))
   // Note that this is only kept for the edge case where someone is passing in a promise as first argument
