@@ -3,6 +3,7 @@ import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
+import { delayHydration, shouldDelay } from './dev/delay-hydration'
 import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
 import {
   assign,
@@ -42,7 +43,14 @@ initialize({ webpackHMR })
   .then(({ assetPrefix }) => {
     connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
 
-    return hydrate({ beforeRender: displayContent }).then(() => {
+    const beforeRender = async () => {
+      await displayContent()
+      if (shouldDelay()) {
+        await delayHydration()
+      }
+    }
+
+    return hydrate({ beforeRender }).then(() => {
       initOnDemandEntries()
 
       let buildIndicatorHandler = () => {}
