@@ -9,6 +9,11 @@ jest.setTimeout(2 * 60 * 1000)
 export function runTests(example = '') {
   const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
+  if ((global as any).isNextDeploy) {
+    it('should not run for next deploy', () => {})
+    return
+  }
+
   if (
     versionParts[0] > 16 ||
     (versionParts[0] === 16 && versionParts[1] >= 14)
@@ -37,7 +42,7 @@ export function runTests(example = '') {
             prev.push(`${cur}@${dependencies[cur]}`)
             return prev
           }, [] as string[])
-          return `yarn set version berry && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
+          return `yarn set version 4.0.0-rc.13 && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
             ' '
           )}`
         },

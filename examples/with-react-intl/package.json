@@ -12,15 +12,14 @@
   },
   "dependencies": {
     "next": "11.1.0",
-    "react": "18.1.0",
-    "react-dom": "18.1.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "react-intl": "5.20.9"
   },
   "devDependencies": {
     "@formatjs/cli": "4.2.31",
     "@types/node": "16.6.2",
     "@types/react": "17.0.19",
-    "@types/styled-jsx": "3.4.4",
     "babel-plugin-formatjs": "10.3.5",
     "eslint-plugin-formatjs": "2.17.4",
     "typescript": "4.3.5"

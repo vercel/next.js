@@ -166,6 +166,11 @@ function processModelChunk(request, id, model) {
   var row = serializeRowHeader('J', id) + json + '\n';
   return stringToChunk(row);
 }
+function processReferenceChunk(request, id, reference) {
+  var json = stringify(reference);
+  var row = serializeRowHeader('J', id) + json + '\n';
+  return stringToChunk(row);
+}
 function processModuleChunk(request, id, moduleMetaData) {
   var json = stringify(moduleMetaData);
   var row = serializeRowHeader('M', id) + json + '\n';
@@ -184,13 +189,24 @@ function processSymbolChunk(request, id, name) {
 // eslint-disable-next-line no-unused-vars
 var MODULE_TAG = Symbol.for('react.module.reference');
 function getModuleKey(reference) {
-  return reference.filepath + '#' + reference.name;
+  return reference.filepath + '#' + reference.name + (reference.async ? '#async' : '');
 }
 function isModuleReference(reference) {
   return reference.$$typeof === MODULE_TAG;
 }
 function resolveModuleMetaData(config, moduleReference) {
-  return config[moduleReference.filepath][moduleReference.name];
+  var resolvedModuleData = config[moduleReference.filepath][moduleReference.name];
+
+  if (moduleReference.async) {
+    return {
+      id: resolvedModuleData.id,
+      chunks: resolvedModuleData.chunks,
+      name: resolvedModuleData.name,
+      async: true
+    };
+  } else {
+    return resolvedModuleData;
+  }
 }
 
 // ATTENTION
@@ -502,7 +518,8 @@ var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
-var endAsyncScript = stringToPrecomputedChunk('" async=""></script>'); // Allows us to keep track of what we've already written so we can refer back to it.
+var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
+var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 
 var textSeparator = stringToPrecomputedChunk('<!-- -->');
 
@@ -537,6 +554,12 @@ var startPendingSuspenseBoundary1 = stringToPrecomputedChunk('<!--$?--><template
 var startPendingSuspenseBoundary2 = stringToPrecomputedChunk('"></template>');
 var startClientRenderedSuspenseBoundary = stringToPrecomputedChunk('<!--$!-->');
 var endSuspenseBoundary = stringToPrecomputedChunk('<!--/$-->');
+var clientRenderedSuspenseBoundaryError1 = stringToPrecomputedChunk('<template');
+var clientRenderedSuspenseBoundaryErrorAttrInterstitial = stringToPrecomputedChunk('"');
+var clientRenderedSuspenseBoundaryError1A = stringToPrecomputedChunk(' data-dgst="');
+var clientRenderedSuspenseBoundaryError1B = stringToPrecomputedChunk(' data-msg="');
+var clientRenderedSuspenseBoundaryError1C = stringToPrecomputedChunk(' data-stck="');
+var clientRenderedSuspenseBoundaryError2 = stringToPrecomputedChunk('></template>');
 var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="');
 var startSegmentHTML2 = stringToPrecomputedChunk('">');
 var endSegmentHTML = stringToPrecomputedChunk('</div>');
@@ -566,7 +589,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 // const SUSPENSE_PENDING_START_DATA = '$?';
 // const SUSPENSE_FALLBACK_START_DATA = '$!';
 //
-// function clientRenderBoundary(suspenseBoundaryID) {
+// function clientRenderBoundary(suspenseBoundaryID, errorDigest, errorMsg, errorComponentStack) {
 //   // Find the fallback's first element.
 //   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
 //   if (!suspenseIdNode) {
@@ -578,6 +601,11 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 //   const suspenseNode = suspenseIdNode.previousSibling;
 //   // Tag it to be client rendered.
 //   suspenseNode.data = SUSPENSE_FALLBACK_START_DATA;
+//   // assign error metadata to first sibling
+//   let dataset = suspenseIdNode.dataset;
+//   if (errorDigest) dataset.dgst = errorDigest;
+//   if (errorMsg) dataset.msg = errorMsg;
+//   if (errorComponentStack) dataset.stck = errorComponentStack;
 //   // Tell React to retry it if the parent already hydrated.
 //   if (suspenseNode._reactRetry) {
 //     suspenseNode._reactRetry();
@@ -661,7 +689,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 
 var completeSegmentFunction = 'function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)}';
 var completeBoundaryFunction = 'function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}}';
-var clientRenderFunction = 'function $RX(a){if(a=document.getElementById(a))a=a.previousSibling,a.data="$!",a._reactRetry&&a._reactRetry()}';
+var clientRenderFunction = 'function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())}';
 var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegmentFunction + ';$RS("');
 var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
 var completeSegmentScript2 = stringToPrecomputedChunk('","');
@@ -672,7 +700,9 @@ var completeBoundaryScript2 = stringToPrecomputedChunk('","');
 var completeBoundaryScript3 = stringToPrecomputedChunk('")</script>');
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderFunction + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
-var clientRenderScript2 = stringToPrecomputedChunk('")</script>');
+var clientRenderScript1A = stringToPrecomputedChunk('"');
+var clientRenderScript2 = stringToPrecomputedChunk(')</script>');
+var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
 
 var rendererSigil;
 
@@ -864,10 +894,109 @@ function readContext(context) {
   return value;
 }
 
+// Corresponds to ReactFiberWakeable module. Generally, changes to one module
+// should be reflected in the other.
+// TODO: Rename this module and the corresponding Fiber one to "Thenable"
+// instead of "Wakeable". Or some other more appropriate name.
+// TODO: Sparse arrays are bad for performance.
+function createThenableState() {
+  // The ThenableState is created the first time a component suspends. If it
+  // suspends again, we'll reuse the same state.
+  return [];
+}
+function trackSuspendedWakeable(wakeable) {
+  // If this wakeable isn't already a thenable, turn it into one now. Then,
+  // when we resume the work loop, we can check if its status is
+  // still pending.
+  // TODO: Get rid of the Wakeable type? It's superseded by UntrackedThenable.
+  var thenable = wakeable; // We use an expando to track the status and result of a thenable so that we
+  // can synchronously unwrap the value. Think of this as an extension of the
+  // Promise API, or a custom interface that is a superset of Thenable.
+  //
+  // If the thenable doesn't have a status, set it to "pending" and attach
+  // a listener that will update its status and result when it resolves.
+
+  switch (thenable.status) {
+    case 'pending':
+      // Since the status is already "pending", we can assume it will be updated
+      // when it resolves, either by React or something in userspace.
+      break;
+
+    case 'fulfilled':
+    case 'rejected':
+      // A thenable that already resolved shouldn't have been thrown, so this is
+      // unexpected. Suggests a mistake in a userspace data library. Don't track
+      // this thenable, because if we keep trying it will likely infinite loop
+      // without ever resolving.
+      // TODO: Log a warning?
+      break;
+
+    default:
+      {
+        // TODO: Only instrument the thenable if the status if not defined. If
+        // it's defined, but an unknown value, assume it's been instrumented by
+        // some custom userspace implementation.
+        var pendingThenable = thenable;
+        pendingThenable.status = 'pending';
+        pendingThenable.then(function (fulfilledValue) {
+          if (thenable.status === 'pending') {
+            var fulfilledThenable = thenable;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = fulfilledValue;
+          }
+        }, function (error) {
+          if (thenable.status === 'pending') {
+            var rejectedThenable = thenable;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = error;
+          }
+        });
+        break;
+      }
+  }
+}
+function trackUsedThenable(thenableState, thenable, index) {
+  // This is only a separate function from trackSuspendedWakeable for symmetry
+  // with Fiber.
+  // TODO: Disallow throwing a thenable directly. It must go through `use` (or
+  // some equivalent for internal Suspense implementations). We can't do this in
+  // Fiber yet because it's a breaking change but we can do it in Server
+  // Components because Server Components aren't released yet.
+  thenableState[index] = thenable;
+}
+function getPreviouslyUsedThenableAtIndex(thenableState, index) {
+  if (thenableState !== null) {
+    var thenable = thenableState[index];
+
+    if (thenable !== undefined) {
+      return thenable;
+    }
+  }
+
+  return null;
+}
+
+var currentRequest = null;
+var thenableIndexCounter = 0;
+var thenableState = null;
+function prepareToUseHooksForRequest(request) {
+  currentRequest = request;
+}
+function resetHooksForRequest() {
+  currentRequest = null;
+}
+function prepareToUseHooksForComponent(prevThenableState) {
+  thenableIndexCounter = 0;
+  thenableState = prevThenableState;
+}
+function getThenableStateAfterSuspending() {
+  return thenableState;
+}
+
 function readContext$1(context) {
   {
     if (context.$$typeof !== REACT_SERVER_CONTEXT_TYPE) {
-      error('Only ServerContext is supported in Flight');
+      error('Only createServerContext is supported in Server Components.');
     }
 
     if (currentCache === null) {
@@ -912,12 +1041,16 @@ var Dispatcher = {
   useLayoutEffect: unsupportedHook,
   useImperativeHandle: unsupportedHook,
   useEffect: unsupportedHook,
-  useId: unsupportedHook,
+  useId: useId,
   useMutableSource: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {
     return unsupportedRefresh;
-  }
+  },
+  useMemoCache: function (size) {
+    return new Array(size);
+  },
+  use:  use 
 };
 
 function unsupportedHook() {
@@ -939,6 +1072,90 @@ function getCurrentCache() {
   return currentCache;
 }
 
+function useId() {
+  if (currentRequest === null) {
+    throw new Error('useId can only be used while React is rendering');
+  }
+
+  var id = currentRequest.identifierCount++; // use 'S' for Flight components to distinguish from 'R' and 'r' in Fizz/Client
+
+  return ':' + currentRequest.identifierPrefix + 'S' + id.toString(32) + ':';
+}
+
+function use(usable) {
+  if (usable !== null && typeof usable === 'object') {
+    if (typeof usable.then === 'function') {
+      // This is a thenable.
+      var thenable = usable; // Track the position of the thenable within this fiber.
+
+      var index = thenableIndexCounter;
+      thenableIndexCounter += 1;
+
+      switch (thenable.status) {
+        case 'fulfilled':
+          {
+            var fulfilledValue = thenable.value;
+            return fulfilledValue;
+          }
+
+        case 'rejected':
+          {
+            var rejectedError = thenable.reason;
+            throw rejectedError;
+          }
+
+        default:
+          {
+            var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(thenableState, index);
+
+            if (prevThenableAtIndex !== null) {
+              switch (prevThenableAtIndex.status) {
+                case 'fulfilled':
+                  {
+                    var _fulfilledValue = prevThenableAtIndex.value;
+                    return _fulfilledValue;
+                  }
+
+                case 'rejected':
+                  {
+                    var _rejectedError = prevThenableAtIndex.reason;
+                    throw _rejectedError;
+                  }
+
+                default:
+                  {
+                    // The thenable still hasn't resolved. Suspend with the same
+                    // thenable as last time to avoid redundant listeners.
+                    throw prevThenableAtIndex;
+                  }
+              }
+            } else {
+              // This is the first time something has been used at this index.
+              // Stash the thenable at the current index so we can reuse it during
+              // the next attempt.
+              if (thenableState === null) {
+                thenableState = createThenableState();
+              }
+
+              trackUsedThenable(thenableState, thenable, index); // Suspend.
+              // TODO: Throwing here is an implementation detail that allows us to
+              // unwind the call stack. But we shouldn't allow it to leak into
+              // userspace. Throw an opaque placeholder value instead of the
+              // actual thenable. If it doesn't get captured by the work loop, log
+              // a warning, because that means something in userspace must have
+              // caught it.
+
+              throw thenable;
+            }
+          }
+      }
+    }
+  } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+  throw new Error('An unsupported type was passed to use(): ' + String(usable));
+}
+
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
@@ -948,6 +1165,10 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+var PENDING = 0;
+var COMPLETED = 1;
+var ABORTED = 3;
+var ERRORED = 4;
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 
 function defaultErrorHandler(error) {
@@ -957,8 +1178,9 @@ function defaultErrorHandler(error) {
 var OPEN = 0;
 var CLOSING = 1;
 var CLOSED = 2;
-function createRequest(model, bundlerConfig, onError, context) {
-  var pingedSegments = [];
+function createRequest(model, bundlerConfig, onError, context, identifierPrefix) {
+  var abortSet = new Set();
+  var pingedTasks = [];
   var request = {
     status: OPEN,
     fatalError: null,
@@ -967,13 +1189,16 @@ function createRequest(model, bundlerConfig, onError, context) {
     cache: new Map(),
     nextChunkId: 0,
     pendingChunks: 0,
-    pingedSegments: pingedSegments,
+    abortableTasks: abortSet,
+    pingedTasks: pingedTasks,
     completedModuleChunks: [],
     completedJSONChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
     writtenModules: new Map(),
     writtenProviders: new Map(),
+    identifierPrefix: identifierPrefix || '',
+    identifierCount: 1,
     onError: onError === undefined ? defaultErrorHandler : onError,
     toJSON: function (key, value) {
       return resolveModelToJSON(request, this, key, value);
@@ -981,8 +1206,8 @@ function createRequest(model, bundlerConfig, onError, context) {
   };
   request.pendingChunks++;
   var rootContext = createRootContext(context);
-  var rootSegment = createSegment(request, model, rootContext);
-  pingedSegments.push(rootSegment);
+  var rootTask = createTask(request, model, rootContext, abortSet);
+  pingedTasks.push(rootTask);
   return request;
 }
 
@@ -992,7 +1217,7 @@ function createRootContext(reqContext) {
 
 var POP = {};
 
-function attemptResolveElement(type, key, ref, props) {
+function attemptResolveElement(type, key, ref, props, prevThenableState) {
   if (ref !== null && ref !== undefined) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
@@ -1001,7 +1226,13 @@ function attemptResolveElement(type, key, ref, props) {
   }
 
   if (typeof type === 'function') {
-    // This is a server-side component.
+    if (isModuleReference(type)) {
+      // This is a reference to a client component.
+      return [REACT_ELEMENT_TYPE, type, key, props];
+    } // This is a server-side component.
+
+
+    prepareToUseHooksForComponent(prevThenableState);
     return type(props);
   } else if (typeof type === 'string') {
     // This is a host element. E.g. HTML.
@@ -1030,18 +1261,19 @@ function attemptResolveElement(type, key, ref, props) {
           var payload = type._payload;
           var init = type._init;
           var wrappedType = init(payload);
-          return attemptResolveElement(wrappedType, key, ref, props);
+          return attemptResolveElement(wrappedType, key, ref, props, prevThenableState);
         }
 
       case REACT_FORWARD_REF_TYPE:
         {
           var render = type.render;
+          prepareToUseHooksForComponent(prevThenableState);
           return render(props, undefined);
         }
 
       case REACT_MEMO_TYPE:
         {
-          return attemptResolveElement(type.type, key, ref, props);
+          return attemptResolveElement(type.type, key, ref, props, prevThenableState);
         }
 
       case REACT_PROVIDER_TYPE:
@@ -1075,28 +1307,31 @@ function attemptResolveElement(type, key, ref, props) {
   throw new Error("Unsupported server component type: " + describeValueForErrorMessage(type));
 }
 
-function pingSegment(request, segment) {
-  var pingedSegments = request.pingedSegments;
-  pingedSegments.push(segment);
+function pingTask(request, task) {
+  var pingedTasks = request.pingedTasks;
+  pingedTasks.push(task);
 
-  if (pingedSegments.length === 1) {
+  if (pingedTasks.length === 1) {
     scheduleWork(function () {
       return performWork(request);
     });
   }
 }
 
-function createSegment(request, model, context) {
+function createTask(request, model, context, abortSet) {
   var id = request.nextChunkId++;
-  var segment = {
+  var task = {
     id: id,
+    status: PENDING,
     model: model,
     context: context,
     ping: function () {
-      return pingSegment(request, segment);
-    }
+      return pingTask(request, task);
+    },
+    thenableState: null
   };
-  return segment;
+  abortSet.add(task);
+  return task;
 }
 
 function serializeByValueID(id) {
@@ -1105,6 +1340,49 @@ function serializeByValueID(id) {
 
 function serializeByRefID(id) {
   return '@' + id.toString(16);
+}
+
+function serializeModuleReference(request, parent, key, moduleReference) {
+  var moduleKey = getModuleKey(moduleReference);
+  var writtenModules = request.writtenModules;
+  var existingId = writtenModules.get(moduleKey);
+
+  if (existingId !== undefined) {
+    if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
+      // If we're encoding the "type" of an element, we can refer
+      // to that by a lazy reference instead of directly since React
+      // knows how to deal with lazy values. This lets us suspend
+      // on this component rather than its parent until the code has
+      // loaded.
+      return serializeByRefID(existingId);
+    }
+
+    return serializeByValueID(existingId);
+  }
+
+  try {
+    var moduleMetaData = resolveModuleMetaData(request.bundlerConfig, moduleReference);
+    request.pendingChunks++;
+    var moduleId = request.nextChunkId++;
+    emitModuleChunk(request, moduleId, moduleMetaData);
+    writtenModules.set(moduleKey, moduleId);
+
+    if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
+      // If we're encoding the "type" of an element, we can refer
+      // to that by a lazy reference instead of directly since React
+      // knows how to deal with lazy values. This lets us suspend
+      // on this component rather than its parent until the code has
+      // loaded.
+      return serializeByRefID(moduleId);
+    }
+
+    return serializeByValueID(moduleId);
+  } catch (x) {
+    request.pendingChunks++;
+    var errorId = request.nextChunkId++;
+    emitErrorChunk(request, errorId, x);
+    return serializeByValueID(errorId);
+  }
 }
 
 function escapeStringValue(value) {
@@ -1317,7 +1595,7 @@ function resolveModelToJSON(request, parent, key, value) {
             // TODO: Concatenate keys of parents onto children.
             var element = value; // Attempt to render the server component.
 
-            value = attemptResolveElement(element.type, element.key, element.ref, element.props);
+            value = attemptResolveElement(element.type, element.key, element.ref, element.props, null);
             break;
           }
 
@@ -1331,12 +1609,15 @@ function resolveModelToJSON(request, parent, key, value) {
       }
     } catch (x) {
       if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
-        // Something suspended, we'll need to create a new segment and resolve it later.
+        // Something suspended, we'll need to create a new task and resolve it later.
         request.pendingChunks++;
-        var newSegment = createSegment(request, value, getActiveContext());
-        var ping = newSegment.ping;
+        var newTask = createTask(request, value, getActiveContext(), request.abortableTasks);
+        var ping = newTask.ping;
         x.then(ping, ping);
-        return serializeByRefID(newSegment.id);
+        var wakeable = x;
+        trackSuspendedWakeable(wakeable);
+        newTask.thenableState = getThenableStateAfterSuspending();
+        return serializeByRefID(newTask.id);
       } else {
         logRecoverableError(request, x); // Something errored. We'll still send everything we have up until this point.
         // We'll replace this element with a lazy reference that throws on the client
@@ -1356,49 +1637,7 @@ function resolveModelToJSON(request, parent, key, value) {
 
   if (typeof value === 'object') {
     if (isModuleReference(value)) {
-      var moduleReference = value;
-      var moduleKey = getModuleKey(moduleReference);
-      var writtenModules = request.writtenModules;
-      var existingId = writtenModules.get(moduleKey);
-
-      if (existingId !== undefined) {
-        if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
-          // If we're encoding the "type" of an element, we can refer
-          // to that by a lazy reference instead of directly since React
-          // knows how to deal with lazy values. This lets us suspend
-          // on this component rather than its parent until the code has
-          // loaded.
-          return serializeByRefID(existingId);
-        }
-
-        return serializeByValueID(existingId);
-      }
-
-      try {
-        var moduleMetaData = resolveModuleMetaData(request.bundlerConfig, moduleReference);
-        request.pendingChunks++;
-        var moduleId = request.nextChunkId++;
-        emitModuleChunk(request, moduleId, moduleMetaData);
-        writtenModules.set(moduleKey, moduleId);
-
-        if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
-          // If we're encoding the "type" of an element, we can refer
-          // to that by a lazy reference instead of directly since React
-          // knows how to deal with lazy values. This lets us suspend
-          // on this component rather than its parent until the code has
-          // loaded.
-          return serializeByRefID(moduleId);
-        }
-
-        return serializeByValueID(moduleId);
-      } catch (x) {
-        request.pendingChunks++;
-
-        var _errorId = request.nextChunkId++;
-
-        emitErrorChunk(request, _errorId, x);
-        return serializeByValueID(_errorId);
-      }
+      return serializeModuleReference(request, parent, key, value);
     } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
       var providerKey = value._context._globalName;
       var writtenProviders = request.writtenProviders;
@@ -1452,6 +1691,10 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'function') {
+    if (isModuleReference(value)) {
+      return serializeModuleReference(request, parent, key, value);
+    }
+
     if (/^on[A-Z]/.test(key)) {
       throw new Error('Event handlers cannot be passed to client component props. ' + ("Remove " + describeKeyForErrorMessage(key) + " from these props if possible: " + describeObjectForErrorMessage(parent) + "\n") + 'If you need interactivity, consider converting part of this to a client component.');
     } else {
@@ -1461,11 +1704,10 @@ function resolveModelToJSON(request, parent, key, value) {
 
   if (typeof value === 'symbol') {
     var writtenSymbols = request.writtenSymbols;
+    var existingId = writtenSymbols.get(value);
 
-    var _existingId = writtenSymbols.get(value);
-
-    if (_existingId !== undefined) {
-      return serializeByValueID(_existingId);
+    if (existingId !== undefined) {
+      return serializeByValueID(existingId);
     }
 
     var name = value.description;
@@ -1544,34 +1786,61 @@ function emitProviderChunk(request, id, contextName) {
   request.completedJSONChunks.push(processedChunk);
 }
 
-function retrySegment(request, segment) {
-  switchContext(segment.context);
+function retryTask(request, task) {
+  if (task.status !== PENDING) {
+    // We completed this by other means before we had a chance to retry it.
+    return;
+  }
+
+  switchContext(task.context);
 
   try {
-    var _value3 = segment.model;
+    var _value3 = task.model;
 
-    while (typeof _value3 === 'object' && _value3 !== null && _value3.$$typeof === REACT_ELEMENT_TYPE) {
+    if (typeof _value3 === 'object' && _value3 !== null && _value3.$$typeof === REACT_ELEMENT_TYPE) {
       // TODO: Concatenate keys of parents onto children.
-      var element = _value3; // Attempt to render the server component.
-      // Doing this here lets us reuse this same segment if the next component
+      var element = _value3; // When retrying a component, reuse the thenableState from the
+      // previous attempt.
+
+      var prevThenableState = task.thenableState; // Attempt to render the server component.
+      // Doing this here lets us reuse this same task if the next component
       // also suspends.
 
-      segment.model = _value3;
-      _value3 = attemptResolveElement(element.type, element.key, element.ref, element.props);
+      task.model = _value3;
+      _value3 = attemptResolveElement(element.type, element.key, element.ref, element.props, prevThenableState); // Successfully finished this component. We're going to keep rendering
+      // using the same task, but we reset its thenable state before continuing.
+
+      task.thenableState = null; // Keep rendering and reuse the same task. This inner loop is separate
+      // from the render above because we don't need to reset the thenable state
+      // until the next time something suspends and retries.
+
+      while (typeof _value3 === 'object' && _value3 !== null && _value3.$$typeof === REACT_ELEMENT_TYPE) {
+        // TODO: Concatenate keys of parents onto children.
+        var nextElement = _value3;
+        task.model = _value3;
+        _value3 = attemptResolveElement(nextElement.type, nextElement.key, nextElement.ref, nextElement.props, null);
+      }
     }
 
-    var processedChunk = processModelChunk(request, segment.id, _value3);
+    var processedChunk = processModelChunk(request, task.id, _value3);
     request.completedJSONChunks.push(processedChunk);
+    request.abortableTasks.delete(task);
+    task.status = COMPLETED;
   } catch (x) {
     if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
       // Something suspended again, let's pick it back up later.
-      var ping = segment.ping;
+      var ping = task.ping;
       x.then(ping, ping);
+      var wakeable = x;
+      trackSuspendedWakeable(wakeable);
+      task.thenableState = getThenableStateAfterSuspending();
       return;
     } else {
+      request.abortableTasks.delete(task);
+      task.status = ERRORED;
       logRecoverableError(request, x); // This errored, we need to serialize this error to the
 
-      emitErrorChunk(request, segment.id, x);
+      emitErrorChunk(request, task.id, x);
     }
   }
 }
@@ -1581,14 +1850,15 @@ function performWork(request) {
   var prevCache = getCurrentCache();
   ReactCurrentDispatcher.current = Dispatcher;
   setCurrentCache(request.cache);
+  prepareToUseHooksForRequest(request);
 
   try {
-    var pingedSegments = request.pingedSegments;
-    request.pingedSegments = [];
+    var pingedTasks = request.pingedTasks;
+    request.pingedTasks = [];
 
-    for (var i = 0; i < pingedSegments.length; i++) {
-      var segment = pingedSegments[i];
-      retrySegment(request, segment);
+    for (var i = 0; i < pingedTasks.length; i++) {
+      var task = pingedTasks[i];
+      retryTask(request, task);
     }
 
     if (request.destination !== null) {
@@ -1600,7 +1870,17 @@ function performWork(request) {
   } finally {
     ReactCurrentDispatcher.current = prevDispatcher;
     setCurrentCache(prevCache);
+    resetHooksForRequest();
   }
+}
+
+function abortTask(task, request, errorId) {
+  task.status = ABORTED; // Instead of emitting an error per task.id, we emit a model that only
+  // has a single value referencing the error.
+
+  var ref = serializeByValueID(errorId);
+  var processedChunk = processReferenceChunk(request, task.id, ref);
+  request.completedErrorChunks.push(processedChunk);
 }
 
 function flushCompletedChunks(request, destination) {
@@ -1702,6 +1982,34 @@ function startFlowing(request, destination) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+} // This is called to early terminate a request. It creates an error at all pending tasks.
+
+function abort(request, reason) {
+  try {
+    var abortableTasks = request.abortableTasks;
+
+    if (abortableTasks.size > 0) {
+      // We have tasks to abort. We'll emit one error row and then emit a reference
+      // to that row from every row that's still remaining.
+      var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+
+      logRecoverableError(request, _error);
+      request.pendingChunks++;
+      var errorId = request.nextChunkId++;
+      emitErrorChunk(request, errorId, _error);
+      abortableTasks.forEach(function (task) {
+        return abortTask(task, request, errorId);
+      });
+      abortableTasks.clear();
+    }
+
+    if (request.destination !== null) {
+      flushCompletedChunks(request, request.destination);
+    }
+  } catch (error) {
+    logRecoverableError(request, error);
+    fatalError(request, error);
+  }
 }
 
 function importServerContexts(contexts) {
@@ -1725,8 +2033,24 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
-function renderToReadableStream(model, webpackMap, options, context) {
-  var request = createRequest(model, webpackMap, options ? options.onError : undefined, context);
+function renderToReadableStream(model, webpackMap, options) {
+  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined);
+
+  if (options && options.signal) {
+    var signal = options.signal;
+
+    if (signal.aborted) {
+      abort(request, signal.reason);
+    } else {
+      var listener = function () {
+        abort(request, signal.reason);
+        signal.removeEventListener('abort', listener);
+      };
+
+      signal.addEventListener('abort', listener);
+    }
+  }
+
   var stream = new ReadableStream({
     type: 'bytes',
     start: function (controller) {
@@ -1736,6 +2060,9 @@ function renderToReadableStream(model, webpackMap, options, context) {
       startFlowing(request, controller);
     },
     cancel: function (reason) {}
+  }, // $FlowFixMe size() methods are not allowed on byte streams.
+  {
+    highWaterMark: 0
   });
   return stream;
 }

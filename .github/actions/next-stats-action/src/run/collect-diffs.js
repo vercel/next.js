@@ -44,9 +44,13 @@ module.exports = async function collectDiffs(
       }
 
       if (curFiles.length > 0) {
+        const prettierPath = path.join(
+          __dirname,
+          '../../node_modules/.bin/prettier'
+        )
         await exec(
           `cd "${process.env.LOCAL_STATS ? process.cwd() : diffingDir}" && ` +
-            `yarn prettier --write ${curFiles
+            `${prettierPath} --write ${curFiles
               .map((f) => path.join(diffingDir, f))
               .join(' ')}`
         )

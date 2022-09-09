@@ -1,3 +1,5 @@
+#![deny(unused)]
+
 pub use crate::{
     utils::{analyze, analyzer, State},
     visitors::{
@@ -5,10 +7,12 @@ pub use crate::{
     },
 };
 use serde::Deserialize;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
-use swc_atoms::JsWord;
-use swc_common::{chain, SourceFile};
-use swc_ecmascript::visit::{Fold, VisitMut};
+use std::{cell::RefCell, rc::Rc};
+use swc_core::{
+    common::{chain, pass::Optional, FileName},
+    ecma::atoms::JsWord,
+    ecma::visit::{Fold, VisitMut},
+};
 
 mod css;
 mod utils;
@@ -26,6 +30,9 @@ pub struct Config {
     #[serde(default = "true_by_default")]
     pub file_name: bool,
 
+    #[serde(default = "default_index_file_name")]
+    pub meaningless_file_names: Vec<String>,
+
     #[serde(default)]
     pub namespace: String,
 
@@ -39,11 +46,18 @@ pub struct Config {
     pub minify: bool,
 
     #[serde(default)]
+    pub pure: bool,
+
+    #[serde(default = "true_by_default")]
     pub css_prop: bool,
 }
 
 fn true_by_default() -> bool {
     true
+}
+
+fn default_index_file_name() -> Vec<String> {
+    vec!["index".to_string()]
 }
 
 impl Config {
@@ -58,13 +72,20 @@ impl Config {
 /// NOTE: **This is not complete**.
 ///
 /// Only [analyzer] and [display_name_and_id] is implemented.
-pub fn styled_components(file: Arc<SourceFile>, config: Config) -> impl Fold + VisitMut {
+pub fn styled_components(
+    file_name: FileName,
+    src_file_hash: u128,
+    config: Config,
+) -> impl Fold + VisitMut {
     let state: Rc<RefCell<State>> = Default::default();
     let config = Rc::new(config);
 
     chain!(
         analyzer(config.clone(), state.clone()),
-        display_name_and_id(file, config, state),
-        transpile_css_prop()
+        Optional {
+            enabled: config.css_prop,
+            visitor: transpile_css_prop(state.clone())
+        },
+        display_name_and_id(file_name, src_file_hash, config.clone(), state)
     )
 }

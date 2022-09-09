@@ -1,9 +1,9 @@
 {
   "version": {
-    "fullVersion": "0.59.7",
+    "fullVersion": "0.60.1",
     "major": "0",
-    "minor": "59",
-    "patch": "7"
+    "minor": "60",
+    "patch": "1"
   },
   "meta": {},
   "collections": [
@@ -75,9 +75,7 @@
           "label": "Blog Post Body",
           "name": "body",
           "isBody": true,
-          "ui": {
-            "component": "textarea"
-          },
+          "ui": { "component": "textarea" },
           "namespace": ["posts", "body"]
         }
       ],

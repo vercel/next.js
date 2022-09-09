@@ -1,5 +1,6 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { NextConfigComplete } from '../../../server/config-shared'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfigComplete } from '../../../server/config-shared'
+
 import { base } from './blocks/base'
 import { css } from './blocks/css'
 import { images } from './blocks/images'
@@ -24,7 +25,7 @@ export async function build(
   }: {
     supportedBrowsers: string[] | undefined
     rootDirectory: string
-    customAppFile: RegExp
+    customAppFile: RegExp | undefined
     isDevelopment: boolean
     isServer: boolean
     isEdgeRuntime: boolean

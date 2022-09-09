@@ -132,9 +132,11 @@ export type EventBuildFeatureUsage = {
   // *before* you make changes here.
   featureName:
     | 'next/image'
+    | 'next/future/image'
     | 'next/script'
     | 'next/dynamic'
     | 'experimental/optimizeCss'
+    | 'experimental/nextScriptWorkers'
     | 'optimizeFonts'
     | 'swcLoader'
     | 'swcMinify'

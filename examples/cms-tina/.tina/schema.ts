@@ -1,6 +1,6 @@
 import { defineSchema, defineConfig } from 'tinacms'
 
-export default defineSchema({
+const schema = defineSchema({
   collections: [
     {
       label: 'Blog Posts',
@@ -69,7 +69,7 @@ export default defineSchema({
     },
   ],
 })
-
+export default schema
 // Your tina config
 // ==============
 const branch = 'main'
@@ -82,6 +82,7 @@ const apiURL =
 
 export const tinaConfig = defineConfig({
   apiURL,
+  schema,
   cmsCallback: (cms) => {
     //  add your CMS callback code here (if you want)
 

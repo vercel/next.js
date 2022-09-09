@@ -66,11 +66,35 @@ describe('styled-components SWC transform', () => {
         `window.getComputedStyle(document.querySelector('#btn')).color`
       )
     ).toBe('rgb(255, 255, 255)')
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#wrap-div')).color`
+      )
+    ).toBe('rgb(0, 0, 0)')
+  })
+
+  it('should enable the display name transform by default', async () => {
+    // make sure the index chunk gets generated
+    await webdriver(next.appPort, '/')
+
+    const chunk = await next.readFile('.next/static/chunks/pages/index.js')
+    expect(chunk).toContain('displayName: \\"pages__Button\\"')
   })
 
   it('should contain styles in initial HTML', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('background:transparent')
     expect(html).toContain('color:white')
+  })
+
+  it('should only render once on the server per request', async () => {
+    const outputs = []
+    next.on('stdout', (args) => {
+      outputs.push(args)
+    })
+    await renderViaHTTP(next.url, '/')
+    expect(
+      outputs.filter((output) => output.trim() === '__render__').length
+    ).toBe(1)
   })
 })

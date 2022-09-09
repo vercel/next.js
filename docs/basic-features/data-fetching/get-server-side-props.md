@@ -14,6 +14,8 @@ export async function getServerSideProps(context) {
 }
 ```
 
+> Note that irrespective of rendering type, any `props` will be passed to the page component and can be viewed on the client-side in the initial HTML. This is to allow the page to be [hydrated](https://reactjs.org/docs/react-dom.html#hydrate) correctly. Make sure that you don't pass any sensitive information that shouldn't be available on the client in `props`.
+
 ## When does getServerSideProps run
 
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
@@ -73,6 +75,32 @@ export async function getServerSideProps() {
 
 export default Page
 ```
+
+## Caching with Server-Side Rendering (SSR)
+
+You can use caching headers (`Cache-Control`) inside `getServerSideProps` to cache dynamic responses. For example, using [`stale-while-revalidate`](https://web.dev/stale-while-revalidate/).
+
+```jsx
+// This value is considered fresh for ten seconds (s-maxage=10).
+// If a request is repeated within the next 10 seconds, the previously
+// cached value will still be fresh. If the request is repeated before 59 seconds,
+// the cached value will be stale but still render (stale-while-revalidate=59).
+//
+// In the background, a revalidation request will be made to populate the cache
+// with a fresh value. If you refresh the page, you will see the new value.
+export async function getServerSideProps({ req, res }) {
+  res.setHeader(
+    'Cache-Control',
+    'public, s-maxage=10, stale-while-revalidate=59'
+  )
+
+  return {
+    props: {},
+  }
+}
+```
+
+Learn more about [caching](/docs/going-to-production.md).
 
 ## Does getServerSideProps render an error page
 

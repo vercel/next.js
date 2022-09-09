@@ -17,7 +17,7 @@ npx create-next-app@latest --typescript
 # or
 yarn create next-app --typescript
 # or
-pnpm create next-app -- --typescript
+pnpm create next-app --typescript
 ```
 
 To create a new app in a specific folder, you can send a name as an argument. For example, the following command will create a new Next.js app called `blog-app` in a folder with the same name:
@@ -38,7 +38,7 @@ pnpm create next-app blog-app
 - **-e, --example [name]|[github-url]** - An example to bootstrap the app with. You can use an example name from the [Next.js repo](https://github.com/vercel/next.js/tree/canary/examples) or a GitHub URL. The URL can use any branch and/or subdirectory.
 - **--example-path &lt;path-to-example&gt;** - In a rare case, your GitHub URL might contain a branch name with a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar). In this case, you must specify the path to the example separately: `--example-path foo/bar`
 - **--use-npm** - Explicitly tell the CLI to bootstrap the app using npm. To bootstrap using yarn we recommend to run `yarn create next-app`
-- **--use-pnpm** - Explicitly tell the CLI to bootstrap the app using pnpm. To bootstrap using yarn we recommend running `yarn create next-app`
+- **--use-pnpm** - Explicitly tell the CLI to bootstrap the app using pnpm. To bootstrap using pnpm we recommend running `pnpm create next-app`
 
 ## Why use Create Next App?
 

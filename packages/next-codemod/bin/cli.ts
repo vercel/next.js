@@ -120,6 +120,10 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     name: 'cra-to-next (experimental): automatically migrates a Create React App project to Next.js',
     value: 'cra-to-next',
   },
+  {
+    name: 'new-link: Ensures your <Link> usage is backwards compatible. Used in combination with experimental newNextLinkBehavior',
+    value: 'new-link',
+  },
 ]
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {

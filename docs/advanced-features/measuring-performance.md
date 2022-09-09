@@ -7,7 +7,7 @@ description: Measure and track page performance using Next.js Analytics
 [Next.js Analytics](https://nextjs.org/analytics) allows you to analyze and measure the performance of
 pages using different metrics.
 
-You can start collecting your [Real Experience Score](https://vercel.com/docs/analytics#metrics) with zero-configuration on [Vercel deployments](https://vercel.com/docs/analytics). There's also support for Analytics if you're [self-hosting](https://vercel.com/docs/analytics#self-hosted).
+You can start collecting your [Real Experience Score](https://vercel.com/docs/concepts/analytics/web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) with zero-configuration on [Vercel deployments](https://vercel.com/docs/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). There's also support for Analytics if you're [self-hosting](https://vercel.com/docs/concepts/analytics#self-hosted?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
 
 The rest of this documentation describes the built-in relayer Next.js Analytics uses.
 
@@ -54,6 +54,7 @@ experience of a web page. The following web vitals are all included:
 - [Largest Contentful Paint](https://web.dev/lcp/) (LCP)
 - [First Input Delay](https://web.dev/fid/) (FID)
 - [Cumulative Layout Shift](https://web.dev/cls/) (CLS)
+- [Interaction to Next Paint](https://web.dev/inp/) (INP) _(experimental)_
 
 You can handle all the results of these metrics using the `web-vital` label:
 
@@ -84,6 +85,9 @@ export function reportWebVitals(metric) {
       break
     case 'TTFB':
       // handle TTFB results
+      break
+    case 'INP':
+      // handle INP results (note: INP is still an experimental metric)
       break
     default:
       break

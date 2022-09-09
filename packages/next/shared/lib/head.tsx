@@ -2,7 +2,7 @@ import React, { useContext } from 'react'
 import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
-import { isInAmpMode } from './amp'
+import { isInAmpMode } from './amp-mode'
 import { warnOnce } from './utils'
 
 type WithInAmpMode = {
@@ -116,25 +116,17 @@ function unique() {
 
 /**
  *
- * @param headElements List of multiple <Head> instances
+ * @param headChildrenElements List of children of <Head>
  */
-function reduceComponents(
-  headElements: Array<React.ReactElement<any>>,
-  props: WithInAmpMode
+function reduceComponents<T extends {} & WithInAmpMode>(
+  headChildrenElements: Array<React.ReactElement<any>>,
+  props: T
 ) {
-  return headElements
-    .reduce(
-      (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
-        const headElementChildren = React.Children.toArray(
-          headElement.props.children
-        )
-        return list.concat(headElementChildren)
-      },
-      []
-    )
+  const { inAmpMode } = props
+  return headChildrenElements
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(props.inAmpMode))
+    .concat(defaultHead(inAmpMode).reverse())
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -142,7 +134,7 @@ function reduceComponents(
       if (
         process.env.NODE_ENV !== 'development' &&
         process.env.__NEXT_OPTIMIZE_FONTS &&
-        !props.inAmpMode
+        !inAmpMode
       ) {
         if (
           c.type === 'link' &&
@@ -164,7 +156,7 @@ function reduceComponents(
       }
       if (
         process.env.NODE_ENV === 'development' &&
-        process.env.__NEXT_CONCURRENT_FEATURES
+        process.env.__NEXT_REACT_ROOT
       ) {
         // omit JSON-LD structured data snippets from the warning
         if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {

@@ -14,10 +14,14 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-ionic-typescript with-ionic-typescript-app
-# or
+```
+
+```bash
 yarn create next-app --example with-ionic-typescript with-ionic-typescript-app
-# or
-pnpm create next-app -- --example with-ionic-typescript with-ionic-typescript-app
+```
+
+```bash
+pnpm create next-app --example with-ionic-typescript with-ionic-typescript-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

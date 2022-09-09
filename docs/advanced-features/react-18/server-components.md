@@ -1,30 +1,18 @@
-# React Server Components (Alpha)
+# React Server Components (RFC)
 
 Server Components allow us to render React components on the server. This is fundamentally different from server-side rendering (SSR) where you're pre-generating HTML on the server. With Server Components, there's **zero client-side JavaScript needed,** making page rendering faster. This improves the user experience of your application, pairing the best parts of server-rendering with client-side interactivity.
 
-### Enable React Server Components
+### Next Router and Layouts RFC
 
-To use React Server Components, ensure you have the latest React installed:
+We are currently implementing the [Next.js Router and Layouts RFC](https://nextjs.org/blog/layouts-rfc).
 
-```jsx
-npm install next@canary react@latest react-dom@latest
-```
+The new Next.js router will be built on top of React 18 features, including React Server Components.
 
-Then, update your `next.config.js`:
+One of the biggest proposed changes is that, by default, files inside a new `app` directory will be rendered on the server as React Server Components.
 
-```jsx
-// next.config.js
-module.exports = {
-  experimental: {
-    runtime: 'nodejs',
-    serverComponents: true,
-  },
-}
-```
+This will allow you to automatically adopt React Server Components when migrating from `pages` to `app`.
 
-Using `runtime` also enables [Streaming SSR](/docs/advanced-features/react-18/streaming). When setting `runtime` to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
-
-Now, you can start using React Server Components in Next.js. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
+You can find more information on the [RFC](https://nextjs.org/blog/layouts-rfc) and we welcome your feedback on [Github Discussions](https://github.com/vercel/next.js/discussions/37136).
 
 ### Server Components Conventions
 
@@ -94,15 +82,7 @@ export default function Document() {
 
 ### `next/app`
 
-If you're using `_app.js`, the usage is the same as [Custom App](/docs/advanced-features/custom-app).
-If you're using `_app.server.js` as a server component, see the example below where it only receives the `children` prop as React elements. You can wrap any other client or server components around `children` to customize the layout of your app.
-
-```js
-// pages/_app.server.js
-export default function App({ children }) {
-  return children
-}
-```
+The usage of `_app.js` is the same as [Custom App](/docs/advanced-features/custom-app). Using custom app as server component such as `_app.server.js` is not recommended, to keep align with non server components apps for client specific things like global CSS imports.
 
 ### Routing
 

@@ -1,12 +1,9 @@
 pub use self::analyzer::{analyze, analyzer};
-use once_cell::sync::Lazy;
-use regex::{Captures, Regex};
 use std::{borrow::Cow, cell::RefCell};
-use swc_atoms::js_word;
-use swc_common::collections::AHashMap;
-use swc_ecmascript::{
-    ast::*,
-    utils::{ident::IdentLike, Id},
+use swc_core::{
+    common::{collections::AHashMap, SyntaxContext},
+    ecma::ast::*,
+    ecma::atoms::js_word,
 };
 
 mod analyzer;
@@ -58,6 +55,8 @@ pub(crate) fn get_prop_name2(p: &Prop) -> PropName {
 #[derive(Debug, Default)]
 pub struct State {
     pub(crate) styled_required: Option<Id>,
+
+    unresolved_ctxt: Option<SyntaxContext>,
 
     imported_local_name: Option<Id>,
     /// Namespace imports
@@ -211,7 +210,11 @@ impl State {
         false
     }
 
-    fn import_local_name(&self, name: &str, cache_identifier: Option<&Ident>) -> Option<Id> {
+    pub(crate) fn import_local_name(
+        &self,
+        name: &str,
+        cache_identifier: Option<&Ident>,
+    ) -> Option<Id> {
         if name == "default" {
             if let Some(cached) = self.imported_local_name.clone() {
                 return Some(cached);
@@ -227,11 +230,7 @@ impl State {
 
         let cache_key = cache_identifier.map(|i| i.to_id()).unwrap_or_default();
 
-        let ctxt = self
-            .styled_required
-            .as_ref()
-            .map(|v| v.1)
-            .unwrap_or_default();
+        let ctxt = self.unresolved_ctxt.unwrap_or_default();
 
         let local_name = if self.styled_required.is_some() {
             Some(if name == "default" {
@@ -254,6 +253,10 @@ impl State {
         }
 
         name
+    }
+
+    pub(crate) fn set_import_name(&mut self, id: Id) {
+        self.imported_local_name = Some(id);
     }
 
     fn is_helper(&self, e: &Expr) -> bool {
@@ -309,10 +312,13 @@ impl State {
 }
 
 pub fn prefix_leading_digit(s: &str) -> Cow<str> {
-    static REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d)").unwrap());
-
-    REGEX.replace(s, |s: &Captures| {
-        //
-        format!("sc-{}", s.get(0).unwrap().as_str())
-    })
+    if s.chars()
+        .next()
+        .map(|c| c.is_ascii_digit())
+        .unwrap_or(false)
+    {
+        Cow::Owned(format!("sc-{}", s))
+    } else {
+        Cow::Borrowed(s)
+    }
 }

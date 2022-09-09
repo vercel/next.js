@@ -4,6 +4,6 @@ export default async (req, res) => {
     url: req.url,
     query: req.query,
     // make sure fetch if polyfilled
-    example: await fetch('https://example.com').then((res) => res.text()),
+    example: await fetch('https://example.vercel.sh').then((res) => res.text()),
   })
 }

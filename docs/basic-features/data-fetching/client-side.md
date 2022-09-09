@@ -21,7 +21,7 @@ function Profile() {
 
   useEffect(() => {
     setLoading(true)
-    fetch('api/profile-data')
+    fetch('/api/profile-data')
       .then((res) => res.json())
       .then((data) => {
         setData(data)
