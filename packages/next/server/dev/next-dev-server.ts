@@ -276,6 +276,7 @@ export default class DevServer extends Server {
       const pages = this.pagesDir ? [this.pagesDir] : []
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
+
       const files = this.pagesDir
         ? getPossibleMiddlewareFilenames(
             pathJoin(this.pagesDir, '..'),
@@ -293,6 +294,9 @@ export default class DevServer extends Server {
 
       files.push(...envFiles)
 
+      console.log('directories', directories)
+      console.log('files', files)
+
       // tsconfig/jsonfig paths hot-reloading
       const tsconfigPaths = [
         pathJoin(this.dir, 'tsconfig.json'),
@@ -300,22 +304,11 @@ export default class DevServer extends Server {
       ]
       files.push(...tsconfigPaths)
 
-      // ignored receives a forward slash normalized path so
-      // pre-normalize for comparing against
-      const normalizedFiles = new Set(
-        files.map((file) => file.replace(/\\/g, '/'))
-      )
-      const normalizedDirectories = directories.map((dir) =>
-        dir.replace(/\\/g, '/')
-      )
-      const normalizedDir = this.dir.replace(/\\/g, '/')
-
       const wp = (this.webpackWatcher = new Watchpack({
-        ignored: (fileName: string) => {
+        ignored: (pathname: string) => {
           return (
-            fileName !== normalizedDir &&
-            !normalizedFiles.has(fileName) &&
-            !normalizedDirectories.some((dir) => fileName.startsWith(dir))
+            !files.some((file) => file.startsWith(pathname)) &&
+            !directories.some((dir) => pathname.startsWith(dir))
           )
         },
       }))
