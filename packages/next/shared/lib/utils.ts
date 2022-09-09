@@ -29,8 +29,8 @@ export type DocumentType = NextComponentType<
 
 export type AppType<P = {}> = NextComponentType<
   AppContextType,
-  AppInitialProps<P>,
-  AppPropsType<NextRouter, P>
+  P,
+  AppPropsType<any, P>
 >
 
 export type AppTreeType = ComponentType<
