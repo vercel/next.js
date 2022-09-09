@@ -1169,6 +1169,8 @@ export default async function getBaseWebpackConfig(
                     'next/dist/compiled/chalk': '{}',
                     './cjs/react-dom-server-legacy.browser.production.min.js':
                       '{}',
+                    './cjs/react-dom-server-legacy.browser.development.js':
+                      '{}',
                     'react-dom': '{}',
                   },
                   handleWebpackExtenalForEdgeRuntime,
