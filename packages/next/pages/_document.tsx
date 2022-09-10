@@ -1080,7 +1080,7 @@ export function Html(
   return (
     <html
       {...props}
-      lang={props.lang || locale || undefined}
+      lang={props.lang || locale || 'en'}
       amp={process.env.NEXT_RUNTIME !== 'edge' && inAmpMode ? '' : undefined}
       data-ampdevmode={
         process.env.NEXT_RUNTIME !== 'edge' &&

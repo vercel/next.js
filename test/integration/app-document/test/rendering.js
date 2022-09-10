@@ -14,6 +14,8 @@ export default function ({ app }, suiteName, render, fetch) {
     describe('_document', () => {
       test('should include required elements in rendered html', async () => {
         const $ = await get$('/')
+        // It has by default the lang attribute
+        expect($('html').prop('lang')).toBe('en')
         // It has a custom html class
         expect($('html').hasClass('test-html-props')).toBe(true)
         // It has a custom body class
