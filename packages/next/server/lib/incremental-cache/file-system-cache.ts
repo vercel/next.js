@@ -71,11 +71,13 @@ export default class FileSystemCache implements CacheHandler {
     if (data?.kind === 'PAGE') {
       const htmlPath = this.getFsPath(`${key}.html`)
       await this.fs.mkdir(path.dirname(htmlPath))
-      await this.fs.writeFile(htmlPath, data.html)
-      await this.fs.writeFile(
-        this.getFsPath(`${key}.json`),
-        JSON.stringify(data.pageData)
-      )
+      await Promise.all([
+        this.fs.writeFile(htmlPath, data.html),
+        this.fs.writeFile(
+          this.getFsPath(`${key}.json`),
+          JSON.stringify(data.pageData)
+        ),
+      ]);
     }
   }
 
