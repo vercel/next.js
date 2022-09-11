@@ -1,5 +1,5 @@
 const url =
-  'https://nextjs.org/docs/messages/no-script-tags-in-head-component'
+  'https://nextjs.org/docs/messages/no-script-component-in-head'
 
 module.exports = {
   meta: {
