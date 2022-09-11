@@ -2249,7 +2249,7 @@ export default async function build(
                 const extraRoutes = additionalSsgPaths.get(page) || []
                 for (const route of extraRoutes) {
                   const pageFile = normalizePagePath(route)
-                  await Promise.all([
+                  await Promise.allSettled([
                     moveExportedPage(
                       page,
                       route,
@@ -2265,7 +2265,7 @@ export default async function build(
                       isSsg,
                       'json',
                       true
-                    ) ,
+                    ),
                     hasAmp && moveExportedPage(
                       page,
                       `${pageFile}.amp`,
