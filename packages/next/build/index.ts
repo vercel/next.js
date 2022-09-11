@@ -2161,12 +2161,8 @@ export default async function build(
           // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
 
           await Promise.all([
-            ...(!hasPages404 && useStatic404
-              ? [moveExportedPage("/_error", "/404", "/404", false, "html")]
-              : []),
-            ...(useDefaultStatic500
-              ? [moveExportedPage("/_error", "/500", "/500", false, "html")]
-              : []),
+            !hasPages404 && useStatic404 && moveExportedPage("/_error", "/404", "/404", false, "HTML"),
+            useDefaultStatic500 && moveExportedPage("/_error", "/500", "/500", false, "html")
           ]);
 
           for (const page of combinedPages) {
@@ -2269,30 +2265,24 @@ export default async function build(
                       isSsg,
                       'json',
                       true
-                    )
+                    ) ,
+                    hasAmp && moveExportedPage(
+                      page,
+                      `${pageFile}.amp`,
+                      `${pageFile}.amp`,
+                      isSsg,
+                      "json",
+                      true
+                    ),
+                    hasAmp && moveExportedPage(
+                      page,
+                      `${pageFile}.amp`,
+                      `${pageFile}.amp`,
+                      isSsg,
+                      "html",
+                      true
+                    ),
                   ])
-
-                  if (hasAmp) {
-                    const ampPage = `${pageFile}.amp`
-                    await Promise.all([
-                      moveExportedPage(
-                        page,
-                        ampPage,
-                        ampPage,
-                        isSsg,
-                        "json",
-                        true
-                      ),
-                      moveExportedPage(
-                        page,
-                        ampPage,
-                        ampPage,
-                        isSsg,
-                        "html",
-                        true
-                      ),
-                    ]);
-                  }
 
                   finalPrerenderRoutes[route] = {
                     initialRevalidateSeconds:

@@ -101,11 +101,8 @@ async function tryLoadWasmWithFallback(attempts) {
     if (!downloadWasmPromise) {
       downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
     }
-    let [, bindings] = await Promise.all([
-      downloadWasmPromise,
-      loadWasm(pathToFileURL(wasmDirectory).href)
-    ])
-    
+    await downloadWasmPromise
+    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
     eventSwcLoadFailure({ wasm: 'fallback' })
 
     // still log native load attempts so user is

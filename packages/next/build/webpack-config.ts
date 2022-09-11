@@ -531,7 +531,7 @@ export default async function getBaseWebpackConfig(
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
-  const [{ jsConfig, resolvedBaseUrl },supportedBrowsers ] = await Promise.all([
+  const [{ jsConfig, resolvedBaseUrl }, supportedBrowsers ] = await Promise.all([
     loadJsConfig(dir, config),
     getSupportedBrowsers(dir, dev, config)
   ])
