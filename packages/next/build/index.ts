@@ -1678,18 +1678,20 @@ export default async function build(
               )
             })
 
-            await promises.writeFile(
-              nextServerTraceOutput,
-              JSON.stringify({
-                version: 1,
-                cacheKey,
-                files: [...tracedFiles],
-              } as {
-                version: number
-                files: string[]
-              })
-            )
-            await promises.unlink(cachedTracePath).catch(() => {})
+            await Promise.all([
+              promises.writeFile(
+                nextServerTraceOutput,
+                JSON.stringify({
+                  version: 1,
+                  cacheKey,
+                  files: [...tracedFiles],
+                } as {
+                  version: number
+                  files: string[]
+                })
+              ),
+              promises.unlink(cachedTracePath).catch(() => {})
+            ])
             await promises
               .copyFile(nextServerTraceOutput, cachedTracePath)
               .catch(() => {})
@@ -2157,13 +2159,15 @@ export default async function build(
           }
 
           // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-          if (!hasPages404 && useStatic404) {
-            await moveExportedPage('/_error', '/404', '/404', false, 'html')
-          }
 
-          if (useDefaultStatic500) {
-            await moveExportedPage('/_error', '/500', '/500', false, 'html')
-          }
+          await Promise.all([
+            ...(!hasPages404 && useStatic404
+              ? [moveExportedPage("/_error", "/404", "/404", false, "html")]
+              : []),
+            ...(useDefaultStatic500
+              ? [moveExportedPage("/_error", "/500", "/500", false, "html")]
+              : []),
+          ]);
 
           for (const page of combinedPages) {
             const isSsg = ssgPages.has(page)
@@ -2249,41 +2253,45 @@ export default async function build(
                 const extraRoutes = additionalSsgPaths.get(page) || []
                 for (const route of extraRoutes) {
                   const pageFile = normalizePagePath(route)
-                  await moveExportedPage(
-                    page,
-                    route,
-                    pageFile,
-                    isSsg,
-                    'html',
-                    true
-                  )
-                  await moveExportedPage(
-                    page,
-                    route,
-                    pageFile,
-                    isSsg,
-                    'json',
-                    true
-                  )
-
-                  if (hasAmp) {
-                    const ampPage = `${pageFile}.amp`
-                    await moveExportedPage(
+                  await Promise.all([
+                    moveExportedPage(
                       page,
-                      ampPage,
-                      ampPage,
+                      route,
+                      pageFile,
                       isSsg,
                       'html',
                       true
-                    )
-                    await moveExportedPage(
+                    ),
+                    moveExportedPage(
                       page,
-                      ampPage,
-                      ampPage,
+                      route,
+                      pageFile,
                       isSsg,
                       'json',
                       true
                     )
+                  ])
+
+                  if (hasAmp) {
+                    const ampPage = `${pageFile}.amp`
+                    await Promise.all([
+                      moveExportedPage(
+                        page,
+                        ampPage,
+                        ampPage,
+                        isSsg,
+                        "json",
+                        true
+                      ),
+                      moveExportedPage(
+                        page,
+                        ampPage,
+                        ampPage,
+                        isSsg,
+                        "html",
+                        true
+                      ),
+                    ]);
                   }
 
                   finalPrerenderRoutes[route] = {
@@ -2308,13 +2316,15 @@ export default async function build(
           }
 
           // remove temporary export folder
-          await recursiveDelete(exportOptions.outdir)
-          await promises.rmdir(exportOptions.outdir)
-          await promises.writeFile(
-            manifestPath,
-            JSON.stringify(pagesManifest, null, 2),
-            'utf8'
-          )
+          await Promise.all([
+            recursiveDelete(exportOptions.outdir),
+            promises.rmdir(exportOptions.outdir),
+            promises.writeFile(
+              manifestPath,
+              JSON.stringify(pagesManifest, null, 2),
+              "utf8"
+            ),
+          ]);
 
           if (postBuildSpinner) postBuildSpinner.stopAndPersist()
           console.log()

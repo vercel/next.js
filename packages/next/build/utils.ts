@@ -1386,8 +1386,10 @@ export async function copyTracedFiles(
         if (!copiedFiles.has(fileOutputPath)) {
           copiedFiles.add(fileOutputPath)
 
-          await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
+          const [, symlink] = await Promise.all([
+            fs.mkdir(path.dirname(fileOutputPath), { recursive: true }),
+            await fs.readlink(tracedFilePath).catch(() => null)
+          ])
 
           if (symlink) {
             try {
