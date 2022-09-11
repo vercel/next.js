@@ -2316,16 +2316,13 @@ export default async function build(
           }
 
           // remove temporary export folder
-          await Promise.all([
-            recursiveDelete(exportOptions.outdir),
-            promises.rmdir(exportOptions.outdir),
-            promises.writeFile(
-              manifestPath,
-              JSON.stringify(pagesManifest, null, 2),
-              "utf8"
-            ),
-          ]);
-
+          await recursiveDelete(exportOptions.outdir)
+          await promises.rmdir(exportOptions.outdir)
+          await promises.writeFile(
+            manifestPath,
+            JSON.stringify(pagesManifest, null, 2),
+            'utf8'
+          )
           if (postBuildSpinner) postBuildSpinner.stopAndPersist()
           console.log()
         })
