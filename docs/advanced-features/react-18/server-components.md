@@ -10,7 +10,7 @@ React Server Components improve the user experience of your application by pairi
 
 With traditional React applications that are client-side only, developers often had to make tradeoffs between SEO and performance. Server Components enable developers to better leverage their server infrastructure and achieve great performance by default.
 
-For example, large dependencies that previously would impact the JavaScript bundle size on the client can instead remain entirely on the server. By sending less JavaScript to the browser, the time to interactive for the page is decreased, leading to improved [Core Web Vitals](https://vercel.com/blog/core-web-vitals).
+For example, large dependencies that previously would impact the JavaScript bundle size on the client can instead stay entirely on the server. By sending less JavaScript to the browser, the time to interactive for the page is decreased, leading to improved [Core Web Vitals](https://vercel.com/blog/core-web-vitals).
 
 ## React Server Components vs Server-Side Rendering
 
