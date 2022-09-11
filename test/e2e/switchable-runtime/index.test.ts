@@ -67,7 +67,7 @@ describe('Switchable runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const devMiddlewareManifest = await res.json()
-        expect(devMiddlewareManifest).toEqual({})
+        expect(devMiddlewareManifest).toEqual([])
       })
 
       it('should sort edge SSR routes correctly', async () => {
@@ -184,7 +184,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                regexp: '^/api/hello$',
+                matchers: [{ regexp: '^/api/hello$' }],
                 wasm: [],
               },
               '/api/edge': {
@@ -195,12 +195,264 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                regexp: '^/api/edge$',
+                matchers: [{ regexp: '^/api/edge$' }],
                 wasm: [],
               },
             },
           })
         }
+      })
+
+      it('should be possible to switch between runtimes in API routes', async () => {
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'server response'
+        )
+
+        // Edge
+        await next.patchFile(
+          'pages/api/switch-in-dev.js',
+          `
+          export const config = {
+            runtime: 'experimental-edge',
+          }
+  
+          export default () => new Response('edge response')
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'edge response'
+        )
+
+        // Server
+        await next.patchFile(
+          'pages/api/switch-in-dev.js',
+          `
+          export default function (req, res) {
+            res.send('server response again')
+          }
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'server response again'
+        )
+
+        // Edge
+        await next.patchFile(
+          'pages/api/switch-in-dev.js',
+          `
+          export const config = {
+            runtime: 'experimental-edge',
+          }
+  
+          export default () => new Response('edge response again')
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev'),
+          'edge response again'
+        )
+      })
+
+      it('should be possible to switch between runtimes in pages', async () => {
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from edge page/
+        )
+
+        // Server
+        await next.patchFile(
+          'pages/switch-in-dev.js',
+          `
+          export default function Page() {
+            return <p>Hello from server page</p>
+          }
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from server page/
+        )
+
+        // Edge
+        await next.patchFile(
+          'pages/switch-in-dev.js',
+          `
+      export default function Page() {
+        return <p>Hello from edge page again</p>
+      }
+
+      export const config = {
+        runtime: 'experimental-edge',
+      }
+      `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from edge page again/
+        )
+
+        // Server
+        await next.patchFile(
+          'pages/switch-in-dev.js',
+          `
+            export default function Page() {
+              return <p>Hello from server page again</p>
+            }
+            `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/switch-in-dev'),
+          /Hello from server page again/
+        )
+      })
+
+      // Doesn't work, see https://github.com/vercel/next.js/pull/39327
+      it.skip('should be possible to switch between runtimes with same content', async () => {
+        const fileContent = await next.readFile(
+          'pages/api/switch-in-dev-same-content.js'
+        )
+        console.log({ fileContent })
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev-same-content'),
+          'server response'
+        )
+
+        // Edge
+        await next.patchFile(
+          'pages/api/switch-in-dev-same-content.js',
+          `
+          export const config = {
+            runtime: 'experimental-edge',
+          }
+  
+          export default () => new Response('edge response')
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev-same-content'),
+          'edge response'
+        )
+
+        // Server - same content as first compilation of the server runtime version
+        await next.patchFile(
+          'pages/api/switch-in-dev-same-content.js',
+          fileContent
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/switch-in-dev-same-content'),
+          'server response'
+        )
+      })
+
+      it('should recover from syntax error when using edge runtime', async () => {
+        await check(
+          () => renderViaHTTP(next.url, '/api/syntax-error-in-dev'),
+          'edge response'
+        )
+
+        // Syntax error
+        await next.patchFile(
+          'pages/api/syntax-error-in-dev.js',
+          `
+        export const config = {
+          runtime: 'experimental-edge',
+        }
+    
+        export default  => new Response('edge response')
+        `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/syntax-error-in-dev'),
+          /Unexpected token/
+        )
+
+        // Fix syntax error
+        await next.patchFile(
+          'pages/api/syntax-error-in-dev.js',
+          `
+          export default () => new Response('edge response again')
+
+          export const config = {
+            runtime: 'experimental-edge',
+          }
+          
+        `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/api/syntax-error-in-dev'),
+          'edge response again'
+        )
+      })
+
+      it('should not crash the dev server when invalid runtime is configured', async () => {
+        await check(
+          () => renderViaHTTP(next.url, '/invalid-runtime'),
+          /Hello from page without errors/
+        )
+
+        // Invalid runtime type
+        await next.patchFile(
+          'pages/invalid-runtime.js',
+          `
+          export default function Page() {
+            return <p>Hello from page with invalid type</p>
+          }
+          
+          export const config = {
+            runtime: 10,
+          }
+            `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/invalid-runtime'),
+          /Hello from page with invalid type/
+        )
+        expect(next.cliOutput).toInclude(
+          'error - The `runtime` config must be a string. Please leave it empty or choose one of:'
+        )
+
+        // Invalid runtime
+        await next.patchFile(
+          'pages/invalid-runtime.js',
+          `
+            export default function Page() {
+              return <p>Hello from page with invalid runtime</p>
+            }
+            
+            export const config = {
+              runtime: "asd"
+            }
+              `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/invalid-runtime'),
+          /Hello from page with invalid runtime/
+        )
+        expect(next.cliOutput).toInclude(
+          'error - Provided runtime "asd" is not supported. Please leave it empty or choose one of:'
+        )
+
+        // Fix the runtime
+        await next.patchFile(
+          'pages/invalid-runtime.js',
+          `
+        export default function Page() {
+          return <p>Hello from page without errors</p>
+        }
+        
+        export const config = {
+          runtime: 'experimental-edge',
+        }
+  
+        `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/invalid-runtime'),
+          /Hello from page without errors/
+        )
       })
     })
   } else {
@@ -328,7 +580,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                regexp: '^/api/hello$',
+                matchers: [{ regexp: '^/api/hello$' }],
                 wasm: [],
               },
               '/api/edge': {
@@ -339,7 +591,7 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                regexp: '^/api/edge$',
+                matchers: [{ regexp: '^/api/edge$' }],
                 wasm: [],
               },
             },
