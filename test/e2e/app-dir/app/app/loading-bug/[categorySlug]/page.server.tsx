@@ -15,11 +15,5 @@ export default function Page({
 }) {
   const category = use(fetchCategory(params.categorySlug))
 
-  return (
-    <>
-      <div className="space-y-4">
-        <div className="text-xl font-medium text-zinc-500">{category}</div>
-      </div>
-    </>
-  )
+  return <>{category}</>
 }
