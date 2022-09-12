@@ -537,15 +537,23 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  if (isClient && !hasReactRoot) {
-    if (config.experimental.runtime) {
-      throw new Error(
-        '`experimental.runtime` requires React 18 to be installed.'
-      )
+  // Only error in one compiler once
+  if (isNodeServer) {
+    if (!hasReactRoot) {
+      if (config.experimental.runtime) {
+        throw new Error(
+          '`experimental.runtime` requires React 18 to be installed.'
+        )
+      }
+      if (config.experimental.serverComponents) {
+        throw new Error(
+          '`experimental.serverComponents` requires React 18 to be installed.'
+        )
+      }
     }
-    if (config.experimental.serverComponents) {
+    if (!config.experimental.appDir && config.experimental.serverComponents) {
       throw new Error(
-        '`experimental.serverComponents` requires React 18 to be installed.'
+        '`experimental.serverComponents` requires experimental.appDir to be enabled.'
       )
     }
   }
