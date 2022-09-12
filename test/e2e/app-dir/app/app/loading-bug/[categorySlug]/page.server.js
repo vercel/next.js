@@ -11,5 +11,5 @@ const fetchCategory = async (categorySlug) => {
 export default function Page({ params }) {
   const category = use(fetchCategory(params.categorySlug))
 
-  return <>{category}</>
+  return <div id="category-id">{category}</div>
 }
