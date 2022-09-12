@@ -537,8 +537,8 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  // Only error in one compiler once
-  if (isNodeServer) {
+  // Only error in first one compiler (client) once
+  if (isClient) {
     if (!hasReactRoot) {
       if (config.experimental.runtime) {
         throw new Error(
