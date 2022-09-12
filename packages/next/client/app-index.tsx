@@ -2,7 +2,6 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-// @ts-ignore startTransition exists when using React 18
 import React from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 
@@ -44,21 +43,6 @@ export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
 
-let reactRoot: any = null
-
-function renderReactElement(
-  domEl: HTMLElement | Document,
-  fn: () => JSX.Element
-): void {
-  const reactEl = fn()
-  if (!reactRoot) {
-    // Unlike with createRoot, you don't need a separate root.render() call here
-    reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
-  } else {
-    reactRoot.render(reactEl)
-  }
-}
-
 const getCacheKey = () => {
   const { pathname, search } = location
   return pathname + search
@@ -72,7 +56,9 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
-function nextServerDataCallback(seg: [number, string, string]) {
+function nextServerDataCallback(
+  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
   } else {
@@ -80,9 +66,9 @@ function nextServerDataCallback(seg: [number, string, string]) {
       throw new Error('Unexpected server data: missing bootstrap script.')
 
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(encoder.encode(seg[2]))
+      initialServerDataWriter.enqueue(encoder.encode(seg[1]))
     } else {
-      initialServerDataBuffer.push(seg[2])
+      initialServerDataBuffer.push(seg[1])
     }
   }
 }
@@ -182,11 +168,19 @@ function RSCComponent(props: any) {
 }
 
 export function hydrate() {
-  renderReactElement(appElement!, () => (
+  const reactEl = (
     <React.StrictMode>
       <Root>
         <RSCComponent />
       </Root>
     </React.StrictMode>
-  ))
+  )
+
+  const isError = document.documentElement.id === '__next_error__'
+  const reactRoot = isError
+    ? (ReactDOMClient as any).createRoot(appElement)
+    : (ReactDOMClient as any).hydrateRoot(appElement, reactEl)
+  if (isError) {
+    reactRoot.render(reactEl)
+  }
 }

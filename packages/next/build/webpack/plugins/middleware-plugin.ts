@@ -17,6 +17,7 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../../../shared/lib/constants'
 
 export interface EdgeFunctionDefinition {
@@ -74,12 +75,19 @@ function isUsingIndirectEvalAndUsedByExports(args: {
   return false
 }
 
-function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
+function getEntryFiles(
+  entryFiles: string[],
+  meta: EntryMetadata,
+  opts: { sriEnabled: boolean }
+) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${FLIGHT_MANIFEST}.js`)
       files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
+      if (opts.sriEnabled) {
+        files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
+      }
       files.push(
         ...entryFiles
           .filter(
@@ -112,8 +120,9 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
+  opts: { sriEnabled: boolean }
 }) {
-  const { compilation, metadataByEntry } = params
+  const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
     const middlewareManifest: MiddlewareManifest = {
       sortedMiddleware: [],
@@ -145,7 +154,7 @@ function getCreateAssets(params: {
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
-        files: getEntryFiles(entrypoint.getFiles(), metadata),
+        files: getEntryFiles(entrypoint.getFiles(), metadata, opts),
         name: entrypoint.name,
         page: page,
         matchers,
@@ -708,13 +717,15 @@ function getExtractMetadata(params: {
 }
 
 export default class MiddlewarePlugin {
-  dev: boolean
+  private readonly dev: boolean
+  private readonly sriEnabled: boolean
 
-  constructor({ dev }: { dev: boolean }) {
+  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
     this.dev = dev
+    this.sriEnabled = sriEnabled
   }
 
-  apply(compiler: webpack.Compiler) {
+  public apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
       /**
@@ -751,7 +762,11 @@ export default class MiddlewarePlugin {
           name: 'NextJsMiddlewareManifest',
           stage: (webpack as any).Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        getCreateAssets({ compilation, metadataByEntry })
+        getCreateAssets({
+          compilation,
+          metadataByEntry,
+          opts: { sriEnabled: this.sriEnabled },
+        })
       )
     })
   }

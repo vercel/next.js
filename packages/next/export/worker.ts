@@ -296,13 +296,13 @@ export default async function exportPage({
           getServerSideProps,
           getStaticProps,
           pageConfig,
-        } = await loadComponents(
+        } = await loadComponents({
           distDir,
-          page,
+          pathname: page,
           serverless,
-          !!serverComponents,
-          isAppDir
-        )
+          hasServerComponents: !!serverComponents,
+          isAppPath: isAppDir,
+        })
         const ampState = {
           ampFirst: pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -363,13 +363,13 @@ export default async function exportPage({
           throw new Error(`Failed to render serverless page`)
         }
       } else {
-        const components = await loadComponents(
+        const components = await loadComponents({
           distDir,
-          page,
+          pathname: page,
           serverless,
-          !!serverComponents,
-          isAppDir
-        )
+          hasServerComponents: !!serverComponents,
+          isAppPath: isAppDir,
+        })
         curRenderOpts = {
           ...components,
           ...renderOpts,

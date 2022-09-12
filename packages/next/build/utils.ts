@@ -1240,13 +1240,13 @@ export async function isPageStatic({
           getStaticProps: mod.getStaticProps,
         }
       } else {
-        componentsResult = await loadComponents(
+        componentsResult = await loadComponents({
           distDir,
-          originalAppPath || page,
+          pathname: originalAppPath || page,
           serverless,
-          !!hasServerComponents,
-          pageType === 'app'
-        )
+          hasServerComponents: !!hasServerComponents,
+          isAppPath: pageType === 'app',
+        })
       }
       const Comp = componentsResult.Component || {}
       let staticPathsResult:
@@ -1429,13 +1429,13 @@ export async function hasCustomGetInitialProps(
 ): Promise<boolean> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
-  const components = await loadComponents(
+  const components = await loadComponents({
     distDir,
-    page,
-    isLikeServerless,
-    false,
-    false
-  )
+    pathname: page,
+    serverless: isLikeServerless,
+    hasServerComponents: false,
+    isAppPath: false,
+  })
   let mod = components.ComponentMod
 
   if (checkingApp) {
@@ -1454,13 +1454,13 @@ export async function getNamedExports(
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-  const components = await loadComponents(
+  const components = await loadComponents({
     distDir,
-    page,
-    isLikeServerless,
-    false,
-    false
-  )
+    pathname: page,
+    serverless: isLikeServerless,
+    hasServerComponents: false,
+    isAppPath: false,
+  })
   let mod = components.ComponentMod
 
   return Object.keys(mod)
