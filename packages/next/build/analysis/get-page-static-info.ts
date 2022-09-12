@@ -12,9 +12,11 @@ import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
 import { ServerRuntime } from 'next/types'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
+import { matcher } from 'next/dist/compiled/micromatch'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
+  allowDynamicGlobs: string[]
 }
 
 export interface MiddlewareMatcher {
@@ -162,6 +164,7 @@ function getMiddlewareMatchers(
 }
 
 function getMiddlewareConfig(
+  pageFilePath: string,
   config: any,
   nextConfig: NextConfig
 ): Partial<MiddlewareConfig> {
@@ -169,6 +172,23 @@ function getMiddlewareConfig(
 
   if (config.matcher) {
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
+  }
+
+  if (config.allowDynamic) {
+    result.allowDynamicGlobs = Array.isArray(config.allowDynamic)
+      ? config.allowDynamic
+      : [config.allowDynamic]
+    for (const glob of result.allowDynamicGlobs ?? []) {
+      try {
+        matcher(glob)
+      } catch (err) {
+        throw new Error(
+          `${pageFilePath} exported 'config.allowDynamic' contains invalid pattern '${glob}': ${
+            (err as Error).message
+          }`
+        )
+      }
+    }
   }
 
   return result
@@ -223,7 +243,11 @@ export async function getPageStaticInfo(params: {
   const { isDev, pageFilePath, nextConfig, page } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
+  if (
+    /runtime|getStaticProps|getServerSideProps|matcher|allowDynamic/.test(
+      fileContent
+    )
+  ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
 
@@ -268,7 +292,11 @@ export async function getPageStaticInfo(params: {
       warnAboutExperimentalEdgeApiFunctions()
     }
 
-    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
+    const middlewareConfig = getMiddlewareConfig(
+      page ?? 'middleware/edge API route',
+      config,
+      nextConfig
+    )
 
     return {
       ssr,
