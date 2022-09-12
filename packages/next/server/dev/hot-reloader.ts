@@ -361,6 +361,10 @@ export default class HotReloader {
               break
             }
             case 'client-full-reload': {
+              traceChild = {
+                name: payload.event,
+                attrs: { stackTrace: payload.stackTrace ?? '' },
+              }
               Log.warn(
                 'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
               )
