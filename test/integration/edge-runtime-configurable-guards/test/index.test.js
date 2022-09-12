@@ -63,7 +63,7 @@ describe('Edge runtime configurable guards', () => {
           return NextResponse.next()
         }
         export const config = {
-          allowDynamic: '/middleware.js'
+          unstable_allowDynamic: '/middleware.js'
         }
       `)
       context.api.write(`
@@ -73,7 +73,7 @@ describe('Edge runtime configurable guards', () => {
         }
         export const config = {
           runtime: 'experimental-edge',
-          allowDynamic: '/lib/**'
+          unstable_allowDynamic: '/lib/**'
         }
       `)
     })
@@ -126,7 +126,7 @@ describe('Edge runtime configurable guards', () => {
           }
           export const config = {
             runtime: 'experimental-edge',
-            allowDynamic: '**'
+            unstable_allowDynamic: '**'
           }
         `)
       },
@@ -143,7 +143,7 @@ describe('Edge runtime configurable guards', () => {
             return NextResponse.next()
           }
           export const config = {
-            allowDynamic: '**'
+            unstable_allowDynamic: '**'
           }
         `)
       },
@@ -160,7 +160,7 @@ describe('Edge runtime configurable guards', () => {
           }
           export const config = {
             runtime: 'experimental-edge',
-            allowDynamic: '/lib/**'
+            unstable_allowDynamic: '/lib/**'
           }
         `)
         context.lib.write(`
@@ -184,7 +184,7 @@ describe('Edge runtime configurable guards', () => {
             return NextResponse.next()
           }
           export const config = {
-            allowDynamic: '/lib/**'
+            unstable_allowDynamic: '/lib/**'
           }
         `)
         context.lib.write(`
@@ -222,7 +222,7 @@ describe('Edge runtime configurable guards', () => {
           }
           export const config = {
             runtime: 'experimental-edge',
-            allowDynamic: '**'
+            unstable_allowDynamic: '**'
           }
         `)
       },
@@ -241,7 +241,7 @@ describe('Edge runtime configurable guards', () => {
             return NextResponse.next()
           }
           export const config = {
-            allowDynamic: '**'
+            unstable_allowDynamic: '**'
           }
         `)
       },
@@ -258,7 +258,7 @@ describe('Edge runtime configurable guards', () => {
           }
           export const config = {
             runtime: 'experimental-edge',
-            allowDynamic: '/lib/**'
+            unstable_allowDynamic: '/lib/**'
           }
         `)
         context.lib.write(`
@@ -283,7 +283,7 @@ describe('Edge runtime configurable guards', () => {
             return NextResponse.next()
           }
           export const config = {
-            allowDynamic: '/lib/**'
+            unstable_allowDynamic: '/lib/**'
           }
         `)
         context.lib.write(`
@@ -329,7 +329,7 @@ describe('Edge runtime configurable guards', () => {
           }
           export const config = {
             runtime: 'experimental-edge',
-            allowDynamic: '/pages/**'
+            unstable_allowDynamic: '/pages/**'
           }
         `)
         context.lib.write(`
@@ -351,7 +351,7 @@ describe('Edge runtime configurable guards', () => {
             return NextResponse.next()
           }
           export const config = {
-            allowDynamic: '/pages/**'
+            unstable_allowDynamic: '/pages/**'
           }
         `)
         context.lib.write(`

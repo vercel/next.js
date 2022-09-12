@@ -6,7 +6,7 @@ describe('Edge config validations', () => {
 
   afterAll(() => next.destroy())
 
-  it('fails to build when allowDynamic is not a string', async () => {
+  it('fails to build when unstable_allowDynamic is not a string', async () => {
     next = await createNext({
       skipStart: true,
       files: {
@@ -23,13 +23,13 @@ describe('Edge config validations', () => {
 
           eval('toto')
 
-          export const config = { allowDynamic: true }
+          export const config = { unstable_allowDynamic: true }
         `,
       },
     })
     await expect(next.start()).rejects.toThrow('next build failed')
     expect(next.cliOutput).toMatch(
-      `/middleware exported 'config.allowDynamic' contains invalid pattern 'true': Expected pattern to be a non-empty string`
+      `/middleware exported 'config.unstable_allowDynamic' contains invalid pattern 'true': Expected pattern to be a non-empty string`
     )
   })
 })

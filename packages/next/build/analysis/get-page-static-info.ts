@@ -16,7 +16,7 @@ import { matcher } from 'next/dist/compiled/micromatch'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
-  allowDynamicGlobs: string[]
+  unstable_allowDynamicGlobs: string[]
 }
 
 export interface MiddlewareMatcher {
@@ -174,16 +174,18 @@ function getMiddlewareConfig(
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
-  if (config.allowDynamic) {
-    result.allowDynamicGlobs = Array.isArray(config.allowDynamic)
-      ? config.allowDynamic
-      : [config.allowDynamic]
-    for (const glob of result.allowDynamicGlobs ?? []) {
+  if (config.unstable_allowDynamic) {
+    result.unstable_allowDynamicGlobs = Array.isArray(
+      config.unstable_allowDynamic
+    )
+      ? config.unstable_allowDynamic
+      : [config.unstable_allowDynamic]
+    for (const glob of result.unstable_allowDynamicGlobs ?? []) {
       try {
         matcher(glob)
       } catch (err) {
         throw new Error(
-          `${pageFilePath} exported 'config.allowDynamic' contains invalid pattern '${glob}': ${
+          `${pageFilePath} exported 'config.unstable_allowDynamic' contains invalid pattern '${glob}': ${
             (err as Error).message
           }`
         )
@@ -244,7 +246,7 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|getStaticProps|getServerSideProps|matcher|allowDynamic/.test(
+    /runtime|getStaticProps|getServerSideProps|matcher|unstable_allowDynamic/.test(
       fileContent
     )
   ) {
