@@ -712,7 +712,7 @@
         },
         {
           "title": "middleware-dynamic-wasm-compilation",
-          "path": "/errors/edge-dynamic-code-evaluation.md"
+          "path": "/errors/middleware-dynamic-wasm-compilation.md"
         },
         {
           "title": "edge-dynamic-code-evaluation",
