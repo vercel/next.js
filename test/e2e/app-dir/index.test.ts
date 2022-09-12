@@ -1419,6 +1419,21 @@ describe('app dir', () => {
         expect(errors).toInclude('Error during SSR')
       })
     })
+
+    describe('known bugs', () => {
+      it('should not share flight data between requests', async () => {
+        const fetches = await Promise.all(
+          [...new Array(5)].map(() =>
+            renderViaHTTP(next.url, '/loading-bug/electronics')
+          )
+        )
+
+        for (const text of fetches) {
+          const $ = cheerio.load(text)
+          expect($('#category-id').text()).toBe('electronicsabc')
+        }
+      })
+    })
   }
 
   describe('without assetPrefix', () => {
