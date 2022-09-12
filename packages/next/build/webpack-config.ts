@@ -93,7 +93,6 @@ export function getDefineEnv({
   isNodeServer,
   isEdgeServer,
   middlewareMatchers,
-  hasServerComponents,
 }: {
   dev?: boolean
   distDir: string
@@ -104,7 +103,6 @@ export function getDefineEnv({
   isEdgeServer?: boolean
   middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
-  hasServerComponents?: boolean
 }) {
   return {
     // internal field to identify the plugin config
@@ -1679,7 +1677,6 @@ export default async function getBaseWebpackConfig(
           isNodeServer,
           isEdgeServer,
           middlewareMatchers,
-          hasServerComponents,
         })
       ),
       isClient &&
