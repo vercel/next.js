@@ -8,7 +8,10 @@ use regex::Regex;
 
 use crate::{
     bundlers::Bundler,
-    util::{npm, wait_for_match},
+    util::{
+        npm::{self, NpmPackage},
+        wait_for_match,
+    },
 };
 
 pub struct Parcel;
@@ -18,13 +21,17 @@ impl Bundler for Parcel {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(install_dir, "parcel", "2.7.0")
-            .context("failed to install `parcel` module")?;
+        npm::install(
+            install_dir,
+            &[
+                NpmPackage::new("parcel", "2.7.0"),
+                // `process` would otherwise be auto-installed by Parcel. Do this in advance as
+                // to not influence the benchmark.
+                NpmPackage::new("process", "0.11.0"),
+            ],
+        )
+        .context("failed to install from npm")?;
 
-        // `process` would otherwise be auto-installed by Parcel. Do this in advance as
-        // to not influence the benchmark.
-        npm::install(install_dir, "process", "^0.11.0")
-            .context("failed to install `process` module")?;
         Ok(())
     }
 
