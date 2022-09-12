@@ -526,7 +526,6 @@ export default class DevServer extends Server {
                     hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
-                    hasServerComponents: this.hotReloader?.hasServerComponents,
                   })
 
                   Object.keys(plugin.definitions).forEach((key) => {

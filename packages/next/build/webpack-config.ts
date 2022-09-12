@@ -93,7 +93,6 @@ export function getDefineEnv({
   isNodeServer,
   isEdgeServer,
   middlewareMatchers,
-  hasServerComponents,
 }: {
   dev?: boolean
   distDir: string
@@ -104,7 +103,6 @@ export function getDefineEnv({
   isEdgeServer?: boolean
   middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
-  hasServerComponents?: boolean
 }) {
   return {
     // internal field to identify the plugin config
@@ -178,7 +176,6 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
     'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
-    'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       config.optimizeFonts && !dev
     ),
@@ -540,15 +537,23 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  if (isClient && !hasReactRoot) {
-    if (config.experimental.runtime) {
-      throw new Error(
-        '`experimental.runtime` requires React 18 to be installed.'
-      )
+  // Only error in first one compiler (client) once
+  if (isClient) {
+    if (!hasReactRoot) {
+      if (config.experimental.runtime) {
+        throw new Error(
+          '`experimental.runtime` requires React 18 to be installed.'
+        )
+      }
+      if (config.experimental.serverComponents) {
+        throw new Error(
+          '`experimental.serverComponents` requires React 18 to be installed.'
+        )
+      }
     }
-    if (config.experimental.serverComponents) {
+    if (!config.experimental.appDir && config.experimental.serverComponents) {
       throw new Error(
-        '`experimental.serverComponents` requires React 18 to be installed.'
+        '`experimental.serverComponents` requires experimental.appDir to be enabled.'
       )
     }
   }
@@ -1680,7 +1685,6 @@ export default async function getBaseWebpackConfig(
           isNodeServer,
           isEdgeServer,
           middlewareMatchers,
-          hasServerComponents,
         })
       ),
       isClient &&
