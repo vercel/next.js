@@ -251,6 +251,8 @@ module.exports = {
 }
 ```
 
+If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+
 ## Experimental Features
 
 ### Minifier debug options
