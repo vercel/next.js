@@ -178,7 +178,6 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
     'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
-    'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       config.optimizeFonts && !dev
     ),
