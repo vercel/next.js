@@ -640,6 +640,7 @@ export default class HotReloader {
                   name: bundlePath,
                   value: getEdgeServerEntry({
                     absolutePagePath: entryData.absolutePagePath,
+                    rootDir: this.dir,
                     buildId: this.buildId,
                     bundlePath,
                     config: this.config,
