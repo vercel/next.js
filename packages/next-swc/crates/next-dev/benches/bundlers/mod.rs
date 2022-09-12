@@ -7,12 +7,14 @@ use self::{
     parcel::Parcel,
     turbopack::Turbopack,
     vite::Vite,
+    webpack::Webpack,
 };
 
 mod nextjs;
 mod parcel;
 mod turbopack;
 mod vite;
+mod webpack;
 
 pub trait Bundler {
     fn get_name(&self) -> &str;
@@ -55,10 +57,11 @@ pub fn get_bundlers() -> Vec<Box<dyn Bundler>> {
     }
 
     if others {
-        bundlers.push(Box::new(Parcel {}));
-        bundlers.push(Box::new(Vite::new()));
         bundlers.push(Box::new(NextJs::new(NextJsVersion::V12)));
         bundlers.push(Box::new(NextJs::new(NextJsVersion::V11)));
+        bundlers.push(Box::new(Parcel {}));
+        bundlers.push(Box::new(Vite::new()));
+        bundlers.push(Box::new(Webpack {}));
     }
 
     bundlers
