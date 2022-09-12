@@ -2068,6 +2068,7 @@ export default class Router implements BaseRouter {
         ).catch(() => {})
       }
 
+      props.pageProps = Object.assign({}, props.pageProps)
       routeInfo.props = props
       routeInfo.route = route
       routeInfo.query = query
