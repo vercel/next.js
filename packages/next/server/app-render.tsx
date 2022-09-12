@@ -54,8 +54,6 @@ function interopDefault(mod: any) {
   return mod.default || mod
 }
 
-const rscCache = new Map()
-
 // Shadowing check does not work with TypeScript enums
 // eslint-disable-next-line no-shadow
 const enum RecordStatus {
@@ -137,54 +135,58 @@ function useFlightResponse(
   cachePrefix: string,
   req: ReadableStream<Uint8Array>,
   serverComponentManifest: any,
+  flightResponseRef: {
+    current: ReturnType<typeof createFromReadableStream> | null
+  },
   nonce?: string
 ) {
-  const id = cachePrefix + ',' + (React as any).useId()
-  let entry = rscCache.get(id)
-  if (!entry) {
-    const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream, {
-      moduleMap: serverComponentManifest.__ssr_module_mapping__,
-    })
-    rscCache.set(id, entry)
-
-    let bootstrapped = false
-    // We only attach CSS chunks to the inlined data.
-    const forwardReader = forwardStream.getReader()
-    const writer = writable.getWriter()
-    const startScriptTag = nonce
-      ? `<script nonce=${JSON.stringify(nonce)}>`
-      : '<script>'
-
-    function process() {
-      forwardReader.read().then(({ done, value }) => {
-        if (!bootstrapped) {
-          bootstrapped = true
-          writer.write(
-            encodeText(
-              `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([0, id])
-              )})</script>`
-            )
-          )
-        }
-        if (done) {
-          rscCache.delete(id)
-          writer.close()
-        } else {
-          const responsePartial = decodeText(value)
-          const scripts = `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-            JSON.stringify([1, id, responsePartial])
-          )})</script>`
-
-          writer.write(encodeText(scripts))
-          process()
-        }
-      })
-    }
-    process()
+  if (flightResponseRef.current) {
+    return flightResponseRef.current
   }
-  return entry
+  const id = cachePrefix + ',' + (React as any).useId()
+
+  const [renderStream, forwardStream] = readableStreamTee(req)
+  flightResponseRef.current = createFromReadableStream(renderStream, {
+    moduleMap: serverComponentManifest.__ssr_module_mapping__,
+  })
+
+  let bootstrapped = false
+  // We only attach CSS chunks to the inlined data.
+  const forwardReader = forwardStream.getReader()
+  const writer = writable.getWriter()
+  const startScriptTag = nonce
+    ? `<script nonce=${JSON.stringify(nonce)}>`
+    : '<script>'
+
+  function process() {
+    forwardReader.read().then(({ done, value }) => {
+      if (!bootstrapped) {
+        bootstrapped = true
+        writer.write(
+          encodeText(
+            `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+              JSON.stringify([0])
+            )})</script>`
+          )
+        )
+      }
+      if (done) {
+        flightResponseRef.current = null
+        writer.close()
+      } else {
+        const responsePartial = decodeText(value)
+        const scripts = `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+          JSON.stringify([1, responsePartial])
+        )})</script>`
+
+        writer.write(encodeText(scripts))
+        process()
+      }
+    })
+  }
+  process()
+
+  return flightResponseRef.current
 }
 
 /**
@@ -240,6 +242,8 @@ function createServerComponentRenderer(
     return RSCStream
   }
 
+  const flightResponseRef = { current: null }
+
   const writable = transformStream.writable
   return function ServerComponentWrapper() {
     const reqStream = createRSCStream()
@@ -248,6 +252,7 @@ function createServerComponentRenderer(
       cachePrefix,
       reqStream,
       serverComponentManifest,
+      flightResponseRef,
       nonce
     )
     return response.readRoot()
