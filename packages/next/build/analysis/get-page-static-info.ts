@@ -164,6 +164,7 @@ function getMiddlewareMatchers(
 }
 
 function getMiddlewareConfig(
+  pageFilePath: string,
   config: any,
   nextConfig: NextConfig
 ): Partial<MiddlewareConfig> {
@@ -182,7 +183,7 @@ function getMiddlewareConfig(
         matcher(glob)
       } catch (err) {
         throw new Error(
-          `A middleware/edge exported 'config.allowDynamic' is not a valid pattern: ${
+          `${pageFilePath} exported 'config.allowDynamic' contains invalid pattern '${glob}': ${
             (err as Error).message
           }`
         )
@@ -291,7 +292,11 @@ export async function getPageStaticInfo(params: {
       warnAboutExperimentalEdgeApiFunctions()
     }
 
-    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
+    const middlewareConfig = getMiddlewareConfig(
+      page ?? 'middleware/edge API route',
+      config,
+      nextConfig
+    )
 
     return {
       ssr,
