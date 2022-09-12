@@ -1,6 +1,6 @@
 use std::{
-    io::{self, BufRead, BufReader, Write},
-    process::{ChildStdout, Command},
+    io::{self, BufRead, BufReader, Read, Write},
+    process::Command,
     time::Duration,
 };
 
@@ -216,9 +216,12 @@ pub fn command(bin: &str) -> Command {
     }
 }
 
-pub fn wait_for_match(stdout: &mut ChildStdout, re: Regex) -> Option<String> {
+pub fn wait_for_match<R>(readable: R, re: Regex) -> Option<String>
+where
+    R: Read,
+{
     // See https://docs.rs/async-process/latest/async_process/#examples
-    let mut line_reader = BufReader::new(stdout).lines();
+    let mut line_reader = BufReader::new(readable).lines();
     // Read until the match appears in the buffer
     let mut matched: Option<String> = None;
     while let Some(Ok(line)) = line_reader.next() {
