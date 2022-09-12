@@ -8,7 +8,24 @@ use anyhow::{anyhow, Result};
 
 use crate::util::command;
 
-pub fn install(install_dir: &Path, package_name: &str, package_version_expr: &str) -> Result<()> {
+pub struct NpmPackage {
+    pub name: &'static str,
+    pub version: &'static str,
+}
+
+impl NpmPackage {
+    pub fn new(name: &'static str, version: &'static str) -> Self {
+        NpmPackage { name, version }
+    }
+}
+
+impl std::fmt::Display for NpmPackage {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.write_fmt(format_args!("{}@{}", self.name, self.version))
+    }
+}
+
+pub fn install(install_dir: &Path, packages: &[NpmPackage]) -> Result<()> {
     if !fs::metadata(install_dir.join("package.json"))
         .map(|metadata| metadata.is_file())
         .unwrap_or(false)
@@ -24,12 +41,16 @@ pub fn install(install_dir: &Path, package_name: &str, package_version_expr: &st
             .write_all(package_json.pretty(2).as_bytes())?;
     }
 
+    let mut args = vec!["install".to_owned(), "--force".to_owned()];
+    args.append(
+        &mut packages
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<String>>(),
+    );
+
     let npm = command("npm")
-        .args([
-            "install",
-            "--force",
-            &format!("{}@{}", package_name, package_version_expr),
-        ])
+        .args(args)
         .current_dir(install_dir)
         .output()?;
 

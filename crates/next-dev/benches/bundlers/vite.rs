@@ -8,7 +8,10 @@ use regex::Regex;
 
 use crate::{
     bundlers::Bundler,
-    util::{npm, wait_for_match},
+    util::{
+        npm::{self, NpmPackage},
+        wait_for_match,
+    },
 };
 
 pub struct Vite;
@@ -25,7 +28,8 @@ impl Bundler for Vite {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(install_dir, "vite", "3.0.9").context("failed to install `vite` module")?;
+        npm::install(install_dir, &[NpmPackage::new("vite", "3.0.9")])
+            .context("failed to install from npm")?;
         Ok(())
     }
 

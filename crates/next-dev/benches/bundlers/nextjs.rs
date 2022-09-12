@@ -9,7 +9,10 @@ use regex::Regex;
 
 use crate::{
     bundlers::Bundler,
-    util::{npm, wait_for_match},
+    util::{
+        npm::{self, NpmPackage},
+        wait_for_match,
+    },
 };
 
 #[derive(Debug)]
@@ -51,8 +54,11 @@ impl Bundler for NextJs {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(install_dir, "next", self.version.version())
-            .context("failed to install `next` module")?;
+        npm::install(
+            install_dir,
+            &[NpmPackage::new("next", self.version.version())],
+        )
+        .context("failed to install `next` module")?;
         Ok(())
     }
 

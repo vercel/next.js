@@ -8,7 +8,10 @@ use regex::Regex;
 
 use crate::{
     bundlers::Bundler,
-    util::{npm, wait_for_match},
+    util::{
+        npm::{self, NpmPackage},
+        wait_for_match,
+    },
 };
 
 pub struct Turbopack {
@@ -41,10 +44,14 @@ impl Bundler for Turbopack {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(install_dir, "react-refresh", "^0.12.0")
-            .context("failed to install `react-refresh` module")?;
-        npm::install(install_dir, "@next/react-refresh-utils", "^12.2.5")
-            .context("failed to install `@next/react-refresh-utils` module")?;
+        npm::install(
+            install_dir,
+            &[
+                NpmPackage::new("react-refresh", "^0.12.0"),
+                NpmPackage::new("@next/react-refresh-utils", "^12.2.5"),
+            ],
+        )
+        .context("failed to install from npm")?;
         Ok(())
     }
 
