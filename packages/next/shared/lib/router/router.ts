@@ -2001,18 +2001,10 @@ export default class Router implements BaseRouter {
         }
       }
 
-      /**
-       * For server components, non-SSR pages will have statically optimized
-       * flight data in a production build. So only development and SSR pages
-       * will always have the real-time generated and streamed flight data.
-       */
-      const useStreamedFlightData =
-        process.env.NODE_ENV !== 'production' || routeInfo.__N_SSP
-
       const shouldFetchData = routeInfo.__N_SSG || routeInfo.__N_SSP
 
       const { props, cacheKey } = await this._getData(async () => {
-        if (shouldFetchData && !useStreamedFlightData) {
+        if (shouldFetchData) {
           const { json, cacheKey: _cacheKey } = data?.json
             ? data
             : await fetchNextData({
