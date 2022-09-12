@@ -255,7 +255,7 @@ function isDynamicCodeEvaluationAllowed(
   rootDir?: string
 ) {
   const name = fileName.replace(rootDir ?? '', '')
-  return isMatch(name, edgeFunctionConfig?.allowDynamicGlobs ?? [])
+  return isMatch(name, edgeFunctionConfig?.unstable_allowDynamicGlobs ?? [])
 }
 
 function buildUnsupportedApiError({
@@ -694,7 +694,7 @@ function getExtractMetadata(params: {
             continue
           }
 
-          if (edgeFunctionConfig?.config?.allowDynamicGlobs) {
+          if (edgeFunctionConfig?.config?.unstable_allowDynamicGlobs) {
             telemetry.record({
               eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
               payload: {

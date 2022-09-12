@@ -145,14 +145,14 @@ You can relax the check to allow specific files with your Middleware or Edge API
 ```javascript
 export const config = {
   runtime: 'experimental-edge', // for Edge API Routes only
-  allowDynamic: [
+  unstable_allowDynamic: [
     '/lib/utilities.js', // allows a single file
     '/node_modules/function-bind/**', // use a glob to allow anything in the function-bind 3rd party module
   ],
 }
 ```
 
-`allowDynamic` is a [glob](https://github.com/micromatch/micromatch#matching-features), or an array of globs, ignoring dynamic code evaluation for specific files. The globs are relative to your application root folder.
+`unstable_allowDynamic` is a [glob](https://github.com/micromatch/micromatch#matching-features), or an array of globs, ignoring dynamic code evaluation for specific files. The globs are relative to your application root folder.
 
 Be warned that if these statements are executed on the Edge, _they will throw and cause a runtime error_.
 
