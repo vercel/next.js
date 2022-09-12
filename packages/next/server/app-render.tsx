@@ -26,6 +26,7 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
+import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -52,8 +53,6 @@ export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 function interopDefault(mod: any) {
   return mod.default || mod
 }
-
-const rscCache = new Map()
 
 // Shadowing check does not work with TypeScript enums
 // eslint-disable-next-line no-shadow
@@ -133,57 +132,59 @@ function preloadDataFetchingRecord(
  */
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
-  cachePrefix: string,
   req: ReadableStream<Uint8Array>,
   serverComponentManifest: any,
+  flightResponseRef: {
+    current: ReturnType<typeof createFromReadableStream> | null
+  },
   nonce?: string
 ) {
-  const id = cachePrefix + ',' + (React as any).useId()
-  let entry = rscCache.get(id)
-  if (!entry) {
-    const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream, {
-      moduleMap: serverComponentManifest.__ssr_module_mapping__,
-    })
-    rscCache.set(id, entry)
-
-    let bootstrapped = false
-    // We only attach CSS chunks to the inlined data.
-    const forwardReader = forwardStream.getReader()
-    const writer = writable.getWriter()
-    const startScriptTag = nonce
-      ? `<script nonce=${JSON.stringify(nonce)}>`
-      : '<script>'
-
-    function process() {
-      forwardReader.read().then(({ done, value }) => {
-        if (!bootstrapped) {
-          bootstrapped = true
-          writer.write(
-            encodeText(
-              `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([0, id])
-              )})</script>`
-            )
-          )
-        }
-        if (done) {
-          rscCache.delete(id)
-          writer.close()
-        } else {
-          const responsePartial = decodeText(value)
-          const scripts = `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-            JSON.stringify([1, id, responsePartial])
-          )})</script>`
-
-          writer.write(encodeText(scripts))
-          process()
-        }
-      })
-    }
-    process()
+  if (flightResponseRef.current) {
+    return flightResponseRef.current
   }
-  return entry
+
+  const [renderStream, forwardStream] = readableStreamTee(req)
+  flightResponseRef.current = createFromReadableStream(renderStream, {
+    moduleMap: serverComponentManifest.__ssr_module_mapping__,
+  })
+
+  let bootstrapped = false
+  // We only attach CSS chunks to the inlined data.
+  const forwardReader = forwardStream.getReader()
+  const writer = writable.getWriter()
+  const startScriptTag = nonce
+    ? `<script nonce=${JSON.stringify(nonce)}>`
+    : '<script>'
+
+  function process() {
+    forwardReader.read().then(({ done, value }) => {
+      if (!bootstrapped) {
+        bootstrapped = true
+        writer.write(
+          encodeText(
+            `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+              JSON.stringify([0])
+            )})</script>`
+          )
+        )
+      }
+      if (done) {
+        flightResponseRef.current = null
+        writer.close()
+      } else {
+        const responsePartial = decodeText(value)
+        const scripts = `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+          JSON.stringify([1, responsePartial])
+        )})</script>`
+
+        writer.write(encodeText(scripts))
+        process()
+      }
+    })
+  }
+  process()
+
+  return flightResponseRef.current
 }
 
 /**
@@ -199,12 +200,10 @@ function createServerComponentRenderer(
     }
   },
   {
-    cachePrefix,
     transformStream,
     serverComponentManifest,
     serverContexts,
   }: {
-    cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     serverContexts: Array<
@@ -239,14 +238,16 @@ function createServerComponentRenderer(
     return RSCStream
   }
 
+  const flightResponseRef = { current: null }
+
   const writable = transformStream.writable
   return function ServerComponentWrapper() {
     const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
-      cachePrefix,
       reqStream,
       serverComponentManifest,
+      flightResponseRef,
       nonce
     )
     return response.readRoot()
@@ -290,12 +291,7 @@ export type Segment =
 type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: {
-    filePath: string
-    layout?: () => any
-    loading?: () => any
-    page?: () => any
-  }
+  components: ComponentsType
 ]
 
 /**
@@ -524,6 +520,8 @@ export async function renderToHTMLOrFlight(
   const pageIsDynamic = isDynamicRoute(pathname)
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+  const RenderFromTemplateContext =
+    ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context.client').default
   const HotReloader = ComponentMod.HotReloader as
     | typeof import('../client/components/hot-reloader.client').default
     | null
@@ -654,7 +652,11 @@ export async function renderToHTMLOrFlight(
    */
   const createComponentTree = async ({
     createSegmentPath,
-    loaderTree: [segment, parallelRoutes, { filePath, layout, loading, page }],
+    loaderTree: [
+      segment,
+      parallelRoutes,
+      { layoutOrPagePath, layout, template, error, loading, page },
+    ],
     parentParams,
     firstItem,
     rootLayoutIncluded,
@@ -666,11 +668,17 @@ export async function renderToHTMLOrFlight(
     firstItem?: boolean
   }): Promise<{ Component: React.ComponentType }> => {
     // TODO-APP: enable stylesheet per layout/page
-    const stylesheets = getCssInlinedLinkTags(
-      serverComponentManifest,
-      serverCSSManifest!,
-      filePath
-    )
+    const stylesheets: string[] = layoutOrPagePath
+      ? getCssInlinedLinkTags(
+          serverComponentManifest,
+          serverCSSManifest!,
+          layoutOrPagePath
+        )
+      : []
+    const Template = template
+      ? await interopDefault(template())
+      : React.Fragment
+    const ErrorComponent = error ? await interopDefault(error()) : undefined
     const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
     const isPage = typeof page !== 'undefined'
@@ -746,6 +754,12 @@ export async function renderToHTMLOrFlight(
                 parallelRouterKey={parallelRouteKey}
                 segmentPath={createSegmentPath(currentSegmentPath)}
                 loading={Loading ? <Loading /> : undefined}
+                error={ErrorComponent}
+                template={
+                  <Template>
+                    <RenderFromTemplateContext />
+                  </Template>
+                }
                 childProp={childProp}
                 rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
               />,
@@ -769,13 +783,21 @@ export async function renderToHTMLOrFlight(
               : childSegment,
           }
 
+          const segmentPath = createSegmentPath(currentSegmentPath)
+
           // This is turned back into an object below.
           return [
             parallelRouteKey,
             <LayoutRouter
               parallelRouterKey={parallelRouteKey}
-              segmentPath={createSegmentPath(currentSegmentPath)}
+              segmentPath={segmentPath}
+              error={ErrorComponent}
               loading={Loading ? <Loading /> : undefined}
+              template={
+                <Template>
+                  <RenderFromTemplateContext />
+                </Template>
+              }
               childProp={childProp}
               rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
             />,
@@ -1088,7 +1110,6 @@ export async function renderToHTMLOrFlight(
     },
     ComponentMod,
     {
-      cachePrefix: initialCanonicalUrl,
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       serverContexts,
@@ -1142,29 +1163,61 @@ export async function renderToHTMLOrFlight(
       return flushed
     }
 
-    const renderStream = await renderToInitialStream({
-      ReactDOMServer,
-      element: content,
-      streamOptions: {
-        nonce,
-        // Include hydration scripts in the HTML
-        bootstrapScripts: subresourceIntegrityManifest
-          ? buildManifest.rootMainFiles.map((src) => ({
-              src: `${renderOpts.assetPrefix || ''}/_next/` + src,
-              integrity: subresourceIntegrityManifest[src],
-            }))
-          : buildManifest.rootMainFiles.map(
-              (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-            ),
-      },
-    })
+    try {
+      const renderStream = await renderToInitialStream({
+        ReactDOMServer,
+        element: content,
+        streamOptions: {
+          nonce,
+          // Include hydration scripts in the HTML
+          bootstrapScripts: subresourceIntegrityManifest
+            ? buildManifest.rootMainFiles.map((src) => ({
+                src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                integrity: subresourceIntegrityManifest[src],
+              }))
+            : buildManifest.rootMainFiles.map(
+                (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+              ),
+        },
+      })
 
-    return await continueFromInitialStream(renderStream, {
-      dataStream: serverComponentsInlinedTransformStream?.readable,
-      generateStaticHTML: generateStaticHTML,
-      flushEffectHandler,
-      flushEffectsToHead: true,
-    })
+      return await continueFromInitialStream(renderStream, {
+        dataStream: serverComponentsInlinedTransformStream?.readable,
+        generateStaticHTML: generateStaticHTML,
+        flushEffectHandler,
+        flushEffectsToHead: true,
+      })
+    } catch (err) {
+      // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
+      const renderStream = await renderToInitialStream({
+        ReactDOMServer,
+        element: (
+          <html id="__next_error__">
+            <head></head>
+            <body></body>
+          </html>
+        ),
+        streamOptions: {
+          nonce,
+          // Include hydration scripts in the HTML
+          bootstrapScripts: subresourceIntegrityManifest
+            ? buildManifest.rootMainFiles.map((src) => ({
+                src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                integrity: subresourceIntegrityManifest[src],
+              }))
+            : buildManifest.rootMainFiles.map(
+                (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+              ),
+        },
+      })
+
+      return await continueFromInitialStream(renderStream, {
+        dataStream: serverComponentsInlinedTransformStream?.readable,
+        generateStaticHTML: generateStaticHTML,
+        flushEffectHandler,
+        flushEffectsToHead: true,
+      })
+    }
   }
 
   return new RenderResult(await bodyResult())
