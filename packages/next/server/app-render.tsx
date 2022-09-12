@@ -132,7 +132,6 @@ function preloadDataFetchingRecord(
  */
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
-  cachePrefix: string,
   req: ReadableStream<Uint8Array>,
   serverComponentManifest: any,
   flightResponseRef: {
@@ -143,7 +142,6 @@ function useFlightResponse(
   if (flightResponseRef.current) {
     return flightResponseRef.current
   }
-  const id = cachePrefix + ',' + (React as any).useId()
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   flightResponseRef.current = createFromReadableStream(renderStream, {
@@ -202,12 +200,10 @@ function createServerComponentRenderer(
     }
   },
   {
-    cachePrefix,
     transformStream,
     serverComponentManifest,
     serverContexts,
   }: {
-    cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     serverContexts: Array<
@@ -249,7 +245,6 @@ function createServerComponentRenderer(
     const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
-      cachePrefix,
       reqStream,
       serverComponentManifest,
       flightResponseRef,
@@ -1115,7 +1110,6 @@ export async function renderToHTMLOrFlight(
     },
     ComponentMod,
     {
-      cachePrefix: initialCanonicalUrl,
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       serverContexts,
