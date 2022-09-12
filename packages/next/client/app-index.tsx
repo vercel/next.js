@@ -56,7 +56,9 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
-function nextServerDataCallback(seg: [number, string, string]) {
+function nextServerDataCallback(
+  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
   } else {
@@ -64,9 +66,9 @@ function nextServerDataCallback(seg: [number, string, string]) {
       throw new Error('Unexpected server data: missing bootstrap script.')
 
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(encoder.encode(seg[2]))
+      initialServerDataWriter.enqueue(encoder.encode(seg[1]))
     } else {
-      initialServerDataBuffer.push(seg[2])
+      initialServerDataBuffer.push(seg[1])
     }
   }
 }
