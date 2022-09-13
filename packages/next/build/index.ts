@@ -314,7 +314,9 @@ export default async function build(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
-          isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+          isSrcDir:
+            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
+            (!!appDir && path.relative(dir, appDir).startsWith('src')),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
         })
@@ -395,7 +397,8 @@ export default async function build(
                   config.eslint?.dirs,
                   config.experimental.cpus,
                   config.experimental.workerThreads,
-                  telemetry
+                  telemetry,
+                  !!config.experimental.appDir
                 )
               }),
         ])
@@ -436,14 +439,16 @@ export default async function build(
 
       const isLikeServerless = isTargetLikeServerless(target)
 
-      const pagesPaths = await nextBuildSpan
-        .traceChild('collect-pages')
-        .traceAsyncFn(() =>
-          recursiveReadDir(
-            pagesDir,
-            new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
-          )
-        )
+      const pagesPaths = pagesDir
+        ? await nextBuildSpan
+            .traceChild('collect-pages')
+            .traceAsyncFn(() =>
+              recursiveReadDir(
+                pagesDir,
+                new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+              )
+            )
+        : []
 
       let appPaths: string[] | undefined
 
@@ -462,9 +467,11 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
-      const rootPaths = (
-        await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
-      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+      const rootPaths = pagesDir
+        ? (
+            await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
+          ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+        : []
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -487,6 +494,7 @@ export default async function build(
             pageExtensions: config.pageExtensions,
             pagesType: 'pages',
             pagePaths: pagesPaths,
+            pagesDir,
           })
         )
 
@@ -502,6 +510,7 @@ export default async function build(
               isDev: false,
               pagesType: 'app',
               pageExtensions: config.pageExtensions,
+              pagesDir: pagesDir,
             })
           )
       }
@@ -514,6 +523,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           pagePaths: rootPaths,
           pagesType: 'root',
+          pagesDir: pagesDir,
         })
       }
 
@@ -540,7 +550,9 @@ export default async function build(
       const pageKeys = {
         pages: Object.keys(mappedPages),
         app: mappedAppPages
-          ? Object.keys(mappedAppPages).map((key) => normalizeAppPath(key))
+          ? Object.keys(mappedAppPages).map(
+              (key) => normalizeAppPath(key) || '/'
+            )
           : undefined,
       }
 
@@ -849,7 +861,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
-          middlewareRegex: entrypoints.middlewareRegex,
+          middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
         const configs = await runWebpackSpan
@@ -1256,7 +1268,7 @@ export default async function build(
                     : appPaths?.find((p) => p.startsWith(actualPage + '/page.'))
 
                 const pageRuntime =
-                  pageType === 'pages' && pagePath
+                  pagesDir && pageType === 'pages' && pagePath
                     ? (
                         await getPageStaticInfo({
                           pageFilePath: join(pagesDir, pagePath),
@@ -1913,6 +1925,7 @@ export default async function build(
                   await staticWorkers.end()
                 }
               : undefined,
+            appPaths,
           }
           const exportConfig: any = {
             ...config,
@@ -2405,7 +2418,7 @@ export default async function build(
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
       ;(images as any).remotePatterns = (
-        config?.experimental?.images?.remotePatterns || []
+        config?.images?.remotePatterns || []
       ).map((p: RemotePattern) => ({
         // Should be the same as matchRemotePattern()
         protocol: p.protocol,

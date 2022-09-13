@@ -15,11 +15,6 @@ import {
 import { ImageConfigContext } from '../../shared/lib/image-config-context'
 import { warnOnce } from '../../shared/lib/utils'
 
-const {
-  experimentalFuture = false,
-  experimentalRemotePatterns = [],
-  experimentalUnoptimized,
-} = (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const allImgs = new Map<
   string,
@@ -52,10 +47,7 @@ type ImageLoaderPropsWithConfig = ImageLoaderProps & {
 
 type PlaceholderValue = 'blur' | 'empty'
 
-type OnLoadingComplete = (result: {
-  naturalWidth: number
-  naturalHeight: number
-}) => void
+type OnLoadingComplete = (img: HTMLImageElement) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
@@ -100,9 +92,10 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
+  'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
+  alt: string
   width?: number | string
   height?: number | string
   fill?: boolean
@@ -116,7 +109,7 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
-type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
+type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   srcString: string
   imgAttributes: GenImgAttrsResult
   heightInt: number | undefined
@@ -269,10 +262,7 @@ function handleLoading(
       setBlurComplete(true)
     }
     if (onLoadingCompleteRef?.current) {
-      const { naturalWidth, naturalHeight } = img
-      // Pass back read-only primitive values but not the
-      // underlying DOM element because it could be misused.
-      onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
+      onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
       if (img.getAttribute('data-nimg') === 'future-fill') {
@@ -392,6 +382,11 @@ const ImageElement = ({
                   img
                 )
               }
+              if (img.getAttribute('alt') === null) {
+                console.error(
+                  `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
+                )
+              }
             }
             if (img.complete) {
               handleLoading(
@@ -469,10 +464,7 @@ function defaultLoader({
       )
     }
 
-    if (
-      !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
-    ) {
+    if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
@@ -486,7 +478,7 @@ function defaultLoader({
       if (process.env.NODE_ENV !== 'test') {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -524,11 +516,6 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  if (!experimentalFuture && process.env.NODE_ENV !== 'test') {
-    throw new Error(
-      `The "next/future/image" component is experimental and may be subject to breaking changes. To enable this experiment, please include \`experimental: { images: { allowFutureImage: true } }\` in your next.config.js file.`
-    )
-  }
   const configContext = useContext(ImageConfigContext)
   const config: ImageConfig = useMemo(() => {
     const c = configEnv || configContext || imageConfigDefault
@@ -555,6 +542,8 @@ export default function Image({
   }
 
   let staticSrc = ''
+  let widthInt = getInt(width)
+  let heightInt = getInt(height)
   let blurWidth: number | undefined
   let blurHeight: number | undefined
   if (isStaticImport(src)) {
@@ -567,22 +556,30 @@ export default function Image({
         )}`
       )
     }
-    blurWidth = staticImageData.blurWidth
-    blurHeight = staticImageData.blurHeight
-    blurDataURL = blurDataURL || staticImageData.blurDataURL
-    staticSrc = staticImageData.src
-
-    // Ignore width and height (come from the bundler) when "fill" is used
-    if (!fill) {
-      height = height || staticImageData.height
-      width = width || staticImageData.width
-    }
     if (!staticImageData.height || !staticImageData.width) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
           staticImageData
         )}`
       )
+    }
+
+    blurWidth = staticImageData.blurWidth
+    blurHeight = staticImageData.blurHeight
+    blurDataURL = blurDataURL || staticImageData.blurDataURL
+    staticSrc = staticImageData.src
+
+    if (!fill) {
+      if (!widthInt && !heightInt) {
+        widthInt = staticImageData.width
+        heightInt = staticImageData.height
+      } else if (widthInt && !heightInt) {
+        const ratio = widthInt / staticImageData.width
+        heightInt = Math.round(staticImageData.height * ratio)
+      } else if (!widthInt && heightInt) {
+        const ratio = heightInt / staticImageData.height
+        widthInt = Math.round(staticImageData.width * ratio)
+      }
     }
   }
   src = typeof src === 'string' ? src : staticSrc
@@ -594,14 +591,13 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (experimentalUnoptimized) {
+  if (config.unoptimized) {
     unoptimized = true
   }
 
   const [blurComplete, setBlurComplete] = useState(false)
   const [showAltText, setShowAltText] = useState(false)
-  let widthInt = getInt(width)
-  let heightInt = getInt(height)
+
   const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {

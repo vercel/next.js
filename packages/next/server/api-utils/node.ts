@@ -494,7 +494,8 @@ export async function apiResolver(
       redirect(apiRes, statusOrUrl, url)
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
-    apiRes.clearPreviewData = () => clearPreviewData(apiRes)
+    apiRes.clearPreviewData = (options = {}) =>
+      clearPreviewData(apiRes, options)
     apiRes.revalidate = (
       urlPath: string,
       opts?: {

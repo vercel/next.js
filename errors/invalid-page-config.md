@@ -7,7 +7,7 @@ In one of your pages or API Routes you did `export const config` with an invalid
 #### Possible Ways to Fix It
 
 The page's config must be an object initialized directly when being exported and not modified dynamically.
-The config object must only contains static constant literals without expressions.
+The config object must only contain static constant literals without expressions.
 
 <table>
 <thead>
