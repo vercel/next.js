@@ -92,4 +92,4 @@ Once your monorepo is set up, push changes to your Git repository as usual and y
 
 ## Conclusion
 
-To learn more, read about [subpaths](/docs/api-reference/next.config.js/basepath.md) and [rewrites](/docs/api-reference/next.config.js/rewrites.md) or [deploy a Next.jsmonorepo](https://vercel.com/templates/next.js/monorepo).
+To learn more, read about [subpaths](/docs/api-reference/next.config.js/basepath.md) and [rewrites](/docs/api-reference/next.config.js/rewrites.md) or [deploy a Next.js monorepo](https://vercel.com/templates/next.js/monorepo).

@@ -17,7 +17,6 @@ export default function LinkPage({ queryId }) {
 }
 
 export function getServerSideProps(ctx) {
-  // FIXME: query is missing
   const { searchParams } = ctx
   return {
     props: {

@@ -38,13 +38,13 @@ export async function loadStaticPaths(
   require('../../shared/lib/runtime-config').setConfig(config)
   setHttpAgentOptions(httpAgentOptions)
 
-  const components = await loadComponents(
+  const components = await loadComponents({
     distDir,
     pathname,
     serverless,
-    false,
-    false
-  )
+    hasServerComponents: false,
+    isAppPath: false,
+  })
 
   if (!components.getStaticPaths) {
     // we shouldn't get to this point since the worker should

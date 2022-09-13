@@ -550,7 +550,9 @@ export default async function build(
       const pageKeys = {
         pages: Object.keys(mappedPages),
         app: mappedAppPages
-          ? Object.keys(mappedAppPages).map((key) => normalizeAppPath(key))
+          ? Object.keys(mappedAppPages).map(
+              (key) => normalizeAppPath(key) || '/'
+            )
           : undefined,
       }
 
