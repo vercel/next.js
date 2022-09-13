@@ -22,7 +22,7 @@ description: Next.js helps you optimize loading third-party scripts with the bui
 | Version   | Changes                                               |
 | --------- | ----------------------------------------------------- |
 | `v12.2.4` | `onReady` prop added.                                 |
-| `v12.2.2` | Allow `next/script` to be placed in `_document` body. |
+| `v12.2.2` | Allow `next/script` with `beforeInteractive` to be placed in `_document`. |
 | `v11.0.0` | `next/script` introduced.                             |
 
 </details>
