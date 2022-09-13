@@ -17,7 +17,7 @@ function containsPath(parent: string, child: string) {
 export default async function transformSource(
   this: any,
   source: string,
-  ...rest: any
+  map: any
 ) {
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
@@ -53,6 +53,6 @@ const { createProxy } = require("next/dist/build/webpack/loaders/next-flight-cli
 module.exports = createProxy(${JSON.stringify(this.resourcePath)})
 `
   // Pass empty sourcemap
-  callback(null, output, ...rest)
+  callback(null, output, map)
   return
 }
