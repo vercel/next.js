@@ -47,10 +47,7 @@ type ImageLoaderPropsWithConfig = ImageLoaderProps & {
 
 type PlaceholderValue = 'blur' | 'empty'
 
-type OnLoadingComplete = (result: {
-  naturalWidth: number
-  naturalHeight: number
-}) => void
+type OnLoadingComplete = (img: HTMLImageElement) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
@@ -265,10 +262,7 @@ function handleLoading(
       setBlurComplete(true)
     }
     if (onLoadingCompleteRef?.current) {
-      const { naturalWidth, naturalHeight } = img
-      // Pass back read-only primitive values but not the
-      // underlying DOM element because it could be misused.
-      onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
+      onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
       if (img.getAttribute('data-nimg') === 'future-fill') {

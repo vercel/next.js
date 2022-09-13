@@ -44,7 +44,7 @@ ruleTester.run('no-script-in-head', rule, {
       errors: [
         {
           message:
-            '`next/script` should not be used in `next/head` component. Move `<Script />` outside of `<Head>` instead. See: https://nextjs.org/docs/messages/no-script-component-in-head-component',
+            '`next/script` should not be used in `next/head` component. Move `<Script />` outside of `<Head>` instead. See: https://nextjs.org/docs/messages/no-script-component-in-head',
         },
       ],
     },

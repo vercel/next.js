@@ -361,6 +361,10 @@ export default class HotReloader {
               break
             }
             case 'client-full-reload': {
+              traceChild = {
+                name: payload.event,
+                attrs: { stackTrace: payload.stackTrace ?? '' },
+              }
               Log.warn(
                 'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
               )
@@ -602,6 +606,7 @@ export default class HotReloader {
               ? await getPageStaticInfo({
                   pageFilePath: entryData.absolutePagePath,
                   nextConfig: this.config,
+                  isDev: true,
                 })
               : {}
 
@@ -635,6 +640,7 @@ export default class HotReloader {
                   name: bundlePath,
                   value: getEdgeServerEntry({
                     absolutePagePath: entryData.absolutePagePath,
+                    rootDir: this.dir,
                     buildId: this.buildId,
                     bundlePath,
                     config: this.config,
