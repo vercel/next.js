@@ -38,7 +38,7 @@ export default async function edgeSSRLoader(this: any) {
     appDirLoaderBase64 || '',
     'base64'
   ).toString()
-  console.log(this.getOptions())
+
   const isAppDir = pagesType === 'app'
 
   const buildInfo = getModuleBuildInfo(this._module)
