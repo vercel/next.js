@@ -253,7 +253,14 @@ const configSchema = {
           type: 'boolean',
         },
         esmExternals: {
-          type: 'boolean',
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              const: 'loose',
+            },
+          ] as any,
         },
         externalDir: {
           type: 'boolean',
@@ -320,6 +327,10 @@ const configSchema = {
         profiling: {
           type: 'boolean',
         },
+        proxyTimeout: {
+          minimum: 0,
+          type: 'number',
+        },
         runtime: {
           // automatic typing doesn't like enum
           enum: ['experimental-edge', 'nodejs'] as any,
@@ -333,6 +344,15 @@ const configSchema = {
         },
         sharedPool: {
           type: 'boolean',
+        },
+        sri: {
+          properties: {
+            algorithm: {
+              enum: ['sha256', 'sha384', 'sha512'] as any,
+              type: 'string',
+            },
+          },
+          type: 'object',
         },
         swcFileReading: {
           type: 'boolean',

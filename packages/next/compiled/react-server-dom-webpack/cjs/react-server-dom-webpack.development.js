@@ -384,6 +384,11 @@ function parseModelString(response, parentObject, value) {
         } else {
           var id = parseInt(value.substring(1), 16);
           var chunk = getChunk(response, id);
+
+          if (chunk._status === PENDING) {
+            throw new Error("We didn't expect to see a forward reference. This is a bug in the React Server.");
+          }
+
           return readChunk(chunk);
         }
       }
@@ -606,14 +611,14 @@ function startReadingFromStream(response, stream) {
 
     var buffer = value;
     processBinaryChunk(response, buffer);
-    return reader.read().then(progress, error);
+    return reader.read().then(progress).catch(error);
   }
 
   function error(e) {
     reportGlobalError(response, e);
   }
 
-  reader.read().then(progress, error);
+  reader.read().then(progress).catch(error);
 }
 
 function createFromReadableStream(stream, options) {
