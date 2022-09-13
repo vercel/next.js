@@ -2,7 +2,7 @@
 
 ## Getting Started
 
-You can set-up a new test using `yarn new-test` which will start from a template related to the test type.
+You can set-up a new test using `pnpnm new-test` which will start from a template related to the test type.
 
 ## Test Types in Next.js
 

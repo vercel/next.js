@@ -15,6 +15,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
+import type { RequestInit } from 'node-fetch'
 
 const largeSize = 1080 // defaults defined in server/config.ts
 const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
@@ -115,10 +116,15 @@ async function expectAvifSmallerThanWebp(w, q, appPort) {
   expect(avif).toBeLessThanOrEqual(webp)
 }
 
-async function fetchWithDuration(...args) {
-  console.warn('Fetching', args[1], args[2])
+async function fetchWithDuration(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string,
+  opts?: RequestInit
+) {
+  console.warn('Fetching', pathname, query)
   const start = Date.now()
-  const res = await fetchViaHTTP(...args)
+  const res = await fetchViaHTTP(appPort, pathname, query, opts)
   const buffer = await res.buffer()
   const duration = Date.now() - start
   return { duration, buffer, res }
@@ -140,7 +146,10 @@ export function runTests(ctx) {
         slowImageServer.port
       }/slow.png?delay=${1}&status=308`
       const query = { url, w: ctx.w, q: 39 }
-      const opts = { headers: { accept: 'image/webp' }, redirect: 'manual' }
+      const opts: RequestInit = {
+        headers: { accept: 'image/webp' },
+        redirect: 'manual',
+      }
 
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(500)

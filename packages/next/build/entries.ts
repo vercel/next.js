@@ -46,7 +46,9 @@ import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { serverComponentRegex } from './webpack/loaders/utils'
 import { ServerRuntime } from '../types'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
+import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -162,6 +164,7 @@ interface CreateEntrypointsParams {
 }
 
 export function getEdgeServerEntry(opts: {
+  rootDir: string
   absolutePagePath: string
   buildId: string
   bundlePath: string
@@ -178,6 +181,7 @@ export function getEdgeServerEntry(opts: {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      rootDir: opts.rootDir,
       matchers: opts.middleware?.matchers
         ? encodeMatchers(opts.middleware.matchers)
         : '',
@@ -187,9 +191,10 @@ export function getEdgeServerEntry(opts: {
   }
 
   if (opts.page.startsWith('/api/') || opts.page === '/api') {
-    const loaderParams: MiddlewareLoaderOptions = {
+    const loaderParams: EdgeFunctionLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      rootDir: opts.rootDir,
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -211,6 +216,7 @@ export function getEdgeServerEntry(opts: {
     stringifiedConfig: JSON.stringify(opts.config),
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
+    sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
   }
 
   return {
@@ -223,6 +229,7 @@ export function getAppEntry(opts: {
   name: string
   pagePath: string
   appDir: string
+  appPaths: string[] | null
   pageExtensions: string[]
 }) {
   return {
@@ -353,6 +360,22 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const nestedMiddleware: string[] = []
   let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
 
+  let appPathsPerRoute: Record<string, string[]> = {}
+  if (appDir && appPaths) {
+    for (const pathname in appPaths) {
+      const normalizedPath = normalizeAppPath(pathname) || '/'
+      if (!appPathsPerRoute[normalizedPath]) {
+        appPathsPerRoute[normalizedPath] = []
+      }
+      appPathsPerRoute[normalizedPath].push(pathname)
+    }
+
+    // Make sure to sort parallel routes to make the result deterministic.
+    appPathsPerRoute = Object.fromEntries(
+      Object.entries(appPathsPerRoute).map(([k, v]) => [k, v.sort()])
+    )
+  }
+
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
     async (page: string) => {
@@ -431,10 +454,13 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         },
         onServer: () => {
           if (pagesType === 'app' && appDir) {
+            const matchedAppPaths =
+              appPathsPerRoute[normalizeAppPath(page) || '/']
             server[serverBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
               appDir,
+              appPaths: matchedAppPaths,
               pageExtensions,
             })
           } else if (isTargetLikeServerless(target)) {
@@ -450,18 +476,22 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           }
         },
         onEdgeServer: () => {
-          const appDirLoader =
-            pagesType === 'app'
-              ? getAppEntry({
-                  name: serverBundlePath,
-                  pagePath: mappings[page],
-                  appDir: appDir!,
-                  pageExtensions,
-                }).import
-              : ''
+          let appDirLoader: string = ''
+          if (pagesType === 'app') {
+            const matchedAppPaths =
+              appPathsPerRoute[normalizeAppPath(page) || '/']
+            appDirLoader = getAppEntry({
+              name: serverBundlePath,
+              pagePath: mappings[page],
+              appDir: appDir!,
+              appPaths: matchedAppPaths,
+              pageExtensions,
+            }).import
+          }
 
           edgeServer[serverBundlePath] = getEdgeServerEntry({
             ...params,
+            rootDir,
             absolutePagePath: mappings[page],
             bundlePath: clientBundlePath,
             isDev: false,

@@ -2084,12 +2084,12 @@ export default async function (task) {
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
   await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
   await task.watch(
-    'shared/lib/{amp,config,constants,dynamic,head}.+(js|ts|tsx)',
+    'shared/lib/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)',
     'shared_re_exported',
     opts
   )
   await task.watch(
-    'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)',
+    'shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)',
     'shared',
     opts
   )
@@ -2104,7 +2104,8 @@ export default async function (task) {
 export async function shared(task, opts) {
   await task
     .source(
-      opts.src || 'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)'
+      opts.src ||
+        'shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev })
     .target('dist/shared')
@@ -2114,7 +2115,8 @@ export async function shared(task, opts) {
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
+      opts.src ||
+        'shared/**/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')

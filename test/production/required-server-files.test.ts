@@ -324,6 +324,12 @@ describe('should set-up next', () => {
   it('should de-dupe HTML/data requests', async () => {
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
       redirect: 'manual',
+      headers: {
+        // ensure the nextjs-data header being present
+        // doesn't incorrectly return JSON for HTML path
+        // during prerendering
+        'x-nextjs-data': '1',
+      },
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('x-nextjs-cache')).toBeFalsy()
@@ -416,7 +422,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
@@ -427,7 +433,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
@@ -439,7 +445,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
@@ -449,7 +455,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     await next.patchFile('standalone/data.txt', 'show')
 

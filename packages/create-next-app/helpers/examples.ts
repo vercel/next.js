@@ -5,7 +5,7 @@ import { Stream } from 'stream'
 import { promisify } from 'util'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { createWriteStream } from 'fs'
+import { createWriteStream, promises as fs } from 'fs'
 
 const pipeline = promisify(Stream.pipeline)
 
@@ -83,7 +83,7 @@ export function existsInRepo(nameOrUrl: string): Promise<boolean> {
 }
 
 async function downloadTar(url: string) {
-  const tempFile = join(tmpdir(), `next.js-cra-example.temp-${Date.now()}`)
+  const tempFile = join(tmpdir(), `next.js-cna-example.temp-${Date.now()}`)
   await pipeline(got.stream(url), createWriteStream(tempFile))
   return tempFile
 }
@@ -105,6 +105,8 @@ export async function downloadAndExtractRepo(
         `${name}-${branch.replace(/\//g, '-')}${filePath ? `/${filePath}` : ''}`
       ),
   })
+
+  await fs.unlink(tempFile)
 }
 
 export async function downloadAndExtractExample(root: string, name: string) {
@@ -122,4 +124,6 @@ export async function downloadAndExtractExample(root: string, name: string) {
     strip: 3,
     filter: (p) => p.includes(`next.js-canary/examples/${name}`),
   })
+
+  await fs.unlink(tempFile)
 }
