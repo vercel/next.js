@@ -1,4 +1,4 @@
-import styles from './styles.css'
+import styles from './styles.module.css'
 import { useState } from 'react'
 
 export default function page() {

@@ -113,7 +113,6 @@ module.exports = function (task) {
 
       const hasClientEntry = /^['"]client['"]/.test(source)
       if (options.filename.includes('.client.')) {
-        console.log('hasClientEntry', options.filename, hasClientEntry)
         output.code = (hasClientEntry ? `"client";\n` : '\n') + output.code
       }
 

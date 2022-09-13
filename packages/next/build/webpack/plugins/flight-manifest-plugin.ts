@@ -8,7 +8,7 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   FLIGHT_MANIFEST,
-  RSC_CLIENT_ENTRY,
+  RSC_MODULE_TYPES,
 } from '../../../shared/lib/constants'
 import { relative } from 'path'
 
@@ -22,7 +22,6 @@ import { relative } from 'path'
 interface Options {
   dev: boolean
   appDir: boolean
-  pageExtensions: string[]
 }
 
 /**
@@ -66,13 +65,11 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
-  pageExtensions: Options['pageExtensions']
   appDir: Options['appDir'] = false
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
-    this.pageExtensions = options.pageExtensions
   }
 
   apply(compiler: webpack.Compiler) {
@@ -178,8 +175,10 @@ export class FlightManifestPlugin {
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        const rscType = mod.buildInfo.rsc?.type
-        if (rscType !== RSC_CLIENT_ENTRY) return
+        // const rscType = mod.buildInfo.rsc?.type
+        // if (rscType !== RSC_MODULE_TYPES.client) {
+        //   return
+        // }
 
         if (/\/(page|layout)\.(ts|js)x?$/.test(resource)) {
           entryFilepath = resource

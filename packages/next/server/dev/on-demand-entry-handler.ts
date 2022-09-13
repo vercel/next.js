@@ -12,7 +12,6 @@ import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-sl
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
@@ -578,11 +577,8 @@ export function onDemandEntryHandler({
           appDir
         )
 
-        const isServerComponent = serverComponentRegex.test(
-          pagePathData.absolutePagePath
-        )
         const isInsideAppDir =
-          appDir && pagePathData.absolutePagePath.startsWith(appDir)
+          !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
         const addEntry = (
           compilerType: CompilerNameValues
@@ -636,6 +632,7 @@ export function onDemandEntryHandler({
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
+        const isServerComponent = isInsideAppDir && staticInfo.rsc === 'server'
 
         await runDependingOnPageType({
           page: pagePathData.page,

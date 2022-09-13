@@ -15,6 +15,7 @@ import { APP_DIR_ALIAS } from '../../../lib/constants'
 import {
   COMPILER_NAMES,
   FLIGHT_SERVER_CSS_MANIFEST,
+  RSC_MODULE_TYPES,
 } from '../../../shared/lib/constants'
 import { FlightCSSManifest } from './flight-manifest-plugin'
 
@@ -240,7 +241,7 @@ export class FlightClientEntryPlugin {
 
       const isCSS = regexCSS.test(modRequest)
       const rscModuleType = mod.buildInfo.rsc?.type
-      const isClientComponent = rscModuleType === 'client-entry'
+      const isClientComponent = rscModuleType === RSC_MODULE_TYPES.client
 
       if (isCSS) {
         serverCSSImports[layoutOrPageRequest] =

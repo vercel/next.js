@@ -1,6 +1,9 @@
 import path from 'path'
-import { RSC_CLIENT_ENTRY } from '../../../../shared/lib/constants'
-import { checkExports } from '../../../analysis/get-page-static-info'
+import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
+import {
+  checkExports,
+  getRSCModuleType,
+} from '../../../analysis/get-page-static-info'
 import { parse } from '../../../swc'
 
 function transformClient(resourcePath: string): string {
@@ -31,50 +34,35 @@ const isPageOrLayoutFile = (filePath: string) => {
 
 export default async function transformSource(
   this: any,
-  source: string
-): Promise<string> {
+  source: string,
+  sourceMap: any
+) {
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
 
   const { resourcePath } = this
+  const callback = this.async()
   const buildInfo = (this as any)._module.buildInfo
 
   const swcAST = await parse(source, {
     filename: resourcePath,
     isModule: 'unknown',
   })
-  const isModule = swcAST.type === 'Module'
-  const { body } = swcAST
-  // TODO-APP: optimize the directive detection
-  // Assume there're only "use strict" and "<type>-entry" directives at top,
-  // so pick the 2 nodes
-  const firstTwoNodes = body.slice(0, 2)
-  const appDir = path.join(this.rootContext, 'app')
-  const isUnderAppDir = containsPath(appDir, this.resourcePath)
 
+  const rscType = getRSCModuleType(swcAST)
+
+  // Assign the RSC meta information to buildInfo.
+  buildInfo.rsc = { type: rscType }
+
+  const isModule = swcAST.type === 'Module'
   const createError = (name: string) =>
     new Error(
       `${name} is not supported in client components.\nFrom: ${this.resourcePath}`
     )
-
+  const appDir = path.join(this.rootContext, 'app')
+  const isUnderAppDir = containsPath(appDir, this.resourcePath)
   const isResourcePageOrLayoutFile = isPageOrLayoutFile(this.resourcePath)
-
-  // Assign the RSC meta information to buildInfo.
-  buildInfo.rsc = {}
-  for (const node of firstTwoNodes) {
-    if (
-      node.type === 'ExpressionStatement' &&
-      node.expression.type === 'StringLiteral'
-    ) {
-      if (node.expression.value === RSC_CLIENT_ENTRY) {
-        // Detect client entry
-        buildInfo.rsc.type = RSC_CLIENT_ENTRY
-        break
-      }
-    }
-  }
-
   // If client entry has any gSSP/gSP data fetching methods, error
   function errorForInvalidDataFetching(onError: (error: any) => void) {
     if (isUnderAppDir && isResourcePageOrLayoutFile) {
@@ -88,12 +76,12 @@ export default async function transformSource(
     }
   }
 
-  if (buildInfo.rsc.type === RSC_CLIENT_ENTRY) {
+  if (buildInfo.rsc.type === RSC_MODULE_TYPES.client) {
     errorForInvalidDataFetching(this.emitError)
     const code = transformClient(this.resourcePath)
-    return code
+    return callback(null, code, sourceMap)
   }
 
   const code = transformServer(source, isModule)
-  return code
+  return callback(null, code, sourceMap)
 }

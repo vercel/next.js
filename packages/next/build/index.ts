@@ -96,7 +96,6 @@ import {
   printTreeView,
   copyTracedFiles,
   isReservedPage,
-  isServerComponentPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -1267,21 +1266,18 @@ export default async function build(
                       )
                     : appPaths?.find((p) => p.startsWith(actualPage + '/page.'))
 
-                const pageRuntime =
+                const staticInfo =
                   pagesDir && pageType === 'pages' && pagePath
-                    ? (
-                        await getPageStaticInfo({
-                          pageFilePath: join(pagesDir, pagePath),
-                          nextConfig: config,
-                        })
-                      ).runtime
-                    : undefined
-
-                if (hasServerComponents && pagePath) {
-                  if (isServerComponentPage(config, pagePath)) {
-                    isServerComponent = true
-                  }
-                }
+                    ? await getPageStaticInfo({
+                        pageFilePath: join(pagesDir, pagePath),
+                        nextConfig: config,
+                      })
+                    : {}
+                const pageRuntime = staticInfo.runtime
+                isServerComponent =
+                  pageType === 'app' &&
+                  staticInfo.rsc === 'server' &&
+                  !staticInfo.rsc
 
                 if (
                   // Only calculate page static information if the page is not an

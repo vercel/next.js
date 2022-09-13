@@ -46,7 +46,6 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
-import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 
 function diff(a: Set<any>, b: Set<any>) {
@@ -444,6 +443,7 @@ export default class HotReloader {
         .traceChild('create-entrypoints')
         .traceAsyncFn(() =>
           createEntrypoints({
+            appDir: this.appDir,
             buildId: this.buildId,
             config: this.config,
             envFiles: [],
@@ -511,6 +511,7 @@ export default class HotReloader {
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({
+          appDir: this.appDir,
           buildId: this.buildId,
           config: this.config,
           envFiles: [],
@@ -598,10 +599,7 @@ export default class HotReloader {
               }
             }
 
-            const isServerComponent = isEntry
-              ? serverComponentRegex.test(entryData.absolutePagePath)
-              : false
-
+            const isAppPath = !!this.appDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
               ? await getPageStaticInfo({
                   pageFilePath: entryData.absolutePagePath,
@@ -609,6 +607,8 @@ export default class HotReloader {
                   isDev: true,
                 })
               : {}
+            const isServerComponent =
+              isAppPath && (staticInfo.rsc == 'server' || !staticInfo.rsc)
 
             await runDependingOnPageType({
               page,
@@ -616,9 +616,8 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
-                const isApp = this.appDir && bundlePath.startsWith('app/')
                 const appDirLoader =
-                  isApp && this.appDir
+                  isAppPath && this.appDir
                     ? getAppEntry({
                         name: bundlePath,
                         appPaths: entryData.appPaths,
@@ -649,7 +648,7 @@ export default class HotReloader {
                     pages: this.pagesMapping,
                     isServerComponent,
                     appDirLoader,
-                    pagesType: isApp ? 'app' : undefined,
+                    pagesType: isAppPath ? 'app' : undefined,
                   }),
                   appDir: this.config.experimental.appDir,
                 })

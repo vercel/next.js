@@ -691,10 +691,6 @@ export default async function getBaseWebpackConfig(
     ? withoutRSCExtensions(config.pageExtensions)
     : config.pageExtensions
 
-  const serverComponentsRegex = new RegExp(
-    `\\.server\\.(${rawPageExtensions.join('|')})$`
-  )
-
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
@@ -1837,7 +1833,6 @@ export default async function getBaseWebpackConfig(
           ? new FlightManifestPlugin({
               dev,
               appDir: !!config.experimental.appDir,
-              pageExtensions: rawPageExtensions,
             })
           : new FlightClientEntryPlugin({
               dev,
