@@ -45,7 +45,7 @@ Must be one of the following:
    or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
 When using an external URL, you must add it to
-[domains](#domains) in
+[remotePatterns](#remote-patterns) in
 `next.config.js`.
 
 ### width
@@ -147,9 +147,9 @@ const Example = () => (
     <Image
       src="/example.png"
       layout="fill"
-      sizes="(min-width: 75em) 33vw,
-              (min-width: 48em) 50vw,
-              100vw"
+      sizes="(max-width: 768px) 100vw,
+              (max-width: 1200px) 50vw,
+              33vw"
     />
   </div>
 )
@@ -392,6 +392,8 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 The `**` syntax does not work in the middle of the pattern.
 
 ### Domains
+
+> Note: We recommend using [`remotePatterns`](#remote-patterns) instead so you can restrict protocol and pathname.
 
 Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 

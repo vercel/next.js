@@ -4,6 +4,9 @@ module.exports = {
     serverComponents: true,
     legacyBrowsers: false,
     browsersListForSwc: true,
+    sri: {
+      algorithm: 'sha256',
+    },
   },
   // assetPrefix: '/assets',
   rewrites: async () => {

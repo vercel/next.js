@@ -47,6 +47,7 @@ import { hasBasePath } from '../../../client/has-base-path'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
 import { compareRouterStates } from './utils/compare-states'
+import { isBot } from './utils/is-bot'
 
 declare global {
   interface Window {
@@ -564,7 +565,6 @@ export type CompletePrivateRouteInfo = {
   styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
   __N_SSP?: boolean
-  __N_RSC?: boolean
   props?: Record<string, any>
   err?: Error
   error?: any
@@ -881,7 +881,6 @@ export default class Router implements BaseRouter {
       defaultLocale,
       domainLocales,
       isPreview,
-      isRsc,
     }: {
       subscription: Subscription
       initialProps: any
@@ -896,7 +895,6 @@ export default class Router implements BaseRouter {
       defaultLocale?: string
       domainLocales?: DomainLocale[]
       isPreview?: boolean
-      isRsc?: boolean
     }
   ) {
     // represents the current component key
@@ -915,7 +913,6 @@ export default class Router implements BaseRouter {
         err,
         __N_SSG: initialProps && initialProps.__N_SSG,
         __N_SSP: initialProps && initialProps.__N_SSP,
-        __N_RSC: !!isRsc,
       }
     }
 
@@ -1993,7 +1990,6 @@ export default class Router implements BaseRouter {
             styleSheets: res.styleSheets,
             __N_SSG: res.mod.__N_SSG,
             __N_SSP: res.mod.__N_SSP,
-            __N_RSC: !!res.mod.__next_rsc__,
           })
         ))
 
@@ -2006,20 +2002,10 @@ export default class Router implements BaseRouter {
         }
       }
 
-      /**
-       * For server components, non-SSR pages will have statically optimized
-       * flight data in a production build. So only development and SSR pages
-       * will always have the real-time generated and streamed flight data.
-       */
-      const useStreamedFlightData =
-        routeInfo.__N_RSC &&
-        (process.env.NODE_ENV !== 'production' || routeInfo.__N_SSP)
-
-      const shouldFetchData =
-        routeInfo.__N_SSG || routeInfo.__N_SSP || routeInfo.__N_RSC
+      const shouldFetchData = routeInfo.__N_SSG || routeInfo.__N_SSP
 
       const { props, cacheKey } = await this._getData(async () => {
-        if (shouldFetchData && !useStreamedFlightData) {
+        if (shouldFetchData) {
           const { json, cacheKey: _cacheKey } = data?.json
             ? data
             : await fetchNextData({
@@ -2083,31 +2069,7 @@ export default class Router implements BaseRouter {
         ).catch(() => {})
       }
 
-      let flightInfo
-      if (routeInfo.__N_RSC) {
-        flightInfo = {
-          __flight__: useStreamedFlightData
-            ? (
-                await this._getData(() =>
-                  this._getFlightData(
-                    formatWithValidation({
-                      query: { ...query, __flight__: '1' },
-                      pathname: isDynamicRoute(route)
-                        ? interpolateAs(
-                            pathname,
-                            parseRelativeUrl(resolvedAs).pathname,
-                            query
-                          ).result
-                        : pathname,
-                    })
-                  )
-                )
-              ).data
-            : props.__flight__,
-        }
-      }
-
-      props.pageProps = Object.assign({}, props.pageProps, flightInfo)
+      props.pageProps = Object.assign({}, props.pageProps)
       routeInfo.props = props
       routeInfo.route = route
       routeInfo.query = query
@@ -2210,6 +2172,12 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
+    if (typeof window !== 'undefined' && isBot(window.navigator.userAgent)) {
+      // No prefetches for bots that render the link since they are typically navigating
+      // links via the equivalent of a hard navigation and hence never utilize these
+      // prefetches.
+      return
+    }
     let parsed = parseRelativeUrl(url)
 
     let { pathname, query } = parsed
