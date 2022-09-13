@@ -31,7 +31,7 @@ To begin using Middleware, follow the steps below:
 npm install next@latest
 ```
 
-2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` directory
+2. Create a `middleware.ts` (or `.js`) file at the root or in the `src` directory (same level as your `pages`)
 3. Export a middleware function from the `middleware.ts` file:
 
 ```typescript
@@ -93,9 +93,9 @@ export const config = {
 Configured matchers:
 
 1. MUST start with `/`
-1. can include named parameters: `/about/:path` matches `/about/a` and `/about/b` but not `/about/a/c`
-1. can have modifiers on named parameters (starting with `:`): `/about/:path*` matches `/about/a/b/c` because `*` is _zero or more_. `?` is _zero or one_ and `+` _one or more_
-1. can use regular expression enclosed in parenthesis: `/about/(.*)` is the same as `/about/:path*`
+2. Can include named parameters: `/about/:path` matches `/about/a` and `/about/b` but not `/about/a/c`
+3. Can have modifiers on named parameters (starting with `:`): `/about/:path*` matches `/about/a/b/c` because `*` is _zero or more_. `?` is _zero or one_ and `+` _one or more_
+4. Can use regular expression enclosed in parenthesis: `/about/(.*)` is the same as `/about/:path*`
 
 Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp#path-to-regexp-1) documentation.
 

@@ -14,6 +14,7 @@ export type EdgeSSRLoaderQuery = {
   stringifiedConfig: string
   appDirLoader?: string
   pagesType?: 'app' | 'pages' | 'root'
+  sriEnabled: boolean
 }
 
 export default async function edgeSSRLoader(this: any) {
@@ -30,6 +31,7 @@ export default async function edgeSSRLoader(this: any) {
     stringifiedConfig,
     appDirLoader: appDirLoaderBase64,
     pagesType,
+    sriEnabled,
   } = this.getOptions()
 
   const appDirLoader = Buffer.from(
@@ -94,6 +96,9 @@ export default async function edgeSSRLoader(this: any) {
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
     const rscCssManifest = self.__RSC_CSS_MANIFEST
+    const subresourceIntegrityManifest = ${
+      sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
+    }
 
     const render = getRender({
       dev: ${dev},
@@ -109,6 +114,7 @@ export default async function edgeSSRLoader(this: any) {
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
       serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
+      subresourceIntegrityManifest,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
     })
