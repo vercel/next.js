@@ -4,13 +4,15 @@ There are two options to develop with your local version of the codebase:
 
 ## Develop inside the monorepo
 
+This will use the version of `next` built inside of the Next.js monorepo. You can also let `pnpm dev` run in a separate terminal. This will let you make changes to Next.js at the same time (note that some changes might require re-running `pnpm next-with-deps` or `pnpm next`).
+
+If your app does not have dependencies, you can create a directory inside the monorepo (eg.: `dev-app`) and run `pnpm next ./dev-app` without creating a `package.json` file.
+
+If you already have an app and it has dependencies, you can follow these steps:
+
 1. Move your app inside of the Next.js monorepo.
 
 2. Run with `pnpm next-with-deps ./app-path-in-monorepo`
-
-This will use the version of `next` built inside of the Next.js monorepo and the
-main `pnpm dev` monorepo command can be running to make changes to the local
-Next.js version at the same time (some changes might require re-running `pnpm next-with-deps` to take effect).
 
 ## Set as a local dependency in package.json
 
