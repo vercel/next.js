@@ -8,7 +8,7 @@ One of your pages includes a large amount of page data (>= 128kB). This can nega
 
 Reduce the amount of data returned from `getStaticProps`, `getServerSideProps`, or `getInitialProps` to only the essential data to render the page. The default threshold of 128kB can be configured in `largePageDataBytes` if absolutely necessary and the performance implications are understood.
 
-To see the data being passed to the page open your site and run this in the devtool's console:
+To inspect the props passed to your page, you can inspect the below element's content in your browser devtools:
 
 ```sh
 document.getElementById("__NEXT_DATA__").text
