@@ -23,10 +23,6 @@
 - [Adding Examples](./contributing/examples/adding-examples.md)
 - [Run Example Apps](./contributing/examples/run-example-apps.md)
 
-For instructions on how to build a project with your local version of the CLI,
-see **[Developing with your local version of Next.js](#developing-with-your-local-version-of-nextjs)**
-below.
-
 ## Core
 
 - [Developing](./contributing/core/developing.md)
