@@ -1,5 +1,5 @@
 ---
-description: Try the latest Image Optimization with the experimental `next/future/image` component.
+description: Try the latest Image Optimization with the new `next/future/image` component.
 ---
 
 # next/future/image
@@ -7,28 +7,17 @@ description: Try the latest Image Optimization with the experimental `next/futur
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                      |
-| --------- | -------------------------------------------- |
-| `v12.2.4` | Support for `fill` property added.           |
-| `v12.2.0` | Experimental `next/future/image` introduced. |
+| Version   | Changes                                                                                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.3.0` | `next/future/image` component stable. `remotePatterns` config stable. `unoptimized` config stable. `alt` property required. `onLoadingComplete` receives `<img>` |
+| `v12.2.4` | `fill` property added.                                                                                                                                           |
+| `v12.2.0` | Experimental `next/future/image` component introduced.                                                                                                           |
 
 </details>
 
-The `next/future/image` component is an experiment to improve both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
+The `next/future/image` component improves both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
 
-This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
-
-To use `next/future/image`, add the following to your `next.config.js` file:
-
-```js
-module.exports = {
-  experimental: {
-    images: {
-      allowFutureImage: true,
-    },
-  },
-}
-```
+This component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
 
 ## Comparison
 
@@ -43,6 +32,8 @@ Compared to `next/image`, the new `next/future/image` component has the followin
   - Removes `lazyBoundary` prop since there is no native equivalent
   - Removes `lazyRoot` prop since there is no native equivalent
 - Removes `loader` config in favor of [`loader`](#loader) prop
+- Changed `alt` prop from optional to required
+- Changed `onLoadingComplete` callback to receive reference to `<img>` element
 
 ## Known Browser Bugs
 
@@ -161,7 +152,7 @@ Must be one of the following:
 2. A path string. This can be either an absolute external URL,
    or an internal path depending on the [loader](#loader) prop.
 
-When using an external URL, you must add it to [domains](#domains) in `next.config.js`.
+When using an external URL, you must add it to [remotePatterns](#remote-patterns) in `next.config.js`.
 
 ### width
 
@@ -174,6 +165,16 @@ Required, except for [statically imported images](/docs/basic-features/image-opt
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
 Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
+
+### alt
+
+The `alt` property is used to describe the image for screen readers and search engines. It is also the fallback text if images have been disabled or an error occurs while loading the image.
+
+It should contain text that could replace the image [without changing the meaning of the page](https://html.spec.whatwg.org/multipage/images.html#general-guidelines). It is not meant to supplement the image and should not repeat information that is already provided in the captions above or below the image.
+
+If the image is [purely decorative](https://html.spec.whatwg.org/multipage/images.html#a-purely-decorative-image-that-doesn't-add-any-information) or [not intended for the user](https://html.spec.whatwg.org/multipage/images.html#an-image-not-intended-for-the-user), the `alt` property should be an empty string (`alt=""`).
+
+[Learn more](https://html.spec.whatwg.org/multipage/images.html#alt)
 
 ## Optional Props
 
@@ -248,9 +249,9 @@ const Example = () => (
     <Image
       src="/example.png"
       layout="fill"
-      sizes="(min-width: 75em) 33vw,
-              (min-width: 48em) 50vw,
-              100vw"
+      sizes="(max-width: 768px) 100vw,
+              (max-width: 1200px) 50vw,
+              33vw"
     />
   </div>
 )
@@ -306,10 +307,7 @@ Also keep in mind that the required `width` and `height` props can interact with
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
-The callback function will be called with one argument, an object with the following properties:
-
-- [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
-- [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
+The callback function will be called with one argument, a reference to the underlying `<img>` element.
 
 ### onLoad
 
@@ -362,14 +360,12 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
-This prop can be assigned to all images by updating `next.config.js` with the following experimental configuration:
+This prop can be assigned to all images by updating `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      unoptimized: true,
-    },
+  images: {
+    unoptimized: true,
   },
 }
 ```
@@ -387,23 +383,19 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ### Remote Patterns
 
-> Note: The `remotePatterns` configuration is currently **experimental** and subject to change. Please use [`domains`](#domains) for production use cases.
-
 To protect your application from malicious users, configuration is required in order to use external images. This ensures that only external images from your account can be served from the Next.js Image Optimization API. These external images can be configured with the `remotePatterns` property in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      remotePatterns: [
-        {
-          protocol: 'https',
-          hostname: 'example.com',
-          port: '',
-          pathname: '/account123/**',
-        },
-      ],
-    },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'example.com',
+        port: '',
+        pathname: '/account123/**',
+      },
+    ],
   },
 }
 ```
@@ -414,15 +406,13 @@ Below is another example of the `remotePatterns` property in the `next.config.js
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      remotePatterns: [
-        {
-          protocol: 'https',
-          hostname: '**.example.com',
-        },
-      ],
-    },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.example.com',
+      },
+    ],
   },
 }
 ```
@@ -437,6 +427,8 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 The `**` syntax does not work in the middle of the pattern.
 
 ### Domains
+
+> Note: We recommend using [`remotePatterns`](#remote-patterns) instead so you can restrict protocol and pathname.
 
 Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 

@@ -314,7 +314,9 @@ export default async function build(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
-          isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+          isSrcDir:
+            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
+            (!!appDir && path.relative(dir, appDir).startsWith('src')),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
         })
@@ -395,7 +397,8 @@ export default async function build(
                   config.eslint?.dirs,
                   config.experimental.cpus,
                   config.experimental.workerThreads,
-                  telemetry
+                  telemetry,
+                  !!config.experimental.appDir
                 )
               }),
         ])
@@ -436,14 +439,16 @@ export default async function build(
 
       const isLikeServerless = isTargetLikeServerless(target)
 
-      const pagesPaths = await nextBuildSpan
-        .traceChild('collect-pages')
-        .traceAsyncFn(() =>
-          recursiveReadDir(
-            pagesDir,
-            new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
-          )
-        )
+      const pagesPaths = pagesDir
+        ? await nextBuildSpan
+            .traceChild('collect-pages')
+            .traceAsyncFn(() =>
+              recursiveReadDir(
+                pagesDir,
+                new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+              )
+            )
+        : []
 
       let appPaths: string[] | undefined
 
@@ -462,9 +467,11 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
-      const rootPaths = (
-        await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
-      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+      const rootPaths = pagesDir
+        ? (
+            await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
+          ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+        : []
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -487,6 +494,7 @@ export default async function build(
             pageExtensions: config.pageExtensions,
             pagesType: 'pages',
             pagePaths: pagesPaths,
+            pagesDir,
           })
         )
 
@@ -502,6 +510,7 @@ export default async function build(
               isDev: false,
               pagesType: 'app',
               pageExtensions: config.pageExtensions,
+              pagesDir: pagesDir,
             })
           )
       }
@@ -514,6 +523,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           pagePaths: rootPaths,
           pagesType: 'root',
+          pagesDir: pagesDir,
         })
       }
 
@@ -540,7 +550,9 @@ export default async function build(
       const pageKeys = {
         pages: Object.keys(mappedPages),
         app: mappedAppPages
-          ? Object.keys(mappedAppPages).map((key) => normalizeAppPath(key))
+          ? Object.keys(mappedAppPages).map(
+              (key) => normalizeAppPath(key) || '/'
+            )
           : undefined,
       }
 
@@ -849,7 +861,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
-          middlewareRegex: entrypoints.middlewareRegex,
+          middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
         const configs = await runWebpackSpan
@@ -1162,16 +1174,17 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            staticWorkers.isPageStatic(
-              '/_error',
+            staticWorkers.isPageStatic({
+              page: '/_error',
               distDir,
-              isLikeServerless,
+              serverless: isLikeServerless,
               configFileName,
               runtimeEnvConfig,
-              config.httpAgentOptions,
-              config.i18n?.locales,
-              config.i18n?.defaultLocale
-            )
+              httpAgentOptions: config.httpAgentOptions,
+              locales: config.i18n?.locales,
+              defaultLocale: config.i18n?.defaultLocale,
+              pageRuntime: config.experimental.runtime,
+            })
         )
 
         // we don't output _app in serverless mode so use _app export
@@ -1255,7 +1268,7 @@ export default async function build(
                     : appPaths?.find((p) => p.startsWith(actualPage + '/page.'))
 
                 const pageRuntime =
-                  pageType === 'pages' && pagePath
+                  pagesDir && pageType === 'pages' && pagePath
                     ? (
                         await getPageStaticInfo({
                           pageFilePath: join(pagesDir, pagePath),
@@ -1274,28 +1287,52 @@ export default async function build(
                   // Only calculate page static information if the page is not an
                   // app page.
                   pageType !== 'app' &&
-                  !isReservedPage(page) &&
-                  // We currently don't support static optimization in the Edge runtime.
-                  pageRuntime !== SERVER_RUNTIME.edge
+                  !isReservedPage(page)
                 ) {
                   try {
+                    let edgeInfo: any
+
+                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      const manifest = require(join(
+                        distDir,
+                        serverDir,
+                        MIDDLEWARE_MANIFEST
+                      ))
+
+                      edgeInfo = manifest.functions[page]
+                    }
+
                     let isPageStaticSpan =
                       checkPageSpan.traceChild('is-page-static')
                     let workerResult = await isPageStaticSpan.traceAsyncFn(
                       () => {
-                        return staticWorkers.isPageStatic(
+                        return staticWorkers.isPageStatic({
                           page,
                           distDir,
-                          isLikeServerless,
+                          serverless: isLikeServerless,
                           configFileName,
                           runtimeEnvConfig,
-                          config.httpAgentOptions,
-                          config.i18n?.locales,
-                          config.i18n?.defaultLocale,
-                          isPageStaticSpan.id
-                        )
+                          httpAgentOptions: config.httpAgentOptions,
+                          locales: config.i18n?.locales,
+                          defaultLocale: config.i18n?.defaultLocale,
+                          parentId: isPageStaticSpan.id,
+                          pageRuntime,
+                          edgeInfo,
+                        })
                       }
                     )
+
+                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (workerResult.hasStaticProps) {
+                        console.warn(
+                          `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
+                        )
+                      }
+                      // TODO: add handling for statically rendering edge
+                      // pages and allow edge with Prerender outputs
+                      workerResult.isStatic = false
+                      workerResult.hasStaticProps = false
+                    }
 
                     if (config.outputFileTracing) {
                       pageTraceIncludes.set(
@@ -1888,6 +1925,7 @@ export default async function build(
                   await staticWorkers.end()
                 }
               : undefined,
+            appPaths,
           }
           const exportConfig: any = {
             ...config,
@@ -2380,7 +2418,7 @@ export default async function build(
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
       ;(images as any).remotePatterns = (
-        config?.experimental?.images?.remotePatterns || []
+        config?.images?.remotePatterns || []
       ).map((p: RemotePattern) => ({
         // Should be the same as matchRemotePattern()
         protocol: p.protocol,

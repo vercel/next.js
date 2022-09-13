@@ -8,16 +8,16 @@ use crate::State;
 use inflector::Inflector;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use swc_atoms::{js_word, JsWord};
-use swc_common::{
-    collections::{AHashMap, AHashSet},
-    util::take::Take,
-    Spanned, DUMMY_SP,
-};
-use swc_ecmascript::{
-    ast::*,
-    utils::{prepend_stmt, private_ident, quote_ident, ExprFactory},
-    visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+use swc_core::{
+    common::{
+        collections::{AHashMap, AHashSet},
+        util::take::Take,
+        Spanned, DUMMY_SP,
+    },
+    ecma::ast::*,
+    ecma::atoms::{js_word, JsWord},
+    ecma::utils::{prepend_stmt, private_ident, quote_ident, ExprFactory},
+    ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 
 use crate::utils::{get_prop_key_as_expr, get_prop_name, get_prop_name2};

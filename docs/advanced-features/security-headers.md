@@ -81,7 +81,7 @@ This header allows you to control which features and APIs can be used in the bro
 ```jsx
 {
   key: 'Permissions-Policy',
-  value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+  value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()'
 }
 ```
 

@@ -9,7 +9,7 @@ name: Build, test, and deploy
 env:
   NAPI_CLI_VERSION: 2.7.0
   TURBO_VERSION: 1.3.2-canary.1
-  RUST_TOOLCHAIN: nightly-2022-02-23
+  RUST_TOOLCHAIN: nightly-2022-06-12
   PNPM_VERSION: 7.2.1
 
 jobs:
@@ -51,7 +51,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Check non-docs only change
-        run: echo ::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')
+        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
@@ -124,7 +124,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo ::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')
+      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
         id: swc-change
 
       - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
@@ -1102,7 +1102,7 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo ::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')
+      - run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
       - name: Setup node
@@ -1191,7 +1191,7 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo ::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')
+      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
         id: swc-change
 
       - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}

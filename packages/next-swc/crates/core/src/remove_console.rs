@@ -1,9 +1,11 @@
 use serde::Deserialize;
-use swc_atoms::JsWord;
-use swc_common::collections::AHashSet;
-use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{noop_fold_type, Fold, FoldWith};
+
+use swc_core::{
+    common::{collections::AHashSet, DUMMY_SP},
+    ecma::ast::*,
+    ecma::atoms::JsWord,
+    ecma::visit::{noop_fold_type, Fold, FoldWith},
+};
 
 use crate::top_level_binding_collector::collect_top_level_decls;
 
@@ -32,7 +34,6 @@ pub struct Options {
 struct RemoveConsole {
     exclude: Vec<JsWord>,
     bindings: Vec<AHashSet<Id>>,
-    in_function_params: bool,
 }
 
 impl RemoveConsole {
@@ -89,12 +90,10 @@ impl Fold for RemoveConsole {
     }
 
     fn fold_function(&mut self, mut func: Function) -> Function {
-        self.in_function_params = true;
         let mut new_params: AHashSet<Id> = AHashSet::default();
         for param in &func.params {
             new_params.extend(collect_top_level_decls(param));
         }
-        self.in_function_params = false;
 
         self.bindings.push(new_params);
         self.bindings.push(collect_top_level_decls(&func));
@@ -127,6 +126,5 @@ pub fn remove_console(config: Config) -> impl Fold {
     RemoveConsole {
         exclude,
         bindings: Default::default(),
-        in_function_params: false,
     }
 }
