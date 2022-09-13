@@ -6,7 +6,7 @@ Next.js has two release channels: `stable` and `canary`.
 
 The stable release is what is installed when you `npm install next`. This channel is used by the majority of Next.js users.
 
-This channel is published at a regular cadence and follows [semantic versioning](TODO).
+This channel is published at a regular cadence and follows [semantic versioning](https://semver.org).
 
 Repository maintainers can publish a new stable version using: `pnpm publish-stable`.
 The command will ask what version to publish `major`, `minor`, or `patch`.
@@ -21,5 +21,5 @@ This channel is published early based on the `canary` branch. It holds all chang
 
 By installing `next@canary` from time to time you can check if your application is affected by any changes that have not been published yet.
 
-Repository maintainers can publish a new stable version using: `pnpm publish-stable`.
+Repository maintainers can publish a new canary version using: `pnpm publish-canary`.
 The command will automatically decide the new version tag as it's an increment from the previous version.
