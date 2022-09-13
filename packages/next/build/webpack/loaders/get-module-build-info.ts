@@ -1,10 +1,11 @@
-import { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 /**
  * A getter for module build info that casts to the type it should have.
  * We also expose here types to make easier to use it.
  */
-export function getModuleBuildInfo(webpackModule: webpack5.Module) {
+export function getModuleBuildInfo(webpackModule: webpack.Module) {
   return webpackModule.buildInfo as {
     nextEdgeMiddleware?: EdgeMiddlewareMeta
     nextEdgeApiFunction?: EdgeMiddlewareMeta
@@ -15,6 +16,7 @@ export function getModuleBuildInfo(webpackModule: webpack5.Module) {
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
     importLocByPath?: Map<string, any>
+    rootDir?: string
   }
 }
 
@@ -25,11 +27,12 @@ export interface RouteMeta {
 
 export interface EdgeMiddlewareMeta {
   page: string
-  matcherRegexp?: string
+  matchers?: MiddlewareMatcher[]
 }
 
 export interface EdgeSSRMeta {
   isServerComponent: boolean
+  isAppDir?: boolean
   page: string
 }
 

@@ -65,7 +65,7 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  appDir?: boolean
+  appPaths: string[]
 }
 
 interface ExportPageResults {
@@ -91,7 +91,6 @@ interface RenderOpts {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
-  appDir?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -105,7 +104,7 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
-  appDir,
+  appPaths,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -273,6 +272,9 @@ export default async function exportPage({
         return !buildExport && getStaticProps && !isDynamicRoute(path)
       }
 
+      const isAppPath = appPaths.some((appPath: string) =>
+        appPath.startsWith(page + '.page')
+      )
       if (serverless) {
         const curUrl = url.parse(req.url!, true)
         req.url = url.format({
@@ -288,13 +290,13 @@ export default async function exportPage({
           getServerSideProps,
           getStaticProps,
           pageConfig,
-        } = await loadComponents(
+        } = await loadComponents({
           distDir,
-          page,
+          pathname: page,
           serverless,
-          serverComponents,
-          appDir
-        )
+          hasServerComponents: !!serverComponents,
+          isAppPath,
+        })
         const ampState = {
           ampFirst: pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -355,12 +357,13 @@ export default async function exportPage({
           throw new Error(`Failed to render serverless page`)
         }
       } else {
-        const components = await loadComponents(
+        const components = await loadComponents({
           distDir,
-          page,
+          pathname: page,
           serverless,
-          serverComponents
-        )
+          hasServerComponents: !!serverComponents,
+          isAppPath,
+        })
         const ampState = {
           ampFirst: components.pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),

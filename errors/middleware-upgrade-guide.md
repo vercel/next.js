@@ -388,4 +388,4 @@ Prior to Next.js `v12.2`, Middleware was not executed for `_next` requests.
 
 For cases where Middleware is used for authorization, you should migrate to use `rewrite`/`redirect` to Pages that show an authorization error, login forms, or to an API Route.
 
-See [No Reponse Body](#no-response-body) for an example of how to migrate to use `rewrite`/`redirect`.
+See [No Response Body](#no-response-body) for an example of how to migrate to use `rewrite`/`redirect`.

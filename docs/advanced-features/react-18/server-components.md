@@ -1,128 +1,27 @@
-# React Server Components (Alpha)
+# React Server Components (RFC)
 
-Server Components allow us to render React components on the server. This is fundamentally different from server-side rendering (SSR) where you're pre-generating HTML on the server. With Server Components, there's **zero client-side JavaScript needed,** making page rendering faster. This improves the user experience of your application, pairing the best parts of server-rendering with client-side interactivity.
+React Server Components allow developers to build applications that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
 
-### Enable React Server Components
+In an upcoming Next.js release, React and Next.js developers will be able to use Server Components inside the `app` directory as part of the changes outlined by the [Layouts RFC](https://nextjs.org/blog/layouts-rfc).
 
-To use React Server Components, ensure you have the latest React installed:
+## What are React Server Components?
 
-```jsx
-npm install next@canary react@latest react-dom@latest
-```
+React Server Components improve the user experience of your application by pairing the best parts of server-rendering with client-side interactivity.
 
-Then, update your `next.config.js`:
+With traditional React applications that are client-side only, developers often had to make tradeoffs between SEO and performance. Server Components enable developers to better leverage their server infrastructure and achieve great performance by default.
 
-```jsx
-// next.config.js
-module.exports = {
-  experimental: {
-    runtime: 'nodejs',
-    serverComponents: true,
-  },
-}
-```
+For example, large dependencies that previously would impact the JavaScript bundle size on the client can instead stay entirely on the server. By sending less JavaScript to the browser, the time to interactive for the page is decreased, leading to improved [Core Web Vitals](https://vercel.com/blog/core-web-vitals).
 
-Using `runtime` also enables [Streaming SSR](/docs/advanced-features/react-18/streaming). When setting `runtime` to `'experimental-edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
+## React Server Components vs Server-Side Rendering
 
-Now, you can start using React Server Components in Next.js. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
+[Server-side Rendering](/docs/basic-features/pages.md#server-side-rendering) (SSR) dynamically builds your application into HTML on the server. This creates faster load times for users by offloading work from the user's device to the server, especially those with slower internet connections or older devices. However, developers still pay the cost to download, parse, and hydrate those components after the initial HTML loads.
 
-### Server Components Conventions
+React Server Components, combined with Next.js server-side rendering, help eliminate the tradeoff of all-or-nothing data fetching. You can progressively show updates as your data comes in.
 
-To run a component on the server, append `.server.js` to the end of the filename. For example, `./pages/home.server.js` will be treated as a Server Component.
+## Using React Server Components with Next.js
 
-For client components, append `.client.js` to the filename. For example, `./components/avatar.client.js`.
+The Next.js team at Vercel released the [Layouts RFC](https://nextjs.org/blog/layouts-rfc) a few months ago outlining the vision for the future of routing, layouts, and data fetching in the framework. These changes **aren't available yet**, but we can start learning about how they will be used.
 
-Server components can import server components and client components.
+Pages and Layouts in `app` will be rendered as React Server Components by default. This improves performance by reducing the amount of JavaScript sent to the client for components that are not interactive. Client components will be able to be defined through either a file name extension or through a string literal in the file.
 
-Client components **cannot** import server components.
-
-Components without a `server` or `client` extension will be treated as shared components and can be imported by server components and client components. For example:
-
-```jsx
-// pages/home.server.js
-
-import { Suspense } from 'react'
-
-import Profile from '../components/profile.server'
-import Content from '../components/content.client'
-
-export default function Home() {
-  return (
-    <div>
-      <h1>Welcome to React Server Components</h1>
-      <Suspense fallback={'Loading...'}>
-        <Profile />
-      </Suspense>
-      <Content />
-    </div>
-  )
-}
-```
-
-The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client-side JavaScript. However, `<Content>` will still be hydrated on the client-side, like normal React components.
-
-> Make sure you're using default imports and exports for server components (`.server.js`). The support of named exports are a work in progress!
-
-To see a full example, check out the [vercel/next-react-server-components demo](https://github.com/vercel/next-react-server-components).
-
-## Supported Next.js APIs
-
-### `next/link` and `next/image`
-
-You can use `next/link` and `next/image` like before and they will be treated as client components to keep the interaction on client side.
-
-### `next/document`
-
-If you have a custom `_document`, you have to change your `_document` to a functional component like below to use server components. If you don't have one, Next.js will use the default `_document` component for you.
-
-```jsx
-// pages/_document.js
-import { Html, Head, Main, NextScript } from 'next/document'
-
-export default function Document() {
-  return (
-    <Html>
-      <Head />
-      <body>
-        <Main />
-        <NextScript />
-      </body>
-    </Html>
-  )
-}
-```
-
-### `next/app`
-
-The usage of `_app.js` is the same as [Custom App](/docs/advanced-features/custom-app). Using custom app as server component such as `_app.server.js` is not recommended, to keep align with non server components apps for client specific things like global CSS imports.
-
-### Routing
-
-Both basic routes with path and queries and dynamic routes are supported. If you need to access the router in server components(`.server.js`), they will receive `router` instance as a prop so that you can directly access them without using the `useRouter()` hook.
-
-```jsx
-// pages/index.server.js
-
-export default function Index({ router }) {
-  // You can access routing information by `router.pathname`, etc.
-  return 'hello'
-}
-```
-
-### Unsupported Next.js APIs
-
-While RSC and SSR streaming are still in the alpha stage, not all Next.js APIs are supported. The following Next.js APIs have limited functionality within Server Components. React 18 use without SSR streaming is not affected.
-
-#### React internals
-
-Most React hooks, such as `useContext`, `useState`, `useReducer`, `useEffect` and `useLayoutEffect`, are not supported as of today since server components are executed per request and aren't stateful.
-
-#### Data Fetching & Styling
-
-Like streaming SSR, styling and data fetching within `Suspense` on the server side are not well supported. We're still working on them.
-
-Page level exported methods like `getInitialProps`, `getStaticProps` and `getStaticPaths` are not supported.
-
-#### `next/head` and I18n
-
-We are still working on support for these features.
+We will be providing more updates about Server Components usage in Next.js soon.

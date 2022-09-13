@@ -5,9 +5,12 @@ use std::sync::Arc;
 use fxhash::FxHashSet;
 use next_swc::next_ssg::next_ssg;
 use once_cell::sync::Lazy;
-use swc::{try_with_handler, Compiler};
-use swc_common::{FileName, FilePathMapping, SourceMap};
-use swc_ecmascript::transforms::pass::noop;
+
+use swc_core::{
+    base::{try_with_handler, Compiler},
+    common::{FileName, FilePathMapping, SourceMap},
+    ecma::transforms::base::pass::noop,
+};
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));

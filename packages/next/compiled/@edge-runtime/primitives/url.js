@@ -1,26 +1,10 @@
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
-var __defProps = Object.defineProperties;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getOwnPropSymbols = Object.getOwnPropertySymbols;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __propIsEnum = Object.prototype.propertyIsEnumerable;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __spreadValues = (a, b) => {
-  for (var prop in b || (b = {}))
-    if (__hasOwnProp.call(b, prop))
-      __defNormalProp(a, prop, b[prop]);
-  if (__getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(b)) {
-      if (__propIsEnum.call(b, prop))
-        __defNormalProp(a, prop, b[prop]);
-    }
-  return a;
-};
-var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
@@ -40,7 +24,10 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target, mod));
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // <define:process>
@@ -118,7 +105,11 @@ var require_lib = __commonJS({
           }
           x = integerPart(x);
           if (x < lowerBound || x > upperBound) {
-            throw makeException(TypeError, `is outside the accepted range of ${lowerBound} to ${upperBound}, inclusive`, options);
+            throw makeException(
+              TypeError,
+              `is outside the accepted range of ${lowerBound} to ${upperBound}, inclusive`,
+              options
+            );
           }
           return x;
         }
@@ -155,7 +146,11 @@ var require_lib = __commonJS({
           }
           x = integerPart(x);
           if (x < lowerBound || x > upperBound) {
-            throw makeException(TypeError, `is outside the accepted range of ${lowerBound} to ${upperBound}, inclusive`, options);
+            throw makeException(
+              TypeError,
+              `is outside the accepted range of ${lowerBound} to ${upperBound}, inclusive`,
+              options
+            );
           }
           return x;
         }
@@ -333,7 +328,10 @@ var require_lib = __commonJS({
       }
       return value;
     };
-    var typedArrayNameGetter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array).prototype, Symbol.toStringTag).get;
+    var typedArrayNameGetter = Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(Uint8Array).prototype,
+      Symbol.toStringTag
+    ).get;
     [
       Int8Array,
       Int16Array,
@@ -418,7 +416,10 @@ var require_utils = __commonJS({
     __name(define, "define");
     function newObjectInRealm(globalObject, object) {
       const ctorRegistry = initCtorRegistry(globalObject);
-      return Object.defineProperties(Object.create(ctorRegistry["%Object.prototype%"]), Object.getOwnPropertyDescriptors(object));
+      return Object.defineProperties(
+        Object.create(ctorRegistry["%Object.prototype%"]),
+        Object.getOwnPropertyDescriptors(object)
+      );
     }
     __name(newObjectInRealm, "newObjectInRealm");
     var wrapperSymbol = Symbol("wrapper");
@@ -433,9 +434,15 @@ var require_utils = __commonJS({
       }
       const ctorRegistry = /* @__PURE__ */ Object.create(null);
       ctorRegistry["%Object.prototype%"] = globalObject.Object.prototype;
-      ctorRegistry["%IteratorPrototype%"] = Object.getPrototypeOf(Object.getPrototypeOf(new globalObject.Array()[Symbol.iterator]()));
+      ctorRegistry["%IteratorPrototype%"] = Object.getPrototypeOf(
+        Object.getPrototypeOf(new globalObject.Array()[Symbol.iterator]())
+      );
       try {
-        ctorRegistry["%AsyncIteratorPrototype%"] = Object.getPrototypeOf(Object.getPrototypeOf(globalObject.eval("(async function* () {})").prototype));
+        ctorRegistry["%AsyncIteratorPrototype%"] = Object.getPrototypeOf(
+          Object.getPrototypeOf(
+            globalObject.eval("(async function* () {})").prototype
+          )
+        );
       } catch {
         ctorRegistry["%AsyncIteratorPrototype%"] = AsyncIteratorPrototype;
       }
@@ -792,10 +799,11 @@ var require_tr46 = __commonJS({
         if (error) {
           continue;
         }
-        const validation = validateLabel(label, __spreadProps(__spreadValues({}, options), {
+        const validation = validateLabel(label, {
+          ...options,
           processingOption: curProcessing,
           checkBidi: options.checkBidi && isBidi
-        }));
+        });
         if (!validation) {
           error = true;
         }
@@ -2467,13 +2475,17 @@ var require_URLSearchParams = __commonJS({
               if (utils.isObject(curArg)) {
                 if (curArg[Symbol.iterator] !== void 0) {
                   if (!utils.isObject(curArg)) {
-                    throw new globalObject.TypeError("Failed to construct 'URLSearchParams': parameter 1 sequence is not an iterable object.");
+                    throw new globalObject.TypeError(
+                      "Failed to construct 'URLSearchParams': parameter 1 sequence is not an iterable object."
+                    );
                   } else {
                     const V = [];
                     const tmp = curArg;
                     for (let nextItem of tmp) {
                       if (!utils.isObject(nextItem)) {
-                        throw new globalObject.TypeError("Failed to construct 'URLSearchParams': parameter 1 sequence's element is not an iterable object.");
+                        throw new globalObject.TypeError(
+                          "Failed to construct 'URLSearchParams': parameter 1 sequence's element is not an iterable object."
+                        );
                       } else {
                         const V2 = [];
                         const tmp2 = nextItem;
@@ -2492,7 +2504,9 @@ var require_URLSearchParams = __commonJS({
                   }
                 } else {
                   if (!utils.isObject(curArg)) {
-                    throw new globalObject.TypeError("Failed to construct 'URLSearchParams': parameter 1 record is not an object.");
+                    throw new globalObject.TypeError(
+                      "Failed to construct 'URLSearchParams': parameter 1 record is not an object."
+                    );
                   } else {
                     const result = /* @__PURE__ */ Object.create(null);
                     for (const key of Reflect.ownKeys(curArg)) {
@@ -2530,10 +2544,14 @@ var require_URLSearchParams = __commonJS({
         append(name, value) {
           const esValue = this !== null && this !== void 0 ? this : globalObject;
           if (!exports.is(esValue)) {
-            throw new globalObject.TypeError("'append' called on an object that is not a valid instance of URLSearchParams.");
+            throw new globalObject.TypeError(
+              "'append' called on an object that is not a valid instance of URLSearchParams."
+            );
           }
           if (arguments.length < 2) {
-            throw new globalObject.TypeError(`Failed to execute 'append' on 'URLSearchParams': 2 arguments required, but only ${arguments.length} present.`);
+            throw new globalObject.TypeError(
+              `Failed to execute 'append' on 'URLSearchParams': 2 arguments required, but only ${arguments.length} present.`
+            );
           }
           const args = [];
           {
@@ -2557,10 +2575,14 @@ var require_URLSearchParams = __commonJS({
         delete(name) {
           const esValue = this !== null && this !== void 0 ? this : globalObject;
           if (!exports.is(esValue)) {
-            throw new globalObject.TypeError("'delete' called on an object that is not a valid instance of URLSearchParams.");
+            throw new globalObject.TypeError(
+              "'delete' called on an object that is not a valid instance of URLSearchParams."
+            );
           }
           if (arguments.length < 1) {
-            throw new globalObject.TypeError(`Failed to execute 'delete' on 'URLSearchParams': 1 argument required, but only ${arguments.length} present.`);
+            throw new globalObject.TypeError(
+              `Failed to execute 'delete' on 'URLSearchParams': 1 argument required, but only ${arguments.length} present.`
+            );
           }
           const args = [];
           {
@@ -2579,7 +2601,9 @@ var require_URLSearchParams = __commonJS({
             throw new globalObject.TypeError("'get' called on an object that is not a valid instance of URLSearchParams.");
           }
           if (arguments.length < 1) {
-            throw new globalObject.TypeError(`Failed to execute 'get' on 'URLSearchParams': 1 argument required, but only ${arguments.length} present.`);
+            throw new globalObject.TypeError(
+              `Failed to execute 'get' on 'URLSearchParams': 1 argument required, but only ${arguments.length} present.`
+            );
           }
           const args = [];
           {
@@ -2595,10 +2619,14 @@ var require_URLSearchParams = __commonJS({
         getAll(name) {
           const esValue = this !== null && this !== void 0 ? this : globalObject;
           if (!exports.is(esValue)) {
-            throw new globalObject.TypeError("'getAll' called on an object that is not a valid instance of URLSearchParams.");
+            throw new globalObject.TypeError(
+              "'getAll' called on an object that is not a valid instance of URLSearchParams."
+            );
           }
           if (arguments.length < 1) {
-            throw new globalObject.TypeError(`Failed to execute 'getAll' on 'URLSearchParams': 1 argument required, but only ${arguments.length} present.`);
+            throw new globalObject.TypeError(
+              `Failed to execute 'getAll' on 'URLSearchParams': 1 argument required, but only ${arguments.length} present.`
+            );
           }
           const args = [];
           {
@@ -2617,7 +2645,9 @@ var require_URLSearchParams = __commonJS({
             throw new globalObject.TypeError("'has' called on an object that is not a valid instance of URLSearchParams.");
           }
           if (arguments.length < 1) {
-            throw new globalObject.TypeError(`Failed to execute 'has' on 'URLSearchParams': 1 argument required, but only ${arguments.length} present.`);
+            throw new globalObject.TypeError(
+              `Failed to execute 'has' on 'URLSearchParams': 1 argument required, but only ${arguments.length} present.`
+            );
           }
           const args = [];
           {
@@ -2636,7 +2666,9 @@ var require_URLSearchParams = __commonJS({
             throw new globalObject.TypeError("'set' called on an object that is not a valid instance of URLSearchParams.");
           }
           if (arguments.length < 2) {
-            throw new globalObject.TypeError(`Failed to execute 'set' on 'URLSearchParams': 2 arguments required, but only ${arguments.length} present.`);
+            throw new globalObject.TypeError(
+              `Failed to execute 'set' on 'URLSearchParams': 2 arguments required, but only ${arguments.length} present.`
+            );
           }
           const args = [];
           {
@@ -2667,7 +2699,9 @@ var require_URLSearchParams = __commonJS({
         toString() {
           const esValue = this !== null && this !== void 0 ? this : globalObject;
           if (!exports.is(esValue)) {
-            throw new globalObject.TypeError("'toString' called on an object that is not a valid instance of URLSearchParams.");
+            throw new globalObject.TypeError(
+              "'toString' called on an object that is not a valid instance of URLSearchParams."
+            );
           }
           return esValue[implSymbol].toString();
         }
@@ -2679,22 +2713,30 @@ var require_URLSearchParams = __commonJS({
         }
         values() {
           if (!exports.is(this)) {
-            throw new globalObject.TypeError("'values' called on an object that is not a valid instance of URLSearchParams.");
+            throw new globalObject.TypeError(
+              "'values' called on an object that is not a valid instance of URLSearchParams."
+            );
           }
           return exports.createDefaultIterator(globalObject, this, "value");
         }
         entries() {
           if (!exports.is(this)) {
-            throw new globalObject.TypeError("'entries' called on an object that is not a valid instance of URLSearchParams.");
+            throw new globalObject.TypeError(
+              "'entries' called on an object that is not a valid instance of URLSearchParams."
+            );
           }
           return exports.createDefaultIterator(globalObject, this, "key+value");
         }
         forEach(callback) {
           if (!exports.is(this)) {
-            throw new globalObject.TypeError("'forEach' called on an object that is not a valid instance of URLSearchParams.");
+            throw new globalObject.TypeError(
+              "'forEach' called on an object that is not a valid instance of URLSearchParams."
+            );
           }
           if (arguments.length < 1) {
-            throw new globalObject.TypeError("Failed to execute 'forEach' on 'iterable': 1 argument required, but only 0 present.");
+            throw new globalObject.TypeError(
+              "Failed to execute 'forEach' on 'iterable': 1 argument required, but only 0 present."
+            );
           }
           callback = Function2.convert(globalObject, callback, {
             context: "Failed to execute 'forEach' on 'iterable': The callback provided as parameter 1"
@@ -3006,7 +3048,9 @@ var require_URL = __commonJS({
       class URL3 {
         constructor(url) {
           if (arguments.length < 1) {
-            throw new globalObject.TypeError(`Failed to construct 'URL': 1 argument required, but only ${arguments.length} present.`);
+            throw new globalObject.TypeError(
+              `Failed to construct 'URL': 1 argument required, but only ${arguments.length} present.`
+            );
           }
           const args = [];
           {
@@ -3328,10 +3372,10 @@ module.exports = __toCommonJS(url_exports);
 init_define_process();
 var import_whatwg_url = __toESM(require_whatwg_url());
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.5/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.6/node_modules/urlpattern-polyfill/index.js
 init_define_process();
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.5/node_modules/urlpattern-polyfill/dist/urlpattern.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.6/node_modules/urlpattern-polyfill/dist/urlpattern.js
 init_define_process();
 var regexIdentifierStart = /[$_\p{ID_Start}]/u;
 var regexIdentifierPart = /[$_\u200C\u200D\p{ID_Continue}]/u;
@@ -4573,7 +4617,7 @@ var URLPattern = /* @__PURE__ */ __name(class {
   }
 }, "URLPattern");
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.5/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.6/node_modules/urlpattern-polyfill/index.js
 if (!globalThis.URLPattern) {
   globalThis.URLPattern = URLPattern;
 }

@@ -65,28 +65,32 @@ export default function dynamic<P = {}>(
   options?: DynamicOptions<P>
 ): React.ComponentType<P> {
   let loadableFn: LoadableFn<P> = Loadable
-  let loadableOptions: LoadableOptions<P> = {
-    // A loading component is not required, so we default it
-    loading: ({ error, isLoading, pastDelay }) => {
-      if (!pastDelay) return null
-      if (process.env.NODE_ENV === 'development') {
-        if (isLoading) {
-          return null
-        }
-        if (error) {
-          return (
-            <p>
-              {error.message}
-              <br />
-              {error.stack}
-            </p>
-          )
-        }
-      }
 
-      return null
-    },
-  }
+  let loadableOptions: LoadableOptions<P> = options?.suspense
+    ? {}
+    : // only provide a default loading component when suspense is disabled
+      {
+        // A loading component is not required, so we default it
+        loading: ({ error, isLoading, pastDelay }) => {
+          if (!pastDelay) return null
+          if (process.env.NODE_ENV === 'development') {
+            if (isLoading) {
+              return null
+            }
+            if (error) {
+              return (
+                <p>
+                  {error.message}
+                  <br />
+                  {error.stack}
+                </p>
+              )
+            }
+          }
+
+          return null
+        },
+      }
 
   // Support for direct import(), eg: dynamic(import('../hello-world'))
   // Note that this is only kept for the edge case where someone is passing in a promise as first argument
@@ -110,6 +114,32 @@ export default function dynamic<P = {}>(
     throw new Error(
       `Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
     )
+  }
+
+  if (loadableOptions.suspense) {
+    if (process.env.NODE_ENV !== 'production') {
+      /**
+       * TODO: Currently, next/dynamic will opt-in to React.lazy if { suspense: true } is used
+       * React 18 will always resolve the Suspense boundary on the server-side, effectively ignoring the ssr option
+       *
+       * In the future, when React Suspense with third-party libraries is stable, we can implement a custom version of
+       * React.lazy that can suspense on the server-side while only loading the component on the client-side
+       */
+      if (loadableOptions.ssr === false) {
+        console.warn(
+          `"ssr: false" is ignored by next/dynamic because you can not enable "suspense" while disabling "ssr" at the same time. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
+        )
+      }
+
+      if (loadableOptions.loading != null) {
+        console.warn(
+          `"loading" is ignored by next/dynamic because you have enabled "suspense". Place your loading element in your suspense boundary's "fallback" prop instead. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
+        )
+      }
+    }
+
+    delete loadableOptions.ssr
+    delete loadableOptions.loading
   }
 
   // coming from build/babel/plugins/react-loadable-plugin.js

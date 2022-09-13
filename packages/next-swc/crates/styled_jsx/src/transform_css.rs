@@ -1,21 +1,26 @@
 use easy_error::{bail, Error};
 use std::panic;
 use std::sync::Arc;
-use swc_common::errors::HANDLER;
-use swc_common::util::take::Take;
-use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
-use swc_common::{SourceMap, Spanned};
-use swc_css::ast::*;
-use swc_css::codegen::{
-    writer::basic::{BasicCssWriter, BasicCssWriterConfig},
-    CodeGenerator, CodegenConfig, Emit,
-};
-use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
-use swc_css::visit::{VisitMut, VisitMutWith};
-use swc_css_prefixer::prefixer;
-use swc_ecmascript::ast::{Expr, Tpl, TplElement};
-use swc_ecmascript::parser::StringInput;
 use tracing::{debug, trace};
+
+use swc_core::{
+    common::{
+        errors::HANDLER, source_map::Pos, util::take::Take, BytePos, SourceMap, Span, Spanned,
+        SyntaxContext, DUMMY_SP,
+    },
+    css::prefixer::prefixer,
+    css::{
+        ast::*,
+        codegen::{
+            writer::basic::{BasicCssWriter, BasicCssWriterConfig},
+            CodeGenerator, CodegenConfig, Emit,
+        },
+        parser::{parse_str, parse_tokens, parser::ParserConfig},
+        visit::{VisitMut, VisitMutWith},
+    },
+    ecma::ast::{Expr, Tpl, TplElement},
+    ecma::parser::StringInput,
+};
 
 use super::{hash_string, string_literal_expr, LocalStyle};
 
@@ -110,7 +115,7 @@ pub fn transform_css(
 /// Returns `(length, value)`
 fn read_number(s: &str) -> (usize, usize) {
     for (idx, c) in s.char_indices() {
-        if c.is_digit(10) {
+        if c.is_ascii_digit() {
             continue;
         }
 
@@ -219,6 +224,12 @@ impl Namespacer {
                                 to_tokens(v).tokens
                             }
                             PseudoClassSelectorChildren::CompoundSelector(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::ForgivingSelectorList(v) => {
+                                to_tokens(v).tokens
+                            }
+                            PseudoClassSelectorChildren::ForgivingRelativeSelectorList(v) => {
+                                to_tokens(v).tokens
+                            }
                         })
                         .collect::<Vec<_>>();
 
@@ -501,7 +512,7 @@ where
     }
 
     let span = node.span();
-    let lexer = swc_css::parser::lexer::Lexer::new(
+    let lexer = swc_core::css::parser::lexer::Lexer::new(
         StringInput::new(&s, span.lo, span.hi),
         ParserConfig {
             allow_wrong_line_comments: true,

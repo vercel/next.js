@@ -3,10 +3,12 @@ import type {
   EdgeMiddlewareMeta,
 } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
+import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { isMatch } from 'next/dist/compiled/micromatch'
 import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
@@ -15,20 +17,28 @@ import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+  FLIGHT_SERVER_CSS_MANIFEST,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../../../shared/lib/constants'
+import {
+  getPageStaticInfo,
+  MiddlewareConfig,
+} from '../../analysis/get-page-static-info'
+import { Telemetry } from '../../../telemetry/storage'
+import { traceGlobals } from '../../../trace/shared'
 
 export interface EdgeFunctionDefinition {
   env: string[]
   files: string[]
   name: string
   page: string
-  regexp: string
+  matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
 }
 
 export interface MiddlewareManifest {
-  version: 1
+  version: 2
   sortedMiddleware: string[]
   middleware: { [page: string]: EdgeFunctionDefinition }
   functions: { [page: string]: EdgeFunctionDefinition }
@@ -44,12 +54,6 @@ interface EntryMetadata {
 }
 
 const NAME = 'MiddlewarePlugin'
-const middlewareManifest: MiddlewareManifest = {
-  sortedMiddleware: [],
-  middleware: {},
-  functions: {},
-  version: 1,
-}
 
 /**
  * Checks the value of usingIndirectEval and when it is a set of modules it
@@ -57,18 +61,18 @@ const middlewareManifest: MiddlewareManifest = {
  * simply truthy it will return true.
  */
 function isUsingIndirectEvalAndUsedByExports(args: {
-  entryModule: webpack5.Module
-  moduleGraph: webpack5.ModuleGraph
+  module: webpack.Module
+  moduleGraph: webpack.ModuleGraph
   runtime: any
   usingIndirectEval: true | Set<string>
-  wp: typeof webpack5
+  wp: typeof webpack
 }): boolean {
-  const { moduleGraph, runtime, entryModule, usingIndirectEval, wp } = args
+  const { moduleGraph, runtime, module, usingIndirectEval, wp } = args
   if (typeof usingIndirectEval === 'boolean') {
     return usingIndirectEval
   }
 
-  const exportsInfo = moduleGraph.getExportsInfo(entryModule)
+  const exportsInfo = moduleGraph.getExportsInfo(module)
   for (const exportName of usingIndirectEval) {
     if (exportsInfo.getUsed(exportName, runtime) !== wp.UsageState.Unused) {
       return true
@@ -78,11 +82,19 @@ function isUsingIndirectEvalAndUsedByExports(args: {
   return false
 }
 
-function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
+function getEntryFiles(
+  entryFiles: string[],
+  meta: EntryMetadata,
+  opts: { sriEnabled: boolean }
+) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${FLIGHT_MANIFEST}.js`)
+      files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
+      if (opts.sriEnabled) {
+        files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
+      }
       files.push(
         ...entryFiles
           .filter(
@@ -113,11 +125,18 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
 }
 
 function getCreateAssets(params: {
-  compilation: webpack5.Compilation
+  compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
+  opts: { sriEnabled: boolean }
 }) {
-  const { compilation, metadataByEntry } = params
+  const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
+    const middlewareManifest: MiddlewareManifest = {
+      sortedMiddleware: [],
+      middleware: {},
+      functions: {},
+      version: 2,
+    }
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
         continue
@@ -136,14 +155,16 @@ function getCreateAssets(params: {
       const { namedRegex } = getNamedMiddlewareRegex(page, {
         catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
-      const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
+      const matchers = metadata?.edgeMiddleware?.matchers ?? [
+        { regexp: namedRegex },
+      ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
-        files: getEntryFiles(entrypoint.getFiles(), metadata),
+        files: getEntryFiles(entrypoint.getFiles(), metadata, opts),
         name: entrypoint.name,
         page: page,
-        regexp,
+        matchers,
         wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
           name,
           filePath,
@@ -180,9 +201,9 @@ function buildWebpackError({
 }: {
   message: string
   loc?: any
-  compilation: webpack5.Compilation
-  entryModule?: webpack5.Module
-  parser?: webpack5.javascript.JavascriptParser
+  compilation: webpack.Compilation
+  entryModule?: webpack.Module
+  parser?: webpack.javascript.JavascriptParser
 }) {
   const error = new compilation.compiler.webpack.WebpackError(message)
   error.name = NAME
@@ -194,11 +215,11 @@ function buildWebpackError({
   return error
 }
 
-function isInMiddlewareLayer(parser: webpack5.javascript.JavascriptParser) {
+function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
   return parser.state.module?.layer === 'middleware'
 }
 
-function isInMiddlewareFile(parser: webpack5.javascript.JavascriptParser) {
+function isInMiddlewareFile(parser: webpack.javascript.JavascriptParser) {
   return (
     parser.state.current?.layer === 'middleware' &&
     /middleware\.\w+$/.test(parser.state.current?.rawRequest)
@@ -228,6 +249,15 @@ function isNodeJsModule(moduleName: string) {
   return require('module').builtinModules.includes(moduleName)
 }
 
+function isDynamicCodeEvaluationAllowed(
+  fileName: string,
+  edgeFunctionConfig?: Partial<MiddlewareConfig>,
+  rootDir?: string
+) {
+  const name = fileName.replace(rootDir ?? '', '')
+  return isMatch(name, edgeFunctionConfig?.unstable_allowDynamicGlobs ?? [])
+}
+
 function buildUnsupportedApiError({
   apiName,
   loc,
@@ -235,8 +265,8 @@ function buildUnsupportedApiError({
 }: {
   apiName: string
   loc: any
-  compilation: webpack5.Compilation
-  parser: webpack5.javascript.JavascriptParser
+  compilation: webpack.Compilation
+  parser: webpack.javascript.JavascriptParser
 }) {
   return buildWebpackError({
     message: `A Node.js API is used (${apiName} at line: ${loc.start.line}) which is not supported in the Edge Runtime.
@@ -247,8 +277,8 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`,
 }
 
 function registerUnsupportedApiHooks(
-  parser: webpack5.javascript.JavascriptParser,
-  compilation: webpack5.Compilation
+  parser: webpack.javascript.JavascriptParser,
+  compilation: webpack.Compilation
 ) {
   for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
     const warnForUnsupportedApi = (node: any) => {
@@ -300,10 +330,10 @@ function registerUnsupportedApiHooks(
 
 function getCodeAnalyzer(params: {
   dev: boolean
-  compiler: webpack5.Compiler
-  compilation: webpack5.Compilation
+  compiler: webpack.Compiler
+  compilation: webpack.Compilation
 }) {
-  return (parser: webpack5.javascript.JavascriptParser) => {
+  return (parser: webpack.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
@@ -350,18 +380,16 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      if (dev) {
-        const { ConstDependency } = wp.dependencies
-        const dep1 = new ConstDependency(
-          '__next_eval__(function() { return ',
-          expr.range[0]
-        )
-        dep1.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep1)
-        const dep2 = new ConstDependency('})', expr.range[1])
-        dep2.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep2)
-      }
+      const { ConstDependency } = wp.dependencies
+      const dep1 = new ConstDependency(
+        '__next_eval__(function() { return ',
+        expr.range[0]
+      )
+      dep1.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep1)
+      const dep2 = new ConstDependency('})', expr.range[1])
+      dep2.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep2)
 
       handleExpression()
       return true
@@ -377,18 +405,16 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      if (dev) {
-        const { ConstDependency } = wp.dependencies
-        const dep1 = new ConstDependency(
-          '__next_webassembly_compile__(function() { return ',
-          expr.range[0]
-        )
-        dep1.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep1)
-        const dep2 = new ConstDependency('})', expr.range[1])
-        dep2.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep2)
-      }
+      const { ConstDependency } = wp.dependencies
+      const dep1 = new ConstDependency(
+        '__next_webassembly_compile__(function() { return ',
+        expr.range[0]
+      )
+      dep1.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep1)
+      const dep2 = new ConstDependency('})', expr.range[1])
+      dep2.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep2)
 
       handleExpression()
     }
@@ -407,18 +433,16 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      if (dev) {
-        const { ConstDependency } = wp.dependencies
-        const dep1 = new ConstDependency(
-          '__next_webassembly_instantiate__(function() { return ',
-          expr.range[0]
-        )
-        dep1.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep1)
-        const dep2 = new ConstDependency('})', expr.range[1])
-        dep2.loc = expr.loc
-        parser.state.module.addPresentationalDependency(dep2)
-      }
+      const { ConstDependency } = wp.dependencies
+      const dep1 = new ConstDependency(
+        '__next_webassembly_instantiate__(function() { return ',
+        expr.range[0]
+      )
+      dep1.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep1)
+      const dep2 = new ConstDependency('})', expr.range[1])
+      dep2.loc = expr.loc
+      parser.state.module.addPresentationalDependency(dep2)
     }
 
     /**
@@ -572,34 +596,73 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
   }
 }
 
+async function findEntryEdgeFunctionConfig(
+  entryDependency: any,
+  resolver: webpack.Resolver
+) {
+  if (entryDependency?.request?.startsWith('next-')) {
+    const absolutePagePath =
+      new URL(entryDependency.request, 'http://example.org').searchParams.get(
+        'absolutePagePath'
+      ) ?? ''
+    const pageFilePath = await new Promise((resolve) =>
+      resolver.resolve({}, '/', absolutePagePath, {}, (err, path) =>
+        resolve(err || path)
+      )
+    )
+    if (typeof pageFilePath === 'string') {
+      return {
+        file: pageFilePath,
+        config: (
+          await getPageStaticInfo({
+            nextConfig: {},
+            pageFilePath,
+            isDev: false,
+          })
+        ).middleware,
+      }
+    }
+  }
+}
+
 function getExtractMetadata(params: {
-  compilation: webpack5.Compilation
-  compiler: webpack5.Compiler
+  compilation: webpack.Compilation
+  compiler: webpack.Compiler
   dev: boolean
   metadataByEntry: Map<string, EntryMetadata>
 }) {
   const { dev, compilation, metadataByEntry, compiler } = params
   const { webpack: wp } = compiler
-  return () => {
+  return async () => {
     metadataByEntry.clear()
+    const resolver = compilation.resolverFactory.get('normal')
+    const telemetry: Telemetry = traceGlobals.get('telemetry')
 
-    for (const [entryName, entryData] of compilation.entries) {
-      if (entryData.options.runtime !== EDGE_RUNTIME_WEBPACK) {
+    for (const [entryName, entry] of compilation.entries) {
+      if (entry.options.runtime !== EDGE_RUNTIME_WEBPACK) {
         // Only process edge runtime entries
         continue
       }
+      const entryDependency = entry.dependencies?.[0]
+      const edgeFunctionConfig = await findEntryEdgeFunctionConfig(
+        entryDependency,
+        resolver
+      )
+      const { rootDir } = getModuleBuildInfo(
+        compilation.moduleGraph.getResolvedModule(entryDependency)
+      )
 
       const { moduleGraph } = compilation
-      const entryModules = new Set<webpack5.Module>()
+      const modules = new Set<webpack.NormalModule>()
       const addEntriesFromDependency = (dependency: any) => {
         const module = moduleGraph.getModule(dependency)
         if (module) {
-          entryModules.add(module)
+          modules.add(module as webpack.NormalModule)
         }
       }
 
-      entryData.dependencies.forEach(addEntriesFromDependency)
-      entryData.includeDependencies.forEach(addEntriesFromDependency)
+      entry.dependencies.forEach(addEntriesFromDependency)
+      entry.includeDependencies.forEach(addEntriesFromDependency)
 
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
@@ -607,8 +670,8 @@ function getExtractMetadata(params: {
         assetBindings: new Map(),
       }
 
-      for (const entryModule of entryModules) {
-        const buildInfo = getModuleBuildInfo(entryModule)
+      for (const module of modules) {
+        const buildInfo = getModuleBuildInfo(module)
 
         /**
          * When building for production checks if the module is using `eval`
@@ -619,31 +682,52 @@ function getExtractMetadata(params: {
           !dev &&
           buildInfo.usingIndirectEval &&
           isUsingIndirectEvalAndUsedByExports({
-            entryModule: entryModule,
-            moduleGraph: moduleGraph,
+            module,
+            moduleGraph,
             runtime: wp.util.runtime.getEntryRuntime(compilation, entryName),
             usingIndirectEval: buildInfo.usingIndirectEval,
             wp,
           })
         ) {
-          const id = entryModule.identifier()
+          const id = module.identifier()
           if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(id)) {
             continue
           }
 
-          compilation.errors.push(
-            buildWebpackError({
-              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
-                typeof buildInfo.usingIndirectEval !== 'boolean'
-                  ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
-                      ', '
-                    )}`
-                  : ''
-              }`,
-              entryModule,
-              compilation,
+          if (edgeFunctionConfig?.config?.unstable_allowDynamicGlobs) {
+            telemetry.record({
+              eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
+              payload: {
+                ...edgeFunctionConfig,
+                file: edgeFunctionConfig.file.replace(rootDir ?? '', ''),
+                fileWithDynamicCode: module.userRequest.replace(
+                  rootDir ?? '',
+                  ''
+                ),
+              },
             })
-          )
+          }
+          if (
+            !isDynamicCodeEvaluationAllowed(
+              module.userRequest,
+              edgeFunctionConfig?.config,
+              rootDir
+            )
+          ) {
+            compilation.errors.push(
+              buildWebpackError({
+                message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
+                  typeof buildInfo.usingIndirectEval !== 'boolean'
+                    ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
+                        ', '
+                      )}`
+                    : ''
+                }\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`,
+                entryModule: module,
+                compilation,
+              })
+            )
+          }
         }
 
         /**
@@ -690,9 +774,9 @@ function getExtractMetadata(params: {
          * Append to the list of modules to process outgoingConnections from
          * the module that is being processed.
          */
-        for (const conn of moduleGraph.getOutgoingConnections(entryModule)) {
+        for (const conn of moduleGraph.getOutgoingConnections(module)) {
           if (conn.module) {
-            entryModules.add(conn.module)
+            modules.add(conn.module as webpack.NormalModule)
           }
         }
       }
@@ -701,15 +785,16 @@ function getExtractMetadata(params: {
     }
   }
 }
-
 export default class MiddlewarePlugin {
-  dev: boolean
+  private readonly dev: boolean
+  private readonly sriEnabled: boolean
 
-  constructor({ dev }: { dev: boolean }) {
+  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
     this.dev = dev
+    this.sriEnabled = sriEnabled
   }
 
-  apply(compiler: webpack5.Compiler) {
+  public apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
       /**
@@ -728,7 +813,7 @@ export default class MiddlewarePlugin {
        * Extract all metadata for the entry points in a Map object.
        */
       const metadataByEntry = new Map<string, EntryMetadata>()
-      compilation.hooks.afterOptimizeModules.tap(
+      compilation.hooks.finishModules.tapPromise(
         NAME,
         getExtractMetadata({
           compilation,
@@ -746,7 +831,11 @@ export default class MiddlewarePlugin {
           name: 'NextJsMiddlewareManifest',
           stage: (webpack as any).Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        getCreateAssets({ compilation, metadataByEntry })
+        getCreateAssets({
+          compilation,
+          metadataByEntry,
+          opts: { sriEnabled: this.sriEnabled },
+        })
       )
     })
   }

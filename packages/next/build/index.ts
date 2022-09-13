@@ -1,4 +1,4 @@
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
@@ -187,14 +187,14 @@ function verifyTypeScriptSetup(
   typeCheckWorker.getStderr().pipe(process.stderr)
 
   return typeCheckWorker
-    .verifyTypeScriptSetup(
+    .verifyTypeScriptSetup({
       dir,
       intentDirs,
       typeCheckPreflight,
       tsconfigPath,
       disableStaticImages,
-      cacheDir
-    )
+      cacheDir,
+    })
     .then((result) => {
       typeCheckWorker.end()
       return result
@@ -314,7 +314,9 @@ export default async function build(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
-          isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+          isSrcDir:
+            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
+            (!!appDir && path.relative(dir, appDir).startsWith('src')),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
         })
@@ -368,47 +370,58 @@ export default async function build(
 
       const typeCheckStart = process.hrtime()
 
-      const [[verifyResult, typeCheckEnd]] = await Promise.all([
-        nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
-          verifyTypeScriptSetup(
-            dir,
-            [pagesDir, appDir].filter(Boolean) as string[],
-            !ignoreTypeScriptErrors,
-            config.typescript.tsconfigPath,
-            config.images.disableStaticImages,
-            cacheDir,
-            config.experimental.cpus,
-            config.experimental.workerThreads
-          ).then((resolved) => {
-            const checkEnd = process.hrtime(typeCheckStart)
-            return [resolved, checkEnd] as const
-          })
-        ),
-        shouldLint &&
-          nextBuildSpan.traceChild('verify-and-lint').traceAsyncFn(async () => {
-            await verifyAndLint(
+      try {
+        const [[verifyResult, typeCheckEnd]] = await Promise.all([
+          nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
+            verifyTypeScriptSetup(
               dir,
-              eslintCacheDir,
-              config.eslint?.dirs,
+              [pagesDir, appDir].filter(Boolean) as string[],
+              !ignoreTypeScriptErrors,
+              config.typescript.tsconfigPath,
+              config.images.disableStaticImages,
+              cacheDir,
               config.experimental.cpus,
-              config.experimental.workerThreads,
-              telemetry
-            )
-          }),
-      ])
+              config.experimental.workerThreads
+            ).then((resolved) => {
+              const checkEnd = process.hrtime(typeCheckStart)
+              return [resolved, checkEnd] as const
+            })
+          ),
+          shouldLint &&
+            nextBuildSpan
+              .traceChild('verify-and-lint')
+              .traceAsyncFn(async () => {
+                await verifyAndLint(
+                  dir,
+                  eslintCacheDir,
+                  config.eslint?.dirs,
+                  config.experimental.cpus,
+                  config.experimental.workerThreads,
+                  telemetry,
+                  !!config.experimental.appDir
+                )
+              }),
+        ])
+        typeCheckingAndLintingSpinner?.stopAndPersist()
 
-      typeCheckingAndLintingSpinner?.stopAndPersist()
-
-      if (!ignoreTypeScriptErrors && verifyResult) {
-        telemetry.record(
-          eventTypeCheckCompleted({
-            durationInSeconds: typeCheckEnd[0],
-            typescriptVersion: verifyResult.version,
-            inputFilesCount: verifyResult.result?.inputFilesCount,
-            totalFilesCount: verifyResult.result?.totalFilesCount,
-            incremental: verifyResult.result?.incremental,
-          })
-        )
+        if (!ignoreTypeScriptErrors && verifyResult) {
+          telemetry.record(
+            eventTypeCheckCompleted({
+              durationInSeconds: typeCheckEnd[0],
+              typescriptVersion: verifyResult.version,
+              inputFilesCount: verifyResult.result?.inputFilesCount,
+              totalFilesCount: verifyResult.result?.totalFilesCount,
+              incremental: verifyResult.result?.incremental,
+            })
+          )
+        }
+      } catch (err) {
+        // prevent showing jest-worker internal error as it
+        // isn't helpful for users and clutters output
+        if (isError(err) && err.message === 'Call retries were exceeded') {
+          process.exit(1)
+        }
+        throw err
       }
 
       const buildLintEvent: EventBuildFeatureUsage = {
@@ -426,14 +439,16 @@ export default async function build(
 
       const isLikeServerless = isTargetLikeServerless(target)
 
-      const pagesPaths = await nextBuildSpan
-        .traceChild('collect-pages')
-        .traceAsyncFn(() =>
-          recursiveReadDir(
-            pagesDir,
-            new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
-          )
-        )
+      const pagesPaths = pagesDir
+        ? await nextBuildSpan
+            .traceChild('collect-pages')
+            .traceAsyncFn(() =>
+              recursiveReadDir(
+                pagesDir,
+                new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+              )
+            )
+        : []
 
       let appPaths: string[] | undefined
 
@@ -452,9 +467,11 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
-      const rootPaths = (
-        await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
-      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+      const rootPaths = pagesDir
+        ? (
+            await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
+          ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+        : []
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -477,6 +494,7 @@ export default async function build(
             pageExtensions: config.pageExtensions,
             pagesType: 'pages',
             pagePaths: pagesPaths,
+            pagesDir,
           })
         )
 
@@ -492,6 +510,7 @@ export default async function build(
               isDev: false,
               pagesType: 'app',
               pageExtensions: config.pageExtensions,
+              pagesDir: pagesDir,
             })
           )
       }
@@ -504,6 +523,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           pagePaths: rootPaths,
           pagesType: 'root',
+          pagesDir: pagesDir,
         })
       }
 
@@ -530,7 +550,9 @@ export default async function build(
       const pageKeys = {
         pages: Object.keys(mappedPages),
         app: mappedAppPages
-          ? Object.keys(mappedAppPages).map((key) => normalizeAppPath(key))
+          ? Object.keys(mappedAppPages).map(
+              (key) => normalizeAppPath(key) || '/'
+            )
           : undefined,
       }
 
@@ -800,6 +822,10 @@ export default async function build(
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                   path.join(
                     SERVER_DIRECTORY,
+                    FLIGHT_SERVER_CSS_MANIFEST + '.js'
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
                     FLIGHT_SERVER_CSS_MANIFEST + '.json'
                   ),
                 ]
@@ -835,7 +861,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
-          middlewareRegex: entrypoints.middlewareRegex,
+          middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
         const configs = await runWebpackSpan
@@ -1148,16 +1174,17 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            staticWorkers.isPageStatic(
-              '/_error',
+            staticWorkers.isPageStatic({
+              page: '/_error',
               distDir,
-              isLikeServerless,
+              serverless: isLikeServerless,
               configFileName,
               runtimeEnvConfig,
-              config.httpAgentOptions,
-              config.i18n?.locales,
-              config.i18n?.defaultLocale
-            )
+              httpAgentOptions: config.httpAgentOptions,
+              locales: config.i18n?.locales,
+              defaultLocale: config.i18n?.defaultLocale,
+              pageRuntime: config.experimental.runtime,
+            })
         )
 
         // we don't output _app in serverless mode so use _app export
@@ -1241,7 +1268,7 @@ export default async function build(
                     : appPaths?.find((p) => p.startsWith(actualPage + '/page.'))
 
                 const pageRuntime =
-                  pageType === 'pages' && pagePath
+                  pagesDir && pageType === 'pages' && pagePath
                     ? (
                         await getPageStaticInfo({
                           pageFilePath: join(pagesDir, pagePath),
@@ -1260,28 +1287,52 @@ export default async function build(
                   // Only calculate page static information if the page is not an
                   // app page.
                   pageType !== 'app' &&
-                  !isReservedPage(page) &&
-                  // We currently don't support static optimization in the Edge runtime.
-                  pageRuntime !== SERVER_RUNTIME.edge
+                  !isReservedPage(page)
                 ) {
                   try {
+                    let edgeInfo: any
+
+                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      const manifest = require(join(
+                        distDir,
+                        serverDir,
+                        MIDDLEWARE_MANIFEST
+                      ))
+
+                      edgeInfo = manifest.functions[page]
+                    }
+
                     let isPageStaticSpan =
                       checkPageSpan.traceChild('is-page-static')
                     let workerResult = await isPageStaticSpan.traceAsyncFn(
                       () => {
-                        return staticWorkers.isPageStatic(
+                        return staticWorkers.isPageStatic({
                           page,
                           distDir,
-                          isLikeServerless,
+                          serverless: isLikeServerless,
                           configFileName,
                           runtimeEnvConfig,
-                          config.httpAgentOptions,
-                          config.i18n?.locales,
-                          config.i18n?.defaultLocale,
-                          isPageStaticSpan.id
-                        )
+                          httpAgentOptions: config.httpAgentOptions,
+                          locales: config.i18n?.locales,
+                          defaultLocale: config.i18n?.defaultLocale,
+                          parentId: isPageStaticSpan.id,
+                          pageRuntime,
+                          edgeInfo,
+                        })
                       }
                     )
+
+                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (workerResult.hasStaticProps) {
+                        console.warn(
+                          `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
+                        )
+                      }
+                      // TODO: add handling for statically rendering edge
+                      // pages and allow edge with Prerender outputs
+                      workerResult.isStatic = false
+                      workerResult.hasStaticProps = false
+                    }
 
                     if (config.outputFileTracing) {
                       pageTraceIncludes.set(
@@ -1874,6 +1925,7 @@ export default async function build(
                   await staticWorkers.end()
                 }
               : undefined,
+            appPaths,
           }
           const exportConfig: any = {
             ...config,
@@ -2366,7 +2418,7 @@ export default async function build(
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
       ;(images as any).remotePatterns = (
-        config?.experimental?.images?.remotePatterns || []
+        config?.images?.remotePatterns || []
       ).map((p: RemotePattern) => ({
         // Should be the same as matchRemotePattern()
         protocol: p.protocol,
