@@ -35,11 +35,7 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import {
-  difference,
-  withoutRSCExtensions,
-  isMiddlewareFilename,
-} from '../../build/utils'
+import { difference, isMiddlewareFilename } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
@@ -403,9 +399,7 @@ export default class HotReloader {
   private async getWebpackConfig(span: Span) {
     const webpackConfigSpan = span.traceChild('get-webpack-config')
 
-    const rawPageExtensions = this.hasServerComponents
-      ? withoutRSCExtensions(this.config.pageExtensions)
-      : this.config.pageExtensions
+    const pageExtensions = this.config.pageExtensions
 
     return webpackConfigSpan.traceAsyncFn(async () => {
       const pagePaths = !this.pagesDir
@@ -414,11 +408,11 @@ export default class HotReloader {
             .traceChild('get-page-paths')
             .traceAsyncFn(() =>
               Promise.all([
-                findPageFile(this.pagesDir!, '/_app', rawPageExtensions, false),
+                findPageFile(this.pagesDir!, '/_app', pageExtensions, false),
                 findPageFile(
                   this.pagesDir!,
                   '/_document',
-                  rawPageExtensions,
+                  pageExtensions,
                   false
                 ),
               ])

@@ -56,7 +56,6 @@ import type {
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import type { MiddlewareMatcher } from './analysis/get-page-static-info'
-import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
@@ -687,9 +686,7 @@ export default async function getBaseWebpackConfig(
     babel: getBabelOrSwcLoader(),
   }
 
-  const rawPageExtensions = hasServerComponents
-    ? withoutRSCExtensions(config.pageExtensions)
-    : config.pageExtensions
+  const pageExtensions = config.pageExtensions
 
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,
@@ -797,7 +794,7 @@ export default async function getBaseWebpackConfig(
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
-        ? rawPageExtensions.reduce((prev, ext) => {
+        ? pageExtensions.reduce((prev, ext) => {
             prev.push(path.join(pagesDir, `_app.${ext}`))
             return prev
           }, [] as string[])
@@ -806,7 +803,7 @@ export default async function getBaseWebpackConfig(
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
-        ? rawPageExtensions.reduce((prev, ext) => {
+        ? pageExtensions.reduce((prev, ext) => {
             prev.push(path.join(pagesDir, `_error.${ext}`))
             return prev
           }, [] as string[])
@@ -815,7 +812,7 @@ export default async function getBaseWebpackConfig(
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
-        ? rawPageExtensions.reduce((prev, ext) => {
+        ? pageExtensions.reduce((prev, ext) => {
             prev.push(path.join(pagesDir, `_document.${ext}`))
             return prev
           }, [] as string[])
@@ -1491,7 +1488,7 @@ export default async function getBaseWebpackConfig(
                 },
                 // Match next dist files for internal client/server components
                 {
-                  test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+                  test: /\.client\.(tsx|ts|js|cjs|mjs|jsx)$/,
                   include: [/next[\\/]dist[\\/]/],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {
@@ -1982,7 +1979,7 @@ export default async function getBaseWebpackConfig(
 
   const configVars = JSON.stringify({
     crossOrigin: config.crossOrigin,
-    pageExtensions: rawPageExtensions,
+    pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
     buildActivity: config.devIndicators.buildActivity,
     buildActivityPosition: config.devIndicators.buildActivityPosition,

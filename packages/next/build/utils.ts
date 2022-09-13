@@ -1327,18 +1327,6 @@ export function detectConflictingPaths(
   }
 }
 
-// TODO-APP: drop withoutRSCExtensions to use original page extensions
-/**
- * With RSC we automatically add .server and .client to page extensions. This
- * function allows to remove them for cases where we just need to strip out
- * the actual extension keeping the .server and .client.
- */
-export function withoutRSCExtensions(pageExtensions: string[]): string[] {
-  return pageExtensions.filter(
-    (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
-  )
-}
-
 export async function copyTracedFiles(
   dir: string,
   distDir: string,

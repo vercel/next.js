@@ -1276,8 +1276,7 @@ export default async function build(
                 const pageRuntime = staticInfo.runtime
                 isServerComponent =
                   pageType === 'app' &&
-                  staticInfo.rsc === 'server' &&
-                  !staticInfo.rsc
+                  (staticInfo.rsc === 'server' || !staticInfo.rsc)
 
                 if (
                   // Only calculate page static information if the page is not an
