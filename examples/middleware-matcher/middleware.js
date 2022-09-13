@@ -12,7 +12,7 @@ export default function middleware(req) {
 
 export const config = {
   matcher: [
-    '/public/disclaimer', // match a single, specific page
+    '/disclaimer', // match a single, specific page
     '/((?!public|static).*)' // match all paths not starting with 'public' or 'static'
   ],
 }
