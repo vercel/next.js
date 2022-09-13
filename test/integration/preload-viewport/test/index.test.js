@@ -110,6 +110,38 @@ describe('Prefetching Links in viewport', () => {
     }
   })
 
+  it('should prefetch with non-bot UA', async () => {
+    let browser
+    try {
+      browser = await webdriver(
+        appPort,
+        `/bot-user-agent?useragent=${encodeURIComponent(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36'
+        )}`
+      )
+      const links = await browser.elementsByCss('link[rel=prefetch]')
+      expect(links).toHaveLength(1)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should not prefetch with bot UA', async () => {
+    let browser
+    try {
+      browser = await webdriver(
+        appPort,
+        `/bot-user-agent?useragent=${encodeURIComponent(
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        )}`
+      )
+      const links = await browser.elementsByCss('link[rel=prefetch]')
+      expect(links).toHaveLength(0)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('should prefetch rewritten href with link in viewport onload', async () => {
     let browser
     try {

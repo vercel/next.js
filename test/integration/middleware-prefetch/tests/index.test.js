@@ -71,16 +71,12 @@ describe('Middleware Production Prefetch', () => {
       const mapped = hrefs.map((href) =>
         new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
       )
-      assert.deepEqual(mapped, [
-        '/index.json',
-        '/made-up.json',
-        '/ssg-page-2.json',
-      ])
+      assert.deepEqual(mapped, ['/index.json'])
       return 'yes'
     }, 'yes')
   })
 
-  it(`doesn't prefetch when the destination will be rewritten`, async () => {
+  it(`prefetches provided path even if it will be rewritten`, async () => {
     const browser = await webdriver(context.appPort, `/`)
     await browser.elementByCss('#ssg-page-2').moveTo()
     await check(async () => {
@@ -88,7 +84,7 @@ describe('Middleware Production Prefetch', () => {
       const attrs = await Promise.all(
         scripts.map((script) => script.getAttribute('src'))
       )
-      return attrs.find((src) => src.includes('/ssg-page-2')) ? 'nope' : 'yes'
+      return attrs.find((src) => src.includes('/ssg-page-2')) ? 'yes' : 'nope'
     }, 'yes')
   })
 })

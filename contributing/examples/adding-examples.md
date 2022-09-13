@@ -1,6 +1,6 @@
-# Adding Examples
+## Adding examples
 
-When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high quality examples:
+When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high-quality examples:
 
 - TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred)
 - Examples should not add custom ESLint configuration (we have specific templates for ESLint)
@@ -14,7 +14,7 @@ When you add an example to the [examples](examples) directory, please follow the
 - Example directories should not be prefixed with `with-`
 - Make sure linting passes (you can run `pnpm lint-fix`)
 
-Also don’t forget to add a `README.md` file with the following format:
+Also, don’t forget to add a `README.md` file with the following format:
 
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.

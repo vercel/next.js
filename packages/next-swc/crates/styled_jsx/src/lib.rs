@@ -3,16 +3,17 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::Arc;
-use swc_common::errors::HANDLER;
-use swc_common::{collections::AHashSet, FileName, SourceMap, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::minifier::{
-    eval::{EvalResult, Evaluator},
-    marks::Marks,
+
+use swc_core::{
+    common::{collections::AHashSet, errors::HANDLER, FileName, SourceMap, Span, DUMMY_SP},
+    ecma::ast::*,
+    ecma::minifier::{
+        eval::{EvalResult, Evaluator},
+        marks::Marks,
+    },
+    ecma::utils::{collect_decls, drop_span, prepend_stmt, private_ident},
+    ecma::visit::{Fold, FoldWith},
 };
-use swc_ecmascript::utils::{collect_decls, prepend_stmt};
-use swc_ecmascript::utils::{drop_span, private_ident};
-use swc_ecmascript::visit::{Fold, FoldWith};
 
 //use external::external_styles;
 use transform_css::transform_css;
@@ -173,7 +174,7 @@ impl Fold for StyledJSXTransformer {
         if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
             if sym != "style"
                 && sym != self.style_import_name.as_ref().unwrap()
-                && (!is_capitalized(&*sym)
+                && (!is_capitalized(&**sym)
                     || self
                         .nearest_scope_bindings
                         .contains(&(sym.clone(), span.ctxt)))
@@ -535,13 +536,13 @@ impl StyledJSXTransformer {
             }
         }
 
-        return JSXStyle::Local(LocalStyle {
+        JSXStyle::Local(LocalStyle {
             hash: format!("{:x}", hasher.finish()),
             css,
             css_span,
             is_dynamic,
             expressions,
-        });
+        })
     }
 
     fn replace_jsx_style(&mut self, el: &JSXElement) -> Result<JSXElement, Error> {

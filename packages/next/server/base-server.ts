@@ -5,6 +5,7 @@ import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
@@ -47,7 +48,8 @@ import Router from './router'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage, isBot } from './utils'
+import { isBlockedPage } from './utils'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -68,6 +70,7 @@ import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -78,6 +81,12 @@ export interface RoutingItem {
   page: string
   match: RouteMatch
   re?: RegExp
+}
+
+export interface MiddlewareRoutingItem {
+  page: string
+  match: MiddlewareRouteMatch
+  matchers?: MiddlewareMatcher[]
 }
 
 export interface Options {
@@ -208,6 +217,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     crossOrigin?: string
     supportsDynamicHTML?: boolean
     serverComponentManifest?: any
+    serverCSSManifest?: any
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
@@ -216,7 +226,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private responseCache: ResponseCacheBase
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
-  protected appPathRoutes?: Record<string, string>
+  protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
   protected serverCSSManifest?: any
@@ -230,12 +240,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getBuildId(): string
 
   protected abstract getFilesystemPaths(): Set<string>
-  protected abstract findPageComponents(
-    pathname: string,
-    query?: NextParsedUrlQuery,
-    params?: Params,
-    isAppDir?: boolean
-  ): Promise<FindComponentsResult | null>
+  protected abstract findPageComponents(params: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params
+    isAppPath: boolean
+    appPaths?: string[] | null
+    sriEnabled?: boolean
+  }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
@@ -749,11 +761,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       .filter((item): item is RoutingItem => Boolean(item))
   }
 
-  protected getAppPathRoutes(): Record<string, string> {
-    const appPathRoutes: Record<string, string> = {}
+  protected getAppPathRoutes(): Record<string, string[]> {
+    const appPathRoutes: Record<string, string[]> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      appPathRoutes[normalizeAppPath(entry) || '/'] = entry
+      const normalizedPath = normalizeAppPath(entry) || '/'
+      if (!appPathRoutes[normalizedPath]) {
+        appPathRoutes[normalizedPath] = []
+      }
+      appPathRoutes[normalizedPath].push(entry)
     })
     return appPathRoutes
   }
@@ -945,7 +961,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Toggle whether or not this is a Data request
     const isDataReq =
-      !!query.__nextDataReq && (isSSG || hasServerProps || isServerComponent)
+      !!(
+        query.__nextDataReq ||
+        (req.headers['x-nextjs-data'] &&
+          (this.serverOptions as any).webServerConfig)
+      ) &&
+      (isSSG || hasServerProps || isServerComponent)
 
     delete query.__nextDataReq
 
@@ -1493,38 +1514,42 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return path
   }
 
+  // map the route to the actual bundle name
+  protected getOriginalAppPaths(route: string) {
+    if (this.nextConfig.experimental.appDir) {
+      const originalAppPath = this.appPathRoutes?.[route]
+
+      if (!originalAppPath) {
+        return null
+      }
+
+      return originalAppPath
+    }
+    return null
+  }
+
   protected async renderPageComponent(
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    // map the route to the actual bundle name
-    const getOriginalAppPath = (appPath: string) => {
-      if (this.nextConfig.experimental.appDir) {
-        const originalAppPath = this.appPathRoutes?.[appPath]
-
-        if (!originalAppPath) {
-          return null
-        }
-
-        return originalAppPath
-      }
-      return null
-    }
-
     const { query, pathname } = ctx
-    const appPath = getOriginalAppPath(pathname)
+
+    const appPaths = this.getOriginalAppPaths(pathname)
 
     let page = pathname
-    if (typeof appPath === 'string') {
-      page = appPath
+    if (Array.isArray(appPaths)) {
+      // When it's an array, we need to pass all parallel routes to the loader.
+      page = appPaths[0]
     }
 
-    const result = await this.findPageComponents(
-      page,
+    const result = await this.findPageComponents({
+      pathname: page,
       query,
-      ctx.renderOpts.params,
-      typeof appPath === 'string'
-    )
+      params: ctx.renderOpts.params || {},
+      isAppPath: Array.isArray(appPaths),
+      appPaths,
+      sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
+    })
     if (result) {
       try {
         return await this.renderToResponseWithComponents(ctx, result)
@@ -1576,6 +1601,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (result !== false) return result
         }
       }
+
+      // currently edge functions aren't receiving the x-matched-path
+      // header so we need to fallback to matching the current page
+      // when we weren't able to match via dynamic route to handle
+      // the rewrite case
+      // @ts-expect-error extended in child class web-server
+      if (this.serverOptions.webServerConfig) {
+        // @ts-expect-error extended in child class web-server
+        ctx.pathname = this.serverOptions.webServerConfig.page
+        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
+        if (result !== false) return result
+      }
     } catch (error) {
       const err = getProperError(error)
 
@@ -1607,11 +1644,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       res.statusCode = 500
+
+      // if pages/500 is present we still need to trigger
+      // /_error `getInitialProps` to allow reporting error
+      if (await this.hasPage('/500')) {
+        ctx.query.__nextCustomErrorRender = '1'
+        await this.renderErrorToResponse(ctx, err)
+        delete ctx.query.__nextCustomErrorRender
+      }
+
       const isWrappedError = err instanceof WrappedBuildError
-      const response = await this.renderErrorToResponse(
-        ctx,
-        isWrappedError ? (err as WrappedBuildError).innerError : err
-      )
 
       if (!isWrappedError) {
         if (
@@ -1623,6 +1665,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         this.logError(getProperError(err))
       }
+      const response = await this.renderErrorToResponse(
+        ctx,
+        isWrappedError ? (err as WrappedBuildError).innerError : err
+      )
       return response
     }
 
@@ -1705,18 +1751,41 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       // use static 404 page if available and is 404 response
-      if (is404) {
-        result = await this.findPageComponents('/404', query)
+      if (is404 && (await this.hasPage('/404'))) {
+        result = await this.findPageComponents({
+          pathname: '/404',
+          query,
+          params: {},
+          isAppPath: false,
+        })
         using404Page = result !== null
       }
       let statusPage = `/${res.statusCode}`
 
-      if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
-        result = await this.findPageComponents(statusPage, query)
+      if (
+        !ctx.query.__nextCustomErrorRender &&
+        !result &&
+        STATIC_STATUS_PAGES.includes(statusPage)
+      ) {
+        // skip ensuring /500 in dev mode as it isn't used and the
+        // dev overlay is used instead
+        if (statusPage !== '/500' || !this.renderOpts.dev) {
+          result = await this.findPageComponents({
+            pathname: statusPage,
+            query,
+            params: {},
+            isAppPath: false,
+          })
+        }
       }
 
       if (!result) {
-        result = await this.findPageComponents('/_error', query)
+        result = await this.findPageComponents({
+          pathname: '/_error',
+          query,
+          params: {},
+          isAppPath: false,
+        })
         statusPage = '/_error'
       }
 

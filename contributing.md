@@ -8,18 +8,9 @@
 ## Repository
 
 - [Triaging](./contributing/repository/triaging.md)
-- [Release Channels and Publishing](./contributing/repository/release-channels-publishing.md)
 - [Linting](./contributing/repository/linting.md)
-<!-- TODO: - [Pull Request Descriptions](./contributing/repository/pull-request-descriptions.md) -->
-
-## Core
-
-- [Developing](./contributing/core/developing.md)
-- [Building](./contributing/core/building.md)
-- [Testing](./contributing/core/testing.md)
-- [Adding Error Links](./contributing/core/adding-error-links.md)
-- [Developing Using Local App](./contributing/core/developing-using-local-app.md)
-<!-- - [Using the VS Code Debugger](./contributing/core/vscode-debugger.md) -->
+- [Release Channels and Publishing](./contributing/repository/release-channels-publishing.md)
+- [Pull Request Descriptions](./contributing/repository/pull-request-descriptions.md)
 
 ## Documentation
 
@@ -31,3 +22,16 @@
 
 - [Adding Examples](./contributing/examples/adding-examples.md)
 - [Run Example Apps](./contributing/examples/run-example-apps.md)
+
+For instructions on how to build a project with your local version of the CLI,
+see **[Developing with your local version of Next.js](#developing-with-your-local-version-of-nextjs)**
+below.
+
+## Core
+
+- [Developing](./contributing/core/developing.md)
+- [Building](./contributing/core/building.md)
+- [Testing](./contributing/core/testing.md)
+- [Adding Error Links](./contributing/core/adding-error-links.md)
+- [Developing Using Local App](./contributing/core/developing-using-local-app.md)
+<!-- - [Using the VS Code Debugger](./contributing/core/vscode-debugger.md) -->

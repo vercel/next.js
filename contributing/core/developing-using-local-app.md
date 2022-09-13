@@ -2,18 +2,32 @@
 
 There are two options to develop with your local version of the codebase:
 
-### Set as a local dependency in package.json
+## Develop inside the monorepo
+
+1. Move your app inside of the Next.js monorepo.
+
+2. Run with `pnpm next-with-deps ./app-path-in-monorepo`
+
+This will use the version of `next` built inside of the Next.js monorepo and the
+main `pnpm dev` monorepo command can be running to make changes to the local
+Next.js version at the same time (some changes might require re-running `pnpm next-with-deps` to take effect).
+
+## Set as a local dependency in package.json
 
 1. In your app's `package.json`, replace:
 
    ```json
-   "next": "<next-version>",
+   "next": "<version>",
+   "react": "<version>",
+   "react-dom": "<version>",
    ```
 
    with:
 
    ```json
-   "next": "file:/path/to/next.js/packages/next",
+   "next": "link:/path/to/next.js/packages/next",
+   "react": "link:/path/to/next.js/node_modules/react",
+   "react-dom": "link:/path/to/next.js/node_modules/react-dom"
    ```
 
 2. In your app's root directory, make sure to remove `next` from `node_modules` with:
@@ -30,7 +44,7 @@ There are two options to develop with your local version of the codebase:
 
    to re-install all of the dependencies.
 
-   Note that Next will be copied from the locally compiled version as opposed to from being downloaded from the NPM registry.
+   Note that Next will be copied from the locally compiled version as opposed to being downloaded from the NPM registry.
 
 4. Run your application as you normally would.
 
@@ -40,7 +54,7 @@ There are two options to develop with your local version of the codebase:
    pnpm install --force
    ```
 
-#### Troubleshooting
+### Troubleshooting
 
 - If you see the below error while running `pnpm dev` with next:
 
@@ -58,13 +72,3 @@ Try to add the below section to your `package.json`, then run again
   "@next/swc-darwin-arm64": "canary"
 },
 ```
-
-### Develop inside the monorepo
-
-1. Move your app inside of the Next.js monorepo.
-
-2. Run with `pnpm next-with-deps ./app-path-in-monorepo`
-
-This will use the version of `next` built inside of the Next.js monorepo and the
-main `pnpm dev` monorepo command can be running to make changes to the local
-Next.js version at the same time (some changes might require re-running `pnpm next-with-deps` to take effect).

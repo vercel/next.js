@@ -42,7 +42,7 @@ If you are not using React 18, you can use the `loading` attribute in place of t
 
 ```jsx
 const DynamicHeader = dynamic(() => import('../components/header'), {
-  loading: () => <header />,
+  loading: () => <div>Loading...</div>,
 })
 ```
 
