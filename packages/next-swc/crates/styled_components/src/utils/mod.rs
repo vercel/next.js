@@ -1,8 +1,10 @@
 pub use self::analyzer::{analyze, analyzer};
 use std::{borrow::Cow, cell::RefCell};
-use swc_atoms::js_word;
-use swc_common::{collections::AHashMap, SyntaxContext};
-use swc_ecmascript::ast::*;
+use swc_core::{
+    common::{collections::AHashMap, SyntaxContext},
+    ecma::ast::*,
+    ecma::atoms::js_word,
+};
 
 mod analyzer;
 
@@ -310,7 +312,11 @@ impl State {
 }
 
 pub fn prefix_leading_digit(s: &str) -> Cow<str> {
-    if s.chars().next().map(|c| c.is_digit(10)).unwrap_or(false) {
+    if s.chars()
+        .next()
+        .map(|c| c.is_ascii_digit())
+        .unwrap_or(false)
+    {
         Cow::Owned(format!("sc-{}", s))
     } else {
         Cow::Borrowed(s)

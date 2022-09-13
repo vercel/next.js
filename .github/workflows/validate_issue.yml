@@ -15,4 +15,3 @@ jobs:
         run: node ./.github/actions/issue-validator/index.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEBUG: 1

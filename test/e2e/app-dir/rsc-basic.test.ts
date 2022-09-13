@@ -39,7 +39,6 @@ describe('app dir - react server components', () => {
     next = await createNext({
       files: {
         node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
-        pages: new FileRef(path.join(appDir, 'pages')),
         public: new FileRef(path.join(appDir, 'public')),
         components: new FileRef(path.join(appDir, 'components')),
         app: new FileRef(path.join(appDir, 'app')),
@@ -58,6 +57,7 @@ describe('app dir - react server components', () => {
           start: 'next start',
         },
       },
+      installCommand: 'yarn',
       startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
       buildCommand: 'yarn build',
     })
@@ -119,7 +119,11 @@ describe('app dir - react server components', () => {
         page.on('request', (request) => {
           requestsCount++
           const url = request.url()
-          if (/\?__flight__=1/.test(url)) {
+          if (
+            url.includes('__flight__=1') &&
+            // Prefetches also include `__flight__`
+            !url.includes('__flight_prefetch__=1')
+          ) {
             hasFlightRequest = true
           }
         })
@@ -167,7 +171,7 @@ describe('app dir - react server components', () => {
     // expect(modFromClient[1]).not.toBe(modFromServer[1])
   })
 
-  it('should be able to navigate between rsc pages', async () => {
+  it('should be able to navigate between rsc routes', async () => {
     const browser = await webdriver(next.url, '/root')
 
     await browser.waitForElementByCss('#goto-next-link').click()
@@ -231,7 +235,11 @@ describe('app dir - react server components', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           const url = request.url()
-          if (/\?__flight__=1/.test(url)) {
+          if (
+            url.includes('__flight__=1') &&
+            // Prefetches also include `__flight__`
+            !url.includes('__flight_prefetch__=1')
+          ) {
             hasFlightRequest = true
           }
         })
@@ -262,6 +270,14 @@ describe('app dir - react server components', () => {
     expect(manipulated).toBe(undefined)
   })
 
+  it('should render built-in 404 page for missing route if pagesDir is not presented', async () => {
+    const res = await fetchViaHTTP(next.url, '/does-not-exist')
+
+    expect(res.status).toBe(404)
+    const html = await res.text()
+    expect(html).toContain('This page could not be found')
+  })
+
   it('should suspense next/image in server components', async () => {
     const imageHTML = await renderViaHTTP(next.url, '/next-api/image')
     const imageTag = getNodeBySelector(imageHTML, '#myimg')
@@ -269,27 +285,13 @@ describe('app dir - react server components', () => {
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
-  // TODO: support esm import for RSC
-  if (isNextDev) {
-    // For prod build, the directory contains the build ID so it's not deterministic.
-    // Only enable it for dev for now.
-    it.skip('should not bundle external imports into client builds for RSC', async () => {
-      const html = await renderViaHTTP(next.url, '/external-imports')
-      expect(html).toContain('date:')
-
-      const distServerDir = path.join(distDir, 'static', 'chunks', 'pages')
-      const bundle = fs
-        .readFileSync(path.join(distServerDir, 'external-imports.js'))
-        .toString()
-
-      expect(bundle).not.toContain('non-isomorphic-text')
-    })
-  }
-
-  // TODO: support esm import for RSC
-  it.skip('should not pick browser field from package.json for external libraries', async () => {
+  it('should handle external async module libraries correctly', async () => {
     const html = await renderViaHTTP(next.url, '/external-imports')
-    expect(html).toContain('isomorphic-export')
+    expect(html).toContain('module type:esm-export')
+    expect(html).toContain('export named:named')
+    expect(html).toContain('export value:123')
+    expect(html).toContain('export array:4,5,6')
+    expect(html).toContain('export object:{x:1}')
   })
 
   it('should handle various kinds of exports correctly', async () => {
@@ -336,6 +338,20 @@ describe('app dir - react server components', () => {
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)
+  })
+
+  it('should stick to the url without trailing /page suffix', async () => {
+    const browser = await webdriver(next.url, '/edge/dynamic')
+    const indexUrl = await browser.url()
+
+    await browser.loadPage(`${next.url}/edge/dynamic/123`, {
+      disableCache: false,
+      beforePageLoad: null,
+    })
+
+    const dynamicRouteUrl = await browser.url()
+    expect(indexUrl).toBe(`${next.url}/edge/dynamic`)
+    expect(dynamicRouteUrl).toBe(`${next.url}/edge/dynamic/123`)
   })
 
   it('should support streaming for flight response', async () => {

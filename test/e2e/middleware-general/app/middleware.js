@@ -47,6 +47,12 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (url.pathname === '/api/edge-search-params') {
+    const newUrl = url.clone()
+    newUrl.searchParams.set('foo', 'bar')
+    return NextResponse.rewrite(newUrl)
+  }
+
   if (url.pathname === '/') {
     url.pathname = '/ssg/first'
     return NextResponse.rewrite(url)
