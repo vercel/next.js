@@ -2,7 +2,7 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Route } from './router'
-import type { FontManifest } from './font-utils'
+import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -201,7 +201,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
-    optimizeFonts: any
+    optimizeFonts: FontConfig
     images: ImageConfigComplete
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean

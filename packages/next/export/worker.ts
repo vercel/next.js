@@ -403,7 +403,7 @@ export default async function exportPage({
            * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
            */
           if (optimizeFonts && optimizeFonts.inlineFonts) {
-            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(optimizeFonts)
           }
           if (optimizeCss) {
             process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)

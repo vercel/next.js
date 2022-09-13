@@ -197,7 +197,7 @@ async function postProcessHTML(
           return html
         }
       : null,
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_OPTIMIZE_FONTS
+    process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeFonts
       ? async (html: string) => {
           const getFontDefinition = (url: string): string => {
             if (renderOpts.fontManifest) {

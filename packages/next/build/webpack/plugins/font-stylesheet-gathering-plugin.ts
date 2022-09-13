@@ -196,7 +196,9 @@ export class FontStylesheetGatheringPlugin {
                   this.manifestContent
                 )};
             // Enable feature:
-            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true);`
+            process.env.__NEXT_OPTIMIZE_FONTS = ${JSON.stringify(
+              this.optimizeFonts
+            )};`
           }
         )
       }
