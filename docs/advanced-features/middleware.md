@@ -88,7 +88,7 @@ export const config = {
 }
 ```
 
-You can also create a "negative matcher" that matches all paths except for certain paths:
+The `matcher` config allows full regex so matching like negative lookaheads or character matching is supported. An example of a negative lookahead to match all except specific paths can be seen here:
 
 ```js
 export const config = {
@@ -99,7 +99,7 @@ export const config = {
      * - static (static files)
      * - favicon.ico (favicon file)
      */
-    "/((?!api|static|favicon.ico).*)",
+    '/((?!api|static|favicon.ico).*)',
   ],
 }
 ```
