@@ -17,6 +17,18 @@ export type EdgeSSRLoaderQuery = {
   sriEnabled: boolean
 }
 
+/*
+For pages SSR'd at the edge, we bundle them with the ESM version of Next in order to
+benefit from the better tree-shaking and thus, smaller bundle sizes.
+
+The absolute paths for _app, _error and _document, used in this loader, link to the regular CJS modules.
+They are generated in `createPagesMapping` where we don't have access to `isEdgeRuntime`,
+so we have to do it here. It's not that bad because it keeps all references to ESM modules magic in this place.
+*/
+function swapDistFolderWithEsmDistFolder(path: string) {
+  return path.replace('next/dist/pages', 'next/dist/esm/pages')
+}
+
 export default async function edgeSSRLoader(this: any) {
   const {
     dev,
@@ -52,18 +64,18 @@ export default async function edgeSSRLoader(this: any) {
   }
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
-  const stringifiedAppPath = stringifyRequest(this, absoluteAppPath).replace(
-    'dist',
-    'dist/esm'
+  const stringifiedAppPath = stringifyRequest(
+    this,
+    swapDistFolderWithEsmDistFolder(absoluteAppPath)
   )
   const stringifiedErrorPath = stringifyRequest(
     this,
-    absoluteErrorPath
-  ).replace('dist', 'dist/esm')
+    swapDistFolderWithEsmDistFolder(absoluteErrorPath)
+  )
   const stringifiedDocumentPath = stringifyRequest(
     this,
-    absoluteDocumentPath
-  ).replace('dist', 'dist/esm')
+    swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
+  )
   const stringified500Path = absolute500Path
     ? stringifyRequest(this, absolute500Path)
     : null
