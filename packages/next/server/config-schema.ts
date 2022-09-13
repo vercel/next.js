@@ -253,7 +253,14 @@ const configSchema = {
           type: 'boolean',
         },
         esmExternals: {
-          type: 'boolean',
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              const: 'loose',
+            },
+          ] as any,
         },
         externalDir: {
           type: 'boolean',

@@ -48,6 +48,7 @@ import { serverComponentRegex } from './webpack/loaders/utils'
 import { ServerRuntime } from '../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
+import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -163,6 +164,7 @@ interface CreateEntrypointsParams {
 }
 
 export function getEdgeServerEntry(opts: {
+  rootDir: string
   absolutePagePath: string
   buildId: string
   bundlePath: string
@@ -179,6 +181,7 @@ export function getEdgeServerEntry(opts: {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      rootDir: opts.rootDir,
       matchers: opts.middleware?.matchers
         ? encodeMatchers(opts.middleware.matchers)
         : '',
@@ -188,9 +191,10 @@ export function getEdgeServerEntry(opts: {
   }
 
   if (opts.page.startsWith('/api/') || opts.page === '/api') {
-    const loaderParams: MiddlewareLoaderOptions = {
+    const loaderParams: EdgeFunctionLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      rootDir: opts.rootDir,
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -487,6 +491,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
           edgeServer[serverBundlePath] = getEdgeServerEntry({
             ...params,
+            rootDir,
             absolutePagePath: mappings[page],
             bundlePath: clientBundlePath,
             isDev: false,

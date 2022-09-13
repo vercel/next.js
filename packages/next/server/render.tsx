@@ -375,7 +375,6 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    serverComponentManifest,
     isDataReq,
     params,
     previewProps,
@@ -384,17 +383,10 @@ export async function renderToHTML(
     supportsDynamicHTML,
     images,
     runtime: globalRuntime,
-    ComponentMod,
     App,
   } = renderOpts
 
   let Document = renderOpts.Document
-
-  // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
-  const isServerComponent =
-    !!process.env.__NEXT_REACT_ROOT &&
-    !!serverComponentManifest &&
-    !!ComponentMod.__next_rsc__?.server
 
   // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
@@ -411,12 +403,6 @@ export async function renderToHTML(
 
   // next internal queries should be stripped out
   stripInternalQueries(query)
-
-  if (isServerComponent) {
-    throw new Error(
-      'Server Components are not supported from the pages/ directory.'
-    )
-  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -1417,7 +1403,6 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
-      rsc: isServerComponent ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
