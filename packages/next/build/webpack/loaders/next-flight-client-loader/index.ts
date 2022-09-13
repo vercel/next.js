@@ -16,12 +16,14 @@ function containsPath(parent: string, child: string) {
 
 export default async function transformSource(
   this: any,
-  source: string
-): Promise<string> {
+  source: string,
+  map: any
+) {
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
 
+  const callback = this.async()
   const appDir = path.join(this.rootContext, 'app')
   const isUnderAppDir = containsPath(appDir, this.resourcePath)
   const filename = path.basename(this.resourcePath)
@@ -50,5 +52,7 @@ export default async function transformSource(
 const { createProxy } = require("next/dist/build/webpack/loaders/next-flight-client-loader/module-proxy")\n
 module.exports = createProxy(${JSON.stringify(this.resourcePath)})
 `
-  return output
+  // Pass empty sourcemap
+  callback(null, output, map)
+  return
 }
