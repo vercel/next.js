@@ -4,16 +4,18 @@ import { stringifyRequest } from '../stringify-request'
 export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
   page: string
+  rootDir: string
 }
 
 export default function middlewareLoader(this: any) {
-  const { absolutePagePath, page }: EdgeFunctionLoaderOptions =
+  const { absolutePagePath, page, rootDir }: EdgeFunctionLoaderOptions =
     this.getOptions()
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.nextEdgeApiFunction = {
     page: page || '/',
   }
+  buildInfo.rootDir = rootDir
 
   return `
         import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
