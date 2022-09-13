@@ -715,6 +715,10 @@
           "path": "/errors/middleware-dynamic-wasm-compilation.md"
         },
         {
+          "title": "edge-dynamic-code-evaluation",
+          "path": "/errors/edge-dynamic-code-evaluation.md"
+        },
+        {
           "title": "node-module-in-edge-runtime",
           "path": "/errors/node-module-in-edge-runtime.md"
         },

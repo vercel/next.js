@@ -6,6 +6,7 @@ import { MIDDLEWARE_LOCATION_REGEXP } from '../../../lib/constants'
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
   page: string
+  rootDir: string
   matchers?: string
 }
 
@@ -25,6 +26,7 @@ export default function middlewareLoader(this: any) {
   const {
     absolutePagePath,
     page,
+    rootDir,
     matchers: encodedMatchers,
   }: MiddlewareLoaderOptions = this.getOptions()
   const matchers = encodedMatchers ? decodeMatchers(encodedMatchers) : undefined
@@ -35,6 +37,7 @@ export default function middlewareLoader(this: any) {
     page:
       page.replace(new RegExp(`/${MIDDLEWARE_LOCATION_REGEXP}$`), '') || '/',
   }
+  buildInfo.rootDir = rootDir
 
   return `
         import { adapter, blockUnallowedResponse, enhanceGlobals } from 'next/dist/server/web/adapter'

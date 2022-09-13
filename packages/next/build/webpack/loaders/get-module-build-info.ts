@@ -16,6 +16,7 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
     importLocByPath?: Map<string, any>
+    rootDir?: string
   }
 }
 
