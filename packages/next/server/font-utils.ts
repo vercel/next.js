@@ -1,5 +1,9 @@
 import * as Log from '../build/output/log'
-import { GOOGLE_FONT_PROVIDER } from '../shared/lib/constants'
+import {
+  GOOGLE_FONT_PROVIDER,
+  DEFAULT_SERIF_FONT,
+  DEFAULT_SANS_SERIF_FONT,
+} from '../shared/lib/constants'
 import { googleFontsMetrics } from './google-font-metrics.js'
 const https = require('https')
 
@@ -11,6 +15,11 @@ export type FontManifest = Array<{
   url: string
   content: string
 }>
+
+export type FontConfig = {
+  experimentalAdjustFallbacks?: boolean
+  inlineFonts: boolean
+}
 
 function isGoogleFont(url: string): boolean {
   return url.startsWith(GOOGLE_FONT_PROVIDER)
@@ -97,7 +106,8 @@ function calculateOverrideCSS(font: string, fontMetrics: any) {
   const fontKey = font.toLowerCase().trim().replace(/ /g, '')
   const { category, ascentOverride, descentOverride, lineGapOverride } =
     fontMetrics[fontKey]
-  const fallbackFont = category === 'serif' ? 'Times New Roman' : 'Arial'
+  const fallbackFont =
+    category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
   const ascent = (ascentOverride * 100).toFixed(2)
   const descent = (descentOverride * 100).toFixed(2)
   const lineGap = (lineGapOverride * 100).toFixed(2)

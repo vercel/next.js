@@ -7,6 +7,7 @@ import {
   getFontDefinitionFromNetwork,
   getFontOverrideCss,
   FontManifest,
+  FontConfig,
 } from '../../../server/font-utils'
 import postcss from 'postcss'
 import minifier from 'next/dist/compiled/cssnano-simple'
@@ -53,16 +54,15 @@ export class FontStylesheetGatheringPlugin {
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
   isLikeServerless: boolean
-  optimizeFonts: any
+  optimizeFonts: FontConfig
 
   constructor({
     isLikeServerless,
     optimizeFonts,
   }: {
     isLikeServerless: boolean
-    optimizeFonts: any
+    optimizeFonts: FontConfig
   }) {
-    console.log('in webpack plugin ', isLikeServerless, optimizeFonts)
     this.isLikeServerless = isLikeServerless
     this.optimizeFonts = optimizeFonts
   }

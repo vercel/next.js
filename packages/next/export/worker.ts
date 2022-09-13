@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { FontManifest } from '../server/font-utils'
+import type { FontManifest, FontConfig } from '../server/font-utils'
 import type { GetStaticProps } from '../types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
@@ -59,7 +59,7 @@ interface ExportPageInput {
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   serverless: boolean
-  optimizeFonts: any
+  optimizeFonts: FontConfig
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
@@ -82,7 +82,7 @@ interface RenderOpts {
   ampPath?: string
   ampValidatorPath?: string
   ampSkipValidation?: boolean
-  optimizeFonts?: any
+  optimizeFonts?: FontConfig
   disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
