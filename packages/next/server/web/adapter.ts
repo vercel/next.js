@@ -34,8 +34,6 @@ class NextRequestHint extends NextRequest {
   }
 }
 
-const RequestToPathname = new WeakMap<RequestData, string>()
-
 export function prepareRequest(params: {
   page: string
   request: RequestData
