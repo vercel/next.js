@@ -20,4 +20,13 @@ module.exports = {
       ],
     }
   },
+  redirects: () => {
+    return [
+      {
+        source: '/redirect/a',
+        destination: '/dashboard',
+        permanent: false,
+      },
+    ]
+  },
 }

@@ -1454,6 +1454,25 @@ describe('app dir', () => {
           'Result Page'
         )
       })
+
+      it('should redirect from next.config.js', async () => {
+        const browser = await webdriver(next.url, '/redirect/a')
+        expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+        expect(await browser.url()).toBe(next.url + '/dashboard')
+      })
+
+      it('should redirect from next.config.js with link navigation', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/redirect/next-config-redirect'
+        )
+        await browser
+          .elementByCss('#redirect-a')
+          .click()
+          .waitForElementByCss('h1')
+        expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+        expect(await browser.url()).toBe(next.url + '/dashboard')
+      })
     })
   }
 
