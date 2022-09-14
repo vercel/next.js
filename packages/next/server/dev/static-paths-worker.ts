@@ -36,7 +36,7 @@ export async function loadStaticPaths(
 
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
-  setHttpAgentOptions(httpAgentOptions)
+  setHttpAgentOptions({ httpAgentOptions })
 
   const components = await loadComponents({
     distDir,

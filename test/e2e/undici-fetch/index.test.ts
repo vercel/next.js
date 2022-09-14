@@ -16,7 +16,7 @@ if (semver.gte(process.version, '18.0.0')) {
         files: {
           'pages/api/hello.js': `
             import { ReadableStream } from 'node:stream/web';
-            export default async function Hello(req, res) {
+            export default async function hello(req, res) {
               try {
                 const response = await fetch('https://example.vercel.sh')
                 res.json({ value: response.body instanceof ReadableStream })
@@ -40,7 +40,6 @@ if (semver.gte(process.version, '18.0.0')) {
     it('should return true when undici is used', async () => {
       const result = await fetchViaHTTP(next.url, '/api/hello')
       const data = await result.json()
-      console.log(data)
       expect(data.value).toBe(true)
     })
 
@@ -57,7 +56,6 @@ if (semver.gte(process.version, '18.0.0')) {
       await next.start()
       const result = await fetchViaHTTP(next.url, '/api/hello')
       const data = await result.json()
-      console.log(data)
       expect(data.value).toBe(false)
     })
   })

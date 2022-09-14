@@ -117,7 +117,7 @@ export default async function exportPage({
   httpAgentOptions,
   serverComponents,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpAgentOptions(httpAgentOptions)
+  setHttpAgentOptions({ httpAgentOptions })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {

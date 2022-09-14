@@ -45,9 +45,13 @@ const experimentalWarning = execOnce(
   }
 )
 
-export function setHttpAgentOptions(
-  options: NextConfigComplete['httpAgentOptions']
-) {
+export function setUseUndici(useUndici?: boolean) {
+  console.log(useUndici)
+  ;(global as any).__NEXT_USE_UNDICI = useUndici
+}
+
+export function setHttpAgentOptions(options: any) {
+  ;(global as any).__NEXT_USE_UNDICI = options.experimental?.useUndici
   if ((global as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to resuse the same agent for all requests.
@@ -58,8 +62,8 @@ export function setHttpAgentOptions(
     throw new Error('Expected config.httpAgentOptions to be an object')
   }
 
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
 }
 
 function assignDefaults(userConfig: { [key: string]: any }) {
@@ -545,9 +549,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   // TODO: Change defaultConfig type to NextConfigComplete
   // so we don't need "!" here.
-  setHttpAgentOptions(
-    result.httpAgentOptions || defaultConfig.httpAgentOptions!
-  )
+  setHttpAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -833,10 +835,6 @@ export default async function loadConfig(
 
     if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
-    }
-
-    if (userConfig.experimental?.useUndici) {
-      ;(global as any).__NEXT_USE_UNDICI = true
     }
 
     return assignDefaults({
