@@ -16,49 +16,23 @@ If you already have an app and it has dependencies, you can follow these steps:
 
 ## Set as a local dependency in package.json
 
-1. In your app's `package.json`, replace:
+1. Run `pnpm dev` in the background in the Next.js monorepo.
 
-   ```json
-   "next": "<version>",
-   "react": "<version>",
-   "react-dom": "<version>",
-   ```
-
-   with:
-
-   ```json
-   "next": "link:/path/to/next.js/packages/next",
-   "react": "link:/path/to/next.js/node_modules/react",
-   "react-dom": "link:/path/to/next.js/node_modules/react-dom"
-   ```
-
-2. In your app's root directory, make sure to remove `next` from `node_modules` with:
+2. In your app's root directory, run:
 
    ```sh
-   rm -rf ./node_modules/next
+   pnpm add ./path/to/next.js/{packages/next,node_modules/{react,react-dom}}
    ```
 
-3. In your app's root directory, run:
+   to re-install all of the dependencies and point `next`, `react` and `react-dom` to the monorepo versions.
 
-   ```sh
-   pnpm i
-   ```
+   Note that Next.js will be copied from the locally compiled version as opposed to being downloaded from the NPM registry.
 
-   to re-install all of the dependencies.
-
-   Note that Next will be copied from the locally compiled version as opposed to being downloaded from the NPM registry.
-
-4. Run your application as you normally would.
-
-5. To update your app's dependencies, after you've made changes to your local `next` repository. In your app's root directory, run:
-
-   ```sh
-   pnpm install --force
-   ```
+3. Run your application as you normally would.
 
 ### Troubleshooting
 
-- If you see the below error while running `pnpm dev` with next:
+- If you see the below error while running `pnpm dev` with `next`:
 
 ```
 Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc
