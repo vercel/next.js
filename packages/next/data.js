@@ -1,1 +1,4 @@
-module.exports = require('./dist/lib/data')
+module.exports =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? require('./dist/esm/lib/data')
+    : require('./dist/lib/data')
