@@ -1,5 +1,4 @@
-const url =
-  'https://nextjs.org/docs/messages/no-script-component-in-head-component'
+const url = 'https://nextjs.org/docs/messages/no-script-component-in-head'
 
 module.exports = {
   meta: {
