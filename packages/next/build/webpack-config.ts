@@ -1480,7 +1480,10 @@ export default async function getBaseWebpackConfig(
                 // RSC server compilation loaders
                 {
                   test: /(tsx|ts|js|cjs|mjs|jsx)$/,
-                  include: [dir, /next[\\/]dist[\\/]client/],
+                  include: [
+                    dir,
+                    /next[\\/]dist[\\/]client[\\/]components[\\/]/,
+                  ],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {
                     loader: 'next-flight-loader',

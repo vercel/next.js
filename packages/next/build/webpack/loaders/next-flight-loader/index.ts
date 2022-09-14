@@ -44,8 +44,6 @@ export default async function transformSource(
 
   const { resourcePath } = this
   const callback = this.async()
-  // const { isClient } = this.getOptions()
-  // console.log('isClient', isClient, resourcePath)
   const buildInfo = (this as any)._module.buildInfo
 
   const swcAST = await parse(source, {
@@ -79,9 +77,6 @@ export default async function transformSource(
     }
   }
 
-  // if (isClient) {
-  //   return callback(null, source, sourceMap)
-  // }
   if (buildInfo.rsc.type === RSC_MODULE_TYPES.client) {
     errorForInvalidDataFetching(this.emitError)
     const code = transformClient(this.resourcePath)

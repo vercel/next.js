@@ -1,3 +1,5 @@
+'client'
+
 import { createContext } from 'react'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 

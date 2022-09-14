@@ -422,7 +422,6 @@ export default class HotReloader {
         .traceChild('create-pages-mapping')
         .traceFn(() =>
           createPagesMapping({
-            hasServerComponents: this.hasServerComponents,
             isDev: true,
             pageExtensions: this.config.pageExtensions,
             pagesType: 'pages',

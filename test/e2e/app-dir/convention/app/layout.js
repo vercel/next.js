@@ -4,9 +4,7 @@ export default function Root({ children }) {
       <head>
         <title>{`client entry directive`}</title>
       </head>
-      <body>
-        <div>{children}</div>
-      </body>
+      <body>{children}</body>
     </html>
   )
 }

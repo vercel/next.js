@@ -205,12 +205,7 @@ export class FlightManifestPlugin {
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        // const rscType = mod.buildInfo.rsc?.type
-        // if (chunkGroup.name === 'main-app' || chunkGroup.name === 'main') return
-        if (
-          resource.includes('node_modules') ||
-          !clientRequestsSet.has(resource)
-        ) {
+        if (!clientRequestsSet.has(resource)) {
           return
         }
 

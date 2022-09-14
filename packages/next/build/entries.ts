@@ -64,14 +64,12 @@ export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
 }
 
 export function createPagesMapping({
-  hasServerComponents,
   isDev,
   pageExtensions,
   pagePaths,
   pagesType,
   pagesDir,
 }: {
-  hasServerComponents: boolean
   isDev: boolean
   pageExtensions: string[]
   pagePaths: string[]
@@ -87,13 +85,6 @@ export function createPagesMapping({
       }
 
       const pageKey = getPageFromPath(pagePath, pageExtensions)
-
-      // Assume that if there's a Client Component, that there is
-      // a matching Server Component that will map to the page.
-      // so we will not process it
-      // if (hasServerComponents && /\.client$/.test(pageKey)) {
-      //   return result
-      // }
 
       if (pageKey in result) {
         warn(
