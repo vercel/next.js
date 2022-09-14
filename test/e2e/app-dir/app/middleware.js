@@ -5,4 +5,8 @@ export function middleware(request) {
     // TODO: this does not copy __flight__ and __flight_router_state_tree__
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }
+
+  if (request.nextUrl.pathname === '/redirect-middleware-to-dashboard') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
 }

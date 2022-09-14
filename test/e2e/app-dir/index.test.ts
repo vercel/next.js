@@ -1455,23 +1455,49 @@ describe('app dir', () => {
         )
       })
 
-      it('should redirect from next.config.js', async () => {
-        const browser = await webdriver(next.url, '/redirect/a')
-        expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
-        expect(await browser.url()).toBe(next.url + '/dashboard')
+      describe('next.config.js redirects', () => {
+        it('should redirect from next.config.js', async () => {
+          const browser = await webdriver(next.url, '/redirect/a')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+
+        it('should redirect from next.config.js with link navigation', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect/next-config-redirect'
+          )
+          await browser
+            .elementByCss('#redirect-a')
+            .click()
+            .waitForElementByCss('h1')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
       })
 
-      it('should redirect from next.config.js with link navigation', async () => {
-        const browser = await webdriver(
-          next.url,
-          '/redirect/next-config-redirect'
-        )
-        await browser
-          .elementByCss('#redirect-a')
-          .click()
-          .waitForElementByCss('h1')
-        expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
-        expect(await browser.url()).toBe(next.url + '/dashboard')
+      describe('middleware redirects', () => {
+        it('should redirect from middleware', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect-middleware-to-dashboard'
+          )
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+
+        it('should redirect from middleware with link navigation', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect/next-middleware-redirect'
+          )
+          await browser
+            .elementByCss('#redirect-middleware')
+            .click()
+            .waitForElementByCss('h1')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
       })
     })
   }
