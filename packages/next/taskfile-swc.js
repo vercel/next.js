@@ -120,7 +120,7 @@ module.exports = function (task) {
       }
 
       if (output.map) {
-        if (interopClientDefaultExport) {
+        if (interopClientDefaultExport && !esm) {
           output.code += `
 if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
   Object.defineProperty(exports.default, '__esModule', { value: true });
