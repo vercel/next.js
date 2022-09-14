@@ -1,4 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
+import crypto from 'crypto'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 import path from 'path'
@@ -22,15 +23,7 @@ describe('app dir', () => {
   function runTests({ assetPrefix }: { assetPrefix?: boolean }) {
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          public: new FileRef(path.join(__dirname, 'app/public')),
-          styles: new FileRef(path.join(__dirname, 'app/styles')),
-          pages: new FileRef(path.join(__dirname, 'app/pages')),
-          app: new FileRef(path.join(__dirname, 'app/app')),
-          'next.config.js': new FileRef(
-            path.join(__dirname, 'app/next.config.js')
-          ),
-        },
+        files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
           react: 'experimental',
           'react-dom': 'experimental',
@@ -273,67 +266,82 @@ describe('app dir', () => {
       }
     })
 
+    describe('parallel routes', () => {
+      it('should match parallel routes', async () => {
+        const html = await renderViaHTTP(next.url, '/parallel/nested')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/@foo/nested/layout')
+        expect(html).toContain('parallel/@foo/nested/@a/page')
+        expect(html).toContain('parallel/@foo/nested/@b/page')
+        expect(html).toContain('parallel/@bar/nested/layout')
+        expect(html).toContain('parallel/@bar/nested/@a/page')
+        expect(html).toContain('parallel/@bar/nested/@b/page')
+        expect(html).toContain('parallel/nested/page')
+      })
+
+      it('should match parallel routes in route groups', async () => {
+        const html = await renderViaHTTP(next.url, '/parallel/nested-2')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/(new)/layout')
+        expect(html).toContain('parallel/(new)/@baz/nested/page')
+      })
+    })
+
     describe('<Link />', () => {
-      // TODO-APP: fix development test
-      it.skip('should hard push', async () => {
-        const browser = await webdriver(next.url, '/link-hard-push')
+      it('should hard push', async () => {
+        const browser = await webdriver(next.url, '/link-hard-push/123')
 
         try {
           // Click the link on the page, and verify that the history entry was
           // added.
           expect(await browser.eval('window.history.length')).toBe(2)
           await browser.elementById('link').click()
-          await browser.waitForElementByCss('#render-id')
+          await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(3)
 
           // Get the id on the rendered page.
-          const firstID = await browser.elementById('render-id').text()
+          const firstID = await browser.elementById('render-id-456').text()
 
           // Go back, and redo the navigation by clicking the link.
           await browser.back()
           await browser.elementById('link').click()
-          await browser.waitForElementByCss('#render-id')
+          await browser.waitForElementByCss('#render-id-456')
 
           // Get the id again, and compare, they should not be the same.
-          const secondID = await browser.elementById('render-id').text()
+          const secondID = await browser.elementById('render-id-456').text()
           expect(secondID).not.toBe(firstID)
         } finally {
           await browser.close()
         }
       })
 
-      // TODO-APP: fix development test
-      it.skip('should hard replace', async () => {
-        const browser = await webdriver(next.url, '/link-hard-replace')
+      it('should hard replace', async () => {
+        const browser = await webdriver(next.url, '/link-hard-replace/123')
 
         try {
-          // Get the render ID so we can compare it.
-          const firstID = await browser.elementById('render-id').text()
-
           // Click the link on the page, and verify that the history entry was NOT
           // added.
           expect(await browser.eval('window.history.length')).toBe(2)
-          await browser.elementById('self-link').click()
-          await browser.waitForElementByCss('#render-id')
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
 
           // Get the date again, and compare, they should not be the same.
-          const secondID = await browser.elementById('render-id').text()
-          expect(secondID).not.toBe(firstID)
+          const firstId = await browser.elementById('render-id-456').text()
 
           // Navigate to the subpage, verify that the history entry was NOT added.
-          await browser.elementById('subpage-link').click()
-          await browser.waitForElementByCss('#back-link')
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#render-id-123')
           expect(await browser.eval('window.history.length')).toBe(2)
 
           // Navigate back again, verify that the history entry was NOT added.
-          await browser.elementById('back-link').click()
-          await browser.waitForElementByCss('#render-id')
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
 
           // Get the date again, and compare, they should not be the same.
-          const thirdID = await browser.elementById('render-id').text()
-          expect(thirdID).not.toBe(secondID)
+          const secondId = await browser.elementById('render-id-456').text()
+          expect(firstId).not.toBe(secondId)
         } finally {
           await browser.close()
         }
@@ -365,7 +373,8 @@ describe('app dir', () => {
         }
       })
 
-      it('should soft replace', async () => {
+      // TODO-APP: investigate this test
+      it.skip('should soft replace', async () => {
         const browser = await webdriver(next.url, '/link-soft-replace')
 
         try {
@@ -1179,6 +1188,244 @@ describe('app dir', () => {
             )
           ).toBe('rgb(0, 0, 255)')
         })
+      })
+    })
+    ;(isDev ? describe.skip : describe)('Subresource Integrity', () => {
+      function fetchWithPolicy(policy: string | null) {
+        return fetchViaHTTP(next.url, '/dashboard', undefined, {
+          headers: policy
+            ? {
+                'Content-Security-Policy': policy,
+              }
+            : {},
+        })
+      }
+
+      async function renderWithPolicy(policy: string | null) {
+        const res = await fetchWithPolicy(policy)
+
+        expect(res.ok).toBe(true)
+
+        const html = await res.text()
+
+        return cheerio.load(html)
+      }
+
+      it('does not include nonce when not enabled', async () => {
+        const policies = [
+          `script-src 'nonce-'`, // invalid nonce
+          'style-src "nonce-cmFuZG9tCg=="', // no script or default src
+          '', // empty string
+        ]
+
+        for (const policy of policies) {
+          const $ = await renderWithPolicy(policy)
+
+          // Find all the script tags without src attributes and with nonce
+          // attributes.
+          const elements = $('script[nonce]:not([src])')
+
+          // Expect there to be none.
+          expect(elements.length).toBe(0)
+        }
+      })
+
+      it('includes a nonce value with inline scripts when Content-Security-Policy header is defined', async () => {
+        // A random nonce value, base64 encoded.
+        const nonce = 'cmFuZG9tCg=='
+
+        // Validate all the cases where we could parse the nonce.
+        const policies = [
+          `script-src 'nonce-${nonce}'`, // base case
+          `   script-src   'nonce-${nonce}' `, // extra space added around sources and directive
+          `style-src 'self'; script-src 'nonce-${nonce}'`, // extra directives
+          `script-src 'self' 'nonce-${nonce}' 'nonce-othernonce'`, // extra nonces
+          `default-src 'nonce-othernonce'; script-src 'nonce-${nonce}';`, // script and then fallback case
+          `default-src 'nonce-${nonce}'`, // fallback case
+        ]
+
+        for (const policy of policies) {
+          const $ = await renderWithPolicy(policy)
+
+          // Find all the script tags without src attributes.
+          const elements = $('script:not([src])')
+
+          // Expect there to be at least 1 script tag without a src attribute.
+          expect(elements.length).toBeGreaterThan(0)
+
+          // Expect all inline scripts to have the nonce value.
+          elements.each((i, el) => {
+            expect(el.attribs['nonce']).toBe(nonce)
+          })
+        }
+      })
+
+      it('includes an integrity attribute on scripts', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard')
+
+        const $ = cheerio.load(html)
+
+        // Find all the script tags with src attributes.
+        const elements = $('script[src]')
+
+        // Expect there to be at least 1 script tag with a src attribute.
+        expect(elements.length).toBeGreaterThan(0)
+
+        // Collect all the scripts with integrity hashes so we can verify them.
+        const files: [string, string][] = []
+
+        // For each of these attributes, ensure that there's an integrity
+        // attribute and starts with the correct integrity hash prefix.
+        elements.each((i, el) => {
+          const integrity = el.attribs['integrity']
+          expect(integrity).toBeDefined()
+          expect(integrity).toStartWith('sha256-')
+
+          const src = el.attribs['src']
+          expect(src).toBeDefined()
+
+          files.push([src, integrity])
+        })
+
+        // For each script tag, ensure that the integrity attribute is the
+        // correct hash of the script tag.
+        for (const [src, integrity] of files) {
+          const res = await fetchViaHTTP(next.url, src)
+          expect(res.status).toBe(200)
+          const content = await res.text()
+
+          const hash = crypto
+            .createHash('sha256')
+            .update(content)
+            .digest()
+            .toString('base64')
+
+          expect(integrity).toEndWith(hash)
+        }
+      })
+
+      it('throws when escape characters are included in nonce', async () => {
+        const res = await fetchWithPolicy(
+          `script-src 'nonce-"><script></script>"'`
+        )
+
+        expect(res.status).toBe(500)
+      })
+    })
+
+    describe('template component', () => {
+      it('should render the template that holds state in a client component and reset on navigation', async () => {
+        const browser = await webdriver(next.url, '/template/clientcomponent')
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+        await browser.elementByCss('button').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Template 1')
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#other-page')
+
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+        await browser.elementByCss('button').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Template 1')
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#page')
+
+        expect(await browser.elementByCss('h1').text()).toBe('Template 0')
+      })
+
+      // TODO-APP: disable failing test and investigate later
+      it.skip('should render the template that is a server component and rerender on navigation', async () => {
+        const browser = await webdriver(next.url, '/template/servercomponent')
+        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+
+        const currentTime = await browser
+          .elementByCss('#performance-now')
+          .text()
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#other-page')
+
+        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+
+        // template should rerender on navigation even when it's a server component
+        expect(await browser.elementByCss('#performance-now').text()).toBe(
+          currentTime
+        )
+
+        await browser.elementByCss('#link').click()
+        await browser.waitForElementByCss('#page')
+
+        expect(await browser.elementByCss('#performance-now').text()).toBe(
+          currentTime
+        )
+      })
+    })
+
+    // TODO-APP: This is disabled for development as the error overlay needs to be reworked.
+    ;(isDev ? describe.skip : describe)('error component', () => {
+      it('should trigger error component when an error happens during rendering', async () => {
+        const browser = await webdriver(next.url, '/error/clientcomponent')
+        await browser
+          .elementByCss('#error-trigger-button')
+          .click()
+          .waitForElementByCss('#error-boundary-message')
+
+        expect(
+          await browser.elementByCss('#error-boundary-message').text()
+        ).toBe('An error occurred: this is a test')
+      })
+
+      it('should allow resetting error boundary', async () => {
+        const browser = await webdriver(next.url, '/error/clientcomponent')
+
+        // Try triggering and resetting a few times in a row
+        for (let i = 0; i < 5; i++) {
+          await browser
+            .elementByCss('#error-trigger-button')
+            .click()
+            .waitForElementByCss('#error-boundary-message')
+
+          expect(
+            await browser.elementByCss('#error-boundary-message').text()
+          ).toBe('An error occurred: this is a test')
+
+          await browser
+            .elementByCss('#reset')
+            .click()
+            .waitForElementByCss('#error-trigger-button')
+
+          expect(
+            await browser.elementByCss('#error-trigger-button').text()
+          ).toBe('Trigger Error!')
+        }
+      })
+
+      it('should hydrate empty shell to handle server-side rendering errors', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/error/ssr-error-client-component'
+        )
+        const logs = await browser.log()
+        const errors = logs
+          .filter((x) => x.source === 'error')
+          .map((x) => x.message)
+          .join('\n')
+        expect(errors).toInclude('Error during SSR')
+      })
+    })
+
+    describe('known bugs', () => {
+      it('should not share flight data between requests', async () => {
+        const fetches = await Promise.all(
+          [...new Array(5)].map(() =>
+            renderViaHTTP(next.url, '/loading-bug/electronics')
+          )
+        )
+
+        for (const text of fetches) {
+          const $ = cheerio.load(text)
+          expect($('#category-id').text()).toBe('electronicsabc')
+        }
       })
     })
   }

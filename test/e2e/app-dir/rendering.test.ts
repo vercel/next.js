@@ -20,13 +20,7 @@ describe('app dir rendering', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        app: new FileRef(path.join(__dirname, 'app-rendering/app')),
-        pages: new FileRef(path.join(__dirname, 'app-rendering/pages')),
-        'next.config.js': new FileRef(
-          path.join(__dirname, 'app-rendering/next.config.js')
-        ),
-      },
+      files: new FileRef(path.join(__dirname, 'app-rendering')),
       dependencies: {
         react: 'experimental',
         'react-dom': 'experimental',

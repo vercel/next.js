@@ -7,6 +7,7 @@ import {
   imageConfigDefault,
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
+import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -90,6 +91,7 @@ export interface ExperimentalConfig {
   cpus?: number
   sharedPool?: boolean
   profiling?: boolean
+  proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
   pageEnv?: boolean
@@ -145,6 +147,9 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
+  sri?: {
+    algorithm?: SubresourceIntegrityAlgorithm
+  }
 }
 
 export type ExportPathMap = {
@@ -550,6 +555,7 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
+    proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,
     scrollRestoration: false,

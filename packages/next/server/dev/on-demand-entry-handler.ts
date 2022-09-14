@@ -41,7 +41,9 @@ function treePathToEntrypoint(
   // TODO-APP: modify this path to cover parallelRouteKey convention
   const path =
     (parentPath ? parentPath + '/' : '') +
-    (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +
+    (parallelRouteKey !== 'children' && !segment.startsWith('@')
+      ? parallelRouteKey + '/'
+      : '') +
     (segment === '' ? 'page' : segment)
 
   // Last segment
@@ -143,6 +145,11 @@ interface Entry extends EntryType {
    * `/Users/Rick/project/pages/about/index.js`
    */
   absolutePagePath: string
+  /**
+   * All parallel pages that match the same entry, for example:
+   * ['/parallel/@bar/nested/@a/page', '/parallel/@bar/nested/@b/page', '/parallel/@foo/nested/@a/page', '/parallel/@foo/nested/@b/page']
+   */
+  appPaths: string[] | null
 }
 
 interface ChildEntry extends EntryType {
@@ -255,6 +262,7 @@ function disposeInactiveEntries(maxInactiveAge: number) {
   })
 }
 
+// Normalize both app paths and page paths
 function tryToNormalizePagePath(page: string) {
   try {
     return normalizePagePath(page)
@@ -276,16 +284,21 @@ function tryToNormalizePagePath(page: string) {
  */
 async function findPagePathData(
   rootDir: string,
-  pagesDir: string,
   page: string,
   extensions: string[],
+  pagesDir?: string,
   appDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
   if (isMiddlewareFile(normalizedPagePath)) {
-    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
+    pagePath = await findPageFile(
+      rootDir,
+      normalizedPagePath,
+      extensions,
+      false
+    )
 
     if (!pagePath) {
       throw new PageNotFoundError(normalizedPagePath)
@@ -306,7 +319,7 @@ async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
-    pagePath = await findPageFile(appDir, normalizedPagePath, extensions)
+    pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
         removePagePathTail(normalizePathSep(pagePath), {
@@ -323,11 +336,16 @@ async function findPagePathData(
     }
   }
 
-  if (!pagePath) {
-    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
+  if (!pagePath && pagesDir) {
+    pagePath = await findPageFile(
+      pagesDir,
+      normalizedPagePath,
+      extensions,
+      false
+    )
   }
 
-  if (pagePath !== null) {
+  if (pagePath !== null && pagesDir) {
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
         extensions,
@@ -365,7 +383,7 @@ export function onDemandEntryHandler({
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
   pagesBufferLength: number
-  pagesDir: string
+  pagesDir?: string
   rootDir: string
   appDir?: string
 }) {
@@ -488,6 +506,7 @@ export function onDemandEntryHandler({
         toSend = { success: true }
       }
     }
+
     return toSend
   }
 
@@ -534,7 +553,15 @@ export function onDemandEntryHandler({
   }
 
   return {
-    async ensurePage(page: string, clientOnly: boolean): Promise<void> {
+    async ensurePage({
+      page,
+      clientOnly,
+      appPaths = null,
+    }: {
+      page: string
+      clientOnly: boolean
+      appPaths?: string[] | null
+    }): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
         debug(
@@ -545,9 +572,9 @@ export function onDemandEntryHandler({
       try {
         const pagePathData = await findPagePathData(
           rootDir,
-          pagesDir,
           page,
           nextConfig.pageExtensions,
+          pagesDir,
           appDir
         )
 
@@ -586,6 +613,7 @@ export function onDemandEntryHandler({
 
           entries[entryKey] = {
             type: EntryTypes.ENTRY,
+            appPaths,
             absolutePagePath: pagePathData.absolutePagePath,
             request: pagePathData.absolutePagePath,
             bundlePath: pagePathData.bundlePath,
@@ -604,6 +632,7 @@ export function onDemandEntryHandler({
         const staticInfo = await getPageStaticInfo({
           pageFilePath: pagePathData.absolutePagePath,
           nextConfig,
+          isDev: true,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
@@ -620,12 +649,22 @@ export function onDemandEntryHandler({
           },
           onServer: () => {
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
+            const edgeServerEntry = `${COMPILER_NAMES.edgeServer}${pagePathData.page}`
+            if (entries[edgeServerEntry]) {
+              // Runtime switched from edge to server
+              delete entries[edgeServerEntry]
+            }
           },
           onEdgeServer: () => {
             added.set(
               COMPILER_NAMES.edgeServer,
               addEntry(COMPILER_NAMES.edgeServer)
             )
+            const serverEntry = `${COMPILER_NAMES.server}${pagePathData.page}`
+            if (entries[serverEntry]) {
+              // Runtime switched from server to edge
+              delete entries[serverEntry]
+            }
           },
         })
 
