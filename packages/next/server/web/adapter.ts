@@ -1,7 +1,7 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
-import { fromNodeHeaders } from './utils'
+import { fromNodeHeaders, toNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
@@ -34,11 +34,16 @@ class NextRequestHint extends NextRequest {
   }
 }
 
-export async function adapter(params: {
-  handler: NextMiddleware
+const RequestToPathname = new WeakMap<RequestData, string>()
+
+export function prepareRequest(params: {
   page: string
   request: RequestData
-}): Promise<FetchEventResult> {
+}): {
+  request: NextRequestHint
+  isDataReq: boolean
+  buildId: string | undefined
+} {
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
@@ -48,7 +53,7 @@ export async function adapter(params: {
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
 
-  const isDataReq = params.request.headers['x-nextjs-data']
+  const isDataReq = Boolean(params.request.headers['x-nextjs-data'])
 
   if (isDataReq && requestUrl.pathname === '/index') {
     requestUrl.pathname = '/'
@@ -86,6 +91,18 @@ export async function adapter(params: {
     })
   }
 
+  return { request, buildId, isDataReq }
+}
+
+type PreparedRequest = ReturnType<typeof prepareRequest>
+
+export async function adapter(params: {
+  handler: NextMiddleware
+  page: string
+  reqData: PreparedRequest
+  nextConfig: RequestData['nextConfig']
+}): Promise<FetchEventResult> {
+  const { request, isDataReq, buildId } = params.reqData
   const event = new NextFetchEvent({ request, page: params.page })
   let response = await params.handler(request, event)
 
@@ -99,8 +116,8 @@ export async function adapter(params: {
   if (response && rewrite) {
     const rewriteUrl = new NextURL(rewrite, {
       forceLocale: true,
-      headers: params.request.headers,
-      nextConfig: params.request.nextConfig,
+      headers: toNodeHeaders(request.headers),
+      nextConfig: params.nextConfig,
     })
 
     if (rewriteUrl.host === request.nextUrl.host) {
@@ -116,7 +133,7 @@ export async function adapter(params: {
     if (isDataReq) {
       response.headers.set(
         'x-nextjs-rewrite',
-        relativizeURL(String(rewriteUrl), String(requestUrl))
+        relativizeURL(String(rewriteUrl), String(request.nextUrl))
       )
     }
   }
@@ -130,8 +147,8 @@ export async function adapter(params: {
   if (response && redirect) {
     const redirectURL = new NextURL(redirect, {
       forceLocale: false,
-      headers: params.request.headers,
-      nextConfig: params.request.nextConfig,
+      headers: toNodeHeaders(request.headers),
+      nextConfig: params.nextConfig,
     })
 
     /**
@@ -154,7 +171,7 @@ export async function adapter(params: {
       response.headers.delete('Location')
       response.headers.set(
         'x-nextjs-redirect',
-        relativizeURL(String(redirectURL), String(requestUrl))
+        relativizeURL(String(redirectURL), String(request.nextUrl))
       )
     }
   }
@@ -166,8 +183,15 @@ export async function adapter(params: {
 }
 
 export function blockUnallowedResponse(
+  request: PreparedRequest['request'],
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
+  const pathname = request.nextUrl.pathname
+
+  if (pathname && (pathname.startsWith('/api/') || pathname === '/api')) {
+    return promise
+  }
+
   return promise.then((result) => {
     if (result.response?.body) {
       console.error(
