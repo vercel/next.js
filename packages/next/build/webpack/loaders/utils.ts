@@ -1,3 +1,5 @@
+import { getPageStaticInfo } from '../../analysis/get-page-static-info'
+
 export const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx']
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 const nextClientComponents = [
@@ -47,3 +49,17 @@ export const clientComponentRegex = new RegExp(
 export const serverComponentRegex = new RegExp(
   `\\.server(\\.(${defaultJsFileExtensions.join('|')}))?$`
 )
+
+export async function loadEdgeFunctionConfigFromFile(
+  absolutePagePath: string,
+  resolve: (context: string, request: string) => Promise<string>
+) {
+  const pageFilePath = await resolve('/', absolutePagePath)
+  return (
+    await getPageStaticInfo({
+      nextConfig: {},
+      pageFilePath,
+      isDev: false,
+    })
+  ).middleware
+}

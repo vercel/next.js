@@ -27,10 +27,10 @@ export type DocumentType = NextComponentType<
   DocumentProps
 >
 
-export type AppType = NextComponentType<
+export type AppType<P = {}> = NextComponentType<
   AppContextType,
-  AppInitialProps,
-  AppPropsType
+  P,
+  AppPropsType<any, P>
 >
 
 export type AppTreeType = ComponentType<
@@ -109,7 +109,6 @@ export type NEXT_DATA = {
   scriptLoader?: any[]
   isPreview?: boolean
   notFoundSrcPage?: string
-  rsc?: boolean
 }
 
 /**
@@ -177,7 +176,6 @@ export type AppPropsType<
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
-  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
