@@ -20,10 +20,19 @@ impl ModuleOptionsVc {
         _path: FileSystemPathVc,
         context: ModuleOptionsContextVc,
     ) -> Result<ModuleOptionsVc> {
-        let app_transforms =
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React {
-                refresh: context.await?.enable_react_refresh,
-            }]);
+        let context_value = context.await?;
+        let mut transforms = vec![];
+
+        // Order of transforms is important. e.g. if the React transform occurs before
+        // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
+        if context_value.enable_styled_jsx {
+            transforms.push(EcmascriptInputTransform::StyledJsx)
+        }
+        transforms.append(&mut vec![EcmascriptInputTransform::React {
+            refresh: context_value.enable_react_refresh,
+        }]);
+
+        let app_transforms = EcmascriptInputTransformsVc::cell(transforms);
         let no_transforms = EcmascriptInputTransformsVc::cell(Vec::new());
         Ok(ModuleOptionsVc::cell(ModuleOptions {
             rules: vec![

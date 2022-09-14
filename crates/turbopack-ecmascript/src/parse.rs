@@ -13,16 +13,17 @@ use swc_core::{
         errors::{Handler, HANDLER},
         input::StringInput,
         sync::Lrc,
+        util::take::Take,
         FileName, Globals, Mark, SourceMap, GLOBALS,
     },
     ecma::{
-        ast::{EsVersion, Program},
+        ast::{EsVersion, Module, Program},
         parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig},
         transforms::{
             base::{helpers::Helpers, resolver},
             react::react,
         },
-        visit::VisitMutWith,
+        visit::{FoldWith, VisitMutWith},
     },
 };
 use turbo_tasks::{Value, ValueToString};
@@ -40,6 +41,7 @@ pub enum EcmascriptInputTransform {
         refresh: bool,
     },
     CommonJs,
+    StyledJsx,
     Custom,
 }
 
@@ -161,7 +163,8 @@ pub async fn parse(
                     },
                 );
 
-                let fm = cm.new_source_file(FileName::Custom(fs_path), string);
+                let file_name = FileName::Custom(fs_path);
+                let fm = cm.new_source_file(file_name.clone(), string);
 
                 let comments = SingleThreadedComments::default();
                 let lexer = Lexer::new(
@@ -263,6 +266,11 @@ pub async fn parse(
                                                                 Some(comments.clone()),
                                                             ),
                                                         );
+                                                    },
+                                                    EcmascriptInputTransform::StyledJsx => {
+                                                        // Modeled after https://github.com/swc-project/plugins/blob/ae735894cdb7e6cfd776626fe2bc580d3e80fed9/packages/styled-jsx/src/lib.rs
+                                                        let real_parsed_program = std::mem::replace(&mut parsed_program, Program::Module(Module::dummy()));
+                                                        parsed_program = real_parsed_program.fold_with(&mut styled_jsx::styled_jsx(cm.clone(), file_name.clone()));
                                                     },
                                                     EcmascriptInputTransform::Custom => todo!()
                                                 }
