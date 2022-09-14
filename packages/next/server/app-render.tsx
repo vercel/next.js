@@ -1,4 +1,4 @@
-import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 
@@ -16,10 +16,8 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
-import { isDynamicRoute } from '../shared/lib/router/utils'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
-import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
 import {
   FlightCSSManifest,
@@ -54,76 +52,66 @@ function interopDefault(mod: any) {
   return mod.default || mod
 }
 
-// Shadowing check does not work with TypeScript enums
-// eslint-disable-next-line no-shadow
-const enum RecordStatus {
-  Pending,
-  Resolved,
-  Rejected,
-}
+// tolerate dynamic server errors during prerendering so console
+// isn't spammed with unactionable errors
+function onError(err: any) {
+  const { DynamicServerError } =
+    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
 
-type Record = {
-  status: RecordStatus
-  // Could hold the existing promise or the resolved Promise
-  value: any
-}
-
-/**
- * Create data fetching record for Promise.
- */
-function createRecordFromThenable(thenable: Promise<any>) {
-  const record: Record = {
-    status: RecordStatus.Pending,
-    value: thenable,
+  if (!(err instanceof DynamicServerError)) {
+    console.error(err)
   }
-  thenable.then(
-    function (value) {
-      if (record.status === RecordStatus.Pending) {
-        const resolvedRecord = record
-        resolvedRecord.status = RecordStatus.Resolved
-        resolvedRecord.value = value
-      }
-    },
-    function (err) {
-      if (record.status === RecordStatus.Pending) {
-        const rejectedRecord = record
-        rejectedRecord.status = RecordStatus.Rejected
-        rejectedRecord.value = err
+}
+
+let isFetchPatched = false
+
+// we patch fetch to collect cache information used for
+// determining if a page is static or not
+function patchFetch() {
+  if (isFetchPatched) return
+  isFetchPatched = true
+
+  const { DynamicServerError } =
+    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+
+  const { useTrackStaticGeneration } =
+    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
+
+  const origFetch = (global as any).fetch
+
+  ;(global as any).fetch = async (init: any, opts: any) => {
+    let staticGenerationContext: ReturnType<typeof useTrackStaticGeneration> =
+      {}
+    try {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      staticGenerationContext = useTrackStaticGeneration() || {}
+    } catch (_) {}
+
+    const { isStaticGeneration, fetchRevalidate, pathname } =
+      staticGenerationContext
+
+    if (isStaticGeneration) {
+      if (opts && typeof opts === 'object') {
+        if (opts.cache === 'no-store') {
+          staticGenerationContext.revalidate = 0
+          // TODO: ensure this error isn't logged to the user
+          // seems it's slipping through currently
+          throw new DynamicServerError(
+            `no-store fetch ${init}${pathname ? ` ${pathname}` : ''}`
+          )
+        }
+
+        if (
+          typeof opts.revalidate === 'number' &&
+          (typeof fetchRevalidate === 'undefined' ||
+            opts.revalidate < fetchRevalidate)
+        ) {
+          staticGenerationContext.fetchRevalidate = opts.revalidate
+        }
       }
     }
-  )
-  return record
-}
-
-/**
- * Read record value or throw Promise if it's not resolved yet.
- */
-function readRecordValue(record: Record) {
-  if (record.status === RecordStatus.Resolved) {
-    return record.value
-  } else {
-    throw record.value
+    return origFetch(init, opts)
   }
-}
-
-/**
- * Preload data fetching record before it is called during React rendering.
- * If the record is already in the cache returns that record.
- */
-function preloadDataFetchingRecord(
-  map: Map<string, Record>,
-  key: string,
-  fetcher: () => Promise<any> | any
-) {
-  let record = map.get(key)
-
-  if (!record) {
-    const thenable = fetcher()
-    record = createRecordFromThenable(thenable)
-    map.set(key, record)
-  }
-
-  return record
 }
 
 /**
@@ -137,6 +125,7 @@ function useFlightResponse(
   flightResponseRef: {
     current: ReturnType<typeof createFromReadableStream> | null
   },
+  rscChunks: Uint8Array[],
   nonce?: string
 ) {
   if (flightResponseRef.current) {
@@ -158,6 +147,10 @@ function useFlightResponse(
 
   function process() {
     forwardReader.read().then(({ done, value }) => {
+      if (value) {
+        rscChunks.push(value)
+      }
+
       if (!bootstrapped) {
         bootstrapped = true
         writer.write(
@@ -203,12 +196,14 @@ function createServerComponentRenderer(
     transformStream,
     serverComponentManifest,
     serverContexts,
+    rscChunks,
   }: {
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     serverContexts: Array<
       [ServerContextName: string, JSONValue: Object | number | string]
     >
+    rscChunks: Uint8Array[]
   },
   nonce?: string
 ) {
@@ -232,6 +227,7 @@ function createServerComponentRenderer(
         serverComponentManifest,
         {
           context: serverContexts,
+          onError,
         }
       )
     }
@@ -248,6 +244,7 @@ function createServerComponentRenderer(
       reqStream,
       serverComponentManifest,
       flightResponseRef,
+      rscChunks,
       nonce
     )
     return response.readRoot()
@@ -465,8 +462,14 @@ export async function renderToHTMLOrFlight(
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  isPagesDir: boolean
+  isPagesDir: boolean,
+  isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
+  patchFetch()
+
+  const { CONTEXT_NAMES } =
+    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+
   // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
   if (typeof React.createServerContext === 'undefined') {
     throw new Error(
@@ -497,9 +500,9 @@ export async function renderToHTMLOrFlight(
     // Empty so that the client-side router will do a full page navigation.
     const flightData: FlightData = pathname + (search ? `?${search}` : '')
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
-        createBufferedTransformStream()
-      )
+      renderToReadableStream(flightData, serverComponentManifest, {
+        onError,
+      }).pipeThrough(createBufferedTransformStream())
     )
   }
 
@@ -517,7 +520,6 @@ export async function renderToHTMLOrFlight(
 
   stripInternalQueries(query)
 
-  const pageIsDynamic = isDynamicRoute(pathname)
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
   const RenderFromTemplateContext =
@@ -549,23 +551,24 @@ export async function renderToHTMLOrFlight(
     res,
     (renderOpts as any).previewProps
   )
-  const isPreview = previewData !== false
   /**
    * Server Context is specifically only available in Server Components.
    * It has to hold values that can't change while rendering from the common layout down.
    * An example of this would be that `headers` are available but `searchParams` are not because that'd mean we have to render from the root layout down on all requests.
    */
+  const staticGenerationContext: {
+    revalidate?: undefined | number
+    isStaticGeneration: boolean
+    pathname: string
+  } = { isStaticGeneration, pathname }
+
   const serverContexts: Array<[string, any]> = [
     ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
-    ['HeadersContext', headers],
-    ['CookiesContext', cookies],
-    ['PreviewDataContext', previewData],
+    [CONTEXT_NAMES.HeadersContext, headers],
+    [CONTEXT_NAMES.CookiesContext, cookies],
+    [CONTEXT_NAMES.PreviewDataContext, previewData],
+    [CONTEXT_NAMES.StaticGenerationContext, staticGenerationContext],
   ]
-
-  /**
-   * Used to keep track of in-flight / resolved data fetching Promises.
-   */
-  const dataCache = new Map<string, Record>()
 
   type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 
@@ -647,6 +650,8 @@ export async function renderToHTMLOrFlight(
     return segmentTree
   }
 
+  let defaultRevalidate: false | undefined | number = undefined
+
   /**
    * Use the provided loader tree to create the React Component tree.
    */
@@ -687,6 +692,10 @@ export async function renderToHTMLOrFlight(
       : isPage
       ? await page()
       : undefined
+
+    if (layoutOrPageMod?.config) {
+      defaultRevalidate = layoutOrPageMod.config.revalidate
+    }
     /**
      * Checks if the current segment is a root layout.
      */
@@ -697,11 +706,19 @@ export async function renderToHTMLOrFlight(
     const rootLayoutIncludedAtThisLevelOrAbove =
       rootLayoutIncluded || rootLayoutAtThisLevel
 
-    /**
-     * Check if the current layout/page is a client component
-     */
-    const isClientComponentModule =
-      layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
+    // TODO-APP: move these errors to the loader instead?
+    // we will also need a migration doc here to link to
+    if (typeof layoutOrPageMod?.getServerSideProps === 'function') {
+      throw new Error(
+        `getServerSideProps is not supported in app/, detected in ${segment}`
+      )
+    }
+
+    if (typeof layoutOrPageMod?.getStaticProps === 'function') {
+      throw new Error(
+        `getStaticProps is not supported in app/, detected in ${segment}`
+      )
+    }
 
     /**
      * The React Component to render.
@@ -713,7 +730,7 @@ export async function renderToHTMLOrFlight(
     // Handle dynamic segment params.
     const segmentParam = getDynamicParamFromSegment(segment)
     /**
-     * Create object holding the parent params and current params, this is passed to getServerSideProps and getStaticProps.
+     * Create object holding the parent params and current params
      */
     const currentParams =
       // Handle null case where dynamic param is optional
@@ -822,101 +839,9 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    const segmentPath = createSegmentPath([actualSegment])
-    const dataCacheKey = JSON.stringify(segmentPath)
-    let fetcher: (() => Promise<any>) | null = null
-
-    type GetServerSidePropsContext = {
-      headers: IncomingHttpHeaders
-      cookies: NextApiRequestCookies
-      layoutSegments: FlightSegmentPath
-      params?: { [key: string]: string | string[] }
-      preview?: boolean
-      previewData?: string | object | undefined
-    }
-
-    type getServerSidePropsContextPage = GetServerSidePropsContext & {
-      searchParams: URLSearchParams
-      pathname: string
-    }
-
-    type GetStaticPropsContext = {
-      layoutSegments: FlightSegmentPath
-      params?: { [key: string]: string | string[] }
-      preview?: boolean
-      previewData?: string | object | undefined
-    }
-
-    type GetStaticPropContextPage = GetStaticPropsContext & {
-      pathname: string
-    }
-
-    // TODO-APP: pass a shared cache from previous getStaticProps/getServerSideProps calls?
-    if (!isClientComponentModule && layoutOrPageMod.getServerSideProps) {
-      // TODO-APP: recommendation for i18n
-      // locales: (renderOpts as any).locales, // always the same
-      // locale: (renderOpts as any).locale, // /nl/something -> nl
-      // defaultLocale: (renderOpts as any).defaultLocale, // changes based on domain
-      const getServerSidePropsContext:
-        | GetServerSidePropsContext
-        | getServerSidePropsContextPage = {
-        headers,
-        cookies,
-        layoutSegments: segmentPath,
-        // TODO-APP: change pathname to actual pathname, it holds the dynamic parameter currently
-        ...(isPage ? { searchParams: query, pathname } : {}),
-        ...(pageIsDynamic ? { params: currentParams } : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-      }
-      fetcher = () =>
-        Promise.resolve(
-          layoutOrPageMod.getServerSideProps(getServerSidePropsContext)
-        )
-    }
-    // TODO-APP: implement layout specific caching for getStaticProps
-    if (!isClientComponentModule && layoutOrPageMod.getStaticProps) {
-      const getStaticPropsContext:
-        | GetStaticPropsContext
-        | GetStaticPropContextPage = {
-        layoutSegments: segmentPath,
-        ...(isPage ? { pathname } : {}),
-        ...(pageIsDynamic ? { params: currentParams } : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-      }
-      fetcher = () =>
-        Promise.resolve(layoutOrPageMod.getStaticProps(getStaticPropsContext))
-    }
-
-    if (fetcher) {
-      // Kick off data fetching before rendering, this ensures there is no waterfall for layouts as
-      // all data fetching required to render the page is kicked off simultaneously
-      preloadDataFetchingRecord(dataCache, dataCacheKey, fetcher)
-    }
-
     return {
       Component: () => {
-        let props
-        // The data fetching was kicked off before rendering (see above)
-        // if the data was not resolved yet the layout rendering will be suspended
-        if (fetcher) {
-          const record = preloadDataFetchingRecord(
-            dataCache,
-            dataCacheKey,
-            fetcher
-          )
-          // Result of calling getStaticProps or getServerSideProps. If promise is not resolve yet it will suspend.
-          const recordValue = readRecordValue(record)
-
-          if (props) {
-            props = Object.assign({}, props, recordValue.props)
-          } else {
-            props = recordValue.props
-          }
-        }
+        let props = {}
 
         return (
           <>
@@ -950,6 +875,21 @@ export async function renderToHTMLOrFlight(
     }
   }
 
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
+  const generateStaticHTML = supportsDynamicHTML !== true
+
   // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
   if (isFlight) {
     // TODO-APP: throw on invalid flightRouterState
@@ -967,7 +907,6 @@ export async function renderToHTMLOrFlight(
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
       // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
-      // That way even when rendering the subtree getServerSideProps/getStaticProps get the right parameters.
       const segmentParam = getDynamicParamFromSegment(segment)
       const currentParams =
         // Handle null case where dynamic param is optional
@@ -1050,11 +989,22 @@ export async function renderToHTMLOrFlight(
       ).slice(1),
     ]
 
-    return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest, {
+    const readable = renderToReadableStream(
+      flightData,
+      serverComponentManifest,
+      {
         context: serverContexts,
-      }).pipeThrough(createBufferedTransformStream())
-    )
+        onError,
+      }
+    ).pipeThrough(createBufferedTransformStream())
+
+    if (generateStaticHTML) {
+      let staticHtml = Buffer.from(
+        (await readable.getReader().read()).value || ''
+      ).toString()
+      return new RenderResult(staticHtml)
+    }
+    return new RenderResult(readable)
   }
 
   // Below this line is handling for rendering to HTML.
@@ -1086,6 +1036,13 @@ export async function renderToHTMLOrFlight(
     nonce = getScriptNonceFromHeader(csp)
   }
 
+  const serverComponentsRenderOpts = {
+    transformStream: serverComponentsInlinedTransformStream,
+    serverComponentManifest,
+    serverContexts,
+    rscChunks: [],
+  }
+
   /**
    * A new React Component that renders the provided React Component
    * using Flight which can then be rendered to HTML.
@@ -1109,11 +1066,7 @@ export async function renderToHTMLOrFlight(
       )
     },
     ComponentMod,
-    {
-      transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
-      serverContexts,
-    },
+    serverComponentsRenderOpts,
     nonce
   )
 
@@ -1135,20 +1088,6 @@ export async function renderToHTMLOrFlight(
     )
   }
 
-  /**
-   * Rules of Static & Dynamic HTML:
-   *
-   *    1.) We must generate static HTML unless the caller explicitly opts
-   *        in to dynamic HTML support.
-   *
-   *    2.) If dynamic HTML support is requested, we must honor that request
-   *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
-   *
-   * These rules help ensure that other existing features like request caching,
-   * coalescing, and ISR continue working as intended.
-   */
-  const generateStaticHTML = supportsDynamicHTML !== true
   const bodyResult = async () => {
     const content = (
       <FlushEffects>
@@ -1220,5 +1159,20 @@ export async function renderToHTMLOrFlight(
     }
   }
 
-  return new RenderResult(await bodyResult())
+  const readable = await bodyResult()
+
+  if (generateStaticHTML) {
+    let staticHtml = Buffer.from(
+      (await readable.getReader().read()).value || ''
+    ).toString()
+
+    ;(renderOpts as any).pageData = Buffer.concat(
+      serverComponentsRenderOpts.rscChunks
+    ).toString()
+    ;(renderOpts as any).revalidate =
+      defaultRevalidate || staticGenerationContext.revalidate
+
+    return new RenderResult(staticHtml)
+  }
+  return new RenderResult(readable)
 }

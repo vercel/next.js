@@ -1,12 +1,14 @@
-export async function getServerSideProps() {
+import { experimental_use as use } from 'react'
+
+async function getData() {
   await new Promise((resolve) => setTimeout(resolve, 3000))
   return {
-    props: {
-      message: 'Welcome to the dashboard',
-    },
+    message: 'Welcome to the dashboard',
   }
 }
-export default function DashboardPage({ message }) {
+export default function DashboardPage(props) {
+  const { message } = use(getData())
+
   return (
     <>
       <p id="dashboard-page">{message}</p>
