@@ -24,7 +24,7 @@
           "text": {
             "config": {
               "patternType": "PARAGRAPH",
-              "blocks": 1
+              "blocks": 4
             }
           }
         }
@@ -32,7 +32,11 @@
     },
     "Image": {
       "default": {
-        "primary": {}
+        "primary": {
+          "image": {
+            "content": "https://images.unsplash.com/photo-1493397212122-2b85dda8106b"
+          }
+        }
       }
     }
   }
