@@ -988,6 +988,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
       if (manifest.dynamicRoutes[pathname]) {
         hasStaticPaths = true
+        isSSG = true
       }
     }
 
@@ -1070,6 +1071,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
+      // TODO-APP: should the first render for a dynamic app path
+      // be static so we can collect revalidate and populate the
+      // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
         !isSSG &&
         !isLikeServerless &&
@@ -1152,8 +1156,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      !isAppPath &&
-      (isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFlightRequest)
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFlightRequest
         ? null // Preview mode, manual revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale

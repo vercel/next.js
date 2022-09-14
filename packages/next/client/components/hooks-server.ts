@@ -7,8 +7,14 @@ import {
   StaticGenerationContext,
 } from './hooks-server-context'
 
+export function useTrackStaticGeneration() {
+  return useContext<
+    typeof import('./hooks-server-context').StaticGenerationContext
+  >(StaticGenerationContext)
+}
+
 function useStaticGenerationBailout(reason: string) {
-  if (useContext(StaticGenerationContext)) {
+  if (useTrackStaticGeneration().isStaticGeneration) {
     throw new DynamicServerError(reason)
   }
 }

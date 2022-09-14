@@ -391,34 +391,8 @@ export default async function exportPage({
           const { renderToHTMLOrFlight } =
             require('../server/app-render') as typeof import('../server/app-render')
 
-          const origFetch = (global as any).fetch
-          let fetchRevalidate: undefined | number = undefined
-          let hasNoStore = false
-
           try {
             curRenderOpts.params ||= {}
-            ;(global as any).fetch = async (init: any, opts: any) => {
-              // TODO: use react context here so that we can detect
-              // accurately with concurrent renders in same worker
-              if (opts && typeof opts === 'object') {
-                // TODO: validate the option values here?
-                if (opts.cache === 'no-store') {
-                  hasNoStore = true
-                  // TODO: ensure this error isn't logged to the user
-                  // seems it's slipping through currently
-                  throw new DynamicServerError(`no-store fetch ${init} ${path}`)
-                }
-
-                if (
-                  typeof opts.revalidate === 'number' &&
-                  (typeof fetchRevalidate === 'undefined' ||
-                    opts.revalidate < fetchRevalidate)
-                ) {
-                  fetchRevalidate = opts.revalidate
-                }
-              }
-              return origFetch(init, opts)
-            }
 
             const result = await renderToHTMLOrFlight(
               req as any,
@@ -431,25 +405,22 @@ export default async function exportPage({
             )
             const html = result?.toUnchunkedString()
             const flightData = (curRenderOpts as any).pageData
+            const revalidate = (curRenderOpts as any).revalidate
+            results.fromBuildExportRevalidate = revalidate
 
-            await promises.writeFile(htmlFilepath, html, 'utf8')
-            await promises.writeFile(
-              htmlFilepath.replace(/\.html$/, '.rsc'),
-              flightData
-            )
+            if (revalidate !== 0) {
+              await promises.writeFile(htmlFilepath, html, 'utf8')
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.rsc'),
+                flightData
+              )
+            }
           } catch (err) {
             if (!(err instanceof DynamicServerError)) {
               throw err
             }
-          } finally {
-            ;(global as any).fetch = origFetch
           }
 
-          if (hasNoStore) {
-            results.fromBuildExportRevalidate = 0
-          } else if (typeof fetchRevalidate === 'number') {
-            results.fromBuildExportRevalidate = fetchRevalidate
-          }
           return { ...results, duration: Date.now() - start }
         }
 

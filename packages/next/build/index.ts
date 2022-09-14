@@ -1371,6 +1371,12 @@ export default async function build(
                     if (pageType === 'app' && originalAppPath) {
                       appNormalizedPaths.set(originalAppPath, page)
 
+                      // TODO-APP: handle prerendering with edge
+                      // runtime
+                      if (pageRuntime === 'experimental-edge') {
+                        return
+                      }
+
                       if (
                         workerResult.encodedPrerenderRoutes &&
                         workerResult.prerenderRoutes

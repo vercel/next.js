@@ -65,6 +65,57 @@ function onError(err: any) {
   }
 }
 
+let isFetchPatched = false
+
+// we patch fetch to collect cache information used for
+// determining if a page is static or not
+function patchFetch() {
+  if (isFetchPatched) return
+  isFetchPatched = true
+
+  const { DynamicServerError } =
+    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+
+  const { useTrackStaticGeneration } =
+    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
+
+  const origFetch = (global as any).fetch
+
+  ;(global as any).fetch = async (init: any, opts: any) => {
+    let staticGenerationContext: ReturnType<typeof useTrackStaticGeneration> =
+      {}
+    try {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      staticGenerationContext = useTrackStaticGeneration() || {}
+    } catch (_) {}
+
+    const { isStaticGeneration, fetchRevalidate, pathname } =
+      staticGenerationContext
+
+    if (isStaticGeneration) {
+      if (opts && typeof opts === 'object') {
+        if (opts.cache === 'no-store') {
+          staticGenerationContext.revalidate = 0
+          // TODO: ensure this error isn't logged to the user
+          // seems it's slipping through currently
+          throw new DynamicServerError(
+            `no-store fetch ${init}${pathname ? ` ${pathname}` : ''}`
+          )
+        }
+
+        if (
+          typeof opts.revalidate === 'number' &&
+          (typeof fetchRevalidate === 'undefined' ||
+            opts.revalidate < fetchRevalidate)
+        ) {
+          staticGenerationContext.fetchRevalidate = opts.revalidate
+        }
+      }
+    }
+    return origFetch(init, opts)
+  }
+}
+
 // Shadowing check does not work with TypeScript enums
 // eslint-disable-next-line no-shadow
 const enum RecordStatus {
@@ -488,6 +539,8 @@ export async function renderToHTMLOrFlight(
   isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
+  patchFetch()
+
   const { CONTEXT_NAMES, DynamicServerError } =
     require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
 
@@ -579,12 +632,18 @@ export async function renderToHTMLOrFlight(
    * It has to hold values that can't change while rendering from the common layout down.
    * An example of this would be that `headers` are available but `searchParams` are not because that'd mean we have to render from the root layout down on all requests.
    */
+  const staticGenerationContext: {
+    revalidate?: undefined | number
+    isStaticGeneration: boolean
+    pathname: string
+  } = { isStaticGeneration, pathname }
+
   const serverContexts: Array<[string, any]> = [
     ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
     [CONTEXT_NAMES.HeadersContext, headers],
     [CONTEXT_NAMES.CookiesContext, cookies],
     [CONTEXT_NAMES.PreviewDataContext, previewData],
-    [CONTEXT_NAMES.StaticGenerationContext, isStaticGeneration],
+    [CONTEXT_NAMES.StaticGenerationContext, staticGenerationContext],
   ]
 
   /**
@@ -672,6 +731,8 @@ export async function renderToHTMLOrFlight(
     return segmentTree
   }
 
+  let defaultRevalidate: false | undefined | number = undefined
+
   /**
    * Use the provided loader tree to create the React Component tree.
    */
@@ -712,6 +773,10 @@ export async function renderToHTMLOrFlight(
       : isPage
       ? await page()
       : undefined
+
+    if (layoutOrPageMod?.config) {
+      defaultRevalidate = layoutOrPageMod.config.revalidate
+    }
     /**
      * Checks if the current segment is a root layout.
      */
@@ -1271,11 +1336,12 @@ export async function renderToHTMLOrFlight(
       (await readable.getReader().read()).value || ''
     ).toString()
 
-    // TODO: pass up revalidate when rendered lazily with
-    // dynamicParams: true
     ;(renderOpts as any).pageData = Buffer.concat(
       serverComponentsRenderOpts.rscChunks
     ).toString()
+    ;(renderOpts as any).revalidate =
+      defaultRevalidate || staticGenerationContext.revalidate
+
     return new RenderResult(staticHtml)
   }
   return new RenderResult(readable)
