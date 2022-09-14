@@ -18,6 +18,7 @@ interface Options {
 const FLIGHT_PARAMETERS = [
   '__flight__',
   '__flight_router_state_tree__',
+  '__flight_prefetch__',
 ] as const
 
 const REGEX_LOCALHOST_HOSTNAME =

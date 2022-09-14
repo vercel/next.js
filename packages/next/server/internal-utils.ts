@@ -9,6 +9,7 @@ const INTERNAL_QUERY_NAMES = [
   '__flight__',
   // Routing
   '__flight_router_state_tree__',
+  '__flight_prefetch__',
 ] as const
 
 const EXTENDED_INTERNAL_QUERY_NAMES = ['__nextDataReq'] as const
