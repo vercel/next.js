@@ -47,6 +47,7 @@ import { hasBasePath } from '../../../client/has-base-path'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
 import { compareRouterStates } from './utils/compare-states'
+import { isBot } from './utils/is-bot'
 
 declare global {
   interface Window {
@@ -2171,6 +2172,12 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
+    if (typeof window !== 'undefined' && isBot(window.navigator.userAgent)) {
+      // No prefetches for bots that render the link since they are typically navigating
+      // links via the equivalent of a hard navigation and hence never utilize these
+      // prefetches.
+      return
+    }
     let parsed = parseRelativeUrl(url)
 
     let { pathname, query } = parsed

@@ -35,15 +35,8 @@ describe('app dir - react server components', () => {
   }
 
   beforeAll(async () => {
-    const appDir = path.join(__dirname, './rsc-basic')
     next = await createNext({
-      files: {
-        node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
-        public: new FileRef(path.join(appDir, 'public')),
-        components: new FileRef(path.join(appDir, 'components')),
-        app: new FileRef(path.join(appDir, 'app')),
-        'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
-      },
+      files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
         'styled-components': '6.0.0-alpha.5',
         react: 'experimental',
