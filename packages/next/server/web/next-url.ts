@@ -17,7 +17,6 @@ interface Options {
 
 const FLIGHT_PARAMETERS = [
   '__flight__',
-  '__props__',
   '__flight_router_state_tree__',
 ] as const
 

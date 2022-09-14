@@ -7,7 +7,6 @@ const INTERNAL_QUERY_NAMES = [
   '__nextIsNotFound',
   // RSC
   '__flight__',
-  '__props__',
   // Routing
   '__flight_router_state_tree__',
 ] as const
