@@ -108,6 +108,37 @@ export class FlightManifestPlugin {
     const appDir = this.appDir
     const dev = this.dev
 
+    const clientRequestsSet = new Set()
+
+    // Collect client requests
+    compilation.chunkGroups.forEach((chunkGroup) => {
+      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+          chunk
+          // TODO: Update type so that it doesn't have to be cast.
+        ) as Iterable<webpack.NormalModule>
+        for (const mod of chunkModules) {
+          if (!mod.resource && mod.buildInfo.rsc) {
+            const { requests = [] } = mod.buildInfo.rsc
+            requests.forEach((r: string) => {
+              clientRequestsSet.add(require.resolve(r))
+            })
+          }
+          const anyModule = mod as any
+          if (anyModule.modules) {
+            anyModule.modules.forEach((concatenatedMod: any) => {
+              if (!concatenatedMod.resource && concatenatedMod.buildInfo.rsc) {
+                const { requests = [] } = concatenatedMod.buildInfo.rsc
+                requests.forEach((r: string) => {
+                  clientRequestsSet.add(require.resolve(r))
+                })
+              }
+            })
+          }
+        }
+      })
+    })
+
     compilation.chunkGroups.forEach((chunkGroup) => {
       const cssResourcesInChunkGroup = new Set<string>()
       let entryFilepath: string = ''
@@ -134,7 +165,9 @@ export class FlightManifestPlugin {
               mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
             : mod.resource
 
-        if (!resource) return
+        if (!resource) {
+          return
+        }
 
         const moduleExports = manifest[resource] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
@@ -173,13 +206,15 @@ export class FlightManifestPlugin {
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
         // const rscType = mod.buildInfo.rsc?.type
-        // if (rscType)
-        // console.log('flight manifest', resource)
-        // if (rscType !== RSC_MODULE_TYPES.client) {
-        //   return
-        // }
+        // if (chunkGroup.name === 'main-app' || chunkGroup.name === 'main') return
+        if (
+          resource.includes('node_modules') ||
+          !clientRequestsSet.has(resource)
+        ) {
+          return
+        }
 
-        if (/\/(page|layout)\.client\.(ts|js)x?$/.test(resource)) {
+        if (/\/(page|layout)\.(ts|js)x?$/.test(resource)) {
           entryFilepath = resource
         }
 

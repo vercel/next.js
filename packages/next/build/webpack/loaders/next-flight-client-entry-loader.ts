@@ -37,5 +37,10 @@ export default async function transformSource(this: any): Promise<string> {
     export default function RSC() {};
     `
 
+  this._module.buildInfo.rsc = {
+    type: 'client',
+    requests,
+  }
+
   return code
 }

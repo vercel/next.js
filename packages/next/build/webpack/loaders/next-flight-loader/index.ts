@@ -44,7 +44,7 @@ export default async function transformSource(
 
   const { resourcePath } = this
   const callback = this.async()
-  const { isClient } = this.getOptions()
+  // const { isClient } = this.getOptions()
   // console.log('isClient', isClient, resourcePath)
   const buildInfo = (this as any)._module.buildInfo
 
