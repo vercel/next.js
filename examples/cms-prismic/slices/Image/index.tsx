@@ -1,11 +1,10 @@
 import { PrismicNextImage } from '@prismicio/next'
+import { SliceComponentProps } from '@prismicio/react'
+import { Content } from '@prismicio/client'
 
-/**
- * @typedef {import('../../types.generated').ImageSlice} ImageSlice
- *
- * @param {import('@prismicio/react').SliceComponentProps<ImageSlice>}
- */
-const Image = ({ slice }) => {
+type ImageProps = SliceComponentProps<Content.ImageSlice>
+
+const Image = ({ slice }: ImageProps) => {
   return (
     <section className="my-12">
       <PrismicNextImage field={slice.primary.image} layout="responsive" />

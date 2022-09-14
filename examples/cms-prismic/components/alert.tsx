@@ -1,12 +1,14 @@
-import Container from './container'
 import cn from 'classnames'
+
 import { EXAMPLE_PATH } from '../lib/constants'
 
-/**
- * @param {object} props
- * @param {boolean} props.preview
- */
-export default function Alert({ preview }) {
+import Container from './container'
+
+type AlertProps = {
+  preview: boolean
+}
+
+export default function Alert({ preview }: AlertProps) {
   return (
     <div
       className={cn('border-b', {

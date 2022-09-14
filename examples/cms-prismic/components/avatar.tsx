@@ -1,11 +1,12 @@
 import { PrismicNextImage } from '@prismicio/next'
+import { ImageField } from '@prismicio/types'
 
-/**
- * @param {object} props
- * @param {string} props.name
- * @param {import("@prismicio/types").ImageField} props.picture
- */
-export default function Avatar({ name, picture }) {
+type AvatarProps = {
+  name: string
+  picture: ImageField
+}
+
+export default function Avatar({ name, picture }: AvatarProps) {
   return (
     <div className="flex items-center">
       <div className="w-12 h-12 relative mr-4">

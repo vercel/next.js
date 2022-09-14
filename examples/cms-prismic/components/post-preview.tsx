@@ -1,18 +1,24 @@
 import Link from 'next/link'
+import { DateField, ImageField, TitleField } from '@prismicio/types'
 import { PrismicText } from '@prismicio/react'
-import { asText } from '@prismicio/helpers'
+import { asText, isFilled } from '@prismicio/helpers'
+
+import { AuthorContentRelationshipField } from '../lib/types'
+
 import Avatar from '../components/avatar'
 import Date from '../components/date'
+
 import CoverImage from './cover-image'
 
-/**
- * @param {object} props
- * @param {import("@prismicio/types").TitleField} props.title
- * @param {import('@prismicio/types').ImageField} props.coverImage
- * @param {string} props.date
- * @param {import("../types.generated").AuthorDocument} props.author
- * @param {string} props.href
- */
+type PostPreviewProps = {
+  title: TitleField
+  coverImage: ImageField
+  date: DateField
+  excerpt: string
+  author: AuthorContentRelationshipField
+  href: string
+}
+
 export default function PostPreview({
   title,
   coverImage,
@@ -20,7 +26,7 @@ export default function PostPreview({
   excerpt,
   author,
   href,
-}) {
+}: PostPreviewProps) {
   return (
     <div>
       <div className="mb-5">
@@ -34,10 +40,12 @@ export default function PostPreview({
         </Link>
       </h3>
       <div className="text-lg mb-4">
-        <Date dateString={date} />
+        <Date dateField={date} />
       </div>
       <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
-      <Avatar name={asText(author.data.name)} picture={author.data.picture} />
+      {isFilled.contentRelationship(author) && (
+        <Avatar name={asText(author.data.name)} picture={author.data.picture} />
+      )}
     </div>
   )
 }

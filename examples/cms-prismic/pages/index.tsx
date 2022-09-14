@@ -6,9 +6,15 @@ import Intro from '../components/intro'
 import Layout from '../components/layout'
 import { CMS_NAME } from '../lib/constants'
 import { createClient } from '../lib/prismic'
+import { PostDocumentWithAuthor } from '../lib/types'
+import { GetStaticPropsContext, GetStaticPropsResult } from 'next'
 
-/** @param {import("next").InferGetStaticPropsType<typeof getStaticProps>} */
-export default function Index({ preview, allPosts }) {
+type IndexProps = {
+  preview: boolean
+  allPosts: PostDocumentWithAuthor[]
+}
+
+export default function Index({ preview, allPosts }: IndexProps) {
   const [heroPost, ...morePosts] = allPosts
 
   return (
@@ -36,8 +42,10 @@ export default function Index({ preview, allPosts }) {
   )
 }
 
-/** @param {import("next").GetStaticPropsContext} */
-export async function getStaticProps({ preview = false, previewData }) {
+export async function getStaticProps({
+  preview = false,
+  previewData,
+}: GetStaticPropsContext): Promise<GetStaticPropsResult<IndexProps>> {
   const client = createClient({ previewData })
 
   const allPosts = await client.getAllByType('post', {

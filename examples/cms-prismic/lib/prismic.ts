@@ -1,5 +1,6 @@
 import * as prismic from '@prismicio/client'
 import * as prismicNext from '@prismicio/next'
+
 import sm from '../sm.json'
 
 /**
@@ -9,10 +10,8 @@ export const repositoryName = prismic.getRepositoryName(sm.apiEndpoint)
 
 /**
  * Route definitions for Prismic documents.
- *
- * @type {import("@prismicio/client").Route[]}
  */
-const routes = [
+const routes: prismic.Route[] = [
   {
     type: 'post',
     path: '/posts/:uid',
@@ -23,11 +22,13 @@ const routes = [
  * Creates a Prismic client for the project's repository. The client is used to
  * query content from the Prismic API.
  *
- * @typedef {import("@prismicio/next").CreateClientConfig & import("@prismicio/client").ClientConfig} Config
- *
- * @param config {Config} - Configuration for the Prismic client.
+ * @param config - Configuration for the Prismic client.
  */
-export const createClient = ({ previewData, req, ...config } = {}) => {
+export const createClient = ({
+  previewData,
+  req,
+  ...config
+}: prismicNext.CreateClientConfig = {}) => {
   const client = prismic.createClient(sm.apiEndpoint, {
     routes,
     ...config,

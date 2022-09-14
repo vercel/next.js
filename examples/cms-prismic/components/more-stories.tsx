@@ -1,10 +1,12 @@
+import { Content } from '@prismicio/client'
+
 import PostPreview from '../components/post-preview'
 
-/**
- * @param {object} props
- * @param {import('../types.generated').PostDocument[]} props.posts
- */
-export default function MoreStories({ posts }) {
+type MoreStoriesProps = {
+  posts: Content.PostDocument[]
+}
+
+export default function MoreStories({ posts }: MoreStoriesProps) {
   return (
     <section>
       <h2 className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">

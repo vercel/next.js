@@ -1,11 +1,9 @@
-import { PrismicRichText } from '@prismicio/react'
+import { PrismicRichText, SliceComponentProps } from '@prismicio/react'
+import { Content } from '@prismicio/client'
 
-/**
- * @typedef {import('../../types.generated').TextSlice} TextSlice
- *
- * @param {import('@prismicio/react').SliceComponentProps<TextSlice>}
- */
-const Text = ({ slice }) => {
+type TextProps = SliceComponentProps<Content.TextSlice>
+
+const Text = ({ slice }: TextProps) => {
   return (
     <section className="text-lg leading-relaxed">
       <PrismicRichText

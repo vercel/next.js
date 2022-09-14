@@ -1,20 +1,29 @@
-import { useRouter } from 'next/router'
+import { GetStaticPropsContext, GetStaticPropsResult } from 'next'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 import { predicate } from '@prismicio/client'
 import { asImageSrc, asText } from '@prismicio/helpers'
-import Container from '../../components/container'
-import PostBody from '../../components/post-body'
-import MoreStories from '../../components/more-stories'
-import Header from '../../components/header'
-import PostHeader from '../../components/post-header'
-import SectionSeparator from '../../components/section-separator'
-import Layout from '../../components/layout'
-import PostTitle from '../../components/post-title'
+
 import { CMS_NAME } from '../../lib/constants'
+import { PostDocumentWithAuthor } from '../../lib/types'
 import { createClient } from '../../lib/prismic'
 
-/** @param {import("next").InferGetStaticPropsType<typeof getStaticProps>>} */
-export default function Post({ post, morePosts, preview }) {
+import Container from '../../components/container'
+import Header from '../../components/header'
+import Layout from '../../components/layout'
+import MoreStories from '../../components/more-stories'
+import PostBody from '../../components/post-body'
+import PostHeader from '../../components/post-header'
+import PostTitle from '../../components/post-title'
+import SectionSeparator from '../../components/section-separator'
+
+type PostProps = {
+  preview: boolean
+  post: PostDocumentWithAuthor
+  morePosts: PostDocumentWithAuthor[]
+}
+
+export default function Post({ post, morePosts, preview }: PostProps) {
   const router = useRouter()
 
   return (
@@ -33,7 +42,7 @@ export default function Post({ post, morePosts, preview }) {
                 </title>
                 <meta
                   property="og:image"
-                  content={asImageSrc(post.cover_image, {
+                  content={asImageSrc(post.data.cover_image, {
                     width: 1200,
                     height: 600,
                     fit: 'crop',
@@ -59,19 +68,26 @@ export default function Post({ post, morePosts, preview }) {
   )
 }
 
-/** @param {import("next").GetStaticPropsContext<{ slug: string }>} */
-export async function getStaticProps({ params, preview = false, previewData }) {
+export async function getStaticProps({
+  params,
+  preview = false,
+  previewData,
+}: GetStaticPropsContext<{ slug: string }>): Promise<
+  GetStaticPropsResult<PostProps>
+> {
   const client = createClient({ previewData })
 
-  const post = await client.getByUID('post', params.slug, {
-    fetchLinks: ['author.name', 'author.picture'],
-  })
-  const morePosts = await client.getAllByType('post', {
-    fetchLinks: ['author.name', 'author.picture'],
-    orderings: [{ field: 'my.post.date', direction: 'desc' }],
-    predicates: [predicate.not('my.post.uid', params.slug)],
-    limit: 2,
-  })
+  const [post, morePosts] = await Promise.all([
+    client.getByUID<PostDocumentWithAuthor>('post', params.slug, {
+      fetchLinks: ['author.name', 'author.picture'],
+    }),
+    client.getAllByType<PostDocumentWithAuthor>('post', {
+      fetchLinks: ['author.name', 'author.picture'],
+      orderings: [{ field: 'my.post.date', direction: 'desc' }],
+      predicates: [predicate.not('my.post.uid', params.slug)],
+      limit: 2,
+    }),
+  ])
 
   if (!post) {
     return {

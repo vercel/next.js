@@ -1,19 +1,23 @@
 import Link from 'next/link'
+import { DateField, ImageField, TitleField } from '@prismicio/types'
 import { PrismicText } from '@prismicio/react'
-import { asText } from '@prismicio/helpers'
-import Avatar from '../components/avatar'
-import Date from '../components/date'
-import CoverImage from '../components/cover-image'
+import { asText, isFilled } from '@prismicio/helpers'
 
-/**
- * @param {object} props
- * @param {import("@prismicio/types").TitleField} props.title
- * @param {import("@prismicio/types").ImageField} props.coverImage
- * @param {string} props.date
- * @param {string} props.excerpt
- * @param {import('../types.generated').AuthorDocument} props.author
- * @param {string} props.href
- */
+import { AuthorContentRelationshipField } from '../lib/types'
+
+import Avatar from '../components/avatar'
+import CoverImage from '../components/cover-image'
+import Date from '../components/date'
+
+type HeroPostProps = {
+  title: TitleField
+  coverImage: ImageField
+  date: DateField
+  excerpt: string
+  author: AuthorContentRelationshipField
+  href: string
+}
+
 export default function HeroPost({
   title,
   coverImage,
@@ -21,7 +25,7 @@ export default function HeroPost({
   excerpt,
   author,
   href,
-}) {
+}: HeroPostProps) {
   return (
     <section>
       <div className="mb-8 md:mb-16">
@@ -37,12 +41,12 @@ export default function HeroPost({
             </Link>
           </h3>
           <div className="mb-4 md:mb-0 text-lg">
-            <Date dateString={date} />
+            <Date dateField={date} />
           </div>
         </div>
         <div>
           <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
-          {author && (
+          {isFilled.contentRelationship(author) && (
             <Avatar
               name={asText(author.data.name)}
               picture={author.data.picture}
