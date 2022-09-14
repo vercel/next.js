@@ -602,7 +602,7 @@ export default class HotReloader {
                 })
               : {}
             const isServerComponent =
-              isAppPath && (staticInfo.rsc == 'server' || !staticInfo.rsc)
+              isAppPath && (staticInfo.rsc === 'server' || !staticInfo.rsc)
 
             await runDependingOnPageType({
               page,

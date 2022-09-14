@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 
-export default function page() {
+export default function Page() {
   const [text] = useState('bar:client-entry + client:useState')
   return <div>{text}</div>
 }

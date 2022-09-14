@@ -1,7 +1,5 @@
-import { getPageStaticInfo } from '../../analysis/get-page-static-info'
-
 export const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx']
-const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
+
 const nextClientComponents = [
   'dist/client/link',
   'dist/client/image',

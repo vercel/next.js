@@ -111,6 +111,8 @@ module.exports = function (task) {
       const source = file.data.toString('utf-8')
       let output = yield transform(source, options)
 
+      // TODO-APP: move "client" directive hoisting to utils
+      // Only applying to next internal client files atm
       const hasClientEntry = /^['"]client['"]/.test(source)
       if (options.filename.includes('.client.')) {
         output.code = (hasClientEntry ? `"client";\n` : '\n') + output.code

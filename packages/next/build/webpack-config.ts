@@ -1477,19 +1477,10 @@ export default async function getBaseWebpackConfig(
         ...(hasServerComponents
           ? isNodeServer || isEdgeServer
             ? [
-                // Match page or layout, start applying from them
+                // RSC server compilation loaders
                 {
-                  test: /(page|layout)\.(tsx|ts|js|cjs|mjs|jsx)$/,
-                  include: [dir],
-                  issuerLayer: WEBPACK_LAYERS.server,
-                  use: {
-                    loader: 'next-flight-loader',
-                  },
-                },
-                // Match next dist files for internal client/server components
-                {
-                  test: /\.client\.(tsx|ts|js|cjs|mjs|jsx)$/,
-                  include: [/next[\\/]dist[\\/]/],
+                  test: /(tsx|ts|js|cjs|mjs|jsx)$/,
+                  include: [dir, /next[\\/]dist[\\/]client/],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {
                     loader: 'next-flight-loader',

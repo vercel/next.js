@@ -6,10 +6,7 @@
  */
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import {
-  FLIGHT_MANIFEST,
-  RSC_MODULE_TYPES,
-} from '../../../shared/lib/constants'
+import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { relative } from 'path'
 
 // This is the module that will be used to anchor all client references to.
@@ -176,11 +173,13 @@ export class FlightManifestPlugin {
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
         // const rscType = mod.buildInfo.rsc?.type
+        // if (rscType)
+        // console.log('flight manifest', resource)
         // if (rscType !== RSC_MODULE_TYPES.client) {
         //   return
         // }
 
-        if (/\/(page|layout)\.(ts|js)x?$/.test(resource)) {
+        if (/\/(page|layout)\.client\.(ts|js)x?$/.test(resource)) {
           entryFilepath = resource
         }
 
