@@ -7,7 +7,7 @@ use tokio::time::timeout;
 
 use crate::{PreparedApp, BINDING_NAME};
 
-const MAX_HYDRATION_TIMEOUT: Duration = Duration::from_secs(30);
+const MAX_HYDRATION_TIMEOUT: Duration = Duration::from_secs(120);
 const TEST_APP_HYDRATION_DONE: &str = "Hydration done";
 
 /// Closes a browser page on Drop.
