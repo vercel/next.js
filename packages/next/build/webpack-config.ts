@@ -61,6 +61,7 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
+import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 
 const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
@@ -92,7 +93,6 @@ export function getDefineEnv({
   isNodeServer,
   isEdgeServer,
   middlewareMatchers,
-  hasServerComponents,
 }: {
   dev?: boolean
   distDir: string
@@ -103,7 +103,6 @@ export function getDefineEnv({
   isEdgeServer?: boolean
   middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
-  hasServerComponents?: boolean
 }) {
   return {
     // internal field to identify the plugin config
@@ -177,7 +176,6 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
     'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
-    'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       config.optimizeFonts && !dev
     ),
@@ -539,15 +537,23 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  if (isClient && !hasReactRoot) {
-    if (config.experimental.runtime) {
-      throw new Error(
-        '`experimental.runtime` requires React 18 to be installed.'
-      )
+  // Only error in first one compiler (client) once
+  if (isClient) {
+    if (!hasReactRoot) {
+      if (config.experimental.runtime) {
+        throw new Error(
+          '`experimental.runtime` requires React 18 to be installed.'
+        )
+      }
+      if (config.experimental.serverComponents) {
+        throw new Error(
+          '`experimental.serverComponents` requires React 18 to be installed.'
+        )
+      }
     }
-    if (config.experimental.serverComponents) {
+    if (!config.experimental.appDir && config.experimental.serverComponents) {
       throw new Error(
-        '`experimental.serverComponents` requires React 18 to be installed.'
+        '`experimental.serverComponents` requires experimental.appDir to be enabled.'
       )
     }
   }
@@ -1679,7 +1685,6 @@ export default async function getBaseWebpackConfig(
           isNodeServer,
           isEdgeServer,
           middlewareMatchers,
-          hasServerComponents,
         })
       ),
       isClient &&
@@ -1750,7 +1755,11 @@ export default async function getBaseWebpackConfig(
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      isEdgeServer && new MiddlewarePlugin({ dev }),
+      isEdgeServer &&
+        new MiddlewarePlugin({
+          dev,
+          sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+        }),
       isClient &&
         new BuildManifestPlugin({
           buildId,
@@ -1800,6 +1809,10 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
             })),
+      !dev &&
+        isClient &&
+        !!config.experimental.sri?.algorithm &&
+        new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(

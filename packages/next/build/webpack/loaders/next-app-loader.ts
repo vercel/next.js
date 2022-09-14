@@ -1,6 +1,23 @@
 import type webpack from 'webpack'
+import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
+
+export const FILE_TYPES = {
+  layout: 'layout',
+  template: 'template',
+  error: 'error',
+  loading: 'loading',
+} as const
+
+// TODO-APP: check if this can be narrowed.
+type ComponentModule = () => any
+export type ComponentsType = {
+  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ComponentModule
+} & {
+  readonly layoutOrPagePath?: string
+  readonly page?: ComponentModule
+}
 
 async function createTreeCodeFromPath({
   pagePath,
@@ -39,7 +56,7 @@ async function createTreeCodeFromPath({
         const matchedPagePath = `${appDirPrefix}${parallelSegmentPath}`
         const resolvedPagePath = await resolve(matchedPagePath)
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[parallelKey] = `['', {}, {filePath: ${JSON.stringify(
+        props[parallelKey] = `['', {}, {layoutOrPagePath: ${JSON.stringify(
           resolvedPagePath
         )}, page: () => require(${JSON.stringify(resolvedPagePath)})}]`
         continue
@@ -50,31 +67,33 @@ async function createTreeCodeFromPath({
         parallelSegment,
       ])
 
-      // For segmentPath === '' avoid double `/`
-      const layoutPath = `${appDirPrefix}${parallelSegmentPath}/layout`
-      // For segmentPath === '' avoid double `/`
-      const loadingPath = `${appDirPrefix}${parallelSegmentPath}/loading`
-
-      const resolvedLayoutPath = await resolve(layoutPath)
-      const resolvedLoadingPath = await resolve(loadingPath)
+      // `page` is not included here as it's added above.
+      const filePaths = await Promise.all(
+        Object.values(FILE_TYPES).map(async (file) => {
+          return [
+            file,
+            await resolve(`${appDirPrefix}${parallelSegmentPath}/${file}`),
+          ] as const
+        })
+      )
 
       props[parallelKey] = `[
         '${parallelSegment}',
         ${subtree},
         {
-          filePath: ${JSON.stringify(resolvedLayoutPath)},
-          ${
-            resolvedLayoutPath
-              ? `layout: () => require(${JSON.stringify(resolvedLayoutPath)}),`
-              : ''
-          }
-          ${
-            resolvedLoadingPath
-              ? `loading: () => require(${JSON.stringify(
-                  resolvedLoadingPath
-                )}),`
-              : ''
-          }
+          ${filePaths
+            .filter(([, filePath]) => filePath !== undefined)
+            .map(([file, filePath]) => {
+              if (filePath === undefined) {
+                return ''
+              }
+              return `${
+                file === FILE_TYPES.layout
+                  ? `layoutOrPagePath: '${filePath}',`
+                  : ''
+              }${file}: () => require(${JSON.stringify(filePath)}),`
+            })
+            .join('\n')}
         }
       ]`
     }
@@ -164,6 +183,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
     export const AppRouter = require('next/dist/client/components/app-router.client.js').default
     export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
+    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.client.js').default
     export const HotReloader = ${
       // Disable HotReloader component in production
       this.mode === 'development'
