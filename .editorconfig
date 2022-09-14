@@ -11,6 +11,10 @@ tab_width = 4
 insert_final_newline = true
 max_line_length = 120
 
+[*.rs]
+# Keep in sync with rustfmt
+max_line_length = 100
+
 [{*.markdown,*.md}]
 max_line_length = 80
 
