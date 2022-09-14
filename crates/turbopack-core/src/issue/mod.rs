@@ -4,7 +4,7 @@ pub mod resolve;
 
 use std::{cmp::Ordering, fmt::Display};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     emit,
@@ -148,7 +148,9 @@ impl IssueProcessingPath for ItemIssueProcessingPath {
     /// Returns the shortest path from the root issue to the given issue.
     #[turbo_tasks::function]
     async fn shortest_path(&self, issue: IssueVc) -> Result<OptionIssueProcessingPathItemsVc> {
-        assert!(!self.1.is_empty());
+        if self.1.is_empty() {
+            bail!("path can't be empty");
+        }
         let paths = self
             .1
             .iter()
