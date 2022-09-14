@@ -65,7 +65,7 @@ export default async function edgeSSRLoader(this: any) {
   )}`
 
   const transformed = `
-    import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
+    import { adapter, enhanceGlobals, prepareRequest } from 'next/dist/server/web/adapter'
     import { getRender } from 'next/dist/build/webpack/loaders/next-edge-ssr-loader/render'
 
     import Document from ${stringifiedDocumentPath}
@@ -122,8 +122,10 @@ export default async function edgeSSRLoader(this: any) {
     export const ComponentMod = pageMod
 
     export default function(opts) {
+      const reqData = prepareRequest(opts)
       return adapter({
         ...opts,
+        reqData,
         handler: render
       })
     }`
