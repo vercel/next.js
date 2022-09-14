@@ -9,7 +9,9 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sourcemap::{RawToken, SourceMap as RawSourcemap};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, BytePos, SourceMapperDyn, DUMMY_SP, errors::HANDLER},
+    common::{
+        comments::Comments, errors::HANDLER, util::take::Take, BytePos, SourceMapperDyn, DUMMY_SP,
+    },
     ecma::utils::ExprFactory,
     ecma::visit::{Fold, FoldWith},
     ecma::{
@@ -349,7 +351,7 @@ impl<C: Comments> EmotionTransformer<C> {
                                     .emit()
                             });
                             q.raw
-                        },
+                        }
                     };
                     let minified = minify_css_string(&input, index == 0, index == args_len - 1);
                     // Compress one more spaces into one space
