@@ -9,7 +9,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sourcemap::{RawToken, SourceMap as RawSourcemap};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, BytePos, SourceMapperDyn, DUMMY_SP},
+    common::{comments::Comments, util::take::Take, BytePos, SourceMapperDyn, DUMMY_SP, errors::HANDLER},
     ecma::utils::ExprFactory,
     ecma::visit::{Fold, FoldWith},
     ecma::{
@@ -337,7 +337,21 @@ impl<C: Comments> EmotionTransformer<C> {
             if index % 2 == 0 {
                 if let Some(q) = tagged_tpl.quasis.get_mut(i) {
                     let q = q.take();
-                    let minified = minify_css_string(&q.raw, index == 0, index == args_len - 1);
+                    let input = match q.cooked {
+                        Some(cooked) => cooked,
+                        _ => {
+                            HANDLER.with(|handler| {
+                                handler
+                                    .struct_span_err(
+                                        q.span,
+                                        "This tagged template contains an invalid escape sequence.\nSee: https://nextjs.org/docs/messages/invalid-escape-sequence-in-emotion-tagged-template",
+                                    )
+                                    .emit()
+                            });
+                            q.raw
+                        },
+                    };
+                    let minified = minify_css_string(&input, index == 0, index == args_len - 1);
                     // Compress one more spaces into one space
                     if minified.replace(' ', "").is_empty() {
                         if index != 0 && index != args_len - 1 {

@@ -733,6 +733,10 @@
         {
           "title": "nonce-contained-invalid-characters",
           "path": "/errors/nonce-contained-invalid-characters.md"
+        },
+        {
+          "title": "invalid-escape-sequence-in-emotion-tagged-template",
+          "path": "/errors/invalid-escape-sequence-in-emotion-tagged-template.md"
         }
       ]
     }
