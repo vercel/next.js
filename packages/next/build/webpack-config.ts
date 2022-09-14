@@ -806,7 +806,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_app.js',
+      isEdgeServer ? 'next/dist/esm/pages/_app.js' : 'next/dist/pages/_app.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -815,7 +815,9 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_error.js',
+      isEdgeServer
+        ? 'next/dist/esm/pages/_error.js'
+        : 'next/dist/pages/_error.js',
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -824,7 +826,9 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `next/dist/pages/_document.js`,
+      isEdgeServer
+        ? `next/dist/esm/pages/_document.js`
+        : `next/dist/pages/_document.js`,
     ]
   }
 
