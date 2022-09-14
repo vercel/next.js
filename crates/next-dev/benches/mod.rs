@@ -20,7 +20,7 @@ use util::{
 mod bundlers;
 mod util;
 
-const MAX_UPDATE_TIMEOUT: Duration = Duration::from_secs(20);
+const MAX_UPDATE_TIMEOUT: Duration = Duration::from_secs(60);
 
 fn bench_startup(c: &mut Criterion) {
     let mut g = c.benchmark_group("bench_startup");
