@@ -56,8 +56,8 @@ export async function adapter(params: {
   }
 
   // Preserve flight data.
-  const flightData = requestUrl.flightData
-  requestUrl.flightData = undefined
+  const flightSearchParameters = requestUrl.flightSearchParameters
+  requestUrl.flightSearchParameters = undefined
 
   // Strip internal query parameters off the request.
   stripInternalSearchParams(requestUrl.searchParams, true)
@@ -106,7 +106,8 @@ export async function adapter(params: {
 
     if (rewriteUrl.host === request.nextUrl.host) {
       rewriteUrl.buildId = buildId || rewriteUrl.buildId
-      rewriteUrl.flightData = flightData || rewriteUrl.flightData
+      rewriteUrl.flightSearchParameters =
+        flightSearchParameters || rewriteUrl.flightSearchParameters
       response.headers.set('x-middleware-rewrite', String(rewriteUrl))
     }
 
@@ -144,7 +145,8 @@ export async function adapter(params: {
 
     if (redirectURL.host === request.nextUrl.host) {
       redirectURL.buildId = buildId || redirectURL.buildId
-      redirectURL.flightData = flightData || redirectURL.flightData
+      redirectURL.flightSearchParameters =
+        flightSearchParameters || redirectURL.flightSearchParameters
       response.headers.set('Location', String(redirectURL))
     }
 

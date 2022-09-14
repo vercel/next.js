@@ -34,7 +34,7 @@ function parseURL(url: string | URL, base?: string | URL) {
 function parseFlightParameters(
   searchParams: URLSearchParams
 ): Record<string, string> | undefined {
-  let flightData: Record<string, string> = {}
+  let flightSearchParameters: Record<string, string> = {}
   let flightDataUpdated = false
   for (const name of FLIGHT_PARAMETERS) {
     const value = searchParams.get(name)
@@ -42,7 +42,7 @@ function parseFlightParameters(
       continue
     }
 
-    flightData[name] = value
+    flightSearchParameters[name] = value
     flightDataUpdated = true
   }
 
@@ -50,7 +50,7 @@ function parseFlightParameters(
     return undefined
   }
 
-  return flightData
+  return flightSearchParameters
 }
 
 const Internal = Symbol('NextURLInternal')
@@ -59,7 +59,7 @@ export class NextURL {
   [Internal]: {
     basePath: string
     buildId?: string
-    flightData?: Record<string, string>
+    flightSearchParameters?: Record<string, string>
     defaultLocale?: string
     domainLocale?: DomainLocale
     locale?: string
@@ -118,7 +118,7 @@ export class NextURL {
     this[Internal].buildId = pathnameInfo.buildId
     this[Internal].locale = pathnameInfo.locale ?? defaultLocale
     this[Internal].trailingSlash = pathnameInfo.trailingSlash
-    this[Internal].flightData = parseFlightParameters(
+    this[Internal].flightSearchParameters = parseFlightParameters(
       this[Internal].url.searchParams
     )
   }
@@ -144,11 +144,13 @@ export class NextURL {
     this[Internal].buildId = buildId
   }
 
-  public get flightData() {
-    return this[Internal].flightData
+  public get flightSearchParameters() {
+    return this[Internal].flightSearchParameters
   }
 
-  public set flightData(flightData: Record<string, string> | undefined) {
+  public set flightSearchParameters(
+    flightData: Record<string, string> | undefined
+  ) {
     if (flightData) {
       for (const name of FLIGHT_PARAMETERS) {
         this[Internal].url.searchParams.set(name, flightData[name] ?? '')
@@ -159,7 +161,7 @@ export class NextURL {
       }
     }
 
-    this[Internal].flightData = flightData
+    this[Internal].flightSearchParameters = flightData
   }
 
   public get locale() {
