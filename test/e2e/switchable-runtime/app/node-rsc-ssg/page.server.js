@@ -1,7 +1,17 @@
+import { experimental_use as use } from 'react'
 import Runtime from '../../utils/runtime'
 import Time from '../../utils/time'
 
-export default function Page({ type }) {
+async function getData() {
+  return {
+    props: {
+      type: 'SSG',
+    },
+  }
+}
+
+export default function Page(props) {
+  const { type } = use(getData())
   return (
     <div className="node-rsc-ssg">
       This is a {type} RSC page.
@@ -11,12 +21,4 @@ export default function Page({ type }) {
       <Time />
     </div>
   )
-}
-
-export function getStaticProps() {
-  return {
-    props: {
-      type: 'SSG',
-    },
-  }
 }
