@@ -835,7 +835,7 @@ export default async function loadConfig(
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
-    if (userConfig.experimental.useUndici) {
+    if (userConfig.experimental?.useUndici) {
       ;(global as any).__NEXT_USE_UNDICI = true
     }
 
