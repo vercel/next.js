@@ -7,14 +7,13 @@ pub mod embed;
 pub mod glob;
 mod invalidator_map;
 mod read_glob;
+mod retry;
 pub mod util;
 
-#[cfg(unix)]
-use std::io::Read;
 use std::{
     collections::{HashMap, HashSet},
-    fmt::{self, Debug, Display},
-    fs::{self, create_dir_all},
+    fmt::{self, Display},
+    fs::FileType,
     io::{self, ErrorKind},
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
@@ -22,12 +21,10 @@ use std::{
         mpsc::{channel, RecvError, TryRecvError},
         Arc, Mutex,
     },
-    thread::sleep,
     time::Duration,
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use futures_retry::{ErrorHandler, FutureRetry, RetryPolicy};
 use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
@@ -36,14 +33,20 @@ use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher
 use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
 use serde::{Deserialize, Serialize};
-#[cfg(unix)]
-use tokio::io::AsyncReadExt;
-use tokio::io::AsyncWriteExt;
+use tokio::{
+    fs,
+    io::{AsyncReadExt, AsyncWriteExt},
+};
 use turbo_tasks::{
-    primitives::StringVc, spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc,
-    Invalidator, ValueToString, ValueToStringVc,
+    primitives::StringVc, spawn_thread, trace::TraceRawVcs, CompletionVc, Invalidator,
+    ValueToString, ValueToStringVc,
 };
 use util::{join_path, normalize_path, sys_to_unix, unix_to_sys};
+
+use crate::{
+    retry::{retry_blocking, retry_future},
+    util::is_windows_raw_path,
+};
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem {
@@ -51,42 +54,8 @@ pub trait FileSystem {
     fn read_link(&self, fs_path: FileSystemPathVc) -> LinkContentVc;
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
+    fn metadata(&self, fs_path: FileSystemPathVc) -> FileMetaVc;
     fn to_string(&self) -> StringVc;
-}
-
-mod watcher_ser {
-    use serde::{de::Visitor, Deserializer, Serializer};
-
-    use super::*;
-
-    pub fn serialize<S>(_: &Mutex<Option<RecommendedWatcher>>, ser: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        ser.serialize_unit()
-    }
-
-    pub fn deserialize<'de, D>(de: D) -> Result<Mutex<Option<RecommendedWatcher>>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct V;
-        impl<'de> Visitor<'de> for V {
-            type Value = Mutex<Option<RecommendedWatcher>>;
-
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "a ThreadPool")
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Mutex::new(None))
-            }
-        }
-        de.deserialize_unit(V)
-    }
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -98,11 +67,18 @@ pub struct DiskFileSystem {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     dir_invalidator_map: Arc<InvalidatorMap>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(with = "watcher_ser")]
+    #[serde(skip)]
     watcher: Mutex<Option<RecommendedWatcher>>,
 }
 
 impl DiskFileSystem {
+    /// registers the path as an invalidator for the current task,
+    /// has to be called within a turbo-tasks function
+    fn register_invalidator(&self, path: impl AsRef<Path>) {
+        let invalidator = turbo_tasks::get_invalidator();
+        self.invalidator_map.insert(path_to_key(path), invalidator);
+    }
+
     pub fn invalidate(&self) {
         for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
             invalidators.into_iter().for_each(|i| i.invalidate());
@@ -156,44 +132,41 @@ impl DiskFileSystem {
                 loop {
                     match event {
                         Ok(DebouncedEvent::Write(path)) => {
-                            batched_invalidate_path.insert(path_to_key(&path));
+                            batched_invalidate_path.insert(path);
                         }
                         Ok(DebouncedEvent::Create(path)) | Ok(DebouncedEvent::Remove(path)) => {
-                            batched_invalidate_path_and_children.insert(path_to_key(&path));
-                            batched_invalidate_path_and_children_dir.insert(path_to_key(&path));
+                            batched_invalidate_path_and_children.insert(path.clone());
+                            batched_invalidate_path_and_children_dir.insert(path.clone());
                             if let Some(parent) = path.parent() {
-                                batched_invalidate_path_dir.insert(path_to_key(parent));
+                                batched_invalidate_path_dir.insert(PathBuf::from(parent));
                             }
                         }
                         Ok(DebouncedEvent::Rename(source, destination)) => {
-                            batched_invalidate_path_and_children.insert(path_to_key(&source));
+                            batched_invalidate_path_and_children.insert(source.clone());
                             if let Some(parent) = source.parent() {
-                                batched_invalidate_path_dir.insert(path_to_key(parent));
+                                batched_invalidate_path_dir.insert(PathBuf::from(parent));
                             }
-                            batched_invalidate_path_and_children.insert(path_to_key(&destination));
+                            batched_invalidate_path_and_children.insert(destination.clone());
                             if let Some(parent) = destination.parent() {
-                                batched_invalidate_path_dir.insert(path_to_key(parent));
+                                batched_invalidate_path_dir.insert(PathBuf::from(parent));
                             }
                         }
                         Ok(DebouncedEvent::Rescan) => {
-                            batched_invalidate_path_and_children
-                                .insert(path_to_key(&PathBuf::from(&root)));
-                            batched_invalidate_path_and_children_dir
-                                .insert(path_to_key(&PathBuf::from(&root)));
+                            batched_invalidate_path_and_children.insert(PathBuf::from(&root));
+                            batched_invalidate_path_and_children_dir.insert(PathBuf::from(&root));
                         }
                         Ok(DebouncedEvent::Error(err, path)) => {
                             println!("watch error ({:?}): {:?} ", path, err);
                             match path {
                                 Some(path) => {
-                                    batched_invalidate_path_and_children.insert(path_to_key(&path));
-                                    batched_invalidate_path_and_children_dir
-                                        .insert(path_to_key(&path));
+                                    batched_invalidate_path_and_children.insert(path.clone());
+                                    batched_invalidate_path_and_children_dir.insert(path);
                                 }
                                 None => {
                                     batched_invalidate_path_and_children
-                                        .insert(path_to_key(&PathBuf::from(&root)));
+                                        .insert(PathBuf::from(&root));
                                     batched_invalidate_path_and_children_dir
-                                        .insert(path_to_key(&PathBuf::from(&root)));
+                                        .insert(PathBuf::from(&root));
                                 }
                             }
                         }
@@ -216,20 +189,23 @@ impl DiskFileSystem {
                 }
                 fn invalidate_path(
                     invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
-                    paths: impl Iterator<Item = String>,
+                    paths: impl Iterator<Item = PathBuf>,
                 ) {
                     for path in paths {
-                        if let Some(invalidators) = invalidator_map.remove(&path) {
+                        let key = path_to_key(path);
+                        if let Some(invalidators) = invalidator_map.remove(&key) {
                             invalidators.into_iter().for_each(|i| i.invalidate());
                         }
                     }
                 }
                 fn invalidate_path_and_children_execute(
                     invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
-                    paths: &mut HashSet<String>,
+                    paths: &mut HashSet<PathBuf>,
                 ) {
                     for (_, invalidators) in invalidator_map.drain_filter(|key, _| {
-                        paths.iter().any(|path_key| key.starts_with(path_key))
+                        paths
+                            .iter()
+                            .any(|path_key| key.starts_with(&path_to_key(path_key)))
                     }) {
                         invalidators.into_iter().for_each(|i| i.invalidate());
                     }
@@ -251,7 +227,7 @@ impl DiskFileSystem {
                     );
                     invalidate_path_and_children_execute(
                         &mut dir_invalidator_map,
-                        &mut batched_invalidate_path_and_children,
+                        &mut batched_invalidate_path_and_children_dir,
                     );
                 }
             }
@@ -267,16 +243,16 @@ impl DiskFileSystem {
     }
 }
 
-fn path_to_key(path: &Path) -> String {
-    path.to_string_lossy().to_lowercase()
+pub fn path_to_key(path: impl AsRef<Path>) -> String {
+    path.as_ref().to_string_lossy().to_string()
 }
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystemVc {
     #[turbo_tasks::function]
-    pub fn new(name: String, root: String) -> Result<Self> {
+    pub async fn new(name: String, root: String) -> Result<Self> {
         // create the directory for the filesystem on disk, if it doesn't exist
-        create_dir_all(&root)?;
+        fs::create_dir_all(&root).await?;
 
         let instance = DiskFileSystem {
             name,
@@ -287,62 +263,6 @@ impl DiskFileSystemVc {
         };
 
         Ok(Self::cell(instance))
-    }
-}
-
-impl DiskFileSystem {
-    async fn execute<T: Send + 'static>(&self, func: impl FnOnce() -> T + Send + 'static) -> T {
-        spawn_blocking(func).await
-    }
-}
-
-fn can_retry(err: &std::io::Error) -> bool {
-    matches!(
-        err.kind(),
-        ErrorKind::PermissionDenied | ErrorKind::WouldBlock
-    )
-}
-
-fn with_retry<T>(func: impl Fn() -> Result<T, std::io::Error>) -> Result<T, std::io::Error> {
-    let mut result = func();
-    if let Err(e) = &result {
-        if can_retry(e) {
-            for i in 0..10 {
-                sleep(Duration::from_millis(10 + i * 100));
-                result = func();
-                match &result {
-                    Ok(_) => break,
-                    Err(e) => {
-                        if !can_retry(e) {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    result
-}
-
-struct FutureRetryHandle {
-    max_attempts: usize,
-}
-
-impl Default for FutureRetryHandle {
-    fn default() -> Self {
-        Self { max_attempts: 10 }
-    }
-}
-
-impl ErrorHandler<io::Error> for FutureRetryHandle {
-    type OutError = io::Error;
-
-    fn handle(&mut self, attempt: usize, e: io::Error) -> RetryPolicy<io::Error> {
-        if attempt == self.max_attempts || !can_retry(&e) {
-            RetryPolicy::ForwardError(e)
-        } else {
-            RetryPolicy::WaitRetry(Duration::from_millis(10 + (attempt as u64) * 100))
-        }
     }
 }
 
@@ -357,113 +277,99 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
     async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
         let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
-        {
-            let invalidator = turbo_tasks::get_invalidator();
-            self.invalidator_map
-                .insert(path_to_key(full_path.as_path()), invalidator);
-        }
-        Ok(match FutureRetry::new(
-            || File::from_path_async(full_path.clone()),
-            FutureRetryHandle::default(),
-        )
-        .await
-        {
-            Ok((file, _attempts)) => FileContent::new(file),
-            Err(_) => FileContent::NotFound,
-        }
-        .into())
+        self.register_invalidator(&full_path);
+
+        let content = match retry_future(|| File::from_path(full_path.clone())).await {
+            Ok(file) => FileContent::new(file),
+            Err(e) if e.kind() == ErrorKind::NotFound => FileContent::NotFound,
+            Err(e) => {
+                bail!(anyhow!(e).context(format!("reading file {}", full_path.display())))
+            }
+        };
+
+        Ok(content.cell())
     }
+
     #[turbo_tasks::function]
     async fn read_dir(&self, fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
         let fs_path = fs_path.await?;
         let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.path));
-        {
-            let invalidator = turbo_tasks::get_invalidator();
-            self.dir_invalidator_map
-                .insert(path_to_key(full_path.as_path()), invalidator);
-        }
-        let full_path_to_read_dir = full_path.clone();
-        let result = with_retry(move || fs::read_dir(&full_path_to_read_dir));
-        Ok(match result {
-            Ok(res) => DirectoryContentVc::new(
-                res.filter_map(|e| -> Option<Result<(String, DirectoryEntry)>> {
-                    match e {
-                        Ok(e) => {
-                            let path = e.path();
-                            let filename = path.file_name()?.to_str()?.to_string();
-                            let path_to_root =
-                                sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
-                            Some(Ok((filename, {
-                                let fs_path = FileSystemPathVc::new_normalized(
-                                    fs_path.fs,
-                                    path_to_root.to_string(),
-                                );
-                                let file_type = match e.file_type() {
-                                    Err(e) => {
-                                        return Some(Err(e.into()));
-                                    }
-                                    Ok(t) => t,
-                                };
-                                if file_type.is_file() {
-                                    DirectoryEntry::File(fs_path)
-                                } else if file_type.is_dir() {
-                                    DirectoryEntry::Directory(fs_path)
-                                // TODO
-                                // follow the symlink?
-                                } else if file_type.is_symlink() {
-                                    DirectoryEntry::File(fs_path)
-                                } else {
-                                    DirectoryEntry::Other(fs_path)
-                                }
-                            })))
-                        }
-                        Err(err) => Some(Err::<_, anyhow::Error>(err.into()).context(anyhow!(
-                            "Error reading directory item in {}",
-                            full_path.display()
-                        ))),
-                    }
-                })
-                .collect::<Result<HashMap<String, _>>>()?,
-            ),
-            Err(_) => DirectoryContentVc::not_found(),
-        })
+        self.register_invalidator(&full_path);
+
+        // we use the sync std function here as it's a lot faster (600%) in
+        // node-file-trace
+        let read_dir = match retry_blocking(&full_path, |path| std::fs::read_dir(path)).await {
+            Ok(dir) => dir,
+            Err(e) if e.kind() == ErrorKind::NotFound => return Ok(DirectoryContentVc::not_found()),
+            Err(e) => {
+                bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
+            }
+        };
+
+        let entries = read_dir
+            .filter_map(|r| {
+                let e = match r {
+                    Ok(e) => e,
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                let path = e.path();
+
+                // we filter out any non unicode names and paths without the same root here
+                let file_name = path.file_name()?.to_str()?.to_string();
+                let path_to_root = sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
+
+                let fs_path =
+                    FileSystemPathVc::new_normalized(fs_path.fs, path_to_root.to_string());
+
+                let entry = match e.file_type() {
+                    Ok(t) if t.is_file() => DirectoryEntry::File(fs_path),
+                    Ok(t) if t.is_dir() => DirectoryEntry::Directory(fs_path),
+                    // TODO: follow the symlink?
+                    Ok(t) if t.is_symlink() => DirectoryEntry::File(fs_path),
+                    Ok(_) => DirectoryEntry::Other(fs_path),
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                Some(anyhow::Ok((file_name, entry)))
+            })
+            .collect::<Result<_>>()
+            .with_context(|| format!("reading directory item in {}", full_path.display()))?;
+
+        Ok(DirectoryContentVc::new(entries))
     }
+
     #[turbo_tasks::function]
     async fn read_link(&self, fs_path: FileSystemPathVc) -> Result<LinkContentVc> {
         let path = fs_path.await?;
         let full_path = Path::new(&self.root).join(&*unix_to_sys(&path.path));
-        {
-            let invalidator = turbo_tasks::get_invalidator();
-            self.invalidator_map
-                .insert(path_to_key(full_path.as_path()), invalidator);
+        self.register_invalidator(&full_path);
+
+        let file = match retry_future(|| fs::read_link(full_path.clone())).await {
+            Ok(res) => res,
+            Err(_) => return Ok(LinkContent::NotFound.cell()),
+        };
+
+        let result = if is_windows_raw_path(Path::new(&self.root)) && !is_windows_raw_path(&file) {
+            file.strip_prefix(Path::new(&self.root[4..]))
+        } else {
+            file.strip_prefix(Path::new(&self.root))
+        };
+
+        let file = match result {
+            Ok(file) => file,
+            Err(_) => return Ok(LinkContent::Invalid.cell()),
+        };
+
+        Ok(if let Some(s) = file.to_str() {
+            LinkContent::Link(FileSystemPathVc::new_normalized(
+                path.fs,
+                sys_to_unix(s).to_string(),
+            ))
+        } else {
+            LinkContent::Invalid
         }
-        Ok(match self
-            .execute(move || with_retry(move || full_path.read_link()))
-            .await
-        {
-            Ok(file) => {
-                let result = if self.root.starts_with("\\\\?\\") && !file.starts_with("\\\\?\\") {
-                    file.strip_prefix(Path::new(&self.root[4..]))
-                } else {
-                    file.strip_prefix(Path::new(&self.root))
-                };
-                match result {
-                    Ok(file) => {
-                        if let Some(s) = file.to_str() {
-                            LinkContent::Link(FileSystemPathVc::new_normalized(
-                                path.fs,
-                                sys_to_unix(s).to_string(),
-                            ))
-                        } else {
-                            LinkContent::Invalid
-                        }
-                    }
-                    Err(_) => LinkContent::Invalid,
-                }
-            }
-            Err(_) => LinkContent::NotFound,
-        }
-        .into())
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -478,76 +384,72 @@ impl FileSystem for DiskFileSystem {
             .read()
             .await
             .with_context(|| format!("reading old content of {}", full_path.display()))?;
-        if *content != *old_content {
-            let create_directory = *old_content == FileContent::NotFound;
-            async {
-                match &*content {
-                    FileContent::Content(file) => {
-                        if create_directory {
-                            if let Some(parent) = full_path.parent() {
-                                FutureRetry::new(
-                                    move || tokio::fs::create_dir_all(parent),
-                                    FutureRetryHandle::default(),
+
+        if *content == *old_content {
+            return Ok(CompletionVc::new());
+        }
+
+        let create_directory = *old_content == FileContent::NotFound;
+        match &*content {
+            FileContent::Content(file) => {
+                if create_directory {
+                    if let Some(parent) = full_path.parent() {
+                        retry_future(move || fs::create_dir_all(parent))
+                            .await
+                            .with_context(|| {
+                                format!(
+                                    "failed to create directory {} for write to {}",
+                                    parent.display(),
+                                    full_path.display()
                                 )
-                                .await
-                                .map_err(|(err, _attempts)| err)
-                                .with_context(|| {
-                                    format!(
-                                        "failed to create directory {} for write to {}",
-                                        parent.display(),
-                                        full_path.display()
-                                    )
-                                })?;
-                            }
-                        }
-                        // println!("write {} bytes to {}", buffer.len(), full_path.display());
-                        let full_path_to_write = full_path.clone();
-                        FutureRetry::new(
-                            move || {
-                                let full_path = full_path_to_write.clone();
-                                async move {
-                                    let full_path = full_path.clone();
-                                    let mut f = tokio::fs::File::create(&full_path).await?;
-                                    f.write_all(&file.content).await?;
-                                    #[cfg(target_family = "unix")]
-                                    fs::set_permissions(&full_path, file.meta.permissions.into())?;
-                                    Ok::<(), io::Error>(())
-                                }
-                            },
-                            FutureRetryHandle::default(),
-                        )
-                        .await
-                        .map_err(|(err, _attempts)| err)
-                        .with_context(|| format!("failed to write to {}", full_path.display()))
-                    }
-                    FileContent::NotFound => {
-                        // println!("remove {}", full_path.display());
-                        let full_path_to_remove = full_path.clone();
-                        FutureRetry::new(
-                            move || {
-                                let full_path = full_path_to_remove.clone();
-                                async move {
-                                    tokio::fs::remove_file(full_path).await.or_else(|err| {
-                                        if err.kind() == ErrorKind::NotFound {
-                                            Ok(())
-                                        } else {
-                                            Err(err)
-                                        }
-                                    })
-                                }
-                            },
-                            FutureRetryHandle::default(),
-                        )
-                        .await
-                        .map_err(|(err, _attempts)| err)
-                        .context(anyhow!("removing {} failed", full_path.display()))
+                            })?;
                     }
                 }
+                // println!("write {} bytes to {}", buffer.len(), full_path.display());
+                let full_path_to_write = full_path.clone();
+                retry_future(move || {
+                    let full_path = full_path_to_write.clone();
+                    async move {
+                        let mut f = fs::File::create(&full_path).await?;
+                        f.write_all(&file.content).await?;
+                        #[cfg(target_family = "unix")]
+                        f.set_permissions(file.meta.permissions.into()).await?;
+                        Ok::<(), io::Error>(())
+                    }
+                })
+                .await
+                .with_context(|| format!("failed to write to {}", full_path.display()))?;
             }
-            .await?;
+            FileContent::NotFound => {
+                // println!("remove {}", full_path.display());
+                retry_future(|| fs::remove_file(full_path.clone()))
+                    .await
+                    .or_else(|err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            Ok(())
+                        } else {
+                            Err(err)
+                        }
+                    })
+                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+            }
         }
+
         Ok(CompletionVc::new())
     }
+
+    #[turbo_tasks::function]
+    async fn metadata(&self, fs_path: FileSystemPathVc) -> Result<FileMetaVc> {
+        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
+        self.register_invalidator(&full_path);
+
+        let meta = retry_future(|| fs::metadata(full_path.clone()))
+            .await
+            .with_context(|| format!("reading metadata for {}", full_path.display()))?;
+
+        Ok(FileMetaVc::cell(meta.into()))
+    }
+
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
         StringVc::cell(self.name.clone())
@@ -555,7 +457,7 @@ impl FileSystem for DiskFileSystem {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileSystemPath {
     pub fs: FileSystemVc,
     pub path: String,
@@ -800,33 +702,28 @@ pub async fn rebase(
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
     #[turbo_tasks::function]
-    pub async fn read(self) -> Result<FileContentVc> {
-        let this = self.await?;
-        Ok(this.fs.read(self))
+    pub async fn read(self) -> FileContentVc {
+        self.fs().read(self)
     }
 
     #[turbo_tasks::function]
-    pub async fn read_link(self) -> Result<LinkContentVc> {
-        let this = self.await?;
-        Ok(this.fs.read_link(self))
+    pub async fn read_link(self) -> LinkContentVc {
+        self.fs().read_link(self)
     }
 
     #[turbo_tasks::function]
-    pub async fn read_json(self) -> Result<FileJsonContentVc> {
-        let this = self.await?;
-        Ok(this.fs.read(self).parse_json())
+    pub fn read_json(self) -> FileJsonContentVc {
+        self.fs().read(self).parse_json()
     }
 
     #[turbo_tasks::function]
-    pub async fn read_dir(self) -> Result<DirectoryContentVc> {
-        let this = self.await?;
-        Ok(this.fs.read_dir(self))
+    pub async fn read_dir(self) -> DirectoryContentVc {
+        self.fs().read_dir(self)
     }
 
     #[turbo_tasks::function]
-    pub async fn write(self, content: FileContentVc) -> Result<CompletionVc> {
-        let this = self.await?;
-        Ok(this.fs.write(self, content))
+    pub fn write(self, content: FileContentVc) -> CompletionVc {
+        self.fs().write(self, content)
     }
 
     #[turbo_tasks::function]
@@ -844,29 +741,24 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
+    pub fn metadata(self) -> FileMetaVc {
+        self.fs().metadata(self)
+    }
+
+    #[turbo_tasks::function]
     pub async fn get_type(self) -> Result<FileSystemEntryTypeVc> {
         let this = self.await?;
         if this.is_root() {
             return Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::Directory));
         }
-        let dir_content = self.parent().resolve().await?.read_dir().await?;
-        match &*dir_content {
-            DirectoryContent::NotFound => {
-                Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::NotFound))
-            }
-            DirectoryContent::Entries(entries) => {
-                let basename = if let Some(i) = this.path.rfind('/') {
-                    &this.path[i + 1..]
-                } else {
-                    &this.path
-                };
-                if let Some(entry) = entries.get(basename) {
-                    Ok(FileSystemEntryTypeVc::cell(entry.into()))
-                } else {
-                    Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::NotFound))
-                }
-            }
+
+        let meta_res = self.metadata().await;
+        Ok(match meta_res {
+            Ok(meta) => meta.file_type,
+            // TODO: proper error reporting
+            Err(_) => FileSystemEntryType::Error,
         }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -960,15 +852,41 @@ impl Default for Permissions {
     }
 }
 
+// Only handle the permissions on unix platform for now
+
 #[cfg(target_family = "unix")]
-impl From<Permissions> for fs::Permissions {
+impl From<Permissions> for std::fs::Permissions {
     fn from(perm: Permissions) -> Self {
         use std::os::unix::fs::PermissionsExt;
         match perm {
-            Permissions::Readable => fs::Permissions::from_mode(0o444),
-            Permissions::Writable => fs::Permissions::from_mode(0o664),
-            Permissions::Executable => fs::Permissions::from_mode(0o755),
+            Permissions::Readable => std::fs::Permissions::from_mode(0o444),
+            Permissions::Writable => std::fs::Permissions::from_mode(0o664),
+            Permissions::Executable => std::fs::Permissions::from_mode(0o755),
         }
+    }
+}
+
+#[cfg(target_family = "unix")]
+impl From<std::fs::Permissions> for Permissions {
+    fn from(perm: std::fs::Permissions) -> Self {
+        use std::os::unix::fs::PermissionsExt;
+        if perm.readonly() {
+            Permissions::Readable
+        } else {
+            // https://github.com/fitzgen/is_executable/blob/master/src/lib.rs#L96
+            if perm.mode() & 0o111 != 0 {
+                Permissions::Executable
+            } else {
+                Permissions::Writable
+            }
+        }
+    }
+}
+
+#[cfg(not(target_family = "unix"))]
+impl From<std::fs::Permissions> for Permissions {
+    fn from(_: std::fs::Permissions) -> Self {
+        Permissions::default()
     }
 }
 
@@ -995,53 +913,26 @@ pub struct File {
 }
 
 impl File {
-    pub fn from_path(p: &PathBuf) -> Result<Self, std::io::Error> {
-        #[cfg(unix)]
-        {
-            fs::File::open(p).and_then(|mut f| {
-                f.metadata().and_then(|meta| {
-                    let mut output = Vec::with_capacity(meta.len() as usize);
-                    f.read_to_end(&mut output).map(move |_| File {
-                        meta: meta.into(),
-                        content: output,
-                    })
-                })
-            })
-        }
-        #[cfg(not(unix))]
-        {
-            fs::read(p).map(|output| File {
-                meta: Default::default(),
-                content: output,
-            })
-        }
-    }
+    pub async fn from_path(p: PathBuf) -> io::Result<Self> {
+        let mut file = fs::File::open(p).await?;
+        let metadata = file.metadata().await?;
 
-    pub async fn from_path_async(p: PathBuf) -> Result<Self, std::io::Error> {
-        #[cfg(unix)]
-        {
-            let mut f = tokio::fs::File::open(p).await?;
-            let metadata = f.metadata().await?;
-            let mut output = Vec::with_capacity(metadata.len() as usize);
-            f.read_to_end(&mut output).await?;
-            Ok(File {
-                meta: metadata.into(),
-                content: output,
-            })
-        }
-        #[cfg(not(unix))]
-        {
-            let output = tokio::fs::read(p).await?;
-            Ok(File {
-                meta: Default::default(),
-                content: output,
-            })
-        }
+        let mut output = Vec::with_capacity(metadata.len() as usize);
+        file.read_to_end(&mut output).await?;
+
+        Ok(File {
+            meta: metadata.into(),
+            content: output,
+        })
     }
 
     pub fn from_source(str: String) -> Self {
         File {
-            meta: Default::default(),
+            meta: FileMeta {
+                permissions: Default::default(),
+                file_type: FileSystemEntryType::File,
+                content_type: None,
+            },
             content: str.into_bytes(),
         }
     }
@@ -1125,33 +1016,24 @@ mod mime_option_serde {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct FileMeta {
     permissions: Permissions,
+    file_type: FileSystemEntryType,
+
     #[serde(with = "mime_option_serde")]
     #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
 }
 
-#[cfg(target_family = "unix")]
-/// Only handle the permissions on unix platform for now
-impl From<fs::Metadata> for FileMeta {
-    fn from(meta: fs::Metadata) -> Self {
-        use std::os::unix::fs::PermissionsExt;
-        let permissions = meta.permissions();
-        let perm = if permissions.readonly() {
-            Permissions::Readable
-        } else {
-            // https://github.com/fitzgen/is_executable/blob/master/src/lib.rs#L96
-            if permissions.mode() & 0o111 != 0 {
-                Permissions::Executable
-            } else {
-                Permissions::Writable
-            }
-        };
+impl From<std::fs::Metadata> for FileMeta {
+    fn from(meta: std::fs::Metadata) -> Self {
+        let permissions = meta.permissions().into();
+
         Self {
-            permissions: perm,
+            permissions,
             content_type: None,
+            file_type: meta.file_type().into(),
         }
     }
 }
@@ -1374,15 +1256,20 @@ pub enum ResolvedFileSystemEntry {
     Error,
 }
 
+impl From<FileType> for FileSystemEntryType {
+    fn from(file_type: FileType) -> Self {
+        match file_type {
+            t if t.is_dir() => FileSystemEntryType::Directory,
+            t if t.is_file() => FileSystemEntryType::File,
+            t if t.is_symlink() => FileSystemEntryType::Symlink,
+            _ => FileSystemEntryType::Other,
+        }
+    }
+}
+
 impl From<DirectoryEntry> for FileSystemEntryType {
     fn from(entry: DirectoryEntry) -> Self {
-        match entry {
-            DirectoryEntry::File(_) => FileSystemEntryType::File,
-            DirectoryEntry::Directory(_) => FileSystemEntryType::Directory,
-            DirectoryEntry::Symlink(_) => FileSystemEntryType::Symlink,
-            DirectoryEntry::Other(_) => FileSystemEntryType::Other,
-            DirectoryEntry::Error => FileSystemEntryType::Error,
-        }
+        FileSystemEntryType::from(&entry)
     }
 }
 
@@ -1398,8 +1285,8 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
     }
 }
 
-#[derive(Debug)]
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub enum DirectoryContent {
     Entries(HashMap<String, DirectoryEntry>),
     NotFound,

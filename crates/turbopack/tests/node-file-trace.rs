@@ -405,7 +405,7 @@ fn node_file_trace<B: Backend + 'static>(
                     }
                 }
                 Err(err) => {
-                    panic!("Execution crashed {err}");
+                    panic!("Execution failed: {:?}", err);
                 }
             };
 

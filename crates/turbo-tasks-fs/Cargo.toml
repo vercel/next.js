@@ -19,7 +19,6 @@ mime = "0.3.16"
 notify = "4.0.17"
 serde = { version = "1.0.136", features = ["rc"] }
 tokio = "1.11.0"
-tokio-stream = { version = "0.1.9", features = ["fs"] }
 turbo-tasks = { path = "../turbo-tasks" }
 
 [dev-dependencies]

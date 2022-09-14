@@ -1,4 +1,7 @@
-use std::{borrow::Cow, path::MAIN_SEPARATOR};
+use std::{
+    borrow::Cow,
+    path::{Path, MAIN_SEPARATOR},
+};
 
 /// Joins two /-separated paths into a normalized path.
 /// Paths are concatenated with /.
@@ -33,8 +36,8 @@ pub fn sys_to_unix(path: &str) -> Cow<'_, str> {
     Cow::Owned(path.replace(MAIN_SEPARATOR, "/"))
 }
 
-/// Converts System paths into Unix paths. This is a noop on Unix systems, and
-/// replaces backslash directory separators with forward slashes on Windows.
+/// Converts Unix paths into System paths. This is a noop on Unix systems, and
+/// replaces forward slash directory separators with backslashes on Windows.
 pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
     if MAIN_SEPARATOR != '\\' {
         return Cow::from(path);
@@ -99,4 +102,13 @@ pub fn normalize_request(str: &str) -> String {
         }
     }
     seqments.join("/")
+}
+
+/// Checks if the path has the `\\?\` prefix which "tells the Windows APIs to
+/// disable all string parsing and to send the string that follows it straight
+/// to the file system."
+///
+/// See [Win32 File Namespaces](https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces)
+pub fn is_windows_raw_path(path: impl AsRef<Path>) -> bool {
+    path.as_ref().starts_with("\\\\?\\")
 }
