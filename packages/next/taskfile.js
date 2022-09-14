@@ -1944,6 +1944,7 @@ export async function compile(task, opts) {
       'lib',
       'lib_esm',
       'client',
+      'client_esm',
       'telemetry',
       'trace',
       'shared',
@@ -2046,6 +2047,14 @@ export async function client(task, opts) {
   notify('Compiled client files')
 }
 
+export async function client_esm(task, opts) {
+  await task
+    .source(opts.src || 'client/**/*.+(js|ts|tsx)')
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/client')
+  notify('Compiled client files to ESM')
+}
+
 // export is a reserved keyword for functions
 export async function nextbuildstatic(task, opts) {
   await task
@@ -2141,6 +2150,7 @@ export default async function (task) {
   await task.watch('build/jest/**/*.+(js|ts|tsx)', 'nextbuildjest', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
+  await task.watch('client/**/*.+(js|ts|tsx)', 'client_esm', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib_esm', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
