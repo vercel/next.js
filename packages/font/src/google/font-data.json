@@ -279,6 +279,9 @@
   "Amiri": {
     "variants": ["400", "700", "400-italic", "700-italic"]
   },
+  "Amiri Quran": {
+    "variants": ["400"]
+  },
   "Amita": {
     "variants": ["400", "700"]
   },
@@ -731,6 +734,9 @@
     "variants": ["400"]
   },
   "Aref Ruqaa": {
+    "variants": ["400", "700"]
+  },
+  "Aref Ruqaa Ink": {
     "variants": ["400", "700"]
   },
   "Arima": {
@@ -1477,6 +1483,9 @@
   "Blaka Hollow": {
     "variants": ["400"]
   },
+  "Blaka Ink": {
+    "variants": ["400"]
+  },
   "Blinker": {
     "variants": ["100", "200", "300", "400", "600", "700", "800", "900"]
   },
@@ -1588,6 +1597,9 @@
   "Bungee Shade": {
     "variants": ["400"]
   },
+  "Bungee Spice": {
+    "variants": ["400"]
+  },
   "Butcherman": {
     "variants": ["400"]
   },
@@ -1647,6 +1659,33 @@
       "variable"
     ],
     "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 1000,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Cairo Play": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "slnt",
+        "min": -11,
+        "max": 11,
+        "defaultValue": 0
+      },
       {
         "tag": "wght",
         "min": 200,
@@ -5417,6 +5456,23 @@
   "NTR": {
     "variants": ["400"]
   },
+  "Nabla": {
+    "variants": ["400", "variable"],
+    "axes": [
+      {
+        "tag": "EDPT",
+        "min": 0,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "EHLT",
+        "min": 0,
+        "max": 24,
+        "defaultValue": 12
+      }
+    ]
+  },
   "Nanum Brush Script": {
     "variants": ["400"]
   },
@@ -5529,6 +5585,9 @@
   },
   "Noticia Text": {
     "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Noto Color Emoji": {
+    "variants": ["400"]
   },
   "Noto Emoji": {
     "variants": ["300", "400", "500", "600", "700", "variable"],
@@ -8284,6 +8343,20 @@
         "defaultValue": 400
       }
     ]
+  },
+  "Reem Kufi Fun": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Reem Kufi Ink": {
+    "variants": ["400"]
   },
   "Reenie Beanie": {
     "variants": ["400"]
