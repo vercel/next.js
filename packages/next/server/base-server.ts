@@ -48,7 +48,8 @@ import Router from './router'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage, isBot } from './utils'
+import { isBlockedPage } from './utils'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -245,6 +246,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     params: Params
     isAppPath: boolean
     appPaths?: string[] | null
+    sriEnabled?: boolean
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -1546,8 +1548,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       params: ctx.renderOpts.params || {},
       isAppPath: Array.isArray(appPaths),
       appPaths,
+      sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
     })
-
     if (result) {
       try {
         return await this.renderToResponseWithComponents(ctx, result)
