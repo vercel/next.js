@@ -21,15 +21,21 @@ if (!global.fetch) {
     }
   }
 
-  Object.assign(global, {
-    get Header() {
-      return global.__NEXT_USE_UNDICI ? undici.Headers : nodeFetch.Headers
+  Object.defineProperties(global, {
+    Headers: {
+      get() {
+        return global.__NEXT_USE_UNDICI ? undici.Headers : nodeFetch.Headers
+      },
     },
-    get Request() {
-      return global.__NEXT_USE_UNDICI ? undici.Request : nodeFetch.Request
+    Request: {
+      get() {
+        return global.__NEXT_USE_UNDICI ? undici.Request : nodeFetch.Request
+      },
     },
-    get Response() {
-      return global.__NEXT_USE_UNDICI ? undici.Response : nodeFetch.Response
+    Response: {
+      get() {
+        return global.__NEXT_USE_UNDICI ? undici.Response : nodeFetch.Response
+      },
     },
   })
 }
