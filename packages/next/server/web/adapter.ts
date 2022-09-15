@@ -40,6 +40,9 @@ export async function adapter(params: {
   page: string
   request: RequestData
 }): Promise<FetchEventResult> {
+  // TODO-APP: use explicit marker for this
+  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
@@ -57,7 +60,10 @@ export async function adapter(params: {
 
   // Preserve flight data.
   const flightSearchParameters = requestUrl.flightSearchParameters
-  requestUrl.flightSearchParameters = undefined
+  // Parameters should only be stripped for middleware
+  if (!isEdgeRendering) {
+    requestUrl.flightSearchParameters = undefined
+  }
 
   // Strip internal query parameters off the request.
   stripInternalSearchParams(requestUrl.searchParams, true)
