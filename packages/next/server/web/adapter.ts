@@ -57,6 +57,7 @@ export async function adapter(params: {
 
   // Preserve flight data.
   const flightSearchParameters = requestUrl.flightSearchParameters
+  requestUrl.flightSearchParameters = undefined
 
   // Strip internal query parameters off the request.
   stripInternalSearchParams(requestUrl.searchParams, true)

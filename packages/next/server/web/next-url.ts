@@ -170,6 +170,16 @@ export class NextURL {
   public set flightSearchParameters(
     flightData: Record<string, string> | undefined
   ) {
+    if (flightData) {
+      for (const name of FLIGHT_PARAMETERS) {
+        this[Internal].url.searchParams.set(name, flightData[name] ?? '')
+      }
+    } else {
+      for (const name of FLIGHT_PARAMETERS) {
+        this[Internal].url.searchParams.delete(name)
+      }
+    }
+
     this[Internal].flightSearchParameters = flightData
   }
 
