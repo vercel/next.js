@@ -736,8 +736,9 @@ describe('app dir', () => {
       })
 
       describe('middleware', () => {
-        ;['rewrite', 'redirect'].map((method) =>
-          it(`should strip internal query parameters from requests to middleware for ${method}`, async () => {
+        it.each(['rewrite', 'redirect'])(
+          `should strip internal query parameters from requests to middleware for %s`,
+          async (method) => {
             const browser = await webdriver(next.url, '/internal')
 
             try {
@@ -752,7 +753,7 @@ describe('app dir', () => {
             } finally {
               await browser.close()
             }
-          })
+          }
         )
       })
 
