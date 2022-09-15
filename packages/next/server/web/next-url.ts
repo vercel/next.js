@@ -163,6 +163,16 @@ export class NextURL {
     this[Internal].buildId = buildId
   }
 
+  public get flightSearchParameters() {
+    return this[Internal].flightSearchParameters
+  }
+
+  public set flightSearchParameters(
+    flightData: Record<string, string> | undefined
+  ) {
+    this[Internal].flightSearchParameters = flightData
+  }
+
   public get locale() {
     return this[Internal].locale ?? ''
   }
