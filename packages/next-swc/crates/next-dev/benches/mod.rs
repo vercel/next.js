@@ -140,6 +140,10 @@ fn bench_simple_file_change(c: &mut Criterion) {
                             app.start_server()?;
                             let mut guard = app.with_page(browser).await?;
                             guard.wait_for_hydration().await?;
+                            guard
+                                .page()
+                                .evaluate_expression("globalThis.HMR_IS_HAPPENING = true")
+                                .await?;
 
                             // Make warmup change
                             make_change(&mut guard).await?;
@@ -152,7 +156,16 @@ fn bench_simple_file_change(c: &mut Criterion) {
                             // Defer the dropping of the guard to `teardown`.
                             Ok(guard)
                         },
-                        |_guard| async move {},
+                        |guard| async move {
+                            let hmr_is_happening = guard
+                                .page()
+                                .evaluate_expression("globalThis.HMR_IS_HAPPENING")
+                                .await
+                                .unwrap();
+                            // Make sure that we are really measuring HMR and not accidentically
+                            // full refreshing the page
+                            assert!(hmr_is_happening.value().unwrap().as_bool().unwrap());
+                        },
                     );
                 },
             );
@@ -226,6 +239,6 @@ fn get_module_counts() -> Vec<usize> {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_startup, bench_hydration, bench_simple_file_change, bench_restart
+    targets = bench_startup, bench_hydration, bench_restart, bench_simple_file_change
 );
 criterion_main!(benches);
