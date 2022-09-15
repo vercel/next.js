@@ -50,7 +50,7 @@ describe('app dir - react server components', () => {
           start: 'next start',
         },
       },
-      installCommand: 'yarn',
+      installCommand: 'mv ./node_modules ./node_modules_bak && yarn',
       startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
       buildCommand: 'yarn build',
     })

@@ -111,6 +111,16 @@ export class FlightManifestPlugin {
     const clientRequestsSet = new Set()
 
     // Collect client requests
+
+    function collectClientRequest(mod: webpack.NormalModule) {
+      if (!mod.resource && mod.buildInfo.rsc) {
+        const { requests = [] } = mod.buildInfo.rsc
+        requests.forEach((r: string) => {
+          clientRequestsSet.add(require.resolve(r))
+        })
+      }
+    }
+
     compilation.chunkGroups.forEach((chunkGroup) => {
       chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
         const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
@@ -119,21 +129,11 @@ export class FlightManifestPlugin {
         ) as Iterable<webpack.NormalModule>
         for (const mod of chunkModules) {
           if (!mod.resource && mod.buildInfo.rsc) {
-            const { requests = [] } = mod.buildInfo.rsc
-            requests.forEach((r: string) => {
-              clientRequestsSet.add(require.resolve(r))
-            })
+            collectClientRequest(mod)
           }
           const anyModule = mod as any
           if (anyModule.modules) {
-            anyModule.modules.forEach((concatenatedMod: any) => {
-              if (!concatenatedMod.resource && concatenatedMod.buildInfo.rsc) {
-                const { requests = [] } = concatenatedMod.buildInfo.rsc
-                requests.forEach((r: string) => {
-                  clientRequestsSet.add(require.resolve(r))
-                })
-              }
-            })
+            collectClientRequest(mod)
           }
         }
       })
