@@ -563,15 +563,22 @@ const configSchema = {
       type: 'object',
     },
     optimizeFonts: {
-      properties: {
-        inlineFonts: {
+      oneOf: [
+        {
           type: 'boolean',
         },
-        experimentalAdjustFallbacks: {
-          type: 'boolean',
+        {
+          properties: {
+            inlineFonts: {
+              type: 'boolean',
+            },
+            experimentalAdjustFallbacks: {
+              type: 'boolean',
+            },
+          },
+          type: 'object',
         },
-      },
-      type: 'object',
+      ] as any,
     },
     output: {
       // automatic typing doesn't like enum
