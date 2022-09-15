@@ -79,7 +79,8 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { shouldUseReactRoot, stripInternalQueries } from './utils'
+import { shouldUseReactRoot } from './utils'
+import { stripInternalQueries } from './internal-utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn

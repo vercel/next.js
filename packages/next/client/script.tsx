@@ -52,7 +52,8 @@ const loadScript = (props: ScriptProps): void => {
   // Contents of this script are already loading/loaded
   if (ScriptCache.has(src)) {
     LoadCache.add(cacheKey)
-    // Execute onLoad since the script loading has begun
+    // It is possible that multiple `next/script` components all have same "src", but has different "onLoad"
+    // This is to make sure the same remote script will only load once, but "onLoad" are executed in order
     ScriptCache.get(src).then(onLoad, onError)
     return
   }
@@ -182,12 +183,13 @@ function Script(props: ScriptProps): JSX.Element | null {
    *   2. hasOnReadyEffectCalled.current is false, but the script hasn't loaded yet (not in LoadCache)
    *      onReady is skipped, set hasOnReadyEffectCalled.current to true
    *   3. The useEffect for loadScript executes
-   *      Once the script is loaded, the onReady will be called by then
+   *   4. hasLoadScriptEffectCalled.current is false, loadScript executes
+   *      Once the script is loaded, the onLoad and onReady will be called by then
    *   [If strict mode is enabled / is wrapped in <OffScreen /> component]
    *   5. The useEffect for onReady executes again
    *   6. hasOnReadyEffectCalled.current is true, so entire effect is skipped
    *   7. The useEffect for loadScript executes again
-   *   8. The script is already loaded/loading, loadScript bails out
+   *   8. hasLoadScriptEffectCalled.current is true, so entire effect is skipped
    *
    * - Second mount:
    *   1. The useEffect for onReady executes
@@ -199,7 +201,7 @@ function Script(props: ScriptProps): JSX.Element | null {
    *   5. The useEffect for onReady executes again
    *   6. hasOnReadyEffectCalled.current is true, so entire effect is skipped
    *   7. The useEffect for loadScript executes again
-   *   8. The script is already loaded, loadScript will bail out
+   *   8. hasLoadScriptEffectCalled.current is true, so entire effect is skipped
    */
   const hasOnReadyEffectCalled = useRef(false)
 
@@ -215,11 +217,17 @@ function Script(props: ScriptProps): JSX.Element | null {
     }
   }, [onReady, id, src])
 
+  const hasLoadScriptEffectCalled = useRef(false)
+
   useEffect(() => {
-    if (strategy === 'afterInteractive') {
-      loadScript(props)
-    } else if (strategy === 'lazyOnload') {
-      loadLazyScript(props)
+    if (!hasLoadScriptEffectCalled.current) {
+      if (strategy === 'afterInteractive') {
+        loadScript(props)
+      } else if (strategy === 'lazyOnload') {
+        loadLazyScript(props)
+      }
+
+      hasLoadScriptEffectCalled.current = true
     }
   }, [props, strategy])
 
