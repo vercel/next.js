@@ -1,6 +1,8 @@
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
 const nextClientComponents = ['link', 'image', 'future/image']
+const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
+const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
 const NEXT_BUILT_IN_CLIENT_RSC_REGEX = new RegExp(
   `next[\\\\/](${nextClientComponents.join('|')})\\.js$`
@@ -15,5 +17,9 @@ export function isClientComponentModule(mod: {
   buildInfo: any
 }) {
   const hasClientDirective = mod.buildInfo.rsc?.type === RSC_MODULE_TYPES.client
-  return isNextBuiltInClientComponent(mod.resource) || hasClientDirective
+  return (
+    isNextBuiltInClientComponent(mod.resource) ||
+    hasClientDirective ||
+    imageRegex.test(mod.resource)
+  )
 }

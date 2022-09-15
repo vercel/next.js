@@ -112,7 +112,6 @@ export class FlightManifestPlugin {
     const clientRequestsSet = new Set()
 
     // Collect client requests
-
     function collectClientRequest(mod: webpack.NormalModule) {
       if (!mod.resource && mod.buildInfo.rsc) {
         const { requests = [] } = mod.buildInfo.rsc
@@ -151,7 +150,7 @@ export class FlightManifestPlugin {
       ) {
         const isCSSModule =
           mod.type === 'css/mini-extract' ||
-          (mod.loaders &&
+          (!!mod.loaders &&
             (dev
               ? mod.loaders.some((item) =>
                   item.loader.includes('next-style-loader/index.js')
