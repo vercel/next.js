@@ -2,6 +2,7 @@
 #[derive(Default)]
 pub struct ModuleOptionsContext {
     pub enable_react_refresh: bool,
+    pub enable_styled_jsx: bool,
 }
 
 #[turbo_tasks::value_impl]
