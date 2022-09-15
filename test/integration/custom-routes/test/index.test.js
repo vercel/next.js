@@ -320,6 +320,13 @@ const runTests = (isDev = false) => {
     )
   })
 
+  it('should handle multiple Set-Cookie', async () => {
+    const res = await fetchViaHTTP(appPort, '/multi-set-cookie')
+    expect(res.headers.get('Set-Cookie')).toBe(
+      'firstCookie=cookie1; Path=/, secondCookie=cookie2; Path=/'
+    )
+  })
+
   it('should not match dynamic route immediately after applying header', async () => {
     const res = await fetchViaHTTP(appPort, '/blog/post-321')
     expect(res.headers.get('x-something')).toBe('applied-everywhere')

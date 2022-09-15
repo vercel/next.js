@@ -1,5 +1,5 @@
 module.exports = {
-  // target: 'serverless',
+  target: 'serverless',
   async rewrites() {
     // no-rewrites comment
     return {
@@ -14,8 +14,7 @@ module.exports = {
           : []),
         {
           source: '/to-websocket',
-          destination:
-            'http://localhost:__EXTERNAL_PORT__/_next/webpack-hmr?page=/about',
+          destination: 'http://localhost:45689/_next/webpack-hmr?page=/about',
         },
         {
           source: '/to-nowhere',
@@ -87,7 +86,7 @@ module.exports = {
         },
         {
           source: '/proxy-me/:path*',
-          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+          destination: 'http://localhost:45689/:path*',
         },
         {
           source: '/api-hello',
@@ -631,6 +630,19 @@ module.exports = {
           {
             key: 'x-is-host',
             value: 'yuuuup',
+          },
+        ],
+      },
+      {
+        source: '/multi-set-cookie',
+        headers: [
+          {
+            key: 'Set-Cookie',
+            value: 'firstCookie=cookie1; Path=/',
+          },
+          {
+            key: 'Set-Cookie',
+            value: 'secondCookie=cookie2; Path=/',
           },
         ],
       },
