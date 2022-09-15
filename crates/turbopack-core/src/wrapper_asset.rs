@@ -1,4 +1,5 @@
-use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
+use anyhow::Result;
+use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 
 use crate::{
     asset::{Asset, AssetVc},
@@ -15,6 +16,7 @@ pub struct WrapperAsset {
     pub wrapper_name: String,
     /// content can reference the underlying asset with `.`
     pub content: FileContentVc,
+    pub source_map: FileContentVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -25,6 +27,8 @@ impl WrapperAssetVc {
             asset,
             wrapper_name: wrapper_name.to_string(),
             content,
+            // TODO: Provide a source map for wrapped assets.
+            source_map: FileContent::NotFound.cell(),
         })
     }
 }
@@ -35,12 +39,14 @@ impl Asset for WrapperAsset {
     fn path(&self) -> FileSystemPathVc {
         self.asset.path().join(&self.wrapper_name)
     }
+
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.content
     }
+
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
+        self.asset.references()
     }
 }

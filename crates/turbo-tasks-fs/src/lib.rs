@@ -528,6 +528,11 @@ impl FileSystemPath {
         Some(result.join("/"))
     }
 
+    /// Returns the final component of the FileSystemPath, if there is one.
+    pub fn file_name(&self) -> Option<&str> {
+        self.path.rsplit('/').next()
+    }
+
     pub fn extension(&self) -> Option<&str> {
         self.path.rsplit('.').next()
     }

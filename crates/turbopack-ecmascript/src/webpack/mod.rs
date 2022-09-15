@@ -49,10 +49,12 @@ impl Asset for WebpackModuleAsset {
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
         module_references(self.source, self.runtime, self.transforms)

@@ -27,12 +27,16 @@ impl Asset for SourceAsset {
     fn path(&self) -> FileSystemPathVc {
         self.path
     }
+
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.path.read()
     }
+
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
+        // TODO: build input sourcemaps via language specific sourceMappingURL comment
+        // or parse.
         AssetReferencesVc::empty()
     }
 }

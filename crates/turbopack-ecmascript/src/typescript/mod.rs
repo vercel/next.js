@@ -36,10 +36,12 @@ impl Asset for TsConfigModuleAsset {
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
         let mut references = Vec::new();

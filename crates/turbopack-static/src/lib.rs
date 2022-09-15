@@ -62,10 +62,12 @@ impl Asset for StaticModuleAsset {
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
         Ok(AssetReferencesVc::empty())
@@ -190,6 +192,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 "__turbopack_export_value__({path});",
                 path = stringify_str(&format!("/{}", &*self.static_asset.path().await?))
             ),
+            source_map: None,
             id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
             options: EcmascriptChunkItemOptions {
                 ..Default::default()

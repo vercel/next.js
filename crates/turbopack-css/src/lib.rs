@@ -67,6 +67,7 @@ impl Asset for CssModuleAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
+        // TODO: include CSS source map
         Ok(analyze_css_stylesheet(self.source, self.context))
     }
 }
@@ -162,12 +163,7 @@ impl CssChunkItem for ModuleChunkItem {
         let module = self.module.await?;
         let parsed = parse(module.source).await?;
 
-        if let ParseResult::Ok {
-            stylesheet,
-            source_map: _,
-            ..
-        } = &*parsed
-        {
+        if let ParseResult::Ok { stylesheet, .. } = &*parsed {
             let mut stylesheet = stylesheet.clone();
 
             let globals = Globals::new();

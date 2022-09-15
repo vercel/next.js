@@ -82,12 +82,12 @@ impl Asset for ChunkGroupFilesAsset {
 
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
-        todo!()
+        unimplemented!()
     }
 
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -153,6 +153,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
                 "__turbopack_export_value__({:#});\n",
                 JsonValue::Array(data)
             ),
+            source_map: None,
             id: chunk_context.id(self.inner.into()),
             options: Default::default(),
         }

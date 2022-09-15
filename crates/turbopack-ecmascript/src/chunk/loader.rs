@@ -125,6 +125,7 @@ __turbopack_export_value__((__turbopack_import__) => {{
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
+            source_map: None,
             id: chunk_context.manifest_loader_id(asset),
             options: EcmascriptChunkItemOptions {
                 ..Default::default()
@@ -279,6 +280,7 @@ __turbopack_export_value__(Promise.all(loads));"
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
+            source_map: None,
             id: chunk_context.manifest_chunk_id(asset.into()),
             options: EcmascriptChunkItemOptions {
                 ..Default::default()

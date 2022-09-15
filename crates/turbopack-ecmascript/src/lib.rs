@@ -28,7 +28,7 @@ use chunk::{
     EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
 };
 use code_gen::CodeGenerateableVc;
-use parse::{parse, ParseResult};
+use parse::{parse, ParseResult, ParseResultSourceMap};
 pub use parse::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use path_visitor::ApplyVisitors;
 use references::AnalyzeEcmascriptModuleResult;
@@ -126,10 +126,12 @@ impl Asset for EcmascriptModuleAsset {
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+
     #[turbo_tasks::function]
     async fn references(self_vc: EcmascriptModuleAssetVc) -> Result<AssetReferencesVc> {
         Ok(self_vc.analyze().await?.references)
@@ -252,8 +254,11 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
             });
 
-            let mut bytes =
-                format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
+            let mut bytes: Vec<u8> = vec![];
+            // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
+            // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
+
+            let mut srcmap = vec![];
 
             let mut emitter = Emitter {
                 cfg: swc_core::ecma::codegen::Config {
@@ -261,13 +266,16 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 },
                 cm: source_map.clone(),
                 comments: None,
-                wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, None),
+                wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, Some(&mut srcmap)),
             };
 
             emitter.emit_program(&program)?;
 
+            let srcmap = ParseResultSourceMap::new(source_map.clone(), srcmap).cell();
+
             Ok(EcmascriptChunkItemContent {
                 inner_code: String::from_utf8(bytes)?,
+                source_map: Some(srcmap),
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
                 options: EcmascriptChunkItemOptions {
                     // TODO disable that for ESM
@@ -283,6 +291,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                     "/* unparseable {} */",
                     self.module.path().to_string().await?
                 ),
+                source_map: None,
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
                 options: EcmascriptChunkItemOptions {
                     ..Default::default()

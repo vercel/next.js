@@ -7,15 +7,15 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use difference::Changeset;
 use helpers::print_changeset;
 use lazy_static::lazy_static;
 use test_generator::test_resources;
 use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks, Value};
 use turbo_tasks_fs::{
-    util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent,
-    FileSystemEntryType, FileSystemPathVc,
+    util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, File, FileContent,
+    FileContentVc, FileSystemEntryType, FileSystemPathVc,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -190,18 +190,30 @@ async fn walk_asset(
     seen: &mut HashSet<String>,
     queue: &mut VecDeque<AssetVc>,
 ) -> Result<()> {
-    let path_str = asset.path().await?.path.clone();
+    let path = asset.path();
+    let path_str = path.await?.path.clone();
 
     if !seen.insert(path_str.to_string()) {
         return Ok(());
     }
 
-    let actual_contents = asset.content().await?;
-    let actual = match &*actual_contents {
-        FileContent::NotFound => panic!("could not generate {} contents", path_str),
+    diff(path, asset.content(), path.read()).await?;
+    queue.extend(&*all_referenced_assets(asset).await?);
+
+    Ok(())
+}
+
+async fn diff(
+    path: FileSystemPathVc,
+    actual: FileContentVc,
+    expected: FileContentVc,
+) -> Result<()> {
+    let path_str = &path.await?.path;
+
+    let actual = match &*actual.await? {
+        FileContent::NotFound => bail!("could not generate {} contents", path_str),
         FileContent::Content(actual) => trimmed_string(actual.content()),
     };
-    let expected = asset.path().read();
     let changeset = match &*expected.await? {
         FileContent::NotFound => Changeset::new("", &actual, "\n"),
         FileContent::Content(expected) => {
@@ -212,15 +224,14 @@ async fn walk_asset(
 
     if changeset.distance > 0 {
         if *UPDATE {
-            asset.path().write(asset.content()).await?;
+            let content = FileContent::Content(File::from_source(actual)).cell();
+            path.write(content).await?;
             println!("updated contents of {}", path_str);
         } else {
             println!("{}", print_changeset(&changeset));
-            return Err(anyhow!("contents of {} did not match", path_str));
+            bail!("contents of {} did not match", path_str);
         }
     }
-
-    queue.extend(&*all_referenced_assets(asset).await?);
 
     Ok(())
 }

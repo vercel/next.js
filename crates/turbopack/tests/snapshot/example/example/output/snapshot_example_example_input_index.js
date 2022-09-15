@@ -2,7 +2,6 @@
 
 "[project]/snapshot/example/example/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
 
-/* [project]/snapshot/example/example/input/index.js */
 console.log('hello world');
 
 })()),
@@ -718,3 +717,6 @@ console.log('hello world');
   self.TURBOPACK = { push: registerChunk }
   chunksToRegister.forEach(registerChunk)
 })()
+
+
+//# sourceMappingURL=snapshot_example_example_input_index.js.map

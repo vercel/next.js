@@ -12,8 +12,9 @@ use swc_core::{
         comments::{SingleThreadedComments, SingleThreadedCommentsMapInner},
         errors::{Handler, HANDLER},
         input::StringInput,
+        source_map::SourceMapGenConfig,
         sync::Lrc,
-        FileName, Globals, Mark, SourceMap, GLOBALS,
+        BytePos, FileName, Globals, LineCol, Mark, SourceMap, GLOBALS,
     },
     ecma::{
         ast::{EsVersion, Program},
@@ -25,9 +26,12 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{Value, ValueToString};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::FileContent;
-use turbopack_core::asset::AssetVc;
+use turbopack_core::{
+    asset::AssetVc,
+    code_builder::{EncodedSourceMap, EncodedSourceMapVc},
+};
 
 use super::ModuleAssetType;
 use crate::{analyzer::graph::EvalContext, emitter::IssueEmitter};
@@ -74,6 +78,71 @@ impl PartialEq for ParseResult {
             (Self::Ok { .. }, Self::Ok { .. }) => false,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
+    }
+}
+
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+pub struct ParseResultSourceMap {
+    /// Confusingly, SWC's SourceMap is not a mapping of transformed locations
+    /// to source locations. I don't know what it is, really, but it's not
+    /// that.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    source_map: Arc<SourceMap>,
+
+    /// The position mappings that can generate a real source map given a (SWC)
+    /// SourceMap.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    mappings: Vec<(BytePos, LineCol)>,
+}
+
+impl PartialEq for ParseResultSourceMap {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.source_map, &other.source_map) && self.mappings == other.mappings
+    }
+}
+
+impl ParseResultSourceMap {
+    pub fn new(source_map: Arc<SourceMap>, mappings: Vec<(BytePos, LineCol)>) -> Self {
+        ParseResultSourceMap {
+            source_map,
+            mappings,
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EncodedSourceMap for ParseResultSourceMap {
+    #[turbo_tasks::function]
+    fn encoded_map(&self) -> Result<StringVc> {
+        let source_map = self.source_map.build_source_map_with_config(
+            // SWC expects a mutable vec, but it never modifies. Seems like an oversight.
+            &mut self.mappings.clone(),
+            None,
+            InlineSourcesContentConfig {},
+        );
+        let mut bytes = vec![];
+        source_map.to_writer(&mut bytes)?;
+        let s = String::from_utf8(bytes)?;
+        Ok(StringVc::cell(s))
+    }
+}
+
+/// A config to generate a source map which includes the source content of every
+/// source file. SWC doesn't inline sources content by default when generating a
+/// sourcemap, so we need to provide a custom config to do it.
+struct InlineSourcesContentConfig {}
+
+impl SourceMapGenConfig for InlineSourcesContentConfig {
+    fn file_name_to_source(&self, f: &FileName) -> String {
+        match f {
+            // The Custom filename surrounds the name with <>.
+            FileName::Custom(s) => String::from("/") + s,
+            _ => f.to_string(),
+        }
+    }
+
+    fn inline_sources_content(&self, _f: &FileName) -> bool {
+        true
     }
 }
 

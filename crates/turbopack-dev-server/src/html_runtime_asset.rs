@@ -107,6 +107,9 @@ impl EcmascriptChunkItem for HtmlRuntimeChunkItem {
             Ok(EcmascriptChunkItemContent {
                 id: chunk_context.id(self.inner.into()),
                 inner_code: String::from_utf8(content.content().to_vec())?,
+                // TODO: We generate a minimal map for runtime code so that the filename is
+                // displayed in dev tools.
+                source_map: None,
                 options: EcmascriptChunkItemOptions {
                     ..Default::default()
                 },

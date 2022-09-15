@@ -112,6 +112,7 @@ impl ContentSource for AssetGraphContentSource {
     #[turbo_tasks::function]
     async fn get(self_vc: AssetGraphContentSourceVc, path: &str) -> Result<ContentSourceResultVc> {
         let assets = self_vc.all_assets_map().strongly_consistent().await?;
+
         if let Some(asset) = assets.get(path) {
             {
                 let this = self_vc.await?;

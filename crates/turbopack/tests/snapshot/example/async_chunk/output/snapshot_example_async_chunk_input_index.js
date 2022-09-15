@@ -2,7 +2,6 @@
 
 "[project]/snapshot/example/async_chunk/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
 
-/* [project]/snapshot/example/async_chunk/input/index.js */
 __turbopack_require__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/manifest loader")(__turbopack_import__).then(({ foo  })=>{
     foo(true);
 });
@@ -729,3 +728,6 @@ __turbopack_export_value__((__turbopack_import__) => {
   self.TURBOPACK = { push: registerChunk }
   chunksToRegister.forEach(registerChunk)
 })()
+
+
+//# sourceMappingURL=snapshot_example_async_chunk_input_index.js.map

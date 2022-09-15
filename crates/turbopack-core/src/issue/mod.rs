@@ -5,16 +5,14 @@ pub mod resolve;
 use std::{cmp::Ordering, fmt::Display};
 
 use anyhow::{bail, Result};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     emit,
     primitives::{BoolVc, StringVc},
-    trace::TraceRawVcs,
     CollectiblesSource, TryJoinIterExt, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{FileLine, FileLinesContent, FileSystemPathVc};
 
-use crate::asset::AssetVc;
+use crate::{asset::AssetVc, source_pos::SourcePos};
 
 #[turbo_tasks::value(shared)]
 #[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug)]
@@ -324,21 +322,6 @@ impl CapturedIssues {
         self.issues
             .iter()
             .map(|issue| (*issue, self.processing_path.shortest_path(*issue)))
-    }
-}
-
-#[derive(Default, Debug, PartialEq, Eq, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
-pub struct SourcePos {
-    pub line: usize,
-    pub column: usize,
-}
-
-impl SourcePos {
-    pub fn max() -> Self {
-        Self {
-            line: usize::MAX,
-            column: usize::MAX,
-        }
     }
 }
 
