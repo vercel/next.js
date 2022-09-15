@@ -747,9 +747,13 @@ describe('app dir', () => {
               // middleware sees any flight data on the request it'll redirect to
               // a page with an element of #failure, otherwise, we'll see the
               // element for #success.
-              await browser.waitForElementByCss(`#navigate-${method}`)
-              await browser.elementById(`navigate-${method}`).click()
-              await browser.waitForElementByCss('#success')
+              await browser
+                .waitForElementByCss(`#navigate-${method}`)
+                .elementById(`navigate-${method}`)
+                .click()
+              expect(
+                await browser.waitForElementByCss('#success', 3000).text()
+              ).toBe('Success')
             } finally {
               await browser.close()
             }

@@ -168,11 +168,17 @@ export class NextURL {
   }
 
   public set flightSearchParameters(
-    flightData: Record<string, string> | undefined
+    flightSearchParams: Record<string, string> | undefined
   ) {
-    if (flightData) {
+    if (flightSearchParams) {
       for (const name of FLIGHT_PARAMETERS) {
-        this[Internal].url.searchParams.set(name, flightData[name] ?? '')
+        // Ensure only the provided values are set
+        if (flightSearchParams[name]) {
+          this[Internal].url.searchParams.set(name, flightSearchParams[name])
+        } else {
+          // Delete the ones that are not provided as flightData should be overridden.
+          this[Internal].url.searchParams.delete(name)
+        }
       }
     } else {
       for (const name of FLIGHT_PARAMETERS) {
@@ -180,7 +186,7 @@ export class NextURL {
       }
     }
 
-    this[Internal].flightSearchParameters = flightData
+    this[Internal].flightSearchParameters = flightSearchParams
   }
 
   public get locale() {
