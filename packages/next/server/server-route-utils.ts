@@ -91,7 +91,13 @@ export const createHeaderRoute = ({
           key = compileNonPath(key, params)
           value = compileNonPath(value, params)
         }
-        res.setHeader(key, value)
+        if (key === 'Set-Cookie') {
+          const previous = res.getHeader('Set-Cookie')
+          const cookies = [previous, value].filter(Boolean) as string[]
+          res.setHeader(`Set-Cookie`, cookies)
+        } else {
+          res.setHeader(key, value)
+        }
       }
       return { finished: false }
     },
