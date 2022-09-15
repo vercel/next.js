@@ -14,4 +14,4 @@ export default function IndexPage() {
       <_JSXStyle id={"9a4b3442d519aae9"}>{`a.jsx-9a4b3442d519aae9{color:${"#abcdef"}12}`}</_JSXStyle>
 
     </div>;
-};
+}
