@@ -18,7 +18,7 @@ import {
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
-import { shouldUseReactRoot, stripInternalQueries } from './utils'
+import { shouldUseReactRoot } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
 import {
@@ -26,7 +26,11 @@ import {
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { FlushEffectsContext } from '../client/components/hooks-client'
+import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
+
+// TODO-APP: change to React.use once it becomes stable
+const use = (React as any).experimental_use
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -250,7 +254,7 @@ function createServerComponentRenderer(
       flightResponseRef,
       nonce
     )
-    return response.readRoot()
+    return use(response)
   }
 }
 
