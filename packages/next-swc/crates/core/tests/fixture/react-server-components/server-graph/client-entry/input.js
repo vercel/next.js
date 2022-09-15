@@ -10,17 +10,17 @@
 
 // This is a comment.
 
-"foo";
+"random-directive";
 
 import "fs"
 
-"bar";
+"qwerty";
 
 // This is a comment.
 
 1 + 1;
 
-"baz";
+"sasaya";
 
 export default function () {
   return null;

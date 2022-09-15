@@ -1,7 +1,11 @@
 use serde::Deserialize;
 
 use swc_core::{
-    common::{errors::HANDLER, FileName, Span, DUMMY_SP},
+    common::{
+        comments::{Comment, CommentKind, Comments},
+        errors::HANDLER,
+        FileName, Span, DUMMY_SP,
+    },
     ecma::ast::*,
     ecma::utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
     ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
@@ -29,9 +33,10 @@ pub struct Options {
     pub is_server: bool,
 }
 
-struct ReactServerComponents<'a> {
+struct ReactServerComponents<'a, C: Comments> {
     is_server: bool,
     filepath: String,
+    comments: C,
     invalid_server_imports: Vec<&'a str>,
     invalid_client_imports: Vec<&'a str>,
     invalid_server_react_apis: Vec<&'a str>,
@@ -43,7 +48,7 @@ struct ModuleImports {
     specifiers: Vec<(String, Span)>,
 }
 
-impl VisitMut for ReactServerComponents<'_> {
+impl<C: Comments> VisitMut for ReactServerComponents<'_, C> {
     noop_visit_mut_type!();
 
     fn visit_mut_module(&mut self, module: &mut Module) {
@@ -63,14 +68,7 @@ impl VisitMut for ReactServerComponents<'_> {
     }
 }
 
-pub struct DropSpan {}
-impl VisitMut for DropSpan {
-    fn visit_mut_span(&mut self, span: &mut Span) {
-        *span = DUMMY_SP
-    }
-}
-
-impl ReactServerComponents<'_> {
+impl<C: Comments> ReactServerComponents<'_, C> {
     // Collects top level directives and imports, then removes specific ones
     // from the AST.
     fn collect_top_level_directives_and_imports(
@@ -181,6 +179,16 @@ impl ReactServerComponents<'_> {
             ]
             .into_iter(),
         );
+
+        // Prepend a special comment to the top of the file.
+        self.comments.add_leading(
+            module.span.lo,
+            Comment {
+                span: DUMMY_SP,
+                kind: CommentKind::Block,
+                text: " __next_internal_client_entry_do_not_use__ ".into(),
+            },
+        );
     }
 
     fn assert_server_graph(&self, imports: &Vec<ModuleImports>) {
@@ -268,13 +276,18 @@ impl ReactServerComponents<'_> {
     }
 }
 
-pub fn server_components(filename: FileName, config: Config) -> impl Fold + VisitMut {
+pub fn server_components<C: Comments>(
+    filename: FileName,
+    config: Config,
+    comments: C,
+) -> impl Fold + VisitMut {
     let is_server: bool = match config {
         Config::WithOptions(x) => x.is_server,
         _ => true,
     };
     as_folder(ReactServerComponents {
         is_server,
+        comments,
         filepath: filename.to_string(),
         invalid_server_imports: vec!["client-only", "react-dom/client", "react-dom/server"],
         invalid_client_imports: vec!["server-only"],

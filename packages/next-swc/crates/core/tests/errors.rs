@@ -62,12 +62,13 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture_allowing_error(
         syntax(),
-        &|_tr| {
+        &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
                     next_swc::react_server_components::Options { is_server: true },
                 ),
+                tr.comments.as_ref().clone(),
             )
         },
         &input,
@@ -80,12 +81,13 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture_allowing_error(
         syntax(),
-        &|_tr| {
+        &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
                     next_swc::react_server_components::Options { is_server: false },
                 ),
+                tr.comments.as_ref().clone(),
             )
         },
         &input,
