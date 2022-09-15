@@ -1189,7 +1189,7 @@ export async function renderToHTMLOrFlight(
         flushEffectHandler,
         flushEffectsToHead: true,
       })
-    } catch (err) {
+    } catch (err: any) {
       if (err.code === REDIRECT_ERROR_CODE) {
         throw err
       }
