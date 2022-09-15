@@ -1805,6 +1805,20 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx('^\\/has-header-4(?:\\/)?$'),
             source: '/has-header-4',
           },
+          {
+            headers: [
+              {
+                key: 'Set-Cookie',
+                value: 'firstCookie=cookie1; Path=/',
+              },
+              {
+                key: 'Set-Cookie',
+                value: 'secondCookie=cookie2; Path=/',
+              },
+            ],
+            regex: '^\\/multi-set-cookie(?:\\/)?$',
+            source: '/multi-set-cookie',
+          },
         ],
         rewrites: {
           beforeFiles: [
@@ -2196,6 +2210,12 @@ const runTests = (isDev = false) => {
             namedRegex: '^/multi\\-rewrites(?:/)?$',
             page: '/multi-rewrites',
             regex: '^/multi\\-rewrites(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/multi\\-set\\-cookie(?:/)?$',
+            page: '/multi-set-cookie',
+            regex: '^/multi\\-set\\-cookie(?:/)?$',
             routeKeys: {},
           },
           {
