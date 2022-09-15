@@ -28,7 +28,7 @@ export default function Main({ message }) {
           </Link>
         </li>
         <li>
-          <Link href="dynamic-routes/hello-world">
+          <Link href="/dynamic-routes/hello-world">
             <a id="go-to-hello-world-anchor">Hello World</a>
           </Link>
         </li>
