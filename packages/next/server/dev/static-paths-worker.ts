@@ -5,7 +5,7 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 import '../node-polyfill-fetch'
 import { buildStaticPaths } from '../../build/utils'
 import { loadComponents } from '../load-components'
-import { setHttpAgentOptions } from '../config'
+import { setHttpClientAndAgentOptions } from '../config'
 
 type RuntimeConfig = any
 
@@ -36,7 +36,7 @@ export async function loadStaticPaths(
 
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
-  setHttpAgentOptions({ httpAgentOptions })
+  setHttpClientAndAgentOptions({ httpAgentOptions })
 
   const components = await loadComponents({
     distDir,

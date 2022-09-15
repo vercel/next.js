@@ -39,7 +39,7 @@ import {
   LoadComponentsReturnType,
 } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
@@ -1056,7 +1056,10 @@ export async function isPageStatic({
   return isPageStaticSpan
     .traceAsyncFn(async () => {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-      setHttpAgentOptions({ httpAgentOptions, experimental: { useUndici } })
+      setHttpClientAndAgentOptions({
+        httpAgentOptions,
+        experimental: { useUndici },
+      })
 
       let componentsResult: LoadComponentsReturnType
 

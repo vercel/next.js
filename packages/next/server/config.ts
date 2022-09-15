@@ -13,6 +13,7 @@ import {
   ExperimentalConfig,
   NextConfigComplete,
   validateConfig,
+  NextConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import {
@@ -50,7 +51,7 @@ export function setUseUndici(useUndici?: boolean) {
   ;(global as any).__NEXT_USE_UNDICI = useUndici
 }
 
-export function setHttpAgentOptions(options: any) {
+export function setHttpClientAndAgentOptions(options: NextConfig) {
   ;(global as any).__NEXT_USE_UNDICI = options.experimental?.useUndici
   if ((global as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
@@ -549,7 +550,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   // TODO: Change defaultConfig type to NextConfigComplete
   // so we don't need "!" here.
-  setHttpAgentOptions(result || defaultConfig)
+  setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -867,6 +868,6 @@ export default async function loadConfig(
   // reactRoot can be updated correctly even with no next.config.js
   const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
   completeConfig.configFileName = configFileName
-  setHttpAgentOptions(completeConfig.httpAgentOptions)
+  setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
 }
