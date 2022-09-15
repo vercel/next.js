@@ -54,6 +54,7 @@ pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
+pub mod react_server_components;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod relay;
 pub mod remove_console;
@@ -83,6 +84,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub is_server: bool,
+
+    #[serde(default)]
+    pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
@@ -132,6 +136,12 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
+        match &opts.server_components {
+            Some(config) if config.truthy() => Either::Left(
+                react_server_components::server_components(file.name.clone(), config.clone(),)
+            ),
+            _ => Either::Right(noop()),
+        },
         styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {

@@ -1447,6 +1447,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
   await task
     .source(require.resolve('react-server-dom-webpack'))
     .target('compiled/react-server-dom-webpack')
+
   await task
     .source(
       join(

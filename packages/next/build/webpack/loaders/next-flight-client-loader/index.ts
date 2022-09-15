@@ -47,7 +47,7 @@ export default async function transformSource(
   }
 
   const output = `
-const { createProxy } = require("next/dist/build/webpack/loaders/next-flight-client-loader/module-proxy")\n
+const { createProxy } = require("private-next-rsc-mod-ref-proxy")\n
 module.exports = createProxy(${JSON.stringify(this.resourcePath)})
 `
   return output
