@@ -616,7 +616,7 @@ describe('app dir', () => {
         })
 
         // TODO-APP: investigate hydration not kicking in on some runs
-        it.skip('should serve client-side', async () => {
+        it('should serve client-side', async () => {
           const browser = await webdriver(next.url, '/client-component-route')
 
           // After hydration count should be 1
