@@ -23,15 +23,7 @@ describe('app dir', () => {
   function runTests({ assetPrefix }: { assetPrefix?: boolean }) {
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          public: new FileRef(path.join(__dirname, 'app/public')),
-          styles: new FileRef(path.join(__dirname, 'app/styles')),
-          pages: new FileRef(path.join(__dirname, 'app/pages')),
-          app: new FileRef(path.join(__dirname, 'app/app')),
-          'next.config.js': new FileRef(
-            path.join(__dirname, 'app/next.config.js')
-          ),
-        },
+        files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
           react: 'experimental',
           'react-dom': 'experimental',
@@ -274,23 +266,25 @@ describe('app dir', () => {
       }
     })
 
-    it('should match parallel routes', async () => {
-      const html = await renderViaHTTP(next.url, '/parallel/nested')
-      expect(html).toContain('parallel/layout')
-      expect(html).toContain('parallel/@foo/nested/layout')
-      expect(html).toContain('parallel/@foo/nested/@a/page')
-      expect(html).toContain('parallel/@foo/nested/@b/page')
-      expect(html).toContain('parallel/@bar/nested/layout')
-      expect(html).toContain('parallel/@bar/nested/@a/page')
-      expect(html).toContain('parallel/@bar/nested/@b/page')
-      expect(html).toContain('parallel/nested/page')
-    })
+    describe('parallel routes', () => {
+      it('should match parallel routes', async () => {
+        const html = await renderViaHTTP(next.url, '/parallel/nested')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/@foo/nested/layout')
+        expect(html).toContain('parallel/@foo/nested/@a/page')
+        expect(html).toContain('parallel/@foo/nested/@b/page')
+        expect(html).toContain('parallel/@bar/nested/layout')
+        expect(html).toContain('parallel/@bar/nested/@a/page')
+        expect(html).toContain('parallel/@bar/nested/@b/page')
+        expect(html).toContain('parallel/nested/page')
+      })
 
-    it('should match parallel routes in route groups', async () => {
-      const html = await renderViaHTTP(next.url, '/parallel/nested-2')
-      expect(html).toContain('parallel/layout')
-      expect(html).toContain('parallel/(new)/layout')
-      expect(html).toContain('parallel/(new)/@baz/nested/page')
+      it('should match parallel routes in route groups', async () => {
+        const html = await renderViaHTTP(next.url, '/parallel/nested-2')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/(new)/layout')
+        expect(html).toContain('parallel/(new)/@baz/nested/page')
+      })
     })
 
     describe('<Link />', () => {

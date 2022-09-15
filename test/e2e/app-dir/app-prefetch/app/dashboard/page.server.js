@@ -9,7 +9,7 @@ export async function getServerSideProps() {
 export default function DashboardPage({ message }) {
   return (
     <>
-      <p>{message}</p>
+      <p id="dashboard-page">{message}</p>
     </>
   )
 }
