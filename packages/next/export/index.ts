@@ -639,17 +639,13 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           const pageName = srcRoute || route
-          route = normalizePagePath(route)
 
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
-          if (
-            prerenderManifest!.notFoundRoutes.includes(route) ||
-            (prerenderManifest!.notFoundRoutes.includes('/') &&
-              route === '/index')
-          ) {
+          if (prerenderManifest!.notFoundRoutes.includes(route)) {
             return
           }
+          route = normalizePagePath(route)
 
           const pagePath = getPagePath(pageName, distDir, isLikeServerless)
           const distPagesDir = join(
