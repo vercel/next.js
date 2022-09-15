@@ -636,8 +636,7 @@ describe('app dir', () => {
           expect($('p').text()).toBe('hello from app/client-nested')
         })
 
-        // TODO-APP: investigate hydration not kicking in on some runs
-        it.skip('should include it client-side', async () => {
+        it('should include it client-side', async () => {
           const browser = await webdriver(next.url, '/client-nested')
 
           // After hydration count should be 1
