@@ -66,7 +66,7 @@
                 [
                     Variable(
                         (
-                            Atom('head' type=inline),
+                            Atom('head' type=static),
                             #49,
                         ),
                     ),
@@ -124,7 +124,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('text' type=inline),
+                                    Atom('text' type=static),
                                     #21,
                                 ),
                             ),
@@ -143,7 +143,7 @@
                 2,
                 Variable(
                     (
-                        Atom('text' type=inline),
+                        Atom('text' type=static),
                         #21,
                     ),
                 ),
@@ -227,7 +227,7 @@
                 2,
                 Variable(
                     (
-                        Atom('text' type=inline),
+                        Atom('text' type=static),
                         #21,
                     ),
                 ),
@@ -564,7 +564,7 @@
                     ),
                     Variable(
                         (
-                            Atom('head' type=inline),
+                            Atom('head' type=static),
                             #60,
                         ),
                     ),
@@ -718,7 +718,7 @@
                 [
                     Variable(
                         (
-                            Atom('head' type=inline),
+                            Atom('head' type=static),
                             #64,
                         ),
                     ),
@@ -829,12 +829,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('end' type=inline),
+                                Atom('end' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('end' type=inline),
+                                Atom('end' type=static),
                                 #66,
                             ),
                         ),
@@ -942,7 +942,7 @@
                     ),
                     Variable(
                         (
-                            Atom('head' type=inline),
+                            Atom('head' type=static),
                             #69,
                         ),
                     ),
@@ -1059,7 +1059,7 @@
                                     2,
                                     Variable(
                                         (
-                                            Atom('text' type=inline),
+                                            Atom('text' type=static),
                                             #21,
                                         ),
                                     ),
@@ -1257,12 +1257,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('body' type=inline),
+                                Atom('body' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('body' type=inline),
+                                Atom('body' type=static),
                                 #22,
                             ),
                         ),
@@ -1354,12 +1354,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('select' type=inline),
+                                Atom('select' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('select' type=inline),
+                                Atom('select' type=static),
                                 #27,
                             ),
                         ),
@@ -1380,12 +1380,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('where' type=inline),
+                                Atom('where' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('where' type=inline),
+                                Atom('where' type=static),
                                 #27,
                             ),
                         ),
@@ -1429,7 +1429,7 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('*' type=inline),
+                                Atom('*' type=static),
                             ),
                         ),
                         Constant(
@@ -1592,12 +1592,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('source' type=inline),
+                                Atom('source' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('source' type=inline),
+                                Atom('source' type=static),
                                 #33,
                             ),
                         ),
@@ -2050,7 +2050,7 @@
                                 ),
                                 Constant(
                                     StrWord(
-                                        Atom('text' type=inline),
+                                        Atom('text' type=static),
                                     ),
                                 ),
                             ),
@@ -2253,7 +2253,7 @@
                                             2,
                                             Variable(
                                                 (
-                                                    Atom('text' type=inline),
+                                                    Atom('text' type=static),
                                                     #21,
                                                 ),
                                             ),
@@ -2280,7 +2280,7 @@
                                             2,
                                             Variable(
                                                 (
-                                                    Atom('text' type=inline),
+                                                    Atom('text' type=static),
                                                     #21,
                                                 ),
                                             ),
@@ -2555,7 +2555,7 @@
                 KeyValue(
                     Constant(
                         StrWord(
-                            Atom('end' type=inline),
+                            Atom('end' type=static),
                         ),
                     ),
                     Variable(
@@ -2661,7 +2661,7 @@
                     ),
                     Variable(
                         (
-                            Atom('head' type=inline),
+                            Atom('head' type=static),
                             #177,
                         ),
                     ),
@@ -2737,7 +2737,7 @@
                                                     5,
                                                     Variable(
                                                         (
-                                                            Atom('s' type=inline),
+                                                            Atom('s' type=static),
                                                             #15,
                                                         ),
                                                     ),
@@ -3165,7 +3165,7 @@
                     ),
                     Variable(
                         (
-                            Atom('p' type=inline),
+                            Atom('p' type=static),
                             #80,
                         ),
                     ),
@@ -3176,20 +3176,20 @@
                         KeyValue(
                             Constant(
                                 StrWord(
-                                    Atom('line' type=inline),
+                                    Atom('line' type=static),
                                 ),
                             ),
                             Member(
                                 3,
                                 Variable(
                                     (
-                                        Atom('details' type=inline),
+                                        Atom('details' type=static),
                                         #80,
                                     ),
                                 ),
                                 Constant(
                                     StrWord(
-                                        Atom('line' type=inline),
+                                        Atom('line' type=static),
                                     ),
                                 ),
                             ),
@@ -3204,7 +3204,7 @@
                                 3,
                                 Variable(
                                     (
-                                        Atom('details' type=inline),
+                                        Atom('details' type=static),
                                         #80,
                                     ),
                                 ),
@@ -3616,7 +3616,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('i' type=inline),
+                                Atom('i' type=static),
                                 #19,
                             ),
                         ),
@@ -3649,7 +3649,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('i' type=inline),
+                                Atom('i' type=static),
                                 #7,
                             ),
                         ),
@@ -3770,7 +3770,7 @@
                                             5,
                                             Variable(
                                                 (
-                                                    Atom('s' type=inline),
+                                                    Atom('s' type=static),
                                                     #12,
                                                 ),
                                             ),
@@ -4183,7 +4183,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('p' type=inline),
+                                Atom('p' type=static),
                                 #80,
                             ),
                         ),
@@ -4583,7 +4583,7 @@
                             [
                                 Constant(
                                     StrWord(
-                                        Atom('a' type=inline),
+                                        Atom('a' type=static),
                                     ),
                                 ),
                                 Constant(
@@ -4674,7 +4674,7 @@
                             [
                                 Constant(
                                     StrWord(
-                                        Atom('a' type=inline),
+                                        Atom('a' type=static),
                                     ),
                                 ),
                                 Constant(
@@ -4912,7 +4912,7 @@
         "peg$c134",
         Constant(
             StrWord(
-                Atom('b' type=inline),
+                Atom('b' type=static),
             ),
         ),
     ),
@@ -4929,7 +4929,7 @@
             [
                 Constant(
                     StrWord(
-                        Atom('b' type=inline),
+                        Atom('b' type=static),
                     ),
                 ),
                 Constant(
@@ -5134,7 +5134,7 @@
         "peg$c150",
         Constant(
             StrWord(
-                Atom('u' type=inline),
+                Atom('u' type=static),
             ),
         ),
     ),
@@ -5151,7 +5151,7 @@
             [
                 Constant(
                     StrWord(
-                        Atom('u' type=inline),
+                        Atom('u' type=static),
                     ),
                 ),
                 Constant(
@@ -5212,7 +5212,7 @@
                             [
                                 Constant(
                                     StrWord(
-                                        Atom('a' type=inline),
+                                        Atom('a' type=static),
                                     ),
                                 ),
                                 Constant(
@@ -6612,7 +6612,7 @@
         "peg$c6",
         Constant(
             StrWord(
-                Atom('*' type=inline),
+                Atom('*' type=static),
             ),
         ),
     ),
@@ -6759,7 +6759,7 @@
         "peg$c67",
         Constant(
             StrWord(
-                Atom('select' type=inline),
+                Atom('select' type=static),
             ),
         ),
     ),
@@ -6806,7 +6806,7 @@
             [
                 Constant(
                     StrWord(
-                        Atom('*' type=inline),
+                        Atom('*' type=static),
                     ),
                 ),
                 Constant(
@@ -6871,7 +6871,7 @@
         "peg$c73",
         Constant(
             StrWord(
-                Atom('where' type=inline),
+                Atom('where' type=static),
             ),
         ),
     ),
@@ -7138,7 +7138,7 @@
         "peg$c90",
         Constant(
             StrWord(
-                Atom('desc' type=inline),
+                Atom('desc' type=static),
             ),
         ),
     ),
@@ -7331,7 +7331,7 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('start' type=inline),
+                                Atom('start' type=static),
                             ),
                         ),
                         Object(
@@ -7353,7 +7353,7 @@
                                 KeyValue(
                                     Constant(
                                         StrWord(
-                                            Atom('line' type=inline),
+                                            Atom('line' type=static),
                                         ),
                                     ),
                                     Member(
@@ -7366,7 +7366,7 @@
                                         ),
                                         Constant(
                                             StrWord(
-                                                Atom('line' type=inline),
+                                                Atom('line' type=static),
                                             ),
                                         ),
                                     ),
@@ -7398,7 +7398,7 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('end' type=inline),
+                                Atom('end' type=static),
                             ),
                         ),
                         Object(
@@ -7420,7 +7420,7 @@
                                 KeyValue(
                                     Constant(
                                         StrWord(
-                                            Atom('line' type=inline),
+                                            Atom('line' type=static),
                                         ),
                                     ),
                                     Member(
@@ -7433,7 +7433,7 @@
                                         ),
                                         Constant(
                                             StrWord(
-                                                Atom('line' type=inline),
+                                                Atom('line' type=static),
                                             ),
                                         ),
                                     ),
@@ -7472,7 +7472,7 @@
             2,
             Variable(
                 (
-                    Atom('details' type=inline),
+                    Atom('details' type=static),
                     #80,
                 ),
             ),
@@ -8270,7 +8270,7 @@
                         ),
                         Constant(
                             StrWord(
-                                Atom('end' type=inline),
+                                Atom('end' type=static),
                             ),
                         ),
                     ),
@@ -8311,12 +8311,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('text' type=inline),
+                                Atom('text' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('text' type=inline),
+                                Atom('text' type=static),
                                 #77,
                             ),
                         ),
@@ -9529,7 +9529,7 @@
                         KeyValue(
                             Constant(
                                 StrWord(
-                                    Atom('line' type=inline),
+                                    Atom('line' type=static),
                                 ),
                             ),
                             Constant(
@@ -10459,7 +10459,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -11633,7 +11633,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -11881,7 +11881,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -12176,7 +12176,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14430,7 +14430,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14501,7 +14501,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14572,7 +14572,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14643,7 +14643,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14714,7 +14714,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14785,7 +14785,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14856,7 +14856,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14927,7 +14927,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -14998,7 +14998,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15069,7 +15069,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15140,7 +15140,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15204,7 +15204,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15268,7 +15268,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15332,7 +15332,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15396,7 +15396,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15460,7 +15460,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15531,7 +15531,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -15602,7 +15602,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -20166,7 +20166,7 @@
                     5,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -20802,7 +20802,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -22053,7 +22053,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -23409,7 +23409,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -25178,7 +25178,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -27166,7 +27166,7 @@
                     4,
                     Variable(
                         (
-                            Atom('input' type=inline),
+                            Atom('input' type=static),
                             #21,
                         ),
                     ),
@@ -28805,7 +28805,7 @@
                 5,
                 Variable(
                     (
-                        Atom('input' type=inline),
+                        Atom('input' type=static),
                         #21,
                     ),
                 ),

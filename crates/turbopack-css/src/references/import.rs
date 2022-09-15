@@ -32,11 +32,11 @@ pub struct ImportAttributes {
 impl ImportAttributes {
     pub fn new_from_prelude(prelude: &ImportPrelude) -> Self {
         let layer_name = prelude.layer_name.as_ref().map(|l| match l {
-            ImportPreludeLayerName::Ident(_) => LayerName {
+            box ImportPreludeLayerName::Ident(_) => LayerName {
                 span: DUMMY_SP,
                 name: vec![],
             },
-            ImportPreludeLayerName::Function(f) => {
+            box ImportPreludeLayerName::Function(f) => {
                 assert_eq!(f.value.len(), 1);
                 assert!(matches!(&f.value[0], ComponentValue::LayerName(_)));
                 if let ComponentValue::LayerName(layer_name) = &f.value[0] {
@@ -48,8 +48,8 @@ impl ImportAttributes {
         });
 
         let supports = prelude.supports.as_ref().map(|s| match s {
-            ImportPreludeSupportsType::SupportsCondition(s) => s.clone(),
-            ImportPreludeSupportsType::Declaration(d) => SupportsCondition {
+            box ImportPreludeSupportsType::SupportsCondition(s) => s.clone(),
+            box ImportPreludeSupportsType::Declaration(d) => SupportsCondition {
                 span: DUMMY_SP,
                 conditions: vec![SupportsConditionType::SupportsInParens(
                     SupportsInParens::Feature(SupportsFeature::Declaration(d.clone())),
@@ -83,14 +83,14 @@ impl ImportAttributes {
         let mut indent = 0;
 
         fn at_rule(name: &str, prelude: AtRulePrelude, inner_rule: Rule) -> Rule {
-            Rule::AtRule(AtRule {
+            Rule::AtRule(box AtRule {
                 span: DUMMY_SP,
                 name: AtRuleName::Ident(Ident {
                     span: DUMMY_SP,
                     value: name.into(),
                     raw: None,
                 }),
-                prelude: Some(prelude),
+                prelude: Some(box prelude),
                 block: Some(SimpleBlock {
                     span: DUMMY_SP,
                     name: '{',

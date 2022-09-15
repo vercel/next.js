@@ -23,13 +23,13 @@
                         [
                             Variable(
                                 (
-                                    Atom('a' type=inline),
+                                    Atom('a' type=static),
                                     #2,
                                 ),
                             ),
                             Variable(
                                 (
-                                    Atom('b' type=inline),
+                                    Atom('b' type=static),
                                     #2,
                                 ),
                             ),
@@ -37,7 +37,7 @@
                     ),
                     Variable(
                         (
-                            Atom('a' type=inline),
+                            Atom('a' type=static),
                             #2,
                         ),
                     ),

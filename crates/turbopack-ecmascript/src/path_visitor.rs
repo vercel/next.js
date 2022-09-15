@@ -128,6 +128,7 @@ mod tests {
             transforms::base::resolver,
             visit::{fields::*, AstParentKind, VisitMut, VisitMutWith, VisitMutWithPath},
         },
+        testing::run_test,
     };
 
     use super::{ApplyVisitors, VisitorFactory};
@@ -191,7 +192,7 @@ mod tests {
 
     #[test]
     fn path_visitor() {
-        testing::run_test(false, |cm, _handler| {
+        run_test(false, |cm, _handler| {
             let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz']);".into());
 
             let m = parse(&fm);

@@ -36,8 +36,8 @@ use turbopack_core::{
 
 lazy_static! {
     // Allows for interactive manual debugging of a test case in a browser with:
-    // `TURBOPACK_SNAPSHOT_UPDATE=1 cargo test -p turbopack -- test_my_pattern`
-    static ref UPDATE: bool = env::var("TURBOPACK_SNAPSHOT_UPDATE").is_ok();
+    // `UPDATE=1 cargo test -p turbopack -- test_my_pattern`
+    static ref UPDATE: bool = env::var("UPDATE").is_ok();
 }
 
 #[test_resources("crates/turbopack/tests/snapshot/*/*")]

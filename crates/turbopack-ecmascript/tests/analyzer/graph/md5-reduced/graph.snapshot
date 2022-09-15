@@ -22,13 +22,13 @@
                     [
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -54,7 +54,7 @@
                             ),
                             Variable(
                                 (
-                                    Atom('i' type=inline),
+                                    Atom('i' type=static),
                                     #2,
                                 ),
                             ),
@@ -83,13 +83,13 @@
                     [
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -118,7 +118,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -156,13 +156,13 @@
                     [
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -191,7 +191,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -232,13 +232,13 @@
                     [
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -267,7 +267,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -332,7 +332,7 @@
                     [
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -350,7 +350,7 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
@@ -367,7 +367,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -405,7 +405,7 @@
                     [
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -423,7 +423,7 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
@@ -440,7 +440,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -478,7 +478,7 @@
                     [
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -496,7 +496,7 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
@@ -513,7 +513,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -551,7 +551,7 @@
                     [
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -569,7 +569,7 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
@@ -586,7 +586,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -663,13 +663,13 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -686,7 +686,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -739,13 +739,13 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -762,7 +762,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -812,13 +812,13 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -835,7 +835,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -885,13 +885,13 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -908,7 +908,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -973,13 +973,13 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -1002,7 +1002,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -1046,13 +1046,13 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -1075,7 +1075,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -1122,13 +1122,13 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -1151,7 +1151,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -1195,13 +1195,13 @@
                         ),
                         Variable(
                             (
-                                Atom('a' type=inline),
+                                Atom('a' type=static),
                                 #2,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=inline),
+                                Atom('b' type=static),
                                 #2,
                             ),
                         ),
@@ -1224,7 +1224,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=inline),
+                                            Atom('i' type=static),
                                             #2,
                                         ),
                                     ),
@@ -1269,7 +1269,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('i' type=inline),
+                                Atom('i' type=static),
                                 #2,
                             ),
                         ),
@@ -1330,13 +1330,13 @@
                                         [
                                             Variable(
                                                 (
-                                                    Atom('a' type=inline),
+                                                    Atom('a' type=static),
                                                     #3,
                                                 ),
                                             ),
                                             Variable(
                                                 (
-                                                    Atom('q' type=inline),
+                                                    Atom('q' type=static),
                                                     #3,
                                                 ),
                                             ),
@@ -1368,7 +1368,7 @@
                             ),
                             Variable(
                                 (
-                                    Atom('s' type=inline),
+                                    Atom('s' type=static),
                                     #3,
                                 ),
                             ),
@@ -1376,7 +1376,7 @@
                     ),
                     Variable(
                         (
-                            Atom('b' type=inline),
+                            Atom('b' type=static),
                             #3,
                         ),
                     ),
@@ -1403,13 +1403,13 @@
                     ),
                     Variable(
                         (
-                            Atom('a' type=inline),
+                            Atom('a' type=static),
                             #5,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('b' type=inline),
+                            Atom('b' type=static),
                             #5,
                         ),
                     ),
@@ -1421,7 +1421,7 @@
                     ),
                     Variable(
                         (
-                            Atom('s' type=inline),
+                            Atom('s' type=static),
                             #5,
                         ),
                     ),
@@ -1453,7 +1453,7 @@
                 ),
                 Variable(
                     (
-                        Atom('a' type=inline),
+                        Atom('a' type=static),
                         #2,
                     ),
                 ),
@@ -1478,7 +1478,7 @@
                 ),
                 Variable(
                     (
-                        Atom('b' type=inline),
+                        Atom('b' type=static),
                         #2,
                     ),
                 ),
@@ -1574,13 +1574,13 @@
                 [
                     Variable(
                         (
-                            Atom('a' type=inline),
+                            Atom('a' type=static),
                             #2,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('b' type=inline),
+                            Atom('b' type=static),
                             #2,
                         ),
                     ),

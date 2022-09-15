@@ -13,7 +13,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('a' type=inline),
+                    Atom('a' type=static),
                 ),
             ),
         ),

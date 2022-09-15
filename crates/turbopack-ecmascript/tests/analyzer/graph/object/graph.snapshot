@@ -11,7 +11,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('a' type=inline),
+                    Atom('a' type=static),
                 ),
             ),
         ),
@@ -28,7 +28,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('a' type=inline),
+                    Atom('a' type=static),
                 ),
             ),
         ),
@@ -45,7 +45,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('a' type=inline),
+                    Atom('a' type=static),
                 ),
             ),
         ),
@@ -62,7 +62,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('a' type=inline),
+                    Atom('a' type=static),
                 ),
             ),
         ),
@@ -79,7 +79,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('a' type=inline),
+                    Atom('a' type=static),
                 ),
             ),
         ),
@@ -96,7 +96,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('a' type=inline),
+                    Atom('a' type=static),
                 ),
             ),
         ),
@@ -113,7 +113,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('b' type=inline),
+                    Atom('b' type=static),
                 ),
             ),
         ),
@@ -130,7 +130,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('b' type=inline),
+                    Atom('b' type=static),
                 ),
             ),
         ),
@@ -147,7 +147,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('b' type=inline),
+                    Atom('b' type=static),
                 ),
             ),
         ),
@@ -164,7 +164,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('b' type=inline),
+                    Atom('b' type=static),
                 ),
             ),
         ),
@@ -181,7 +181,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('b' type=inline),
+                    Atom('b' type=static),
                 ),
             ),
         ),
@@ -198,7 +198,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('b' type=inline),
+                    Atom('b' type=static),
                 ),
             ),
         ),
@@ -398,7 +398,7 @@
                 KeyValue(
                     Constant(
                         StrWord(
-                            Atom('a' type=inline),
+                            Atom('a' type=static),
                         ),
                     ),
                     Constant(
@@ -412,7 +412,7 @@
                 KeyValue(
                     Constant(
                         StrWord(
-                            Atom('b' type=inline),
+                            Atom('b' type=static),
                         ),
                     ),
                     Constant(
@@ -448,7 +448,7 @@
                 KeyValue(
                     Constant(
                         StrWord(
-                            Atom('a' type=inline),
+                            Atom('a' type=static),
                         ),
                     ),
                     Constant(
@@ -470,7 +470,7 @@
                 KeyValue(
                     Constant(
                         StrWord(
-                            Atom('b' type=inline),
+                            Atom('b' type=static),
                         ),
                     ),
                     Constant(
@@ -492,7 +492,7 @@
                 KeyValue(
                     Constant(
                         StrWord(
-                            Atom('a' type=inline),
+                            Atom('a' type=static),
                         ),
                     ),
                     Constant(
@@ -513,7 +513,7 @@
                 KeyValue(
                     Constant(
                         StrWord(
-                            Atom('b' type=inline),
+                            Atom('b' type=static),
                         ),
                     ),
                     Constant(

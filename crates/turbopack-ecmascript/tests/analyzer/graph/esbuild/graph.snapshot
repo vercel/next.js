@@ -183,7 +183,7 @@
             12,
             Variable(
                 (
-                    Atom('path' type=inline),
+                    Atom('path' type=static),
                     #1,
                 ),
             ),
@@ -222,7 +222,7 @@
                             4,
                             Variable(
                                 (
-                                    Atom('path' type=inline),
+                                    Atom('path' type=static),
                                     #1,
                                 ),
                             ),
@@ -311,7 +311,7 @@
             7,
             Variable(
                 (
-                    Atom('path' type=inline),
+                    Atom('path' type=static),
                     #1,
                 ),
             ),
@@ -642,7 +642,7 @@
             [
                 Constant(
                     StrWord(
-                        Atom('path' type=inline),
+                        Atom('path' type=static),
                     ),
                 ),
             ],
@@ -658,7 +658,7 @@
             [
                 Constant(
                     StrWord(
-                        Atom('path' type=inline),
+                        Atom('path' type=static),
                     ),
                 ),
             ],

@@ -1,4 +1,6 @@
 #![feature(min_specialization)]
+#![feature(box_patterns)]
+#![feature(box_syntax)]
 
 use anyhow::Result;
 use swc_core::{
@@ -185,8 +187,8 @@ impl CssChunkItem for ModuleChunkItem {
             stylesheet.rules.retain(|r| {
                 !matches!(
                     r,
-                    &Rule::AtRule(AtRule {
-                        prelude: Some(AtRulePrelude::ImportPrelude(_)),
+                    &Rule::AtRule(box AtRule {
+                        prelude: Some(box AtRulePrelude::ImportPrelude(_)),
                         ..
                     })
                 )

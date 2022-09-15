@@ -9,7 +9,7 @@
         "b",
         Variable(
             (
-                Atom('a' type=inline),
+                Atom('a' type=static),
                 #1,
             ),
         ),
@@ -18,7 +18,7 @@
         "c",
         Variable(
             (
-                Atom('b' type=inline),
+                Atom('b' type=static),
                 #3,
             ),
         ),
@@ -27,7 +27,7 @@
         "d",
         Variable(
             (
-                Atom('a' type=inline),
+                Atom('a' type=static),
                 #1,
             ),
         ),
@@ -45,7 +45,7 @@
         "f",
         Variable(
             (
-                Atom('a' type=inline),
+                Atom('a' type=static),
                 #1,
             ),
         ),

@@ -1966,8 +1966,8 @@ mod tests {
             ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
             visit::VisitMutWith,
         },
+        testing::{fixture, run_test, NormalizedOutput},
     };
-    use testing::NormalizedOutput;
     use turbo_tasks::{util::FormatDuration, Value};
     use turbopack_core::{
         environment::{
@@ -1982,14 +1982,14 @@ mod tests {
         JsValue,
     };
 
-    #[testing::fixture("tests/analyzer/graph/**/input.js")]
+    #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
         crate::register();
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
         let resolved_explained_snapshot_path = input.with_file_name("resolved-explained.snapshot");
 
-        testing::run_test(false, |cm, handler| {
+        run_test(false, |cm, handler| {
             let r = tokio::runtime::Builder::new_current_thread()
                 .build()
                 .unwrap();

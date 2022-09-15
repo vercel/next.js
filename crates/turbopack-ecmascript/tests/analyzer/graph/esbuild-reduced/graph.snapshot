@@ -133,7 +133,7 @@
             [
                 Constant(
                     StrWord(
-                        Atom('path' type=inline),
+                        Atom('path' type=static),
                     ),
                 ),
             ],
@@ -149,7 +149,7 @@
             [
                 Constant(
                     StrWord(
-                        Atom('path' type=inline),
+                        Atom('path' type=static),
                     ),
                 ),
             ],

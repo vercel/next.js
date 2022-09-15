@@ -33,7 +33,7 @@ url = "2.2.2"
 # turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed
 # turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 
-swc_core = { version = "0.20.8", features = [
+swc_core = { version = "0.23.20", features = [
   "common",
   "common_concurrent",
   "ecma_parser",
@@ -52,7 +52,6 @@ rstest = "0.12.0"
 rstest_reuse = "0.3.0"
 serde_json = "1"
 test-generator = "0.3.0"
-testing = "0.29.1"
 tokio = "1.11.0"
 turbo-malloc = { path = "../turbo-malloc" }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }

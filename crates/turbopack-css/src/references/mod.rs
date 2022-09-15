@@ -91,8 +91,8 @@ fn url_string(u: &Url) -> &str {
             println!("invalid css url: no value");
             ""
         }
-        Some(UrlValue::Str(s)) => s.value.as_ref(),
-        Some(UrlValue::Raw(r)) => r.value.as_ref(),
+        Some(box UrlValue::Str(s)) => s.value.as_ref(),
+        Some(box UrlValue::Raw(r)) => r.value.as_ref(),
     }
 }
 
@@ -107,9 +107,9 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         ast_path: &mut AstNodePath<'r>,
     ) {
         let src = match &i.href {
-            ImportPreludeHref::Str(s) => s.value.as_ref(),
+            box ImportPreludeHref::Str(s) => s.value.as_ref(),
             // covered by `visit_url` below
-            ImportPreludeHref::Url(u) => url_string(u),
+            box ImportPreludeHref::Url(ref u) => url_string(u),
         };
 
         self.references.push(

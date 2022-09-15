@@ -20,7 +20,6 @@ regex = "1.5.4"
 serde = "1.0.136"
 serde_json = "1.0.81"
 serde_regex = "1.1.0"
-#swc_ecma_transforms_module = "0.141.0"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
@@ -28,10 +27,11 @@ turbopack-core = { path = "../turbopack-core" }
 turbopack-hash = { path = "../turbopack-hash" }
 url = "2.2.2"
 
-swc_core = { version = "0.20.8", features = [
+swc_core = { version = "0.23.20", features = [
   "ecma_ast",
   "common",
   "common_concurrent",
+  "common_sourcemap",
   "ecma_codegen",
   "ecma_parser",
   "ecma_transforms",
@@ -41,6 +41,7 @@ swc_core = { version = "0.20.8", features = [
   "ecma_visit",
   "ecma_visit_path",
   "ecma_utils",
+  "testing",
 ] }
 
 [dependencies.num-bigint]
@@ -50,7 +51,6 @@ version = "0.4"
 criterion = { version = "0.3.5", features = ["async_tokio"] }
 difference = "2.0"
 rstest = "0.12.0"
-testing = "0.29.1"
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 turbo-tasks-testing = { path = "../turbo-tasks-testing" }
 
