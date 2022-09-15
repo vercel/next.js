@@ -1,5 +1,5 @@
 module.exports = {
-  target: 'serverless',
+  // target: 'serverless',
   async rewrites() {
     // no-rewrites comment
     return {
@@ -86,7 +86,7 @@ module.exports = {
         },
         {
           source: '/proxy-me/:path*',
-          destination: 'http://localhost:45689/:path*',
+          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
         },
         {
           source: '/api-hello',
