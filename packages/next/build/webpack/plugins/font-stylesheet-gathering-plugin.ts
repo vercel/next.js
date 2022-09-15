@@ -226,7 +226,7 @@ export class FontStylesheetGatheringPlugin {
           for (let promiseIndex in fontDefinitionPromises) {
             let css = await fontDefinitionPromises[promiseIndex]
 
-            if (this.optimizeFonts.experimentalAdjustFallbacks) {
+            if (this.optimizeFonts?.experimentalAdjustFallbacks) {
               css += getFontOverrideCss(fontStylesheets[promiseIndex], css)
             }
 
