@@ -1,4 +1,5 @@
 use std::{
+    fs,
     path::Path,
     process::{Child, Command, Stdio},
 };
@@ -28,8 +29,20 @@ impl Bundler for Vite {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(install_dir, &[NpmPackage::new("vite", "3.0.9")])
-            .context("failed to install from npm")?;
+        npm::install(
+            install_dir,
+            &[
+                NpmPackage::new("vite", "3.0.9"),
+                NpmPackage::new("@vitejs/plugin-react", "2.1.0"),
+            ],
+        )
+        .context("failed to install from npm")?;
+
+        fs::write(
+            install_dir.join("vite.config.js"),
+            include_bytes!("vite.config.js"),
+        )?;
+
         Ok(())
     }
 
