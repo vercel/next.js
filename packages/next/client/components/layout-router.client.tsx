@@ -17,6 +17,7 @@ import {
 import { fetchServerResponse } from './app-router.client'
 // import { matchSegment } from './match-segments'
 
+// TODO-APP: change to React.use once it becomes stable
 const use = (React as any).experimental_use
 
 /**

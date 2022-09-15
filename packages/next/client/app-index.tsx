@@ -14,6 +14,7 @@ declare global {
   const __webpack_require__: any
 }
 
+// TODO-APP: change to React.use once it becomes stable
 const use = (React as any).experimental_use
 
 // eslint-disable-next-line no-undef
