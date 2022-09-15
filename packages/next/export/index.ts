@@ -643,7 +643,11 @@ export default async function exportApp(
 
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
-          if (prerenderManifest!.notFoundRoutes.includes(route)) {
+          if (
+            prerenderManifest!.notFoundRoutes.includes(route) ||
+            (prerenderManifest!.notFoundRoutes.includes('/') &&
+              route === '/index')
+          ) {
             return
           }
 
