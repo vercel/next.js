@@ -35,7 +35,7 @@ function parseFlightParameters(
   searchParams: URLSearchParams
 ): Record<string, string> | undefined {
   let flightSearchParameters: Record<string, string> = {}
-  let flightDataUpdated = false
+  let flightSearchParametersUpdated = false
   for (const name of FLIGHT_PARAMETERS) {
     const value = searchParams.get(name)
     if (value === null) {
@@ -43,10 +43,10 @@ function parseFlightParameters(
     }
 
     flightSearchParameters[name] = value
-    flightDataUpdated = true
+    flightSearchParametersUpdated = true
   }
 
-  if (!flightDataUpdated) {
+  if (!flightSearchParametersUpdated) {
     return undefined
   }
 
@@ -136,32 +136,31 @@ export class NextURL {
     })
   }
 
+  private formatSearch() {
+    const flightSearchParameters = this[Internal].flightSearchParameters
+    // If no flight parameters are set, return the search string as is.
+    // This is a fast path to ensure URLSearchParams only has to be recreated on Flight requests.
+    if (!flightSearchParameters) {
+      return this[Internal].url.search
+    }
+
+    // Create separate URLSearchParams to ensure the original search string is not modified.
+    const searchParams = new URLSearchParams(this[Internal].url.searchParams)
+    // If any exist this loop is always limited to the amount of FLIGHT_PARAMETERS.
+    for (const name in flightSearchParameters) {
+      searchParams.set(name, flightSearchParameters[name])
+    }
+
+    const params = searchParams.toString()
+    return params === '' ? '' : `?${params}`
+  }
+
   public get buildId() {
     return this[Internal].buildId
   }
 
   public set buildId(buildId: string | undefined) {
     this[Internal].buildId = buildId
-  }
-
-  public get flightSearchParameters() {
-    return this[Internal].flightSearchParameters
-  }
-
-  public set flightSearchParameters(
-    flightData: Record<string, string> | undefined
-  ) {
-    if (flightData) {
-      for (const name of FLIGHT_PARAMETERS) {
-        this[Internal].url.searchParams.set(name, flightData[name] ?? '')
-      }
-    } else {
-      for (const name of FLIGHT_PARAMETERS) {
-        this[Internal].url.searchParams.delete(name)
-      }
-    }
-
-    this[Internal].flightSearchParameters = flightData
   }
 
   public get locale() {
@@ -227,7 +226,8 @@ export class NextURL {
 
   get href() {
     const pathname = this.formatPathname()
-    return `${this.protocol}//${this.host}${pathname}${this[Internal].url.search}`
+    const search = this.formatSearch()
+    return `${this.protocol}//${this.host}${pathname}${search}`
   }
 
   set href(url: string) {
