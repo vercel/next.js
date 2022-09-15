@@ -162,6 +162,7 @@ function processErrorChunk(request, id, message, stack) {
   return stringToChunk(row);
 }
 function processModelChunk(request, id, model) {
+  // $FlowFixMe: `json` might be `undefined` when model is a symbol.
   var json = stringify(model, request.toJSON);
   var row = serializeRowHeader('J', id) + json + '\n';
   return stringToChunk(row);
@@ -172,6 +173,7 @@ function processReferenceChunk(request, id, reference) {
   return stringToChunk(row);
 }
 function processModuleChunk(request, id, moduleMetaData) {
+  // $FlowFixMe: `json` might be `undefined` when moduleMetaData is a symbol.
   var json = stringify(moduleMetaData);
   var row = serializeRowHeader('M', id) + json + '\n';
   return stringToChunk(row);
@@ -894,8 +896,8 @@ function readContext(context) {
   return value;
 }
 
-// Corresponds to ReactFiberWakeable module. Generally, changes to one module
-// should be reflected in the other.
+// Corresponds to ReactFiberWakeable and ReactFizzWakeable modules. Generally,
+// changes to one module should be reflected in the others.
 // TODO: Rename this module and the corresponding Fiber one to "Thenable"
 // instead of "Wakeable". Or some other more appropriate name.
 // TODO: Sparse arrays are bad for performance.
@@ -917,11 +919,6 @@ function trackSuspendedWakeable(wakeable) {
   // a listener that will update its status and result when it resolves.
 
   switch (thenable.status) {
-    case 'pending':
-      // Since the status is already "pending", we can assume it will be updated
-      // when it resolves, either by React or something in userspace.
-      break;
-
     case 'fulfilled':
     case 'rejected':
       // A thenable that already resolved shouldn't have been thrown, so this is
@@ -933,9 +930,13 @@ function trackSuspendedWakeable(wakeable) {
 
     default:
       {
-        // TODO: Only instrument the thenable if the status if not defined. If
-        // it's defined, but an unknown value, assume it's been instrumented by
-        // some custom userspace implementation.
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          break;
+        }
+
         var pendingThenable = thenable;
         pendingThenable.status = 'pending';
         pendingThenable.then(function (fulfilledValue) {
@@ -990,7 +991,9 @@ function prepareToUseHooksForComponent(prevThenableState) {
   thenableState = prevThenableState;
 }
 function getThenableStateAfterSuspending() {
-  return thenableState;
+  var state = thenableState;
+  thenableState = null;
+  return state;
 }
 
 function readContext$1(context) {
@@ -1149,6 +1152,9 @@ function use(usable) {
             }
           }
       }
+    } else if (usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
+      var context = usable;
+      return readContext$1(context);
     }
   } // eslint-disable-next-line react-internal/safe-string-coercion
 
@@ -1159,7 +1165,8 @@ function use(usable) {
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
+    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe function signature doesn't reflect the symbol value
+    REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
   }
 
   return ContextRegistry[globalName];
@@ -1292,7 +1299,8 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
             if (extraKeys.length !== 0) {
               error('ServerContext can only have a value prop and children. Found: %s', JSON.stringify(extraKeys));
             }
-          }
+          } // $FlowFixMe issue discovered when updating Flow
+
 
           return [REACT_ELEMENT_TYPE, type, key, // Rely on __popProvider being serialized last to pop the provider.
           {
@@ -1677,7 +1685,8 @@ function resolveModelToJSON(request, parent, key, value) {
           }
         }
       }
-    }
+    } // $FlowFixMe
+
 
     return value;
   }
@@ -1708,12 +1717,14 @@ function resolveModelToJSON(request, parent, key, value) {
 
     if (existingId !== undefined) {
       return serializeByValueID(existingId);
-    }
+    } // $FlowFixMe `description` might be undefined
 
-    var name = value.description;
+
+    var name = value.description; // $FlowFixMe `name` might be undefined
 
     if (Symbol.for(name) !== value) {
-      throw new Error('Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + value.description + ") cannot be found among global symbols. ") + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
+      throw new Error('Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + // $FlowFixMe `description` might be undefined
+      value.description + ") cannot be found among global symbols. ") + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
     }
 
     request.pendingChunks++;
@@ -1772,6 +1783,7 @@ function emitErrorChunk(request, id, error) {
 }
 
 function emitModuleChunk(request, id, moduleMetaData) {
+  // $FlowFixMe ModuleMetaData is not a ReactModel
   var processedChunk = processModuleChunk(request, id, moduleMetaData);
   request.completedModuleChunks.push(processedChunk);
 }
