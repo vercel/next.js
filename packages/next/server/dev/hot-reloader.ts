@@ -20,7 +20,11 @@ import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
-import { BLOCKED_PAGES, COMPILER_NAMES } from '../../shared/lib/constants'
+import {
+  BLOCKED_PAGES,
+  COMPILER_NAMES,
+  RSC_MODULE_TYPES,
+} from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
@@ -601,7 +605,7 @@ export default class HotReloader {
                 })
               : {}
             const isServerComponent =
-              isAppPath && (staticInfo.rsc === 'server' || !staticInfo.rsc)
+              isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
             await runDependingOnPageType({
               page,

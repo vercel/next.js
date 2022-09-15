@@ -1,3 +1,5 @@
+import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
+
 export type ClientComponentImports = string[]
 export type CssImports = Record<string, string[]>
 
@@ -38,7 +40,7 @@ export default async function transformSource(this: any): Promise<string> {
     `
 
   this._module.buildInfo.rsc = {
-    type: 'client',
+    type: RSC_MODULE_TYPES.client,
     requests,
   }
 

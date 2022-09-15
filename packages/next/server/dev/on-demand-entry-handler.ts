@@ -20,6 +20,7 @@ import {
   CompilerNameValues,
   COMPILER_INDEXES,
   COMPILER_NAMES,
+  RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 
 const debug = origDebug('next:on-demand-entry-handler')
@@ -632,7 +633,8 @@ export function onDemandEntryHandler({
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
-        const isServerComponent = isInsideAppDir && staticInfo.rsc === 'server'
+        const isServerComponent =
+          isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
         await runDependingOnPageType({
           page: pagePathData.page,

@@ -58,6 +58,7 @@ import {
   COMPILER_NAMES,
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
+  RSC_MODULE_TYPES,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -1273,7 +1274,7 @@ export default async function build(
                 const pageRuntime = staticInfo.runtime
                 isServerComponent =
                   pageType === 'app' &&
-                  (staticInfo.rsc === 'server' || !staticInfo.rsc)
+                  staticInfo.rsc !== RSC_MODULE_TYPES.client
 
                 if (
                   // Only calculate page static information if the page is not an
