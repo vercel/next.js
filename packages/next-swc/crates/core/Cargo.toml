@@ -40,6 +40,7 @@ swc_core = { version = "0.23.24", features = [
   "__ecma_transforms",
   "ecma_transforms_react",
   "ecma_transforms_typescript",
+  "ecma_transforms_optimization",
   "ecma_parser",
   "ecma_parser_typescript",
   "cached",
