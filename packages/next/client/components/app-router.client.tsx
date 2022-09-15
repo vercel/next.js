@@ -27,8 +27,6 @@ import {
 } from './hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 
-const use = (React as any).experimental_use
-
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
  */
