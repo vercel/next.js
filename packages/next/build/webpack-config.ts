@@ -62,6 +62,7 @@ import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
+import { FontConfig } from '../server/font-utils'
 
 const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
@@ -1779,7 +1780,7 @@ export default async function getBaseWebpackConfig(
             }
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
-            optimizeFonts: config.optimizeFonts,
+            optimizeFonts: config.optimizeFonts as FontConfig,
           })
         })(),
       new WellKnownErrorsPlugin(),

@@ -359,10 +359,12 @@ export interface NextConfig extends Record<string, any> {
    * @since version 10.2
    * @see [Font Optimization](https://nextjs.org/docs/basic-features/font-optimization)
    */
-  optimizeFonts?: {
-    inlineFonts: boolean
-    experimentalAdjustFallbacks?: boolean
-  }
+  optimizeFonts?:
+    | boolean
+    | {
+        inlineFonts: boolean
+        experimentalAdjustFallbacks?: boolean
+      }
 
   /**
    * The Next.js runtime is Strict Mode-compliant.

@@ -730,6 +730,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  // optimizeFonts is being changed from boolean to an object from v13
+  if (typeof result.optimizeFonts == 'boolean') {
+    result.optimizeFonts = {
+      inlineFonts: result.optimizeFonts,
+      experimentalAdjustFallbacks: false,
+    }
+  }
+
   return result
 }
 
