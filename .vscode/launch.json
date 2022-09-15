@@ -11,7 +11,10 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["debug-react-exp", "dev", "test/e2e/app-dir/app"],
-      "skipFiles": ["<node_internals>/**"]
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_webpack": "1"
+      }
     },
     {
       "name": "Launch app development",
@@ -20,7 +23,10 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["debug", "dev", "examples/hello-world"],
-      "skipFiles": ["<node_internals>/**"]
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_webpack": "1"
+      }
     },
     {
       "name": "Launch app build",
@@ -29,7 +35,10 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["debug", "build", "examples/hello-world"],
-      "skipFiles": ["<node_internals>/**"]
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_webpack": "1"
+      }
     },
     {
       "name": "Launch app production",
@@ -37,8 +46,11 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["debug", "start", "bench/nested-deps"],
-      "skipFiles": ["<node_internals>/**"]
+      "runtimeArgs": ["debug", "start", "examples/hello-world"],
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_webpack": "1"
+      }
     },
     {
       "name": "Launch current directory in development",
@@ -47,7 +59,10 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["debug", "dev", "${fileDirname}"],
-      "skipFiles": ["<node_internals>/**"]
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_webpack": "1"
+      }
     },
     {
       "name": "Launch app build trace jaeger",
@@ -56,14 +71,20 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["clean-trace-jaeger"],
-      "skipFiles": ["<node_internals>/**"]
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_webpack": "1"
+      }
     },
     {
       "type": "node",
       "request": "attach",
       "name": "Attach to existing debugger",
       "port": 9229,
-      "skipFiles": ["<node_internals>/**"]
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_webpack": "1"
+      }
     }
   ]
 }
