@@ -1,4 +1,4 @@
-use std::ops;
+use std::{fmt::Write as _, ops};
 
 use anyhow::Result;
 use turbo_tasks::primitives::StringVc;
@@ -15,9 +15,7 @@ pub trait EncodedSourceMap {
 /// `sources`, no mappings that point into a source). This is used to tell
 /// Chrome that the generated code starting at a particular offset is no longer
 /// part of the previous section's mappings.
-fn empty_map() -> String {
-    r#"{"version": 3, "names": [], "sources": [], "mappings": "A"}"#.to_string()
-}
+const EMPTY_MAP: &str = r#"{"version": 3, "names": [], "sources": [], "mappings": "A"}"#;
 
 /// Code stores combined output code and the source map of that output code.
 #[derive(Debug, Clone, Default)]
@@ -55,16 +53,16 @@ impl Code {
     /// Pushes synthetic runtime code without an associated source map. This is
     /// the default concatenation operation, but it's designed to be used
     /// with the `+=` operator.
-    pub fn push_string(&mut self, code: String) {
+    pub fn push_str(&mut self, code: &str) {
         self.push_source(code, None);
     }
 
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
-    pub fn push_source(&mut self, code: String, map: Option<EncodedSourceMapVc>) {
+    pub fn push_source(&mut self, code: &str, map: Option<EncodedSourceMapVc>) {
         self.push_map(map);
-        self.code += &code;
+        self.code += code;
     }
 
     /// Copies the Synthetic/Original code of an already constructed CodeBuilder
@@ -102,13 +100,20 @@ impl Code {
 
 impl ops::AddAssign<&str> for Code {
     fn add_assign(&mut self, rhs: &str) {
-        self.push_string(rhs.to_string());
+        self.push_str(rhs);
     }
 }
 
 impl ops::AddAssign<String> for Code {
     fn add_assign(&mut self, rhs: String) {
-        self.push_string(rhs);
+        self.push_str(&rhs);
+    }
+}
+
+impl std::fmt::Write for Code {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.push_str(s);
+        Ok(())
     }
 }
 
@@ -150,8 +155,13 @@ impl CodeVc {
             last_index = *index;
 
             let encoded = match map {
-                None => empty_map(),
-                Some(map) => map.encoded_map().await?.clone(),
+                None => None,
+                Some(map) => Some(map.encoded_map().await?),
+            };
+            let encoded = if let Some(ref e) = encoded {
+                e
+            } else {
+                EMPTY_MAP
             };
 
             if !first_section {
@@ -159,11 +169,12 @@ impl CodeVc {
             }
             first_section = false;
 
-            source_map += &format!(
+            write!(
+                &mut source_map,
                 r#"
     {{"offset": {{"line": {}, "column": {}}}, "map": {}}}"#,
                 pos.line, pos.column, encoded,
-            );
+            )?;
         }
 
         source_map += r#"]

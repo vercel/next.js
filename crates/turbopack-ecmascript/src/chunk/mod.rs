@@ -2,6 +2,7 @@ pub mod loader;
 
 use std::{
     collections::{HashMap, HashSet},
+    fmt::Write as _,
     slice::Iter,
 };
 
@@ -298,12 +299,13 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
         args.push("e: exports");
     }
     let mut code = Code::new();
-    code += format!(
+    write!(
+        code,
         "(({{ {} }}) => (() => {{\n\n",
         FormatIter(|| args.iter().copied().intersperse(", ")),
-    );
+    )?;
     let source_map = content.source_map.map(|sm| sm.as_encoded_source_map());
-    code.push_source(content.inner_code.clone(), source_map);
+    code.push_source(&content.inner_code, source_map);
     code += "\n})())";
     Ok(code.cell())
 }
@@ -337,12 +339,13 @@ impl EcmascriptChunkContentVc {
         let mut code = Code::new();
         let chunk_path = this.chunk_path.await?;
         let chunk_id = this.chunk_path.to_string().await?;
-        code += format!(
-            "(self.TURBOPACK = self.TURBOPACK || []).push([{}, {{\n",
+        writeln!(
+            code,
+            "(self.TURBOPACK = self.TURBOPACK || []).push([{}, {{",
             stringify_str(&chunk_id)
-        );
+        )?;
         for entry in &this.module_factories {
-            code += format!("\n{}: ", &stringify_module_id(entry.id()));
+            write!(code, "\n{}: ", &stringify_module_id(entry.id()))?;
             code.push_code(entry.code());
             code += ",";
         }
@@ -373,12 +376,13 @@ impl EcmascriptChunkContentVc {
             // depend on have not yet been registered.
             // The runnable will run every time a new chunk is `.push`ed to TURBOPACK, until
             // all dependent chunks have been evaluated.
-            code += format!(
+            write!(
+                code,
                 ", ({{ chunks, instantiateRuntimeModule }}) => {{
     if(!(true{condition})) return true;
     {entries_instantiations}
 }}"
-            );
+            )?;
         }
         code += "]);\n";
         if let Some(evaluate) = &this.evaluate {
@@ -394,7 +398,7 @@ impl EcmascriptChunkContentVc {
 
         if code.has_source_map() {
             let filename = chunk_path.file_name().unwrap();
-            code += format!("\n\n//# sourceMappingURL={}.map", filename);
+            write!(code, "\n\n//# sourceMappingURL={}.map", filename)?;
         }
 
         Ok(code.cell())
