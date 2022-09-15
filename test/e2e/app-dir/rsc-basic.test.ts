@@ -94,7 +94,6 @@ describe('app dir - react server components', () => {
       '__nextDefaultLocale',
       '__nextIsNotFound',
       '__flight__',
-      '__props__',
       '__flight_router_path__',
     ]
 
