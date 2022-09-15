@@ -87,7 +87,6 @@ pub async fn create_server_rendered_source(
     };
     let client_module_options_context = ModuleOptionsContext {
         enable_react_refresh,
-        enable_styled_jsx: true,
     }
     .cell();
     let next_client_transition = NextClientTransition {

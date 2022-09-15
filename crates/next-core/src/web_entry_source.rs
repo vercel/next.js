@@ -57,7 +57,6 @@ pub async fn create_web_entry_source(
             // we try resolve it once at the root and pass down a context to all
             // the modules.
             enable_react_refresh,
-            enable_styled_jsx: true,
         }
         .into(),
     )
