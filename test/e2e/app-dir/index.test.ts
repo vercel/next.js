@@ -105,7 +105,7 @@ describe('app dir', () => {
       expect($('p').text()).toBe('hello from app/dashboard/integrations')
     })
 
-    // TODO: handle new root layout
+    // TODO-APP: handle new root layout
     it.skip('should not include parent when not in parent directory with route in directory', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/hello')
       const $ = cheerio.load(html)
@@ -211,7 +211,7 @@ describe('app dir', () => {
       expect(await res.text()).toContain('This page could not be found')
     })
 
-    // TODO: do we want to make this only work for /root or is it allowed
+    // TODO-APP: do we want to make this only work for /root or is it allowed
     // to work for /pages as well?
     it.skip('should match partial parameters', async () => {
       const html = await renderViaHTTP(next.url, '/partial-match-123')
@@ -219,7 +219,8 @@ describe('app dir', () => {
     })
 
     describe('rewrites', () => {
-      it('should support rewrites on initial load', async () => {
+      // TODO-APP:
+      it.skip('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
@@ -495,7 +496,7 @@ describe('app dir', () => {
     })
 
     describe('server components', () => {
-      // TODO: why is this not servable but /dashboard+rootonly/hello.server.js
+      // TODO-APP: why is this not servable but /dashboard+rootonly/hello.server.js
       // should be? Seems like they both either should be servable or not
       it('should not serve .server.js as a path', async () => {
         // Without .server.js should serve
@@ -614,7 +615,7 @@ describe('app dir', () => {
           )
         })
 
-        // TODO: investigate hydration not kicking in on some runs
+        // TODO-APP: investigate hydration not kicking in on some runs
         it.skip('should serve client-side', async () => {
           const browser = await webdriver(next.url, '/client-component-route')
 
@@ -635,7 +636,7 @@ describe('app dir', () => {
           expect($('p').text()).toBe('hello from app/client-nested')
         })
 
-        // TODO: investigate hydration not kicking in on some runs
+        // TODO-APP: investigate hydration not kicking in on some runs
         it.skip('should include it client-side', async () => {
           const browser = await webdriver(next.url, '/client-nested')
 
@@ -663,7 +664,7 @@ describe('app dir', () => {
           const browser = await webdriver(next.url, '/slow-page-with-loading', {
             waitHydration: false,
           })
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
 
           expect(await browser.elementByCss('#slow-page-message').text()).toBe(
@@ -689,7 +690,7 @@ describe('app dir', () => {
               waitHydration: false,
             }
           )
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
 
           expect(
@@ -720,7 +721,7 @@ describe('app dir', () => {
               waitHydration: false,
             }
           )
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading-layout').text()).toBe('Loading...')
           // expect(await browser.elementByCss('#loading-page').text()).toBe('Loading...')
 
