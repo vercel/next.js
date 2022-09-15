@@ -58,6 +58,7 @@ export function setHttpClientAndAgentOptions(options: NextConfig) {
     throw new Error('Expected config.httpAgentOptions to be an object')
   }
 
+  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = options.httpAgentOptions
   ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
   ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
 }

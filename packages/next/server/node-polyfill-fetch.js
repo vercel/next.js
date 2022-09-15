@@ -11,6 +11,15 @@ if (!global.fetch) {
     const fetchImpl = getFetchImpl()
 
     if (global.__NEXT_USE_UNDICI) {
+      // Undici does not support the `keepAlive` option,
+      // instead we have to pass a custom dispatcher
+      if (
+        !global.__NEXT_HTTP_AGENT_OPTIONS.keepAlive &&
+        !global.__NEXT_UNDICI_AGENT_SET
+      ) {
+        global.__NEXT_UNDICI_AGENT_SET = true
+        fetchImpl.setGlobalDispatcher(new fetchImpl.Agent({ pipelining: 0 }))
+      }
       return fetchImpl.fetch(...args)
     }
     const agent = ({ protocol }) =>
