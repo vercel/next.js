@@ -46,11 +46,6 @@ const experimentalWarning = execOnce(
   }
 )
 
-export function setUseUndici(useUndici?: boolean) {
-  console.log(useUndici)
-  ;(global as any).__NEXT_USE_UNDICI = useUndici
-}
-
 export function setHttpClientAndAgentOptions(options: NextConfig) {
   ;(global as any).__NEXT_USE_UNDICI = options.experimental?.useUndici
   if ((global as any).__NEXT_HTTP_AGENT) {
