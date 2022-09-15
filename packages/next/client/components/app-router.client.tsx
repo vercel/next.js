@@ -202,28 +202,32 @@ export default function AppRouter({
         }
 
         prefetched.add(href)
-
         const url = new URL(href, location.origin)
-        // TODO-APP: handle case where history.state is not the new router history entry
-        const r = fetchServerResponse(
-          url,
-          // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-          window.history.state?.tree || initialTree,
-          true
-        )
+
         try {
-          r.readRoot()
-        } catch (e) {
-          await e
-          const flightData = r.readRoot()
-          // @ts-ignore startTransition exists
-          React.startTransition(() => {
-            dispatch({
-              type: ACTION_PREFETCH,
-              url,
-              flightData,
+          // TODO-APP: handle case where history.state is not the new router history entry
+          const r = fetchServerResponse(
+            url,
+            // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
+            window.history.state?.tree || initialTree,
+            true
+          )
+          try {
+            r.readRoot()
+          } catch (e) {
+            await e
+            const flightData = r.readRoot()
+            // @ts-ignore startTransition exists
+            React.startTransition(() => {
+              dispatch({
+                type: ACTION_PREFETCH,
+                url,
+                flightData,
+              })
             })
-          })
+          }
+        } catch (err) {
+          console.error('PREFETCH ERROR', err)
         }
       },
       replace: (href, options = {}) => {
