@@ -219,8 +219,9 @@ describe('app dir', () => {
     })
 
     it('should support rewrites', async () => {
-      const html = await renderViaHTTP(next.url, '/rewritten-to-dashboard')
-      expect(html).toContain('hello from app/dashboard')
+      const browser = await webdriver(next.url, '/rewritten-to-dashboard')
+      expect(await browser.elementByCss('h1')).toContain('Dashboard')
+      expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
     })
 
     // TODO-APP: Enable in development
