@@ -2,7 +2,7 @@
 
 ## Running tests
 
-We recommend running the tests in headless mode (with the browser windows hidden) and with a specific directory pattern (`--testPathPattern`) or test name (`-t`) which ensures only a small part of the test suite is run locally:
+We recommend running the tests in headless mode (with the browser windows hidden) and with a specific directory pattern and/or test name (`-t`) which ensures only a small part of the test suite is run locally:
 
 For example, running one test in the production test suite:
 
@@ -10,43 +10,37 @@ For example, running one test in the production test suite:
 Running one test in the `test/integration/production` test suite:
 
 ```sh
-pnpm test --testPathPattern "test/integration/production" -t "should allow etag header support"
+pnpm test -- test/integration/production -t "should allow etag header support"
 ````
 
 Running all tests in the `test/integration/production` test suite:
 
 ```sh
-pnpm test --testPathPattern "test/integration/production"
-```
-
-Running all tests (⚠️ not recommended locally):
-
-```sh
-pnpm test
+pnpm test test/integration/production
 ```
 
 When you want to debug a particular test you can replace `pnpm test` with `pnpm testonly` to opt out of the headless browser.
 When the test runs it will open the browser that is in the background by default, allowing you to inspect what is on the screen.
 
 ```sh
-pnpm testonly --testPathPattern "test/integration/production" -t "should allow etag header support"
+pnpm testonly -- test/integration/production -t "should allow etag header support"
 ```
 
 ## Writing tests for Next.js
 
 ### Getting Started
 
-You can set up a new test using `pnpnm new-test` which will start from a template related to the test type.
+You can set up a new test using `pnpm new-test` which will start from a template related to the test type.
 
 ### Test Types in Next.js
 
-- e2e: These tests will run against `next dev`, `next start`, and deployed to Vercel
-- development: These tests only run against `next dev`
-- production: These tests will run against `next start`.
-- integration: These tests run misc checks and modes and it is where tests were added historically. Ideally, we don't add new test suites here anymore as these tests are not isolated from the monorepo.
-- unit: These are very fast tests that should run without a browser or run `next` and should be testing a specific utility.
+- e2e: Runs against `next dev`, `next start`, and deployed to Vercel.
+- development: Runs against `next dev`.
+- production: Runs against `next start`.
+- integration: Historical location of tests. Runs misc checks and modes. Ideally, we don't add new test suites here anymore as these tests are not isolated from the monorepo.
+- unit: Very fast tests that should run without a browser or run `next` and should be testing a specific utility.
 
-For the e2e, production, and development tests the `createNext` utility should be used and an example is available [here](../../test/e2e/example.txt). This creates an isolated Next.js install to ensure nothing in the monorepo is relied on accidentally causing incorrect tests.
+For the e2e, development, and production tests the `createNext` utility should be used and an example is available [here](../../test/e2e/example.txt). This creates an isolated Next.js install to ensure nothing in the monorepo is relied on accidentally causing incorrect tests.
 
 All new test suites should be written in TypeScript either `.ts` (or `.tsx` for unit tests). This will help ensure we catch smaller issues in tests that could cause flakey or incorrect tests.
 
