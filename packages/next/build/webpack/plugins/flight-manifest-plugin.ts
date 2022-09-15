@@ -8,6 +8,7 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { relative } from 'path'
+import { isClientComponentModule } from '../loaders/utils'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -202,10 +203,9 @@ export class FlightManifestPlugin {
           return
         }
 
-        // TODO: Hook into deps instead of the target module.
-        // That way we know by the type of dep whether to include.
-        // It also resolves conflicts when the same module is in multiple chunks.
-        if (!clientRequestsSet.has(resource)) {
+        // Only apply following logic to client module requests from client entry,
+        // or if the module is marked as client module.
+        if (!clientRequestsSet.has(resource) && !isClientComponentModule(mod)) {
           return
         }
 

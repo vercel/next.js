@@ -1,24 +1,19 @@
-export const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx']
+import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
-const nextClientComponents = [
-  'dist/client/link',
-  'dist/client/image',
-  'dist/client/future/image',
-  'dist/shared/lib/head',
-  'dist/client/script',
-  'dist/shared/lib/dynamic',
-]
+const nextClientComponents = ['link', 'image', 'future/image']
 
-export function buildExports(moduleExports: any, isESM: boolean) {
-  let ret = ''
-  Object.keys(moduleExports).forEach((key) => {
-    const exportExpression = isESM
-      ? `export ${key === 'default' ? key : `const ${key} =`} ${
-          moduleExports[key]
-        }`
-      : `exports.${key} = ${moduleExports[key]}`
+const NEXT_BUILT_IN_CLIENT_RSC_REGEX = new RegExp(
+  `next[\\\\/](${nextClientComponents.join('|')})\\.js$`
+)
 
-    ret += exportExpression + '\n'
-  })
-  return ret
+export function isNextBuiltInClientComponent(resource: string) {
+  return NEXT_BUILT_IN_CLIENT_RSC_REGEX.test(resource)
+}
+
+export function isClientComponentModule(mod: {
+  resource: string
+  buildInfo: any
+}) {
+  const hasClientDirective = mod.buildInfo.rsc?.type === RSC_MODULE_TYPES.client
+  return isNextBuiltInClientComponent(mod.resource) || hasClientDirective
 }

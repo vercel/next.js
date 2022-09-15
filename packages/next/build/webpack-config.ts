@@ -1482,7 +1482,11 @@ export default async function getBaseWebpackConfig(
                   test: /(tsx|ts|js|cjs|mjs|jsx)$/,
                   include: [
                     dir,
-                    /next[\\/]dist[\\/]client[\\/]components[\\/]/,
+                    // To let the internal client components passing through flight loader
+                    /next[\\/]dist[\\/]client[\\/]components/,
+                    // To let next/* api entry files passing through flight loader instead
+                    //  of the internal implementation files
+                    /next[\\/](link|image|future[\\/]image)/,
                   ],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {
