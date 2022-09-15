@@ -218,10 +218,32 @@ describe('app dir', () => {
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
     })
 
-    it('should support rewrites', async () => {
-      const browser = await webdriver(next.url, '/rewritten-to-dashboard')
-      expect(await browser.elementByCss('h1')).toContain('Dashboard')
-      expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+    describe('rewrites', () => {
+      it('should support rewrites on initial load', async () => {
+        const browser = await webdriver(next.url, '/rewritten-to-dashboard')
+        expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+        expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+      })
+
+      it('should support rewrites on client-side navigation', async () => {
+        const browser = await webdriver(next.url, '/rewrites')
+
+        try {
+          // Click the link.
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#from-dashboard')
+
+          // Check to see that we were rewritten and not redirected.
+          expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+          // Check to see that the page we navigated to is in fact the dashboard.
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
     })
 
     // TODO-APP: Enable in development
@@ -449,28 +471,6 @@ describe('app dir', () => {
           // Get the date again, and compare, they should be the same.
           const secondID = await browser.elementById('render-id').text()
           expect(firstID).toBe(secondID)
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should respect rewrites', async () => {
-        const browser = await webdriver(next.url, '/rewrites')
-
-        try {
-          // Click the link.
-          await browser.elementById('link').click()
-          await browser.waitForElementByCss('#from-dashboard')
-
-          // Check to see that we were rewritten and not redirected.
-          const pathname = await browser.eval('window.location.pathname')
-          expect(pathname).toBe('/rewritten-to-dashboard')
-
-          // Check to see that the page we navigated to is in fact the dashboard.
-          const html = await browser.eval(
-            'window.document.documentElement.innerText'
-          )
-          expect(html).toContain('hello from app/dashboard')
         } finally {
           await browser.close()
         }
