@@ -1020,7 +1020,7 @@ export async function isPageStatic({
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
-  useUndici,
+  enableUndici,
   locales,
   defaultLocale,
   parentId,
@@ -1033,7 +1033,7 @@ export async function isPageStatic({
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  useUndici?: NextConfigComplete['experimental']['useUndici']
+  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
@@ -1058,7 +1058,7 @@ export async function isPageStatic({
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpClientAndAgentOptions({
         httpAgentOptions,
-        experimental: { useUndici },
+        experimental: { enableUndici },
       })
 
       let componentsResult: LoadComponentsReturnType

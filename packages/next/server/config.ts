@@ -49,7 +49,7 @@ const experimentalWarning = execOnce(
 
 export function setHttpClientAndAgentOptions(options: NextConfig) {
   if (semverGte(process.version, '16.8.0')) {
-    ;(global as any).__NEXT_USE_UNDICI = options.experimental?.useUndici
+    ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
   } else {
     Log.warn(
       'Cannot enable undici fetch. Must be on Node.js v16.8.0 or greater.'

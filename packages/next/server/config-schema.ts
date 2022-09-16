@@ -384,7 +384,7 @@ const configSchema = {
           },
           type: 'array',
         },
-        useUndici: {
+        enableUndici: {
           type: 'boolean',
         },
         workerThreads: {

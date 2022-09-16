@@ -54,7 +54,7 @@ if (
         dependencies: {},
         nextConfig: {
           experimental: {
-            useUndici: true,
+            enableUndici: true,
           },
         },
       })
@@ -94,7 +94,7 @@ if (
           'next.config.js',
           `module.exports = ${JSON.stringify({
             experimental: {
-              useUndici: false,
+              enableUndici: false,
             },
           })}`
         )

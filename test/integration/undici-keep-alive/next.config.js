@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    useUndici: true,
+    enableUndici: true,
   },
 }
