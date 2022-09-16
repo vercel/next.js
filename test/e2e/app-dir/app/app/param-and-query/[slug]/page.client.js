@@ -1,3 +1,5 @@
+'client'
+
 export default function Page({ params, searchParams }) {
   return (
     <h1

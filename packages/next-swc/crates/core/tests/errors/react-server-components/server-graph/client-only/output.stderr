@@ -1,0 +1,6 @@
+
+  x Disallowed import of `client-only` in the Server Components compilation.
+   ,-[input.js:9:1]
+ 9 | import "client-only"
+   : ^^^^^^^^^^^^^^^^^^^^
+   `----

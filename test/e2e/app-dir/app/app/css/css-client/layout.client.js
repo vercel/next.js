@@ -1,3 +1,5 @@
+'client'
+
 import './client-layout.css'
 
 import Foo from './foo'

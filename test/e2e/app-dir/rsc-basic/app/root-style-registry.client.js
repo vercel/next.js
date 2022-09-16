@@ -1,3 +1,5 @@
+'client'
+
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { ServerStyleSheet, StyleSheetManager } from 'styled-components'

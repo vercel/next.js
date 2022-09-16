@@ -1,3 +1,5 @@
+'client'
+
 import css from 'styled-jsx/css'
 
 const buttonStyles = css`

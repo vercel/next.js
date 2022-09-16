@@ -27,6 +27,9 @@ import { FlushEffectsContext } from '../client/components/hooks-client'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 
+// TODO-APP: change to React.use once it becomes stable
+const use = (React as any).experimental_use
+
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
 const ReactDOMServer = shouldUseReactRoot
@@ -248,7 +251,7 @@ function createServerComponentRenderer(
       rscChunks,
       nonce
     )
-    return response.readRoot()
+    return use(response)
   }
 }
 

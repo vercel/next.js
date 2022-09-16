@@ -1,3 +1,5 @@
+'client'
+
 import { useHeaders } from 'next/dist/client/components/hooks-server'
 
 export default function Page() {

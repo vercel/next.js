@@ -1,3 +1,5 @@
+'client'
+
 import { useRouter } from 'next/dist/client/components/hooks-client'
 import React from 'react'
 import { useEffect } from 'react'

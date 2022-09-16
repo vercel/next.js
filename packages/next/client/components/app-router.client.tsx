@@ -1,3 +1,5 @@
+'client'
+
 import type { PropsWithChildren, ReactElement, ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
@@ -65,8 +67,8 @@ export function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
   prefetch?: true
-): { readRoot: () => FlightData } {
-  // Handle the `fetch` readable stream that can be read using `readRoot`.
+): Promise<FlightData> {
+  // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
   return createFromReadableStream(fetchFlight(url, flightRouterState, prefetch))
 }
 
@@ -212,20 +214,15 @@ export default function AppRouter({
             window.history.state?.tree || initialTree,
             true
           )
-          try {
-            r.readRoot()
-          } catch (e) {
-            await e
-            const flightData = r.readRoot()
-            // @ts-ignore startTransition exists
-            React.startTransition(() => {
-              dispatch({
-                type: ACTION_PREFETCH,
-                url,
-                flightData,
-              })
+          const flightData = await r
+          // @ts-ignore startTransition exists
+          React.startTransition(() => {
+            dispatch({
+              type: ACTION_PREFETCH,
+              url,
+              flightData,
             })
-          }
+          })
         } catch (err) {
           console.error('PREFETCH ERROR', err)
         }

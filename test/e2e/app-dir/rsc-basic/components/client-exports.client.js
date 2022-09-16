@@ -1,3 +1,5 @@
+'client'
+
 export function Named() {
   return 'named.client'
 }

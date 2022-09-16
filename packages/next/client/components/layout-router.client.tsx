@@ -1,3 +1,5 @@
+'client'
+
 import React, { useContext, useEffect, useRef } from 'react'
 import type {
   ChildProp,
@@ -16,6 +18,9 @@ import {
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
 // import { matchSegment } from './match-segments'
+
+// TODO-APP: change to React.use once it becomes stable
+const use = (React as any).experimental_use
 
 /**
  * Check if every segment in array a and b matches
@@ -218,14 +223,14 @@ export function InnerLayoutRouter({
     throw new Error('Child node should not have both subTreeData and data')
   }
 
-  // If cache node has a data request we have to readRoot and update the cache.
+  // If cache node has a data request we have to unwrap response by `use` and update the cache.
   if (childNode.data) {
     // TODO-APP: error case
     /**
      * Flight response data
      */
-    // When the data has not resolved yet readRoot will suspend here.
-    const flightData = childNode.data.readRoot()
+    // When the data has not resolved yet `use` will suspend here.
+    const flightData = use(childNode.data)
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {

@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { FontManifest } from '../server/font-utils'
+import type { FontManifest, FontConfig } from '../server/font-utils'
 import type { GetStaticProps } from '../types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
@@ -60,7 +60,7 @@ interface ExportPageInput {
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   serverless: boolean
-  optimizeFonts: boolean
+  optimizeFonts: FontConfig
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
@@ -83,7 +83,7 @@ interface RenderOpts {
   ampPath?: string
   ampValidatorPath?: string
   ampSkipValidation?: boolean
-  optimizeFonts?: boolean
+  optimizeFonts?: FontConfig
   disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
@@ -465,7 +465,7 @@ export default async function exportPage({
            * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
            */
           if (optimizeFonts) {
-            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(optimizeFonts)
           }
           if (optimizeCss) {
             process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
