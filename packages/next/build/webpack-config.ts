@@ -1231,6 +1231,8 @@ export default async function getBaseWebpackConfig(
             moduleIds: isClient ? 'deterministic' : 'named',
           }
         : {}),
+      moduleIds: 'named',
+      chunkIds: 'named',
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1483,11 +1485,7 @@ export default async function getBaseWebpackConfig(
                   include: [
                     dir,
                     // To let the internal client components passing through flight loader
-                    // /next[\\/]dist[\\/]client[\\/]components[\\/][\w-]+\.client\.js$/,
                     /next[\\/]dist[\\/]client[\\/]/,
-                    // To let next/* api entry files passing through flight loader instead
-                    //  of the internal implementation files
-                    // /next[\\/](link|image|future[\\/]image)/,
                   ],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {

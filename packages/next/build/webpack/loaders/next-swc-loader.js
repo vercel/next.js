@@ -140,7 +140,6 @@ export function pitch() {
 export default function swcLoader(inputSource, inputSourceMap) {
   const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
   const callback = this.async()
-  console.log('inputSource', inputSource.toString())
   loaderSpan
     .traceAsyncFn(() =>
       loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
