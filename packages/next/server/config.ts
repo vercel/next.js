@@ -23,6 +23,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
+import semver from 'semver'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -47,7 +48,13 @@ const experimentalWarning = execOnce(
 )
 
 export function setHttpClientAndAgentOptions(options: NextConfig) {
-  ;(global as any).__NEXT_USE_UNDICI = options.experimental?.useUndici
+  if (semver.gte(process.version, '16.8.0')) {
+    ;(global as any).__NEXT_USE_UNDICI = options.experimental?.useUndici
+  } else {
+    Log.warn(
+      'Cannot enable undici fetch. Must be on Node.js v16.8.0 or greater.'
+    )
+  }
   if ((global as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to resuse the same agent for all requests.

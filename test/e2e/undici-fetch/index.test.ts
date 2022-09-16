@@ -3,8 +3,11 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
 import semver from 'semver'
 
-if (semver.gte(process.version, '18.0.0')) {
-  it('skipping for Node.js version 18+', () => {
+if (
+  semver.gte(process.version, '18.0.0') &&
+  semver.lt(process.version, '16.8.0')
+) {
+  it('skipping for Node.js versions <16.8.0 and >18.0.0', () => {
     expect(true).toBe(true)
   })
 } else {

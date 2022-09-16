@@ -14,7 +14,7 @@ if (!global.fetch) {
       // Undici does not support the `keepAlive` option,
       // instead we have to pass a custom dispatcher
       if (
-        !global.__NEXT_HTTP_AGENT_OPTIONS.keepAlive &&
+        !global.__NEXT_HTTP_AGENT_OPTIONS?.keepAlive &&
         !global.__NEXT_UNDICI_AGENT_SET
       ) {
         global.__NEXT_UNDICI_AGENT_SET = true
