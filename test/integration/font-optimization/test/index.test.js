@@ -120,7 +120,7 @@ describe('Font Optimization', () => {
         })
 
         it(`should inline the ${property} fonts for static pages`, async () => {
-          const html = await renderViaHTTP(appPort, '/index')
+          const html = await renderViaHTTP(appPort, '/')
           const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
@@ -304,7 +304,7 @@ describe('Font Optimization', () => {
           )
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
+          builtServerPagesDir = join(appDir, '.next', 'server')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
         afterAll(() => killApp(app))
@@ -336,5 +336,38 @@ describe('Font Optimization', () => {
     const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')
     const { code } = await nextBuild(appDir)
     expect(code).toBe(0)
+  })
+
+  describe('font override', () => {
+    let app, appPort
+
+    beforeAll(async () => {
+      const appDir = join(fixturesDir, 'font-override')
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    it('should inline font-override values', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      const inlineStyle = $(
+        'style[data-href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"]'
+      )
+      const inlineStyleMultiple = $(
+        'style[data-href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Libre+Baskerville&display=swap"]'
+      )
+      expect(inlineStyle.length).toBe(1)
+      expect(inlineStyle.html()).toContain(
+        '@font-face{font-family:"roboto-fallback";ascent-override:92.77%;descent-override:24.41%;line-gap-override:0.00%;src:local("Arial")}'
+      )
+      expect(inlineStyleMultiple.length).toBe(1)
+      expect(inlineStyleMultiple.html()).toContain(
+        '@font-face{font-family:"libre-baskerville-fallback";ascent-override:97.00%;descent-override:27.00%;line-gap-override:0.00%;src:local("Times New Roman")}'
+      )
+      expect(inlineStyleMultiple.html()).toContain(
+        '@font-face{font-family:"open-sans-fallback";ascent-override:106.88%;descent-override:29.30%;line-gap-override:0.00%;src:local("Arial")}'
+      )
+    })
   })
 })

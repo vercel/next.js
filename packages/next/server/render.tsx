@@ -16,7 +16,7 @@ import type {
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
-import type { FontManifest } from './font-utils'
+import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type {
   GetServerSideProps,
@@ -79,7 +79,8 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { shouldUseReactRoot, stripInternalQueries } from './utils'
+import { shouldUseReactRoot } from './utils'
+import { stripInternalQueries } from './internal-utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -222,7 +223,7 @@ export type RenderOptsPartial = {
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  optimizeFonts: boolean
+  optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
   nextScriptWorkers: any

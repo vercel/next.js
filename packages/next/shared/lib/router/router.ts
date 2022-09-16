@@ -1552,7 +1552,11 @@ export default class Router implements BaseRouter {
           query = Object.assign({}, routeInfo.query || {}, query)
         }
 
-        if (routeMatch && pathname !== parsed.pathname) {
+        const cleanedParsedPathname = hasBasePath(parsed.pathname)
+          ? removeBasePath(parsed.pathname)
+          : parsed.pathname
+
+        if (routeMatch && pathname !== cleanedParsedPathname) {
           Object.keys(routeMatch).forEach((key) => {
             if (routeMatch && query[key] === routeMatch[key]) {
               delete query[key]
