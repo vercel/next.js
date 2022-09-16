@@ -13,7 +13,7 @@
       "runtimeArgs": ["debug-react-exp", "dev", "test/e2e/app-dir/app"],
       "skipFiles": ["<node_internals>/**"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_webpack": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -25,7 +25,7 @@
       "runtimeArgs": ["debug", "dev", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_webpack": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -37,7 +37,7 @@
       "runtimeArgs": ["debug", "build", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_webpack": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -49,7 +49,7 @@
       "runtimeArgs": ["debug", "start", "examples/hello-world"],
       "skipFiles": ["<node_internals>/**"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_webpack": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -61,7 +61,7 @@
       "runtimeArgs": ["debug", "dev", "${fileDirname}"],
       "skipFiles": ["<node_internals>/**"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_webpack": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -73,7 +73,7 @@
       "runtimeArgs": ["clean-trace-jaeger"],
       "skipFiles": ["<node_internals>/**"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_webpack": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     },
     {
@@ -83,7 +83,7 @@
       "port": 9229,
       "skipFiles": ["<node_internals>/**"],
       "env": {
-        "NEXT_PRIVATE_LOCAL_webpack": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
       }
     }
   ]
