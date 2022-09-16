@@ -3,7 +3,6 @@ dist
 .next
 target
 packages/next/wasm/@next
-packages/eslint-plugin-next/lib
 
 # dependencies
 node_modules

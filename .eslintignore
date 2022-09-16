@@ -34,4 +34,3 @@ packages/next-swc/crates/**
 bench/nested-deps/pages/**
 bench/nested-deps/components/**
 packages/next-bundle-analyzer/index.d.ts
-packages/eslint-plugin-next/lib/**/*
