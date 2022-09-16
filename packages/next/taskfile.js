@@ -1983,6 +1983,12 @@ export async function server(task, opts) {
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
+
+  await fs.copyFile(
+    join(__dirname, 'server/google-font-metrics.json'),
+    join(__dirname, 'dist/server/google-font-metrics.json')
+  )
+
   notify('Compiled server files')
 }
 
