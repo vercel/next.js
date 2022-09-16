@@ -10,7 +10,7 @@
     "outDir": "./dist",
     "baseUrl": "./packages",
     "paths": {
-      "@vercel/webpack-node-module-trace": ["webpack-nmt/src/index.ts"]
+      "@vercel/webpack-nft": ["webpack-nmt/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "crates", ".yarn", "target"]

@@ -1,11 +1,11 @@
 import {
   NodeModuleTracePlugin,
   NodeModuleTracePluginOptions,
-} from '@vercel/webpack-node-module-trace'
+} from '@vercel/webpack-nft'
 import type { NextConfig } from 'next'
 
-export function turboTracing(options?: NodeModuleTracePluginOptions) {
-  return function createTurboTracingConfig(config: NextConfig = {}) {
+export function createNodeFileTrace(options?: NodeModuleTracePluginOptions) {
+  return function withNodeFileTrace(config: NextConfig = {}) {
     const createWebpackConfig = config.webpack
     config.outputFileTracing = false
     config.webpack = (webpackConfig, context) => {

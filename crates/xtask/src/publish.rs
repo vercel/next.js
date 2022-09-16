@@ -37,7 +37,7 @@ const PLATFORM_WIN32_X64: NpmSupportedPlatform = NpmSupportedPlatform {
 
 const NPM_PACKAGES: &[NpmPackage] = &[NpmPackage {
     crate_name: "node-file-trace",
-    name: "@vercel/node-module-trace",
+    name: "@vercel/experimental-nft",
     description: "Node.js module trace",
     bin: "node-file-trace",
     platform: &[
@@ -153,7 +153,7 @@ pub fn run_publish(name: &str) {
                 )
             });
             Command::program("npm")
-                .args(&["publish", "--access", "restricted", "--tag", tag])
+                .args(&["publish", "--access", "public", "--tag", tag])
                 .error_message("Publish npm package failed")
                 .current_dir(target_dir)
                 .execute();
@@ -185,7 +185,7 @@ pub fn run_publish(name: &str) {
             )
         });
         Command::program("npm")
-            .args(&["publish", "--access", "restricted", "--tag", tag])
+            .args(&["publish", "--access", "public", "--tag", tag])
             .error_message("Publish npm package failed")
             .current_dir(target_pkg_dir)
             .execute();

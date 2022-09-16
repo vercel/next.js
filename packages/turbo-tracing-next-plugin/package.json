@@ -1,23 +1,22 @@
 {
-  "name": "@vercel/turbo-tracing-next-plugin",
-  "version": "0.0.7-beta.0",
-  "license": "UNLICENSED",
+  "name": "@vercel/experimental-nft-next-plugin",
+  "version": "0.0.0",
+  "license": "MPL-2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist/**/*"
   ],
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "dependencies": {
-    "@vercel/webpack-node-module-trace": "0.0.9-beta.0"
+    "@vercel/webpack-nft": "0.0.14"
   },
   "peerDependencies": {
     "next": ">= 12"
   },
   "devDependencies": {
     "next": "^12.2.5"
-  },
-  "stableVersion": "0.0.6"
+  }
 }

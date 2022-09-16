@@ -67,10 +67,16 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
 
   private async runTrace() {
     process.stdout.write('\n')
+    const cwd = this.options?.cwd ?? process.cwd()
     const args = [
       'annotate',
       '--context-directory',
-      this.options?.contextDirectory ?? '.',
+      // `npm_config_local_prefix` set by `npm` to the root of the project, include workspaces
+      // `PROJECT_CWD` set by `yarn` to the root of the project, include workspaces
+      this.options?.contextDirectory ??
+        process.env.npm_config_local_prefix ??
+        process.env.PROJECT_CWD ??
+        cwd,
       '--exact',
     ]
     if (this.options?.log?.detail) {
@@ -88,17 +94,17 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
     let turboTracingBinPath = ''
     try {
       turboTracingPackagePath = require.resolve(
-        '@vercel/node-module-trace/package.json',
+        '@vercel/experimental-nft/package.json',
       )
     } catch (e) {
       console.warn(
-        `Could not resolve the @vercel/node-module-trace directory, turbo tracing may fail.`,
+        `Could not resolve the @vercel/experimental-nft directory, turbo tracing may fail.`,
       )
     }
     if (turboTracingPackagePath) {
       try {
         const turboTracingBinPackageJsonPath = require.resolve(
-          `@vercel/node-module-trace-${process.platform}-${process.arch}/package.json`,
+          `@vercel/experimental-nft-${process.platform}-${process.arch}/package.json`,
           {
             paths: [join(turboTracingPackagePath, '..')],
           },
@@ -106,7 +112,7 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
         turboTracingBinPath = join(turboTracingBinPackageJsonPath, '..')
       } catch (e) {
         console.warn(
-          `Could not resolve the @vercel/node-module-trace-${process.platform}-${process.arch} directory, turbo tracing may fail.`,
+          `Could not resolve the @vercel/experimental-nft-${process.platform}-${process.arch} directory, turbo tracing may fail.`,
         )
       }
     }
@@ -116,12 +122,12 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
       paths = `${turboTracingBinPath}${pathSep}${paths}`
     }
     let chunks = [...this.chunksToTrace]
-    let restChunks = chunks.length > 300 ? chunks.splice(300) : []
+    let restChunks = chunks.length > 128 ? chunks.splice(128) : []
     while (chunks.length) {
-      await traceChunks(args, paths, chunks, this.options?.cwd)
+      await traceChunks(args, paths, chunks, cwd)
       chunks = restChunks
       if (restChunks.length) {
-        restChunks = chunks.length > 300 ? chunks.splice(300) : []
+        restChunks = chunks.length > 128 ? chunks.splice(128) : []
       }
     }
   }
@@ -140,18 +146,16 @@ function traceChunks(
       PATH: paths,
       RUST_BACKTRACE: '1',
     },
-    cwd: cwd ?? process.env.npm_config_local_prefix ?? process.cwd(),
+    cwd,
   })
   return new Promise<void>((resolve, reject) => {
     turboTracingProcess.on('error', (err) => {
       console.error(err)
     })
     turboTracingProcess.stdout.on('data', (chunk) => {
-      process.stdout.write('\n')
       process.stdout.write(chunk)
     })
     turboTracingProcess.stderr.on('data', (chunk) => {
-      process.stdout.write('\n')
       process.stderr.write(chunk)
     })
     turboTracingProcess.once('exit', (code) => {

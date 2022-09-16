@@ -1,17 +1,17 @@
 {
-  "name": "@vercel/webpack-node-module-trace",
-  "version": "0.0.9-beta.0",
-  "license": "UNLICENSED",
+  "name": "@vercel/webpack-nft",
+  "version": "0.0.14",
+  "license": "MPL-2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist/**/*"
   ],
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "dependencies": {
-    "@vercel/node-module-trace": "0.0.2"
+    "@vercel/experimental-nft": "0.0.4"
   },
   "peerDependencies": {
     "webpack": "^5.0.0"
@@ -19,6 +19,5 @@
   "devDependencies": {
     "@types/webpack": "^5.28.0",
     "webpack": "^5.73.0"
-  },
-  "stableVersion": "0.0.8"
+  }
 }
