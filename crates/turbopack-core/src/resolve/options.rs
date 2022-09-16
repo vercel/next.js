@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::BoolVc, trace::TraceRawVcs, Value};
+use turbo_tasks::{trace::TraceRawVcs, Value};
 use turbo_tasks_fs::{
     glob::{Glob, GlobVc},
     FileSystemPathVc,
@@ -240,7 +240,7 @@ pub struct ResolveOptions {
     pub into_package: Vec<ResolveIntoPackage>,
     pub import_map: Option<ImportMapVc>,
     pub resolved_map: Option<ResolvedMapVc>,
-    pub resolve_typescript_types: bool,
+    pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value_impl]
@@ -251,11 +251,6 @@ impl ResolveOptionsVc {
             modules: self.await?.modules.clone(),
         }
         .into())
-    }
-
-    #[turbo_tasks::function]
-    pub async fn resolve_typescript_types(self) -> Result<BoolVc> {
-        Ok(BoolVc::cell(self.await?.resolve_typescript_types))
     }
 }
 

@@ -6,7 +6,8 @@ use turbo_tasks::{NothingVc, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, NullFileSystem, NullFileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit, rebase::RebasedAssetVc, register, transition::TransitionsByNameVc, ModuleAssetContextVc,
+    emit, rebase::RebasedAssetVc, register, resolve_options_context::ResolveOptionsContext,
+    transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
 use turbopack_core::{
     context::AssetContext,
@@ -76,21 +77,26 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 
                 let source = SourceAssetVc::new(input);
+                let environment = EnvironmentVc::new(
+                    Value::new(ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment {
+                            compile_target: CompileTargetVc::current(),
+                            node_version: 0,
+                        }
+                        .into(),
+                    )),
+                    Value::new(EnvironmentIntention::ServerRendering),
+                );
                 let context = ModuleAssetContextVc::new(
                     TransitionsByNameVc::cell(HashMap::new()),
                     input_dir,
-                    EnvironmentVc::new(
-                        Value::new(ExecutionEnvironment::NodeJsLambda(
-                            NodeJsEnvironment {
-                                typescript_enabled: false,
-                                compile_target: CompileTargetVc::current(),
-                                node_version: 0,
-                            }
-                            .into(),
-                        )),
-                        Value::new(EnvironmentIntention::ServerRendering),
-                    ),
+                    environment,
                     Default::default(),
+                    ResolveOptionsContext {
+                        emulate_environment: Some(environment),
+                        ..Default::default()
+                    }
+                    .cell(),
                 );
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);

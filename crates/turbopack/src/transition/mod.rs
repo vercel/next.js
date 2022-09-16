@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use turbopack_core::{asset::AssetVc, environment::EnvironmentVc};
 
-use crate::{module_options::ModuleOptionsContextVc, ModuleAssetContextVc};
+use crate::{
+    module_options::ModuleOptionsContextVc, resolve_options_context::ResolveOptionsContextVc,
+    ModuleAssetContextVc,
+};
 
 /// Some kind of operation that is executed during reference processing. e. g.
 /// you can transition to a different environment on a specific import
@@ -22,6 +25,13 @@ pub trait Transition {
         &self,
         context: ModuleOptionsContextVc,
     ) -> ModuleOptionsContextVc {
+        context
+    }
+    /// Apply modifications/wrapping to the resolve options context
+    fn process_resolve_options_context(
+        &self,
+        context: ResolveOptionsContextVc,
+    ) -> ResolveOptionsContextVc {
         context
     }
     /// Apply modifications/wrapping to the final asset

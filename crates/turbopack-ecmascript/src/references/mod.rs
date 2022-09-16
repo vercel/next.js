@@ -172,13 +172,6 @@ pub(crate) async fn analyze_ecmascript_module(
         ModuleAssetType::Ecmascript => false,
     };
 
-    // Enter typescript enabled environment when processing typescript files
-    let context = if is_typescript && !*context.environment().is_typescript_enabled().await? {
-        context.with_environment(context.environment().with_typescript())
-    } else {
-        context
-    };
-
     let parsed = parse(source, ty, transforms);
 
     match &*find_context_file(path.parent(), "package.json").await? {

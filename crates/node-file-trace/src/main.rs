@@ -30,7 +30,8 @@ use turbo_tasks_memory::{
     viz, MemoryBackend,
 };
 use turbopack::{
-    emit, rebase::RebasedAssetVc, transition::TransitionsByNameVc, ModuleAssetContextVc,
+    emit, rebase::RebasedAssetVc, resolve_options_context::ResolveOptionsContext,
+    transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
 use turbopack_cli_utils::issue::{group_and_display_issues, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
@@ -178,21 +179,26 @@ async fn input_to_modules<'a>(
     exact: bool,
 ) -> Result<AssetsVc> {
     let root = FileSystemPathVc::new(fs, "");
+    let env = EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment {
+                compile_target: CompileTargetVc::current(),
+                node_version: 0,
+            }
+            .into(),
+        )),
+        Value::new(EnvironmentIntention::Api),
+    );
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
         root,
-        EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::NodeJsLambda(
-                NodeJsEnvironment {
-                    typescript_enabled: false,
-                    compile_target: CompileTargetVc::current(),
-                    node_version: 0,
-                }
-                .into(),
-            )),
-            Value::new(EnvironmentIntention::Emulate),
-        ),
+        env,
         Default::default(),
+        ResolveOptionsContext {
+            emulate_environment: Some(env),
+            ..Default::default()
+        }
+        .cell(),
     )
     .into();
     let mut list = Vec::new();

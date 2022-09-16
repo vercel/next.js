@@ -2069,7 +2069,6 @@ mod tests {
                                     EnvironmentVc::new(
                                         Value::new(ExecutionEnvironment::NodeJsLambda(
                                             NodeJsEnvironment {
-                                                typescript_enabled: true,
                                                 compile_target: CompileTarget {
                                                     arch: Arch::X64,
                                                     platform: Platform::Linux,

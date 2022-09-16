@@ -18,7 +18,10 @@ use turbo_tasks_memory::{
     viz::graph::{visualize_stats_tree, wrap_html},
     MemoryBackend,
 };
-use turbopack::{emit, rebase::RebasedAssetVc, register, transition::TransitionsByNameVc};
+use turbopack::{
+    emit, rebase::RebasedAssetVc, register, resolve_options_context::ResolveOptionsContext,
+    transition::TransitionsByNameVc,
+};
 use turbopack_core::{
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
@@ -52,7 +55,6 @@ async fn main() -> Result<()> {
                 EnvironmentVc::new(
                     Value::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {
-                            typescript_enabled: false,
                             compile_target: CompileTargetVc::current(),
                             node_version: 0,
                         }
@@ -61,6 +63,14 @@ async fn main() -> Result<()> {
                     Value::new(EnvironmentIntention::ServerRendering),
                 ),
                 Default::default(),
+                ResolveOptionsContext {
+                    enable_typescript: true,
+                    enable_react: true,
+                    enable_node_modules: true,
+                    custom_conditions: vec!["development".to_string()],
+                    ..Default::default()
+                }
+                .cell(),
             );
             let module = context.process(source.into());
             let rebased = RebasedAssetVc::new(module, input, output);

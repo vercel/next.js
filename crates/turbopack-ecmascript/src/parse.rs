@@ -46,6 +46,7 @@ pub enum EcmascriptInputTransform {
     },
     CommonJs,
     StyledJsx,
+    TypeScript,
     Custom,
 }
 
@@ -341,6 +342,11 @@ pub async fn parse(
                                                         let real_parsed_program = std::mem::replace(&mut parsed_program, Program::Module(Module::dummy()));
                                                         parsed_program = real_parsed_program.fold_with(&mut styled_jsx::styled_jsx(cm.clone(), file_name.clone()));
                                                     },
+                                                    EcmascriptInputTransform::TypeScript => {
+                                                        use swc_core::ecma::transforms::typescript::strip;
+
+                                                        parsed_program.visit_mut_with(&mut strip(top_level_mark));
+                                                    }
                                                     EcmascriptInputTransform::Custom => todo!()
                                                 }
                                             }

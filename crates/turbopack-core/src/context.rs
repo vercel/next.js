@@ -26,4 +26,5 @@ pub trait AssetContext {
     fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc;
     fn with_environment(&self, environment: EnvironmentVc) -> AssetContextVc;
     fn with_transition(&self, transition: &str) -> AssetContextVc;
+    fn with_transition_applied(&self, transition: &str) -> AssetContextVc;
 }

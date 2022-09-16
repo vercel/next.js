@@ -20,17 +20,6 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
 };
 
-#[turbo_tasks::function]
-pub async fn apply_typescript_options(
-    resolve_options: ResolveOptionsVc,
-) -> Result<ResolveOptionsVc> {
-    let mut resolve_options = resolve_options.await?.clone_value();
-    resolve_options.extensions.insert(0, ".ts".to_string());
-    resolve_options.extensions.push(".d.ts".to_string());
-    resolve_options.resolve_typescript_types = true;
-    Ok(resolve_options.into())
-}
-
 pub async fn read_tsconfigs(
     mut data: FileJsonContentVc,
     mut tsconfig: AssetVc,
@@ -223,7 +212,7 @@ async fn apply_typescript_types_options(
     resolve_options: ResolveOptionsVc,
 ) -> Result<ResolveOptionsVc> {
     let mut resolve_options = resolve_options.await?.clone_value();
-    resolve_options.extensions = vec![".ts".to_string(), ".tsx".to_string(), ".d.ts".to_string()];
+    resolve_options.extensions = vec![".tsx".to_string(), ".ts".to_string(), ".d.ts".to_string()];
     resolve_options.into_package = resolve_options
         .into_package
         .drain(..)

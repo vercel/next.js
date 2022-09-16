@@ -19,8 +19,8 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    ecmascript::EcmascriptModuleAssetVc, register, transition::TransitionsByNameVc,
-    ModuleAssetContextVc,
+    ecmascript::EcmascriptModuleAssetVc, register, resolve_options_context::ResolveOptionsContext,
+    transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
 use turbopack_core::{
     asset::AssetVc,
@@ -96,6 +96,14 @@ async fn run(resource: &'static str) -> Result<()> {
                 Value::new(EnvironmentIntention::Client),
             ),
             Default::default(),
+            ResolveOptionsContext {
+                enable_typescript: true,
+                enable_react: true,
+                enable_node_modules: true,
+                custom_conditions: vec!["development".to_string()],
+                ..Default::default()
+            }
+            .cell(),
         )
         .into();
 

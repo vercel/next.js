@@ -19,15 +19,15 @@ use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphVc};
 use module_options::{
     ModuleOptionsContextVc, ModuleOptionsVc, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
 };
-pub use resolve::{resolve_options, typescript_resolve_options};
-use turbo_tasks::{CompletionVc, Value};
+pub use resolve::resolve_options;
+use turbo_tasks::{primitives::BoolVc, CompletionVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
     context::{AssetContext, AssetContextVc},
     environment::EnvironmentVc,
     reference::all_referenced_assets,
-    resolve::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc},
+    resolve::{options::ResolveOptionsVc, parse::RequestVc, resolve, ResolveResultVc},
 };
 
 mod graph;
@@ -35,12 +35,16 @@ pub mod json;
 pub mod module_options;
 pub mod rebase;
 pub mod resolve;
+pub mod resolve_options_context;
 pub mod transition;
 
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 
-use self::transition::{TransitionVc, TransitionsByNameVc};
+use self::{
+    resolve_options_context::ResolveOptionsContextVc,
+    transition::{TransitionVc, TransitionsByNameVc},
+};
 
 #[turbo_tasks::function]
 async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetVc> {
@@ -81,7 +85,7 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
             ModuleType::Typescript(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    context.into(),
+                    context.with_typescript_resolving_enabled().into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
                     *transforms,
                     context.environment(),
@@ -91,7 +95,7 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
             ModuleType::TypescriptDeclaration(transforms) => {
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
-                    context.into(),
+                    context.with_typescript_resolving_enabled().into(),
                     Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
                     *transforms,
                     context.environment(),
@@ -115,6 +119,7 @@ pub struct ModuleAssetContext {
     context_path: FileSystemPathVc,
     environment: EnvironmentVc,
     module_options_context: ModuleOptionsContextVc,
+    resolve_options_context: ResolveOptionsContextVc,
     transition: Option<TransitionVc>,
 }
 
@@ -126,12 +131,14 @@ impl ModuleAssetContextVc {
         context_path: FileSystemPathVc,
         environment: EnvironmentVc,
         module_options_context: ModuleOptionsContextVc,
+        resolve_options_context: ResolveOptionsContextVc,
     ) -> Self {
         Self::cell(ModuleAssetContext {
             transitions,
             context_path,
             environment,
             module_options_context,
+            resolve_options_context,
             transition: None,
         })
     }
@@ -142,6 +149,7 @@ impl ModuleAssetContextVc {
         context_path: FileSystemPathVc,
         environment: EnvironmentVc,
         module_options_context: ModuleOptionsContextVc,
+        resolve_options_context: ResolveOptionsContextVc,
         transition: TransitionVc,
     ) -> Self {
         Self::cell(ModuleAssetContext {
@@ -149,6 +157,7 @@ impl ModuleAssetContextVc {
             context_path,
             environment,
             module_options_context,
+            resolve_options_context,
             transition: Some(transition),
         })
     }
@@ -156,6 +165,33 @@ impl ModuleAssetContextVc {
     #[turbo_tasks::function]
     pub async fn module_options_context(self) -> Result<ModuleOptionsContextVc> {
         Ok(self.await?.module_options_context)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn is_typescript_resolving_enabled(self) -> Result<BoolVc> {
+        Ok(BoolVc::cell(
+            self.await?.resolve_options_context.await?.enable_typescript,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn with_typescript_resolving_enabled(self) -> Result<ModuleAssetContextVc> {
+        if *self.is_typescript_resolving_enabled().await? {
+            return Ok(self);
+        }
+        let this = self.await?;
+        let resolve_options_context = this
+            .resolve_options_context
+            .with_typescript_enabled()
+            .resolve()
+            .await?;
+        Ok(ModuleAssetContextVc::new(
+            this.transitions,
+            this.context_path,
+            this.environment,
+            this.module_options_context,
+            resolve_options_context,
+        ))
     }
 }
 
@@ -173,11 +209,10 @@ impl AssetContext for ModuleAssetContext {
 
     #[turbo_tasks::function]
     async fn resolve_options(&self) -> Result<ResolveOptionsVc> {
-        Ok(if *self.environment.is_typescript_enabled().await? {
-            typescript_resolve_options(self.context_path, self.environment)
-        } else {
-            resolve_options(self.context_path, self.environment)
-        })
+        Ok(resolve_options(
+            self.context_path,
+            self.resolve_options_context,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -188,25 +223,27 @@ impl AssetContext for ModuleAssetContext {
         resolve_options: ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
         let this = self_vc.await?;
-        let result =
-            turbopack_core::resolve::resolve(context_path, request, resolve_options).await?;
-        let mut result = result
-            .map(|a| self_vc.process(a).resolve(), |i| async move { Ok(i) })
-            .await?;
-        if *this.environment.is_typescript_enabled().await? {
+
+        let result = resolve(context_path, request, resolve_options);
+        let result = self_vc.process_resolve_result(result);
+
+        if *self_vc.is_typescript_resolving_enabled().await? {
             let types_reference = TypescriptTypesAssetReferenceVc::new(
                 ModuleAssetContextVc::new(
                     this.transitions,
                     context_path,
                     this.environment,
                     this.module_options_context,
+                    this.resolve_options_context,
                 )
                 .into(),
                 request,
             );
+
             result.add_reference(types_reference.into());
         }
-        Ok(result.into())
+
+        Ok(result)
     }
 
     #[turbo_tasks::function]
@@ -229,11 +266,14 @@ impl AssetContext for ModuleAssetContext {
             let environment = transition.process_environment(this.environment);
             let module_options_context =
                 transition.process_module_options_context(this.module_options_context);
+            let resolve_options_context =
+                transition.process_resolve_options_context(this.resolve_options_context);
             let context = ModuleAssetContextVc::new(
                 this.transitions,
                 asset.path().parent(),
                 environment,
                 module_options_context,
+                resolve_options_context,
             );
             let m = module(asset, context);
             Ok(transition.process_module(m, context))
@@ -243,6 +283,7 @@ impl AssetContext for ModuleAssetContext {
                 asset.path().parent(),
                 this.environment,
                 this.module_options_context,
+                this.resolve_options_context,
             );
             Ok(module(asset, context))
         }
@@ -255,6 +296,7 @@ impl AssetContext for ModuleAssetContext {
             path,
             self.environment,
             self.module_options_context,
+            self.resolve_options_context,
         )
         .into()
     }
@@ -266,6 +308,7 @@ impl AssetContext for ModuleAssetContext {
             self.context_path,
             environment,
             self.module_options_context,
+            self.resolve_options_context,
         )
         .into()
     }
@@ -279,6 +322,7 @@ impl AssetContext for ModuleAssetContext {
                     self.context_path,
                     self.environment,
                     self.module_options_context,
+                    self.resolve_options_context,
                     *transition,
                 )
                 .into()
@@ -289,6 +333,7 @@ impl AssetContext for ModuleAssetContext {
                     self.context_path,
                     self.environment,
                     self.module_options_context,
+                    self.resolve_options_context,
                 )
                 .into()
             },

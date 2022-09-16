@@ -107,7 +107,6 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                             EnvironmentVc::new(
                                 Value::new(ExecutionEnvironment::NodeJsLambda(
                                     NodeJsEnvironment {
-                                        typescript_enabled: false,
                                         compile_target: CompileTarget {
                                             arch: Arch::Unknown,
                                             endianness: Endianness::Big,

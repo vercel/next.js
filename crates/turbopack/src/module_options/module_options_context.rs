@@ -3,6 +3,8 @@
 pub struct ModuleOptionsContext {
     pub enable_react_refresh: bool,
     pub enable_styled_jsx: bool,
+    pub enable_typescript_transform: bool,
+    pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value_impl]
