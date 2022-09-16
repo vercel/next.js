@@ -40,10 +40,10 @@ export function getRSCModuleType(swcAST: any): RSCModuleType {
   // TODO-APP: optimize the directive detection
   // Assume there're only "use strict" and "client" directives at top,
   // so pick the 2 nodes
-  const firstTwoNodes = body.slice(0, 2)
+  const nodes = body //.slice(0, 2)
 
   let rscType: RSCModuleType = 'server'
-  for (const node of firstTwoNodes) {
+  for (const node of nodes) {
     if (
       node.type === 'ExpressionStatement' &&
       node.expression.type === 'StringLiteral'

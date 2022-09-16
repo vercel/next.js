@@ -1,5 +1,4 @@
 module.exports = {
-  pageExtensions: ['server.js', 'client.js'],
   experimental: {
     appDir: true,
     serverComponents: true,

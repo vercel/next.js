@@ -1,4 +1,4 @@
-import Bar from '../../components/bar.server'
+import Bar from '../../components/bar'
 
 export default function Multi() {
   return <Bar />

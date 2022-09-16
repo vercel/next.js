@@ -5,7 +5,7 @@ import {
   getRSCModuleType,
 } from '../../../analysis/get-page-static-info'
 import { parse } from '../../../swc'
-import { isNextBuiltInClientComponent } from '../utils'
+// import { isNextBuiltInClientComponent } from '../utils'
 
 function transformClient(resourcePath: string): string {
   const output = `
@@ -30,7 +30,7 @@ function containsPath(parent: string, child: string) {
 
 const isPageOrLayoutFile = (filePath: string) => {
   const filename = path.basename(filePath)
-  return /^(page|layout)\.[\w.]+$/.test(filename)
+  return /[\\/]?(page|layout)\.(js|ts)x?$/.test(filename)
 }
 
 export default async function transformSource(
@@ -80,12 +80,12 @@ export default async function transformSource(
   buildInfo.rsc = { type: rscType }
 
   // Mark next.js internal client components as client rsc module
-  if (
-    /next[\\/]dist[\\/]client[\\/]/.test(resourcePath) ||
-    isNextBuiltInClientComponent(resourcePath)
-  ) {
-    buildInfo.rsc = { type: 'client' }
-  }
+  // if (
+  //   /next[\\/]dist[\\/]client[\\/]/.test(resourcePath) ||
+  //   isNextBuiltInClientComponent(resourcePath)
+  // ) {
+  //   buildInfo.rsc = { type: 'client' }
+  // }
 
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
     errorForInvalidDataFetching(this.emitError)
