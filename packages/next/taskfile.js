@@ -1827,6 +1827,7 @@ export async function ncc(task, opts) {
         'ncc_get_orientation',
         'ncc_hapi_accept',
         'ncc_node_fetch',
+        'ncc_undici',
         'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',
@@ -1916,7 +1917,6 @@ export async function ncc(task, opts) {
         'ncc_ua_parser_js',
         'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
-        'ncc_undici',
       ],
       opts
     )
