@@ -247,9 +247,7 @@ export class FlightClientEntryPlugin {
 
       // Check if request is for css file.
       if ((!inClientComponentBoundary && isClientComponent) || isCSS) {
-        clientComponentImports.push(
-          isCSS ? modRequest : require.resolve(modRequest)
-        )
+        clientComponentImports.push(modRequest)
         return
       }
 
