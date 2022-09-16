@@ -772,7 +772,7 @@ describe('app dir', () => {
             expect(notNull.length).toBe(0)
 
             const wasNull = await browser.elementsByCss('.was-null')
-            expect(wasNull.length).toBe(2)
+            expect(wasNull.length).toBe(6)
           } finally {
             await browser.close()
           }

@@ -567,8 +567,8 @@ var time = console.time.bind(console);
 var timeEnd = console.timeEnd.bind(console);
 var timeLog = console.timeLog.bind(console);
 var trace = console.trace.bind(console);
-var error = bareError; // /* @__PURE__ */ __name((...args) => bareError(format(...args)), "error");
-var log = bareLog; // /* @__PURE__ */ __name((...args) => bareLog(format(...args)), "log");
+var error = /* @__PURE__ */ __name((...args) => bareError(format(...args)), "error");
+var log = /* @__PURE__ */ __name((...args) => bareLog(format(...args)), "log");
 var konsole = {
   assert: (assertion, ...args) => assert(assertion, format(...args)),
   count: console.count.bind(console),

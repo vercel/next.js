@@ -11,6 +11,6 @@ export default function SlowPage(props) {
   return <h1 id="slow-page-message">{props.message}</h1>
 }
 
-// export const config = {
-//   runtime: 'experimental-edge',
-// }
+export const config = {
+  runtime: 'experimental-edge',
+}

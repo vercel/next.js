@@ -1487,7 +1487,7 @@ export default async function getBaseWebpackConfig(
                     /next[\\/]dist[\\/]client[\\/]/,
                     // To let next/* api entry files passing through flight loader instead
                     //  of the internal implementation files
-                    /next[\\/](link|image|future[\\/]image)/,
+                    // /next[\\/](link|image|future[\\/]image)/,
                   ],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {
