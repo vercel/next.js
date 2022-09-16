@@ -35,4 +35,14 @@ describe('Middleware base tests', () => {
     const $ = cheerio.load(html)
     expect($('.title').text()).toBe('About Page')
   })
+  it('router.query must exist when Link clicked page routing', async () => {
+    const browser = await webdriver(next.url, '/root')
+    try {
+      await browser.elementById('go-to-hello-world-anchor').click()
+      const routeName = await browser.elementById('route-name').text()
+      expect(routeName).toMatch('hello-world')
+    } finally {
+      await browser.close()
+    }
+  })
 })
