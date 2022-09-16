@@ -41,6 +41,7 @@ import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
+import { FontConfig } from '../server/font-utils'
 
 const exists = promisify(existsOrig)
 
@@ -383,7 +384,7 @@ export default async function exportApp(
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
-      optimizeFonts: nextConfig.optimizeFonts,
+      optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     }
 
@@ -587,7 +588,7 @@ export default async function exportApp(
             subFolders,
             buildExport: options.buildExport,
             serverless: isTargetLikeServerless(nextConfig.target),
-            optimizeFonts: nextConfig.optimizeFonts,
+            optimizeFonts: nextConfig.optimizeFonts as FontConfig,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,

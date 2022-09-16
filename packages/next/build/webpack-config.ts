@@ -177,7 +177,7 @@ export function getDefineEnv({
     'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
     'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-      config.optimizeFonts && !dev
+      !dev && config.optimizeFonts
     ),
     'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
       config.experimental.optimizeCss && !dev
@@ -1590,7 +1590,30 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       fallback:
                         config.experimental.fallbackNodePolyfills === false
-                          ? {}
+                          ? {
+                              assert: false,
+                              buffer: false,
+                              constants: false,
+                              crypto: false,
+                              domain: false,
+                              http: false,
+                              https: false,
+                              os: false,
+                              path: false,
+                              punycode: false,
+                              process: false,
+                              querystring: false,
+                              stream: false,
+                              string_decoder: false,
+                              sys: false,
+                              timers: false,
+                              tty: false,
+                              util: false,
+                              vm: false,
+                              zlib: false,
+                              events: false,
+                              setImmediate: false,
+                            }
                           : {
                               assert: require.resolve(
                                 'next/dist/compiled/assert'
@@ -1779,6 +1802,7 @@ export default async function getBaseWebpackConfig(
             }
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
+            adjustFontFallbacks: config.experimental.adjustFontFallbacks,
           })
         })(),
       new WellKnownErrorsPlugin(),

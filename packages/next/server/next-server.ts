@@ -224,7 +224,9 @@ export default class NextNodeServer extends BaseServer {
      * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
+        this.renderOpts.optimizeFonts
+      )
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
