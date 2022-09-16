@@ -8,7 +8,7 @@ import { parse } from '../../../swc'
 
 function transformClient(resourcePath: string): string {
   const output = `
-const { createProxy } = require("next/dist/build/webpack/loaders/next-flight-loader/module-proxy")\n
+const { createProxy } = require("private-next-rsc-mod-ref-proxy")\n
 module.exports = createProxy(${JSON.stringify(resourcePath)})
 `
   return output

@@ -867,7 +867,7 @@ export default async function getBaseWebpackConfig(
       ...getReactProfilingInProduction(),
 
       [RSC_MOD_REF_PROXY_ALIAS]:
-        'next/dist/build/webpack/loaders/next-flight-client-loader/module-proxy',
+        'next/dist/build/webpack/loaders/next-flight-loader/module-proxy',
 
       ...(isClient || isEdgeServer
         ? {
