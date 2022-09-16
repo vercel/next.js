@@ -23,15 +23,7 @@ describe('app dir', () => {
   function runTests({ assetPrefix }: { assetPrefix?: boolean }) {
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          public: new FileRef(path.join(__dirname, 'app/public')),
-          styles: new FileRef(path.join(__dirname, 'app/styles')),
-          pages: new FileRef(path.join(__dirname, 'app/pages')),
-          app: new FileRef(path.join(__dirname, 'app/app')),
-          'next.config.js': new FileRef(
-            path.join(__dirname, 'app/next.config.js')
-          ),
-        },
+        files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
           react: 'experimental',
           'react-dom': 'experimental',
@@ -113,7 +105,7 @@ describe('app dir', () => {
       expect($('p').text()).toBe('hello from app/dashboard/integrations')
     })
 
-    // TODO: handle new root layout
+    // TODO-APP: handle new root layout
     it.skip('should not include parent when not in parent directory with route in directory', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/hello')
       const $ = cheerio.load(html)
@@ -219,16 +211,40 @@ describe('app dir', () => {
       expect(await res.text()).toContain('This page could not be found')
     })
 
-    // TODO: do we want to make this only work for /root or is it allowed
+    // TODO-APP: do we want to make this only work for /root or is it allowed
     // to work for /pages as well?
     it.skip('should match partial parameters', async () => {
       const html = await renderViaHTTP(next.url, '/partial-match-123')
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
     })
 
-    it('should support rewrites', async () => {
-      const html = await renderViaHTTP(next.url, '/rewritten-to-dashboard')
-      expect(html).toContain('hello from app/dashboard')
+    describe('rewrites', () => {
+      // TODO-APP:
+      it.skip('should support rewrites on initial load', async () => {
+        const browser = await webdriver(next.url, '/rewritten-to-dashboard')
+        expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+        expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+      })
+
+      it('should support rewrites on client-side navigation', async () => {
+        const browser = await webdriver(next.url, '/rewrites')
+
+        try {
+          // Click the link.
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#from-dashboard')
+
+          // Check to see that we were rewritten and not redirected.
+          expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+          // Check to see that the page we navigated to is in fact the dashboard.
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
     })
 
     // TODO-APP: Enable in development
@@ -274,23 +290,25 @@ describe('app dir', () => {
       }
     })
 
-    it('should match parallel routes', async () => {
-      const html = await renderViaHTTP(next.url, '/parallel/nested')
-      expect(html).toContain('parallel/layout')
-      expect(html).toContain('parallel/@foo/nested/layout')
-      expect(html).toContain('parallel/@foo/nested/@a/page')
-      expect(html).toContain('parallel/@foo/nested/@b/page')
-      expect(html).toContain('parallel/@bar/nested/layout')
-      expect(html).toContain('parallel/@bar/nested/@a/page')
-      expect(html).toContain('parallel/@bar/nested/@b/page')
-      expect(html).toContain('parallel/nested/page')
-    })
+    describe('parallel routes', () => {
+      it('should match parallel routes', async () => {
+        const html = await renderViaHTTP(next.url, '/parallel/nested')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/@foo/nested/layout')
+        expect(html).toContain('parallel/@foo/nested/@a/page')
+        expect(html).toContain('parallel/@foo/nested/@b/page')
+        expect(html).toContain('parallel/@bar/nested/layout')
+        expect(html).toContain('parallel/@bar/nested/@a/page')
+        expect(html).toContain('parallel/@bar/nested/@b/page')
+        expect(html).toContain('parallel/nested/page')
+      })
 
-    it('should match parallel routes in route groups', async () => {
-      const html = await renderViaHTTP(next.url, '/parallel/nested-2')
-      expect(html).toContain('parallel/layout')
-      expect(html).toContain('parallel/(new)/layout')
-      expect(html).toContain('parallel/(new)/@baz/nested/page')
+      it('should match parallel routes in route groups', async () => {
+        const html = await renderViaHTTP(next.url, '/parallel/nested-2')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/(new)/layout')
+        expect(html).toContain('parallel/(new)/@baz/nested/page')
+      })
     })
 
     describe('<Link />', () => {
@@ -459,28 +477,6 @@ describe('app dir', () => {
         }
       })
 
-      it('should respect rewrites', async () => {
-        const browser = await webdriver(next.url, '/rewrites')
-
-        try {
-          // Click the link.
-          await browser.elementById('link').click()
-          await browser.waitForElementByCss('#from-dashboard')
-
-          // Check to see that we were rewritten and not redirected.
-          const pathname = await browser.eval('window.location.pathname')
-          expect(pathname).toBe('/rewritten-to-dashboard')
-
-          // Check to see that the page we navigated to is in fact the dashboard.
-          const html = await browser.eval(
-            'window.document.documentElement.innerText'
-          )
-          expect(html).toContain('hello from app/dashboard')
-        } finally {
-          await browser.close()
-        }
-      })
-
       // TODO-APP: should enable when implemented
       it.skip('should allow linking from app page to pages page', async () => {
         const browser = await webdriver(next.url, '/pages-linking')
@@ -500,7 +496,7 @@ describe('app dir', () => {
     })
 
     describe('server components', () => {
-      // TODO: why is this not servable but /dashboard+rootonly/hello.server.js
+      // TODO-APP: why is this not servable but /dashboard+rootonly/hello.server.js
       // should be? Seems like they both either should be servable or not
       it('should not serve .server.js as a path', async () => {
         // Without .server.js should serve
@@ -619,7 +615,7 @@ describe('app dir', () => {
           )
         })
 
-        // TODO: investigate hydration not kicking in on some runs
+        // TODO-APP: investigate hydration not kicking in on some runs
         it.skip('should serve client-side', async () => {
           const browser = await webdriver(next.url, '/client-component-route')
 
@@ -640,7 +636,7 @@ describe('app dir', () => {
           expect($('p').text()).toBe('hello from app/client-nested')
         })
 
-        // TODO: investigate hydration not kicking in on some runs
+        // TODO-APP: investigate hydration not kicking in on some runs
         it.skip('should include it client-side', async () => {
           const browser = await webdriver(next.url, '/client-nested')
 
@@ -668,7 +664,7 @@ describe('app dir', () => {
           const browser = await webdriver(next.url, '/slow-page-with-loading', {
             waitHydration: false,
           })
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
 
           expect(await browser.elementByCss('#slow-page-message').text()).toBe(
@@ -694,7 +690,7 @@ describe('app dir', () => {
               waitHydration: false,
             }
           )
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
 
           expect(
@@ -725,7 +721,7 @@ describe('app dir', () => {
               waitHydration: false,
             }
           )
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading-layout').text()).toBe('Loading...')
           // expect(await browser.elementByCss('#loading-page').text()).toBe('Loading...')
 
@@ -737,6 +733,32 @@ describe('app dir', () => {
             'hello from slow page'
           )
         })
+      })
+
+      describe('middleware', () => {
+        it.each(['rewrite', 'redirect'])(
+          `should strip internal query parameters from requests to middleware for %s`,
+          async (method) => {
+            const browser = await webdriver(next.url, '/internal')
+
+            try {
+              // Wait for and click the navigation element, this should trigger
+              // the flight request that'll be caught by the middleware. If the
+              // middleware sees any flight data on the request it'll redirect to
+              // a page with an element of #failure, otherwise, we'll see the
+              // element for #success.
+              await browser
+                .waitForElementByCss(`#navigate-${method}`)
+                .elementById(`navigate-${method}`)
+                .click()
+              expect(
+                await browser.waitForElementByCss('#success', 3000).text()
+              ).toBe('Success')
+            } finally {
+              await browser.close()
+            }
+          }
+        )
       })
 
       describe('next/router', () => {

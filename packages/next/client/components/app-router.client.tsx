@@ -67,8 +67,8 @@ export function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
   prefetch?: true
-): { readRoot: () => FlightData } {
-  // Handle the `fetch` readable stream that can be read using `readRoot`.
+): Promise<FlightData> {
+  // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
   return createFromReadableStream(fetchFlight(url, flightRouterState, prefetch))
 }
 
@@ -204,20 +204,17 @@ export default function AppRouter({
         }
 
         prefetched.add(href)
-
         const url = new URL(href, location.origin)
-        // TODO-APP: handle case where history.state is not the new router history entry
-        const r = fetchServerResponse(
-          url,
-          // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-          window.history.state?.tree || initialTree,
-          true
-        )
+
         try {
-          r.readRoot()
-        } catch (e) {
-          await e
-          const flightData = r.readRoot()
+          // TODO-APP: handle case where history.state is not the new router history entry
+          const r = fetchServerResponse(
+            url,
+            // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
+            window.history.state?.tree || initialTree,
+            true
+          )
+          const flightData = await r
           // @ts-ignore startTransition exists
           React.startTransition(() => {
             dispatch({
@@ -226,6 +223,8 @@ export default function AppRouter({
               flightData,
             })
           })
+        } catch (err) {
+          console.error('PREFETCH ERROR', err)
         }
       },
       replace: (href, options = {}) => {
