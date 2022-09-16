@@ -147,7 +147,7 @@ There are two options to develop with your local version of the codebase:
    with:
 
    ```json
-   "next": "file:/path/to/next.js/packages/next",
+   "next": "link:/path/to/next.js/packages/next",
    ```
 
 2. In your app's root directory, make sure to remove `next` from `node_modules` with:
