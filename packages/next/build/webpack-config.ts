@@ -1780,7 +1780,7 @@ export default async function getBaseWebpackConfig(
             }
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
-            optimizeFonts: config.optimizeFonts as FontConfig,
+            adjustFallbacks: config.experimental.adjustFallbacks,
           })
         })(),
       new WellKnownErrorsPlugin(),

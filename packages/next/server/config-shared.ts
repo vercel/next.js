@@ -150,6 +150,7 @@ export interface ExperimentalConfig {
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
+  adjustFallbacks?: boolean
 }
 
 export type ExportPathMap = {
@@ -355,7 +356,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * By default, Next.js will automatically inline font CSS at build time
    *
-   * @default { inlineFonts: true }
+   * @default true
    * @since version 10.2
    * @see [Font Optimization](https://nextjs.org/docs/basic-features/font-optimization)
    */
@@ -363,7 +364,6 @@ export interface NextConfig extends Record<string, any> {
     | boolean
     | {
         inlineFonts: boolean
-        experimentalAdjustFallbacks?: boolean
       }
 
   /**
@@ -528,10 +528,7 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
-  optimizeFonts: {
-    inlineFonts: true,
-    experimentalAdjustFallbacks: false,
-  },
+  optimizeFonts: true,
   webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
@@ -589,6 +586,7 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     modularizeImports: undefined,
+    adjustFallbacks: false,
   },
 }
 

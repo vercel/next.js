@@ -54,17 +54,17 @@ export class FontStylesheetGatheringPlugin {
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
   isLikeServerless: boolean
-  optimizeFonts: FontConfig
+  adjustFallbacks: boolean
 
   constructor({
     isLikeServerless,
-    optimizeFonts,
+    adjustFallbacks,
   }: {
     isLikeServerless: boolean
-    optimizeFonts: FontConfig
+    adjustFallbacks: boolean
   }) {
     this.isLikeServerless = isLikeServerless
-    this.optimizeFonts = optimizeFonts
+    this.adjustFallbacks = adjustFallbacks
   }
 
   private parserHandler = (
@@ -196,9 +196,7 @@ export class FontStylesheetGatheringPlugin {
                   this.manifestContent
                 )};
             // Enable feature:
-            process.env.__NEXT_OPTIMIZE_FONTS = ${JSON.stringify(
-              this.optimizeFonts
-            )};`
+            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true);`
           }
         )
       }
@@ -226,10 +224,7 @@ export class FontStylesheetGatheringPlugin {
           for (let promiseIndex in fontDefinitionPromises) {
             let css = await fontDefinitionPromises[promiseIndex]
 
-            if (
-              this.optimizeFonts &&
-              this.optimizeFonts.experimentalAdjustFallbacks
-            ) {
+            if (this.adjustFallbacks) {
               css += getFontOverrideCss(fontStylesheets[promiseIndex], css)
             }
 

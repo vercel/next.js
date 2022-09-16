@@ -340,7 +340,7 @@ export default async function exportPage({
               optimizeCss,
               disableOptimizedLoading,
               distDir,
-              fontManifest: optimizeFonts?.inlineFonts
+              fontManifest: optimizeFonts
                 ? requireFontManifest(distDir, serverless)
                 : null,
               locale: locale!,
@@ -401,7 +401,7 @@ export default async function exportPage({
            * `process.env.__NEXT_OPTIMIZE_FONTS`.
            * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
            */
-          if (optimizeFonts?.inlineFonts) {
+          if (optimizeFonts) {
             process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(optimizeFonts)
           }
           if (optimizeCss) {
@@ -415,7 +415,7 @@ export default async function exportPage({
             optimizeFonts,
             optimizeCss,
             disableOptimizedLoading,
-            fontManifest: optimizeFonts?.inlineFonts
+            fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
             locale: locale as string,

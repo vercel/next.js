@@ -1,7 +1,6 @@
 module.exports = {
   cleanDistDir: false,
-  optimizeFonts: {
-    inlineFonts: true,
-    experimentalAdjustFallbacks: true,
+  experimental: {
+    adjustFallbacks: true,
   },
 }

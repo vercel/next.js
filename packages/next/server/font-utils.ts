@@ -16,10 +16,7 @@ export type FontManifest = Array<{
   content: string
 }>
 
-export type FontConfig = {
-  inlineFonts: boolean
-  experimentalAdjustFallbacks?: boolean
-}
+export type FontConfig = boolean
 
 function isGoogleFont(url: string): boolean {
   return url.startsWith(GOOGLE_FONT_PROVIDER)

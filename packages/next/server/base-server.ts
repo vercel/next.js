@@ -383,7 +383,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       images: this.nextConfig.images,
       optimizeFonts: this.nextConfig.optimizeFonts as FontConfig,
       fontManifest:
-        (this.nextConfig.optimizeFonts as FontConfig)?.inlineFonts && !dev
+        (this.nextConfig.optimizeFonts as FontConfig) && !dev
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
