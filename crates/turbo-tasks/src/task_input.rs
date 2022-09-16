@@ -332,6 +332,7 @@ pub enum TaskInput {
     Usize(usize),
     I32(i32),
     U32(u32),
+    U64(u64),
     Nothing,
     SharedValue(SharedValue),
     TransientSharedValue(TransientSharedValue),
@@ -514,6 +515,7 @@ impl Display for TaskInput {
             TaskInput::Usize(v) => write!(f, "usize {}", v),
             TaskInput::I32(v) => write!(f, "i32 {}", v),
             TaskInput::U32(v) => write!(f, "u32 {}", v),
+            TaskInput::U64(v) => write!(f, "u64 {}", v),
             TaskInput::Nothing => write!(f, "nothing"),
             TaskInput::SharedValue(_) => write!(f, "any value"),
             TaskInput::TransientSharedValue(_) => write!(f, "any transient value"),
@@ -551,6 +553,12 @@ impl From<i32> for TaskInput {
 impl From<u32> for TaskInput {
     fn from(v: u32) -> Self {
         TaskInput::U32(v)
+    }
+}
+
+impl From<u64> for TaskInput {
+    fn from(v: u64) -> Self {
+        TaskInput::U64(v)
     }
 }
 
@@ -688,6 +696,17 @@ impl FromTaskInput<'_> for i32 {
         match value {
             TaskInput::I32(value) => Ok(*value),
             _ => Err(anyhow!("invalid task input type, expected i32")),
+        }
+    }
+}
+
+impl FromTaskInput<'_> for u64 {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::U64(value) => Ok(*value),
+            _ => Err(anyhow!("invalid task input type, expected u64")),
         }
     }
 }

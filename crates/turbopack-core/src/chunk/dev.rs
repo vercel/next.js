@@ -18,6 +18,8 @@ pub struct DevChunkingContext {
     pub chunk_root_path: FileSystemPathVc,
     /// Static assets are placed at this path
     pub asset_root_path: FileSystemPathVc,
+    /// Enable HMR for this chunking
+    pub enable_hot_module_replacement: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -61,5 +63,10 @@ impl ChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
     fn asset_path(&self, path: &str) -> FileSystemPathVc {
         self.asset_root_path.join(path)
+    }
+
+    #[turbo_tasks::function]
+    fn is_hot_module_replacement_enabled(&self) -> BoolVc {
+        BoolVc::cell(self.enable_hot_module_replacement)
     }
 }

@@ -114,6 +114,7 @@ async fn run(resource: &'static str) -> Result<()> {
             context_path: fs,
             chunk_root_path,
             asset_root_path: FileSystemPathVc::new(root_fs.into(), static_dir.to_str().unwrap()),
+            enable_hot_module_replacement: true,
         }
         .into();
 

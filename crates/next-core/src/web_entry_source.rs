@@ -80,6 +80,7 @@ pub async fn create_web_entry_source(
         context_path: root,
         chunk_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static/chunks"),
         asset_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static/assets"),
+        enable_hot_module_replacement: true,
     }
     .into();
 

@@ -87,19 +87,6 @@ impl<T, U> Borrow<U> for ReadRef<T, U> {
     }
 }
 
-impl<T, U, I, J: Iterator<Item = I>> IntoIterator for ReadRef<T, U>
-where
-    for<'a> &'a U: IntoIterator<Item = I, IntoIter = J>,
-{
-    type Item = I;
-
-    type IntoIter = J;
-
-    fn into_iter(self) -> Self::IntoIter {
-        (&*self).into_iter()
-    }
-}
-
 impl<'a, T, U, I, J: Iterator<Item = I>> IntoIterator for &'a ReadRef<T, U>
 where
     &'a U: IntoIterator<Item = I, IntoIter = J>,

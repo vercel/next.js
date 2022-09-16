@@ -47,6 +47,10 @@ pub trait ChunkingContext {
     fn can_be_in_same_chunk(&self, asset_a: AssetVc, asset_b: AssetVc) -> BoolVc;
 
     fn asset_path(&self, path: &str) -> FileSystemPathVc;
+
+    fn is_hot_module_replacement_enabled(&self) -> BoolVc {
+        BoolVc::cell(false)
+    }
 }
 
 /// An [Asset] that can be converted into a [Chunk].

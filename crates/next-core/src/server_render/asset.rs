@@ -162,6 +162,7 @@ async fn get_intermediate_asset(
         context_path,
         chunk_root_path: intermediate_output_path.join("chunks"),
         asset_root_path: intermediate_output_path.join("assets"),
+        enable_hot_module_replacement: false,
     }
     .into();
     let module = EcmascriptModuleAssetVc::new(

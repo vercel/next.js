@@ -10,7 +10,6 @@ pub mod issue;
 pub mod reference;
 pub mod resolve;
 pub mod source_asset;
-pub mod source_map;
 mod source_pos;
 pub mod target;
 mod utils;

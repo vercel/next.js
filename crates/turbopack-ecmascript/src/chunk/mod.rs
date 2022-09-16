@@ -1,4 +1,5 @@
 pub mod loader;
+pub(crate) mod source_map;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -23,14 +24,16 @@ use turbopack_core::{
     },
     code_builder::{Code, CodeReadRef, CodeVc},
     reference::{AssetReferenceVc, AssetReferencesVc},
-    source_map::{SourceMapAssetReferenceVc, SourceMapAssetVc},
     version::{
         PartialUpdate, Update, UpdateVc, Version, VersionVc, VersionedContent, VersionedContentVc,
     },
 };
 use turbopack_hash::{encode_hex, hash_xxh3_hash64, Xxh3Hash64Hasher};
 
-use self::loader::{ManifestChunkAssetVc, ManifestLoaderItemVc};
+use self::{
+    loader::{ManifestChunkAssetVc, ManifestLoaderItemVc},
+    source_map::EcmascriptChunkSourceMapAssetReferenceVc,
+};
 use crate::{
     parse::ParseResultSourceMapVc,
     references::esm::EsmExportsVc,
@@ -231,7 +234,7 @@ impl EcmascriptChunkContentVc {
         let c_context = chunk_context(context);
         let module_factories = chunk_content
             .chunk_items
-            .to_entry_snapshot(c_context, context)
+            .to_entry_snapshot(chunk_path, c_context, context)
             .await?;
         Ok(EcmascriptChunkContent {
             module_factories,
@@ -244,8 +247,10 @@ impl EcmascriptChunkContentVc {
 
 #[turbo_tasks::value(serialization = "none")]
 struct EcmascriptChunkContentEntry {
+    chunk_item: EcmascriptChunkItemVc,
     id: ModuleIdReadRef,
     code: CodeReadRef,
+    code_vc: CodeVc,
     hash: u64,
 }
 
@@ -276,7 +281,14 @@ impl EcmascriptChunkContentEntryVc {
         let id = content.await?.id.await?;
         let code = factory.await?;
         let hash = hash_xxh3_hash64(code.source_code().as_bytes());
-        Ok(EcmascriptChunkContentEntry { id, code, hash }.cell())
+        Ok(EcmascriptChunkContentEntry {
+            chunk_item,
+            id,
+            code,
+            code_vc: factory,
+            hash,
+        }
+        .cell())
     }
 }
 
@@ -398,7 +410,7 @@ impl EcmascriptChunkContentVc {
 
         if code.has_source_map() {
             let filename = chunk_path.file_name().unwrap();
-            let version = self.version().as_version().id().await?;
+            let version = self.version().id().await?;
             write!(
                 code,
                 "\n\n//# sourceMappingURL={}.{}.map",
@@ -690,33 +702,14 @@ impl Asset for EcmascriptChunk {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
         }
 
-        let chunk_content = self_vc.chunk_content();
         references.push(
-            SourceMapAssetReferenceVc::new(SourceMapAssetVc::new(
-                self_vc.path(),
-                chunk_content.as_versioned_content().version().id(),
-                chunk_content.code(),
-            ))
+            EcmascriptChunkSourceMapAssetReferenceVc::new(
+                self_vc,
+                *this.context.is_hot_module_replacement_enabled().await?,
+            )
             .into(),
         );
 
-        let chunk_items = content.chunk_items.await?;
-        for item in chunk_items.into_iter() {
-            let content = item.content(chunk_context(this.context), this.context);
-            let code = module_factory(content);
-            if code.await?.has_source_map() {
-                references.push(
-                    SourceMapAssetReferenceVc::new(SourceMapAssetVc::new(
-                        self_vc.path(),
-                        StringVc::cell(encode_hex(hash_xxh3_hash64(
-                            code.source_code().await?.as_bytes(),
-                        ))),
-                        code,
-                    ))
-                    .into(),
-                );
-            }
-        }
         Ok(AssetReferencesVc::cell(references))
     }
 
@@ -853,6 +846,7 @@ impl EcmascriptChunkItemsVc {
     #[turbo_tasks::function]
     async fn to_entry_snapshot(
         self,
+        chunk_path: FileSystemPathVc,
         c_context: EcmascriptChunkContextVc,
         context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkContentEntriesSnapshotVc> {
@@ -864,7 +858,7 @@ impl EcmascriptChunkItemsVc {
                     .map(|chunk| {
                         EcmascriptChunkItems(chunk.to_vec())
                             .cell()
-                            .to_entry_snapshot(c_context, context)
+                            .to_entry_snapshot(chunk_path, c_context, context)
                     })
                     .try_join()
                     .await?,

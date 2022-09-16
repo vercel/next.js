@@ -55,6 +55,7 @@ pub async fn create_server_rendered_source(
         context_path: root_path,
         chunk_root_path: target_root.join("_next/static/chunks"),
         asset_root_path: target_root.join("_next/static/assets"),
+        enable_hot_module_replacement: true,
     }
     .cell()
     .into();
