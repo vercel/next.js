@@ -1,3 +1,5 @@
+'client'
+
 import { random } from 'random-module-instance'
 
 export default function () {

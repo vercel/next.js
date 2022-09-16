@@ -10,4 +10,4 @@ import "fs";
 "baz";
 export default function() {
     return null;
-};
+}

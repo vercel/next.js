@@ -5,4 +5,4 @@
  */ import "client-only";
 export default function() {
     return null;
-};
+}

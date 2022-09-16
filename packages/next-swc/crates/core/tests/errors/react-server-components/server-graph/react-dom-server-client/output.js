@@ -6,4 +6,4 @@
 import "react-dom/client";
 export default function() {
     return null;
-};
+}
