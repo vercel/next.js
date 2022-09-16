@@ -56,17 +56,20 @@ impl Bundler for Turbopack {
     }
 
     fn start_server(&self, test_dir: &Path) -> Result<(Child, String)> {
-        let mut proc = Command::new(std::env!("CARGO_BIN_EXE_next-dev"))
-            .args([
-                test_dir
-                    .to_str()
-                    .ok_or_else(|| anyhow!("failed to convert test directory path to string"))?,
-                "--no-open",
-                "--port",
-                "0",
-            ])
-            .stdout(Stdio::piped())
-            .spawn()?;
+        let mut proc = Command::new(
+            std::env::var("CARGO_BIN_EXE_next-dev")
+                .unwrap_or_else(|_| std::env!("CARGO_BIN_EXE_next-dev").to_string()),
+        )
+        .args([
+            test_dir
+                .to_str()
+                .ok_or_else(|| anyhow!("failed to convert test directory path to string"))?,
+            "--no-open",
+            "--port",
+            "0",
+        ])
+        .stdout(Stdio::piped())
+        .spawn()?;
 
         // Wait for the devserver address to appear in stdout.
         let addr = wait_for_match(
