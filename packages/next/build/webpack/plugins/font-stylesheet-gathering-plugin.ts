@@ -7,7 +7,6 @@ import {
   getFontDefinitionFromNetwork,
   getFontOverrideCss,
   FontManifest,
-  FontConfig,
 } from '../../../server/font-utils'
 import postcss from 'postcss'
 import minifier from 'next/dist/compiled/cssnano-simple'
@@ -54,14 +53,14 @@ export class FontStylesheetGatheringPlugin {
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
   isLikeServerless: boolean
-  adjustFallbacks: boolean
+  adjustFallbacks?: boolean
 
   constructor({
     isLikeServerless,
     adjustFallbacks,
   }: {
     isLikeServerless: boolean
-    adjustFallbacks: boolean
+    adjustFallbacks?: boolean
   }) {
     this.isLikeServerless = isLikeServerless
     this.adjustFallbacks = adjustFallbacks
