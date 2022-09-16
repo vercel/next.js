@@ -60,7 +60,6 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
-import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 
