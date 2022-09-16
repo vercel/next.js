@@ -63,6 +63,8 @@ describe('Disable fallback polyfills', () => {
          useEffect(() => {
            axios.get('/api')
          }, [])
+
+         return "hello world"
        }`
     )
 
