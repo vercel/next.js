@@ -9,7 +9,7 @@ let policy: TrustedTypePolicy | null | undefined
  * here or set to null if Trusted Types is not supported in the browser.
  */
 function getPolicy() {
-  if (typeof policy === 'undefined' && process.env.browser) {
+  if (typeof policy === 'undefined' && !process.env.NEXT_RUNTIME) {
     policy =
       window.trustedTypes?.createPolicy('nextjs', {
         createHTML: (input) => input,

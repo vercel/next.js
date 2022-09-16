@@ -21,7 +21,7 @@ const singletonRouter: SingletonRouterBase = {
   readyCallbacks: [],
   ready(cb: () => void) {
     if (this.router) return cb()
-    if (process.env.browser) {
+    if (!process.env.NEXT_RUNTIME) {
       this.readyCallbacks.push(cb)
     }
   },
