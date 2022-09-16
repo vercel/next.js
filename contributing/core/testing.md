@@ -6,24 +6,23 @@ We recommend running the tests in headless mode (with the browser windows hidden
 
 For example, running one test in the production test suite:
 
-````
 Running one test in the `test/integration/production` test suite:
 
 ```sh
-pnpm test -- test/integration/production -t "should allow etag header support"
-````
+pnpm testheadless test/integration/production/ -t "should allow etag header support"
+```
 
 Running all tests in the `test/integration/production` test suite:
 
 ```sh
-pnpm test test/integration/production
+pnpm testheadless test/integration/production/
 ```
 
-When you want to debug a particular test you can replace `pnpm test` with `pnpm testonly` to opt out of the headless browser.
+When you want to debug a particular test you can replace `pnpm testheadless` with `pnpm testonly` to opt out of the headless browser.
 When the test runs it will open the browser that is in the background by default, allowing you to inspect what is on the screen.
 
 ```sh
-pnpm testonly -- test/integration/production -t "should allow etag header support"
+pnpm testonly test/integration/production/ -t "should allow etag header support"
 ```
 
 ## Writing tests for Next.js
