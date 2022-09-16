@@ -1,3 +1,5 @@
+'client'
+
 import './client-page.css'
 
 export default function Page() {

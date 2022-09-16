@@ -1,3 +1,5 @@
+'client'
+
 import { useState, useEffect } from 'react'
 
 import style from './style.module.css'

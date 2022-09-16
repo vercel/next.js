@@ -1,3 +1,5 @@
+'client'
+
 import { useState } from 'react'
 import styles from './dynamic.module.css'
 
