@@ -53,7 +53,7 @@ If a test suite already exists that relates closely to the item being tested (e.
 
 ### Helpful environment variables
 
-Some test-specific environment variables can be used to help debug isolated tests better, these can be leveraged by prefixing the `pnpm testheadless` command.
+Some test-specific environment variables can be used to help debug isolated tests better, these can be leveraged by prefixing the `pnpm test` command.
 
 - When investigating failures in isolated tests you can use `NEXT_TEST_SKIP_CLEANUP=1` to prevent deleting the temp folder created for the test, then you can run `pnpm next` while inside of the temp folder to debug the fully set-up test project.
 - You can also use `NEXT_SKIP_ISOLATE=1` if the test doesn't need to be installed to debug and it will run inside of the Next.js repo instead of the temp directory, this can also reduce test times locally but is not compatible with all tests.
