@@ -149,6 +149,7 @@ export class FlightManifestPlugin {
         mod: webpack.NormalModule
       ) {
         const isCSSModule =
+          mod.resource?.endsWith('.css') ||
           mod.type === 'css/mini-extract' ||
           (!!mod.loaders &&
             (dev
