@@ -11,7 +11,7 @@ module.exports = {
     },
     fixable: 'code',
     messages: {
-      noTypeofWindow: `For proper dead code elimination, do not use \`typeof window\`to check if the code is running in the browser. Use \`process.env.browser\` instead.`,
+      noTypeofWindow: `For proper dead code elimination, do not use \`typeof window\`to check if the code is running in the browser. Use \`process.env.NEXT_RUNTIME\` instead.`,
     },
   },
   create(context) {
@@ -60,7 +60,7 @@ module.exports = {
           fix(fixer) {
             return fixer.replaceText(
               node,
-              `${isNegated ? '' : '!'}process.env.browser`
+              `${isNegated ? '!' : ''}process.env.NEXT_RUNTIME`
             )
           },
         })

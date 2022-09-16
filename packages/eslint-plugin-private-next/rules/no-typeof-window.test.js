@@ -10,52 +10,52 @@ const errors = [{ messageId: 'noTypeofWindow' }]
 ruleTester.run('no-typeof-window', rule, {
   valid: [
     {
-      code: 'process.env.browser',
+      code: 'process.env.NEXT_RUNTIME',
     },
     {
-      code: '!process.env.browser',
+      code: '!process.env.NEXT_RUNTIME',
     },
   ],
   invalid: [
     {
       code: 'typeof window !== "undefined"',
       errors,
-      output: 'process.env.browser',
+      output: '!process.env.NEXT_RUNTIME',
     },
     {
       code: 'typeof window === "undefined"',
       errors,
-      output: '!process.env.browser',
+      output: 'process.env.NEXT_RUNTIME',
     },
     {
       code: '"undefined" !== typeof window',
       errors,
-      output: 'process.env.browser',
+      output: '!process.env.NEXT_RUNTIME',
     },
     {
       code: '"undefined" === typeof window',
       errors,
-      output: '!process.env.browser',
+      output: 'process.env.NEXT_RUNTIME',
     },
     {
       code: 'typeof window != "undefined"',
       errors,
-      output: 'process.env.browser',
+      output: '!process.env.NEXT_RUNTIME',
     },
     {
       code: 'typeof window == "undefined"',
       errors,
-      output: '!process.env.browser',
+      output: 'process.env.NEXT_RUNTIME',
     },
     {
       code: '"undefined" != typeof window',
       errors,
-      output: 'process.env.browser',
+      output: '!process.env.NEXT_RUNTIME',
     },
     {
       code: '"undefined" == typeof window',
       errors,
-      output: '!process.env.browser',
+      output: 'process.env.NEXT_RUNTIME',
     },
   ],
 })

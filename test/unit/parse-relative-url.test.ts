@@ -16,9 +16,7 @@ const check = (windowUrl, targetUrl, expected) => {
 }
 
 describe('parseRelativeUrl', () => {
-  let previousBrowserValue = process.env.browser
   beforeAll(() => {
-    process.env.browser = 'true'
     ;(global as any).window = {
       location: {},
     }
@@ -26,7 +24,6 @@ describe('parseRelativeUrl', () => {
 
   afterAll(() => {
     delete (global as any).window
-    process.env.browser = previousBrowserValue
   })
 
   it('should parse relative url', () => {
