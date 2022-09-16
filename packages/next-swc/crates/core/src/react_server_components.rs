@@ -7,6 +7,7 @@ use swc_core::{
         FileName, Span, DUMMY_SP,
     },
     ecma::ast::*,
+    ecma::atoms::{js_word, JsWord},
     ecma::utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
     ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
@@ -33,22 +34,22 @@ pub struct Options {
     pub is_server: bool,
 }
 
-struct ReactServerComponents<'a, C: Comments> {
+struct ReactServerComponents<C: Comments> {
     is_server: bool,
     filepath: String,
     comments: C,
-    invalid_server_imports: Vec<&'a str>,
-    invalid_client_imports: Vec<&'a str>,
-    invalid_server_react_apis: Vec<&'a str>,
-    invalid_server_react_dom_apis: Vec<&'a str>,
+    invalid_server_imports: Vec<JsWord>,
+    invalid_client_imports: Vec<JsWord>,
+    invalid_server_react_apis: Vec<JsWord>,
+    invalid_server_react_dom_apis: Vec<JsWord>,
 }
 
 struct ModuleImports {
-    source: (String, Span),
-    specifiers: Vec<(String, Span)>,
+    source: (JsWord, Span),
+    specifiers: Vec<(JsWord, Span)>,
 }
 
-impl<C: Comments> VisitMut for ReactServerComponents<'_, C> {
+impl<C: Comments> VisitMut for ReactServerComponents<C> {
     noop_visit_mut_type!();
 
     fn visit_mut_module(&mut self, module: &mut Module) {
@@ -68,7 +69,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<'_, C> {
     }
 }
 
-impl<C: Comments> ReactServerComponents<'_, C> {
+impl<C: Comments> ReactServerComponents<C> {
     // Collects top level directives and imports, then removes specific ones
     // from the AST.
     fn collect_top_level_directives_and_imports(
@@ -92,7 +93,7 @@ impl<C: Comments> ReactServerComponents<'_, C> {
                             Some(expr_stmt) => {
                                 match &*expr_stmt.expr {
                                     Expr::Lit(Lit::Str(Str { value, .. })) => {
-                                        if value.to_string() == "client" {
+                                        if &*value == "client" {
                                             is_client_entry = true;
 
                                             // Remove the directive.
@@ -113,20 +114,20 @@ impl<C: Comments> ReactServerComponents<'_, C> {
                     }
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
-                    let source = import.src.value.to_string();
+                    let source = import.src.value.clone();
                     let specifiers = import
                         .specifiers
                         .iter()
                         .map(|specifier| match specifier {
                             ImportSpecifier::Named(named) => match &named.imported {
                                 Some(imported) => match &imported {
-                                    ModuleExportName::Ident(i) => (i.sym.to_string(), i.span),
-                                    ModuleExportName::Str(s) => (s.value.to_string(), s.span),
+                                    ModuleExportName::Ident(i) => (i.to_id().0, i.span),
+                                    ModuleExportName::Str(s) => (s.value.clone(), s.span),
                                 },
-                                None => (named.local.sym.to_string(), named.local.span),
+                                None => (named.local.to_id().0, named.local.span),
                             },
-                            ImportSpecifier::Default(d) => ("".to_string(), d.span),
-                            ImportSpecifier::Namespace(n) => ("*".to_string(), n.span),
+                            ImportSpecifier::Default(d) => (js_word!(""), d.span),
+                            ImportSpecifier::Namespace(n) => ("*".into(), n.span),
                         })
                         .collect();
 
@@ -154,7 +155,7 @@ impl<C: Comments> ReactServerComponents<'_, C> {
         module.body.clear();
 
         let proxy_ident = quote_ident!("createProxy");
-        let filepath = quote_str!(self.filepath.clone());
+        let filepath = quote_str!(&*self.filepath);
 
         prepend_stmts(
             &mut module.body,
@@ -219,7 +220,7 @@ impl<C: Comments> ReactServerComponents<'_, C> {
 
     fn assert_server_graph(&self, imports: &Vec<ModuleImports>) {
         for import in imports {
-            let source = import.source.0.as_str();
+            let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
                 HANDLER.with(|handler| {
                     handler
@@ -234,12 +235,9 @@ impl<C: Comments> ReactServerComponents<'_, C> {
                         .emit()
                 })
             }
-            if source == "react" {
+            if source == JsWord::from("react") {
                 for specifier in &import.specifiers {
-                    if self
-                        .invalid_server_react_apis
-                        .contains(&specifier.0.as_str())
-                    {
+                    if self.invalid_server_react_apis.contains(&specifier.0) {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
@@ -256,12 +254,9 @@ impl<C: Comments> ReactServerComponents<'_, C> {
                     }
                 }
             }
-            if source == "react-dom" {
+            if source == JsWord::from("react-dom") {
                 for specifier in &import.specifiers {
-                    if self
-                        .invalid_server_react_dom_apis
-                        .contains(&specifier.0.as_str())
-                    {
+                    if self.invalid_server_react_dom_apis.contains(&specifier.0) {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
@@ -283,7 +278,7 @@ impl<C: Comments> ReactServerComponents<'_, C> {
 
     fn assert_client_graph(&self, imports: &Vec<ModuleImports>) {
         for import in imports {
-            let source = import.source.0.as_str();
+            let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
                 HANDLER.with(|handler| {
                     handler
@@ -315,24 +310,32 @@ pub fn server_components<C: Comments>(
         is_server,
         comments,
         filepath: filename.to_string(),
-        invalid_server_imports: vec!["client-only", "react-dom/client", "react-dom/server"],
-        invalid_client_imports: vec!["server-only"],
-        invalid_server_react_dom_apis: vec!["findDOMNode", "flushSync", "unstable_batchedUpdates"],
+        invalid_server_imports: vec![
+            JsWord::from("client-only"),
+            JsWord::from("react-dom/client"),
+            JsWord::from("react-dom/server"),
+        ],
+        invalid_client_imports: vec![JsWord::from("server-only")],
+        invalid_server_react_dom_apis: vec![
+            JsWord::from("findDOMNode"),
+            JsWord::from("flushSync"),
+            JsWord::from("unstable_batchedUpdates"),
+        ],
         invalid_server_react_apis: vec![
-            "Component",
-            "createContext",
-            "createFactory",
-            "PureComponent",
-            "useDeferredValue",
-            "useEffect",
-            "useImperativeHandle",
-            "useInsertionEffect",
-            "useLayoutEffect",
-            "useReducer",
-            "useRef",
-            "useState",
-            "useSyncExternalStore",
-            "useTransition",
+            JsWord::from("Component"),
+            JsWord::from("createContext"),
+            JsWord::from("createFactory"),
+            JsWord::from("PureComponent"),
+            JsWord::from("useDeferredValue"),
+            JsWord::from("useEffect"),
+            JsWord::from("useImperativeHandle"),
+            JsWord::from("useInsertionEffect"),
+            JsWord::from("useLayoutEffect"),
+            JsWord::from("useReducer"),
+            JsWord::from("useRef"),
+            JsWord::from("useState"),
+            JsWord::from("useSyncExternalStore"),
+            JsWord::from("useTransition"),
         ],
     })
 }

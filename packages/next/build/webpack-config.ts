@@ -1551,8 +1551,7 @@ export default async function getBaseWebpackConfig(
             ...(hasServerComponents
               ? [
                   {
-                    // ...codeCondition,
-                    test: clientComponentRegex,
+                    test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
                     use: {
                       ...defaultLoaders.babel,
