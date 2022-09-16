@@ -36,16 +36,12 @@ function nextImageLoader(content) {
       if (imageSize.width >= imageSize.height) {
         blurWidth = BLUR_IMG_SIZE
         blurHeight = Math.max(
-          Math.round(
-            (imageSize.height / imageSize.width) * BLUR_IMG_SIZE
-          ),
+          Math.round((imageSize.height / imageSize.width) * BLUR_IMG_SIZE),
           1
         )
       } else {
         blurWidth = Math.max(
-          Math.round(
-            (imageSize.width / imageSize.height) * BLUR_IMG_SIZE
-          ),
+          Math.round((imageSize.width / imageSize.height) * BLUR_IMG_SIZE),
           1
         )
         blurHeight = BLUR_IMG_SIZE
