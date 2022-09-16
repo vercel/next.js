@@ -320,7 +320,8 @@ __TURBOPACK__imported__module__$5b$project$5d2f$snapshot$2f$example$2f$chunked$2
   }
 
   function _eval(factory) {
-    const code = `${factory.code}\n\n//# sourceMappingURL=${factory.map}`
+    let code = factory.code
+    if (factory.map) code += `\n\n//# sourceMappingURL=${factory.map}`
     return eval(code)
   }
 

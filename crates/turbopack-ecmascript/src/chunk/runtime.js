@@ -306,7 +306,8 @@
   }
 
   function _eval(factory) {
-    const code = `${factory.code}\n\n//# sourceMappingURL=${factory.map}`
+    let code = factory.code
+    if (factory.map) code += `\n\n//# sourceMappingURL=${factory.map}`
     return eval(code)
   }
 

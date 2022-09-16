@@ -50,6 +50,10 @@ impl Code {
             return;
         }
 
+        debug_assert!(
+            map.is_some() || !self.mappings.is_empty(),
+            "the first mapping is never a None"
+        );
         self.mappings.push((self.code.len(), map));
     }
 
@@ -71,9 +75,7 @@ impl Code {
     /// Copies the Synthetic/Original code of an already constructed CodeBuilder
     /// into this instance.
     pub fn push_code(&mut self, prebuilt: &Code) {
-        if let Some((index, map)) = prebuilt.mappings.first() {
-            debug_assert!(map.is_some(), "the first mapping is never a None");
-
+        if let Some((index, _)) = prebuilt.mappings.first() {
             if *index > 0 {
                 // If the index is positive, then the code starts with a synthetic section. We
                 // may need to push an empty map in order to end the current

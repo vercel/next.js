@@ -234,7 +234,7 @@ impl EcmascriptChunkContentVc {
         let c_context = chunk_context(context);
         let module_factories = chunk_content
             .chunk_items
-            .to_entry_snapshot(chunk_path, c_context, context)
+            .to_entry_snapshot(c_context, context)
             .await?;
         Ok(EcmascriptChunkContent {
             module_factories,
@@ -461,6 +461,7 @@ impl VersionedContent for EcmascriptChunkContent {
         }
 
         let this = self_vc.await?;
+        let chunk_path = &this.chunk_path.await?.path;
 
         // TODO(alexkirsz) This should probably be stored as a HashMap already.
         let mut module_factories: HashMap<_, _> = this
@@ -476,17 +477,7 @@ impl VersionedContent for EcmascriptChunkContent {
             let id = &**id;
             if let Some(entry) = module_factories.remove(id) {
                 if entry.hash != *hash {
-                    modified.insert(
-                        id,
-                        HmrUpdateEntry {
-                            code: entry.source_code(),
-                            map: format!(
-                                "{}.{}.map",
-                                this.chunk_path.await?.path,
-                                encode_hex(entry.hash)
-                            ),
-                        },
-                    );
+                    modified.insert(id, HmrUpdateEntry::new(entry, chunk_path));
                 }
             } else {
                 deleted.insert(id);
@@ -495,17 +486,7 @@ impl VersionedContent for EcmascriptChunkContent {
 
         // Remaining entries are added
         for (id, entry) in module_factories {
-            added.insert(
-                id,
-                HmrUpdateEntry {
-                    code: entry.source_code(),
-                    map: format!(
-                        "{}.{}.map",
-                        this.chunk_path.await?.path,
-                        encode_hex(entry.hash)
-                    ),
-                },
-            );
+            added.insert(id, HmrUpdateEntry::new(entry, chunk_path));
         }
 
         let update = if added.is_empty() && modified.is_empty() && deleted.is_empty() {
@@ -530,7 +511,19 @@ impl VersionedContent for EcmascriptChunkContent {
 #[derive(serde::Serialize)]
 struct HmrUpdateEntry<'a> {
     code: &'a str,
-    map: String,
+    map: Option<String>,
+}
+
+impl<'a> HmrUpdateEntry<'a> {
+    fn new(entry: &'a EcmascriptChunkContentEntry, chunk_path: &str) -> Self {
+        HmrUpdateEntry {
+            code: entry.source_code(),
+            map: entry
+                .code
+                .has_source_map()
+                .then(|| format!("{}.{}.map", chunk_path, encode_hex(entry.hash))),
+        }
+    }
 }
 
 #[turbo_tasks::value(serialization = "none")]
@@ -846,7 +839,6 @@ impl EcmascriptChunkItemsVc {
     #[turbo_tasks::function]
     async fn to_entry_snapshot(
         self,
-        chunk_path: FileSystemPathVc,
         c_context: EcmascriptChunkContextVc,
         context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkContentEntriesSnapshotVc> {
@@ -858,7 +850,7 @@ impl EcmascriptChunkItemsVc {
                     .map(|chunk| {
                         EcmascriptChunkItems(chunk.to_vec())
                             .cell()
-                            .to_entry_snapshot(chunk_path, c_context, context)
+                            .to_entry_snapshot(c_context, context)
                     })
                     .try_join()
                     .await?,
