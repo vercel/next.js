@@ -1,1 +1,40 @@
-(function(){"use strict";if(typeof __nccwpck_require__!=="undefined")__nccwpck_require__.ab=__dirname+"/";var e={};!function(){var r=e;var o="";if(typeof EventSource!=="function"){throw new Error("Environment doesn't support lazy compilation (requires EventSource)")}var n=decodeURIComponent(o.slice(1));var t;var i=new Map;var a=new Set;var c=function updateEventSource(){if(t)t.close();if(i.size){t=new EventSource(n+Array.from(i.keys()).join("@"));t.onerror=function(e){a.forEach((function(r){r(new Error("Problem communicating active modules to the server: "+e.message+" "+e.filename+":"+e.lineno+":"+e.colno+" "+e.error))}))}}else{t=undefined}};r.keepAlive=function(e){var r=e.data;var o=e.onError;var n=e.active;var t=e.module;a.add(o);var u=i.get(r)||0;i.set(r,u+1);if(u===0){c()}if(!n&&!t.hot){console.log("Hot Module Replacement is not enabled. Waiting for process restart...")}return function(){a.delete(o);setTimeout((function(){var e=i.get(r);if(e===1){i.delete(r);c()}else{i.set(r,e-1)}}),1e3)}}}();module.exports=e})();
+/* global __resourceQuery */
+
+"use strict";
+
+var urlBase = decodeURIComponent(__resourceQuery.slice(1));
+exports.keepAlive = function (options) {
+	var data = options.data;
+	var onError = options.onError;
+	var active = options.active;
+	var module = options.module;
+	var response;
+	var request = (
+		urlBase.startsWith("https") ? require("https") : require("http")
+	).request(
+		urlBase + data,
+		{
+			agent: false,
+			headers: { accept: "text/event-stream" }
+		},
+		function (res) {
+			response = res;
+			response.on("error", errorHandler);
+			if (!active && !module.hot) {
+				console.log(
+					"Hot Module Replacement is not enabled. Waiting for process restart..."
+				);
+			}
+		}
+	);
+	function errorHandler(err) {
+		err.message =
+			"Problem communicating active modules to the server: " + err.message;
+		onError(err);
+	}
+	request.on("error", errorHandler);
+	request.end();
+	return function () {
+		response.destroy();
+	};
+};
