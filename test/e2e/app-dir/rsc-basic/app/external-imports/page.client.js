@@ -1,3 +1,5 @@
+'client'
+
 import getType, { named, value, array, obj } from 'non-isomorphic-text'
 
 export default function Page() {

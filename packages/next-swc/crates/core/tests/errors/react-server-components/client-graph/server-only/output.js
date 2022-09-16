@@ -5,4 +5,4 @@
  */ import "server-only";
 export default function() {
     return null;
-};
+}
