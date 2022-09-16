@@ -48,7 +48,7 @@ const experimentalWarning = execOnce(
 )
 
 export function setHttpClientAndAgentOptions(options: NextConfig) {
-  if (semver.gte(process.version, '16.8.0')) {
+  if (semverGte(process.version, '16.8.0')) {
     ;(global as any).__NEXT_USE_UNDICI = options.experimental?.useUndici
   } else {
     Log.warn(

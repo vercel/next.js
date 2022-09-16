@@ -74,7 +74,6 @@
     "@swc/helpers": "0.4.11",
     "caniuse-lite": "^1.0.30001332",
     "postcss": "8.4.14",
-    "semver": "7.3.2",
     "styled-jsx": "5.0.7",
     "use-sync-external-store": "1.2.0"
   },
@@ -250,6 +249,7 @@
     "sass-loader": "12.4.0",
     "schema-utils2": "npm:schema-utils@2.7.1",
     "schema-utils3": "npm:schema-utils@3.0.0",
+    "semver": "7.3.2",
     "send": "0.17.1",
     "setimmediate": "1.0.5",
     "source-map": "0.6.1",
