@@ -93,7 +93,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             Some(expr_stmt) => {
                                 match &*expr_stmt.expr {
                                     Expr::Lit(Lit::Str(Str { value, .. })) => {
-                                        if &*value == "client" {
+                                        if &**value == "client" {
                                             is_client_entry = true;
 
                                             // Remove the directive.
@@ -142,7 +142,7 @@ impl<C: Comments> ReactServerComponents<C> {
                     finished_directives = true;
                 }
             }
-            return true;
+            true
         });
 
         (is_client_entry, imports)
@@ -169,7 +169,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             props: vec![ObjectPatProp::Assign(AssignPatProp {
                                 span: DUMMY_SP,
-                                key: proxy_ident.clone(),
+                                key: proxy_ident,
                                 value: None,
                             })],
                             optional: false,
@@ -235,7 +235,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         .emit()
                 })
             }
-            if source == JsWord::from("react") {
+            if source == *"react" {
                 for specifier in &import.specifiers {
                     if self.invalid_server_react_apis.contains(&specifier.0) {
                         HANDLER.with(|handler| {
@@ -254,7 +254,7 @@ impl<C: Comments> ReactServerComponents<C> {
                     }
                 }
             }
-            if source == JsWord::from("react-dom") {
+            if source == *"react-dom" {
                 for specifier in &import.specifiers {
                     if self.invalid_server_react_dom_apis.contains(&specifier.0) {
                         HANDLER.with(|handler| {
