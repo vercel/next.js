@@ -1,3 +1,5 @@
+'client'
+
 import React, { useEffect, useContext, useRef } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'

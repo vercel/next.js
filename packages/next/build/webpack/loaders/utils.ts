@@ -3,22 +3,13 @@ import { getPageStaticInfo } from '../../analysis/get-page-static-info'
 export const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx']
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 const nextClientComponents = [
-  'link',
-  'image',
-  // TODO-APP: check if this affects the regex
-  'future/image',
-  'head',
-  'script',
-  'dynamic',
+  'dist/client/link',
+  'dist/client/image',
+  'dist/client/future/image',
+  'dist/shared/lib/head',
+  'dist/client/script',
+  'dist/shared/lib/dynamic',
 ]
-
-const NEXT_BUILT_IN_CLIENT_RSC_REGEX = new RegExp(
-  `[\\\\/]next[\\\\/](${nextClientComponents.join('|')})\\.js$`
-)
-
-export function isNextBuiltinClientComponent(resourcePath: string) {
-  return NEXT_BUILT_IN_CLIENT_RSC_REGEX.test(resourcePath)
-}
 
 export function buildExports(moduleExports: any, isESM: boolean) {
   let ret = ''

@@ -28,8 +28,8 @@ impl Config {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Options {
-    #[serde(default)]
     pub is_server: bool,
 }
 
@@ -88,17 +88,25 @@ impl<C: Comments> ReactServerComponents<'_, C> {
                             finished_directives = true;
                         }
 
-                        match &*stmt.as_expr().unwrap().expr {
-                            Expr::Lit(Lit::Str(Str { value, .. })) => {
-                                if value.to_string() == "client" {
-                                    is_client_entry = true;
+                        match stmt.as_expr() {
+                            Some(expr_stmt) => {
+                                match &*expr_stmt.expr {
+                                    Expr::Lit(Lit::Str(Str { value, .. })) => {
+                                        if value.to_string() == "client" {
+                                            is_client_entry = true;
 
-                                    // Remove the directive.
-                                    return false;
+                                            // Remove the directive.
+                                            return false;
+                                        }
+                                    }
+                                    _ => {
+                                        // Other expression types.
+                                        finished_directives = true;
+                                    }
                                 }
                             }
-                            _ => {
-                                // Other expression types.
+                            None => {
+                                // Not an expression.
                                 finished_directives = true;
                             }
                         }
@@ -151,29 +159,47 @@ impl<C: Comments> ReactServerComponents<'_, C> {
         prepend_stmts(
             &mut module.body,
             vec![
-                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                    kind: VarDeclKind::Const,
+                    decls: vec![VarDeclarator {
                         span: DUMMY_SP,
-                        local: proxy_ident.clone(),
-                        imported: None,
-                        is_type_only: false,
-                    })],
-                    src: Str {
-                        span: DUMMY_SP,
-                        raw: None,
-                        value: "private-next-rsc-mod-ref-proxy".into(),
-                    },
-                    type_only: Default::default(),
-                    asserts: Default::default(),
-                })),
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                        name: Pat::Object(ObjectPat {
+                            span: DUMMY_SP,
+                            props: vec![ObjectPatProp::Assign(AssignPatProp {
+                                span: DUMMY_SP,
+                                key: proxy_ident.clone(),
+                                value: None,
+                            })],
+                            optional: false,
+                            type_ann: None,
+                        }),
+                        init: Some(Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("require").as_callee(),
+                            args: vec![quote_str!("private-next-rsc-mod-ref-proxy").as_arg()],
+                            type_args: Default::default(),
+                        }))),
+                        definite: false,
+                    }],
+                    declare: false,
+                }))),
+                ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
-                    expr: Box::new(Expr::Call(CallExpr {
+                    expr: Box::new(Expr::Assign(AssignExpr {
                         span: DUMMY_SP,
-                        callee: proxy_ident.clone().as_callee(),
-                        args: vec![filepath.as_arg()],
-                        type_args: None,
+                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                            span: DUMMY_SP,
+                            obj: Box::new(Expr::Ident(quote_ident!("module"))),
+                            prop: MemberProp::Ident(quote_ident!("exports")),
+                        }))),
+                        op: op!("="),
+                        right: Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("createProxy").as_callee(),
+                            args: vec![filepath.as_arg()],
+                            type_args: Default::default(),
+                        })),
                     })),
                 })),
             ]
