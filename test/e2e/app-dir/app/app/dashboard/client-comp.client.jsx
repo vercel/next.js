@@ -1,3 +1,5 @@
+'client'
+
 import styles from './client-comp.module.css'
 
 import { useEffect, useState } from 'react'

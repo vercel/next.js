@@ -1,3 +1,5 @@
+'client'
+
 import { useSearchParams } from 'next/dist/client/components/hooks-client'
 
 export default function Page() {

@@ -1,3 +1,5 @@
+'client'
+
 import type { PropsWithChildren, ReactElement, ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'

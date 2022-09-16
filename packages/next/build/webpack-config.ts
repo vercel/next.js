@@ -11,6 +11,7 @@ import {
   APP_DIR_ALIAS,
   SERVER_RUNTIME,
   WEBPACK_LAYERS,
+  RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -59,7 +60,6 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
-import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 
@@ -873,6 +873,9 @@ export default async function getBaseWebpackConfig(
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
 
+      [RSC_MOD_REF_PROXY_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-client-loader/module-proxy',
+
       ...(isClient || isEdgeServer
         ? {
             [clientResolveRewrites]: hasRewrites
@@ -1016,7 +1019,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|future\/image|constants|dynamic|script)$)|string-hash$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|future\/image|constants|dynamic|script)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1495,13 +1498,13 @@ export default async function getBaseWebpackConfig(
                     loader: 'next-flight-server-loader',
                   },
                 },
-                {
-                  test: clientComponentRegex,
-                  issuerLayer: WEBPACK_LAYERS.server,
-                  use: {
-                    loader: 'next-flight-client-loader',
-                  },
-                },
+                // {
+                //   test: clientComponentRegex,
+                //   issuerLayer: WEBPACK_LAYERS.server,
+                //   use: {
+                //     loader: 'next-flight-client-loader',
+                //   },
+                // },
                 // _app should be treated as a client component as well as all its dependencies.
                 {
                   test: new RegExp(`_app\\.(${rawPageExtensions.join('|')})$`),
@@ -1544,6 +1547,21 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: getBabelOrSwcLoader(),
             },
+            ...(hasServerComponents
+              ? [
+                  {
+                    test: codeCondition.test,
+                    issuerLayer: WEBPACK_LAYERS.server,
+                    use: {
+                      ...defaultLoaders.babel,
+                      options: {
+                        ...defaultLoaders.babel.options,
+                        isServerLayer: true,
+                      },
+                    },
+                  },
+                ]
+              : []),
             {
               ...codeCondition,
               use:

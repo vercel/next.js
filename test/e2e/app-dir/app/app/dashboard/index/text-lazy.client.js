@@ -1,3 +1,5 @@
+'client'
+
 import styles from './lazy.module.css'
 
 export default function LazyComponent() {

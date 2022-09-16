@@ -1,3 +1,5 @@
+'client'
+
 export default function ErrorBoundary({ error, reset }) {
   return (
     <>

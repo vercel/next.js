@@ -108,8 +108,15 @@ module.exports = function (task) {
         ...swcOptions,
       }
 
-      const output = yield transform(file.data.toString('utf-8'), options)
+      const source = file.data.toString('utf-8')
+      const output = yield transform(source, options)
       const ext = path.extname(file.base)
+
+      // Make sure the output content keeps the `"client"` directive.
+      // TODO: Remove this once SWC fixes the issue.
+      if (source.startsWith("'client'")) {
+        output.code = '"client";\n' + output.code
+      }
 
       // Replace `.ts|.tsx` with `.js` in files with an extension
       if (ext) {

@@ -38,6 +38,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   const {
     isServer,
+    isServerLayer,
     pagesDir,
     hasReactRefresh,
     nextConfig,
@@ -50,7 +51,8 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
     filename,
-    isServer: isServer,
+    isServer,
+    isServerLayer,
     isPageFile,
     development: this.mode === 'development',
     hasReactRefresh,
