@@ -1,13 +1,18 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks::primitives::{BoolVc, StringVc};
+use turbo_tasks::{
+    debug::ValueDebug,
+    primitives::{BoolVc, StringVc},
+};
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::ecmascript::{
-    chunk::EcmascriptChunkPlaceableVc,
-    resolve::{apply_cjs_specific_options, cjs_resolve},
+use turbopack::{
+    ecmascript::{
+        chunk::EcmascriptChunkPlaceableVc,
+        resolve::{apply_cjs_specific_options, cjs_resolve},
+    },
+    resolve_options_context::ResolveOptionsContextVc,
 };
 use turbopack_core::{
     context::AssetContextVc,
-    environment::EnvironmentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     resolve::{parse::RequestVc, ResolveResult},
 };
@@ -25,20 +30,22 @@ pub fn react_refresh_request() -> RequestVc {
 #[turbo_tasks::function]
 pub async fn assert_can_resolve_react_refresh(
     path: FileSystemPathVc,
-    environment: EnvironmentVc,
+    resolve_options_context: ResolveOptionsContextVc,
 ) -> Result<BoolVc> {
-    let resolve_options = apply_cjs_specific_options(turbopack::resolve_options(path, environment));
+    let resolve_options =
+        apply_cjs_specific_options(turbopack::resolve_options(path, resolve_options_context));
     let result = turbopack_core::resolve::resolve(path, react_refresh_request(), resolve_options);
 
     Ok(match &*result.await? {
-        ResolveResult::Single(_, _) => BoolVc::cell(true),
+        ResolveResult::Single(_, _) | ResolveResult::Alternatives(_, _) => BoolVc::cell(true),
         _ => {
             ReactRefreshResolvingIssue {
                 path,
-                description: StringVc::cell(
-                    "could not resolve the `@next/react-refresh-utils/dist/runtime` module"
-                        .to_string(),
-                ),
+                description: StringVc::cell(format!(
+                    "could not resolve the `@next/react-refresh-utils/dist/runtime` \
+                     module\nresolve options: {:?}",
+                    resolve_options.dbg().await?
+                )),
             }
             .cell()
             .as_issue()
@@ -54,6 +61,15 @@ pub async fn resolve_react_refresh(context: AssetContextVc) -> Result<Ecmascript
     match &*cjs_resolve(react_refresh_request(), context).await? {
         ResolveResult::Single(asset, _) => {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
+                Ok(placeable)
+            } else {
+                Err(anyhow!("React Refresh runtime asset is not placeable"))
+            }
+        }
+        ResolveResult::Alternatives(assets, _) if !assets.is_empty() => {
+            if let Some(placeable) =
+                EcmascriptChunkPlaceableVc::resolve_from(assets.iter().next().unwrap()).await?
+            {
                 Ok(placeable)
             } else {
                 Err(anyhow!("React Refresh runtime asset is not placeable"))

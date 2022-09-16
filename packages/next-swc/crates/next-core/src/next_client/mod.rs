@@ -7,6 +7,7 @@ use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack::{
     ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
     module_options::ModuleOptionsContextVc,
+    resolve_options_context::ResolveOptionsContextVc,
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
 };
@@ -45,6 +46,7 @@ pub enum RuntimeReference {
 pub struct NextClientTransition {
     pub client_environment: EnvironmentVc,
     pub client_module_options_context: ModuleOptionsContextVc,
+    pub client_resolve_options_context: ResolveOptionsContextVc,
     pub client_chunking_context: ChunkingContextVc,
     pub server_root: FileSystemPathVc,
     pub runtime_references: Vec<RuntimeReference>,

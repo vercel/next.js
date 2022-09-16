@@ -6,6 +6,7 @@ use turbo_tasks_fs::{FileSystemPathVc, FileSystemVc};
 use turbopack::{
     ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
     module_options::ModuleOptionsContext,
+    resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
@@ -46,7 +47,16 @@ pub async fn create_web_entry_source(
         Value::new(EnvironmentIntention::Client),
     );
 
-    let enable_react_refresh = *assert_can_resolve_react_refresh(root, environment).await?;
+    let resolve_options_context = ResolveOptionsContext {
+        enable_typescript: true,
+        enable_react: true,
+        enable_node_modules: true,
+        custom_conditions: vec!["development".to_string()],
+        ..Default::default()
+    }
+    .cell();
+    let enable_react_refresh =
+        *assert_can_resolve_react_refresh(root, resolve_options_context).await?;
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
@@ -58,8 +68,11 @@ pub async fn create_web_entry_source(
             // the modules.
             enable_react_refresh,
             enable_styled_jsx: true,
+            enable_typescript_transform: true,
+            ..Default::default()
         }
-        .into(),
+        .cell(),
+        resolve_options_context,
     )
     .into();
 

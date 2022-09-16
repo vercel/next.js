@@ -4,7 +4,8 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack::{
-    module_options::ModuleOptionsContext, transition::TransitionsByNameVc, ModuleAssetContextVc,
+    module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
+    transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
 use turbopack_core::{
     chunk::dev::DevChunkingContext,
@@ -69,8 +70,16 @@ pub async fn create_server_rendered_source(
         )),
         Value::new(EnvironmentIntention::Client),
     );
+    let client_resolve_options_context = ResolveOptionsContext {
+        enable_typescript: true,
+        enable_react: true,
+        enable_node_modules: true,
+        custom_conditions: vec!["development".to_string()],
+        ..Default::default()
+    }
+    .cell();
     let enable_react_refresh =
-        *assert_can_resolve_react_refresh(root_path, client_environment).await?;
+        *assert_can_resolve_react_refresh(root_path, client_resolve_options_context).await?;
     let runtime_references = if enable_react_refresh {
         vec![
             RuntimeReference::Request(react_refresh_request(), root_path),
@@ -88,11 +97,14 @@ pub async fn create_server_rendered_source(
     let client_module_options_context = ModuleOptionsContext {
         enable_react_refresh,
         enable_styled_jsx: true,
+        enable_typescript_transform: true,
+        ..Default::default()
     }
     .cell();
     let next_client_transition = NextClientTransition {
         client_chunking_context,
         client_module_options_context,
+        client_resolve_options_context,
         client_environment,
         server_root: target_root,
         runtime_references,
@@ -110,13 +122,22 @@ pub async fn create_server_rendered_source(
                 NodeJsEnvironment {
                     compile_target: CompileTargetVc::current(),
                     node_version: 0,
-                    typescript_enabled: false,
                 }
                 .into(),
             )),
             Value::new(EnvironmentIntention::Client),
         ),
         ModuleOptionsContext {
+            enable_typescript_transform: true,
+            ..Default::default()
+        }
+        .cell(),
+        ResolveOptionsContext {
+            enable_typescript: true,
+            enable_react: true,
+            enable_node_modules: true,
+            enable_node_native_modules: true,
+            custom_conditions: vec!["development".to_string()],
             ..Default::default()
         }
         .cell(),
