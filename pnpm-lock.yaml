@@ -548,7 +548,7 @@ importers:
       raw-body: 2.4.1
       react-is: 17.0.2
       react-refresh: 0.12.0
-      react-server-dom-webpack: 0.0.0-experimental-7028ce745-20220907
+      react-server-dom-webpack: 0.0.0-experimental-975b64464-20220914
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0
       schema-utils2: npm:schema-utils@2.7.1
@@ -737,7 +737,7 @@ importers:
       raw-body: 2.4.1
       react-is: 17.0.2
       react-refresh: 0.12.0
-      react-server-dom-webpack: 0.0.0-experimental-7028ce745-20220907_webpack@5.74.0
+      react-server-dom-webpack: 0.0.0-experimental-975b64464-20220914_webpack@5.74.0
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0_webpack@5.74.0
       schema-utils2: /schema-utils/2.7.1
@@ -24444,14 +24444,14 @@ packages:
     engines: { node: '>=0.10.0' }
     dev: true
 
-  /react-server-dom-webpack/0.0.0-experimental-7028ce745-20220907_webpack@5.74.0:
+  /react-server-dom-webpack/0.0.0-experimental-975b64464-20220914_webpack@5.74.0:
     resolution:
       {
-        integrity: sha512-DqVpIa9DdgQNre2urGq5brXRrgtd6jqCUO4Ax5yBAHvmWW5L2XkU3jI+YCMMZdxVwcP+NIJoB9mkIsFyIo8NAQ==,
+        integrity: sha512-RU8yWstn6EpbprfOEnpCpp4fzSTgRLIjvWjJYZq2AiVrXXaAl54stVC1LlZ5Ox4hNXBc6K/FAuQqF4nopXx5Aw==,
       }
     engines: { node: '>=0.10.0' }
     peerDependencies:
-      react: 0.0.0-experimental-7028ce745-20220907
+      react: 0.0.0-experimental-975b64464-20220914
       webpack: ^5.59.0
     dependencies:
       acorn: 6.4.2
