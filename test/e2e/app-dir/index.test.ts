@@ -772,7 +772,7 @@ describe('app dir', () => {
             expect(notNull.length).toBe(0)
 
             const wasNull = await browser.elementsByCss('.was-null')
-            expect(wasNull.length).toBe(6)
+            expect(wasNull.length).toBe(2)
           } finally {
             await browser.close()
           }
@@ -1063,7 +1063,7 @@ describe('app dir', () => {
       if (isDev) {
         it.skip('should throw an error when getServerSideProps is used', async () => {
           const pageFile =
-            'app/client-with-errors/get-server-side-props/page.client.js'
+            'app/client-with-errors/get-server-side-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
             '// export function getServerSideProps',
@@ -1090,9 +1090,8 @@ describe('app dir', () => {
           )
         })
 
-        it.skip('should throw an error when getStaticProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-static-props/page.client.js'
+        it('should throw an error when getStaticProps is used', async () => {
+          const pageFile = 'app/client-with-errors/get-static-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
             '// export function getStaticProps',
