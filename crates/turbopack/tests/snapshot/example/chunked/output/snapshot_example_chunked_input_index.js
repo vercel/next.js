@@ -319,17 +319,20 @@ __TURBOPACK__imported__module__$5b$project$5d2f$snapshot$2f$example$2f$chunked$2
     return `Dependency chain: ${dependencyChain.join(' -> ')}`
   }
 
+  function _eval(factory) {
+    const code = `${factory.code}\n\n//# sourceMappingURL=${factory.map}`
+    return eval(code)
+  }
+
   function computeOutdatedModules(update) {
     const outdatedModules = new Set()
     const newModuleFactories = new Map()
 
-    for (const [moduleId, moduleFactoryStr] of Object.entries(update.added)) {
-      newModuleFactories.set(moduleId, eval(moduleFactoryStr))
+    for (const [moduleId, factory] of Object.entries(update.added)) {
+      newModuleFactories.set(moduleId, _eval(factory))
     }
 
-    for (const [moduleId, moduleFactoryStr] of Object.entries(
-      update.modified,
-    )) {
+    for (const [moduleId, factory] of Object.entries(update.modified)) {
       const effect = getAffectedModuleEffects(moduleId)
 
       switch (effect.type) {
@@ -346,7 +349,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$snapshot$2f$example$2f$chunked$2
             )}.`,
           )
         case 'accepted':
-          newModuleFactories.set(moduleId, eval(moduleFactoryStr))
+          newModuleFactories.set(moduleId, _eval(factory))
           for (const outdatedModuleId of effect.outdatedModules) {
             outdatedModules.add(outdatedModuleId)
           }
@@ -722,4 +725,4 @@ __TURBOPACK__imported__module__$5b$project$5d2f$snapshot$2f$example$2f$chunked$2
 })()
 
 
-//# sourceMappingURL=snapshot_example_chunked_input_index.js.map
+//# sourceMappingURL=snapshot_example_chunked_input_index.js.e8f46483d93439b6.map

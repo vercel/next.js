@@ -1,4 +1,7 @@
-use std::{fmt::Write as _, ops};
+use std::{
+    fmt::{Result as FmtResult, Write},
+    ops,
+};
 
 use anyhow::Result;
 use turbo_tasks::primitives::StringVc;
@@ -38,8 +41,8 @@ impl Code {
 
     /// Setting breakpoints on synthetic code can cause weird behaviors
     /// because Chrome will treat the location as belonging to the previous
-    /// original code section. By inserting an empty source map when reaching an
-    /// synethic section directly after an original section, we tell Chrome
+    /// original code section. By inserting an empty source map when reaching a
+    /// synthetic section directly after an original section, we tell Chrome
     /// that the previous map ended at this point.
     fn push_map(&mut self, map: Option<EncodedSourceMapVc>) {
         if map.is_none() && matches!(self.mappings.last(), None | Some((_, None))) {
@@ -53,7 +56,7 @@ impl Code {
     /// Pushes synthetic runtime code without an associated source map. This is
     /// the default concatenation operation, but it's designed to be used
     /// with the `+=` operator.
-    pub fn push_str(&mut self, code: &str) {
+    fn push_str(&mut self, code: &str) {
         self.push_source(code, None);
     }
 
@@ -69,7 +72,7 @@ impl Code {
     /// into this instance.
     pub fn push_code(&mut self, prebuilt: &Code) {
         if let Some((index, map)) = prebuilt.mappings.first() {
-            debug_assert!(matches!(map, Some(_)), "the first mapping is never a None");
+            debug_assert!(map.is_some(), "the first mapping is never a None");
 
             if *index > 0 {
                 // If the index is positive, then the code starts with a synthetic section. We
@@ -104,14 +107,8 @@ impl ops::AddAssign<&str> for Code {
     }
 }
 
-impl ops::AddAssign<String> for Code {
-    fn add_assign(&mut self, rhs: String) {
-        self.push_str(&rhs);
-    }
-}
-
-impl std::fmt::Write for Code {
-    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+impl Write for Code {
+    fn write_str(&mut self, s: &str) -> FmtResult {
         self.push_str(s);
         Ok(())
     }

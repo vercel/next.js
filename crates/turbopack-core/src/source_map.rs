@@ -15,21 +15,30 @@ pub struct SourceMapAsset {
     /// File path of the associated file (not the map's path, the file's path).
     path: FileSystemPathVc,
 
+    /// A version fingerprint so that the associated file can point to a unique
+    /// source map.
+    version: StringVc,
+
     /// The code from which we can generate a source map.
     code: CodeVc,
 }
 
 impl SourceMapAssetVc {
-    pub fn new(path: FileSystemPathVc, code: CodeVc) -> Self {
-        SourceMapAsset { path, code }.cell()
+    pub fn new(path: FileSystemPathVc, version: StringVc, code: CodeVc) -> Self {
+        SourceMapAsset {
+            path,
+            version,
+            code,
+        }
+        .cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.path.append(".map")
+    async fn path(&self) -> Result<FileSystemPathVc> {
+        Ok(self.path.append(&format!(".{}.map", self.version.await?)))
     }
 
     #[turbo_tasks::function]
@@ -44,8 +53,8 @@ impl Asset for SourceMapAsset {
     }
 }
 
-/// A reference to a SourceMapAsset, used to inform the dev server/build system
-/// of the presense of t the source map
+/// A reference to a [`SourceMapAsset`], used to inform the dev server/build
+/// system of the presence of the source map
 #[turbo_tasks::value]
 pub struct SourceMapAssetReference {
     asset: SourceMapAssetVc,

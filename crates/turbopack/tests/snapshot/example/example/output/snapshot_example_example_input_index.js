@@ -316,17 +316,20 @@ console.log('hello world');
     return `Dependency chain: ${dependencyChain.join(' -> ')}`
   }
 
+  function _eval(factory) {
+    const code = `${factory.code}\n\n//# sourceMappingURL=${factory.map}`
+    return eval(code)
+  }
+
   function computeOutdatedModules(update) {
     const outdatedModules = new Set()
     const newModuleFactories = new Map()
 
-    for (const [moduleId, moduleFactoryStr] of Object.entries(update.added)) {
-      newModuleFactories.set(moduleId, eval(moduleFactoryStr))
+    for (const [moduleId, factory] of Object.entries(update.added)) {
+      newModuleFactories.set(moduleId, _eval(factory))
     }
 
-    for (const [moduleId, moduleFactoryStr] of Object.entries(
-      update.modified,
-    )) {
+    for (const [moduleId, factory] of Object.entries(update.modified)) {
       const effect = getAffectedModuleEffects(moduleId)
 
       switch (effect.type) {
@@ -343,7 +346,7 @@ console.log('hello world');
             )}.`,
           )
         case 'accepted':
-          newModuleFactories.set(moduleId, eval(moduleFactoryStr))
+          newModuleFactories.set(moduleId, _eval(factory))
           for (const outdatedModuleId of effect.outdatedModules) {
             outdatedModules.add(outdatedModuleId)
           }
@@ -719,4 +722,4 @@ console.log('hello world');
 })()
 
 
-//# sourceMappingURL=snapshot_example_example_input_index.js.map
+//# sourceMappingURL=snapshot_example_example_input_index.js.7495f882928b8db2.map

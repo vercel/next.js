@@ -312,8 +312,8 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<CodeVc>
 
 #[derive(Serialize)]
 struct EcmascriptChunkUpdate<'a> {
-    added: HashMap<&'a ModuleId, &'a str>,
-    modified: HashMap<&'a ModuleId, &'a str>,
+    added: HashMap<&'a ModuleId, HmrUpdateEntry<'a>>,
+    modified: HashMap<&'a ModuleId, HmrUpdateEntry<'a>>,
     deleted: HashSet<&'a ModuleId>,
 }
 
@@ -398,7 +398,12 @@ impl EcmascriptChunkContentVc {
 
         if code.has_source_map() {
             let filename = chunk_path.file_name().unwrap();
-            write!(code, "\n\n//# sourceMappingURL={}.map", filename)?;
+            let version = self.version().as_version().id().await?;
+            write!(
+                code,
+                "\n\n//# sourceMappingURL={}.{}.map",
+                filename, version
+            )?;
         }
 
         Ok(code.cell())
@@ -459,7 +464,17 @@ impl VersionedContent for EcmascriptChunkContent {
             let id = &**id;
             if let Some(entry) = module_factories.remove(id) {
                 if entry.hash != *hash {
-                    modified.insert(id, entry.source_code());
+                    modified.insert(
+                        id,
+                        HmrUpdateEntry {
+                            code: entry.source_code(),
+                            map: format!(
+                                "{}.{}.map",
+                                this.chunk_path.await?.path,
+                                encode_hex(entry.hash)
+                            ),
+                        },
+                    );
                 }
             } else {
                 deleted.insert(id);
@@ -468,7 +483,17 @@ impl VersionedContent for EcmascriptChunkContent {
 
         // Remaining entries are added
         for (id, entry) in module_factories {
-            added.insert(id, entry.source_code());
+            added.insert(
+                id,
+                HmrUpdateEntry {
+                    code: entry.source_code(),
+                    map: format!(
+                        "{}.{}.map",
+                        this.chunk_path.await?.path,
+                        encode_hex(entry.hash)
+                    ),
+                },
+            );
         }
 
         let update = if added.is_empty() && modified.is_empty() && deleted.is_empty() {
@@ -488,6 +513,12 @@ impl VersionedContent for EcmascriptChunkContent {
 
         Ok(update.into())
     }
+}
+
+#[derive(serde::Serialize)]
+struct HmrUpdateEntry<'a> {
+    code: &'a str,
+    map: String,
 }
 
 #[turbo_tasks::value(serialization = "none")]
@@ -659,13 +690,33 @@ impl Asset for EcmascriptChunk {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
         }
 
+        let chunk_content = self_vc.chunk_content();
         references.push(
             SourceMapAssetReferenceVc::new(SourceMapAssetVc::new(
                 self_vc.path(),
-                self_vc.chunk_content().code(),
+                chunk_content.as_versioned_content().version().id(),
+                chunk_content.code(),
             ))
             .into(),
         );
+
+        let chunk_items = content.chunk_items.await?;
+        for item in chunk_items.into_iter() {
+            let content = item.content(chunk_context(this.context), this.context);
+            let code = module_factory(content);
+            if code.await?.has_source_map() {
+                references.push(
+                    SourceMapAssetReferenceVc::new(SourceMapAssetVc::new(
+                        self_vc.path(),
+                        StringVc::cell(encode_hex(hash_xxh3_hash64(
+                            code.source_code().await?.as_bytes(),
+                        ))),
+                        code,
+                    ))
+                    .into(),
+                );
+            }
+        }
         Ok(AssetReferencesVc::cell(references))
     }
 
