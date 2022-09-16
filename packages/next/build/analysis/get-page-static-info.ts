@@ -36,11 +36,10 @@ export interface PageStaticInfo {
 
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleType(swcAST: any): RSCModuleType {
-  const { body } = swcAST
   // TODO-APP: optimize the directive detection
   // Assume there're only "use strict" and "client" directives at top,
   // so pick the 2 nodes
-  const nodes = body //.slice(0, 2)
+  const nodes = swcAST?.body || []
 
   let rscType: RSCModuleType = 'server'
   for (const node of nodes) {

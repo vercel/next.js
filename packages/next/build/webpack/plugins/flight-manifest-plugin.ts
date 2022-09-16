@@ -209,7 +209,7 @@ export class FlightManifestPlugin {
           return
         }
 
-        if (/\/(page|layout)\.(ts|js)x?$/.test(resource)) {
+        if (/[\\/](page|layout)\.(ts|js)x?$/.test(resource)) {
           entryFilepath = resource
         }
 
