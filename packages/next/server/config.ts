@@ -23,7 +23,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
-import semver from 'semver'
+import { gte as semverGte } from 'next/dist/compiled/semver'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
