@@ -94,12 +94,12 @@ function createLoadableComponent(loadFn, options) {
   }
 
   // Server only
-  if (typeof window === 'undefined') {
+  if (!process.env.browser) {
     ALL_INITIALIZERS.push(init)
   }
 
   // Client only
-  if (!initialized && typeof window !== 'undefined') {
+  if (!initialized && process.env.browser) {
     // require.resolveWeak check is needed for environments that don't have it available like Jest
     const moduleIds =
       opts.webpack && typeof require.resolveWeak === 'function'
@@ -296,7 +296,7 @@ Loadable.preloadReady = (ids = []) => {
   })
 }
 
-if (typeof window !== 'undefined') {
+if (process.env.browser) {
   window.__NEXT_PRELOADREADY = Loadable.preloadReady
 }
 

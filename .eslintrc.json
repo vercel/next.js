@@ -1,7 +1,13 @@
 {
   "root": true,
   "parser": "@babel/eslint-parser",
-  "plugins": ["react", "react-hooks", "jest", "import"],
+  "plugins": [
+    "react",
+    "react-hooks",
+    "jest",
+    "import",
+    "@next/eslint-plugin-private-next"
+  ],
   "env": {
     "browser": true,
     "commonjs": true,
@@ -181,6 +187,12 @@
           }
         ],
         "eslint-plugin/require-meta-docs-url": "error"
+      }
+    },
+    {
+      "files": ["packages/next/**/*.js", "packages/next/**/*.ts"],
+      "rules": {
+        "@next/private-next/no-typeof-window": "error"
       }
     }
   ],

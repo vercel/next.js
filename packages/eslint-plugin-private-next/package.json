@@ -1,0 +1,22 @@
+{
+  "name": "@next/eslint-plugin-private-next",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private ESLint plugin for the Next.js repo.",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/eslint-plugin-private-next"
+  },
+  "devDependencies": {
+    "eslint": "7.24.0"
+  },
+  "peerDependencies": {
+    "eslint": ">=0.8.0"
+  },
+  "files": [
+    "index.js",
+    "rules"
+  ]
+}

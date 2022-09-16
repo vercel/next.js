@@ -592,7 +592,7 @@ type HistoryMethod = 'replaceState' | 'pushState'
 
 const manualScrollRestoration =
   process.env.__NEXT_SCROLL_RESTORATION &&
-  typeof window !== 'undefined' &&
+  process.env.browser &&
   'scrollRestoration' in window.history &&
   !!(function () {
     try {
@@ -972,7 +972,7 @@ export default class Router implements BaseRouter {
 
     this._initialMatchesMiddlewarePromise = Promise.resolve(false)
 
-    if (typeof window !== 'undefined') {
+    if (process.env.browser) {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
       if (!as.startsWith('//')) {
@@ -2176,7 +2176,7 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    if (typeof window !== 'undefined' && isBot(window.navigator.userAgent)) {
+    if (process.env.browser && isBot(window.navigator.userAgent)) {
       // No prefetches for bots that render the link since they are typically navigating
       // links via the equivalent of a hard navigation and hence never utilize these
       // prefetches.

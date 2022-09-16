@@ -1,4 +1,3 @@
-/* global window */
 import React from 'react'
 import Router from '../shared/lib/router/router'
 import type { NextRouter } from '../shared/lib/router/router'
@@ -22,7 +21,7 @@ const singletonRouter: SingletonRouterBase = {
   readyCallbacks: [],
   ready(cb: () => void) {
     if (this.router) return cb()
-    if (typeof window !== 'undefined') {
+    if (process.env.browser) {
       this.readyCallbacks.push(cb)
     }
   },

@@ -21,13 +21,13 @@ export function parseRelativeUrl(
   base?: string
 ): ParsedRelativeUrl {
   const globalBase = new URL(
-    typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
+    !process.env.browser ? 'http://n' : getLocationOrigin()
   )
 
   const resolvedBase = base
     ? new URL(base, globalBase)
     : url.startsWith('.')
-    ? new URL(typeof window === 'undefined' ? 'http://n' : window.location.href)
+    ? new URL(!process.env.browser ? 'http://n' : window.location.href)
     : globalBase
 
   const { pathname, searchParams, search, hash, href, origin } = new URL(
