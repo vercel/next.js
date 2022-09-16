@@ -18,7 +18,7 @@
 
 ## Examples
 
-- To contribute to [our examples](./examples), please see [Adding examples](./contributing/examples/adding-examples.md).
+To contribute to [our examples](./examples), please see
 
 - [Adding Examples](./contributing/examples/adding-examples.md)
 - [Run Example Apps](./contributing/examples/run-example-apps.md)
