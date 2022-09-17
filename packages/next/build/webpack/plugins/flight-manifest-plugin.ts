@@ -236,6 +236,17 @@ export class FlightManifestPlugin {
           ]),
         ]
 
+        function getAppPathRequiredChunks() {
+          return chunkGroup.chunks.map((requiredChunk: webpack.Chunk) => {
+            return (
+              requiredChunk.id +
+              ':' +
+              (requiredChunk.name || requiredChunk.id) +
+              (dev ? '' : '-' + requiredChunk.hash)
+            )
+          })
+        }
+
         const moduleExportedKeys = ['', '*']
           .concat(
             [...exportsInfo.exports]
@@ -248,32 +259,22 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           let requiredChunks: ManifestChunks = []
           if (!moduleExports[name]) {
-            const isRelatedChunk = (c: webpack.Chunk) => {
-              // If current chunk is a page, it should require the related page chunk;
-              // If current chunk is a component, it should filter out the related page chunk;
-              return (
-                chunk.name?.startsWith('pages/') ||
-                !c.name?.startsWith('pages/')
-              )
-            }
-
             if (appDir) {
-              requiredChunks = chunkGroup.chunks
-                .filter(isRelatedChunk)
-                .map((requiredChunk: webpack.Chunk) => {
-                  return (
-                    requiredChunk.id +
-                    ':' +
-                    (requiredChunk.name || requiredChunk.id) +
-                    (dev ? '' : '-' + requiredChunk.hash)
-                  )
-                })
+              requiredChunks = getAppPathRequiredChunks()
             }
 
             moduleExports[name] = {
               id,
               name,
               chunks: requiredChunks,
+            }
+          } else {
+            if (appDir) {
+              // If there's existing map
+              requiredChunks = getAppPathRequiredChunks()
+              moduleExports[name].chunks = [
+                ...new Set(moduleExports[name].chunks.concat(requiredChunks)),
+              ]
             }
           }
 
