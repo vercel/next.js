@@ -5,6 +5,7 @@ import {
   getRSCModuleType,
 } from '../../../analysis/get-page-static-info'
 import { parse } from '../../../swc'
+import { getModuleBuildInfo } from '../get-module-build-info'
 
 function transformClient(resourcePath: string): string {
   const output = `
@@ -44,7 +45,7 @@ export default async function transformSource(
 
   const { resourcePath } = this
   const callback = this.async()
-  const buildInfo = (this as any)._module.buildInfo
+  const buildInfo = getModuleBuildInfo(this._module)
   const swcAST = await parse(source, {
     filename: resourcePath,
     isModule: 'unknown',

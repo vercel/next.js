@@ -1090,7 +1090,7 @@ describe('app dir', () => {
           )
         })
 
-        it('should throw an error when getStaticProps is used', async () => {
+        it.skip('should throw an error when getStaticProps is used', async () => {
           const pageFile = 'app/client-with-errors/get-static-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
