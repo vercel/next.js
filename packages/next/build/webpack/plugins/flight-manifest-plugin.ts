@@ -256,7 +256,7 @@ export class FlightManifestPlugin {
 
         moduleExportedKeys.forEach((name) => {
           let requiredChunks: ManifestChunks = []
-          if (!moduleExports[name]) {
+          if (!moduleExports[name] || chunkGroup.name?.startsWith('app/')) {
             if (appDir) {
               requiredChunks = getAppPathRequiredChunks()
             }
@@ -266,22 +266,12 @@ export class FlightManifestPlugin {
               name,
               chunks: requiredChunks,
             }
-          } else {
-            if (appDir) {
-              // If there's existing map
-              requiredChunks = getAppPathRequiredChunks()
-              moduleExports[name].chunks = [
-                ...new Set(moduleExports[name].chunks.concat(requiredChunks)),
-              ]
-            }
           }
 
           moduleIdMapping[id] = moduleIdMapping[id] || {}
-          if (!moduleIdMapping[id][name]) {
-            moduleIdMapping[id][name] = {
-              ...moduleExports[name],
-              id: ssrNamedModuleId,
-            }
+          moduleIdMapping[id][name] = {
+            ...moduleExports[name],
+            id: ssrNamedModuleId,
           }
         })
 
