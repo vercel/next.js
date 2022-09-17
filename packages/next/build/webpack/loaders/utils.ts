@@ -1,18 +1,19 @@
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
 const nextClientComponents = [
-  'link',
-  'image',
-  'future/image',
-  'script',
-  'dynamic',
-  'head',
+  'dist/client/link',
+  'dist/client/image',
+  'dist/client/future/image',
+  'dist/shared/lib/head',
+  'dist/client/script',
+  'dist/shared/lib/dynamic',
 ]
+
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
 const NEXT_API_CLIENT_RSC_REGEX = new RegExp(
-  `next[\\\\/]dist[\\\\/]client[\\\\/](${nextClientComponents.join('|')})\\.js$`
+  `next[\\\\/](${nextClientComponents.join('|')})(\\.js)?`
 )
 
 // Cover resource paths like `next/dist/client/*`
