@@ -14,7 +14,11 @@ export function useTrackStaticGeneration() {
 }
 
 function useStaticGenerationBailout(reason: string) {
-  if (useTrackStaticGeneration().isStaticGeneration) {
+  const staticGenerationContext = useTrackStaticGeneration()
+
+  if (staticGenerationContext.isStaticGeneration) {
+    // TODO: honor the dynamic: 'force-static'
+    staticGenerationContext.revalidate = 0
     throw new DynamicServerError(reason)
   }
 }

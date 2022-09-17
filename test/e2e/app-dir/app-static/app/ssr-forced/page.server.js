@@ -6,7 +6,7 @@ export default function Page() {
   return (
     <>
       <p id="page">/ssr-forced</p>
-      <p id="now">{Date.now()}</p>
+      <p id="date">{Date.now()}</p>
     </>
   )
 }

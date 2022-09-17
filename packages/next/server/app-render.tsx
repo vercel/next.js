@@ -654,7 +654,7 @@ export async function renderToHTMLOrFlight(
     return segmentTree
   }
 
-  let defaultRevalidate: false | undefined | number = undefined
+  let defaultRevalidate: false | undefined | number = false
 
   /**
    * Use the provided loader tree to create the React Component tree.
@@ -1174,7 +1174,9 @@ export async function renderToHTMLOrFlight(
       serverComponentsRenderOpts.rscChunks
     ).toString()
     ;(renderOpts as any).revalidate =
-      defaultRevalidate || staticGenerationContext.revalidate
+      typeof staticGenerationContext.revalidate === 'undefined'
+        ? defaultRevalidate
+        : staticGenerationContext.revalidate
 
     return new RenderResult(staticHtml)
   }

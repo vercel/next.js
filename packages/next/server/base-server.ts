@@ -913,9 +913,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
   }
 
-  protected async getStaticPaths(pathname: string): Promise<{
-    staticPaths: string[] | undefined
-    fallbackMode: 'static' | 'blocking' | false
+  protected async getStaticPaths({
+    pathname,
+  }: {
+    pathname: string
+    originalAppPath?: string
+  }): Promise<{
+    staticPaths?: string[]
+    fallbackMode?: 'static' | 'blocking' | false
   }> {
     // `staticPaths` is intentionally set to `undefined` as it should've
     // been caught when checking disk data.
@@ -932,7 +937,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? 'static'
           : fallbackField === null
           ? 'blocking'
-          : false,
+          : fallbackField,
     }
   }
 
@@ -980,14 +985,25 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let resolvedUrlPathname =
       getRequestMeta(req, '_nextRewroteUrl') || urlPathname
 
-    if (isAppPath && !this.renderOpts.dev) {
-      const manifest = this.getPrerenderManifest()
+    let staticPaths: string[] | undefined
+    let fallbackMode: false | undefined | 'blocking' | 'static'
 
-      if (manifest.routes[resolvedUrlPathname]) {
-        isSSG = true
-      }
-      if (manifest.dynamicRoutes[pathname]) {
+    if (isAppPath) {
+      const pathsResult = await this.getStaticPaths({
+        pathname,
+        originalAppPath: components.pathname,
+      })
+
+      staticPaths = pathsResult.staticPaths
+      fallbackMode = pathsResult.fallbackMode
+
+      const hasFallback = typeof fallbackMode !== 'undefined'
+
+      if (hasFallback) {
         hasStaticPaths = true
+      }
+
+      if (hasFallback || staticPaths?.includes(resolvedUrlPathname)) {
         isSSG = true
       }
     }
@@ -1306,9 +1322,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
 
-        let { staticPaths, fallbackMode } = hasStaticPaths
-          ? await this.getStaticPaths(pathname)
-          : { staticPaths: undefined, fallbackMode: false }
+        if (!staticPaths) {
+          ;({ staticPaths, fallbackMode } = hasStaticPaths
+            ? await this.getStaticPaths({ pathname })
+            : { staticPaths: undefined, fallbackMode: false })
+        }
 
         if (
           fallbackMode === 'static' &&

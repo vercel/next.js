@@ -1044,7 +1044,7 @@ type GenerateParams = Array<{
   isLayout?: boolean
 }>
 
-const collectGenerateParams = (
+export const collectGenerateParams = (
   segment: any,
   parentSegments: string[] = [],
   generateParams: GenerateParams = []
@@ -1136,16 +1136,16 @@ export async function buildAppStaticPaths({
     }
     const builtParams = await buildParams()
     const fallback = !generateParams.some(
-      // TODO: check complementary configs that can impact dynamicParams
-      // behavior
+      // TODO: check complementary configs that can impact
+      // dynamicParams behavior
       (generate) => generate.config?.dynamicParams === false
     )
 
     if (!hadGenerateParams) {
       return {
-        paths: [],
-        fallback: true,
-        encodedPaths: [],
+        paths: undefined,
+        fallback: undefined,
+        encodedPaths: undefined,
       }
     }
 

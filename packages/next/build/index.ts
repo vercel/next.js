@@ -2135,30 +2135,7 @@ export default async function build(
           for (const [originalAppPath, routes] of appStaticPaths) {
             const page = appNormalizedPaths.get(originalAppPath) || ''
             const appConfig = appDefaultConfigs.get(originalAppPath) || {}
-
-            if (
-              appConfig.revalidate !== 0 &&
-              isDynamicRoute(originalAppPath) &&
-              appDynamicParamPaths.has(originalAppPath)
-            ) {
-              const normalizedRoute = normalizePagePath(page)
-              const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
-
-              // TODO: create a separate manifest to allow enforcing
-              // dynamicParams for non-static paths?
-              finalDynamicRoutes[page] = {
-                routeRegex: normalizeRouteRegex(
-                  getNamedRouteRegex(page).re.source
-                ),
-                dataRoute,
-                fallback: null,
-                dataRouteRegex: normalizeRouteRegex(
-                  getNamedRouteRegex(
-                    dataRoute.replace(/\.rsc$/, '')
-                  ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
-                ),
-              }
-            }
+            let hasDynamicData = appConfig.revalidate === 0
 
             routes.forEach((route) => {
               let revalidate = exportConfig.initialPageRevalidationMap[route]
@@ -2177,8 +2154,34 @@ export default async function build(
                   srcRoute: page,
                   dataRoute,
                 }
+              } else {
+                hasDynamicData = true
               }
             })
+
+            if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
+              const normalizedRoute = normalizePagePath(page)
+              const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+
+              // TODO: create a separate manifest to allow enforcing
+              // dynamicParams for non-static paths?
+              finalDynamicRoutes[page] = {
+                routeRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(page).re.source
+                ),
+                dataRoute,
+                // if dynamicParams are enabled treat as fallback:
+                // 'blocking' if not it's fallback: false
+                fallback: appDynamicParamPaths.has(originalAppPath)
+                  ? null
+                  : false,
+                dataRouteRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(
+                    dataRoute.replace(/\.rsc$/, '')
+                  ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                ),
+              }
+            }
           }
 
           const moveExportedPage = async (

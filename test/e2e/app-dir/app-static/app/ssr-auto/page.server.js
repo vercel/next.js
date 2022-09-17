@@ -12,7 +12,7 @@ export default function Page() {
 
   return (
     <>
-      <p id="page">/ssr-forced</p>
+      <p id="page">/ssr-auto</p>
       <div id="example-dat">{data}</div>
       <p id="date">{Date.now()}</p>
     </>
