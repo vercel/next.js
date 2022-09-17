@@ -164,7 +164,10 @@ export function InnerLayoutRouter({
       focusAndScrollElementRef.current.focus()
       // Only scroll into viewport when the layout is not visible currently.
       if (!topOfElementInViewport(focusAndScrollElementRef.current)) {
+        const htmlElement = document.querySelector('html')
+        if (htmlElement) htmlElement.style.scrollBehavior = 'auto'
         focusAndScrollElementRef.current.scrollIntoView()
+        if (htmlElement) htmlElement.style.scrollBehavior = ''
       }
     }
   }, [focusAndScrollRef])
