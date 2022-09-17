@@ -34,27 +34,12 @@ export interface PageStaticInfo {
   middleware?: Partial<MiddlewareConfig>
 }
 
+const CLIENT_MODULE_LABEL = `/* __next_internal_client_entry_do_not_use__ */`
 export type RSCModuleType = 'server' | 'client'
-export function getRSCModuleType(swcAST: any): RSCModuleType {
-  // TODO-APP: optimize the directive detection
-  // Assume there're only "use strict" and "client" directives at top,
-  // so pick the 2 nodes
-  const nodes = swcAST?.body || []
-
-  let rscType: RSCModuleType = 'server'
-  for (const node of nodes) {
-    if (
-      node.type === 'ExpressionStatement' &&
-      node.expression.type === 'StringLiteral'
-    ) {
-      if (node.expression.value === RSC_MODULE_TYPES.client) {
-        // Detect client entry
-        rscType = 'client'
-        break
-      }
-    }
-  }
-  return rscType
+export function getRSCModuleType(source: string): RSCModuleType {
+  return source.includes(CLIENT_MODULE_LABEL)
+    ? RSC_MODULE_TYPES.client
+    : RSC_MODULE_TYPES.server
 }
 
 /**
@@ -277,7 +262,7 @@ export async function getPageStaticInfo(params: {
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
-    const rsc = getRSCModuleType(swcAST)
+    const rsc = getRSCModuleType(fileContent)
 
     // default / failsafe value for config
     let config: any = {}

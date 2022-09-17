@@ -45,14 +45,12 @@ export default async function transformSource(
   const { resourcePath } = this
   const callback = this.async()
   const buildInfo = (this as any)._module.buildInfo
-
   const swcAST = await parse(source, {
     filename: resourcePath,
     isModule: 'unknown',
   })
 
-  const rscType = getRSCModuleType(swcAST)
-
+  const rscType = getRSCModuleType(source)
   const isModule = swcAST.type === 'Module'
   const createError = (name: string) =>
     new Error(

@@ -2,7 +2,7 @@
 
 import { useState, lazy } from 'react'
 
-const Lazy = lazy(() => import('../text-lazy.client.js'))
+const Lazy = lazy(() => import('../text-lazy-client.js'))
 
 export function LazyClientComponent() {
   let [state] = useState('client')
