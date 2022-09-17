@@ -1,6 +1,13 @@
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
-const nextClientComponents = ['link', 'image', 'future/image']
+const nextClientComponents = [
+  'link',
+  'image',
+  'future/image',
+  'script',
+  'dynamic',
+  'head',
+]
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 

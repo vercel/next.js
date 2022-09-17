@@ -1231,8 +1231,6 @@ export default async function getBaseWebpackConfig(
             moduleIds: isClient ? 'deterministic' : 'named',
           }
         : {}),
-      moduleIds: 'named',
-      chunkIds: 'named',
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1481,7 +1479,7 @@ export default async function getBaseWebpackConfig(
             ? [
                 // RSC server compilation loaders
                 {
-                  test: /(tsx|ts|js|cjs|mjs|jsx)$/,
+                  test: codeCondition.test,
                   include: [
                     dir,
                     // To let the internal client components passing through flight loader
@@ -1823,10 +1821,10 @@ export default async function getBaseWebpackConfig(
         isClient &&
         new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
+        !!config.experimental.appDir &&
         (isClient
           ? new FlightManifestPlugin({
               dev,
-              appDir: !!config.experimental.appDir,
             })
           : new FlightClientEntryPlugin({
               dev,

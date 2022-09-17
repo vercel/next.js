@@ -109,7 +109,7 @@ module.exports = function (task) {
       }
 
       const source = file.data.toString('utf-8')
-      let output = yield transform(source, options)
+      const output = yield transform(source, options)
       const ext = path.extname(file.base)
 
       // Make sure the output content keeps the `"client"` directive.

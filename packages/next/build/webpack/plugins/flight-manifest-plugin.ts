@@ -19,7 +19,6 @@ import { isClientComponentModule } from '../loaders/utils'
 
 interface Options {
   dev: boolean
-  appDir: boolean
 }
 
 /**
@@ -63,11 +62,9 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
-  appDir: Options['appDir'] = false
 
   constructor(options: Options) {
     this.dev = options.dev
-    this.appDir = options.appDir
   }
 
   apply(compiler: webpack.Compiler) {
@@ -106,7 +103,6 @@ export class FlightManifestPlugin {
     const manifest: FlightManifest = {
       __ssr_module_mapping__: {},
     }
-    const appDir = this.appDir
     const dev = this.dev
 
     const clientRequestsSet = new Set()
@@ -255,11 +251,10 @@ export class FlightManifestPlugin {
           .filter((name) => name !== null)
 
         moduleExportedKeys.forEach((name) => {
-          let requiredChunks: ManifestChunks = []
+          // If the chunk is from `app/` chunkGroup, use it first.
+          // This make sure not to load the overlapped chunk from `pages/` chunkGroup
           if (!moduleExports[name] || chunkGroup.name?.startsWith('app/')) {
-            if (appDir) {
-              requiredChunks = getAppPathRequiredChunks()
-            }
+            const requiredChunks = getAppPathRequiredChunks()
 
             moduleExports[name] = {
               id,

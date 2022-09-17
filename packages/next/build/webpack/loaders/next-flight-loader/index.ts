@@ -7,14 +7,6 @@ import {
 import { parse } from '../../../swc'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
-function transformClient(resourcePath: string): string {
-  const output = `
-const { createProxy } = require("private-next-rsc-mod-ref-proxy")\n
-module.exports = createProxy(${JSON.stringify(resourcePath)})
-`
-  return output
-}
-
 function transformServer(source: string, isESModule: boolean) {
   return (
     source +
@@ -79,8 +71,7 @@ export default async function transformSource(
 
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
     errorForInvalidDataFetching(this.emitError)
-    const code = transformClient(this.resourcePath)
-    return callback(null, code, sourceMap)
+    return callback(null, source, sourceMap)
   }
 
   const code = transformServer(source, isModule)
