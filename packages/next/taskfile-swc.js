@@ -110,19 +110,11 @@ module.exports = function (task) {
 
       const source = file.data.toString('utf-8')
       let output = yield transform(source, options)
-
-      // TODO-APP: move "client" directive hoisting to utils
-      // Only applying to next internal client files atm
-      const hasClientEntry = /^['"]client['"]/.test(source)
-      if (options.filename.includes('.client.')) {
-        output.code = (hasClientEntry ? `"client";\n` : '\n') + output.code
-      }
-
       const ext = path.extname(file.base)
 
       // Make sure the output content keeps the `"client"` directive.
       // TODO: Remove this once SWC fixes the issue.
-      if (source.startsWith("'client'")) {
+      if (/^['"]client['"]/.test(source)) {
         output.code = '"client";\n' + output.code
       }
 

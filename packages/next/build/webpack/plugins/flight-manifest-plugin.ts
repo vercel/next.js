@@ -113,7 +113,7 @@ export class FlightManifestPlugin {
 
     // Collect client requests
     function collectClientRequest(mod: webpack.NormalModule) {
-      if (!mod.resource && mod.buildInfo.rsc) {
+      if (mod.buildInfo.rsc) {
         const { requests = [] } = mod.buildInfo.rsc
         requests.forEach((r: string) => {
           clientRequestsSet.add(require.resolve(r))
@@ -128,12 +128,12 @@ export class FlightManifestPlugin {
           // TODO: Update type so that it doesn't have to be cast.
         ) as Iterable<webpack.NormalModule>
         for (const mod of chunkModules) {
-          if (!mod.resource && mod.buildInfo.rsc) {
+          if (mod.buildInfo.rsc) {
             collectClientRequest(mod)
           }
           const anyModule = mod as any
           if (anyModule.modules) {
-            collectClientRequest(mod)
+            for (const subMod of anyModule.modules) collectClientRequest(subMod)
           }
         }
       })

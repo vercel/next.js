@@ -8,7 +8,7 @@ const NEXT_API_CLIENT_RSC_REGEX = new RegExp(
   `next[\\\\/]dist[\\\\/]client[\\\\/](${nextClientComponents.join('|')})\\.js$`
 )
 
-// Cover resource paths like `next/*` and `next/dist/client/*`
+// Cover resource paths like `next/dist/client/*`
 export function isNextBuiltInClientComponent(resource: string) {
   return NEXT_API_CLIENT_RSC_REGEX.test(resource)
 }
