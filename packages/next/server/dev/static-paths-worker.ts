@@ -1,6 +1,4 @@
-import type { GetStaticPaths } from 'next/types'
 import type { NextConfigComplete } from '../config-shared'
-import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import '../node-polyfill-fetch'
 import {
