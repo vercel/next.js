@@ -4,11 +4,20 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Compile Next.js Core",
+      "label": "Compile Next.js Core (watch)",
       "type": "npm",
       "script": "dev",
       "options": {
         "cwd": "${workspaceFolder}/packages/next"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build All Packages",
+      "type": "npm",
+      "script": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": []
     }
