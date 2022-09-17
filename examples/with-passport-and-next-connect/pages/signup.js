@@ -16,7 +16,7 @@ export default function SignupPage() {
       name: e.currentTarget.name.value,
     }
 
-    if (body.password !== e.currentTarget.rpassword.value) {
+    if (body.password !== e.currentTarget.password.value) {
       setErrorMsg(`The passwords don't match`)
       return
     }
@@ -57,7 +57,7 @@ export default function SignupPage() {
           </label>
           <label>
             <span>Repeat password</span>
-            <input type="password" name="rpassword" required />
+            <input type="password" name="password" required />
           </label>
           <label>
             <span>Name</span>
