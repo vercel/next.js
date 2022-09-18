@@ -1,17 +1,17 @@
 
-  x Disallowed ReactDOM API `findDOMNode` in the Server Components compilation.
+  x NEXT_RSC_ERR_REACT_API: findDOMNode
    ,-[input.js:2:5]
  2 | findDOMNode,
    : ^^^^^^^^^^^
    `----
 
-  x Disallowed ReactDOM API `flushSync` in the Server Components compilation.
+  x NEXT_RSC_ERR_REACT_API: flushSync
    ,-[input.js:3:3]
  3 | flushSync,
    : ^^^^^^^^^
    `----
 
-  x Disallowed ReactDOM API `unstable_batchedUpdates` in the Server Components compilation.
+  x NEXT_RSC_ERR_REACT_API: unstable_batchedUpdates
    ,-[input.js:4:3]
  4 | unstable_batchedUpdates,
    : ^^^^^^^^^^^^^^^^^^^^^^^
