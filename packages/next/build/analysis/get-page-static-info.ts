@@ -13,6 +13,7 @@ import { SERVER_RUNTIME } from '../../lib/constants'
 import { ServerRuntime } from 'next/types'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
 import { matcher } from 'next/dist/compiled/micromatch'
+import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
@@ -29,7 +30,16 @@ export interface PageStaticInfo {
   runtime?: ServerRuntime
   ssg?: boolean
   ssr?: boolean
+  rsc?: RSCModuleType
   middleware?: Partial<MiddlewareConfig>
+}
+
+const CLIENT_MODULE_LABEL = `/* __next_internal_client_entry_do_not_use__ */`
+export type RSCModuleType = 'server' | 'client'
+export function getRSCModuleType(source: string): RSCModuleType {
+  return source.includes(CLIENT_MODULE_LABEL)
+    ? RSC_MODULE_TYPES.client
+    : RSC_MODULE_TYPES.server
 }
 
 /**
@@ -252,6 +262,7 @@ export async function getPageStaticInfo(params: {
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
+    const rsc = getRSCModuleType(fileContent)
 
     // default / failsafe value for config
     let config: any = {}
@@ -303,10 +314,16 @@ export async function getPageStaticInfo(params: {
     return {
       ssr,
       ssg,
+      rsc,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(runtime && { runtime }),
     }
   }
 
-  return { ssr: false, ssg: false, runtime: nextConfig.experimental?.runtime }
+  return {
+    ssr: false,
+    ssg: false,
+    rsc: RSC_MODULE_TYPES.server,
+    runtime: nextConfig.experimental?.runtime,
+  }
 }

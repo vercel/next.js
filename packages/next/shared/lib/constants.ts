@@ -96,6 +96,11 @@ export const DEFAULT_SANS_SERIF_FONT = 'Arial'
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
 
+export const RSC_MODULE_TYPES = {
+  client: 'client',
+  server: 'server',
+} as const
+
 // comparing
 // https://nextjs.org/docs/api-reference/edge-runtime
 // with

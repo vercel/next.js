@@ -25,7 +25,7 @@ import {
   FlightCSSManifest,
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
-import { FlushEffectsContext } from '../client/components/hooks-client'
+import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 
