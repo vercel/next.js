@@ -1086,7 +1086,7 @@ describe('app dir', () => {
 
           expect(res.status).toBe(500)
           expect(await res.text()).toContain(
-            'getServerSideProps is not supported in client components'
+            '`getServerSideProps` is not allowed in Client Components'
           )
         })
 
@@ -1113,7 +1113,7 @@ describe('app dir', () => {
 
           expect(res.status).toBe(500)
           expect(await res.text()).toContain(
-            'getStaticProps is not supported in client components'
+            '`getStaticProps` is not allowed in Client Components'
           )
         })
       }
