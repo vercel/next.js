@@ -1,10 +1,8 @@
-import ClientFromDirect from '../../components/client.client'
+import ClientFromDirect from '../../components/client'
 import ClientFromShared from '../../components/shared'
-import SharedFromClient from '../../components/shared.client'
-import Random from '../../components/random-module-instance.client'
+import SharedFromClient from '../../components/shared-client'
+import Random from '../../components/random-module-instance'
 import Bar from '../../components/bar'
-
-// import { random } from 'random-module-instance'
 
 export default function Page() {
   // All three client components should be rendered correctly, but only
@@ -16,7 +14,6 @@ export default function Page() {
     <div id="main" suppressHydrationWarning>
       <Random />
       <br />
-      {/* {`node_modules instance from .server.js:` + random} */}
       <br />
       <ClientFromDirect />
       <br />

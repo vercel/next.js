@@ -44,7 +44,6 @@ export default async function transformSource(
   })
 
   const rscType = getRSCModuleType(source)
-  const isModule = swcAST.type === 'Module'
   const createError = (name: string) =>
     new Error(
       `${name} is not supported in client components.\nFrom: ${this.resourcePath}`
@@ -74,6 +73,7 @@ export default async function transformSource(
     return callback(null, source, sourceMap)
   }
 
+  const isModule = swcAST.type === 'Module'
   const code = transformServer(source, isModule)
   return callback(null, code, sourceMap)
 }

@@ -1,5 +1,5 @@
 export default function foo() {
-  return 'foo.client'
+  return 'foo'
 }
 
 export const config = 'this is not page config'

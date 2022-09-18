@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-import Counter from '../../components/partial-hydration-counter.client'
+import Counter from '../../components/partial-hydration-counter'
 
 let result
 let promise

@@ -1483,7 +1483,7 @@ export default async function getBaseWebpackConfig(
                   include: [
                     dir,
                     // To let the internal client components passing through flight loader
-                    /next[\\/]dist[\\/]client[\\/]/,
+                    /next[\\/]dist/,
                   ],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {
