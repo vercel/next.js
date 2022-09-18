@@ -44,6 +44,19 @@ describe('app dir', () => {
     })
     afterAll(() => next.destroy())
 
+    it('should use application/octet-stream for flight', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/dashboard/deployments/123?__flight__'
+      )
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    })
+
+    it('should use application/octet-stream for flight with edge runtime', async () => {
+      const res = await fetchViaHTTP(next.url, '/dashboard?__flight__')
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    })
+
     it('should pass props from getServerSideProps in root layout', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard')
       const $ = cheerio.load(html)
