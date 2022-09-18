@@ -1,5 +1,5 @@
-import Comp from './styled-jsx.client'
-import StyledComp from './styled-components.client'
+import Comp from './styled-jsx'
+import StyledComp from './styled-components'
 
 export default function Page() {
   return (

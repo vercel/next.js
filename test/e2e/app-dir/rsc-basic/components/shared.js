@@ -1,5 +1,5 @@
 import React from 'react'
-import Client from './client.client'
+import Client from './client'
 
 const random = ~~(Math.random() * 10000)
 
