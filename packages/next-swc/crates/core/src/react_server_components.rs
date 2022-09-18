@@ -305,82 +305,73 @@ impl<C: Comments> ReactServerComponents<C> {
             let mut has_get_server_side_props = false;
             let mut has_get_static_props = false;
 
-            'matcher: loop {
-                for export in &module.body {
-                    match export {
-                        ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
-                            for specifier in &export.specifiers {
-                                match specifier {
-                                    ExportSpecifier::Named(named) => match &named.orig {
-                                        ModuleExportName::Ident(i) => {
-                                            if i.sym == *"getServerSideProps" {
-                                                has_get_server_side_props = true;
-                                                span = named.span;
-                                                break 'matcher;
-                                            }
-                                            if i.sym == *"getStaticProps" {
-                                                has_get_static_props = true;
-                                                span = named.span;
-                                                break 'matcher;
-                                            }
+            'matcher: for export in &module.body {
+                match export {
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
+                        for specifier in &export.specifiers {
+                            if let ExportSpecifier::Named(named) = specifier {
+                                match &named.orig {
+                                    ModuleExportName::Ident(i) => {
+                                        if i.sym == *"getServerSideProps" {
+                                            has_get_server_side_props = true;
+                                            span = named.span;
+                                            break 'matcher;
                                         }
-                                        ModuleExportName::Str(s) => {
-                                            if s.value == *"getServerSideProps" {
-                                                has_get_server_side_props = true;
-                                                span = named.span;
-                                                break 'matcher;
-                                            }
-                                            if s.value == *"getStaticProps" {
-                                                has_get_static_props = true;
-                                                span = named.span;
-                                                break 'matcher;
-                                            }
+                                        if i.sym == *"getStaticProps" {
+                                            has_get_static_props = true;
+                                            span = named.span;
+                                            break 'matcher;
                                         }
-                                    },
-                                    _ => {}
+                                    }
+                                    ModuleExportName::Str(s) => {
+                                        if s.value == *"getServerSideProps" {
+                                            has_get_server_side_props = true;
+                                            span = named.span;
+                                            break 'matcher;
+                                        }
+                                        if s.value == *"getStaticProps" {
+                                            has_get_static_props = true;
+                                            span = named.span;
+                                            break 'matcher;
+                                        }
+                                    }
                                 }
                             }
                         }
-                        ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => {
-                            match &export.decl {
-                                Decl::Fn(f) => {
-                                    if f.ident.sym == *"getServerSideProps" {
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
+                        Decl::Fn(f) => {
+                            if f.ident.sym == *"getServerSideProps" {
+                                has_get_server_side_props = true;
+                                span = f.ident.span;
+                                break 'matcher;
+                            }
+                            if f.ident.sym == *"getStaticProps" {
+                                has_get_static_props = true;
+                                span = f.ident.span;
+                                break 'matcher;
+                            }
+                        }
+                        Decl::Var(v) => {
+                            for decl in &v.decls {
+                                if let Pat::Ident(i) = &decl.name {
+                                    if i.sym == *"getServerSideProps" {
                                         has_get_server_side_props = true;
-                                        span = f.ident.span;
+                                        span = i.span;
                                         break 'matcher;
                                     }
-                                    if f.ident.sym == *"getStaticProps" {
+                                    if i.sym == *"getStaticProps" {
                                         has_get_static_props = true;
-                                        span = f.ident.span;
+                                        span = i.span;
                                         break 'matcher;
                                     }
                                 }
-                                Decl::Var(v) => {
-                                    for decl in &v.decls {
-                                        match &decl.name {
-                                            Pat::Ident(i) => {
-                                                if i.sym == *"getServerSideProps" {
-                                                    has_get_server_side_props = true;
-                                                    span = i.span;
-                                                    break 'matcher;
-                                                }
-                                                if i.sym == *"getStaticProps" {
-                                                    has_get_static_props = true;
-                                                    span = i.span;
-                                                    break 'matcher;
-                                                }
-                                            }
-                                            _ => {}
-                                        }
-                                    }
-                                }
-                                _ => {}
                             }
                         }
                         _ => {}
-                    }
+                    },
+                    _ => {}
                 }
-                break;
             }
 
             if has_get_server_side_props || has_get_static_props {
