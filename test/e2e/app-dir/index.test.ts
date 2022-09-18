@@ -1061,7 +1061,7 @@ describe('app dir', () => {
       })
 
       if (isDev) {
-        it.skip('should throw an error when getServerSideProps is used', async () => {
+        it('should throw an error when getServerSideProps is used', async () => {
           const pageFile =
             'app/client-with-errors/get-server-side-props/page.js'
           const content = await next.readFile(pageFile)
@@ -1090,7 +1090,7 @@ describe('app dir', () => {
           )
         })
 
-        it.skip('should throw an error when getStaticProps is used', async () => {
+        it('should throw an error when getStaticProps is used', async () => {
           const pageFile = 'app/client-with-errors/get-static-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
