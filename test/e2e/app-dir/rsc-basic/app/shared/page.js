@@ -2,7 +2,7 @@ import ClientFromDirect from '../../components/client.client'
 import ClientFromShared from '../../components/shared'
 import SharedFromClient from '../../components/shared.client'
 import Random from '../../components/random-module-instance.client'
-import Bar from '../../components/bar.server'
+import Bar from '../../components/bar'
 
 // import { random } from 'random-module-instance'
 

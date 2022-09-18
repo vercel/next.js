@@ -1,4 +1,4 @@
-import Router from './Router'
+import Router from './router'
 
 export default function Page() {
   return (

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/dist/client/components/hooks-client'
 import React from 'react'
 import { useEffect } from 'react'
+
 export default function HardLink({ href, children, ...props }) {
   const router = useRouter()
   useEffect(() => {

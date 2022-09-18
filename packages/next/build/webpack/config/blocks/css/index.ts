@@ -501,7 +501,7 @@ export const css = curry(async function css(
                 // If it's inside the app dir, but not importing from a layout file,
                 // throw an error.
                 and: [ctx.rootDirectory],
-                not: [/layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/],
+                not: [/layout\.(js|mjs|jsx|ts|tsx)$/],
               }
             : undefined,
           use: {

@@ -1327,33 +1327,6 @@ export function detectConflictingPaths(
   }
 }
 
-/**
- * With RSC we automatically add .server and .client to page extensions. This
- * function allows to remove them for cases where we just need to strip out
- * the actual extension keeping the .server and .client.
- */
-export function withoutRSCExtensions(pageExtensions: string[]): string[] {
-  return pageExtensions.filter(
-    (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
-  )
-}
-
-export function isServerComponentPage(
-  nextConfig: NextConfigComplete,
-  filePath: string
-): boolean {
-  if (!nextConfig.experimental.serverComponents) {
-    return false
-  }
-
-  const rawPageExtensions = withoutRSCExtensions(
-    nextConfig.pageExtensions || []
-  )
-  return rawPageExtensions.some((ext) => {
-    return filePath.endsWith(`.server.${ext}`)
-  })
-}
-
 export async function copyTracedFiles(
   dir: string,
   distDir: string,

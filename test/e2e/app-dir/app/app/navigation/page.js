@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import Link from './link.client.js'
+import Link from './link.js'
 
 export default function Page() {
   return (

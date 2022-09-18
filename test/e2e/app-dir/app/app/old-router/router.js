@@ -1,7 +1,7 @@
 import { useRouter, withRouter } from 'next/router'
-import IsNull from './IsNull'
-import ServerRouter from './Router.server'
-import ClientRouter from './Router.client'
+import IsNull from './is-null'
+import ServerRouter from './server-router'
+import ClientRouter from './client-router'
 
 function SharedRouter({ router: withRouter }) {
   const router = useRouter()

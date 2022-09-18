@@ -1,5 +1,5 @@
 import { useRouter, withRouter } from 'next/router'
-import IsNull from './IsNull'
+import IsNull from './is-null'
 
 function ServerRouter({ router: withRouter }) {
   const router = useRouter()

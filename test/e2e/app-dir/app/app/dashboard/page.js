@@ -1,4 +1,5 @@
-import ClientComp from './client-comp.client'
+import ClientComp from './client-comp-client'
+
 export default function DashboardPage(props) {
   return (
     <>
