@@ -1,8 +1,8 @@
-import React, { createContext, useContext } from 'react'
+import React, { useContext } from 'react'
 
 export type FlushEffectsHook = (callbacks: () => React.ReactNode) => void
 
-export const FlushEffectsContext = createContext<FlushEffectsHook | null>(
+export const FlushEffectsContext = React.createContext<FlushEffectsHook | null>(
   null as any
 )
 
