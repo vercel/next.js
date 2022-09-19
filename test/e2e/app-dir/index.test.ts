@@ -1469,31 +1469,33 @@ describe('app dir', () => {
     })
 
     describe('redirect', () => {
-      it('should redirect in a server component', async () => {
-        const browser = await webdriver(next.url, '/redirect/servercomponent')
-        await browser.waitForElementByCss('#result-page')
-        expect(await browser.elementByCss('#result-page').text()).toBe(
-          'Result Page'
-        )
-      })
+      describe.skip('components', () => {
+        it('should redirect in a server component', async () => {
+          const browser = await webdriver(next.url, '/redirect/servercomponent')
+          await browser.waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
 
-      it('should redirect in a client component', async () => {
-        const browser = await webdriver(next.url, '/redirect/clientcomponent')
-        await browser.waitForElementByCss('#result-page')
-        expect(await browser.elementByCss('#result-page').text()).toBe(
-          'Result Page'
-        )
-      })
+        it('should redirect in a client component', async () => {
+          const browser = await webdriver(next.url, '/redirect/clientcomponent')
+          await browser.waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
 
-      it('should redirect client-side', async () => {
-        const browser = await webdriver(next.url, '/redirect/client-side')
-        await browser
-          .elementByCss('button')
-          .click()
-          .waitForElementByCss('#result-page')
-        expect(await browser.elementByCss('#result-page').text()).toBe(
-          'Result Page'
-        )
+        it('should redirect client-side', async () => {
+          const browser = await webdriver(next.url, '/redirect/client-side')
+          await browser
+            .elementByCss('button')
+            .click()
+            .waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
       })
 
       describe('next.config.js redirects', () => {
