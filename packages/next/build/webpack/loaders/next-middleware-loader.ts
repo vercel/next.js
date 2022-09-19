@@ -40,7 +40,7 @@ export default function middlewareLoader(this: any) {
   buildInfo.rootDir = rootDir
 
   return `
-        import { adapter, blockUnallowedResponse, enhanceGlobals, prepareRequest } from 'next/dist/server/web/adapter'
+        import { adapter, blockUnallowedResponse, enhanceGlobals } from 'next/dist/server/web/adapter'
 
         enhanceGlobals()
 
@@ -52,14 +52,11 @@ export default function middlewareLoader(this: any) {
         }
 
         export default function (opts) {
-          const reqData = prepareRequest(opts)
-          const promise = adapter({
-            ...opts,
-            reqData,
-            page: ${JSON.stringify(page)},
-            handler
-          })
-          return blockUnallowedResponse(reqData.request, promise)
+          return blockUnallowedResponse(adapter({
+              ...opts,
+              page: ${JSON.stringify(page)},
+              handler,
+          }))
         }
     `
 }

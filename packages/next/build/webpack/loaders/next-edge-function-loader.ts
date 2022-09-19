@@ -18,7 +18,7 @@ export default function middlewareLoader(this: any) {
   buildInfo.rootDir = rootDir
 
   return `
-        import { adapter, enhanceGlobals, prepareRequest } from 'next/dist/server/web/adapter'
+        import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
 
         enhanceGlobals()
 
@@ -30,10 +30,8 @@ export default function middlewareLoader(this: any) {
         }
 
         export default function (opts) {
-          const reqData = prepareRequest(opts)
           return adapter({
               ...opts,
-              reqData,
               page: ${JSON.stringify(page)},
               handler,
           })

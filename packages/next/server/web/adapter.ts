@@ -1,7 +1,7 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
-import { fromNodeHeaders, toNodeHeaders } from './utils'
+import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
@@ -9,6 +9,8 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
+
+const ResponseUrls = new WeakMap<Response, NextURL>()
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -35,16 +37,11 @@ class NextRequestHint extends NextRequest {
   }
 }
 
-export function prepareRequest(params: {
+export async function adapter(params: {
+  handler: NextMiddleware
   page: string
   request: RequestData
-}): {
-  request: NextRequestHint
-  buildId: string | undefined
-  isDataReq: boolean
-  isEdgeRendering: boolean
-  flightSearchParameters: Record<string, string> | undefined
-} {
+}): Promise<FetchEventResult> {
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
 
@@ -57,7 +54,7 @@ export function prepareRequest(params: {
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
 
-  const isDataReq = Boolean(params.request.headers['x-nextjs-data'])
+  const isDataReq = params.request.headers['x-nextjs-data']
 
   if (isDataReq && requestUrl.pathname === '/index') {
     requestUrl.pathname = '/'
@@ -98,24 +95,6 @@ export function prepareRequest(params: {
     })
   }
 
-  return {
-    request,
-    buildId,
-    isDataReq,
-    isEdgeRendering,
-    flightSearchParameters,
-  }
-}
-
-type PreparedRequest = ReturnType<typeof prepareRequest>
-
-export async function adapter(params: {
-  handler: NextMiddleware
-  page: string
-  reqData: PreparedRequest
-  nextConfig: RequestData['nextConfig']
-}): Promise<FetchEventResult> {
-  const { request, isDataReq, buildId, flightSearchParameters } = params.reqData
   const event = new NextFetchEvent({ request, page: params.page })
   let response = await params.handler(request, event)
 
@@ -129,8 +108,8 @@ export async function adapter(params: {
   if (response && rewrite) {
     const rewriteUrl = new NextURL(rewrite, {
       forceLocale: true,
-      headers: toNodeHeaders(request.headers),
-      nextConfig: params.nextConfig,
+      headers: params.request.headers,
+      nextConfig: params.request.nextConfig,
     })
 
     if (rewriteUrl.host === request.nextUrl.host) {
@@ -148,7 +127,7 @@ export async function adapter(params: {
     if (isDataReq) {
       response.headers.set(
         'x-nextjs-rewrite',
-        relativizeURL(String(rewriteUrl), String(request.nextUrl))
+        relativizeURL(String(rewriteUrl), String(requestUrl))
       )
     }
   }
@@ -162,8 +141,8 @@ export async function adapter(params: {
   if (response && redirect) {
     const redirectURL = new NextURL(redirect, {
       forceLocale: false,
-      headers: toNodeHeaders(request.headers),
-      nextConfig: params.nextConfig,
+      headers: params.request.headers,
+      nextConfig: params.request.nextConfig,
     })
 
     /**
@@ -188,9 +167,13 @@ export async function adapter(params: {
       response.headers.delete('Location')
       response.headers.set(
         'x-nextjs-redirect',
-        relativizeURL(String(redirectURL), String(request.nextUrl))
+        relativizeURL(String(redirectURL), String(requestUrl))
       )
     }
+  }
+
+  if (response) {
+    ResponseUrls.set(response, requestUrl)
   }
 
   return {
@@ -200,16 +183,20 @@ export async function adapter(params: {
 }
 
 export function blockUnallowedResponse(
-  request: PreparedRequest['request'],
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
-  const pathname = request.nextUrl.pathname
-
-  if (pathname && (pathname.startsWith('/api/') || pathname === '/api')) {
-    return promise
-  }
-
   return promise.then((result) => {
+    const responseUrl = ResponseUrls.get(result.response)
+    console.log({ responseUrl })
+
+    if (
+      responseUrl &&
+      (responseUrl.pathname === '/api' ||
+        responseUrl.pathname.startsWith('/api/'))
+    ) {
+      return result
+    }
+
     if (result.response?.body) {
       console.error(
         new Error(
