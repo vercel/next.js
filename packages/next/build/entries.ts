@@ -21,6 +21,7 @@ import {
   SERVER_RUNTIME,
   WEBPACK_LAYERS,
 } from '../lib/constants'
+import { RSC_MODULE_TYPES } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -37,14 +38,12 @@ import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
-  isServerComponentPage,
   NestedMiddlewareError,
   MiddlewareInServerlessTargetError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { serverComponentRegex } from './webpack/loaders/utils'
 import { ServerRuntime } from '../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
@@ -66,14 +65,12 @@ export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
 }
 
 export function createPagesMapping({
-  hasServerComponents,
   isDev,
   pageExtensions,
   pagePaths,
   pagesType,
   pagesDir,
 }: {
-  hasServerComponents: boolean
   isDev: boolean
   pageExtensions: string[]
   pagePaths: string[]
@@ -89,13 +86,6 @@ export function createPagesMapping({
       }
 
       const pageKey = getPageFromPath(pagePath, pageExtensions)
-
-      // Assume that if there's a Client Component, that there is
-      // a matching Server Component that will map to the page.
-      // so we will not process it
-      if (hasServerComponents && /\.client$/.test(pageKey)) {
-        return result
-      }
 
       if (pageKey in result) {
         warn(
@@ -208,10 +198,7 @@ export function getEdgeServerEntry(opts: {
     absolutePagePath: opts.absolutePagePath,
     buildId: opts.buildId,
     dev: opts.isDev,
-    isServerComponent: isServerComponentPage(
-      opts.config,
-      opts.absolutePagePath
-    ),
+    isServerComponent: opts.isServerComponent,
     page: opts.page,
     stringifiedConfig: JSON.stringify(opts.config),
     pagesType: opts.pagesType,
@@ -418,8 +405,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         nestedMiddleware.push(page)
       }
 
-      const isServerComponent = serverComponentRegex.test(absolutePagePath)
-      const isInsideAppDir = appDir && absolutePagePath.startsWith(appDir)
+      const isInsideAppDir =
+        !!appDir &&
+        (absolutePagePath.startsWith(APP_DIR_ALIAS) ||
+          absolutePagePath.startsWith(appDir))
 
       const staticInfo = await getPageStaticInfo({
         nextConfig: config,
@@ -427,6 +416,9 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         isDev,
         page,
       })
+
+      const isServerComponent =
+        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [

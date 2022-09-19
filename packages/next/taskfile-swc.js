@@ -114,7 +114,7 @@ module.exports = function (task) {
 
       // Make sure the output content keeps the `"client"` directive.
       // TODO: Remove this once SWC fixes the issue.
-      if (source.startsWith("'client'")) {
+      if (/^['"]client['"]/.test(source)) {
         output.code = '"client";\n' + output.code
       }
 
