@@ -433,16 +433,18 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      const { ConstDependency } = wp.dependencies
-      const dep1 = new ConstDependency(
-        '__next_webassembly_instantiate__(function() { return ',
-        expr.range[0]
-      )
-      dep1.loc = expr.loc
-      parser.state.module.addPresentationalDependency(dep1)
-      const dep2 = new ConstDependency('})', expr.range[1])
-      dep2.loc = expr.loc
-      parser.state.module.addPresentationalDependency(dep2)
+      if (dev) {
+        const { ConstDependency } = wp.dependencies
+        const dep1 = new ConstDependency(
+          '__next_webassembly_instantiate__(function() { return ',
+          expr.range[0]
+        )
+        dep1.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep1)
+        const dep2 = new ConstDependency('})', expr.range[1])
+        dep2.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep2)
+      }
     }
 
     /**

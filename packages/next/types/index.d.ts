@@ -39,6 +39,9 @@ declare module 'react' {
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
   }
+
+  // TODO-APP: check if this is the right type.
+  function experimental_use<T>(promise: Promise<T>): Awaited<T>
 }
 
 export type Redirect =

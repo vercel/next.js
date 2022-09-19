@@ -219,6 +219,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        adjustFontFallbacks: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {

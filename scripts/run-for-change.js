@@ -11,6 +11,7 @@ const CHANGE_ITEM_GROUPS = {
     'examples',
     'UPGRADING.md',
     'contributing.md',
+    'contributing',
     'CODE_OF_CONDUCT.md',
     'readme.md',
   ],
