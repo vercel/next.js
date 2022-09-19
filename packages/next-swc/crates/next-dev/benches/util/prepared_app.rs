@@ -92,7 +92,7 @@ impl<'a> PreparedApp<'a> {
         // Make sure no runtime errors occurred when loading the page
         assert!(errors.next().now_or_never().is_none());
 
-        let page_guard = PageGuard::new(page, binding_events, self);
+        let page_guard = PageGuard::new(page, binding_events, errors, self);
 
         Ok(page_guard)
     }
