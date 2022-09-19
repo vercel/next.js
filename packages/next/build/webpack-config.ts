@@ -689,9 +689,9 @@ export default async function getBaseWebpackConfig(
   const pageExtensions = config.pageExtensions
 
   const babelIncludeRegexes: RegExp[] = [
-    /next[\\/]dist[\\/]shared[\\/]lib/,
-    /next[\\/]dist[\\/]client/,
-    /next[\\/]dist[\\/]pages/,
+    /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
+    /next[\\/]dist[\\/](esm[\\/])?client/,
+    /next[\\/]dist[\\/](esm[\\/])?pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
   ]
 
