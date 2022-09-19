@@ -1,7 +1,15 @@
+import { experimental_use as use } from 'react'
 import Runtime from '../../utils/runtime'
 import Time from '../../utils/time'
 
-export default function Page({ type }) {
+async function getData() {
+  return {
+    type: 'ISR',
+  }
+}
+
+export default function Page(props) {
+  const { type } = use(getData())
   return (
     <div>
       This is a {type} RSC page.
@@ -11,13 +19,4 @@ export default function Page({ type }) {
       <Time />
     </div>
   )
-}
-
-export function getStaticProps() {
-  return {
-    props: {
-      type: 'ISR',
-    },
-    revalidate: 3,
-  }
 }

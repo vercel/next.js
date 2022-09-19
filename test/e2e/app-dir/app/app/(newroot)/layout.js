@@ -1,12 +1,14 @@
-export async function getServerSideProps() {
+import { experimental_use as use } from 'react'
+
+async function getData() {
   return {
-    props: {
-      world: 'world',
-    },
+    world: 'world',
   }
 }
 
-export default function Root({ children, world }) {
+export default function Root({ children }) {
+  const { world } = use(getData())
+
   return (
     <html className="this-is-another-document-html">
       <head>
