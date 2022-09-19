@@ -37,7 +37,8 @@ function MyComponent() {
 }
 ```
 Another example:
-NextJS is not comfortable having a p tag wrapping your divs, sections etc so it will yell "Hydration failed because the initial UI does not match what was rendered on the server". 
+
+React does not tolerate having a div inside p etc so it will cause "Hydration failed because the initial UI does not match what was rendered on the server".
 ```jsx
 export const IncorrectComponent = ()=>{
   return(
