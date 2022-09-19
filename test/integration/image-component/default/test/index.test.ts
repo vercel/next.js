@@ -166,7 +166,7 @@ function runTests(mode) {
       // should preload with crossorigin
       expect(
         await browser.elementsByCss(
-          'link[rel=preload][as=image][crossorigin=anonymous][href*="test.jpg"]'
+          'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
         )
       ).toHaveLength(1)
     } finally {
