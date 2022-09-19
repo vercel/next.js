@@ -1,15 +1,21 @@
+import { experimental_use as use } from 'react'
+
 import '../styles/global.css'
 import './style.css'
 
-export async function getServerSideProps() {
+export const config = {
+  revalidate: 0,
+}
+
+async function getData() {
   return {
-    props: {
-      world: 'world',
-    },
+    world: 'world',
   }
 }
 
-export default function Root({ children, custom, world }) {
+export default function Root({ children }) {
+  const { world } = use(getData())
+
   return (
     <html className="this-is-the-document-html">
       <head>

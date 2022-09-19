@@ -1,12 +1,14 @@
-export function getServerSideProps() {
+import { experimental_use as use } from 'react'
+
+async function getData() {
   return {
-    props: {
-      message: 'hello',
-    },
+    message: 'hello',
   }
 }
 
-export default function DeploymentsLayout({ message, children }) {
+export default function DeploymentsLayout({ children }) {
+  const { message } = use(getData())
+
   return (
     <>
       <h2>Deployments {message}</h2>
