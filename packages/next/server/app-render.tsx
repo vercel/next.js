@@ -2,7 +2,8 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 
-import React from 'react'
+// TODO-APP: change to React.use once it becomes stable
+import React, { experimental_use as use } from 'react'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
@@ -28,9 +29,6 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
-
-// TODO-APP: change to React.use once it becomes stable
-const use = (React as any).experimental_use
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -139,6 +137,10 @@ function preloadDataFetchingRecord(
   return record
 }
 
+interface FlightResponseRef {
+  current: Promise<JSX.Element> | null
+}
+
 /**
  * Render Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
@@ -147,19 +149,18 @@ function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   req: ReadableStream<Uint8Array>,
   serverComponentManifest: any,
-  flightResponseRef: {
-    current: ReturnType<typeof createFromReadableStream> | null
-  },
+  flightResponseRef: FlightResponseRef,
   nonce?: string
-) {
-  if (flightResponseRef.current) {
+): Promise<JSX.Element> {
+  if (flightResponseRef.current !== null) {
     return flightResponseRef.current
   }
 
   const [renderStream, forwardStream] = readableStreamTee(req)
-  flightResponseRef.current = createFromReadableStream(renderStream, {
+  const res = createFromReadableStream(renderStream, {
     moduleMap: serverComponentManifest.__ssr_module_mapping__,
   })
+  flightResponseRef.current = res
 
   let bootstrapped = false
   // We only attach CSS chunks to the inlined data.
@@ -197,7 +198,7 @@ function useFlightResponse(
   }
   process()
 
-  return flightResponseRef.current
+  return res
 }
 
 /**
@@ -224,7 +225,7 @@ function createServerComponentRenderer(
     >
   },
   nonce?: string
-) {
+): () => JSX.Element {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app_webpack_require__ || ComponentMod.__next_rsc__) {
@@ -251,10 +252,10 @@ function createServerComponentRenderer(
     return RSCStream
   }
 
-  const flightResponseRef = { current: null }
+  const flightResponseRef: FlightResponseRef = { current: null }
 
   const writable = transformStream.writable
-  return function ServerComponentWrapper() {
+  return function ServerComponentWrapper(): JSX.Element {
     const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,

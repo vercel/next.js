@@ -32,11 +32,11 @@ import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
  */
-export function fetchServerResponse(
+export async function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
   prefetch?: true
-): Promise<FlightData> {
+): Promise<[FlightData: FlightData]> {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
   // Enable flight response
@@ -50,9 +50,10 @@ export function fetchServerResponse(
     searchParams.append('__flight_prefetch__', '1')
   }
 
-  const promise = fetch(flightUrl.toString())
+  const res = await fetch(flightUrl.toString())
   // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-  return createFromFetch(promise)
+  const flightData: FlightData = await createFromFetch(Promise.resolve(res))
+  return [flightData]
 }
 
 /**
@@ -197,7 +198,7 @@ export default function AppRouter({
             window.history.state?.tree || initialTree,
             true
           )
-          const flightData = await r
+          const [flightData] = await r
           // @ts-ignore startTransition exists
           React.startTransition(() => {
             dispatch({
