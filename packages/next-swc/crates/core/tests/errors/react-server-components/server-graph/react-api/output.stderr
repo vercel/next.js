@@ -1,0 +1,78 @@
+
+  x Disallowed React API `useState` in the Server Components compilation.
+   ,-[input.js:1:1]
+ 1 | import { useState } from 'react'
+   :          ^^^^^^^^
+   `----
+
+  x Disallowed React API `createContext` in the Server Components compilation.
+   ,-[input.js:3:1]
+ 3 | import { createContext } from 'react'
+   :          ^^^^^^^^^^^^^
+   `----
+
+  x Disallowed React API `useEffect` in the Server Components compilation.
+   ,-[input.js:5:1]
+ 5 | import { useEffect, useImperativeHandle } from 'react'
+   :          ^^^^^^^^^
+   `----
+
+  x Disallowed React API `useImperativeHandle` in the Server Components compilation.
+   ,-[input.js:5:1]
+ 5 | import { useEffect, useImperativeHandle } from 'react'
+   :                     ^^^^^^^^^^^^^^^^^^^
+   `----
+
+  x Disallowed React API `Component` in the Server Components compilation.
+   ,-[input.js:8:5]
+ 8 | Component,
+   : ^^^^^^^^^
+   `----
+
+  x Disallowed React API `createFactory` in the Server Components compilation.
+   ,-[input.js:9:5]
+ 9 | createFactory,
+   : ^^^^^^^^^^^^^
+   `----
+
+  x Disallowed React API `PureComponent` in the Server Components compilation.
+    ,-[input.js:10:5]
+ 10 | PureComponent,
+    : ^^^^^^^^^^^^^
+    `----
+
+  x Disallowed React API `useDeferredValue` in the Server Components compilation.
+    ,-[input.js:11:3]
+ 11 | useDeferredValue,
+    : ^^^^^^^^^^^^^^^^
+    `----
+
+  x Disallowed React API `useInsertionEffect` in the Server Components compilation.
+    ,-[input.js:12:5]
+ 12 | useInsertionEffect,
+    : ^^^^^^^^^^^^^^^^^^
+    `----
+
+  x Disallowed React API `useLayoutEffect` in the Server Components compilation.
+    ,-[input.js:13:5]
+ 13 | useLayoutEffect,
+    : ^^^^^^^^^^^^^^^
+    `----
+
+  x Disallowed React API `useReducer` in the Server Components compilation.
+    ,-[input.js:14:5]
+ 14 | useReducer,
+    : ^^^^^^^^^^
+    `----
+
+  x Disallowed React API `useRef` in the Server Components compilation.
+    ,-[input.js:15:5]
+ 15 | useRef,
+    : ^^^^^^
+    `----
+
+  x Disallowed React API `useSyncExternalStore` in the Server Components compilation.
+    ,-[input.js:16:5]
+ 16 | useSyncExternalStore
+    : ^^^^^^^^^^^^^^^^^^^^
+    `----

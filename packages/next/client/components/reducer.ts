@@ -6,6 +6,8 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../../server/app-render'
+// TODO-APP: change to React.use once it becomes stable
+import { experimental_use as use } from 'react'
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
 
@@ -229,7 +231,7 @@ function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
   segments: string[],
-  fetchResponse: any
+  fetchResponse: () => ReturnType<typeof fetchServerResponse>
 ): { bailOptimistic: boolean } | undefined {
   const isLastEntry = segments.length === 1
 
@@ -730,8 +732,7 @@ export function reducer(
           cache,
           state.cache,
           segments.slice(1),
-          (): { readRoot: () => FlightData } =>
-            fetchServerResponse(url, optimisticTree)
+          () => fetchServerResponse(url, optimisticTree)
         )
 
         // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
@@ -761,8 +762,8 @@ export function reducer(
         cache.data = fetchServerResponse(url, state.tree)
       }
 
-      // readRoot to suspend here (in the reducer) until the fetch resolves.
-      const flightData = cache.data.readRoot()
+      // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
+      const [flightData] = use(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -953,7 +954,7 @@ export function reducer(
           'refetch',
         ])
       }
-      const flightData = cache.data.readRoot()
+      const [flightData] = use(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {

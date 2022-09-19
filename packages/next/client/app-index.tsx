@@ -2,8 +2,11 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-import React from 'react'
+// TODO-APP: change to React.use once it becomes stable
+import React, { experimental_use as use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+
+import measureWebVitals from './performance-relayer'
 
 /// <reference types="react-dom/experimental" />
 
@@ -122,7 +125,7 @@ function createResponseCache() {
 }
 const rscCache = createResponseCache()
 
-function useInitialServerResponse(cacheKey: string) {
+function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   const response = rscCache.get(cacheKey)
   if (response) return response
 
@@ -138,16 +141,20 @@ function useInitialServerResponse(cacheKey: string) {
   return newResponse
 }
 
-function ServerRoot({ cacheKey }: { cacheKey: string }) {
+function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
   const response = useInitialServerResponse(cacheKey)
-  const root = response.readRoot()
+  const root = use(response)
   return root
 }
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  React.useEffect(() => {
+    measureWebVitals()
+  }, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -162,7 +169,7 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-function RSCComponent(props: any) {
+function RSCComponent(props: any): JSX.Element {
   const cacheKey = getCacheKey()
   return <ServerRoot {...props} cacheKey={cacheKey} />
 }

@@ -1,6 +1,8 @@
+'client'
+
 import type { PropsWithChildren, ReactElement, ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -30,11 +32,11 @@ import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
  */
-function fetchFlight(
+export async function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
   prefetch?: true
-): ReadableStream {
+): Promise<[FlightData: FlightData]> {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
   // Enable flight response
@@ -48,26 +50,10 @@ function fetchFlight(
     searchParams.append('__flight_prefetch__', '1')
   }
 
-  // TODO-APP: Verify that TransformStream is supported.
-  const { readable, writable } = new TransformStream()
-
-  fetch(flightUrl.toString()).then((res) => {
-    res.body?.pipeTo(writable)
-  })
-
-  return readable
-}
-
-/**
- * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
- */
-export function fetchServerResponse(
-  url: URL,
-  flightRouterState: FlightRouterState,
-  prefetch?: true
-): { readRoot: () => FlightData } {
-  // Handle the `fetch` readable stream that can be read using `readRoot`.
-  return createFromReadableStream(fetchFlight(url, flightRouterState, prefetch))
+  const res = await fetch(flightUrl.toString())
+  // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
+  const flightData: FlightData = await createFromFetch(Promise.resolve(res))
+  return [flightData]
 }
 
 /**
@@ -212,20 +198,15 @@ export default function AppRouter({
             window.history.state?.tree || initialTree,
             true
           )
-          try {
-            r.readRoot()
-          } catch (e) {
-            await e
-            const flightData = r.readRoot()
-            // @ts-ignore startTransition exists
-            React.startTransition(() => {
-              dispatch({
-                type: ACTION_PREFETCH,
-                url,
-                flightData,
-              })
+          const [flightData] = await r
+          // @ts-ignore startTransition exists
+          React.startTransition(() => {
+            dispatch({
+              type: ACTION_PREFETCH,
+              url,
+              flightData,
             })
-          }
+          })
         } catch (err) {
           console.error('PREFETCH ERROR', err)
         }
