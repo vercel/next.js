@@ -83,7 +83,7 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/page.js")),
                 next_swc::react_server_components::Config::WithOptions(
                     next_swc::react_server_components::Options { is_server: false },
                 ),
