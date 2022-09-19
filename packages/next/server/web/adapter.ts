@@ -8,6 +8,7 @@ import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
+import { stripInternalSearchParams } from '../internal-utils'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -39,9 +40,14 @@ export function prepareRequest(params: {
   request: RequestData
 }): {
   request: NextRequestHint
-  isDataReq: boolean
   buildId: string | undefined
+  isDataReq: boolean
+  isEdgeRendering: boolean
+  flightSearchParameters: Record<string, string> | undefined
 } {
+  // TODO-APP: use explicit marker for this
+  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
@@ -57,12 +63,15 @@ export function prepareRequest(params: {
     requestUrl.pathname = '/'
   }
 
-  // clean-up any internal query params
-  for (const key of [...requestUrl.searchParams.keys()]) {
-    if (key.startsWith('__next')) {
-      requestUrl.searchParams.delete(key)
-    }
+  // Preserve flight data.
+  const flightSearchParameters = requestUrl.flightSearchParameters
+  // Parameters should only be stripped for middleware
+  if (!isEdgeRendering) {
+    requestUrl.flightSearchParameters = undefined
   }
+
+  // Strip internal query parameters off the request.
+  stripInternalSearchParams(requestUrl.searchParams, true)
 
   const request = new NextRequestHint({
     page: params.page,
@@ -89,7 +98,13 @@ export function prepareRequest(params: {
     })
   }
 
-  return { request, buildId, isDataReq }
+  return {
+    request,
+    buildId,
+    isDataReq,
+    isEdgeRendering,
+    flightSearchParameters,
+  }
 }
 
 type PreparedRequest = ReturnType<typeof prepareRequest>
@@ -100,7 +115,7 @@ export async function adapter(params: {
   reqData: PreparedRequest
   nextConfig: RequestData['nextConfig']
 }): Promise<FetchEventResult> {
-  const { request, isDataReq, buildId } = params.reqData
+  const { request, isDataReq, buildId, flightSearchParameters } = params.reqData
   const event = new NextFetchEvent({ request, page: params.page })
   let response = await params.handler(request, event)
 
@@ -120,6 +135,8 @@ export async function adapter(params: {
 
     if (rewriteUrl.host === request.nextUrl.host) {
       rewriteUrl.buildId = buildId || rewriteUrl.buildId
+      rewriteUrl.flightSearchParameters =
+        flightSearchParameters || rewriteUrl.flightSearchParameters
       response.headers.set('x-middleware-rewrite', String(rewriteUrl))
     }
 
@@ -157,6 +174,8 @@ export async function adapter(params: {
 
     if (redirectURL.host === request.nextUrl.host) {
       redirectURL.buildId = buildId || redirectURL.buildId
+      redirectURL.flightSearchParameters =
+        flightSearchParameters || redirectURL.flightSearchParameters
       response.headers.set('Location', String(redirectURL))
     }
 

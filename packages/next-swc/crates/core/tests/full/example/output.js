@@ -38,4 +38,4 @@ import r from "other";
 export var __N_SSG = !0;
 export default function n() {
     return React.createElement("div", null);
-};
+}
