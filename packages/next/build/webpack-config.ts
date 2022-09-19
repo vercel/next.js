@@ -693,6 +693,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
+    /styled-jsx[\\/]/,
   ]
 
   // Support for NODE_PATH
