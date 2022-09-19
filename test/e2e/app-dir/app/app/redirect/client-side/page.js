@@ -1,3 +1,5 @@
+'client'
+
 import { redirect } from 'next/dist/client/components/redirect-client'
 import React from 'react'
 
