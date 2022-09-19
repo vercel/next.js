@@ -1,6 +1,12 @@
 'client'
 
-import React, { useContext, useEffect, useRef } from 'react'
+import React, {
+  useContext,
+  useEffect,
+  useRef,
+  // TODO-APP: change to React.use once it becomes stable
+  experimental_use as use,
+} from 'react'
 import type {
   ChildProp,
   //Segment
@@ -18,9 +24,6 @@ import {
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
 // import { matchSegment } from './match-segments'
-
-// TODO-APP: change to React.use once it becomes stable
-const use = (React as any).experimental_use
 
 /**
  * Check if every segment in array a and b matches
@@ -230,7 +233,7 @@ export function InnerLayoutRouter({
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const flightData = use(childNode.data)
+    const [flightData] = use(childNode.data)
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {
