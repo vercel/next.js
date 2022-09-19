@@ -1,5 +1,6 @@
 use std::{
     fs::{self},
+    panic::AssertUnwindSafe,
     path::Path,
     time::Duration,
 };
@@ -16,6 +17,8 @@ use tokio::{
 use util::{
     build_test, create_browser, AsyncBencherExtension, PageGuard, PreparedApp, BINDING_NAME,
 };
+
+use self::util::resume_on_error;
 
 mod bundlers;
 mod util;
@@ -57,28 +60,30 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, hydration: bool) {
         };
         for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
-            g.bench_with_input(
-                BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
-                &input,
-                |b, &(bundler, module_count)| {
-                    let test_app = build_test(module_count, bundler);
-                    let template_dir = test_app.path();
-                    b.to_async(&runtime).try_iter_async(
-                        || async { PreparedApp::new(bundler, template_dir.to_path_buf()) },
-                        |mut app| async {
-                            app.start_server()?;
-                            let mut guard = app.with_page(browser).await?;
-                            if wait_for_hydration {
-                                guard.wait_for_hydration().await?;
-                            }
+            resume_on_error(AssertUnwindSafe(|| {
+                g.bench_with_input(
+                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    &input,
+                    |b, &(bundler, module_count)| {
+                        let test_app = build_test(module_count, bundler);
+                        let template_dir = test_app.path();
+                        b.to_async(&runtime).try_iter_async(
+                            || async { PreparedApp::new(bundler, template_dir.to_path_buf()) },
+                            |mut app| async {
+                                app.start_server()?;
+                                let mut guard = app.with_page(browser).await?;
+                                if wait_for_hydration {
+                                    guard.wait_for_hydration().await?;
+                                }
 
-                            // Defer the dropping of the guard to `teardown`.
-                            Ok(guard)
-                        },
-                        |_guard| async move {},
-                    );
-                },
-            );
+                                // Defer the dropping of the guard to `teardown`.
+                                Ok(guard)
+                            },
+                            |_guard| async move {},
+                        );
+                    },
+                );
+            }));
         }
     }
     g.finish();
@@ -95,80 +100,84 @@ fn bench_simple_file_change(c: &mut Criterion) {
     for bundler in get_bundlers() {
         for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
-            g.bench_with_input(
-                BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
-                &input,
-                |b, &(bundler, module_count)| {
-                    let test_app = build_test(module_count, bundler);
-                    let template_dir = test_app.path();
-                    fn add_code(app_path: &Path, code: &str) -> Result<()> {
-                        let triangle_path = app_path.join("src/triangle.jsx");
-                        let mut contents = fs::read_to_string(&triangle_path)?;
-                        const COMPONENT_START: &str =
-                            "export default function Container({ style }) {\n";
-                        let a = contents
-                            .find(COMPONENT_START)
-                            .ok_or_else(|| anyhow!("unable to find component start"))?;
-                        let b = contents
-                            .find("\n    return <>")
-                            .ok_or_else(|| anyhow!("unable to find component start"))?;
-                        contents.replace_range(a..b, &format!("{COMPONENT_START}{code}"));
-                        fs::write(&triangle_path, contents)?;
-                        Ok(())
-                    }
-                    async fn make_change<'a>(guard: &mut PageGuard<'a>) -> Result<()> {
-                        let msg = format!("TURBOPACK_BENCH_CHANGE_{}", guard.app_mut().counter());
-                        add_code(
-                            guard.app().path(),
-                            &format!(
-                                "    React.useEffect(() => {{ globalThis.{BINDING_NAME}('{msg}'); \
-                                 }});\n"
-                            ),
-                        )?;
+            resume_on_error(AssertUnwindSafe(|| {
+                g.bench_with_input(
+                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    &input,
+                    |b, &(bundler, module_count)| {
+                        let test_app = build_test(module_count, bundler);
+                        let template_dir = test_app.path();
+                        fn add_code(app_path: &Path, code: &str) -> Result<()> {
+                            let triangle_path = app_path.join("src/triangle.jsx");
+                            let mut contents = fs::read_to_string(&triangle_path)?;
+                            const COMPONENT_START: &str =
+                                "export default function Container({ style }) {\n";
+                            let a = contents
+                                .find(COMPONENT_START)
+                                .ok_or_else(|| anyhow!("unable to find component start"))?;
+                            let b = contents
+                                .find("\n    return <>")
+                                .ok_or_else(|| anyhow!("unable to find component start"))?;
+                            contents.replace_range(a..b, &format!("{COMPONENT_START}{code}"));
+                            fs::write(&triangle_path, contents)?;
+                            Ok(())
+                        }
+                        async fn make_change<'a>(guard: &mut PageGuard<'a>) -> Result<()> {
+                            let msg =
+                                format!("TURBOPACK_BENCH_CHANGE_{}", guard.app_mut().counter());
+                            add_code(
+                                guard.app().path(),
+                                &format!(
+                                    "    React.useEffect(() => {{ \
+                                     globalThis.{BINDING_NAME}('{msg}'); }});\n"
+                                ),
+                            )?;
 
-                        // Wait for the change introduced above to be reflected at runtime.
-                        // This expects HMR or automatic reloading to occur.
-                        timeout(MAX_UPDATE_TIMEOUT, guard.wait_for_binding(&msg))
-                            .await?
-                            .context("update was not registered by bundler")?;
+                            // Wait for the change introduced above to be reflected at runtime.
+                            // This expects HMR or automatic reloading to occur.
+                            timeout(MAX_UPDATE_TIMEOUT, guard.wait_for_binding(&msg))
+                                .await?
+                                .context("update was not registered by bundler")?;
 
-                        Ok(())
-                    }
-                    b.to_async(Runtime::new().unwrap()).try_iter_async(
-                        || async {
-                            let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
-                            app.start_server()?;
-                            let mut guard = app.with_page(browser).await?;
-                            guard.wait_for_hydration().await?;
-                            guard
-                                .page()
-                                .evaluate_expression("globalThis.HMR_IS_HAPPENING = true")
-                                .await?;
+                            Ok(())
+                        }
+                        b.to_async(Runtime::new().unwrap()).try_iter_async(
+                            || async {
+                                let mut app =
+                                    PreparedApp::new(bundler, template_dir.to_path_buf())?;
+                                app.start_server()?;
+                                let mut guard = app.with_page(browser).await?;
+                                guard.wait_for_hydration().await?;
+                                guard
+                                    .page()
+                                    .evaluate_expression("globalThis.HMR_IS_HAPPENING = true")
+                                    .await?;
 
-                            // Make warmup change
-                            make_change(&mut guard).await?;
+                                // Make warmup change
+                                make_change(&mut guard).await?;
 
-                            Ok(guard)
-                        },
-                        |mut guard| async move {
-                            make_change(&mut guard).await?;
+                                Ok(guard)
+                            },
+                            |mut guard| async move {
+                                make_change(&mut guard).await?;
 
-                            // Defer the dropping of the guard to `teardown`.
-                            Ok(guard)
-                        },
-                        |guard| async move {
-                            let hmr_is_happening = guard
-                                .page()
-                                .evaluate_expression("globalThis.HMR_IS_HAPPENING")
-                                .await
-                                .unwrap();
-                            // Make sure that we are really measuring HMR and not accidentically
-                            // full refreshing the page
-                            assert!(hmr_is_happening.value().unwrap().as_bool().unwrap());
-                        },
-                    );
-                },
-            );
+                                // Defer the dropping of the guard to `teardown`.
+                                Ok(guard)
+                            },
+                            |guard| async move {
+                                let hmr_is_happening = guard
+                                    .page()
+                                    .evaluate_expression("globalThis.HMR_IS_HAPPENING")
+                                    .await
+                                    .unwrap();
+                                // Make sure that we are really measuring HMR and not accidentically
+                                // full refreshing the page
+                                assert!(hmr_is_happening.value().unwrap().as_bool().unwrap());
+                            },
+                        );
+                    },
+                );
+            }));
         }
     }
 }
@@ -185,40 +194,43 @@ fn bench_restart(c: &mut Criterion) {
         for module_count in get_module_counts() {
             let input = (bundler.as_ref(), module_count);
 
-            g.bench_with_input(
-                BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
-                &input,
-                |b, &(bundler, module_count)| {
-                    let test_app = build_test(module_count, bundler);
-                    let template_dir = test_app.path();
-                    b.to_async(Runtime::new().unwrap()).try_iter_async(
-                        || async {
-                            // Run a complete build, shut down, and test running it again
-                            let mut app = PreparedApp::new(bundler, template_dir.to_path_buf())?;
-                            app.start_server()?;
-                            let mut guard = app.with_page(browser).await?;
-                            guard.wait_for_hydration().await?;
+            resume_on_error(AssertUnwindSafe(|| {
+                g.bench_with_input(
+                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    &input,
+                    |b, &(bundler, module_count)| {
+                        let test_app = build_test(module_count, bundler);
+                        let template_dir = test_app.path();
+                        b.to_async(Runtime::new().unwrap()).try_iter_async(
+                            || async {
+                                // Run a complete build, shut down, and test running it again
+                                let mut app =
+                                    PreparedApp::new(bundler, template_dir.to_path_buf())?;
+                                app.start_server()?;
+                                let mut guard = app.with_page(browser).await?;
+                                guard.wait_for_hydration().await?;
 
-                            let mut app = guard.close_page().await?;
+                                let mut app = guard.close_page().await?;
 
-                            // Give it 4 seconds time to store the cache
-                            sleep(Duration::from_secs(4)).await;
+                                // Give it 4 seconds time to store the cache
+                                sleep(Duration::from_secs(4)).await;
 
-                            app.stop_server()?;
-                            Ok(app)
-                        },
-                        |mut app| async {
-                            app.start_server()?;
-                            let mut guard = app.with_page(browser).await?;
-                            guard.wait_for_hydration().await?;
+                                app.stop_server()?;
+                                Ok(app)
+                            },
+                            |mut app| async {
+                                app.start_server()?;
+                                let mut guard = app.with_page(browser).await?;
+                                guard.wait_for_hydration().await?;
 
-                            // Defer the dropping of the guard to `teardown`.
-                            Ok(guard)
-                        },
-                        |_guard| async move {},
-                    );
-                },
-            );
+                                // Defer the dropping of the guard to `teardown`.
+                                Ok(guard)
+                            },
+                            |_guard| async move {},
+                        );
+                    },
+                );
+            }));
         }
     }
 }
