@@ -10,8 +10,6 @@ import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 
-const ResponseUrls = new WeakMap<Response, NextURL>()
-
 class NextRequestHint extends NextRequest {
   sourcePage: string
 
@@ -36,6 +34,8 @@ class NextRequestHint extends NextRequest {
     throw new PageSignatureError({ page: this.sourcePage })
   }
 }
+
+const ResponseToRequest = new WeakMap<Response, NextRequestHint>()
 
 export async function adapter(params: {
   handler: NextMiddleware
@@ -173,7 +173,7 @@ export async function adapter(params: {
   }
 
   if (response) {
-    ResponseUrls.set(response, requestUrl)
+    ResponseToRequest.set(response, request)
   }
 
   return {
@@ -186,13 +186,11 @@ export function blockUnallowedResponse(
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
   return promise.then((result) => {
-    const responseUrl = ResponseUrls.get(result.response)
-    console.log({ responseUrl })
+    const { nextUrl } = ResponseToRequest.get(result.response) || {}
 
     if (
-      responseUrl &&
-      (responseUrl.pathname === '/api' ||
-        responseUrl.pathname.startsWith('/api/'))
+      nextUrl &&
+      (nextUrl.pathname === '/api' || nextUrl.pathname.startsWith('/api/'))
     ) {
       return result
     }
