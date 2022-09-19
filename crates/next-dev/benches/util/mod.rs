@@ -55,8 +55,8 @@ fn retry_default<A, F, R>(args: A, f: F) -> Result<R>
 where
     F: Fn(&mut A) -> Result<R>,
 {
-    // waits 5, 10, 20, 40, 80, 160 seconds = 315 seconds total
-    retry(args, f, 5, Duration::from_secs(5))
+    // waits 5, 10, 20, 40 seconds = 75 seconds total
+    retry(args, f, 3, Duration::from_secs(5))
 }
 
 async fn retry_async<A, F, Fut, R>(
@@ -90,8 +90,8 @@ where
     F: Fn(&mut A) -> Fut,
     Fut: Future<Output = Result<R>>,
 {
-    // waits 5, 10, 20, 40, 80, 160 seconds = 315 seconds total
-    retry_async(args, f, 5, Duration::from_secs(5)).await
+    // waits 5, 10, 20, 40 seconds = 75 seconds total
+    retry_async(args, f, 3, Duration::from_secs(5)).await
 }
 
 pub fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
