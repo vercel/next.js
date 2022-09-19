@@ -1241,7 +1241,7 @@ export async function renderToHTMLOrFlight(
 
   try {
     return new RenderResult(await bodyResult())
-  } catch (err) {
+  } catch (err: any) {
     if (err.code === REDIRECT_ERROR_CODE) {
       ;(renderOpts as any).pageData = {
         pageProps: {

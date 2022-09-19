@@ -7,6 +7,7 @@ export function redirect(url: string) {
     React.startTransition(() => {
       console.log('START')
       // TODO-APP: handle redirect
+      // @ts-expect-error TODO:-APP: fix this
       window.nd.router.replace(url, {})
     })
   })
