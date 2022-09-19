@@ -36,6 +36,30 @@ function MyComponent() {
   return <h1 className={`title ${color}`}>Hello World!</h1>
 }
 ```
+Another example:
+NextJS is not comfortable having a p tag wrapping your divs, sections etc so it will yell "Hydration failed because the initial UI does not match what was rendered on the server". 
+```jsx
+export const IncorrectComponent = ()=>{
+  return(
+    <p>
+      <div>This is not correct and should never be done because the p tag has been abused</div>
+      <Image src='/vercel.svg' alt='' width='30' height='30'/>
+    </p>
+  )
+}
+```
+How to fix it:
+```jsx
+export const CorrectComponent = ()=>{
+  return(
+    <div>
+      <div>This is correct and should work because a div is really good for this task.</div>
+      <Image src='/vercel.svg' alt='' width='30' height='30'/>
+    </div>
+  )
+}
+```
+Credits : stackoverflow user : @Motsi url https://stackoverflow.com/a/71870995
 
 Common causes with css-in-js libraries:
 
