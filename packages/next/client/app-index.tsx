@@ -125,7 +125,7 @@ function createResponseCache() {
 }
 const rscCache = createResponseCache()
 
-function useInitialServerResponse(cacheKey: string) {
+function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   const response = rscCache.get(cacheKey)
   if (response) return response
 
@@ -141,7 +141,7 @@ function useInitialServerResponse(cacheKey: string) {
   return newResponse
 }
 
-function ServerRoot({ cacheKey }: { cacheKey: string }) {
+function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
@@ -169,7 +169,7 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-function RSCComponent(props: any) {
+function RSCComponent(props: any): JSX.Element {
   const cacheKey = getCacheKey()
   return <ServerRoot {...props} cacheKey={cacheKey} />
 }

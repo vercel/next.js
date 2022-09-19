@@ -763,7 +763,7 @@ export function reducer(
       }
 
       // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-      const flightData = use(cache.data)
+      const [flightData] = use(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -954,7 +954,7 @@ export function reducer(
           'refetch',
         ])
       }
-      const flightData = use(cache.data)
+      const [flightData] = use(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
