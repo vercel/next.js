@@ -913,9 +913,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
   }
 
-  protected async getStaticPaths(pathname: string): Promise<{
-    staticPaths: string[] | undefined
-    fallbackMode: 'static' | 'blocking' | false
+  protected async getStaticPaths({
+    pathname,
+  }: {
+    pathname: string
+    originalAppPath?: string
+  }): Promise<{
+    staticPaths?: string[]
+    fallbackMode?: 'static' | 'blocking' | false
   }> {
     // `staticPaths` is intentionally set to `undefined` as it should've
     // been caught when checking disk data.
@@ -923,7 +928,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
-      this.getPrerenderManifest().dynamicRoutes[pathname].fallback
+      this.getPrerenderManifest().dynamicRoutes[pathname]?.fallback
 
     return {
       staticPaths,
@@ -932,7 +937,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? 'static'
           : fallbackField === null
           ? 'blocking'
-          : false,
+          : fallbackField,
     }
   }
 
@@ -942,15 +947,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<ResponsePayload | null> {
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
+    const isAppPath = components.isAppPath
 
     const isLikeServerless =
       typeof components.ComponentMod === 'object' &&
       typeof (components.ComponentMod as any).renderReqToHTML === 'function'
     const hasServerProps = !!components.getServerSideProps
-    const hasStaticPaths = !!components.getStaticPaths
+    let hasStaticPaths = !!components.getStaticPaths
+
     const hasGetInitialProps = !!components.Component?.getInitialProps
     const isServerComponent = !!components.ComponentMod?.__next_rsc__
-    const isSSG =
+    let isSSG =
       !!components.getStaticProps ||
       // For static server component pages, we currently always consider them
       // as SSG since we also need to handle the next data (flight JSON).
@@ -969,6 +976,37 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       (isSSG || hasServerProps || isServerComponent)
 
     delete query.__nextDataReq
+
+    // Compute the iSSG cache key. We use the rewroteUrl since
+    // pages with fallback: false are allowed to be rewritten to
+    // and we need to look up the path by the rewritten path
+    let urlPathname = parseUrl(req.url || '').pathname || '/'
+
+    let resolvedUrlPathname =
+      getRequestMeta(req, '_nextRewroteUrl') || urlPathname
+
+    let staticPaths: string[] | undefined
+    let fallbackMode: false | undefined | 'blocking' | 'static'
+
+    if (isAppPath) {
+      const pathsResult = await this.getStaticPaths({
+        pathname,
+        originalAppPath: components.pathname,
+      })
+
+      staticPaths = pathsResult.staticPaths
+      fallbackMode = pathsResult.fallbackMode
+
+      const hasFallback = typeof fallbackMode !== 'undefined'
+
+      if (hasFallback) {
+        hasStaticPaths = true
+      }
+
+      if (hasFallback || staticPaths?.includes(resolvedUrlPathname)) {
+        isSSG = true
+      }
+    }
 
     // normalize req.url for SSG paths as it is not exposed
     // to getStaticProps and the asPath should not expose /_next/data
@@ -1049,6 +1087,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
+      // TODO-APP: should the first render for a dynamic app path
+      // be static so we can collect revalidate and populate the
+      // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
         !isSSG &&
         !isLikeServerless &&
@@ -1084,14 +1125,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ;({ isManualRevalidate, revalidateOnlyGenerated } =
         checkIsManualRevalidate(req, this.renderOpts.previewProps))
     }
-
-    // Compute the iSSG cache key. We use the rewroteUrl since
-    // pages with fallback: false are allowed to be rewritten to
-    // and we need to look up the path by the rewritten path
-    let urlPathname = parseUrl(req.url || '').pathname || '/'
-
-    let resolvedUrlPathname =
-      getRequestMeta(req, '_nextRewroteUrl') || urlPathname
 
     if (isSSG && this.minimalMode && req.headers['x-matched-path']) {
       // the url value is already correct when the matched-path header is set
@@ -1248,6 +1281,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               : resolvedUrl,
         }
 
+        if (isSSG || hasStaticPaths) {
+          renderOpts.supportsDynamicHTML = false
+        }
+
         const renderResult = await this.renderHTML(
           req,
           res,
@@ -1285,9 +1322,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
 
-        let { staticPaths, fallbackMode } = hasStaticPaths
-          ? await this.getStaticPaths(pathname)
-          : { staticPaths: undefined, fallbackMode: false }
+        if (!staticPaths) {
+          ;({ staticPaths, fallbackMode } = hasStaticPaths
+            ? await this.getStaticPaths({ pathname })
+            : { staticPaths: undefined, fallbackMode: false })
+        }
 
         if (
           fallbackMode === 'static' &&
@@ -1536,9 +1575,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { query, pathname } = ctx
 
     const appPaths = this.getOriginalAppPaths(pathname)
+    const isAppPath = Array.isArray(appPaths)
 
     let page = pathname
-    if (Array.isArray(appPaths)) {
+    if (isAppPath) {
       // When it's an array, we need to pass all parallel routes to the loader.
       page = appPaths[0]
     }
@@ -1547,7 +1587,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       pathname: page,
       query,
       params: ctx.renderOpts.params || {},
-      isAppPath: Array.isArray(appPaths),
+      isAppPath,
       appPaths,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
     })
