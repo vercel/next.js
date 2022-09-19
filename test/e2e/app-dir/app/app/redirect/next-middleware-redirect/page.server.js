@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <>
       <Link href="/redirect-middleware-to-dashboard">
-        <a id="redirect-a">To Dashboard through /redirect/a</a>
+        <a id="redirect-middleware">To Dashboard through /redirect/a</a>
       </Link>
     </>
   )
