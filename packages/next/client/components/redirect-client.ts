@@ -5,7 +5,6 @@ export function redirect(url: string) {
   setTimeout(() => {
     // @ts-ignore startTransition exists
     React.startTransition(() => {
-      console.log('START')
       // TODO-APP: handle redirect
       // @ts-expect-error TODO:-APP: fix this
       window.nd.router.replace(url, {})
