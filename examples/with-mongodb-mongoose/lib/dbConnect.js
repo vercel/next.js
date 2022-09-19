@@ -33,14 +33,14 @@ async function dbConnect() {
       return mongoose
     })
   }
-  
+
   try {
     cached.conn = await cached.promise
   } catch (e) {
     cached.promise = null
     throw e
   }
-  
+
   return cached.conn
 }
 
