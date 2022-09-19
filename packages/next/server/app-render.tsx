@@ -25,7 +25,7 @@ import {
   FlightCSSManifest,
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
-import { FlushEffectsContext } from '../client/components/hooks-client'
+import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 
@@ -50,6 +50,15 @@ export type RenderOptsPartial = {
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+
+/**
+ * Flight Response is always set to application/octet-stream to ensure it does not
+ */
+class FlightRenderResult extends RenderResult {
+  constructor(response: string | ReadableStream<Uint8Array>) {
+    super(response, { contentType: 'application/octet-stream' })
+  }
+}
 
 /**
  * Interop between "export default" and "module.exports".
@@ -500,7 +509,7 @@ export async function renderToHTMLOrFlight(
 
     // Empty so that the client-side router will do a full page navigation.
     const flightData: FlightData = pathname + (search ? `?${search}` : '')
-    return new RenderResult(
+    return new FlightRenderResult(
       renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
         createBufferedTransformStream()
       )
@@ -1054,7 +1063,7 @@ export async function renderToHTMLOrFlight(
       ).slice(1),
     ]
 
-    return new RenderResult(
+    return new FlightRenderResult(
       renderToReadableStream(flightData, serverComponentManifest, {
         context: serverContexts,
       }).pipeThrough(createBufferedTransformStream())

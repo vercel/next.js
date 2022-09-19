@@ -7,8 +7,8 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
+import { isClientComponentModule } from '../loaders/utils'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -19,8 +19,6 @@ import { relative } from 'path'
 
 interface Options {
   dev: boolean
-  appDir: boolean
-  pageExtensions: string[]
 }
 
 /**
@@ -64,13 +62,9 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
-  pageExtensions: Options['pageExtensions']
-  appDir: Options['appDir'] = false
 
   constructor(options: Options) {
     this.dev = options.dev
-    this.appDir = options.appDir
-    this.pageExtensions = options.pageExtensions
   }
 
   apply(compiler: webpack.Compiler) {
@@ -109,8 +103,35 @@ export class FlightManifestPlugin {
     const manifest: FlightManifest = {
       __ssr_module_mapping__: {},
     }
-    const appDir = this.appDir
     const dev = this.dev
+
+    const clientRequestsSet = new Set()
+
+    // Collect client requests
+    function collectClientRequest(mod: webpack.NormalModule) {
+      if (mod.resource === '' && mod.buildInfo.rsc) {
+        const { requests = [] } = mod.buildInfo.rsc
+        requests.forEach((r: string) => {
+          clientRequestsSet.add(require.resolve(r))
+        })
+      }
+    }
+
+    compilation.chunkGroups.forEach((chunkGroup) => {
+      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+          chunk
+          // TODO: Update type so that it doesn't have to be cast.
+        ) as Iterable<webpack.NormalModule>
+        for (const mod of chunkModules) {
+          collectClientRequest(mod)
+          const anyModule = mod as any
+          if (anyModule.modules) {
+            for (const subMod of anyModule.modules) collectClientRequest(subMod)
+          }
+        }
+      })
+    })
 
     compilation.chunkGroups.forEach((chunkGroup) => {
       const cssResourcesInChunkGroup = new Set<string>()
@@ -122,8 +143,9 @@ export class FlightManifestPlugin {
         mod: webpack.NormalModule
       ) {
         const isCSSModule =
+          mod.resource?.endsWith('.css') ||
           mod.type === 'css/mini-extract' ||
-          (mod.loaders &&
+          (!!mod.loaders &&
             (dev
               ? mod.loaders.some((item) =>
                   item.loader.includes('next-style-loader/index.js')
@@ -138,7 +160,9 @@ export class FlightManifestPlugin {
               mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
             : mod.resource
 
-        if (!resource) return
+        if (!resource) {
+          return
+        }
 
         const moduleExports = manifest[resource] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
@@ -173,14 +197,13 @@ export class FlightManifestPlugin {
           return
         }
 
-        // TODO: Hook into deps instead of the target module.
-        // That way we know by the type of dep whether to include.
-        // It also resolves conflicts when the same module is in multiple chunks.
-        if (!clientComponentRegex.test(resource)) {
+        // Only apply following logic to client module requests from client entry,
+        // or if the module is marked as client module.
+        if (!clientRequestsSet.has(resource) && !isClientComponentModule(mod)) {
           return
         }
 
-        if (/\/(page|layout)\.client\.(ts|js)x?$/.test(resource)) {
+        if (/[\\/](page|layout)\.(ts|js)x?$/.test(resource)) {
           entryFilepath = resource
         }
 
@@ -207,6 +230,17 @@ export class FlightManifestPlugin {
           ]),
         ]
 
+        function getAppPathRequiredChunks() {
+          return chunkGroup.chunks.map((requiredChunk: webpack.Chunk) => {
+            return (
+              requiredChunk.id +
+              ':' +
+              (requiredChunk.name || requiredChunk.id) +
+              (dev ? '' : '-' + requiredChunk.hash)
+            )
+          })
+        }
+
         const moduleExportedKeys = ['', '*']
           .concat(
             [...exportsInfo.exports]
@@ -217,29 +251,10 @@ export class FlightManifestPlugin {
           .filter((name) => name !== null)
 
         moduleExportedKeys.forEach((name) => {
-          let requiredChunks: ManifestChunks = []
-          if (!moduleExports[name]) {
-            const isRelatedChunk = (c: webpack.Chunk) => {
-              // If current chunk is a page, it should require the related page chunk;
-              // If current chunk is a component, it should filter out the related page chunk;
-              return (
-                chunk.name?.startsWith('pages/') ||
-                !c.name?.startsWith('pages/')
-              )
-            }
-
-            if (appDir) {
-              requiredChunks = chunkGroup.chunks
-                .filter(isRelatedChunk)
-                .map((requiredChunk: webpack.Chunk) => {
-                  return (
-                    requiredChunk.id +
-                    ':' +
-                    (requiredChunk.name || requiredChunk.id) +
-                    (dev ? '' : '-' + requiredChunk.hash)
-                  )
-                })
-            }
+          // If the chunk is from `app/` chunkGroup, use it first.
+          // This make sure not to load the overlapped chunk from `pages/` chunkGroup
+          if (!moduleExports[name] || chunkGroup.name?.startsWith('app/')) {
+            const requiredChunks = getAppPathRequiredChunks()
 
             moduleExports[name] = {
               id,
@@ -249,11 +264,9 @@ export class FlightManifestPlugin {
           }
 
           moduleIdMapping[id] = moduleIdMapping[id] || {}
-          if (!moduleIdMapping[id][name]) {
-            moduleIdMapping[id][name] = {
-              ...moduleExports[name],
-              id: ssrNamedModuleId,
-            }
+          moduleIdMapping[id][name] = {
+            ...moduleExports[name],
+            id: ssrNamedModuleId,
           }
         })
 

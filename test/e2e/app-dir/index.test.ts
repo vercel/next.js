@@ -29,6 +29,9 @@ describe('app dir', () => {
           'react-dom': 'experimental',
         },
         skipStart: true,
+        env: {
+          VERCEL_ANALYTICS_ID: 'fake-analytics-id',
+        },
       })
 
       if (assetPrefix) {
@@ -43,6 +46,19 @@ describe('app dir', () => {
       await next.start()
     })
     afterAll(() => next.destroy())
+
+    it('should use application/octet-stream for flight', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/dashboard/deployments/123?__flight__'
+      )
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    })
+
+    it('should use application/octet-stream for flight with edge runtime', async () => {
+      const res = await fetchViaHTTP(next.url, '/dashboard?__flight__')
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    })
 
     it('should pass props from getServerSideProps in root layout', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard')
@@ -1061,9 +1077,9 @@ describe('app dir', () => {
       })
 
       if (isDev) {
-        it('should throw an error when getServerSideProps is used', async () => {
+        it.skip('should throw an error when getServerSideProps is used', async () => {
           const pageFile =
-            'app/client-with-errors/get-server-side-props/page.client.js'
+            'app/client-with-errors/get-server-side-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
             '// export function getServerSideProps',
@@ -1090,9 +1106,8 @@ describe('app dir', () => {
           )
         })
 
-        it('should throw an error when getStaticProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-static-props/page.client.js'
+        it.skip('should throw an error when getStaticProps is used', async () => {
+          const pageFile = 'app/client-with-errors/get-static-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
             '// export function getStaticProps',
@@ -1439,6 +1454,40 @@ describe('app dir', () => {
           .map((x) => x.message)
           .join('\n')
         expect(errors).toInclude('Error during SSR')
+      })
+    })
+
+    // Analytics events are only sent in production
+    ;(isDev ? describe.skip : describe)('Vercel analytics', () => {
+      it('should send web vitals to Vercel analytics', async () => {
+        let eventsCount = 0
+        let countEvents = false
+        const browser = await webdriver(next.url, '/client-nested', {
+          beforePageLoad(page) {
+            page.route(
+              'https://vitals.vercel-insights.com/v1/vitals',
+              (route) => {
+                if (countEvents) {
+                  eventsCount += 1
+                }
+
+                route.fulfill()
+              }
+            )
+          },
+        })
+
+        // Start counting analytics events
+        countEvents = true
+
+        // Refresh will trigger CLS and LCP. When page loads FCP and TTFB will trigger:
+        await browser.refresh()
+
+        // After interaction LCP and FID will trigger
+        await browser.elementByCss('button').click()
+
+        // Make sure all registered events in performance-relayer has fired
+        await check(() => eventsCount, /6/)
       })
     })
 
