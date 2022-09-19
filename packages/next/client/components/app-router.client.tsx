@@ -152,11 +152,16 @@ export default function AppRouter({
    * Server response that only patches the cache and tree.
    */
   const changeByServerResponse = useCallback(
-    (previousTree: FlightRouterState, flightData: FlightData) => {
+    (
+      previousTree: FlightRouterState,
+      flightData: FlightData,
+      overrideCanonicalUrl: URL | undefined
+    ) => {
       dispatch({
         type: ACTION_SERVER_PATCH,
         flightData,
         previousTree,
+        overrideCanonicalUrl,
         cache: {
           data: null,
           subTreeData: null,
@@ -204,7 +209,7 @@ export default function AppRouter({
 
         try {
           // TODO-APP: handle case where history.state is not the new router history entry
-          const [flightData] = await fetchServerResponse(
+          const serverResponse = await fetchServerResponse(
             url,
             // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
             window.history.state?.tree || initialTree,
@@ -215,7 +220,7 @@ export default function AppRouter({
             dispatch({
               type: ACTION_PREFETCH,
               url,
-              flightData,
+              serverResponse,
             })
           })
         } catch (err) {
