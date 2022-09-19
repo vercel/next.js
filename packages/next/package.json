@@ -20,8 +20,6 @@
     "config.d.ts",
     "constants.js",
     "constants.d.ts",
-    "data.js",
-    "data.d.ts",
     "document.js",
     "document.d.ts",
     "dynamic.js",
