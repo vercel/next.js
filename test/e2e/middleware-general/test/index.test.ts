@@ -116,7 +116,10 @@ describe('Middleware Runtime', () => {
               'ANOTHER_MIDDLEWARE_TEST',
               'STRING_ENV_VAR',
             ],
-            files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
+            files: expect.arrayContaining([
+              'server/edge-runtime-webpack.js',
+              'server/middleware.js',
+            ]),
             name: 'middleware',
             page: '/',
             matchers: [{ regexp: '^/.*$' }],
@@ -156,6 +159,17 @@ describe('Middleware Runtime', () => {
         expect(res.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
       })
     }
+
+    it('passes search params with rewrites', async () => {
+      const response = await fetchViaHTTP(next.url, `/api/edge-search-params`, {
+        a: 'b',
+      })
+      await expect(response.json()).resolves.toMatchObject({
+        a: 'b',
+        // included from middleware
+        foo: 'bar',
+      })
+    })
 
     it('should have init header for NextResponse.redirect', async () => {
       const res = await fetchViaHTTP(

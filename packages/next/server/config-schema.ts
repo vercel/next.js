@@ -219,6 +219,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        adjustFontFallbacks: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -253,7 +256,14 @@ const configSchema = {
           type: 'boolean',
         },
         esmExternals: {
-          type: 'boolean',
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              const: 'loose',
+            },
+          ] as any,
         },
         externalDir: {
           type: 'boolean',
@@ -337,6 +347,15 @@ const configSchema = {
         },
         sharedPool: {
           type: 'boolean',
+        },
+        sri: {
+          properties: {
+            algorithm: {
+              enum: ['sha256', 'sha384', 'sha512'] as any,
+              type: 'string',
+            },
+          },
+          type: 'object',
         },
         swcFileReading: {
           type: 'boolean',

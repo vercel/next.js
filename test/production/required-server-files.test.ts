@@ -422,7 +422,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
@@ -433,7 +433,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
@@ -445,7 +445,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
@@ -455,7 +455,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     await next.patchFile('standalone/data.txt', 'show')
 

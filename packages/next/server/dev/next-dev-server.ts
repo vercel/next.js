@@ -273,12 +273,10 @@ export default class DevServer extends Server {
         })
       }
 
-      const wp = (this.webpackWatcher = new Watchpack({
-        ignored: /([/\\]node_modules[/\\]|[/\\]\.next[/\\]|[/\\]\.git[/\\])/,
-      }))
       const pages = this.pagesDir ? [this.pagesDir] : []
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
+
       const files = this.pagesDir
         ? getPossibleMiddlewareFilenames(
             pathJoin(this.pagesDir, '..'),
@@ -302,6 +300,15 @@ export default class DevServer extends Server {
         pathJoin(this.dir, 'jsconfig.json'),
       ]
       files.push(...tsconfigPaths)
+
+      const wp = (this.webpackWatcher = new Watchpack({
+        ignored: (pathname: string) => {
+          return (
+            !files.some((file) => file.startsWith(pathname)) &&
+            !directories.some((dir) => pathname.startsWith(dir))
+          )
+        },
+      }))
 
       wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
@@ -519,7 +526,6 @@ export default class DevServer extends Server {
                     hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
-                    hasServerComponents: this.hotReloader?.hasServerComponents,
                   })
 
                   Object.keys(plugin.definitions).forEach((key) => {

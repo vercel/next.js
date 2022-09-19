@@ -1082,13 +1082,13 @@ export async function isPageStatic({
           getStaticProps: mod.getStaticProps,
         }
       } else {
-        componentsResult = await loadComponents(
+        componentsResult = await loadComponents({
           distDir,
-          page,
+          pathname: page,
           serverless,
-          false,
-          false
-        )
+          hasServerComponents: false,
+          isAppPath: false,
+        })
       }
       const Comp = componentsResult.Component
 
@@ -1214,13 +1214,13 @@ export async function hasCustomGetInitialProps(
 ): Promise<boolean> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
-  const components = await loadComponents(
+  const components = await loadComponents({
     distDir,
-    page,
-    isLikeServerless,
-    false,
-    false
-  )
+    pathname: page,
+    serverless: isLikeServerless,
+    hasServerComponents: false,
+    isAppPath: false,
+  })
   let mod = components.ComponentMod
 
   if (checkingApp) {
@@ -1239,13 +1239,13 @@ export async function getNamedExports(
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-  const components = await loadComponents(
+  const components = await loadComponents({
     distDir,
-    page,
-    isLikeServerless,
-    false,
-    false
-  )
+    pathname: page,
+    serverless: isLikeServerless,
+    hasServerComponents: false,
+    isAppPath: false,
+  })
   let mod = components.ComponentMod
 
   return Object.keys(mod)
@@ -1325,33 +1325,6 @@ export function detectConflictingPaths(
     )
     process.exit(1)
   }
-}
-
-/**
- * With RSC we automatically add .server and .client to page extensions. This
- * function allows to remove them for cases where we just need to strip out
- * the actual extension keeping the .server and .client.
- */
-export function withoutRSCExtensions(pageExtensions: string[]): string[] {
-  return pageExtensions.filter(
-    (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
-  )
-}
-
-export function isServerComponentPage(
-  nextConfig: NextConfigComplete,
-  filePath: string
-): boolean {
-  if (!nextConfig.experimental.serverComponents) {
-    return false
-  }
-
-  const rawPageExtensions = withoutRSCExtensions(
-    nextConfig.pageExtensions || []
-  )
-  return rawPageExtensions.some((ext) => {
-    return filePath.endsWith(`.server.${ext}`)
-  })
 }
 
 export async function copyTracedFiles(

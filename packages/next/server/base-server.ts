@@ -2,7 +2,7 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Route } from './router'
-import type { FontManifest } from './font-utils'
+import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -48,7 +48,8 @@ import Router from './router'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage, isBot } from './utils'
+import { isBlockedPage } from './utils'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -200,7 +201,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
-    optimizeFonts: boolean
+    optimizeFonts: FontConfig
     images: ImageConfigComplete
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
@@ -245,6 +246,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     params: Params
     isAppPath: boolean
     appPaths?: string[] | null
+    sriEnabled?: boolean
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -379,9 +381,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
-      optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
+      optimizeFonts: this.nextConfig.optimizeFonts as FontConfig,
       fontManifest:
-        this.nextConfig.optimizeFonts && !dev
+        (this.nextConfig.optimizeFonts as FontConfig) && !dev
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -1192,6 +1194,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           locale,
           locales,
           defaultLocale,
+          optimizeFonts: this.renderOpts.optimizeFonts,
           optimizeCss: this.renderOpts.optimizeCss,
           nextScriptWorkers: this.renderOpts.nextScriptWorkers,
           distDir: this.distDir,
@@ -1546,8 +1549,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       params: ctx.renderOpts.params || {},
       isAppPath: Array.isArray(appPaths),
       appPaths,
+      sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
     })
-
     if (result) {
       try {
         return await this.renderToResponseWithComponents(ctx, result)

@@ -44,7 +44,7 @@ function formatMessage(message, verbose) {
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace) =>
-          !/next-(middleware|client-pages|edge-function|flight-(client|server))-loader\.js/.test(
+          !/next-(middleware|client-pages|edge-function)-loader\.js/.test(
             trace.originName
           )
       )
@@ -62,7 +62,7 @@ function formatMessage(message, verbose) {
       (message.details && verbose ? '\n' + message.details : '') +
       (filteredModuleTrace && filteredModuleTrace.length && verbose
         ? '\n\nImport trace for requested module:' +
-          filteredModuleTrace.map((trace) => `\n${trace.originName}`).join('')
+          filteredModuleTrace.map((trace) => `\n${trace.moduleName}`).join('')
         : '') +
       (message.stack && verbose ? '\n' + message.stack : '')
   }
@@ -171,6 +171,17 @@ function formatMessage(message, verbose) {
 
 function formatWebpackMessages(json, verbose) {
   const formattedErrors = json.errors.map(function (message) {
+    // TODO: Shall we use invisible characters in the original error
+    // message as meta information?
+    if (
+      message &&
+      message.message &&
+      / (Client|Server) Components compilation\./.test(message.message)
+    ) {
+      // Comes from the "React Server Components" transform in SWC, always
+      // attach the module trace.
+      verbose = true
+    }
     return formatMessage(message, verbose)
   })
   const formattedWarnings = json.warnings.map(function (message) {
