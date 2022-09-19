@@ -1474,24 +1474,22 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        ...(hasServerComponents
-          ? isNodeServer || isEdgeServer
-            ? [
-                // RSC server compilation loaders
-                {
-                  test: codeCondition.test,
-                  include: [
-                    dir,
-                    // To let the internal client components passing through flight loader
-                    /next[\\/]dist/,
-                  ],
-                  issuerLayer: WEBPACK_LAYERS.server,
-                  use: {
-                    loader: 'next-flight-loader',
-                  },
+        ...(hasServerComponents && (isNodeServer || isEdgeServer)
+          ? [
+              // RSC server compilation loaders
+              {
+                test: codeCondition.test,
+                include: [
+                  dir,
+                  // To let the internal client components passing through flight loader
+                  /next[\\/]dist/,
+                ],
+                issuerLayer: WEBPACK_LAYERS.server,
+                use: {
+                  loader: 'next-flight-loader',
                 },
-              ]
-            : []
+              },
+            ]
           : []),
         ...(hasServerComponents && isEdgeServer
           ? [
