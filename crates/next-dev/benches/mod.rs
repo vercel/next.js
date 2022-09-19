@@ -179,7 +179,10 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                                 format!("TURBOPACK_BENCH_CHANGE_{}", guard.app_mut().counter());
                             add_code(
                                 guard.app().path(),
-                                &format!("globalThis.{BINDING_NAME}('{msg}');"),
+                                &format!(
+                                    "globalThis.{BINDING_NAME} && \
+                                     globalThis.{BINDING_NAME}('{msg}');"
+                                ),
                                 location,
                             )?;
 
