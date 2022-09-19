@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod code_gen;
+pub mod package_json;
 pub mod resolve;
 
 use std::{cmp::Ordering, fmt::Display};

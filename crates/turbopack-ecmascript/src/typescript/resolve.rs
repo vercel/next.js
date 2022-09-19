@@ -7,6 +7,7 @@ use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
     context::AssetContextVc,
+    issue::{Issue, IssueSeverityVc, IssueVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         handle_resolve_error,
@@ -15,7 +16,7 @@ use turbopack_core::{
             ResolveOptionsVc,
         },
         parse::{Request, RequestVc},
-        resolve, ResolveResult, ResolveResultVc,
+        resolve, AliasPattern, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
 };
@@ -141,7 +142,7 @@ pub async fn apply_tsconfig(
             ImportMap::default()
         };
         for (key, value) in all_paths {
-            import_map.direct.insert(&key, value)?;
+            import_map.direct.insert(AliasPattern::parse(&key), value);
         }
         resolve_options.import_map = Some(import_map.into());
     }
@@ -241,4 +242,41 @@ async fn apply_typescript_types_options(
         .into_package
         .push(ResolveIntoPackage::Default("index".to_string()));
     Ok(resolve_options.into())
+}
+
+#[turbo_tasks::value(shared)]
+pub struct TsConfigIssue {
+    pub severity: IssueSeverityVc,
+    pub path: FileSystemPathVc,
+    pub message: StringVc,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for TsConfigIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> IssueSeverityVc {
+        self.severity
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(
+            "An issue occurred while parsing a tsconfig.json file.".to_string(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> StringVc {
+        StringVc::cell("typescript".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> FileSystemPathVc {
+        self.path
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> StringVc {
+        self.message
+    }
 }

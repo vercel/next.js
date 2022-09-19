@@ -8,7 +8,7 @@ use turbopack_core::resolve::{
         ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
         ResolveOptions, ResolveOptionsVc, ResolvedMap,
     },
-    FindContextFileResult, PrefixTree,
+    AliasMap, AliasPattern, FindContextFileResult,
 };
 use turbopack_ecmascript::{
     resolve::apply_cjs_specific_options, typescript::resolve::apply_tsconfig,
@@ -29,7 +29,7 @@ async fn raw_resolve_options(
     let opt = options_context.await?;
     let emulating = opt.emulate_environment;
     let root = FileSystemPathVc::new(context_value.fs, "");
-    let mut direct_mappings = PrefixTree::new();
+    let mut direct_mappings = AliasMap::new();
     for req in [
         "assert",
         "async_hooks",
@@ -83,8 +83,11 @@ async fn raw_resolve_options(
         "zlib",
         "pnpapi",
     ] {
-        direct_mappings.insert(req, ImportMapping::External(None))?;
-        direct_mappings.insert(&format!("node:{req}"), ImportMapping::External(None))?;
+        direct_mappings.insert(AliasPattern::exact(req), ImportMapping::External(None));
+        direct_mappings.insert(
+            AliasPattern::exact(format!("node:{req}")),
+            ImportMapping::External(None),
+        );
     }
     let glob_mappings = vec![
         (

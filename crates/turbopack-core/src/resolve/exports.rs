@@ -1,15 +1,15 @@
 use std::collections::{BTreeMap, HashMap};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use json::JsonValue;
 use serde::{Deserialize, Serialize};
 
 use super::{
+    alias_map::{AliasMap, AliasMapIterator, AliasPattern, AliasTemplate},
     options::ConditionValue,
-    prefix_tree::{PrefixTree, PrefixTreeIterator, WildcardReplacable},
 };
 
-/// The result an "exports" or "imports" field describes. Can represent multiple
+/// The result an "exports" field describes. Can represent multiple
 /// alternatives, conditional result, ignored result (null mapping) and a plain
 /// result.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
@@ -20,56 +20,33 @@ pub enum ExportsValue {
     Excluded,
 }
 
-impl WildcardReplacable for ExportsValue {
-    fn replace_wildcard(&self, value: &str) -> Result<Self> {
-        Ok(match self {
-            ExportsValue::Alternatives(list) => ExportsValue::Alternatives(
-                list.iter()
-                    .map(|v| v.replace_wildcard(value))
-                    .collect::<Result<Vec<_>>>()?,
-            ),
-            ExportsValue::Conditional(list) => ExportsValue::Conditional(
-                list.iter()
-                    .map(|(c, v)| Ok((c.clone(), v.replace_wildcard(value)?)))
-                    .collect::<Result<Vec<_>>>()?,
-            ),
-            ExportsValue::Result(v) => {
-                if !v.contains('*') {
-                    bail!(
-                        "exports field value need to contain a wildcard (*) when the key contains \
-                         one"
-                    );
-                }
-                ExportsValue::Result(v.replace('*', value))
-            }
-            ExportsValue::Excluded => ExportsValue::Excluded,
-        })
-    }
+impl AliasTemplate for ExportsValue {
+    type Output = Result<Self>;
 
-    fn append_to_folder(&self, value: &str) -> Result<Self> {
+    fn replace(&self, capture: &str) -> Result<Self> {
         Ok(match self {
             ExportsValue::Alternatives(list) => ExportsValue::Alternatives(
                 list.iter()
-                    .map(|v| v.append_to_folder(value))
+                    .map(|value| value.replace(capture))
                     .collect::<Result<Vec<_>>>()?,
             ),
             ExportsValue::Conditional(list) => ExportsValue::Conditional(
                 list.iter()
-                    .map(|(c, v)| Ok((c.clone(), v.append_to_folder(value)?)))
+                    .map(|(condition, value)| Ok((condition.clone(), value.replace(capture)?)))
                     .collect::<Result<Vec<_>>>()?,
             ),
-            ExportsValue::Result(v) => {
-                if !v.ends_with('/') {
-                    bail!("exports field value need ends with '/' when the key ends with it");
-                }
-                ExportsValue::Result(v.to_string() + value)
-            }
+            ExportsValue::Result(value) => ExportsValue::Result(value.replace('*', capture)),
             ExportsValue::Excluded => ExportsValue::Excluded,
         })
     }
 }
 
 impl ExportsValue {
+    /// Returns an iterator over all leaf results.
+    fn results_mut(&mut self) -> ResultsIterMut<'_> {
+        ResultsIterMut { stack: vec![self] }
+    }
+
     /// Walks the [ExportsValue] and adds results to the `target` vector. It
     /// uses the `conditions` to skip or enter conditional results.
     /// The state of conditions is stored within `condition_overrides`, which is
@@ -143,26 +120,56 @@ impl ExportsValue {
     }
 }
 
+struct ResultsIterMut<'a> {
+    stack: Vec<&'a mut ExportsValue>,
+}
+
+impl<'a> Iterator for ResultsIterMut<'a> {
+    type Item = &'a mut String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(value) = self.stack.pop() {
+            match value {
+                ExportsValue::Alternatives(list) => {
+                    for value in list {
+                        self.stack.push(value);
+                    }
+                }
+                ExportsValue::Conditional(list) => {
+                    for (_, value) in list {
+                        self.stack.push(value);
+                    }
+                }
+                ExportsValue::Result(r) => return Some(r),
+                ExportsValue::Excluded => {}
+            }
+        }
+        None
+    }
+}
+
 impl TryFrom<&JsonValue> for ExportsValue {
     type Error = anyhow::Error;
+
     fn try_from(value: &JsonValue) -> Result<Self> {
         match value {
             JsonValue::Null => Ok(ExportsValue::Excluded),
             JsonValue::Short(s) => Ok(ExportsValue::Result(s.to_string())),
             JsonValue::String(s) => Ok(ExportsValue::Result(s.to_string())),
             JsonValue::Number(_) => Err(anyhow!(
-                "numeric values are invalid in exports/imports field"
+                "numeric values are invalid in exports field entries"
             )),
             JsonValue::Boolean(_) => Err(anyhow!(
-                "boolean values are invalid in exports/imports field"
+                "boolean values are invalid in exports field entries"
             )),
-            JsonValue::Object(o) => Ok(ExportsValue::Conditional(
-                o.iter()
+            JsonValue::Object(object) => Ok(ExportsValue::Conditional(
+                object
+                    .iter()
                     .map(|(key, value)| {
-                        if key.starts_with('.') || key.starts_with('#') {
+                        if key.starts_with('.') {
                             bail!(
-                                "invalid key \"{}\" in an conditions object (Did you want to \
-                                 place this request on higher level?)",
+                                "invalid key \"{}\" in an export field conditions object. Did you \
+                                 mean to place this request at a higher level?",
                                 key
                             );
                         }
@@ -170,8 +177,9 @@ impl TryFrom<&JsonValue> for ExportsValue {
                     })
                     .collect::<Result<Vec<_>>>()?,
             )),
-            JsonValue::Array(a) => Ok(ExportsValue::Alternatives(
-                a.iter()
+            JsonValue::Array(array) => Ok(ExportsValue::Alternatives(
+                array
+                    .iter()
                     .map(|value| value.try_into())
                     .collect::<Result<Vec<_>>>()?,
             )),
@@ -181,58 +189,141 @@ impl TryFrom<&JsonValue> for ExportsValue {
 
 /// Content of an "exports" field in a package.json
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExportsField(PrefixTree<ExportsValue>);
-
-/// Content of an "imports" field in a package.json
-#[derive(PartialEq, Eq, Serialize, Deserialize)]
-pub struct ImportsField(PrefixTree<ExportsValue>);
+pub struct ExportsField(AliasMap<ExportsValue>);
 
 impl TryFrom<&JsonValue> for ExportsField {
     type Error = anyhow::Error;
 
     fn try_from(value: &JsonValue) -> Result<Self> {
-        Ok(Self(
-            PrefixTree::from_json(
-                value,
-                |request| request == "." || request.starts_with("./"),
-                Some("."),
-            )
-            .with_context(|| anyhow!("failed to parse 'exports' field value"))?,
-        ))
+        // The "exports" field can be an object, a string, or an array of strings.
+        // https://nodejs.org/api/packages.html#exports
+        let map = match value {
+            JsonValue::Object(object) => {
+                let mut map = AliasMap::new();
+                // Conditional exports can also be defined at the top-level of the
+                // exports field, where they will apply to the package itself.
+                let mut conditions = vec![];
+
+                for (key, value) in object.iter() {
+                    // NOTE: Node.js does not allow conditional and non-conditional keys
+                    // to be mixed at the top-level, but we do.
+                    if key != "." && !key.starts_with("./") {
+                        conditions.push((key, value));
+                        continue;
+                    }
+
+                    let mut value: ExportsValue = value.try_into()?;
+
+                    let pattern = if is_folder_shorthand(key) {
+                        expand_folder_shorthand(key, &mut value)?
+                    } else {
+                        AliasPattern::parse(key)
+                    };
+
+                    map.insert(pattern, value);
+                }
+
+                if !conditions.is_empty() {
+                    map.insert(
+                        AliasPattern::Exact(".".to_string()),
+                        ExportsValue::Conditional(
+                            conditions
+                                .into_iter()
+                                .map(|(key, value)| Ok((key.to_string(), value.try_into()?)))
+                                .collect::<Result<Vec<_>>>()?,
+                        ),
+                    );
+                }
+
+                map
+            }
+            JsonValue::Short(string) => {
+                let mut map = AliasMap::new();
+                map.insert(
+                    AliasPattern::exact("."),
+                    ExportsValue::Result(string.to_string()),
+                );
+                map
+            }
+            JsonValue::String(string) => {
+                let mut map = AliasMap::new();
+                map.insert(
+                    AliasPattern::exact("."),
+                    ExportsValue::Result(string.to_string()),
+                );
+                map
+            }
+            JsonValue::Array(array) => {
+                let mut map = AliasMap::new();
+                map.insert(
+                    AliasPattern::exact("."),
+                    // This allows for more complex patterns than the spec allows, since we accept
+                    // the following:
+                    // [{ "node": "./node.js", "default": "./index.js" }, "./index.js"]
+                    ExportsValue::Alternatives(
+                        array
+                            .iter()
+                            .map(|value| value.try_into())
+                            .collect::<Result<Vec<_>>>()?,
+                    ),
+                );
+                map
+            }
+            _ => {
+                bail!("\"exports\" field must be an object or a string");
+            }
+        };
+        Ok(Self(map))
     }
 }
 
-impl TryFrom<&JsonValue> for ImportsField {
-    type Error = anyhow::Error;
+/// Returns true if the given string is a folder path shorthand.
+fn is_folder_shorthand(key: &str) -> bool {
+    key.ends_with('/') && key.find('*').is_none()
+}
 
-    fn try_from(value: &JsonValue) -> Result<Self> {
-        Ok(Self(
-            PrefixTree::from_json(
-                value,
-                |request| request == "." || request.starts_with("./"),
-                Some("."),
-            )
-            .with_context(|| anyhow!("failed to parse 'exports' field value"))?,
-        ))
+/// The exports field supports a shorthand for folders, where:
+///   "./folder/": "./other-folder/"
+/// is equivalent to
+///   "./folder/*": "./other-folder/*"
+/// This is not implemented directly by [`AliasMap`] as it is not
+/// shared behavior with the tsconfig.json `paths` field. Instead,
+/// we do the expansion here.
+fn expand_folder_shorthand(key: &str, value: &mut ExportsValue) -> Result<AliasPattern> {
+    // Transform folder patterns into wildcard patterns.
+    let pattern = AliasPattern::wildcard(key, "");
+
+    // Transform templates into wildcard patterns as well.
+    for result in value.results_mut() {
+        if result.ends_with('/') {
+            if result.find('*').is_none() {
+                result.push('*');
+            } else {
+                bail!(
+                    "invalid exports field value \"{}\" for key \"{}\": \"*\" is not allowed in \
+                     folder exports",
+                    result,
+                    key
+                );
+            }
+        } else {
+            bail!(
+                "invalid exports field value \"{}\" for key \"{}\": folder exports must end with \
+                 \"/\"",
+                result,
+                key
+            );
+        }
     }
+
+    Ok(pattern)
 }
 
 impl ExportsField {
     /// Looks up a request string in the "exports" field. Returns an iterator of
-    /// matching requests. Usually only the first one is relevant, expect
-    /// when conditions doesn't match or only partially match.
-    pub fn lookup<'a>(&'a self, request: &'a str) -> PrefixTreeIterator<'a, ExportsValue> {
-        self.0.lookup(request)
-    }
-}
-
-impl ImportsField {
-    // FIXME
-    #[allow(dead_code)]
-    /// Looks up a request string in the "imports" field. Returns an iterator of
-    /// matching requests. Usually only the first one is relevant, expect
-    /// when conditions doesn't match or only partially match.
-    pub fn lookup<'a>(&'a self, request: &'a str) -> PrefixTreeIterator<'a, ExportsValue> {
+    /// matching requests. Usually only the first one is relevant, except
+    /// when conditions don't match or only partially match.
+    pub fn lookup<'a>(&'a self, request: &'a str) -> AliasMapIterator<'a, ExportsValue> {
         self.0.lookup(request)
     }
 }

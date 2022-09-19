@@ -44,132 +44,196 @@ use turbopack_core::{
 
 #[template]
 #[rstest]
-#[case::analytics_node("integration/analytics-node.js", true)]
-#[case::array_map_require("integration/array-map-require/index.js", true)]
-#[case::apollo("integration/apollo.js", true)]
-#[case::argon2("integration/argon2.js", true)]
-#[case::auth0("integration/auth0.js", true)]
-#[case::aws_sdk("integration/aws-sdk.js", true)]
-#[case::axios("integration/axios.js", true)]
-#[case::azure_cosmos("integration/azure-cosmos.js", true)]
-#[case::azure_storage("integration/azure-storage.js", true)]
-#[case::bcrypt("integration/bcrypt.js", true)]
-#[case::better_sqlite3("integration/better-sqlite3.js", true)]
-#[case::bindings_failure("integration/bindings-failure.js", false)] // Cannot find module 'bindings'
-#[case::browserify_middleware("integration/browserify-middleware.js", true)]
-#[case::bugsnag_js("integration/bugsnag-js.js", true)]
-#[case::bull("integration/bull.js", true)]
-#[case::bull_mq("integration/bullmq.js", true)]
-#[case::camaro("integration/camaro.js", true)]
-#[case::canvas("integration/canvas.js", true)]
-#[case::chromeless("integration/chromeless.js", true)]
-#[case::core_js("integration/core-js.js", true)]
-#[case::cosmosdb_query("integration/cosmosdb-query.js", true)]
-#[case::cowsay("integration/cowsay.js", true)]
-#[case::dogfood("integration/dogfood.js", false)] // can't find node-file-trace
-#[case::dynamic_in_package("integration/dynamic-in-package.js", true)]
-#[case::empty("integration/empty.js", true)]
-#[case::env_var("integration/env-var.js", true)]
-#[case::es_get_iterator("integration/es-get-iterator.js", true)]
-#[case::esbuild("integration/esbuild.js", true)]
-#[case::esm("integration/esm.js", true)]
-#[case::express_consolidate("integration/express-consolidate.js", true)]
-#[case::express_template_engine("integration/express-template-engine.js", true)]
-#[case::express_template_pug("integration/express-template.js", true)]
-#[case::express("integration/express.js", true)]
-#[case::fast_glob("integration/fast-glob.js", true)]
-#[case::fetch_h2("integration/fetch-h2.js", true)]
-#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", true))]
+#[case::analytics_node("integration/analytics-node.js")]
+#[case::array_map_require("integration/array-map-require/index.js")]
+#[case::apollo("integration/apollo.js")]
+#[case::argon2("integration/argon2.js")]
+#[case::auth0("integration/auth0.js")]
+#[case::aws_sdk("integration/aws-sdk.js")]
+#[case::axios("integration/axios.js")]
+#[case::azure_cosmos("integration/azure-cosmos.js")]
+#[case::azure_storage("integration/azure-storage.js")]
+#[case::bcrypt("integration/bcrypt.js")]
+#[case::better_sqlite3("integration/better-sqlite3.js")]
+#[should_panic(expected = "Error: Could not locate the bindings file.")]
+#[case::bindings_failure("integration/bindings-failure.js")]
+#[case::browserify_middleware("integration/browserify-middleware.js")]
+#[case::bugsnag_js("integration/bugsnag-js.js")]
+#[case::bull("integration/bull.js")]
+#[case::bull_mq("integration/bullmq.js")]
+#[case::camaro("integration/camaro.js")]
+#[case::canvas("integration/canvas.js")]
+#[case::chromeless("integration/chromeless.js")]
+#[case::core_js("integration/core-js.js")]
+#[case::cosmosdb_query("integration/cosmosdb-query.js")]
+#[case::cowsay("integration/cowsay.js")]
+#[should_panic(expected = "Error: Cannot find module '../../out/node-file-trace'")]
+#[case::dogfood("integration/dogfood.js")]
+#[case::dynamic_in_package("integration/dynamic-in-package.js")]
+#[case::empty("integration/empty.js")]
+#[case::env_var("integration/env-var.js")]
+#[case::es_get_iterator("integration/es-get-iterator.js")]
+#[case::esbuild("integration/esbuild.js")]
+#[case::esm("integration/esm.js")]
+#[case::express_consolidate("integration/express-consolidate.js")]
+#[case::express_template_engine("integration/express-template-engine.js")]
+#[case::express_template_pug("integration/express-template.js")]
+#[case::express("integration/express.js")]
+#[case::fast_glob("integration/fast-glob.js")]
+#[case::fetch_h2("integration/fetch-h2.js")]
+#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js"))]
 // Could not find ffmpeg executable
-#[case::firebase_admin("integration/firebase-admin.js", true)]
-#[case::firebase("integration/firebase.js", true)]
-#[case::firestore("integration/firestore.js", true)]
-#[case::fluent_ffmpeg("integration/fluent-ffmpeg.js", true)]
-#[case::geo_tz("integration/geo-tz.js", true)]
-#[case::google_bigquery("integration/google-bigquery.js", true)]
-#[case::got("integration/got.js", true)]
-#[case::highlights("integration/highlights.js", true)]
-#[case::hot_shots("integration/hot-shots.js", true)]
-#[case::ioredis("integration/ioredis.js", true)]
-#[case::isomorphic_unfetch("integration/isomorphic-unfetch.js", true)]
-#[case::jimp("integration/jimp.js", true)]
-#[case::jugglingdb("integration/jugglingdb.js", true)]
-#[case::koa("integration/koa.js", true)]
-#[case::leveldown("integration/leveldown.js", true)]
-#[case::lighthouse("integration/lighthouse.js", true)]
-#[case::loopback("integration/loopback.js", true)]
-#[case::mailgun("integration/mailgun.js", true)]
-#[case::mariadb("integration/mariadb.js", true)]
-#[case::memcached("integration/memcached.js", true)]
-#[case::mongoose("integration/mongoose.js", true)]
-#[case::mysql("integration/mysql.js", true)]
-#[case::npm("integration/npm.js", true)]
+#[case::firebase_admin("integration/firebase-admin.js")]
+#[case::firebase("integration/firebase.js")]
+#[case::firestore("integration/firestore.js")]
+#[case::fluent_ffmpeg("integration/fluent-ffmpeg.js")]
+#[case::geo_tz("integration/geo-tz.js")]
+#[case::google_bigquery("integration/google-bigquery.js")]
+#[case::got("integration/got.js")]
+#[case::highlights("integration/highlights.js")]
+#[case::hot_shots("integration/hot-shots.js")]
+#[case::ioredis("integration/ioredis.js")]
+#[case::isomorphic_unfetch("integration/isomorphic-unfetch.js")]
+#[case::jimp("integration/jimp.js")]
+#[case::jugglingdb("integration/jugglingdb.js")]
+#[case::koa("integration/koa.js")]
+#[case::leveldown("integration/leveldown.js")]
+#[case::lighthouse("integration/lighthouse.js")]
+#[case::loopback("integration/loopback.js")]
+#[case::mailgun("integration/mailgun.js")]
+#[case::mariadb("integration/mariadb.js")]
+#[case::memcached("integration/memcached.js")]
+#[case::mongoose("integration/mongoose.js")]
+#[case::mysql("integration/mysql.js")]
+#[case::npm("integration/npm.js")]
 // unable to resolve esm request module 'spdx-license-ids' in
 // node-file-trace/node_modules/npm/node_modules/spdx-correct oracledb doesn't support non x86
 // architectures
+#[cfg_attr(target_arch = "x86_64", case::oracledb("integration/oracledb.js"))]
+#[case::paraphrase("integration/paraphrase.js")]
+#[case::passport_trakt("integration/passport-trakt.js")]
+#[case::passport("integration/passport.js")]
+#[case::path_platform("integration/path-platform.js")]
+#[case::pixelmatch("integration/pixelmatch.js")]
+#[case::pdf2json("integration/pdf2json.js")]
+#[case::pdfkit("integration/pdfkit.js")]
+#[case::pg("integration/pg.js")]
+#[case::playwright_core("integration/playwright-core.js")]
+#[case::polyfill_library("integration/polyfill-library.js")]
+#[case::pug("integration/pug.js")]
+#[case::react("integration/react.js")]
+#[case::redis("integration/redis.js")]
+#[case::remark_prism("integration/remark-prism.mjs")]
+#[case::request("integration/request.js")]
+#[case::rxjs("integration/rxjs.js")]
+#[case::saslprep("integration/saslprep.js")]
+#[case::semver("integration/semver.js")]
+#[case::sentry("integration/sentry.js")]
+#[case::sequelize("integration/sequelize.js")]
 #[cfg_attr(
-    target_arch = "x86_64",
-    case::oracledb("integration/oracledb.js", true)
+    target_os = "windows",
+    should_panic(expected = "The specified module could not be found."),
+    case::sharp("integration/sharp.js")
 )]
-#[case::paraphrase("integration/paraphrase.js", true)]
-#[case::passport_trakt("integration/passport-trakt.js", true)]
-#[case::passport("integration/passport.js", true)]
-#[case::path_platform("integration/path-platform.js", true)]
-#[case::pixelmatch("integration/pixelmatch.js", true)]
-#[case::pdf2json("integration/pdf2json.js", true)]
-#[case::pdfkit("integration/pdfkit.js", true)]
-#[case::pg("integration/pg.js", true)]
-#[case::playwright_core("integration/playwright-core.js", true)]
-#[case::polyfill_library("integration/polyfill-library.js", true)]
-#[case::pug("integration/pug.js", true)]
-#[case::react("integration/react.js", true)]
-#[case::redis("integration/redis.js", true)]
-#[case::remark_prism("integration/remark-prism.mjs", true)]
-#[case::request("integration/request.js", true)]
-#[case::rxjs("integration/rxjs.js", true)]
-#[case::saslprep("integration/saslprep.js", true)]
-#[case::semver("integration/semver.js", true)]
-#[case::sentry("integration/sentry.js", true)]
-#[case::sequelize("integration/sequelize.js", true)]
-#[cfg_attr(target_os = "windows", case::sharp("integration/sharp.js", false))] // can't find *.node binding
-#[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js", true))]
-#[case::simple("integration/simple.js", true)]
-#[case::socket_io("integration/socket.io.js", true)]
-#[case::source_map("integration/source-map/index.js", true)]
-#[case::sparql_builder("integration/sparql-builder.js", true)]
-#[case::sqlite("integration/sqlite.js", true)]
-#[case::stripe("integration/stripe.js", true)]
-#[case::strong_error_handler("integration/strong-error-handler.js", true)]
-#[case::tensorflow("integration/tensorflow.js", true)]
-#[case::tiny_json_http("integration/tiny-json-http.js", true)]
-#[case::twilio("integration/twilio.js", true)]
-#[case::ts_morph("integration/ts-morph.js", true)]
-#[case::typescript("integration/typescript.js", true)]
-#[case::uglify("integration/uglify.js", true)]
-#[case::underscore("integration/underscore.js", true)]
-#[case::vm2("integration/vm2.js", true)]
-#[case::vue("integration/vue.js", true)]
-#[case::whatwg_url("integration/whatwg-url.js", true)]
-#[case::when("integration/when.js", true)]
+#[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
+#[case::simple("integration/simple.js")]
+#[case::socket_io("integration/socket.io.js")]
+#[case::source_map("integration/source-map/index.js")]
+#[case::sparql_builder("integration/sparql-builder.js")]
+#[case::sqlite("integration/sqlite.js")]
+#[case::stripe("integration/stripe.js")]
+#[case::strong_error_handler("integration/strong-error-handler.js")]
+#[case::tensorflow("integration/tensorflow.js")]
+#[case::tiny_json_http("integration/tiny-json-http.js")]
+#[case::twilio("integration/twilio.js")]
+#[case::ts_morph("integration/ts-morph.js")]
+#[case::typescript("integration/typescript.js")]
+#[case::uglify("integration/uglify.js")]
+#[case::underscore("integration/underscore.js")]
+#[case::vm2("integration/vm2.js")]
+#[case::vue("integration/vue.js")]
+#[case::whatwg_url("integration/whatwg-url.js")]
+#[case::when("integration/when.js")]
+// These two tests print a deprecation warning about using folders in exports field to stderr.
+#[case::package_exports_alt_folders_base(
+    CaseInput::new("integration/package-exports/pass/alt-folders.js").expected_stderr("DeprecationWarning")
+)]
+#[case::package_exports_folder(
+    CaseInput::new("integration/package-exports/pass/folder.js").expected_stderr("DeprecationWarning")
+)]
+#[case::package_exports_alt_base("integration/package-exports/pass/alt.js")]
+#[case::package_exports_catch_all("integration/package-exports/pass/catch-all.js")]
+#[case::package_exports_direct("integration/package-exports/pass/direct.js")]
+#[case::package_exports_double("integration/package-exports/pass/double.js")]
+#[case::package_exports_nested("integration/package-exports/pass/nested.js")]
+#[case::package_exports_package_root("integration/package-exports/pass/root.js")]
+#[case::package_exports_package_single_export_root(
+    "integration/package-exports/pass/single-export-root.js"
+)]
+#[case::package_exports_package_sub_infix_sep("integration/package-exports/pass/sub-infix-sep.js")]
+#[case::package_exports_package_sub_infix_base("integration/package-exports/pass/sub-infix.js")]
+#[case::package_exports_package_sub_prefix_sep(
+    "integration/package-exports/pass/sub-prefix-sep.js"
+)]
+#[case::package_exports_package_sub_prefix("integration/package-exports/pass/sub-prefix.js")]
+#[case::package_exports_package_sub_suffix_sep(
+    "integration/package-exports/pass/sub-suffix-sep.js"
+)]
+#[case::package_exports_package_sub_suffix_base("integration/package-exports/pass/sub-suffix.js")]
+#[case::package_exports_alt_folders_multiple(
+    CaseInput::new("integration/package-exports/fail/alt-folders-multiple.js")
+        .expected_stderr("Error [ERR_MODULE_NOT_FOUND]: Cannot find module")
+)]
+#[case::package_exports_alt_multiple(
+    CaseInput::new("integration/package-exports/fail/alt-multiple.js")
+        .expected_stderr("Error [ERR_MODULE_NOT_FOUND]: Cannot find module")
+)]
 #[cfg_attr(
     not(feature = "bench_against_node_nft"),
-    case::ts_package_base("integration/ts-package/index.ts", true)
-)]
-#[cfg_attr(
-    not(feature = "bench_against_node_nft"),
-    case::ts_package_extends("integration/ts-package-extends/index.ts", true)
-)]
-#[cfg_attr(
-    not(feature = "bench_against_node_nft"),
-    case::ts_package_from_js("integration/ts-package-from-js/index.js", true)
+    case::ts_package_base("integration/ts-package/index.ts"),
+    case::ts_package_extends("integration/ts-package-extends/index.ts"),
+    case::ts_package_from_js("integration/ts-package-from-js/index.js"),
+    case::ts_paths_alt_base("integration/ts-paths/pass/alt.ts"),
+    case::ts_paths_catch_all("integration/ts-paths/pass/catch-all.ts"),
+    case::ts_paths_direct("integration/ts-paths/pass/direct.ts"),
+    case::ts_paths_nested("integration/ts-paths/pass/nested.ts"),
+    case::ts_paths_package_sub_prefix("integration/ts-paths/pass/sub-prefix.ts"),
+    case::ts_paths_package_sub_suffix_sep_base("integration/ts-paths/pass/sub-suffix-sep.ts"),
+    case::ts_paths_package_sub_suffix_base("integration/ts-paths/pass/sub-suffix.ts"),
+    case::ts_paths_alt_folders(
+        CaseInput::new("integration/ts-paths/fail/alt-folders.ts")
+            .expected_stderr("Cannot find module 'fixtures/alt-folders/alt1.js'")
+    ),
+    case::ts_paths_double(
+        CaseInput::new("integration/ts-paths/fail/double.ts")
+            .expected_stderr("Cannot find module 'double/sub' or its corresponding type declarations.")
+    ),
+    case::ts_paths_folder(
+        CaseInput::new("integration/ts-paths/fail/folder.ts")
+            .expected_stderr("Cannot find module 'folder/alt1' or its corresponding type declarations.")
+    ),
+    // TODO(alexkirsz) I expect the two following infix tests are only failing when using `tsconfig-paths`, since
+    // VSCode's TS language server can resolve them properly. We should pre-compile the TS files to JS and run Node.js
+    // on them directly instead.
+    case::ts_paths_package_sub_infix_sep(
+        CaseInput::new("integration/ts-paths/fail/sub-infix-sep.ts")
+            .expected_stderr("Cannot find module '@/sub/@'")
+    ),
+    case::ts_paths_package_sub_infix_base(
+        CaseInput::new("integration/ts-paths/fail/sub-infix.ts")
+            .expected_stderr("Cannot find module '@sub@'")
+    ),
+    case::ts_paths_sub_prefix_sep(
+        CaseInput::new("integration/ts-paths/fail/sub-prefix-sep.ts")
+            .expected_stderr("Cannot find module 'sub/@' or its corresponding type declarations")
+    ),
 )]
 fn test_cases() {}
 
 #[apply(test_cases)]
-fn node_file_trace_memory(#[case] input: String, #[case] should_succeed: bool) {
+fn node_file_trace_memory(#[case] input: CaseInput) {
     node_file_trace(
         input,
-        should_succeed,
         "memory",
         false,
         1,
@@ -190,13 +254,12 @@ fn node_file_trace_memory(#[case] input: String, #[case] should_succeed: bool) {
 
 #[cfg(feature = "test_persistent_cache")]
 #[apply(test_cases)]
-fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) {
+fn node_file_trace_rocksdb(#[case] input: CaseInput) {
     use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
     use turbo_tasks_rocksdb::RocksDbPersistedGraph;
 
     node_file_trace(
         input,
-        should_succeed,
         "rockdb",
         false,
         2,
@@ -212,21 +275,20 @@ fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) 
 
 #[cfg(feature = "bench_against_node_nft")]
 #[apply(test_cases)]
-fn bench_against_node_nft_st(#[case] input: String, #[case] should_succeed: bool) {
-    bench_against_node_nft_inner(input, should_succeed, false);
+fn bench_against_node_nft_st(#[case] input: CaseInput) {
+    bench_against_node_nft_inner(input, false);
 }
 
 #[cfg(feature = "bench_against_node_nft")]
 #[apply(test_cases)]
-fn bench_against_node_nft_mt(#[case] input: String, #[case] should_succeed: bool) {
-    bench_against_node_nft_inner(input, should_succeed, true);
+fn bench_against_node_nft_mt(#[case] input: CaseInput) {
+    bench_against_node_nft_inner(input, true);
 }
 
 #[cfg(feature = "bench_against_node_nft")]
-fn bench_against_node_nft_inner(input: String, should_succeed: bool, multi_threaded: bool) {
+fn bench_against_node_nft_inner(input: CaseInput, multi_threaded: bool) {
     node_file_trace(
         input,
-        should_succeed,
         "memory",
         multi_threaded,
         1,
@@ -246,8 +308,10 @@ fn bench_against_node_nft_inner(input: String, should_succeed: bool, multi_threa
 }
 
 fn node_file_trace<B: Backend + 'static>(
-    input: String,
-    should_succeed: bool,
+    CaseInput {
+        path: input_path,
+        expected_stderr,
+    }: CaseInput,
     mode: &str,
     multi_threaded: bool,
     run_count: i32,
@@ -284,7 +348,7 @@ fn node_file_trace<B: Backend + 'static>(
         let mut tests_output_root = temp_dir();
         tests_output_root.push("tests_output");
         let tests_root = tests_root.to_string_lossy().to_string();
-        let input = format!("node-file-trace/{input}");
+        let input = format!("node-file-trace/{input_path}");
         let directory_path = tests_output_root.join(&format!("{mode}_{input}"));
         let directory = directory_path.to_string_lossy().to_string();
 
@@ -303,6 +367,7 @@ fn node_file_trace<B: Backend + 'static>(
             let tests_root = tests_root.clone();
             let input_string = input.clone();
             let directory = directory.clone();
+            let expected_stderr = expected_stderr.clone();
             let task = async move {
                 #[allow(unused)]
                 let bench_suites = bench_suites.clone();
@@ -351,7 +416,7 @@ fn node_file_trace<B: Backend + 'static>(
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 {
                     let output = exec_node(directory.clone(), output_path);
-                    let output = assert_output(original_output, output);
+                    let output = assert_output(original_output, output, expected_stderr);
                     output.await
                 }
                 #[cfg(feature = "bench_against_node_nft")]
@@ -400,15 +465,10 @@ fn node_file_trace<B: Backend + 'static>(
                 Ok(output) => {
                     #[cfg(not(feature = "bench_against_node_nft"))]
                     {
-                        if should_succeed {
-                            assert!(
-                                output.is_empty(),
-                                "emitted files behave differently when executed via \
-                                 node.js\n{output}"
-                            );
-                        } else {
-                            assert!(!output.is_empty(), "test case works now! enable it");
-                        }
+                        assert!(
+                            output.is_empty(),
+                            "emitted files behave differently when executed via node.js\n{output}"
+                        );
                     }
                 }
                 Err(err) => {
@@ -565,12 +625,27 @@ fn diff(expected: &str, actual: &str) -> String {
 async fn assert_output(
     expected: CommandOutputVc,
     actual: CommandOutputVc,
+    expected_stderr: Option<String>,
 ) -> Result<CommandOutputVc> {
     let expected = expected.await?;
     let actual = actual.await?;
     Ok(CommandOutputVc::cell(CommandOutput {
         stdout: diff(&expected.stdout, &actual.stdout),
-        stderr: diff(&expected.stderr, &actual.stderr),
+        stderr: if let Some(expected_stderr) = expected_stderr {
+            if actual.stderr.contains(&expected_stderr)
+                && expected.stderr.contains(&expected_stderr)
+            {
+                String::new()
+            } else {
+                let stderr_diff = diff(&expected.stderr, &actual.stderr);
+                format!(
+                    "could not find `{}` in stderr\n{}",
+                    expected_stderr, stderr_diff
+                )
+            }
+        } else {
+            diff(&expected.stderr, &actual.stderr)
+        },
     }))
 }
 
@@ -581,4 +656,37 @@ struct BenchSuite {
     rust_duration: String,
     rust_speedup: String,
     is_faster: bool,
+}
+
+/// rstest's #[case] attribute does not allow for specifying default values.
+/// However, it can automatically convert between types, so we can use a
+/// custom input struct with the Builder pattern instead.
+struct CaseInput {
+    /// The path to the JS or TS test file.
+    path: String,
+    /// The test will pass if the provided error message is included in both
+    /// stderr outputs.
+    expected_stderr: Option<String>,
+}
+
+impl CaseInput {
+    fn new(path: &str) -> Self {
+        Self {
+            path: path.to_owned(),
+            expected_stderr: None,
+        }
+    }
+
+    fn expected_stderr(mut self, msg: &str) -> Self {
+        self.expected_stderr = Some(msg.to_owned());
+        self
+    }
+}
+
+impl std::str::FromStr for CaseInput {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::new(s))
+    }
 }

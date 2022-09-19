@@ -1,5 +1,7 @@
 #![feature(min_specialization)]
 #![feature(option_get_or_insert_default)]
+#![feature(type_alias_impl_trait)]
+#![feature(assert_matches)]
 
 pub mod asset;
 pub mod chunk;

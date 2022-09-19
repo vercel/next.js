@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "baseUrl": ".",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "paths": {
+      "direct": ["./fixtures/direct-renamed"],
+      "folder/": ["./fixtures/alt1/"],
+      "alt-folders/": ["./fixtures/alt1/", "./fixtures/alt2/"],
+      "alt/*": ["./fixtures/alt1/*", "./fixtures/alt2/*"],
+      "catch-all*": ["./fixtures/catch-all"],
+      "double/*": ["./fixtures/double/*/*.js"],
+      "nested/*": ["./fixtures/nested-renamed/*.js"],
+      "@*@": ["./fixtures/sub-infix/*.js"],
+      "@/*/@": ["./fixtures/sub-infix-sep/*.js"],
+      "*@": ["./fixtures/sub-prefix/*.js"],
+      "*/@": ["./fixtures/sub-prefix-sep/*.js"],
+      "@*": ["./fixtures/sub-suffix/*.js"],
+      "@/*": ["./fixtures/sub-suffix-sep/*.js"]
+    },
+    "types": ["node"]
+  },
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
+}

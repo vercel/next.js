@@ -9,7 +9,7 @@ use turbo_tasks_fs::{
 };
 
 use super::{
-    prefix_tree::{PrefixTree, WildcardReplacable},
+    alias_map::{AliasMap, AliasTemplate},
     ResolveResult, ResolveResultVc, SpecialType,
 };
 use crate::resolve::parse::RequestVc;
@@ -84,54 +84,29 @@ impl ImportMapping {
     }
 }
 
-impl WildcardReplacable for ImportMapping {
-    fn replace_wildcard(&self, value: &str) -> Result<Self> {
+impl AliasTemplate for ImportMapping {
+    type Output = Result<Self>;
+
+    fn replace(&self, capture: &str) -> Result<Self> {
         match self {
             ImportMapping::External(name) => {
                 if let Some(name) = name {
                     Ok(ImportMapping::External(Some(
-                        name.clone().replace('*', value),
+                        name.clone().replace('*', capture),
                     )))
                 } else {
                     Ok(ImportMapping::External(None))
                 }
             }
             ImportMapping::Alias(name, context) => Ok(ImportMapping::Alias(
-                name.clone().replace('*', value),
+                name.clone().replace('*', capture),
                 *context,
             )),
             ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
-            ImportMapping::Alternatives(list) => Ok(ImportMapping::Alternatives(
-                list.iter()
-                    .map(|e| e.replace_wildcard(value))
-                    .collect::<Result<Vec<_>>>()?,
-            )),
-        }
-    }
-
-    fn append_to_folder(&self, value: &str) -> Result<Self> {
-        fn add(name: &str, value: &str) -> String {
-            if !name.ends_with('/') {
-                format!("{name}{value}")
-            } else {
-                name.to_string()
-            }
-        }
-        match self {
-            ImportMapping::External(name) => {
-                if let Some(name) = name {
-                    Ok(ImportMapping::External(Some(add(name, value))))
-                } else {
-                    Ok(ImportMapping::External(None))
-                }
-            }
-            ImportMapping::Alias(name, context) => {
-                Ok(ImportMapping::Alias(add(name, value), *context))
-            }
-            ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
-            ImportMapping::Alternatives(list) => Ok(ImportMapping::Alternatives(
-                list.iter()
-                    .map(|e| e.append_to_folder(value))
+            ImportMapping::Alternatives(alternatives) => Ok(ImportMapping::Alternatives(
+                alternatives
+                    .iter()
+                    .map(|mapping| mapping.replace(capture))
                     .collect::<Result<Vec<_>>>()?,
             )),
         }
@@ -141,7 +116,7 @@ impl WildcardReplacable for ImportMapping {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Default)]
 pub struct ImportMap {
-    pub direct: PrefixTree<ImportMapping>,
+    pub direct: AliasMap<ImportMapping>,
     pub by_glob: Vec<(Glob, ImportMapping)>,
 }
 
@@ -197,7 +172,7 @@ impl ImportMapVc {
         // TODO lookup pattern
         if let Some(request_string) = request.await?.request() {
             if let Some(result) = this.direct.lookup(&request_string).next() {
-                return Ok(import_mapping_to_result(result?.as_ref()).into());
+                return Ok(import_mapping_to_result(result.try_into_self()?.as_ref()).into());
             }
             let request_string_without_slash = if request_string.ends_with('/') {
                 &request_string[..request_string.len() - 1]

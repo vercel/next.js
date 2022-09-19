@@ -28,7 +28,10 @@ use self::{
 };
 use crate::{
     asset::{AssetVc, AssetsVc},
-    issue::resolve::{ResolvingIssue, ResolvingIssueVc},
+    issue::{
+        package_json::{PackageJsonIssue, PackageJsonIssueVc},
+        resolve::{ResolvingIssue, ResolvingIssueVc},
+    },
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         options::{ConditionValue, ResolveOptions, ResolvedMapVc},
@@ -37,13 +40,13 @@ use crate::{
     source_asset::SourceAssetVc,
 };
 
+mod alias_map;
 mod exports;
 pub mod options;
 pub mod parse;
 pub mod pattern;
-mod prefix_tree;
 
-pub use prefix_tree::PrefixTree;
+pub use alias_map::{AliasMap, AliasMapIterator, AliasMatch, AliasPattern, AliasTemplate};
 
 #[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub enum SpecialType {
@@ -317,6 +320,7 @@ enum ExportsFieldResult {
 
 #[turbo_tasks::function]
 async fn exports_field(
+    package_json_path: FileSystemPathVc,
     package_json: FileJsonContentVc,
     field: &str,
 ) -> Result<ExportsFieldResultVc> {
@@ -329,14 +333,12 @@ async fn exports_field(
         match exports_field {
             Ok(exports_field) => Ok(ExportsFieldResult::Some(exports_field).into()),
             Err(err) => {
-                // TODO report error to stream
-                println!(
-                    "{}",
-                    err.chain()
-                        .map(|e| e.to_string())
-                        .collect::<Vec<_>>()
-                        .join(" -> ")
-                );
+                let issue: PackageJsonIssueVc = PackageJsonIssue {
+                    path: package_json_path,
+                    error_message: err.to_string(),
+                }
+                .into();
+                issue.as_issue().emit();
                 Ok(ExportsFieldResult::None.into())
             }
         }
@@ -568,6 +570,7 @@ pub async fn resolve(
         let mut conditions_state = HashMap::new();
         let values = exports_field
             .lookup(path)
+            .map(AliasMatch::try_into_self)
             .collect::<Result<Vec<Cow<'_, ExportsValue>>>>()?;
         for value in values.iter() {
             if value.add_results(
@@ -643,7 +646,7 @@ pub async fn resolve(
                     unspecified_conditions,
                 } => {
                     if let ExportsFieldResult::Some(exports_field) =
-                        &*exports_field(package_json, field).await?
+                        &*exports_field(package_json_path, package_json, field).await?
                     {
                         // other options do not apply anymore when an exports field exist
                         return handle_exports_field(
@@ -774,7 +777,8 @@ pub async fn resolve(
                                     unspecified_conditions,
                                 } => {
                                     if let ExportsFieldResult::Some(exports_field) =
-                                        &*exports_field(package_json, field).await?
+                                        &*exports_field(package_json_path, package_json, field)
+                                            .await?
                                     {
                                         if let Some(path) = path.clone().into_string() {
                                             results.push(handle_exports_field(
