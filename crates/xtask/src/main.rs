@@ -10,6 +10,7 @@ use clap::{arg, Command};
 mod command;
 mod nft_bench;
 mod publish;
+mod summarize_bench;
 
 use nft_bench::show_result;
 use publish::{publish_workspace, run_bump, run_publish};
@@ -42,6 +43,14 @@ fn cli() -> Command<'static> {
         .subcommand(
             Command::new("upgrade-swc")
                 .about("Upgrade all SWC dependencies to the lastest version"),
+        )
+        .subcommand(
+            Command::new("summarize-benchmarks")
+                .about(
+                    "Normalize all raw data based on similar benchmarks, average data by \
+                     system+sha and compute latest by system",
+                )
+                .arg(arg!(<PATH> "the path to the benchmark data directory")),
         )
 }
 
@@ -126,6 +135,14 @@ fn main() {
                 .status()
                 .expect("Running cargo update failed");
             assert!(status.success());
+        }
+        Some(("summarize-benchmarks", sub_matches)) => {
+            let path = sub_matches
+                .get_one::<String>("PATH")
+                .expect("PATH is required");
+            let path = PathBuf::from(path);
+            let path = path.canonicalize().unwrap();
+            summarize_bench::process_all(path);
         }
         _ => {
             panic!("Unknown command {:?}", matches.subcommand().map(|c| c.0));

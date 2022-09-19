@@ -1,5 +1,6 @@
 use std::{
     io::{self, BufRead, BufReader, Read, Write},
+    panic::UnwindSafe,
     process::Command,
     time::Duration,
 };
@@ -137,6 +138,18 @@ pub async fn create_browser() -> Browser {
     });
 
     browser
+}
+
+pub fn resume_on_error<F: FnOnce() -> () + UnwindSafe>(f: F) {
+    let runs_as_bench = std::env::args().find(|a| a == "--bench");
+
+    if runs_as_bench.is_some() {
+        use std::panic::catch_unwind;
+        // panics are already printed to the console, so no need to handle the result.
+        let _ = catch_unwind(f);
+    } else {
+        f();
+    }
 }
 
 pub trait AsyncBencherExtension {
