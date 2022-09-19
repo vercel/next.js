@@ -1,4 +1,12 @@
-import React, { useContext, useEffect, useRef } from 'react'
+'client'
+
+import React, {
+  useContext,
+  useEffect,
+  useRef,
+  // TODO-APP: change to React.use once it becomes stable
+  experimental_use as use,
+} from 'react'
 import type {
   ChildProp,
   //Segment
@@ -218,14 +226,14 @@ export function InnerLayoutRouter({
     throw new Error('Child node should not have both subTreeData and data')
   }
 
-  // If cache node has a data request we have to readRoot and update the cache.
+  // If cache node has a data request we have to unwrap response by `use` and update the cache.
   if (childNode.data) {
     // TODO-APP: error case
     /**
      * Flight response data
      */
-    // When the data has not resolved yet readRoot will suspend here.
-    const flightData = childNode.data.readRoot()
+    // When the data has not resolved yet `use` will suspend here.
+    const [flightData] = use(childNode.data)
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {

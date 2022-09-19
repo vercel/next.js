@@ -11,6 +11,7 @@ import {
   APP_DIR_ALIAS,
   SERVER_RUNTIME,
   WEBPACK_LAYERS,
+  RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -55,11 +56,9 @@ import type {
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import type { MiddlewareMatcher } from './analysis/get-page-static-info'
-import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
-import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 
@@ -177,7 +176,7 @@ export function getDefineEnv({
     'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
     'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-      config.optimizeFonts && !dev
+      !dev && config.optimizeFonts
     ),
     'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
       config.experimental.optimizeCss && !dev
@@ -687,13 +686,7 @@ export default async function getBaseWebpackConfig(
     babel: getBabelOrSwcLoader(),
   }
 
-  const rawPageExtensions = hasServerComponents
-    ? withoutRSCExtensions(config.pageExtensions)
-    : config.pageExtensions
-
-  const serverComponentsRegex = new RegExp(
-    `\\.server\\.(${rawPageExtensions.join('|')})$`
-  )
+  const pageExtensions = config.pageExtensions
 
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,
@@ -801,7 +794,7 @@ export default async function getBaseWebpackConfig(
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
-        ? rawPageExtensions.reduce((prev, ext) => {
+        ? pageExtensions.reduce((prev, ext) => {
             prev.push(path.join(pagesDir, `_app.${ext}`))
             return prev
           }, [] as string[])
@@ -810,7 +803,7 @@ export default async function getBaseWebpackConfig(
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
-        ? rawPageExtensions.reduce((prev, ext) => {
+        ? pageExtensions.reduce((prev, ext) => {
             prev.push(path.join(pagesDir, `_error.${ext}`))
             return prev
           }, [] as string[])
@@ -819,7 +812,7 @@ export default async function getBaseWebpackConfig(
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
-        ? rawPageExtensions.reduce((prev, ext) => {
+        ? pageExtensions.reduce((prev, ext) => {
             prev.push(path.join(pagesDir, `_document.${ext}`))
             return prev
           }, [] as string[])
@@ -872,6 +865,9 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
+
+      [RSC_MOD_REF_PROXY_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/module-proxy',
 
       ...(isClient || isEdgeServer
         ? {
@@ -1016,7 +1012,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|future\/image|constants|dynamic|script)$)|string-hash$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|future\/image|constants|dynamic|script)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1146,11 +1142,6 @@ export default async function getBaseWebpackConfig(
       }
       return /node_modules/.test(excludePath)
     },
-  }
-
-  const serverComponentCodeCondition = {
-    test: serverComponentsRegex,
-    include: [dir, /next[\\/]dist[\\/]pages/],
   }
 
   const rscSharedRegex =
@@ -1448,8 +1439,7 @@ export default async function getBaseWebpackConfig(
         'next-image-loader',
         'next-serverless-loader',
         'next-style-loader',
-        'next-flight-client-loader',
-        'next-flight-server-loader',
+        'next-flight-loader',
         'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
@@ -1489,23 +1479,16 @@ export default async function getBaseWebpackConfig(
             ? [
                 // RSC server compilation loaders
                 {
-                  ...serverComponentCodeCondition,
+                  test: codeCondition.test,
+                  include: [
+                    dir,
+                    // To let the internal client components passing through flight loader
+                    /next[\\/]dist/,
+                  ],
                   issuerLayer: WEBPACK_LAYERS.server,
                   use: {
-                    loader: 'next-flight-server-loader',
+                    loader: 'next-flight-loader',
                   },
-                },
-                {
-                  test: clientComponentRegex,
-                  issuerLayer: WEBPACK_LAYERS.server,
-                  use: {
-                    loader: 'next-flight-client-loader',
-                  },
-                },
-                // _app should be treated as a client component as well as all its dependencies.
-                {
-                  test: new RegExp(`_app\\.(${rawPageExtensions.join('|')})$`),
-                  layer: WEBPACK_LAYERS.client,
                 },
               ]
             : []
@@ -1544,6 +1527,21 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: getBabelOrSwcLoader(),
             },
+            ...(hasServerComponents
+              ? [
+                  {
+                    test: codeCondition.test,
+                    issuerLayer: WEBPACK_LAYERS.server,
+                    use: {
+                      ...defaultLoaders.babel,
+                      options: {
+                        ...defaultLoaders.babel.options,
+                        isServerLayer: true,
+                      },
+                    },
+                  },
+                ]
+              : []),
             {
               ...codeCondition,
               use:
@@ -1590,7 +1588,30 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       fallback:
                         config.experimental.fallbackNodePolyfills === false
-                          ? {}
+                          ? {
+                              assert: false,
+                              buffer: false,
+                              constants: false,
+                              crypto: false,
+                              domain: false,
+                              http: false,
+                              https: false,
+                              os: false,
+                              path: false,
+                              punycode: false,
+                              process: false,
+                              querystring: false,
+                              stream: false,
+                              string_decoder: false,
+                              sys: false,
+                              timers: false,
+                              tty: false,
+                              util: false,
+                              vm: false,
+                              zlib: false,
+                              events: false,
+                              setImmediate: false,
+                            }
                           : {
                               assert: require.resolve(
                                 'next/dist/compiled/assert'
@@ -1779,6 +1800,7 @@ export default async function getBaseWebpackConfig(
             }
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
+            adjustFontFallbacks: config.experimental.adjustFontFallbacks,
           })
         })(),
       new WellKnownErrorsPlugin(),
@@ -1799,11 +1821,10 @@ export default async function getBaseWebpackConfig(
         isClient &&
         new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
+        !!config.experimental.appDir &&
         (isClient
           ? new FlightManifestPlugin({
               dev,
-              appDir: !!config.experimental.appDir,
-              pageExtensions: rawPageExtensions,
             })
           : new FlightClientEntryPlugin({
               dev,
@@ -1953,7 +1974,7 @@ export default async function getBaseWebpackConfig(
 
   const configVars = JSON.stringify({
     crossOrigin: config.crossOrigin,
-    pageExtensions: rawPageExtensions,
+    pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
     buildActivity: config.devIndicators.buildActivity,
     buildActivityPosition: config.devIndicators.buildActivityPosition,
