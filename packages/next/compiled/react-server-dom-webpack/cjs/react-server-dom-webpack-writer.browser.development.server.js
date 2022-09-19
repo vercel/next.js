@@ -162,6 +162,7 @@ function processErrorChunk(request, id, message, stack) {
   return stringToChunk(row);
 }
 function processModelChunk(request, id, model) {
+  // $FlowFixMe: `json` might be `undefined` when model is a symbol.
   var json = stringify(model, request.toJSON);
   var row = serializeRowHeader('J', id) + json + '\n';
   return stringToChunk(row);
@@ -172,6 +173,7 @@ function processReferenceChunk(request, id, reference) {
   return stringToChunk(row);
 }
 function processModuleChunk(request, id, moduleMetaData) {
+  // $FlowFixMe: `json` might be `undefined` when moduleMetaData is a symbol.
   var json = stringify(moduleMetaData);
   var row = serializeRowHeader('M', id) + json + '\n';
   return stringToChunk(row);
@@ -894,18 +896,110 @@ function readContext(context) {
   return value;
 }
 
+// Corresponds to ReactFiberWakeable and ReactFizzWakeable modules. Generally,
+// changes to one module should be reflected in the others.
+// TODO: Rename this module and the corresponding Fiber one to "Thenable"
+// instead of "Wakeable". Or some other more appropriate name.
+// TODO: Sparse arrays are bad for performance.
+function createThenableState() {
+  // The ThenableState is created the first time a component suspends. If it
+  // suspends again, we'll reuse the same state.
+  return [];
+}
+function trackSuspendedWakeable(wakeable) {
+  // If this wakeable isn't already a thenable, turn it into one now. Then,
+  // when we resume the work loop, we can check if its status is
+  // still pending.
+  // TODO: Get rid of the Wakeable type? It's superseded by UntrackedThenable.
+  var thenable = wakeable; // We use an expando to track the status and result of a thenable so that we
+  // can synchronously unwrap the value. Think of this as an extension of the
+  // Promise API, or a custom interface that is a superset of Thenable.
+  //
+  // If the thenable doesn't have a status, set it to "pending" and attach
+  // a listener that will update its status and result when it resolves.
+
+  switch (thenable.status) {
+    case 'fulfilled':
+    case 'rejected':
+      // A thenable that already resolved shouldn't have been thrown, so this is
+      // unexpected. Suggests a mistake in a userspace data library. Don't track
+      // this thenable, because if we keep trying it will likely infinite loop
+      // without ever resolving.
+      // TODO: Log a warning?
+      break;
+
+    default:
+      {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          break;
+        }
+
+        var pendingThenable = thenable;
+        pendingThenable.status = 'pending';
+        pendingThenable.then(function (fulfilledValue) {
+          if (thenable.status === 'pending') {
+            var fulfilledThenable = thenable;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = fulfilledValue;
+          }
+        }, function (error) {
+          if (thenable.status === 'pending') {
+            var rejectedThenable = thenable;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = error;
+          }
+        });
+        break;
+      }
+  }
+}
+function trackUsedThenable(thenableState, thenable, index) {
+  // This is only a separate function from trackSuspendedWakeable for symmetry
+  // with Fiber.
+  // TODO: Disallow throwing a thenable directly. It must go through `use` (or
+  // some equivalent for internal Suspense implementations). We can't do this in
+  // Fiber yet because it's a breaking change but we can do it in Server
+  // Components because Server Components aren't released yet.
+  thenableState[index] = thenable;
+}
+function getPreviouslyUsedThenableAtIndex(thenableState, index) {
+  if (thenableState !== null) {
+    var thenable = thenableState[index];
+
+    if (thenable !== undefined) {
+      return thenable;
+    }
+  }
+
+  return null;
+}
+
 var currentRequest = null;
+var thenableIndexCounter = 0;
+var thenableState = null;
 function prepareToUseHooksForRequest(request) {
   currentRequest = request;
 }
 function resetHooksForRequest() {
   currentRequest = null;
 }
+function prepareToUseHooksForComponent(prevThenableState) {
+  thenableIndexCounter = 0;
+  thenableState = prevThenableState;
+}
+function getThenableStateAfterSuspending() {
+  var state = thenableState;
+  thenableState = null;
+  return state;
+}
 
 function readContext$1(context) {
   {
     if (context.$$typeof !== REACT_SERVER_CONTEXT_TYPE) {
-      error('Only ServerContext is supported in Flight');
+      error('Only createServerContext is supported in Server Components.');
     }
 
     if (currentCache === null) {
@@ -958,7 +1052,8 @@ var Dispatcher = {
   },
   useMemoCache: function (size) {
     return new Array(size);
-  }
+  },
+  use:  use 
 };
 
 function unsupportedHook() {
@@ -990,10 +1085,88 @@ function useId() {
   return ':' + currentRequest.identifierPrefix + 'S' + id.toString(32) + ':';
 }
 
+function use(usable) {
+  if (usable !== null && typeof usable === 'object') {
+    if (typeof usable.then === 'function') {
+      // This is a thenable.
+      var thenable = usable; // Track the position of the thenable within this fiber.
+
+      var index = thenableIndexCounter;
+      thenableIndexCounter += 1;
+
+      switch (thenable.status) {
+        case 'fulfilled':
+          {
+            var fulfilledValue = thenable.value;
+            return fulfilledValue;
+          }
+
+        case 'rejected':
+          {
+            var rejectedError = thenable.reason;
+            throw rejectedError;
+          }
+
+        default:
+          {
+            var prevThenableAtIndex = getPreviouslyUsedThenableAtIndex(thenableState, index);
+
+            if (prevThenableAtIndex !== null) {
+              switch (prevThenableAtIndex.status) {
+                case 'fulfilled':
+                  {
+                    var _fulfilledValue = prevThenableAtIndex.value;
+                    return _fulfilledValue;
+                  }
+
+                case 'rejected':
+                  {
+                    var _rejectedError = prevThenableAtIndex.reason;
+                    throw _rejectedError;
+                  }
+
+                default:
+                  {
+                    // The thenable still hasn't resolved. Suspend with the same
+                    // thenable as last time to avoid redundant listeners.
+                    throw prevThenableAtIndex;
+                  }
+              }
+            } else {
+              // This is the first time something has been used at this index.
+              // Stash the thenable at the current index so we can reuse it during
+              // the next attempt.
+              if (thenableState === null) {
+                thenableState = createThenableState();
+              }
+
+              trackUsedThenable(thenableState, thenable, index); // Suspend.
+              // TODO: Throwing here is an implementation detail that allows us to
+              // unwind the call stack. But we shouldn't allow it to leak into
+              // userspace. Throw an opaque placeholder value instead of the
+              // actual thenable. If it doesn't get captured by the work loop, log
+              // a warning, because that means something in userspace must have
+              // caught it.
+
+              throw thenable;
+            }
+          }
+      }
+    } else if (usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
+      var context = usable;
+      return readContext$1(context);
+    }
+  } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+  throw new Error('An unsupported type was passed to use(): ' + String(usable));
+}
+
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
+    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe function signature doesn't reflect the symbol value
+    REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
   }
 
   return ContextRegistry[globalName];
@@ -1051,7 +1224,7 @@ function createRootContext(reqContext) {
 
 var POP = {};
 
-function attemptResolveElement(type, key, ref, props) {
+function attemptResolveElement(type, key, ref, props, prevThenableState) {
   if (ref !== null && ref !== undefined) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
@@ -1066,6 +1239,7 @@ function attemptResolveElement(type, key, ref, props) {
     } // This is a server-side component.
 
 
+    prepareToUseHooksForComponent(prevThenableState);
     return type(props);
   } else if (typeof type === 'string') {
     // This is a host element. E.g. HTML.
@@ -1094,18 +1268,19 @@ function attemptResolveElement(type, key, ref, props) {
           var payload = type._payload;
           var init = type._init;
           var wrappedType = init(payload);
-          return attemptResolveElement(wrappedType, key, ref, props);
+          return attemptResolveElement(wrappedType, key, ref, props, prevThenableState);
         }
 
       case REACT_FORWARD_REF_TYPE:
         {
           var render = type.render;
+          prepareToUseHooksForComponent(prevThenableState);
           return render(props, undefined);
         }
 
       case REACT_MEMO_TYPE:
         {
-          return attemptResolveElement(type.type, key, ref, props);
+          return attemptResolveElement(type.type, key, ref, props, prevThenableState);
         }
 
       case REACT_PROVIDER_TYPE:
@@ -1124,7 +1299,8 @@ function attemptResolveElement(type, key, ref, props) {
             if (extraKeys.length !== 0) {
               error('ServerContext can only have a value prop and children. Found: %s', JSON.stringify(extraKeys));
             }
-          }
+          } // $FlowFixMe issue discovered when updating Flow
+
 
           return [REACT_ELEMENT_TYPE, type, key, // Rely on __popProvider being serialized last to pop the provider.
           {
@@ -1159,7 +1335,8 @@ function createTask(request, model, context, abortSet) {
     context: context,
     ping: function () {
       return pingTask(request, task);
-    }
+    },
+    thenableState: null
   };
   abortSet.add(task);
   return task;
@@ -1426,7 +1603,7 @@ function resolveModelToJSON(request, parent, key, value) {
             // TODO: Concatenate keys of parents onto children.
             var element = value; // Attempt to render the server component.
 
-            value = attemptResolveElement(element.type, element.key, element.ref, element.props);
+            value = attemptResolveElement(element.type, element.key, element.ref, element.props, null);
             break;
           }
 
@@ -1445,6 +1622,9 @@ function resolveModelToJSON(request, parent, key, value) {
         var newTask = createTask(request, value, getActiveContext(), request.abortableTasks);
         var ping = newTask.ping;
         x.then(ping, ping);
+        var wakeable = x;
+        trackSuspendedWakeable(wakeable);
+        newTask.thenableState = getThenableStateAfterSuspending();
         return serializeByRefID(newTask.id);
       } else {
         logRecoverableError(request, x); // Something errored. We'll still send everything we have up until this point.
@@ -1505,7 +1685,8 @@ function resolveModelToJSON(request, parent, key, value) {
           }
         }
       }
-    }
+    } // $FlowFixMe
+
 
     return value;
   }
@@ -1536,12 +1717,14 @@ function resolveModelToJSON(request, parent, key, value) {
 
     if (existingId !== undefined) {
       return serializeByValueID(existingId);
-    }
+    } // $FlowFixMe `description` might be undefined
 
-    var name = value.description;
+
+    var name = value.description; // $FlowFixMe `name` might be undefined
 
     if (Symbol.for(name) !== value) {
-      throw new Error('Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + value.description + ") cannot be found among global symbols. ") + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
+      throw new Error('Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + // $FlowFixMe `description` might be undefined
+      value.description + ") cannot be found among global symbols. ") + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
     }
 
     request.pendingChunks++;
@@ -1600,6 +1783,7 @@ function emitErrorChunk(request, id, error) {
 }
 
 function emitModuleChunk(request, id, moduleMetaData) {
+  // $FlowFixMe ModuleMetaData is not a ReactModel
   var processedChunk = processModuleChunk(request, id, moduleMetaData);
   request.completedModuleChunks.push(processedChunk);
 }
@@ -1625,14 +1809,29 @@ function retryTask(request, task) {
   try {
     var _value3 = task.model;
 
-    while (typeof _value3 === 'object' && _value3 !== null && _value3.$$typeof === REACT_ELEMENT_TYPE) {
+    if (typeof _value3 === 'object' && _value3 !== null && _value3.$$typeof === REACT_ELEMENT_TYPE) {
       // TODO: Concatenate keys of parents onto children.
-      var element = _value3; // Attempt to render the server component.
+      var element = _value3; // When retrying a component, reuse the thenableState from the
+      // previous attempt.
+
+      var prevThenableState = task.thenableState; // Attempt to render the server component.
       // Doing this here lets us reuse this same task if the next component
       // also suspends.
 
       task.model = _value3;
-      _value3 = attemptResolveElement(element.type, element.key, element.ref, element.props);
+      _value3 = attemptResolveElement(element.type, element.key, element.ref, element.props, prevThenableState); // Successfully finished this component. We're going to keep rendering
+      // using the same task, but we reset its thenable state before continuing.
+
+      task.thenableState = null; // Keep rendering and reuse the same task. This inner loop is separate
+      // from the render above because we don't need to reset the thenable state
+      // until the next time something suspends and retries.
+
+      while (typeof _value3 === 'object' && _value3 !== null && _value3.$$typeof === REACT_ELEMENT_TYPE) {
+        // TODO: Concatenate keys of parents onto children.
+        var nextElement = _value3;
+        task.model = _value3;
+        _value3 = attemptResolveElement(nextElement.type, nextElement.key, nextElement.ref, nextElement.props, null);
+      }
     }
 
     var processedChunk = processModelChunk(request, task.id, _value3);
@@ -1644,6 +1843,9 @@ function retryTask(request, task) {
       // Something suspended again, let's pick it back up later.
       var ping = task.ping;
       x.then(ping, ping);
+      var wakeable = x;
+      trackSuspendedWakeable(wakeable);
+      task.thenableState = getThenableStateAfterSuspending();
       return;
     } else {
       request.abortableTasks.delete(task);
@@ -1690,7 +1892,7 @@ function abortTask(task, request, errorId) {
 
   var ref = serializeByValueID(errorId);
   var processedChunk = processReferenceChunk(request, task.id, ref);
-  request.completedJSONChunks.push(processedChunk);
+  request.completedErrorChunks.push(processedChunk);
 }
 
 function flushCompletedChunks(request, destination) {

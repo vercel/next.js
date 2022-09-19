@@ -42,9 +42,11 @@ use std::{
     rc::Rc,
     sync::Arc,
 };
-use swc::{try_with_handler, Compiler, TransformOutput};
-use swc_common::{errors::ColorConfig, FileName};
-use swc_ecmascript::transforms::pass::noop;
+use swc_core::{
+    base::{try_with_handler, Compiler, TransformOutput},
+    common::{errors::ColorConfig, FileName},
+    ecma::transforms::base::pass::noop,
+};
 
 /// Input to transform
 #[derive(Debug)]
@@ -70,7 +72,7 @@ impl Task for TransformTask {
         let res = catch_unwind(AssertUnwindSafe(|| {
             try_with_handler(
                 self.c.cm.clone(),
-                swc::HandlerOpts {
+                swc_core::base::HandlerOpts {
                     color: ColorConfig::Never,
                     skip_filename: true,
                 },

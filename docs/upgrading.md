@@ -44,7 +44,7 @@ yarn add next@12
 
 ### SWC replacing Babel
 
-Next.js now uses Rust-based compiler [SWC](https://swc.rs/) to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and up to 5x faster Fast Refresh.
+Next.js now uses a Rust-based compiler, [SWC](https://swc.rs/), to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and allows for up to 5x faster Fast Refresh.
 
 Next.js provides full backwards compatibility with applications that have [custom Babel configuration](https://nextjs.org/docs/advanced-features/customizing-babel-config). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
 
@@ -72,15 +72,15 @@ Minification using SWC is an opt-in flag to ensure it can be tested against more
 
 ### Improvements to styled-jsx CSS parsing
 
-On top of the Rust-based compiler we've implemented a new CSS parser based on the CSS parser that was used for the styled-jsx Babel transform. This new parser has improved handling of CSS and now errors when invalid CSS is used that would previously slip through and cause unexpected behavior.
+On top of the Rust-based compiler, we've implemented a new CSS parser based on the CSS parser that was used for the styled-jsx Babel transform. This new parser has improved handling of CSS and now errors when invalid CSS is used that would previously slip through and cause unexpected behavior.
 
-Because of this change invalid CSS will throw an error during development and `next build`. This change only affects styled-jsx usage.
+Because of this change, invalid CSS will throw an error during development and `next build`. This change only affects styled-jsx usage.
 
 ### `next/image` changed wrapping element
 
 `next/image` now renders the `<img>` inside a `<span>` instead of `<div>`.
 
-If your application has specific CSS targeting span, for example `.container span`, upgrading to Next.js 12 might incorrectly match the wrapping element inside the `<Image>` component. You can avoid this by restricting the selector to a specific class such as `.container span.item` and updating the relevant component with that className, such as `<span className="item" />`.
+If your application has specific CSS targeting span, for example, `.container span`, upgrading to Next.js 12 might incorrectly match the wrapping element inside the `<Image>` component. You can avoid this by restricting the selector to a specific class such as `.container span.item` and updating the relevant component with that className, such as `<span className="item" />`.
 
 If your application has specific CSS targeting the `next/image` `<div>` tag, for example `.container div`, it may not match anymore. You can update the selector `.container span`, or preferably, add a new `<div className="wrapper">` wrapping the `<Image>` component and target that instead such as `.container .wrapper`.
 
@@ -341,7 +341,7 @@ TypeScript Definitions are published with the `next` package, so you need to uni
 
 The following types are different:
 
-> This list was created by the community to help you upgrade, if you find other differences please send a pull-request to this list to help other users.
+> This list was created by the community to help you upgrade, if you find other differences please send a pull request to this list to help other users.
 
 From:
 
@@ -359,7 +359,7 @@ import { AppContext, AppInitialProps } from 'next/app'
 import { DocumentContext, DocumentInitialProps } from 'next/document'
 ```
 
-#### The `config` key is now an export on a page
+#### The `config` key is now a named export on a page
 
 You may no longer export a custom variable named `config` from a page (i.e. `export { config }` / `export const config ...`).
 This exported variable is now used to specify page-level Next.js configuration like Opt-in AMP and API Route features.
@@ -385,7 +385,7 @@ const DynamicComponentWithCustomLoading = dynamic(
 
 Next.js now has the concept of page-level configuration, so the `withAmp` higher-order component has been removed for consistency.
 
-This change can be **automatically migrated by running the following commands in the root of your Next.js project:**
+This change can be **automatically migrated by running the following commands at the root of your Next.js project:**
 
 ```bash
 curl -L https://github.com/vercel/next-codemod/archive/master.tar.gz | tar -xz --strip=2 next-codemod-master/transforms/withamp-to-config.js npx jscodeshift -t ./withamp-to-config.js pages/**/*.js

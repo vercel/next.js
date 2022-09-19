@@ -256,7 +256,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
-    const remotePatterns = result.experimental?.images?.remotePatterns
+    const remotePatterns = result?.images?.remotePatterns
     if (remotePatterns) {
       if (!Array.isArray(remotePatterns)) {
         throw new Error(
@@ -437,7 +437,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    const unoptimized = result.experimental?.images?.unoptimized
+    const unoptimized = result?.images?.unoptimized
     if (
       typeof unoptimized !== 'undefined' &&
       typeof unoptimized !== 'boolean'
@@ -509,10 +509,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
     result.compiler = result.compiler || {}
     result.compiler.removeConsole = (result.experimental as any).removeConsole
-  }
-
-  if (result.swcMinify) {
-    Log.info('SWC minify release candidate enabled. https://nextjs.link/swcmin')
   }
 
   if (result.experimental?.swcMinifyDebugOptions) {
@@ -704,16 +700,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         `Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
-  }
-
-  if (result.experimental?.serverComponents) {
-    const pageExtensions: string[] = []
-    ;(result.pageExtensions || []).forEach((ext) => {
-      pageExtensions.push(ext)
-      pageExtensions.push(`server.${ext}`)
-      pageExtensions.push(`client.${ext}`)
-    })
-    result.pageExtensions = pageExtensions
   }
 
   if (result.devIndicators?.buildActivityPosition) {

@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                                   |
 | --------- | --------------------------------------------------------------------------------------------------------- |
+| `v12.3.0` | `remotePatterns` and `unoptimized` configuration is stable.                                               |
 | `v12.2.0` | Experimental `remotePatterns` and experimental `unoptimized` configuration added. `layout="raw"` removed. |
 | `v12.1.1` | `style` prop added. Experimental[\*](#experimental-raw-layout-mode) support for `layout="raw"` added.     |
 | `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                                    |
@@ -44,7 +45,7 @@ Must be one of the following:
    or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
 When using an external URL, you must add it to
-[domains](#domains) in
+[remotePatterns](#remote-patterns) in
 `next.config.js`.
 
 ### width
@@ -93,8 +94,6 @@ The layout behavior of the image as the viewport changes size.
   - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
-- When `raw`[\*](#experimental-raw-layout-mode), the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior.
-  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will be requested as though it has fixed width and height.
 - [Demo background image](https://image-component.nextjs.gallery/background)
 
 ### loader
@@ -148,9 +147,9 @@ const Example = () => (
     <Image
       src="/example.png"
       layout="fill"
-      sizes="(min-width: 75em) 33vw,
-              (min-width: 48em) 50vw,
-              100vw"
+      sizes="(max-width: 768px) 100vw,
+              (max-width: 1200px) 50vw,
+              33vw"
     />
   </div>
 )
@@ -279,14 +278,16 @@ The Ref must point to a DOM element or a React component that [forwards the Ref]
 import Image from 'next/image'
 import React from 'react'
 
-const lazyRoot = React.useRef(null)
+const Example = () => {
+  const lazyRoot = React.useRef(null)
 
-const Example = () => (
-  <div ref={lazyRoot} style={{ overflowX: 'scroll', width: '500px' }}>
-    <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
-    <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
-  </div>
-)
+  return (
+    <div ref={lazyRoot} style={{ overflowX: 'scroll', width: '500px' }}>
+      <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
+      <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
+    </div>
+  )
+}
 ```
 
 **Example pointing to a React component**
@@ -322,14 +323,12 @@ const Example = () => {
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
-This prop can be assigned to all images by updating `next.config.js` with the following experimental configuration:
+This prop can be assigned to all images by updating `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      unoptimized: true,
-    },
+  images: {
+    unoptimized: true,
   },
 }
 ```
@@ -349,23 +348,19 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ### Remote Patterns
 
-> Note: The `remotePatterns` configuration is currently **experimental** and subject to change. Please use [`domains`](#domains) for production use cases.
-
 To protect your application from malicious users, configuration is required in order to use external images. This ensures that only external images from your account can be served from the Next.js Image Optimization API. These external images can be configured with the `remotePatterns` property in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      remotePatterns: [
-        {
-          protocol: 'https',
-          hostname: 'example.com',
-          port: '',
-          pathname: '/account123/**',
-        },
-      ],
-    },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'example.com',
+        port: '',
+        pathname: '/account123/**',
+      },
+    ],
   },
 }
 ```
@@ -376,15 +371,13 @@ Below is another example of the `remotePatterns` property in the `next.config.js
 
 ```js
 module.exports = {
-  experimental: {
-    images: {
-      remotePatterns: [
-        {
-          protocol: 'https',
-          hostname: '**.example.com',
-        },
-      ],
-    },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.example.com',
+      },
+    ],
   },
 }
 ```
@@ -399,6 +392,8 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 The `**` syntax does not work in the middle of the pattern.
 
 ### Domains
+
+> Note: We recommend using [`remotePatterns`](#remote-patterns) instead so you can restrict protocol and pathname.
 
 Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 

@@ -23,6 +23,7 @@ export function getRender({
   appRenderToHTML,
   pagesRenderToHTML,
   serverComponentManifest,
+  subresourceIntegrityManifest,
   serverCSSManifest,
   config,
   buildId,
@@ -38,6 +39,7 @@ export function getRender({
   Document: DocumentType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
+  subresourceIntegrityManifest?: Record<string, string>
   serverComponentManifest: any
   serverCSSManifest: any
   appServerMod: any
@@ -48,6 +50,7 @@ export function getRender({
     dev,
     buildManifest,
     reactLoadableManifest,
+    subresourceIntegrityManifest,
     Document,
     App: appMod.default as AppType,
   }
@@ -78,6 +81,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
+            pathname,
           }
         }
 
@@ -91,6 +95,7 @@ export function getRender({
             getServerSideProps: error500Mod.getServerSideProps,
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
+            pathname,
           }
         }
 
@@ -103,6 +108,7 @@ export function getRender({
             getServerSideProps: errorMod.getServerSideProps,
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
+            pathname,
           }
         }
 

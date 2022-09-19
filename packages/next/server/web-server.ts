@@ -66,7 +66,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
-    parsedUrl.pathname = this.serverOptions.webServerConfig.page
     super.run(req, res, parsedUrl)
   }
   protected async hasPage(page: string) {
@@ -343,11 +342,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         {} as any,
         pathname,
         query,
-        {
-          ...renderOpts,
+        Object.assign(renderOpts, {
           disableOptimizedLoading: true,
           runtime: 'experimental-edge',
-        },
+        }),
         !!pagesRenderToHTML
       )
     } else {
@@ -372,10 +370,14 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
+    const resultContentType = options.result.contentType()
+
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        options.type === 'json'
+        resultContentType
+          ? resultContentType
+          : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )
@@ -406,11 +408,17 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // @TODO
     return true
   }
-  protected async findPageComponents(
-    pathname: string,
-    query?: NextParsedUrlQuery,
-    params?: Params | null
-  ) {
+
+  protected async findPageComponents({
+    pathname,
+    query,
+    params,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
+    isAppPath: boolean
+  }) {
     const result = await this.serverOptions.webServerConfig.loadComponent(
       pathname
     )

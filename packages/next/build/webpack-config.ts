@@ -11,6 +11,7 @@ import {
   APP_DIR_ALIAS,
   SERVER_RUNTIME,
   WEBPACK_LAYERS,
+  RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -54,12 +55,12 @@ import type {
   SWC_TARGET_TRIPLE,
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
-import { withoutRSCExtensions } from './utils'
+import type { MiddlewareMatcher } from './analysis/get-page-static-info'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
-import { clientComponentRegex } from './webpack/loaders/utils'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
+import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 
 const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
@@ -90,8 +91,7 @@ export function getDefineEnv({
   hasReactRoot,
   isNodeServer,
   isEdgeServer,
-  middlewareRegex,
-  hasServerComponents,
+  middlewareMatchers,
 }: {
   dev?: boolean
   distDir: string
@@ -100,9 +100,8 @@ export function getDefineEnv({
   hasReactRoot?: boolean
   isNodeServer?: boolean
   isEdgeServer?: boolean
-  middlewareRegex?: string
+  middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
-  hasServerComponents?: boolean
 }) {
   return {
     // internal field to identify the plugin config
@@ -144,8 +143,8 @@ export function getDefineEnv({
         isEdgeServer ? 'edge' : 'nodejs'
       ),
     }),
-    'process.env.__NEXT_MIDDLEWARE_REGEX': JSON.stringify(
-      middlewareRegex || ''
+    'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
+      middlewareMatchers || []
     ),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
       config.experimental.manualClientBasePath
@@ -176,9 +175,8 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
     'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
-    'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-      config.optimizeFonts && !dev
+      !dev && config.optimizeFonts
     ),
     'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
       config.experimental.optimizeCss && !dev
@@ -195,14 +193,12 @@ export function getDefineEnv({
       path: config.images.path,
       loader: config.images.loader,
       dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
-      experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-      experimentalFuture: config.experimental?.images?.allowFutureImage,
+      unoptimized: config?.images?.unoptimized,
       ...(dev
         ? {
             // pass domains in development to allow validating on the client
             domains: config.images.domains,
-            experimentalRemotePatterns:
-              config.experimental?.images?.remotePatterns,
+            remotePatterns: config.images?.remotePatterns,
           }
         : {}),
     }),
@@ -510,7 +506,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     target = COMPILER_NAMES.server,
     appDir,
-    middlewareRegex,
+    middlewareMatchers,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -519,13 +515,13 @@ export default async function getBaseWebpackConfig(
     entrypoints: webpack.EntryObject
     hasReactRoot: boolean
     isDevFallback?: boolean
-    pagesDir: string
+    pagesDir?: string
     reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
     runWebpackSpan: Span
     target?: string
     appDir?: string
-    middlewareRegex?: string
+    middlewareMatchers?: MiddlewareMatcher[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -540,15 +536,23 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  if (isClient && !hasReactRoot) {
-    if (config.experimental.runtime) {
-      throw new Error(
-        '`experimental.runtime` requires React 18 to be installed.'
-      )
+  // Only error in first one compiler (client) once
+  if (isClient) {
+    if (!hasReactRoot) {
+      if (config.experimental.runtime) {
+        throw new Error(
+          '`experimental.runtime` requires React 18 to be installed.'
+        )
+      }
+      if (config.experimental.serverComponents) {
+        throw new Error(
+          '`experimental.serverComponents` requires React 18 to be installed.'
+        )
+      }
     }
-    if (config.experimental.serverComponents) {
+    if (!config.experimental.appDir && config.experimental.serverComponents) {
       throw new Error(
-        '`experimental.serverComponents` requires React 18 to be installed.'
+        '`experimental.serverComponents` requires experimental.appDir to be enabled.'
       )
     }
   }
@@ -682,19 +686,14 @@ export default async function getBaseWebpackConfig(
     babel: getBabelOrSwcLoader(),
   }
 
-  const rawPageExtensions = hasServerComponents
-    ? withoutRSCExtensions(config.pageExtensions)
-    : config.pageExtensions
-
-  const serverComponentsRegex = new RegExp(
-    `\\.server\\.(${rawPageExtensions.join('|')})$`
-  )
+  const pageExtensions = config.pageExtensions
 
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
+    /styled-jsx[\\/]/,
   ]
 
   // Support for NODE_PATH
@@ -795,24 +794,30 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
-        prev.push(path.join(pagesDir, `_app.${ext}`))
-        return prev
-      }, [] as string[]),
+      ...(pagesDir
+        ? pageExtensions.reduce((prev, ext) => {
+            prev.push(path.join(pagesDir, `_app.${ext}`))
+            return prev
+          }, [] as string[])
+        : []),
       'next/dist/pages/_app.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
-        prev.push(path.join(pagesDir, `_error.${ext}`))
-        return prev
-      }, [] as string[]),
+      ...(pagesDir
+        ? pageExtensions.reduce((prev, ext) => {
+            prev.push(path.join(pagesDir, `_error.${ext}`))
+            return prev
+          }, [] as string[])
+        : []),
       'next/dist/pages/_error.js',
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
-        prev.push(path.join(pagesDir, `_document.${ext}`))
-        return prev
-      }, [] as string[]),
+      ...(pagesDir
+        ? pageExtensions.reduce((prev, ext) => {
+            prev.push(path.join(pagesDir, `_document.${ext}`))
+            return prev
+          }, [] as string[])
+        : []),
       `next/dist/pages/_document.js`,
     ]
   }
@@ -851,7 +856,7 @@ export default async function getBaseWebpackConfig(
       ...customDocumentAliases,
       ...customRootAliases,
 
-      [PAGES_DIR_ALIAS]: pagesDir,
+      ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
       ...(appDir
         ? {
             [APP_DIR_ALIAS]: appDir,
@@ -861,6 +866,9 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
+
+      [RSC_MOD_REF_PROXY_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/module-proxy',
 
       ...(isClient || isEdgeServer
         ? {
@@ -1005,7 +1013,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|future\/image|constants|dynamic|script)$)|string-hash$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|future\/image|constants|dynamic|script)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1135,11 +1143,6 @@ export default async function getBaseWebpackConfig(
       }
       return /node_modules/.test(excludePath)
     },
-  }
-
-  const serverComponentCodeCondition = {
-    test: serverComponentsRegex,
-    include: [dir, /next[\\/]dist[\\/]pages/],
   }
 
   const rscSharedRegex =
@@ -1437,8 +1440,7 @@ export default async function getBaseWebpackConfig(
         'next-image-loader',
         'next-serverless-loader',
         'next-style-loader',
-        'next-flight-client-loader',
-        'next-flight-server-loader',
+        'next-flight-loader',
         'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
@@ -1473,31 +1475,22 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        ...(hasServerComponents
-          ? isNodeServer || isEdgeServer
-            ? [
-                // RSC server compilation loaders
-                {
-                  ...serverComponentCodeCondition,
-                  issuerLayer: WEBPACK_LAYERS.server,
-                  use: {
-                    loader: 'next-flight-server-loader',
-                  },
+        ...(hasServerComponents && (isNodeServer || isEdgeServer)
+          ? [
+              // RSC server compilation loaders
+              {
+                test: codeCondition.test,
+                include: [
+                  dir,
+                  // To let the internal client components passing through flight loader
+                  /next[\\/]dist/,
+                ],
+                issuerLayer: WEBPACK_LAYERS.server,
+                use: {
+                  loader: 'next-flight-loader',
                 },
-                {
-                  test: clientComponentRegex,
-                  issuerLayer: WEBPACK_LAYERS.server,
-                  use: {
-                    loader: 'next-flight-client-loader',
-                  },
-                },
-                // _app should be treated as a client component as well as all its dependencies.
-                {
-                  test: new RegExp(`_app\\.(${rawPageExtensions.join('|')})$`),
-                  layer: WEBPACK_LAYERS.client,
-                },
-              ]
-            : []
+              },
+            ]
           : []),
         ...(hasServerComponents && isEdgeServer
           ? [
@@ -1533,6 +1526,21 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: getBabelOrSwcLoader(),
             },
+            ...(hasServerComponents
+              ? [
+                  {
+                    test: codeCondition.test,
+                    issuerLayer: WEBPACK_LAYERS.server,
+                    use: {
+                      ...defaultLoaders.babel,
+                      options: {
+                        ...defaultLoaders.babel.options,
+                        isServerLayer: true,
+                      },
+                    },
+                  },
+                ]
+              : []),
             {
               ...codeCondition,
               use:
@@ -1579,7 +1587,30 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       fallback:
                         config.experimental.fallbackNodePolyfills === false
-                          ? {}
+                          ? {
+                              assert: false,
+                              buffer: false,
+                              constants: false,
+                              crypto: false,
+                              domain: false,
+                              http: false,
+                              https: false,
+                              os: false,
+                              path: false,
+                              punycode: false,
+                              process: false,
+                              querystring: false,
+                              stream: false,
+                              string_decoder: false,
+                              sys: false,
+                              timers: false,
+                              tty: false,
+                              util: false,
+                              vm: false,
+                              zlib: false,
+                              events: false,
+                              setImmediate: false,
+                            }
                           : {
                               assert: require.resolve(
                                 'next/dist/compiled/assert'
@@ -1673,8 +1704,7 @@ export default async function getBaseWebpackConfig(
           hasReactRoot,
           isNodeServer,
           isEdgeServer,
-          middlewareRegex,
-          hasServerComponents,
+          middlewareMatchers,
         })
       ),
       isClient &&
@@ -1745,7 +1775,11 @@ export default async function getBaseWebpackConfig(
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      isEdgeServer && new MiddlewarePlugin({ dev }),
+      isEdgeServer &&
+        new MiddlewarePlugin({
+          dev,
+          sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+        }),
       isClient &&
         new BuildManifestPlugin({
           buildId,
@@ -1765,6 +1799,7 @@ export default async function getBaseWebpackConfig(
             }
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
+            adjustFontFallbacks: config.experimental.adjustFontFallbacks,
           })
         })(),
       new WellKnownErrorsPlugin(),
@@ -1785,16 +1820,19 @@ export default async function getBaseWebpackConfig(
         isClient &&
         new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
+        !!config.experimental.appDir &&
         (isClient
           ? new FlightManifestPlugin({
               dev,
-              appDir: !!config.experimental.appDir,
-              pageExtensions: rawPageExtensions,
             })
           : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
             })),
+      !dev &&
+        isClient &&
+        !!config.experimental.sri?.algorithm &&
+        new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
@@ -1935,7 +1973,7 @@ export default async function getBaseWebpackConfig(
 
   const configVars = JSON.stringify({
     crossOrigin: config.crossOrigin,
-    pageExtensions: rawPageExtensions,
+    pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
     buildActivity: config.devIndicators.buildActivity,
     buildActivityPosition: config.devIndicators.buildActivityPosition,
@@ -2052,7 +2090,9 @@ export default async function getBaseWebpackConfig(
   webpackConfig = await buildConfiguration(webpackConfig, {
     supportedBrowsers,
     rootDirectory: dir,
-    customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
+    customAppFile: pagesDir
+      ? new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`)))
+      : undefined,
     isDevelopment: dev,
     isServer: isNodeServer || isEdgeServer,
     isEdgeRuntime: isEdgeServer,

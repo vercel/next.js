@@ -211,6 +211,38 @@ function runTests(startServer = nextStart) {
     expect(cookies[1]).not.toHaveProperty('Max-Age')
   })
 
+  it('should return cookies to be expired on reset request with path specified', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/reset',
+      { cookiePath: '/blog' },
+      { headers: { Cookie: previewCookieString } }
+    )
+    expect(res.status).toBe(200)
+
+    const cookies = res.headers
+      .get('set-cookie')
+      .replace(/(=(?!Lax)\w{3}),/g, '$1')
+      .split(',')
+      .map(cookie.parse)
+
+    expect(cookies.length).toBe(2)
+    expect(cookies[0]).toMatchObject({
+      Path: '/blog',
+      SameSite: 'None',
+      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+    })
+    expect(cookies[0]).toHaveProperty('__prerender_bypass')
+    expect(cookies[0]).not.toHaveProperty('Max-Age')
+    expect(cookies[1]).toMatchObject({
+      Path: '/blog',
+      SameSite: 'None',
+      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+    })
+    expect(cookies[1]).toHaveProperty('__next_preview_data')
+    expect(cookies[1]).not.toHaveProperty('Max-Age')
+  })
+
   it('should pass undefined to API routes when not in preview', async () => {
     const res = await fetchViaHTTP(appPort, `/api/read`)
     const json = await res.json()
