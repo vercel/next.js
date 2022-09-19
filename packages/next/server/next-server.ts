@@ -235,6 +235,8 @@ export default class NextNodeServer extends BaseServer {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
 
+    process.env.NEXT_RUNTIME = 'nodejs'
+
     if (!this.minimalMode) {
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')

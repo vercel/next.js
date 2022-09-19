@@ -21,7 +21,7 @@ export function parseRelativeUrl(
   base?: string
 ): ParsedRelativeUrl {
   const globalBase = new URL(
-    !!process.env.NEXT_RUNTIME ? 'http://n' : getLocationOrigin()
+    process.env.NEXT_RUNTIME ? 'http://n' : getLocationOrigin()
   )
 
   const resolvedBase = base
