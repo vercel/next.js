@@ -35,15 +35,8 @@ describe('app dir - react server components', () => {
   }
 
   beforeAll(async () => {
-    const appDir = path.join(__dirname, './rsc-basic')
     next = await createNext({
-      files: {
-        node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
-        public: new FileRef(path.join(appDir, 'public')),
-        components: new FileRef(path.join(appDir, 'components')),
-        app: new FileRef(path.join(appDir, 'app')),
-        'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
-      },
+      files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
         'styled-components': '6.0.0-alpha.5',
         react: 'experimental',
@@ -101,7 +94,6 @@ describe('app dir - react server components', () => {
       '__nextDefaultLocale',
       '__nextIsNotFound',
       '__flight__',
-      '__props__',
       '__flight_router_path__',
     ]
 
@@ -119,7 +111,11 @@ describe('app dir - react server components', () => {
         page.on('request', (request) => {
           requestsCount++
           const url = request.url()
-          if (/\?__flight__=1/.test(url)) {
+          if (
+            url.includes('__flight__=1') &&
+            // Prefetches also include `__flight__`
+            !url.includes('__flight_prefetch__=1')
+          ) {
             hasFlightRequest = true
           }
         })
@@ -154,17 +150,6 @@ describe('app dir - react server components', () => {
     expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
     expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
     expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
-
-    // Note: This is currently unsupported because packages from another layer
-    // will not be re-initialized by webpack.
-    // Should import 2 module instances for node_modules too.
-    // const modFromClient = main.match(
-    //   /node_modules instance from \.client\.js:(\d+)/
-    // )
-    // const modFromServer = main.match(
-    //   /node_modules instance from \.server\.js:(\d+)/
-    // )
-    // expect(modFromClient[1]).not.toBe(modFromServer[1])
   })
 
   it('should be able to navigate between rsc routes', async () => {
@@ -231,7 +216,11 @@ describe('app dir - react server components', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           const url = request.url()
-          if (/\?__flight__=1/.test(url)) {
+          if (
+            url.includes('__flight__=1') &&
+            // Prefetches also include `__flight__`
+            !url.includes('__flight_prefetch__=1')
+          ) {
             hasFlightRequest = true
           }
         })
@@ -330,6 +319,20 @@ describe('app dir - react server components', () => {
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)
+  })
+
+  it('should stick to the url without trailing /page suffix', async () => {
+    const browser = await webdriver(next.url, '/edge/dynamic')
+    const indexUrl = await browser.url()
+
+    await browser.loadPage(`${next.url}/edge/dynamic/123`, {
+      disableCache: false,
+      beforePageLoad: null,
+    })
+
+    const dynamicRouteUrl = await browser.url()
+    expect(indexUrl).toBe(`${next.url}/edge/dynamic`)
+    expect(dynamicRouteUrl).toBe(`${next.url}/edge/dynamic/123`)
   })
 
   it('should support streaming for flight response', async () => {

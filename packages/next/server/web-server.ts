@@ -370,10 +370,14 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
+    const resultContentType = options.result.contentType()
+
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        options.type === 'json'
+        resultContentType
+          ? resultContentType
+          : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )
@@ -404,12 +408,17 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // @TODO
     return true
   }
-  protected async findPageComponents(
-    pathname: string,
-    query: NextParsedUrlQuery,
-    params: Params | null,
-    _isAppPath: boolean
-  ) {
+
+  protected async findPageComponents({
+    pathname,
+    query,
+    params,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
+    isAppPath: boolean
+  }) {
     const result = await this.serverOptions.webServerConfig.loadComponent(
       pathname
     )

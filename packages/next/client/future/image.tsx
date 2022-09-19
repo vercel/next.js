@@ -1,3 +1,5 @@
+'client'
+
 import React, {
   useRef,
   useEffect,
@@ -47,10 +49,7 @@ type ImageLoaderPropsWithConfig = ImageLoaderProps & {
 
 type PlaceholderValue = 'blur' | 'empty'
 
-type OnLoadingComplete = (result: {
-  naturalWidth: number
-  naturalHeight: number
-}) => void
+type OnLoadingComplete = (img: HTMLImageElement) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
@@ -265,10 +264,7 @@ function handleLoading(
       setBlurComplete(true)
     }
     if (onLoadingCompleteRef?.current) {
-      const { naturalWidth, naturalHeight } = img
-      // Pass back read-only primitive values but not the
-      // underlying DOM element because it could be misused.
-      onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
+      onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
       if (img.getAttribute('data-nimg') === 'future-fill') {
@@ -548,6 +544,8 @@ export default function Image({
   }
 
   let staticSrc = ''
+  let widthInt = getInt(width)
+  let heightInt = getInt(height)
   let blurWidth: number | undefined
   let blurHeight: number | undefined
   if (isStaticImport(src)) {
@@ -560,22 +558,30 @@ export default function Image({
         )}`
       )
     }
-    blurWidth = staticImageData.blurWidth
-    blurHeight = staticImageData.blurHeight
-    blurDataURL = blurDataURL || staticImageData.blurDataURL
-    staticSrc = staticImageData.src
-
-    // Ignore width and height (come from the bundler) when "fill" is used
-    if (!fill) {
-      height = height || staticImageData.height
-      width = width || staticImageData.width
-    }
     if (!staticImageData.height || !staticImageData.width) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
           staticImageData
         )}`
       )
+    }
+
+    blurWidth = staticImageData.blurWidth
+    blurHeight = staticImageData.blurHeight
+    blurDataURL = blurDataURL || staticImageData.blurDataURL
+    staticSrc = staticImageData.src
+
+    if (!fill) {
+      if (!widthInt && !heightInt) {
+        widthInt = staticImageData.width
+        heightInt = staticImageData.height
+      } else if (widthInt && !heightInt) {
+        const ratio = widthInt / staticImageData.width
+        heightInt = Math.round(staticImageData.height * ratio)
+      } else if (!widthInt && heightInt) {
+        const ratio = heightInt / staticImageData.height
+        widthInt = Math.round(staticImageData.width * ratio)
+      }
     }
   }
   src = typeof src === 'string' ? src : staticSrc
@@ -593,8 +599,7 @@ export default function Image({
 
   const [blurComplete, setBlurComplete] = useState(false)
   const [showAltText, setShowAltText] = useState(false)
-  let widthInt = getInt(width)
-  let heightInt = getInt(height)
+
   const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {

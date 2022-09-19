@@ -1,36 +1,95 @@
+'client'
+
 import React, { useContext, useEffect, useRef } from 'react'
-import type { ChildProp, Segment } from '../../server/app-render'
+import type {
+  ChildProp,
+  //Segment
+} from '../../server/app-render'
 import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  FlightDataPath,
+  // FlightDataPath,
 } from '../../server/app-render'
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
+  TemplateContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
-import { matchSegment } from './match-segments'
+// import { matchSegment } from './match-segments'
+
+// TODO-APP: change to React.use once it becomes stable
+const use = (React as any).experimental_use
 
 /**
  * Check if every segment in array a and b matches
  */
-function equalSegmentPaths(a: Segment[], b: Segment[]) {
-  // Comparing length is a fast path.
-  return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
-}
+// function equalSegmentPaths(a: Segment[], b: Segment[]) {
+//   // Comparing length is a fast path.
+//   return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
+// }
 
 /**
  * Check if flightDataPath matches layoutSegmentPath
  */
-function segmentPathMatches(
-  flightDataPath: FlightDataPath,
-  layoutSegmentPath: FlightSegmentPath
-): boolean {
-  // The last three items are the current segment, tree, and subTreeData
-  const pathToLayout = flightDataPath.slice(0, -3)
-  return equalSegmentPaths(layoutSegmentPath, pathToLayout)
+// function segmentPathMatches(
+//   flightDataPath: FlightDataPath,
+//   layoutSegmentPath: FlightSegmentPath
+// ): boolean {
+//   // The last three items are the current segment, tree, and subTreeData
+//   const pathToLayout = flightDataPath.slice(0, -3)
+//   return equalSegmentPaths(layoutSegmentPath, pathToLayout)
+// }
+
+/**
+ * Add refetch marker to router state at the point of the current layout segment.
+ * This ensures the response returned is not further down than the current layout segment.
+ */
+function walkAddRefetch(
+  segmentPathToWalk: FlightSegmentPath | undefined,
+  treeToRecreate: FlightRouterState
+): FlightRouterState {
+  if (segmentPathToWalk) {
+    const [segment, parallelRouteKey] = segmentPathToWalk
+    const isLast = segmentPathToWalk.length === 2
+
+    if (treeToRecreate[0] === segment) {
+      if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
+        if (isLast) {
+          const subTree = walkAddRefetch(
+            undefined,
+            treeToRecreate[1][parallelRouteKey]
+          )
+          return [
+            treeToRecreate[0],
+            {
+              ...treeToRecreate[1],
+              [parallelRouteKey]: [
+                subTree[0],
+                subTree[1],
+                subTree[2],
+                'refetch',
+              ],
+            },
+          ]
+        }
+
+        return [
+          treeToRecreate[0],
+          {
+            ...treeToRecreate[1],
+            [parallelRouteKey]: walkAddRefetch(
+              segmentPathToWalk.slice(2),
+              treeToRecreate[1][parallelRouteKey]
+            ),
+          },
+        ]
+      }
+    }
+  }
+
+  return treeToRecreate
 }
 
 /**
@@ -114,7 +173,13 @@ export function InnerLayoutRouter({
   let childNode = childNodes.get(path)
 
   // If childProp is available this means it's the Flight / SSR case.
-  if (childProp && !childNode) {
+  if (
+    childProp &&
+    // TODO-APP: verify if this can be null based on user code
+    childProp.current !== null &&
+    !childNode /*&&
+    !childProp.partial*/
+  ) {
     // Add the segment's subTreeData to the cache.
     // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
     childNodes.set(path, {
@@ -131,55 +196,6 @@ export function InnerLayoutRouter({
   // When childNode is not available during rendering client-side we need to fetch it from the server.
   if (!childNode) {
     /**
-     * Add refetch marker to router state at the point of the current layout segment.
-     * This ensures the response returned is not further down than the current layout segment.
-     */
-    const walkAddRefetch = (
-      segmentPathToWalk: FlightSegmentPath | undefined,
-      treeToRecreate: FlightRouterState
-    ): FlightRouterState => {
-      if (segmentPathToWalk) {
-        const [segment, parallelRouteKey] = segmentPathToWalk
-        const isLast = segmentPathToWalk.length === 2
-
-        if (treeToRecreate[0] === segment) {
-          if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
-            if (isLast) {
-              const subTree = walkAddRefetch(
-                undefined,
-                treeToRecreate[1][parallelRouteKey]
-              )
-              if (!subTree[2]) {
-                subTree[2] = undefined
-              }
-              subTree[3] = 'refetch'
-              return [
-                treeToRecreate[0],
-                {
-                  ...treeToRecreate[1],
-                  [parallelRouteKey]: [...subTree],
-                },
-              ]
-            }
-
-            return [
-              treeToRecreate[0],
-              {
-                ...treeToRecreate[1],
-                [parallelRouteKey]: walkAddRefetch(
-                  segmentPathToWalk.slice(2),
-                  treeToRecreate[1][parallelRouteKey]
-                ),
-              },
-            ]
-          }
-        }
-      }
-
-      return treeToRecreate
-    }
-
-    /**
      * Router state with refetch marker added
      */
     // TODO-APP: remove ''
@@ -188,9 +204,8 @@ export function InnerLayoutRouter({
     /**
      * Flight data fetch kicked off during render and put into the cache.
      */
-    const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
     childNodes.set(path, {
-      data,
+      data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
       parallelRoutes: new Map(),
     })
@@ -208,14 +223,14 @@ export function InnerLayoutRouter({
     throw new Error('Child node should not have both subTreeData and data')
   }
 
-  // If cache node has a data request we have to readRoot and update the cache.
+  // If cache node has a data request we have to unwrap response by `use` and update the cache.
   if (childNode.data) {
     // TODO-APP: error case
     /**
      * Flight response data
      */
-    // When the data has not resolved yet readRoot will suspend here.
-    const flightData = childNode.data.readRoot()
+    // When the data has not resolved yet `use` will suspend here.
+    const flightData = use(childNode.data)
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {
@@ -230,22 +245,22 @@ export function InnerLayoutRouter({
     let fastPath: boolean = false
 
     // If there are multiple patches returned in the Flight data we need to dispatch to ensure a single render.
-    if (flightData.length === 1) {
-      const flightDataPath = flightData[0]
+    // if (flightData.length === 1) {
+    //   const flightDataPath = flightData[0]
 
-      if (segmentPathMatches(flightDataPath, segmentPath)) {
-        // Ensure data is set to null as subTreeData will be set in the cache now.
-        childNode.data = null
-        // Last item is the subtreeData
-        // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
-        const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
-        // Add subTreeData into the cache
-        childNode.subTreeData = subTreeData
-        // This field is required for new items
-        childNode.parallelRoutes = new Map()
-        fastPath = true
-      }
-    }
+    //   if (segmentPathMatches(flightDataPath, segmentPath)) {
+    //     // Ensure data is set to null as subTreeData will be set in the cache now.
+    //     childNode.data = null
+    //     // Last item is the subtreeData
+    //     // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
+    //     const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
+    //     // Add subTreeData into the cache
+    //     childNode.subTreeData = subTreeData
+    //     // This field is required for new items
+    //     childNode.parallelRoutes = new Map()
+    //     fastPath = true
+    //   }
+    // }
 
     // When the fast path is not used a new action is dispatched to update the tree and cache.
     if (!fastPath) {
@@ -303,9 +318,68 @@ function LoadingBoundary({
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
-}) {
+}): JSX.Element {
   if (loading) {
     return <React.Suspense fallback={loading}>{children}</React.Suspense>
+  }
+
+  return <>{children}</>
+}
+
+type ErrorComponent = React.ComponentType<{ error: Error; reset: () => void }>
+interface ErrorBoundaryProps {
+  errorComponent: ErrorComponent
+}
+
+/**
+ * Handles errors through `getDerivedStateFromError`.
+ * Renders the provided error component and provides a way to `reset` the error boundary state.
+ */
+class ErrorBoundaryHandler extends React.Component<
+  ErrorBoundaryProps,
+  { error: Error | null }
+> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  reset = () => {
+    this.setState({ error: null })
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <this.props.errorComponent
+          error={this.state.error}
+          reset={this.reset}
+        />
+      )
+    }
+
+    return this.props.children
+  }
+}
+
+/**
+ * Renders error boundary with the provided "errorComponent" property as the fallback.
+ * If no "errorComponent" property is provided it renders the children without an error boundary.
+ */
+function ErrorBoundary({
+  errorComponent,
+  children,
+}: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
+  if (errorComponent) {
+    return (
+      <ErrorBoundaryHandler errorComponent={errorComponent}>
+        {children}
+      </ErrorBoundaryHandler>
+    )
   }
 
   return <>{children}</>
@@ -319,12 +393,16 @@ export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
   childProp,
+  error,
   loading,
+  template,
   rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
   childProp: ChildProp
+  error: ErrorComponent
+  template: React.ReactNode
   loading: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
@@ -362,23 +440,39 @@ export default function OuterLayoutRouter({
     <>
       {preservedSegments.map((preservedSegment) => {
         return (
-          // Loading boundary is render for each segment to ensure they have their own loading state.
-          // The loading boundary is passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
-          <LoadingBoundary loading={loading} key={preservedSegment}>
-            <InnerLayoutRouter
-              parallelRouterKey={parallelRouterKey}
-              url={url}
-              tree={tree}
-              childNodes={childNodesForParallelRouter!}
-              childProp={
-                childPropSegment === preservedSegment ? childProp : null
-              }
-              segmentPath={segmentPath}
-              path={preservedSegment}
-              isActive={currentChildSegment === preservedSegment}
-              rootLayoutIncluded={rootLayoutIncluded}
-            />
-          </LoadingBoundary>
+          /*
+            - Error boundary
+              - Only renders error boundary if error component is provided.
+              - Rendered for each segment to ensure they have their own error state.
+            - Loading boundary
+              - Only renders suspense boundary if loading components is provided.
+              - Rendered for each segment to ensure they have their own loading state.
+              - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
+          */
+          <TemplateContext.Provider
+            key={preservedSegment}
+            value={
+              <ErrorBoundary errorComponent={error}>
+                <LoadingBoundary loading={loading}>
+                  <InnerLayoutRouter
+                    parallelRouterKey={parallelRouterKey}
+                    url={url}
+                    tree={tree}
+                    childNodes={childNodesForParallelRouter!}
+                    childProp={
+                      childPropSegment === preservedSegment ? childProp : null
+                    }
+                    segmentPath={segmentPath}
+                    path={preservedSegment}
+                    isActive={currentChildSegment === preservedSegment}
+                    rootLayoutIncluded={rootLayoutIncluded}
+                  />
+                </LoadingBoundary>
+              </ErrorBoundary>
+            }
+          >
+            {template}
+          </TemplateContext.Provider>
         )
       })}
     </>

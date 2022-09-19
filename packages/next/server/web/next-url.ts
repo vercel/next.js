@@ -15,6 +15,12 @@ interface Options {
   }
 }
 
+const FLIGHT_PARAMETERS = [
+  '__flight__',
+  '__flight_router_state_tree__',
+  '__flight_prefetch__',
+] as const
+
 const REGEX_LOCALHOST_HOSTNAME =
   /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
 
@@ -25,12 +31,35 @@ function parseURL(url: string | URL, base?: string | URL) {
   )
 }
 
+function parseFlightParameters(
+  searchParams: URLSearchParams
+): Record<string, string> | undefined {
+  let flightSearchParameters: Record<string, string> = {}
+  let flightSearchParametersUpdated = false
+  for (const name of FLIGHT_PARAMETERS) {
+    const value = searchParams.get(name)
+    if (value === null) {
+      continue
+    }
+
+    flightSearchParameters[name] = value
+    flightSearchParametersUpdated = true
+  }
+
+  if (!flightSearchParametersUpdated) {
+    return undefined
+  }
+
+  return flightSearchParameters
+}
+
 const Internal = Symbol('NextURLInternal')
 
 export class NextURL {
   [Internal]: {
     basePath: string
     buildId?: string
+    flightSearchParameters?: Record<string, string>
     defaultLocale?: string
     domainLocale?: DomainLocale
     locale?: string
@@ -89,6 +118,9 @@ export class NextURL {
     this[Internal].buildId = pathnameInfo.buildId
     this[Internal].locale = pathnameInfo.locale ?? defaultLocale
     this[Internal].trailingSlash = pathnameInfo.trailingSlash
+    this[Internal].flightSearchParameters = parseFlightParameters(
+      this[Internal].url.searchParams
+    )
   }
 
   private formatPathname() {
@@ -104,12 +136,57 @@ export class NextURL {
     })
   }
 
+  private formatSearch() {
+    const flightSearchParameters = this[Internal].flightSearchParameters
+    // If no flight parameters are set, return the search string as is.
+    // This is a fast path to ensure URLSearchParams only has to be recreated on Flight requests.
+    if (!flightSearchParameters) {
+      return this[Internal].url.search
+    }
+
+    // Create separate URLSearchParams to ensure the original search string is not modified.
+    const searchParams = new URLSearchParams(this[Internal].url.searchParams)
+    // If any exist this loop is always limited to the amount of FLIGHT_PARAMETERS.
+    for (const name in flightSearchParameters) {
+      searchParams.set(name, flightSearchParameters[name])
+    }
+
+    const params = searchParams.toString()
+    return params === '' ? '' : `?${params}`
+  }
+
   public get buildId() {
     return this[Internal].buildId
   }
 
   public set buildId(buildId: string | undefined) {
     this[Internal].buildId = buildId
+  }
+
+  public get flightSearchParameters() {
+    return this[Internal].flightSearchParameters
+  }
+
+  public set flightSearchParameters(
+    flightSearchParams: Record<string, string> | undefined
+  ) {
+    if (flightSearchParams) {
+      for (const name of FLIGHT_PARAMETERS) {
+        // Ensure only the provided values are set
+        if (flightSearchParams[name]) {
+          this[Internal].url.searchParams.set(name, flightSearchParams[name])
+        } else {
+          // Delete the ones that are not provided as flightData should be overridden.
+          this[Internal].url.searchParams.delete(name)
+        }
+      }
+    } else {
+      for (const name of FLIGHT_PARAMETERS) {
+        this[Internal].url.searchParams.delete(name)
+      }
+    }
+
+    this[Internal].flightSearchParameters = flightSearchParams
   }
 
   public get locale() {
@@ -175,7 +252,8 @@ export class NextURL {
 
   get href() {
     const pathname = this.formatPathname()
-    return `${this.protocol}//${this.host}${pathname}${this[Internal].url.search}`
+    const search = this.formatSearch()
+    return `${this.protocol}//${this.host}${pathname}${search}`
   }
 
   set href(url: string) {

@@ -2,7 +2,7 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Route } from './router'
-import type { FontManifest } from './font-utils'
+import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -48,7 +48,8 @@ import Router from './router'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage, isBot } from './utils'
+import { isBlockedPage } from './utils'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -200,7 +201,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
-    optimizeFonts: boolean
+    optimizeFonts: FontConfig
     images: ImageConfigComplete
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
@@ -225,7 +226,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private responseCache: ResponseCacheBase
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
-  protected appPathRoutes?: Record<string, string>
+  protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
   protected serverCSSManifest?: any
@@ -239,12 +240,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getBuildId(): string
 
   protected abstract getFilesystemPaths(): Set<string>
-  protected abstract findPageComponents(
-    pathname: string,
-    query: NextParsedUrlQuery,
-    params: Params,
+  protected abstract findPageComponents(params: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params
     isAppPath: boolean
-  ): Promise<FindComponentsResult | null>
+    appPaths?: string[] | null
+    sriEnabled?: boolean
+  }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
@@ -378,9 +381,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
-      optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
+      optimizeFonts: this.nextConfig.optimizeFonts as FontConfig,
       fontManifest:
-        this.nextConfig.optimizeFonts && !dev
+        (this.nextConfig.optimizeFonts as FontConfig) && !dev
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -758,11 +761,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       .filter((item): item is RoutingItem => Boolean(item))
   }
 
-  protected getAppPathRoutes(): Record<string, string> {
-    const appPathRoutes: Record<string, string> = {}
+  protected getAppPathRoutes(): Record<string, string[]> {
+    const appPathRoutes: Record<string, string[]> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      appPathRoutes[normalizeAppPath(entry) || '/'] = entry
+      const normalizedPath = normalizeAppPath(entry) || '/'
+      if (!appPathRoutes[normalizedPath]) {
+        appPathRoutes[normalizedPath] = []
+      }
+      appPathRoutes[normalizedPath].push(entry)
     })
     return appPathRoutes
   }
@@ -954,7 +961,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Toggle whether or not this is a Data request
     const isDataReq =
-      !!(query.__nextDataReq || req.headers['x-nextjs-data']) &&
+      !!(
+        query.__nextDataReq ||
+        (req.headers['x-nextjs-data'] &&
+          (this.serverOptions as any).webServerConfig)
+      ) &&
       (isSSG || hasServerProps || isServerComponent)
 
     delete query.__nextDataReq
@@ -1183,6 +1194,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           locale,
           locales,
           defaultLocale,
+          optimizeFonts: this.renderOpts.optimizeFonts,
           optimizeCss: this.renderOpts.optimizeCss,
           nextScriptWorkers: this.renderOpts.nextScriptWorkers,
           distDir: this.distDir,
@@ -1504,7 +1516,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   // map the route to the actual bundle name
-  protected getOriginalAppPath(route: string) {
+  protected getOriginalAppPaths(route: string) {
     if (this.nextConfig.experimental.appDir) {
       const originalAppPath = this.appPathRoutes?.[route]
 
@@ -1523,18 +1535,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ) {
     const { query, pathname } = ctx
 
+    const appPaths = this.getOriginalAppPaths(pathname)
+
     let page = pathname
-    const appPath = this.getOriginalAppPath(pathname)
-    if (typeof appPath === 'string') {
-      page = appPath
+    if (Array.isArray(appPaths)) {
+      // When it's an array, we need to pass all parallel routes to the loader.
+      page = appPaths[0]
     }
 
-    const result = await this.findPageComponents(
-      page,
+    const result = await this.findPageComponents({
+      pathname: page,
       query,
-      ctx.renderOpts.params || {},
-      typeof appPath === 'string'
-    )
+      params: ctx.renderOpts.params || {},
+      isAppPath: Array.isArray(appPaths),
+      appPaths,
+      sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
+    })
     if (result) {
       try {
         return await this.renderToResponseWithComponents(ctx, result)
@@ -1737,7 +1753,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // use static 404 page if available and is 404 response
       if (is404 && (await this.hasPage('/404'))) {
-        result = await this.findPageComponents('/404', query, {}, false)
+        result = await this.findPageComponents({
+          pathname: '/404',
+          query,
+          params: {},
+          isAppPath: false,
+        })
         using404Page = result !== null
       }
       let statusPage = `/${res.statusCode}`
@@ -1750,12 +1771,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
         if (statusPage !== '/500' || !this.renderOpts.dev) {
-          result = await this.findPageComponents(statusPage, query, {}, false)
+          result = await this.findPageComponents({
+            pathname: statusPage,
+            query,
+            params: {},
+            isAppPath: false,
+          })
         }
       }
 
       if (!result) {
-        result = await this.findPageComponents('/_error', query, {}, false)
+        result = await this.findPageComponents({
+          pathname: '/_error',
+          query,
+          params: {},
+          isAppPath: false,
+        })
         statusPage = '/_error'
       }
 

@@ -1,3 +1,5 @@
+'client'
+
 import React from 'react'
 import { UrlObject } from 'url'
 import {
@@ -16,9 +18,6 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 
-// @ts-ignore useTransition exist
-const hasUseTransition = typeof React.useTransition !== 'undefined'
-
 type Url = string | UrlObject
 type RequiredKeys<T> = {
   [K in keyof T]-?: {} extends Pick<T, K> ? never : K
@@ -31,11 +30,6 @@ type InternalLinkProps = {
   href: Url
   as?: Url
   replace?: boolean
-
-  /**
-   * TODO-APP
-   */
-  soft?: boolean
   scroll?: boolean
   shallow?: boolean
   passHref?: boolean
@@ -79,7 +73,7 @@ function prefetch(
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  router.prefetch(href, as, options).catch((err) => {
+  Promise.resolve(router.prefetch(href, as, options)).catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
@@ -112,11 +106,11 @@ function linkClicked(
   href: string,
   as: string,
   replace?: boolean,
-  soft?: boolean,
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
-  startTransition?: (cb: any) => void
+  isAppRouter?: boolean,
+  prefetchEnabled?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -131,31 +125,24 @@ function linkClicked(
   e.preventDefault()
 
   const navigate = () => {
-    // If the router is an AppRouterInstance, then it'll have `softPush` and
-    // `softReplace`.
-    if ('softPush' in router && 'softReplace' in router) {
-      // If we're doing a soft navigation, use the soft variants of
-      // replace/push.
-      const method: keyof AppRouterInstance = soft
-        ? replace
-          ? 'softReplace'
-          : 'softPush'
-        : replace
-        ? 'replace'
-        : 'push'
-
-      router[method](href)
-    } else {
+    // If the router is an NextRouter instance it will have `beforePopState`
+    if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
         locale,
         scroll,
       })
+    } else {
+      // If `beforePopState` doesn't exist on the router it's the AppRouter.
+      const method: keyof AppRouterInstance = replace ? 'replace' : 'push'
+
+      router[method](href, { forceOptimisticNavigation: !prefetchEnabled })
     }
   }
 
-  if (startTransition) {
-    startTransition(navigate)
+  if (isAppRouter) {
+    // @ts-expect-error startTransition exists.
+    React.startTransition(navigate)
   } else {
     navigate()
   }
@@ -212,7 +199,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       const optionalPropsGuard: Record<LinkPropsOptional, true> = {
         as: true,
         replace: true,
-        soft: true,
         scroll: true,
         shallow: true,
         passHref: true,
@@ -259,7 +245,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else if (
           key === 'replace' ||
-          key === 'soft' ||
           key === 'scroll' ||
           key === 'shallow' ||
           key === 'passHref' ||
@@ -300,7 +285,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       prefetch: prefetchProp,
       passHref,
       replace,
-      soft,
       shallow,
       scroll,
       locale,
@@ -321,13 +305,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const p = prefetchProp !== false
-    const [, /* isPending */ startTransition] = hasUseTransition
-      ? // Rules of hooks is disabled here because the useTransition will always exist with React 18.
-        // There is no difference between renders in this case, only between using React 18 vs 17.
-        // @ts-ignore useTransition exists
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        React.useTransition()
-      : []
     let router = React.useContext(RouterContext)
 
     // TODO-APP: type error. Remove `as any`
@@ -455,11 +432,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             href,
             as,
             replace,
-            soft,
             shallow,
             scroll,
             locale,
-            appRouter ? startTransition : undefined
+            Boolean(appRouter),
+            p
           )
         }
       },
@@ -474,8 +451,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
-        if (isLocalURL(href)) {
-          prefetch(router, href, as, { priority: true })
+
+        // Check for not prefetch disabled in page using appRouter
+        if (!(!p && appRouter)) {
+          if (isLocalURL(href)) {
+            prefetch(router, href, as, { priority: true })
+          }
         }
       },
       onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
@@ -491,8 +472,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           child.props.onTouchStart(e)
         }
 
-        if (isLocalURL(href)) {
-          prefetch(router, href, as, { priority: true })
+        // Check for not prefetch disabled in page using appRouter
+        if (!(!p && appRouter)) {
+          if (isLocalURL(href)) {
+            prefetch(router, href, as, { priority: true })
+          }
         }
       },
     }

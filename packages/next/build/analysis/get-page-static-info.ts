@@ -12,9 +12,12 @@ import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
 import { ServerRuntime } from 'next/types'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
+import { matcher } from 'next/dist/compiled/micromatch'
+import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
+  unstable_allowDynamicGlobs: string[]
 }
 
 export interface MiddlewareMatcher {
@@ -27,7 +30,16 @@ export interface PageStaticInfo {
   runtime?: ServerRuntime
   ssg?: boolean
   ssr?: boolean
+  rsc?: RSCModuleType
   middleware?: Partial<MiddlewareConfig>
+}
+
+const CLIENT_MODULE_LABEL = `/* __next_internal_client_entry_do_not_use__ */`
+export type RSCModuleType = 'server' | 'client'
+export function getRSCModuleType(source: string): RSCModuleType {
+  return source.includes(CLIENT_MODULE_LABEL)
+    ? RSC_MODULE_TYPES.client
+    : RSC_MODULE_TYPES.server
 }
 
 /**
@@ -50,6 +62,19 @@ export function checkExports(swcAST: any): { ssr: boolean; ssg: boolean } {
           return {
             ssg: node.declaration.identifier.value === 'getStaticProps',
             ssr: node.declaration.identifier.value === 'getServerSideProps',
+          }
+        }
+
+        if (
+          node.type === 'ExportDeclaration' &&
+          node.declaration?.type === 'VariableDeclaration'
+        ) {
+          const id = node.declaration?.declarations[0]?.id.value
+          if (['getStaticProps', 'getServerSideProps'].includes(id)) {
+            return {
+              ssg: id === 'getStaticProps',
+              ssr: id === 'getServerSideProps',
+            }
           }
         }
 
@@ -149,6 +174,7 @@ function getMiddlewareMatchers(
 }
 
 function getMiddlewareConfig(
+  pageFilePath: string,
   config: any,
   nextConfig: NextConfig
 ): Partial<MiddlewareConfig> {
@@ -156,6 +182,25 @@ function getMiddlewareConfig(
 
   if (config.matcher) {
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
+  }
+
+  if (config.unstable_allowDynamic) {
+    result.unstable_allowDynamicGlobs = Array.isArray(
+      config.unstable_allowDynamic
+    )
+      ? config.unstable_allowDynamic
+      : [config.unstable_allowDynamic]
+    for (const glob of result.unstable_allowDynamicGlobs ?? []) {
+      try {
+        matcher(glob)
+      } catch (err) {
+        throw new Error(
+          `${pageFilePath} exported 'config.unstable_allowDynamic' contains invalid pattern '${glob}': ${
+            (err as Error).message
+          }`
+        )
+      }
+    }
   }
 
   return result
@@ -210,9 +255,14 @@ export async function getPageStaticInfo(params: {
   const { isDev, pageFilePath, nextConfig, page } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
+  if (
+    /runtime|getStaticProps|getServerSideProps|matcher|unstable_allowDynamic/.test(
+      fileContent
+    )
+  ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
+    const rsc = getRSCModuleType(fileContent)
 
     // default / failsafe value for config
     let config: any = {}
@@ -226,20 +276,21 @@ export async function getPageStaticInfo(params: {
     }
 
     if (
-      typeof config.runtime !== 'string' &&
-      typeof config.runtime !== 'undefined'
+      typeof config.runtime !== 'undefined' &&
+      !isServerRuntime(config.runtime)
     ) {
-      throw new Error(`Provided runtime `)
-    } else if (!isServerRuntime(config.runtime)) {
       const options = Object.values(SERVER_RUNTIME).join(', ')
       if (typeof config.runtime !== 'string') {
-        throw new Error(
+        Log.error(
           `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
         )
       } else {
-        throw new Error(
+        Log.error(
           `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
         )
+      }
+      if (!isDev) {
+        process.exit(1)
       }
     }
 
@@ -254,15 +305,25 @@ export async function getPageStaticInfo(params: {
       warnAboutExperimentalEdgeApiFunctions()
     }
 
-    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
+    const middlewareConfig = getMiddlewareConfig(
+      page ?? 'middleware/edge API route',
+      config,
+      nextConfig
+    )
 
     return {
       ssr,
       ssg,
+      rsc,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(runtime && { runtime }),
     }
   }
 
-  return { ssr: false, ssg: false, runtime: nextConfig.experimental?.runtime }
+  return {
+    ssr: false,
+    ssg: false,
+    rsc: RSC_MODULE_TYPES.server,
+    runtime: nextConfig.experimental?.runtime,
+  }
 }

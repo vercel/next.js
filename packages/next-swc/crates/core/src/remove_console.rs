@@ -34,7 +34,6 @@ pub struct Options {
 struct RemoveConsole {
     exclude: Vec<JsWord>,
     bindings: Vec<AHashSet<Id>>,
-    in_function_params: bool,
 }
 
 impl RemoveConsole {
@@ -91,12 +90,10 @@ impl Fold for RemoveConsole {
     }
 
     fn fold_function(&mut self, mut func: Function) -> Function {
-        self.in_function_params = true;
         let mut new_params: AHashSet<Id> = AHashSet::default();
         for param in &func.params {
             new_params.extend(collect_top_level_decls(param));
         }
-        self.in_function_params = false;
 
         self.bindings.push(new_params);
         self.bindings.push(collect_top_level_decls(&func));
@@ -129,6 +126,5 @@ pub fn remove_console(config: Config) -> impl Fold {
     RemoveConsole {
         exclude,
         bindings: Default::default(),
-        in_function_params: false,
     }
 }

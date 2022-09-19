@@ -224,7 +224,9 @@ export default class NextNodeServer extends BaseServer {
      * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
+        this.renderOpts.optimizeFonts
+      )
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
@@ -248,20 +250,20 @@ export default class NextNodeServer extends BaseServer {
     if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
-      loadComponents(
-        this.distDir,
-        '/_document',
-        this._isLikeServerless,
-        false,
-        false
-      ).catch(() => {})
-      loadComponents(
-        this.distDir,
-        '/_app',
-        this._isLikeServerless,
-        false,
-        false
-      ).catch(() => {})
+      loadComponents({
+        distDir: this.distDir,
+        pathname: '/_document',
+        serverless: this._isLikeServerless,
+        hasServerComponents: false,
+        isAppPath: false,
+      }).catch(() => {})
+      loadComponents({
+        distDir: this.distDir,
+        pathname: '/_app',
+        serverless: this._isLikeServerless,
+        hasServerComponents: false,
+        isAppPath: false,
+      }).catch(() => {})
     }
   }
 
@@ -697,7 +699,10 @@ export default class NextNodeServer extends BaseServer {
       ws: true,
       // we limit proxy requests to 30s by default, in development
       // we don't time out WebSocket requests to allow proxying
-      proxyTimeout: upgradeHead && this.renderOpts.dev ? undefined : 30_000,
+      proxyTimeout:
+        upgradeHead && this.renderOpts.dev
+          ? undefined
+          : this.nextConfig.experimental.proxyTimeout || 30_000,
     })
 
     await new Promise((proxyResolve, proxyReject) => {
@@ -759,7 +764,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           page,
-          isAppPath: false,
+          appPaths: null,
         })
 
         if (handledAsEdgeFunction) {
@@ -889,73 +894,77 @@ export default class NextNodeServer extends BaseServer {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const appPath = this.getOriginalAppPath(ctx.pathname) || undefined
-    let page = ctx.pathname
-
-    const isAppPath = typeof appPath === 'string'
-    if (isAppPath) {
-      page = appPath
-    }
-
     const edgeFunctions = this.getEdgeFunctions() || []
+    if (edgeFunctions.length) {
+      const appPaths = this.getOriginalAppPaths(ctx.pathname)
+      const isAppPath = Array.isArray(appPaths)
 
-    for (const item of edgeFunctions) {
-      if (item.page === page) {
-        await this.runEdgeFunction({
-          req: ctx.req,
-          res: ctx.res,
-          query: ctx.query,
-          params: ctx.renderOpts.params,
-          page: ctx.pathname,
-          appPath,
-          isAppPath: isAppPath,
-        })
-        return null
+      let page = ctx.pathname
+      if (isAppPath) {
+        // When it's an array, we need to pass all parallel routes to the loader.
+        page = appPaths[0]
+      }
+
+      for (const item of edgeFunctions) {
+        if (item.page === page) {
+          await this.runEdgeFunction({
+            req: ctx.req,
+            res: ctx.res,
+            query: ctx.query,
+            params: ctx.renderOpts.params,
+            page,
+            appPaths,
+          })
+          return null
+        }
       }
     }
 
     return super.renderPageComponent(ctx, bubbleNoFallback)
   }
 
-  protected async findPageComponents(
-    pathname: string,
-    query: NextParsedUrlQuery,
-    params: Params,
+  protected async findPageComponents({
+    pathname,
+    query,
+    params,
+    isAppPath,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
     isAppPath: boolean
-  ): Promise<FindComponentsResult | null> {
-    let paths = [
+  }): Promise<FindComponentsResult | null> {
+    const paths: string[] = [pathname]
+    if (query.amp) {
       // try serving a static AMP version first
-      query.amp
-        ? (isAppPath
-            ? normalizeAppPath(pathname)
-            : normalizePagePath(pathname)) + '.amp'
-        : null,
-      pathname,
-    ].filter(Boolean)
+      paths.unshift(
+        (isAppPath ? normalizeAppPath(pathname) : normalizePagePath(pathname)) +
+          '.amp'
+      )
+    }
 
     if (query.__nextLocale) {
-      paths = [
+      paths.unshift(
         ...paths.map(
           (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        ),
-        ...paths,
-      ]
+        )
+      )
     }
 
     for (const pagePath of paths) {
       try {
-        const components = await loadComponents(
-          this.distDir,
-          pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless,
-          !!this.renderOpts.serverComponents,
-          isAppPath
-        )
+        const components = await loadComponents({
+          distDir: this.distDir,
+          pathname: pagePath,
+          serverless: !this.renderOpts.dev && this._isLikeServerless,
+          hasServerComponents: !!this.renderOpts.serverComponents,
+          isAppPath,
+        })
 
         if (
           query.__nextLocale &&
           typeof components.Component === 'string' &&
-          !pagePath?.startsWith(`/${query.__nextLocale}`)
+          !pagePath.startsWith(`/${query.__nextLocale}`)
         ) {
           // if loading an static HTML file the locale is required
           // to be present since all HTML files are output under their locale
@@ -1668,7 +1677,10 @@ export default class NextNodeServer extends BaseServer {
    * so that we can run it.
    */
   protected async ensureMiddleware() {}
-  protected async ensureEdgeFunction(_pathname: string) {}
+  protected async ensureEdgeFunction(_params: {
+    page: string
+    appPaths: string[] | null
+  }) {}
 
   /**
    * This method gets all middleware matchers and execute them when the request
@@ -2016,17 +2028,16 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    isAppPath: boolean
-    appPath?: string
+    appPaths: string[] | null
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    // If it's edge app route, use appPath to find the edge SSR page
-    const page = params.isAppPath ? params.appPath! : params.page
-    await this.ensureEdgeFunction(page)
+    const { query, page } = params
+
+    await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     middlewareInfo = this.getEdgeFunctionInfo({
-      page: page,
+      page,
       middleware: false,
     })
 
@@ -2035,23 +2046,20 @@ export default class NextNodeServer extends BaseServer {
     }
 
     // For middleware to "fetch" we must always provide an absolute URL
-    const isDataReq = !!params.query.__nextDataReq
-    const query = urlQueryToSearchParams(
-      Object.assign({}, getRequestMeta(params.req, '__NEXT_INIT_QUERY') || {})
-    ).toString()
-    const locale = params.query.__nextLocale
-    // Use original pathname (without `/page`) instead of appPath for url
-    let normalizedPathname = params.page
+    const locale = query.__nextLocale
+    const isDataReq = !!query.__nextDataReq
+    const queryString = urlQueryToSearchParams(query).toString()
 
     if (isDataReq) {
       params.req.headers['x-nextjs-data'] = '1'
     }
 
+    let normalizedPathname = normalizeAppPath(page)
     if (isDynamicRoute(normalizedPathname)) {
-      const routeRegex = getNamedRouteRegex(params.page)
+      const routeRegex = getNamedRouteRegex(normalizedPathname)
       normalizedPathname = interpolateDynamicPath(
-        params.page,
-        Object.assign({}, params.params, params.query),
+        normalizedPathname,
+        Object.assign({}, params.params, query),
         routeRegex
       )
     }
@@ -2059,7 +2067,7 @@ export default class NextNodeServer extends BaseServer {
     const url = `${getRequestMeta(params.req, '_protocol')}://${
       this.hostname
     }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
-      query ? `?${query}` : ''
+      queryString ? `?${queryString}` : ''
     }`
 
     if (!url.startsWith('http')) {

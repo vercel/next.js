@@ -71,10 +71,16 @@ export async function sendRenderResult({
     }
   }
 
+  const resultContentType = result.contentType()
+
   if (!res.getHeader('Content-Type')) {
     res.setHeader(
       'Content-Type',
-      type === 'json' ? 'application/json' : 'text/html; charset=utf-8'
+      resultContentType
+        ? resultContentType
+        : type === 'json'
+        ? 'application/json'
+        : 'text/html; charset=utf-8'
     )
   }
 
