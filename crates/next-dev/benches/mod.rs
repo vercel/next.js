@@ -89,11 +89,29 @@ fn bench_startup_internal(mut g: BenchmarkGroup<WallTime>, hydration: bool) {
     g.finish();
 }
 
-fn bench_simple_file_change(c: &mut Criterion) {
-    let mut g = c.benchmark_group("bench_simple_file_change");
+#[derive(Copy, Clone)]
+enum CodeLocation {
+    Effect,
+    Evaluation,
+}
+
+fn bench_hmr_to_eval(c: &mut Criterion) {
+    let mut g = c.benchmark_group("bench_hmr_to_eval");
     g.sample_size(10);
     g.measurement_time(Duration::from_secs(60));
 
+    bench_hmr_internal(g, CodeLocation::Evaluation);
+}
+
+fn bench_hmr_to_commit(c: &mut Criterion) {
+    let mut g = c.benchmark_group("bench_hmr_to_commit");
+    g.sample_size(10);
+    g.measurement_time(Duration::from_secs(60));
+
+    bench_hmr_internal(g, CodeLocation::Effect);
+}
+
+fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
     let runtime = Runtime::new().unwrap();
     let browser = &runtime.block_on(create_browser());
 
@@ -107,30 +125,63 @@ fn bench_simple_file_change(c: &mut Criterion) {
                     |b, &(bundler, module_count)| {
                         let test_app = build_test(module_count, bundler);
                         let template_dir = test_app.path();
-                        fn add_code(app_path: &Path, code: &str) -> Result<()> {
+                        fn add_code(
+                            app_path: &Path,
+                            code: &str,
+                            location: CodeLocation,
+                        ) -> Result<()> {
                             let triangle_path = app_path.join("src/triangle.jsx");
                             let mut contents = fs::read_to_string(&triangle_path)?;
+                            const INSERTED_CODE_COMMENT: &str = "// Inserted Code:\n";
                             const COMPONENT_START: &str =
                                 "export default function Container({ style }) {\n";
-                            let a = contents
-                                .find(COMPONENT_START)
-                                .ok_or_else(|| anyhow!("unable to find component start"))?;
-                            let b = contents
-                                .find("\n    return <>")
-                                .ok_or_else(|| anyhow!("unable to find component start"))?;
-                            contents.replace_range(a..b, &format!("{COMPONENT_START}{code}"));
+                            match location {
+                                CodeLocation::Effect => {
+                                    let a = contents
+                                        .find(COMPONENT_START)
+                                        .ok_or_else(|| anyhow!("unable to find component start"))?;
+                                    let b = contents
+                                        .find("\n    return <>")
+                                        .ok_or_else(|| anyhow!("unable to find component start"))?;
+                                    contents.replace_range(
+                                        a..b,
+                                        &format!(
+                                            "{COMPONENT_START}    React.useEffect(() => {{ {code} \
+                                             }});\n"
+                                        ),
+                                    );
+                                }
+                                CodeLocation::Evaluation => {
+                                    let b = contents
+                                        .find(COMPONENT_START)
+                                        .ok_or_else(|| anyhow!("unable to find component start"))?;
+                                    if let Some(a) = contents.find(INSERTED_CODE_COMMENT) {
+                                        contents.replace_range(
+                                            a..b,
+                                            &format!("{INSERTED_CODE_COMMENT}{code}\n"),
+                                        );
+                                    } else {
+                                        contents.insert_str(
+                                            b,
+                                            &format!("{INSERTED_CODE_COMMENT}{code}\n"),
+                                        );
+                                    }
+                                }
+                            }
+
                             fs::write(&triangle_path, contents)?;
                             Ok(())
                         }
-                        async fn make_change<'a>(guard: &mut PageGuard<'a>) -> Result<()> {
+                        async fn make_change<'a>(
+                            guard: &mut PageGuard<'a>,
+                            location: CodeLocation,
+                        ) -> Result<()> {
                             let msg =
                                 format!("TURBOPACK_BENCH_CHANGE_{}", guard.app_mut().counter());
                             add_code(
                                 guard.app().path(),
-                                &format!(
-                                    "    React.useEffect(() => {{ \
-                                     globalThis.{BINDING_NAME}('{msg}'); }});\n"
-                                ),
+                                &format!("globalThis.{BINDING_NAME}('{msg}');"),
+                                location,
                             )?;
 
                             // Wait for the change introduced above to be reflected at runtime.
@@ -154,12 +205,12 @@ fn bench_simple_file_change(c: &mut Criterion) {
                                     .await?;
 
                                 // Make warmup change
-                                make_change(&mut guard).await?;
+                                make_change(&mut guard, location).await?;
 
                                 Ok(guard)
                             },
                             |mut guard| async move {
-                                make_change(&mut guard).await?;
+                                make_change(&mut guard, location).await?;
 
                                 // Defer the dropping of the guard to `teardown`.
                                 Ok(guard)
@@ -251,6 +302,6 @@ fn get_module_counts() -> Vec<usize> {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_startup, bench_hydration, bench_restart, bench_simple_file_change
+    targets = bench_startup, bench_hydration, bench_restart, bench_hmr_to_eval, bench_hmr_to_commit
 );
 criterion_main!(benches);
