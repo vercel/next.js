@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde::Deserialize;
 
 use swc_core::{
@@ -63,7 +64,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
                 return;
             }
         } else {
-            self.assert_client_graph(&imports);
+            self.assert_client_graph(&imports, module);
         }
         module.visit_mut_children_with(self)
     }
@@ -276,7 +277,7 @@ impl<C: Comments> ReactServerComponents<C> {
         }
     }
 
-    fn assert_client_graph(&self, imports: &Vec<ModuleImports>) {
+    fn assert_client_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -287,6 +288,104 @@ impl<C: Comments> ReactServerComponents<C> {
                             format!(
                                 "Disallowed import of `{}` in the Client Components compilation.",
                                 source
+                            )
+                            .as_str(),
+                        )
+                        .emit()
+                })
+            }
+        }
+
+        // Assert `getServerSideProps` and `getStaticProps` exports.
+        let is_layout_or_page = Regex::new(r"/(page|layout)\.(ts|js)x?$")
+            .unwrap()
+            .is_match(&self.filepath);
+        if is_layout_or_page {
+            let mut span = DUMMY_SP;
+            let mut has_get_server_side_props = false;
+            let mut has_get_static_props = false;
+
+            'matcher: for export in &module.body {
+                match export {
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
+                        for specifier in &export.specifiers {
+                            if let ExportSpecifier::Named(named) = specifier {
+                                match &named.orig {
+                                    ModuleExportName::Ident(i) => {
+                                        if i.sym == *"getServerSideProps" {
+                                            has_get_server_side_props = true;
+                                            span = named.span;
+                                            break 'matcher;
+                                        }
+                                        if i.sym == *"getStaticProps" {
+                                            has_get_static_props = true;
+                                            span = named.span;
+                                            break 'matcher;
+                                        }
+                                    }
+                                    ModuleExportName::Str(s) => {
+                                        if s.value == *"getServerSideProps" {
+                                            has_get_server_side_props = true;
+                                            span = named.span;
+                                            break 'matcher;
+                                        }
+                                        if s.value == *"getStaticProps" {
+                                            has_get_static_props = true;
+                                            span = named.span;
+                                            break 'matcher;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
+                        Decl::Fn(f) => {
+                            if f.ident.sym == *"getServerSideProps" {
+                                has_get_server_side_props = true;
+                                span = f.ident.span;
+                                break 'matcher;
+                            }
+                            if f.ident.sym == *"getStaticProps" {
+                                has_get_static_props = true;
+                                span = f.ident.span;
+                                break 'matcher;
+                            }
+                        }
+                        Decl::Var(v) => {
+                            for decl in &v.decls {
+                                if let Pat::Ident(i) = &decl.name {
+                                    if i.sym == *"getServerSideProps" {
+                                        has_get_server_side_props = true;
+                                        span = i.span;
+                                        break 'matcher;
+                                    }
+                                    if i.sym == *"getStaticProps" {
+                                        has_get_static_props = true;
+                                        span = i.span;
+                                        break 'matcher;
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {}
+                }
+            }
+
+            if has_get_server_side_props || has_get_static_props {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            span,
+                            format!(
+                                "`{}` is not allowed in Client Components.",
+                                if has_get_server_side_props {
+                                    "getServerSideProps"
+                                } else {
+                                    "getStaticProps"
+                                }
                             )
                             .as_str(),
                         )
