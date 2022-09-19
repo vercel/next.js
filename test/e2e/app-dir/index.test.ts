@@ -1469,8 +1469,8 @@ describe('app dir', () => {
     })
 
     describe('redirect', () => {
-      describe.skip('components', () => {
-        it('should redirect in a server component', async () => {
+      describe('components', () => {
+        it.skip('should redirect in a server component', async () => {
           const browser = await webdriver(next.url, '/redirect/servercomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
