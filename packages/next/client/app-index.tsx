@@ -5,6 +5,8 @@ import ReactDOMClient from 'react-dom/client'
 import React from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 
+import measureWebVitals from './performance-relayer'
+
 /// <reference types="react-dom/experimental" />
 
 // Override chunk URL mapping in the webpack runtime
@@ -151,6 +153,10 @@ function ServerRoot({ cacheKey }: { cacheKey: string }) {
 }
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  React.useEffect(() => {
+    measureWebVitals()
+  }, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
