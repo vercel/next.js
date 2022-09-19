@@ -1,8 +1,12 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Result};
-use chromiumoxide::{cdp::js_protocol::runtime::EventBindingCalled, listeners::EventStream, Page};
-use futures::StreamExt;
+use chromiumoxide::{
+    cdp::js_protocol::runtime::{EventBindingCalled, EventExceptionThrown},
+    listeners::EventStream,
+    Page,
+};
+use futures::{Stream, StreamExt};
 use tokio::time::timeout;
 
 use crate::{PreparedApp, BINDING_NAME};
@@ -14,16 +18,29 @@ const TEST_APP_HYDRATION_DONE: &str = "Hydration done";
 pub struct PageGuard<'a> {
     page: Option<Page>,
     app: Option<PreparedApp<'a>>,
-    events: EventStream<EventBindingCalled>,
+    events: Box<dyn Stream<Item = Event> + Unpin>,
+}
+
+enum Event {
+    EventBindingCalled(Arc<EventBindingCalled>),
+    EventExceptionThrown(Arc<EventExceptionThrown>),
 }
 
 impl<'a> PageGuard<'a> {
     /// Creates a new guard for the given page.
-    pub fn new(page: Page, events: EventStream<EventBindingCalled>, app: PreparedApp<'a>) -> Self {
+    pub fn new(
+        page: Page,
+        events: EventStream<EventBindingCalled>,
+        errors: EventStream<EventExceptionThrown>,
+        app: PreparedApp<'a>,
+    ) -> Self {
         Self {
             page: Some(page),
             app: Some(app),
-            events,
+            events: Box::new(futures::stream::select(
+                events.map(|e| Event::EventBindingCalled(e)),
+                errors.map(|e| Event::EventExceptionThrown(e)),
+            )),
         }
     }
 
@@ -58,8 +75,18 @@ impl<'a> PageGuard<'a> {
     /// Waits until the binding is called with the given payload.
     pub async fn wait_for_binding(&mut self, payload: &str) -> Result<()> {
         while let Some(event) = self.events.next().await {
-            if event.name == BINDING_NAME && event.payload == payload {
-                return Ok(());
+            match event {
+                Event::EventBindingCalled(event) => {
+                    if event.name == BINDING_NAME && event.payload == payload {
+                        return Ok(());
+                    }
+                }
+                Event::EventExceptionThrown(event) => {
+                    return Err(anyhow!(
+                        "Exception throw in page: {}",
+                        event.exception_details
+                    ));
+                }
             }
         }
 
