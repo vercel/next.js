@@ -2,7 +2,8 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 
-import React from 'react'
+// TODO-APP: change to React.use once it becomes stable
+import React, { experimental_use as use } from 'react'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
@@ -28,9 +29,6 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
-
-// TODO-APP: change to React.use once it becomes stable
-const use = (React as any).experimental_use
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require

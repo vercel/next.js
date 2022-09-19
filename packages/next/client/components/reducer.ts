@@ -6,12 +6,10 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../../server/app-render'
-import React from 'react'
+// TODO-APP: change to React.use once it becomes stable
+import { experimental_use as use } from 'react'
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
-
-// TODO-APP: change to React.use once it becomes stable
-const use = (React as any).experimental_use
 
 /**
  * Invalidate cache one level down from the router state.
@@ -233,7 +231,7 @@ function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
   segments: string[],
-  fetchResponse: any
+  fetchResponse: () => ReturnType<typeof fetchServerResponse>
 ): { bailOptimistic: boolean } | undefined {
   const isLastEntry = segments.length === 1
 
@@ -734,7 +732,7 @@ export function reducer(
           cache,
           state.cache,
           segments.slice(1),
-          (): Promise<FlightData> => fetchServerResponse(url, optimisticTree)
+          () => fetchServerResponse(url, optimisticTree)
         )
 
         // If optimistic fetch couldn't happen it falls back to the non-optimistic case.

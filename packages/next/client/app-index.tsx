@@ -2,7 +2,8 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-import React from 'react'
+// TODO-APP: change to React.use once it becomes stable
+import React, { experimental_use as use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 
 import measureWebVitals from './performance-relayer'
@@ -15,9 +16,6 @@ import measureWebVitals from './performance-relayer'
 declare global {
   const __webpack_require__: any
 }
-
-// TODO-APP: change to React.use once it becomes stable
-const use = (React as any).experimental_use
 
 // eslint-disable-next-line no-undef
 const getChunkScriptFilename = __webpack_require__.u
