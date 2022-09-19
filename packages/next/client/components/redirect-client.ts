@@ -11,5 +11,5 @@ export function redirect(url: string) {
     })
   })
   // setTimeout is used to start a new transition during render, this is an intentional hack around React.
-  throw createInfinitePromise()
+  use(createInfinitePromise())
 }

@@ -1,7 +1,7 @@
 /**
  * Used to cache in createInfinitePromise
  */
-let infinitePromise: Promise<void> | Error
+let infinitePromise: Promise<void>
 
 /**
  * Create a Promise that does not resolve. This is used to suspend when data is not available yet.

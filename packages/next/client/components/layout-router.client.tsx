@@ -236,13 +236,13 @@ export function InnerLayoutRouter({
       })
     })
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    throw createInfinitePromise()
+    use(createInfinitePromise())
   }
 
   // If cache node has no subTreeData and no data request we have to infinitely suspend as the data will likely flow in from another place.
   // TODO-APP: double check users can't return null in a component that will kick in here.
   if (!childNode.subTreeData) {
-    throw createInfinitePromise()
+    use(createInfinitePromise())
   }
 
   const subtree = (
