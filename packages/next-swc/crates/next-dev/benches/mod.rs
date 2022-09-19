@@ -133,8 +133,7 @@ fn bench_hmr_internal(mut g: BenchmarkGroup<WallTime>, location: CodeLocation) {
                             let triangle_path = app_path.join("src/triangle.jsx");
                             let mut contents = fs::read_to_string(&triangle_path)?;
                             const INSERTED_CODE_COMMENT: &str = "// Inserted Code:\n";
-                            const COMPONENT_START: &str =
-                                "export default function Container({ style }) {\n";
+                            const COMPONENT_START: &str = "function Container({ style }) {\n";
                             match location {
                                 CodeLocation::Effect => {
                                     let a = contents
