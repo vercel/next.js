@@ -44,6 +44,19 @@ describe('app dir', () => {
     })
     afterAll(() => next.destroy())
 
+    it('should use application/octet-stream for flight', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/dashboard/deployments/123?__flight__'
+      )
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    })
+
+    it('should use application/octet-stream for flight with edge runtime', async () => {
+      const res = await fetchViaHTTP(next.url, '/dashboard?__flight__')
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    })
+
     it('should pass props from getServerSideProps in root layout', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard')
       const $ = cheerio.load(html)
@@ -1061,9 +1074,9 @@ describe('app dir', () => {
       })
 
       if (isDev) {
-        it('should throw an error when getServerSideProps is used', async () => {
+        it.skip('should throw an error when getServerSideProps is used', async () => {
           const pageFile =
-            'app/client-with-errors/get-server-side-props/page.client.js'
+            'app/client-with-errors/get-server-side-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
             '// export function getServerSideProps',
@@ -1090,9 +1103,8 @@ describe('app dir', () => {
           )
         })
 
-        it('should throw an error when getStaticProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-static-props/page.client.js'
+        it.skip('should throw an error when getStaticProps is used', async () => {
+          const pageFile = 'app/client-with-errors/get-static-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
             '// export function getStaticProps',

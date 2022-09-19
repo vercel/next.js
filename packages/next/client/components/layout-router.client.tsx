@@ -1,3 +1,5 @@
+'client'
+
 import React, { useContext, useEffect, useRef } from 'react'
 import type {
   ChildProp,

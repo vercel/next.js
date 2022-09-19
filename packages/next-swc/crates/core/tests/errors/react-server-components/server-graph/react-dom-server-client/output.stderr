@@ -1,0 +1,12 @@
+
+  x Disallowed import of `react-dom/server` in the Server Components compilation.
+   ,-[input.js:9:1]
+ 9 | import "react-dom/server"
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----
+
+  x Disallowed import of `react-dom/client` in the Server Components compilation.
+    ,-[input.js:11:1]
+ 11 | import "react-dom/client"
+    : ^^^^^^^^^^^^^^^^^^^^^^^^^
+    `----

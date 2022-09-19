@@ -58,6 +58,7 @@ import {
   COMPILER_NAMES,
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
+  RSC_MODULE_TYPES,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -96,7 +97,6 @@ import {
   printTreeView,
   copyTracedFiles,
   isReservedPage,
-  isServerComponentPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -489,7 +489,6 @@ export default async function build(
         .traceChild('create-pages-mapping')
         .traceFn(() =>
           createPagesMapping({
-            hasServerComponents,
             isDev: false,
             pageExtensions: config.pageExtensions,
             pagesType: 'pages',
@@ -506,7 +505,6 @@ export default async function build(
           .traceFn(() =>
             createPagesMapping({
               pagePaths: appPaths!,
-              hasServerComponents,
               isDev: false,
               pagesType: 'app',
               pageExtensions: config.pageExtensions,
@@ -518,7 +516,6 @@ export default async function build(
       let mappedRootPaths: { [page: string]: string } = {}
       if (rootPaths.length > 0) {
         mappedRootPaths = createPagesMapping({
-          hasServerComponents,
           isDev: false,
           pageExtensions: config.pageExtensions,
           pagePaths: rootPaths,
@@ -1267,21 +1264,17 @@ export default async function build(
                       )
                     : appPaths?.find((p) => p.startsWith(actualPage + '/page.'))
 
-                const pageRuntime =
+                const staticInfo =
                   pagesDir && pageType === 'pages' && pagePath
-                    ? (
-                        await getPageStaticInfo({
-                          pageFilePath: join(pagesDir, pagePath),
-                          nextConfig: config,
-                        })
-                      ).runtime
-                    : undefined
-
-                if (hasServerComponents && pagePath) {
-                  if (isServerComponentPage(config, pagePath)) {
-                    isServerComponent = true
-                  }
-                }
+                    ? await getPageStaticInfo({
+                        pageFilePath: join(pagesDir, pagePath),
+                        nextConfig: config,
+                      })
+                    : {}
+                const pageRuntime = staticInfo.runtime
+                isServerComponent =
+                  pageType === 'app' &&
+                  staticInfo.rsc !== RSC_MODULE_TYPES.client
 
                 if (
                   // Only calculate page static information if the page is not an
