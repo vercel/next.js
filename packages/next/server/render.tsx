@@ -497,7 +497,7 @@ export async function renderToHTML(
 
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
-  if (dev) {
+  if (dev && !process.env.__NEXT_PROD_BUILD) {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
       throw new Error(

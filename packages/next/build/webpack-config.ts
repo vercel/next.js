@@ -160,6 +160,7 @@ export function getDefineEnv({
     'process.env.__NEXT_TEST_MODE': JSON.stringify(
       process.env.__NEXT_TEST_MODE
     ),
+    'process.env.__NEXT_PROD_BUILD': JSON.stringify(!dev),
     // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
     ...(dev && (isClient || isEdgeServer)
       ? {

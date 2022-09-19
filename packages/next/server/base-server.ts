@@ -1397,7 +1397,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           if (!isDataReq) {
             // Production already emitted the fallback as static HTML.
-            if (isProduction) {
+            if (isProduction || process.env.__NEXT_PROD_BUILD) {
               const html = await this.getFallback(
                 locale ? `/${locale}${pathname}` : pathname
               )
