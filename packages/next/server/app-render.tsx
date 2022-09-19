@@ -51,7 +51,7 @@ export type RenderOptsPartial = {
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
- * Flight Response is always set to application/octet-stream to ensure it does not
+ * Flight Response is always set to application/octet-stream to ensure it does not get interpreted as HTML.
  */
 class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
