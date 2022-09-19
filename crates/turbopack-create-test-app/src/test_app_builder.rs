@@ -83,9 +83,11 @@ impl TestAppBuilder {
                     .write_all(
                         r#"import React from "react";
 
-export default function Triangle({ style }) {
+function Triangle({ style }) {
     return <polygon points="-5,4.33 0,-4.33 5,4.33" style={style} />;
 }
+
+export default React.memo(Triangle);
 "#
                         .as_bytes(),
                     )
@@ -154,7 +156,7 @@ export default function Triangle({ style }) {
 {b}
 {c}
 
-export default function Container({{ style }}) {{
+function Container({{ style }}) {{
     return <>
         <g transform="translate(0 -2.16)   scale(0.5 0.5)">
             {a_}
@@ -167,6 +169,8 @@ export default function Container({{ style }}) {{
         </g>
     </>;
 }}
+
+export default React.memo(Container);
 "#
                             )
                             .as_bytes(),
