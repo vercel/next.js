@@ -150,6 +150,7 @@ export interface ExperimentalConfig {
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
+  adjustFontFallbacks?: boolean
 }
 
 export type ExportPathMap = {
@@ -581,6 +582,7 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     modularizeImports: undefined,
+    adjustFontFallbacks: false,
   },
 }
 

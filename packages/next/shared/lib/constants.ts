@@ -1,4 +1,4 @@
-type ValueOf<T> = Required<T>[keyof T]
+export type ValueOf<T> = Required<T>[keyof T]
 
 export const COMPILER_NAMES = {
   client: 'client',
@@ -86,14 +86,20 @@ export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
-export const FLIGHT_PROPS_ID = '__N_RSC'
 export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
 export const OPTIMIZED_FONT_PROVIDERS = [
   { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },
   { url: 'https://use.typekit.net', preconnect: 'https://use.typekit.net' },
 ]
+export const DEFAULT_SERIF_FONT = 'Times New Roman'
+export const DEFAULT_SANS_SERIF_FONT = 'Arial'
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
+
+export const RSC_MODULE_TYPES = {
+  client: 'client',
+  server: 'server',
+} as const
 
 // comparing
 // https://nextjs.org/docs/api-reference/edge-runtime

@@ -1,5 +1,10 @@
 import * as Log from '../build/output/log'
-import { GOOGLE_FONT_PROVIDER } from '../shared/lib/constants'
+import {
+  GOOGLE_FONT_PROVIDER,
+  DEFAULT_SERIF_FONT,
+  DEFAULT_SANS_SERIF_FONT,
+} from '../shared/lib/constants'
+const googleFontsMetrics = require('./google-font-metrics.json')
 const https = require('https')
 
 const CHROME_UA =
@@ -10,6 +15,8 @@ export type FontManifest = Array<{
   url: string
   content: string
 }>
+
+export type FontConfig = boolean
 
 function isGoogleFont(url: string): boolean {
   return url.startsWith(GOOGLE_FONT_PROVIDER)
@@ -76,4 +83,60 @@ export function getFontDefinitionFromManifest(
       return false
     })?.content || ''
   )
+}
+
+function parseGoogleFontName(css: string): Array<string> {
+  const regex = /font-family: ([^;]*)/g
+  const matches = css.matchAll(regex)
+  const fontNames = new Set<string>()
+
+  for (let font of matches) {
+    const fontFamily = font[1].replace(/^['"]|['"]$/g, '')
+    fontNames.add(fontFamily)
+  }
+
+  return [...fontNames]
+}
+
+function calculateOverrideCSS(font: string, fontMetrics: any) {
+  const fontName = font.toLowerCase().trim().replace(/ /g, '-')
+  const fontKey = font.toLowerCase().trim().replace(/ /g, '')
+  const { category, ascentOverride, descentOverride, lineGapOverride } =
+    fontMetrics[fontKey]
+  const fallbackFont =
+    category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
+  const ascent = (ascentOverride * 100).toFixed(2)
+  const descent = (descentOverride * 100).toFixed(2)
+  const lineGap = (lineGapOverride * 100).toFixed(2)
+
+  return `
+    @font-face {
+      font-family: "${fontName}-fallback";
+      ascent-override: ${ascent}%;
+      descent-override: ${descent}%;
+      line-gap-override: ${lineGap}%;
+      src: local("${fallbackFont}");
+    }
+  `
+}
+
+export function getFontOverrideCss(url: string, css: string) {
+  if (!isGoogleFont(url)) {
+    return ''
+  }
+
+  try {
+    const fontNames = parseGoogleFontName(css)
+    const fontMetrics = googleFontsMetrics
+
+    const fontCss = fontNames.reduce((cssStr, fontName) => {
+      cssStr += calculateOverrideCSS(fontName, fontMetrics)
+      return cssStr
+    }, '')
+
+    return fontCss
+  } catch (e) {
+    console.log('Error getting font override values - ', e)
+    return ''
+  }
 }

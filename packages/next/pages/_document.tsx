@@ -1,4 +1,4 @@
-import React, { Component, ReactElement, ReactNode, useContext } from 'react'
+import React, { ReactElement, ReactNode, useContext } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -353,7 +353,13 @@ function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
-export class Head extends Component<HeadProps> {
+// Use `React.Component` to avoid errors from the RSC checks because
+// it can't be imported directly in Server Components:
+//
+//   import { Component } from 'react'
+//
+// More info: https://github.com/vercel/next.js/pull/40686
+export class Head extends React.Component<HeadProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -899,7 +905,7 @@ function handleDocumentScriptLoaderItems(
   __NEXT_DATA__.scriptLoader = scriptLoaderItems
 }
 
-export class NextScript extends Component<OriginProps> {
+export class NextScript extends React.Component<OriginProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -1104,7 +1110,9 @@ export function Main() {
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
-export default class Document<P = {}> extends Component<DocumentProps & P> {
+export default class Document<P = {}> extends React.Component<
+  DocumentProps & P
+> {
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
