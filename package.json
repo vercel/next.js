@@ -135,6 +135,7 @@
     "eslint-plugin-react-hooks": "4.5.0",
     "event-stream": "4.0.1",
     "execa": "2.0.3",
+    "expect-type": "0.14.2",
     "express": "4.17.0",
     "faker": "5.5.3",
     "faunadb": "2.6.1",
