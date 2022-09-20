@@ -28,7 +28,6 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { StaticGenerationStore } from '../client/components/hooks-server'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 
 // this needs to be required lazily so that `next-server` can set
