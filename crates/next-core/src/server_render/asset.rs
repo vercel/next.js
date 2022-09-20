@@ -342,7 +342,8 @@ async fn render(
     // Show error page
     // TODO This need to include HMR handler to allow auto refresh
     let result = into_result(format!(
-        "Error during rendering:\n{}\n\n{}",
+        "<h1>Error during \
+         rendering</h1>\n<h2>Message</h2>\n<pre>{}</pre>\n<h2>Logs</h2>\n<pre>{}</pre>",
         issue.message.await?,
         issue.logging.await?
     ));
