@@ -66,14 +66,36 @@ function interopDefault(mod: any) {
 
 // tolerate dynamic server errors during prerendering so console
 // isn't spammed with unactionable errors
-function onError(err: any) {
-  const { DynamicServerError } =
-    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+/**
+ * Create error handler for renderers.
+ */
+function createErrorHandler(
+  /**
+   * Used for debugging
+   */
+  _source: string
+) {
+  return (err: any) => {
+    const { DynamicServerError } =
+      require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
 
-  if (!(err instanceof DynamicServerError)) {
-    console.error(err)
+    if (
+      !(err instanceof DynamicServerError) &&
+      // TODO-APP: Handle redirect throw
+      err.code !== REDIRECT_ERROR_CODE
+    ) {
+      console.error(err)
+    }
+
+    return null
   }
 }
+
+const serverComponentsErrorHandler = createErrorHandler(
+  'serverComponentsRenderer'
+)
+const flightDataRendererErrorHandler = createErrorHandler('flightDataRenderer')
+const htmlRendererErrorHandler = createErrorHandler('htmlRenderer')
 
 let isFetchPatched = false
 
@@ -242,7 +264,7 @@ function createServerComponentRenderer(
         serverComponentManifest,
         {
           context: serverContexts,
-          onError,
+          onError: serverComponentsErrorHandler,
         }
       )
     }
@@ -516,7 +538,7 @@ export async function renderToHTMLOrFlight(
     const flightData: FlightData = pathname + (search ? `?${search}` : '')
     return new FlightRenderResult(
       renderToReadableStream(flightData, serverComponentManifest, {
-        onError,
+        onError: flightDataRendererErrorHandler,
       }).pipeThrough(createBufferedTransformStream())
     )
   }
@@ -1009,7 +1031,7 @@ export async function renderToHTMLOrFlight(
       serverComponentManifest,
       {
         context: serverContexts,
-        onError,
+        onError: flightDataRendererErrorHandler,
       }
     ).pipeThrough(createBufferedTransformStream())
 
@@ -1122,6 +1144,7 @@ export async function renderToHTMLOrFlight(
         ReactDOMServer,
         element: content,
         streamOptions: {
+          onError: htmlRendererErrorHandler,
           nonce,
           // Include hydration scripts in the HTML
           bootstrapScripts: subresourceIntegrityManifest
