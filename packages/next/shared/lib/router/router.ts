@@ -191,14 +191,14 @@ export function interpolateAs(
             replaced,
             repeat
               ? (value as string[])
-                .map(
-                  // these values should be fully encoded instead of just
-                  // path delimiter escaped since they are being inserted
-                  // into the URL and we expect URL encoded segments
-                  // when parsing dynamic route params
-                  (segment) => encodeURIComponent(segment)
-                )
-                .join('/')
+                  .map(
+                    // these values should be fully encoded instead of just
+                    // path delimiter escaped since they are being inserted
+                    // into the URL and we expect URL encoded segments
+                    // when parsing dynamic route params
+                    (segment) => encodeURIComponent(segment)
+                  )
+                  .join('/')
               : encodeURIComponent(value as string)
           ) || '/')
       )
@@ -428,12 +428,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
         const resolvedHref = !pages.includes(fsPathname)
           ? resolveDynamicRoute(
-            normalizeLocalePath(
-              removeBasePath(parsedRewriteTarget.pathname),
-              options.router.locales
-            ).pathname,
-            pages
-          )
+              normalizeLocalePath(
+                removeBasePath(parsedRewriteTarget.pathname),
+                options.router.locales
+              ).pathname,
+              pages
+            )
           : fsPathname
 
         if (isDynamicRoute(resolvedHref)) {
@@ -601,7 +601,7 @@ const manualScrollRestoration =
       let v = '__next'
       // eslint-disable-next-line no-sequences
       return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
-    } catch (n) { }
+    } catch (n) {}
   })()
 
 const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
@@ -998,16 +998,16 @@ export default class Router implements BaseRouter {
         }).then((matches) => {
           // if middleware matches we leave resolving to the change function
           // as the server needs to resolve for correct priority
-          ; (options as any)._shouldResolveHref = as !== pathname
+          ;(options as any)._shouldResolveHref = as !== pathname
 
           this.changeState(
             'replaceState',
             matches
               ? asPath
               : formatWithValidation({
-                pathname: addBasePath(pathname),
-                query,
-              }),
+                  pathname: addBasePath(pathname),
+                  query,
+                }),
             asPath,
             options
           )
@@ -1082,7 +1082,7 @@ export default class Router implements BaseRouter {
               '__next_scroll_' + this._key,
               JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
             )
-          } catch { }
+          } catch {}
 
           // Restore old scroll position:
           try {
@@ -1156,10 +1156,10 @@ export default class Router implements BaseRouter {
             '__next_scroll_' + this._key,
             JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
           )
-        } catch { }
+        } catch {}
       }
     }
-    ; ({ url, as } = prepareUrlAs(this, url, as))
+    ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
 
@@ -1170,7 +1170,7 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as?: Url, options: TransitionOptions = {}) {
-    ; ({ url, as } = prepareUrlAs(this, url, as))
+    ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
 
@@ -1283,13 +1283,15 @@ export default class Router implements BaseRouter {
         ) {
           const asNoBasePath = removeBasePath(as)
           handleHardNavigation({
-            url: `http${detectedDomain.http ? '' : 's'}://${detectedDomain.domain
-              }${addBasePath(
-                `${nextState.locale === detectedDomain.defaultLocale
+            url: `http${detectedDomain.http ? '' : 's'}://${
+              detectedDomain.domain
+            }${addBasePath(
+              `${
+                nextState.locale === detectedDomain.defaultLocale
                   ? ''
                   : `/${nextState.locale}`
-                }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
-              )}`,
+              }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
+            )}`,
             router: this,
           })
           // this was previously a return but was removed in favor
@@ -1299,7 +1301,7 @@ export default class Router implements BaseRouter {
       }
 
       if (didNavigate) {
-        return new Promise(() => { })
+        return new Promise(() => {})
       }
     }
 
@@ -1419,7 +1421,7 @@ export default class Router implements BaseRouter {
     }
 
     if (shouldResolveHref && pathname !== '/_error') {
-      ; (options as any)._shouldResolveHref = true
+      ;(options as any)._shouldResolveHref = true
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
@@ -1467,7 +1469,7 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(
           `Invalid href: "${url}" and as: "${as}", received relative href and external as` +
-          `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
+            `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
       handleHardNavigation({ url: as, router: this })
@@ -1498,26 +1500,28 @@ export default class Router implements BaseRouter {
         if (missingParams.length > 0 && !isMiddlewareMatch) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
-              `${shouldInterpolate
-                ? `Interpolating href`
-                : `Mismatching \`as\` and \`href\``
+              `${
+                shouldInterpolate
+                  ? `Interpolating href`
+                  : `Mismatching \`as\` and \`href\``
               } failed to manually provide ` +
-              `the params: ${missingParams.join(
-                ', '
-              )} in the \`href\`'s \`query\``
+                `the params: ${missingParams.join(
+                  ', '
+                )} in the \`href\`'s \`query\``
             )
           }
 
           throw new Error(
             (shouldInterpolate
               ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
-                ', '
-              )}) to be interpolated properly. `
+                  ', '
+                )}) to be interpolated properly. `
               : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
-            `Read more: https://nextjs.org/docs/messages/${shouldInterpolate
-              ? 'href-interpolation-failed'
-              : 'incompatible-href-as'
-            }`
+              `Read more: https://nextjs.org/docs/messages/${
+                shouldInterpolate
+                  ? 'href-interpolation-failed'
+                  : 'incompatible-href-as'
+              }`
           )
         }
       } else if (shouldInterpolate) {
@@ -1575,12 +1579,12 @@ export default class Router implements BaseRouter {
             !routeProps.shallow && routeInfo.resolvedAs
               ? routeInfo.resolvedAs
               : addBasePath(
-                addLocale(
-                  new URL(as, location.href).pathname,
-                  nextState.locale
-                ),
-                true
-              )
+                  addLocale(
+                    new URL(as, location.href).pathname,
+                    nextState.locale
+                  ),
+                  true
+                )
 
           let rewriteAs = prefixedAs
 
@@ -1608,7 +1612,7 @@ export default class Router implements BaseRouter {
           return this.change(method, routeInfo.newUrl, routeInfo.newAs, options)
         } else {
           handleHardNavigation({ url: routeInfo.destination, router: this })
-          return new Promise(() => { })
+          return new Promise(() => {})
         }
       }
 
@@ -1652,7 +1656,7 @@ export default class Router implements BaseRouter {
             return this.change(method, newUrl, newAs, options)
           }
           handleHardNavigation({ url: destination, router: this })
-          return new Promise(() => { })
+          return new Promise(() => {})
         }
 
         nextState.isPreview = !!props.__N_PREVIEW
@@ -1927,8 +1931,8 @@ export default class Router implements BaseRouter {
 
       let cachedRouteInfo =
         existingInfo &&
-          !('initial' in existingInfo) &&
-          process.env.NODE_ENV !== 'development'
+        !('initial' in existingInfo) &&
+        process.env.NODE_ENV !== 'development'
           ? existingInfo
           : undefined
 
@@ -1989,7 +1993,7 @@ export default class Router implements BaseRouter {
 
       if (route === '/api' || route.startsWith('/api/')) {
         handleHardNavigation({ url: as, router: this })
-        return new Promise<never>(() => { })
+        return new Promise<never>(() => {})
       }
 
       const routeInfo =
@@ -2019,18 +2023,18 @@ export default class Router implements BaseRouter {
           const { json, cacheKey: _cacheKey } = data?.json
             ? data
             : await fetchNextData({
-              dataHref: this.pageLoader.getDataHref({
-                href: formatWithValidation({ pathname, query }),
-                asPath: resolvedAs,
-                locale,
-              }),
-              isServerRender: this.isSsr,
-              parseJSON: true,
-              inflightCache: this.sdc,
-              persistCache: !isPreview,
-              isPrefetch: false,
-              unstable_skipClientCache,
-            })
+                dataHref: this.pageLoader.getDataHref({
+                  href: formatWithValidation({ pathname, query }),
+                  asPath: resolvedAs,
+                  locale,
+                }),
+                isServerRender: this.isSsr,
+                parseJSON: true,
+                inflightCache: this.sdc,
+                persistCache: !isPreview,
+                isPrefetch: false,
+                unstable_skipClientCache,
+              })
 
           return {
             cacheKey: _cacheKey,
@@ -2076,7 +2080,7 @@ export default class Router implements BaseRouter {
             persistCache: false,
             inflightCache: backgroundCache,
           })
-        ).catch(() => { })
+        ).catch(() => {})
       }
 
       props.pageProps = Object.assign({}, props.pageProps)
@@ -2219,7 +2223,7 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES && asPath.startsWith('/')) {
       let rewrites: any
-        ; ({ __rewrites: rewrites } = await getClientBuildManifest())
+      ;({ __rewrites: rewrites } = await getClientBuildManifest())
 
       const rewritesResult = resolveRewrites(
         addBasePath(addLocale(asPath, this.locale), true),
@@ -2273,21 +2277,21 @@ export default class Router implements BaseRouter {
       this.pageLoader._isSsg(route).then((isSsg) => {
         return isSsg
           ? fetchNextData({
-            dataHref: this.pageLoader.getDataHref({
-              href: url,
-              asPath: resolvedAs,
-              locale: locale,
-            }),
-            isServerRender: false,
-            parseJSON: true,
-            inflightCache: this.sdc,
-            persistCache: !this.isPreview,
-            isPrefetch: true,
-            unstable_skipClientCache:
-              options.unstable_skipClientCache ||
-              (options.priority &&
-                !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
-          }).then(() => false)
+              dataHref: this.pageLoader.getDataHref({
+                href: url,
+                asPath: resolvedAs,
+                locale: locale,
+              }),
+              isServerRender: false,
+              parseJSON: true,
+              inflightCache: this.sdc,
+              persistCache: !this.isPreview,
+              isPrefetch: true,
+              unstable_skipClientCache:
+                options.unstable_skipClientCache ||
+                (options.priority &&
+                  !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
+            }).then(() => false)
           : false
       }),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
