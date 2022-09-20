@@ -41,13 +41,11 @@ export class CacheHandler {
 }
 
 export class IncrementalCache {
-  dev?: boolean
   cacheHandler: CacheHandler
   prerenderManifest: PrerenderManifest
 
   constructor({
     fs,
-    dev,
     appDir,
     flushToDisk,
     serverDistDir,
@@ -56,7 +54,6 @@ export class IncrementalCache {
     incrementalCacheHandlerPath,
   }: {
     fs: CacheFs
-    dev: boolean
     appDir?: boolean
     serverDistDir: string
     flushToDisk?: boolean
@@ -75,10 +72,9 @@ export class IncrementalCache {
       // Allow cache size to be overridden for testing purposes
       maxMemoryCacheSize = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
     }
-    this.dev = dev
     this.prerenderManifest = getPrerenderManifest()
     this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
-      dev,
+      dev: process.env.NODE_ENV === 'development',
       fs,
       flushToDisk,
       serverDistDir,
@@ -93,7 +89,8 @@ export class IncrementalCache {
   ): number | false {
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
-    if (this.dev) return new Date().getTime() - 1000
+    if (process.env.NODE_ENV === 'development')
+      return new Date().getTime() - 1000
 
     // if an entry isn't present in routes we fallback to a default
     // of revalidating after 1 second
@@ -118,7 +115,7 @@ export class IncrementalCache {
   async get(pathname: string): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
-    if (this.dev) return null
+    if (process.env.NODE_ENV === 'development') return null
 
     pathname = this._getPathname(pathname)
     let entry: IncrementalCacheEntry | null = null
@@ -170,7 +167,7 @@ export class IncrementalCache {
     data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false
   ) {
-    if (this.dev) return
+    if (process.env.NODE_ENV === 'development') return
     pathname = this._getPathname(pathname)
 
     try {

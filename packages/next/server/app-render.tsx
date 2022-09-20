@@ -36,7 +36,6 @@ const ReactDOMServer = shouldUseReactRoot
 
 export type RenderOptsPartial = {
   err?: Error | null
-  dev?: boolean
   serverComponentManifest?: FlightManifest
   serverCSSManifest?: FlightCSSManifest
   supportsDynamicHTML?: boolean

@@ -192,6 +192,19 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
+  if (
+    (options.dev && process.env.NODE_ENV === 'production') ||
+    (!options.dev && process.env.NODE_ENV === 'development')
+  ) {
+    console.warn(
+      `Warning: the "dev" is ${
+        options.dev ? 'enabled' : 'disabled'
+      }, but the NODE_ENV environment variable is set to "${
+        process.env.NODE_ENV
+      }", which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options`
+    )
+  }
+
   if (shouldUseReactRoot) {
     ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }

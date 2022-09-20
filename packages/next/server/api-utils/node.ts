@@ -424,7 +424,6 @@ export async function apiResolver(
   resolverModule: any,
   apiContext: ApiContext,
   propagateError: boolean,
-  dev?: boolean,
   page?: string
 ): Promise<void> {
   const apiReq = req as NextApiRequest
@@ -535,7 +534,7 @@ export async function apiResolver(
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {
-      if (dev) {
+      if (process.env.NODE_ENV === 'development') {
         if (isError(err)) {
           err.page = page
         }

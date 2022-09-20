@@ -272,20 +272,18 @@ export default class NextNodeServer extends BaseServer {
       ? (compression() as ExpressMiddleware)
       : undefined
 
-  protected loadEnvConfig({
-    dev,
-    forceReload,
-  }: {
-    dev: boolean
-    forceReload?: boolean
-  }) {
-    loadEnvConfig(this.dir, dev, Log, forceReload)
+  protected loadEnvConfig({ forceReload }: { forceReload?: boolean }) {
+    loadEnvConfig(
+      this.dir,
+      process.env.NODE_ENV === 'development',
+      Log,
+      forceReload
+    )
   }
 
-  protected getResponseCache({ dev }: { dev: boolean }) {
+  protected getResponseCache() {
     const incrementalCache = new IncrementalCache({
       fs: this.getCacheFilesystem(),
-      dev,
       serverDistDir: this.serverDistDir,
       appDir: this.nextConfig.experimental.appDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
@@ -294,7 +292,7 @@ export default class NextNodeServer extends BaseServer {
       incrementalCacheHandlerPath:
         this.nextConfig.experimental?.incrementalCacheHandlerPath,
       getPrerenderManifest: () => {
-        if (dev) {
+        if (process.env.NODE_ENV === 'development') {
           return {
             version: -1 as any, // letting us know this doesn't conform to spec
             routes: {},
@@ -406,7 +404,7 @@ export default class NextNodeServer extends BaseServer {
             (req as NodeNextRequest).originalRequest,
             parsedUrl.query,
             this.nextConfig,
-            !!this.renderOpts.dev
+            process.env.NODE_ENV === 'development'
           )
 
           if ('errorMessage' in paramsResult) {
@@ -457,7 +455,7 @@ export default class NextNodeServer extends BaseServer {
               cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
               imagesConfig.contentSecurityPolicy,
               cacheEntry.revalidate || 0,
-              Boolean(this.renderOpts.dev)
+              process.env.NODE_ENV === 'development'
             )
           } catch (err) {
             if (err instanceof ImageError) {
@@ -701,7 +699,7 @@ export default class NextNodeServer extends BaseServer {
       // we limit proxy requests to 30s by default, in development
       // we don't time out WebSocket requests to allow proxying
       proxyTimeout:
-        upgradeHead && this.renderOpts.dev
+        upgradeHead && process.env.NODE_ENV === 'development'
           ? undefined
           : this.nextConfig.experimental.proxyTimeout || 30_000,
     })
@@ -780,7 +778,7 @@ export default class NextNodeServer extends BaseServer {
     delete query.__nextLocale
     delete query.__nextDefaultLocale
 
-    if (!this.renderOpts.dev && this._isLikeServerless) {
+    if (process.env.NODE_ENV === 'production' && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
         prepareServerlessUrl(req, query)
         await pageModule.default(req, res)
@@ -804,7 +802,6 @@ export default class NextNodeServer extends BaseServer {
         trustHostHeader: (this.nextConfig.experimental as any).trustHostHeader,
       },
       this.minimalMode,
-      this.renderOpts.dev,
       page
     )
     return true
@@ -870,7 +867,7 @@ export default class NextNodeServer extends BaseServer {
       res.originalResponse,
       paramsResult,
       this.nextConfig,
-      this.renderOpts.dev,
+      process.env.NODE_ENV === 'development',
       (newReq, newRes, newParsedUrl) =>
         this.getRequestHandler()(
           new NodeNextRequest(newReq),
@@ -885,7 +882,7 @@ export default class NextNodeServer extends BaseServer {
       pathname,
       this.distDir,
       this._isLikeServerless,
-      this.renderOpts.dev,
+      process.env.NODE_ENV === 'development',
       locales,
       this.nextConfig.experimental.appDir
     )
@@ -957,7 +954,8 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents({
           distDir: this.distDir,
           pathname: pagePath,
-          serverless: !this.renderOpts.dev && this._isLikeServerless,
+          serverless:
+            process.env.NODE_ENV === 'production' && this._isLikeServerless,
           hasServerComponents: !!this.renderOpts.serverComponents,
           isAppPath,
         })
@@ -1785,7 +1783,7 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    if (!this.renderOpts.dev) {
+    if (process.env.NODE_ENV === 'production') {
       result.waitUntil.catch((error) => {
         console.error(`Uncaught: middleware waitUntil errored`, error)
       })
@@ -1806,7 +1804,7 @@ export default class NextNodeServer extends BaseServer {
   protected generateCatchAllMiddlewareRoute(devReady?: boolean): Route[] {
     if (this.minimalMode) return []
     const routes = []
-    if (!this.renderOpts.dev || devReady) {
+    if (process.env.NODE_ENV === 'production' || devReady) {
       if (this.getMiddleware()) {
         const middlewareCatchAllRoute: Route = {
           match: getPathMatch('/:path*'),

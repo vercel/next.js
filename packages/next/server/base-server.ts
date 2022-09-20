@@ -196,7 +196,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string
     canonicalBase: string
-    dev?: boolean
     previewProps: __ApiPreviewProps
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
@@ -311,21 +310,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse
   ): void
 
-  protected abstract getResponseCache(options: {
-    dev: boolean
-  }): ResponseCacheBase
+  protected abstract getResponseCache(): ResponseCacheBase
 
-  protected abstract loadEnvConfig(params: {
-    dev: boolean
-    forceReload?: boolean
-  }): void
+  protected abstract loadEnvConfig(params: { forceReload?: boolean }): void
 
   public constructor(options: ServerOptions) {
     const {
       dir = '.',
       quiet = false,
       conf,
-      dev = false,
       minimalMode = false,
       customServer = true,
       hostname,
@@ -337,7 +330,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
 
     this.quiet = quiet
-    this.loadEnvConfig({ dev })
+    this.loadEnvConfig({})
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
@@ -383,7 +376,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       images: this.nextConfig.images,
       optimizeFonts: this.nextConfig.optimizeFonts as FontConfig,
       fontManifest:
-        (this.nextConfig.optimizeFonts as FontConfig) && !dev
+        (this.nextConfig.optimizeFonts as FontConfig) &&
+        process.env.NODE_ENV === 'production'
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -420,7 +414,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    this.responseCache = this.getResponseCache({ dev })
+    this.responseCache = this.getResponseCache()
   }
 
   public logError(err: Error): void {
@@ -696,7 +690,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (this.minimalMode || this.renderOpts.dev) {
+      if (this.minimalMode || process.env.NODE_ENV === 'development') {
         throw err
       }
       this.logError(getProperError(err))
@@ -821,8 +815,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { req, res } = ctx
     const { body, type, revalidateOptions } = payload
     if (!res.sent) {
-      const { generateEtags, poweredByHeader, dev } = this.renderOpts
-      if (dev) {
+      const { generateEtags, poweredByHeader } = this.renderOpts
+      if (process.env.NODE_ENV === 'development') {
         // In dev, we should not cache pages for any reason.
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
       }
@@ -1318,7 +1312,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
       async (hasResolved, hadCache) => {
-        const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
 
@@ -1377,7 +1370,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           isDynamicPathname &&
           // Development should trigger fallback when the path is not in
           // `getStaticPaths`
-          (isProduction ||
+          (process.env.NODE_ENV === 'production' ||
             !staticPaths ||
             !staticPaths.includes(
               // we use ssgCacheKey here as it is normalized to match the
@@ -1388,7 +1381,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (
             // In development, fall through to render to handle missing
             // getStaticPaths.
-            (isProduction || staticPaths) &&
+            (process.env.NODE_ENV === 'production' || staticPaths) &&
             // When fallback isn't present, abort this render so we 404
             fallbackMode !== 'static'
           ) {
@@ -1397,7 +1390,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           if (!isDataReq) {
             // Production already emitted the fallback as static HTML.
-            if (isProduction) {
+            if (process.env.NODE_ENV === 'production') {
               const html = await this.getFallback(
                 locale ? `/${locale}${pathname}` : pathname
               )
@@ -1474,7 +1467,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
       typeof revalidate !== 'undefined' &&
-      (!this.renderOpts.dev || (hasServerProps && !isDataReq))
+      (process.env.NODE_ENV === 'production' || (hasServerProps && !isDataReq))
         ? {
             // When the page is 404 cache-control should not be added unless
             // we are rendering the 404 page for notFound: true which should
@@ -1494,7 +1487,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.body('{"notFound":true}').send()
         return null
       } else {
-        if (this.renderOpts.dev) {
+        if (process.env.NODE_ENV === 'development') {
           query.__nextNotFoundSrcPage = pathname
         }
         await this.render404(
@@ -1699,7 +1692,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (!isWrappedError) {
         if (
           (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') ||
-          this.renderOpts.dev
+          process.env.NODE_ENV === 'development'
         ) {
           if (isError(err)) err.page = page
           throw err
@@ -1810,7 +1803,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
-        if (statusPage !== '/500' || !this.renderOpts.dev) {
+        if (statusPage !== '/500' || process.env.NODE_ENV === 'production') {
           result = await this.findPageComponents({
             pathname: statusPage,
             query,

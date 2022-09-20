@@ -211,7 +211,6 @@ export type RenderOptsPartial = {
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
-  dev?: boolean
   ampPath?: string
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
@@ -330,14 +329,11 @@ function errorToJSON(err: Error) {
   }
 }
 
-function serializeError(
-  dev: boolean | undefined,
-  err: Error
-): Error & {
+function serializeError(err: Error): Error & {
   statusCode?: number
   source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
 } {
-  if (dev) {
+  if (process.env.NODE_ENV === 'development') {
     return errorToJSON(err)
   }
 
@@ -358,16 +354,16 @@ export async function renderToHTML(
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
   // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
   // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-  renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
-    ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
-    : ''
+  renderOpts.devOnlyCacheBusterQueryString =
+    process.env.NODE_ENV === 'development'
+      ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
+      : ''
 
   // don't modify original query object
   query = Object.assign({}, query)
 
   const {
     err,
-    dev = false,
     ampPath = '',
     pageConfig = {},
     buildManifest,
@@ -497,7 +493,7 @@ export async function renderToHTML(
 
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
-  if (dev) {
+  if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
       throw new Error(
@@ -667,7 +663,7 @@ export async function renderToHTML(
         <AppContainer>
           <>
             {/* <ReactDevOverlay/> */}
-            {dev ? (
+            {process.env.NODE_ENV === 'development' ? (
               <>
                 {children}
                 <Noop />
@@ -719,7 +715,9 @@ export async function renderToHTML(
   let props: any
 
   const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+    !isSSG &&
+    (renderOpts.nextExport ||
+      (process.env.NODE_ENV === 'development' && (isAutoExport || isFallback)))
 
   const styledJsxFlushEffect = () => {
     const styles = jsxStyleRegistry.styles()
@@ -832,7 +830,7 @@ export async function renderToHTML(
     }
 
     if (
-      (dev || isBuildTimeSSG) &&
+      (process.env.NODE_ENV === 'development' || isBuildTimeSSG) &&
       !(renderOpts as any).isNotFound &&
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
@@ -1026,7 +1024,7 @@ export async function renderToHTML(
     }
 
     if (
-      (dev || isBuildTimeSSG) &&
+      (process.env.NODE_ENV === 'development' || isBuildTimeSSG) &&
       !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -1163,7 +1161,10 @@ export async function renderToHTML(
           return { html, head }
         }
 
-        if (dev && (props.router || props.Component)) {
+        if (
+          process.env.NODE_ENV === 'development' &&
+          (props.router || props.Component)
+        ) {
           throw new Error(
             `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
           )
@@ -1401,7 +1402,7 @@ export async function renderToHTML(
         dynamicImportsIds.size === 0
           ? undefined
           : Array.from(dynamicImportsIds),
-      err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+      err: renderOpts.err ? serializeError(renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
       customServer, // whether the user is using a custom server
@@ -1412,7 +1413,10 @@ export async function renderToHTML(
       defaultLocale,
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
-      notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
+      notFoundSrcPage:
+        notFoundSrcPage && process.env.NODE_ENV === 'development'
+          ? notFoundSrcPage
+          : undefined,
     },
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
@@ -1423,7 +1427,7 @@ export async function renderToHTML(
         : renderOpts.canonicalBase,
     ampPath,
     inAmpMode,
-    isDevelopment: !!dev,
+    isDevelopment: process.env.NODE_ENV === 'development',
     hybridAmp,
     dynamicImports: Array.from(dynamicImports),
     assetPrefix,
