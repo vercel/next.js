@@ -9,8 +9,8 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "supertokens-auth-react": "^0.24.7",
-    "supertokens-node": "^11.2.0"
+    "supertokens-auth-react": "^0.26.0",
+    "supertokens-node": "^12.0.0"
   },
   "devDependencies": {
     "@types/react": "18.0.17",
