@@ -290,7 +290,7 @@ export function resolveHref(
     const ifSameOrigin = finalUrl.origin === base.origin
     const strippedFinalURL = finalUrl.href.slice(finalUrl.origin.length)
     const resolvedHref =
-      ifSameOrigin && strippedFinalURL.indexOf('/') == 0
+      ifSameOrigin && strippedFinalURL.indexOf('/') === 0
         ? strippedFinalURL
         : finalUrl.href
 
