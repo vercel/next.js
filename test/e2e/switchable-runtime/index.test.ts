@@ -37,6 +37,12 @@ describe('Switchable runtime', () => {
   let next: NextInstance
   let context
 
+  if ((global as any).isNextDeploy) {
+    // TODO-APP: re-enable after Prerenders are handled on deploy
+    it('should skip for deploy temporarily', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: {
