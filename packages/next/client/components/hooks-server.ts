@@ -8,7 +8,8 @@ import {
   StaticGenerationContext,
 } from './hooks-server-context'
 
-interface StaticGenerationStore {
+export interface StaticGenerationStore {
+  inUse?: boolean
   pathname?: string
   revalidate?: number
   fetchRevalidate?: number

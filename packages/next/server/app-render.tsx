@@ -28,6 +28,7 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import type { UnwrapPromise } from '../lib/coalesced-function'
+import type { StaticGenerationStore } from '../client/components/hooks-server'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 
 // this needs to be required lazily so that `next-server` can set
@@ -504,11 +505,23 @@ export async function renderToHTMLOrFlight(
 ): Promise<RenderResult | null> {
   patchFetch()
 
-  const staticGenerationContext: {
-    revalidate?: undefined | number
-    isStaticGeneration: boolean
-    pathname: string
-  } = { isStaticGeneration, pathname }
+  const { staticGenerationAsyncStorage } =
+    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
+
+  if (
+    !('getStore' in staticGenerationAsyncStorage) &&
+    staticGenerationAsyncStorage.inUse
+  ) {
+    throw new Error(
+      `Invariant: A separate worker must be used for each render when AsyncLocalStorage is not available`
+    )
+  }
+
+  const staticGenerationContext: StaticGenerationStore = {
+    isStaticGeneration,
+    inUse: true,
+    pathname,
+  }
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -1242,9 +1255,6 @@ export async function renderToHTMLOrFlight(
     }
   }
 
-  const { staticGenerationAsyncStorage } =
-    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
-
   if ('getStore' in staticGenerationAsyncStorage) {
     return new Promise<UnwrapPromise<ReturnType<typeof renderToHTMLOrFlight>>>(
       (resolve, reject) => {
@@ -1254,6 +1264,9 @@ export async function renderToHTMLOrFlight(
       }
     )
   } else {
-    return wrappedRender()
+    Object.assign(staticGenerationAsyncStorage, staticGenerationContext)
+    return wrappedRender().finally(() => {
+      staticGenerationContext.inUse = false
+    })
   }
 }
