@@ -1,7 +1,8 @@
-'client'
-import { redirect } from 'next/dist/client/components/redirect'
+import ClientComp from './client-component'
+import { useHeaders } from 'next/dist/client/components/hooks-client'
 
 export default function Page() {
-  redirect('/redirect/result')
-  return <></>
+  // Opt-in to SSR.
+  useHeaders()
+  return <ClientComp />
 }

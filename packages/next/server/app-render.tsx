@@ -78,7 +78,7 @@ function createErrorHandler(
   return (err: any) => {
     if (
       // Use error message instead of type because HTML renderer uses Flight data which is serialized so it's not the same object instance.
-      err?.message !== 'Dynamic server usage' &&
+      !err?.message.includes('Dynamic server usage') &&
       // TODO-APP: Handle redirect throw
       err.code !== REDIRECT_ERROR_CODE
     ) {
