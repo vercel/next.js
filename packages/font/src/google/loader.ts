@@ -1,5 +1,7 @@
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
+// @ts-ignore
+import { calculateOverrideCSS } from 'next/dist/server/font-utils'
 import {
   fetchCSSFromGoogleFonts,
   getFontAxes,
@@ -34,6 +36,7 @@ export default async function downloadGoogleFonts({
     preload,
     selectedVariableAxes,
     fallback,
+    adjustFontFallback,
   } = validateData(functionName, data)
   const fontAxes = getFontAxes(fontFamily, weight, style, selectedVariableAxes)
   const url = getUrl(fontFamily, fontAxes, display)
@@ -97,6 +100,18 @@ export default async function downloadGoogleFonts({
       googleFontFileUrl,
       selfHostedFileUrl
     )
+  }
+
+  // Add fallback font
+  if (adjustFontFallback) {
+    try {
+      updatedCssResponse += calculateOverrideCSS(
+        fontFamily,
+        require('next/dist/server/google-font-metrics.json')
+      )
+    } catch (e) {
+      console.log('Error getting font override values - ', e)
+    }
   }
 
   return {

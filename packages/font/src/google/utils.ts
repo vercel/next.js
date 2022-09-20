@@ -14,6 +14,7 @@ type FontOptions = {
   preload: boolean
   selectedVariableAxes?: string[]
   fallback?: string[]
+  adjustFontFallback: boolean
 }
 export function validateData(functionName: string, data: any): FontOptions {
   let {
@@ -22,6 +23,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     preload = true,
     axes,
     fallback,
+    adjustFontFallback = true,
   } = data[0] || ({} as any)
   if (functionName === '') {
     throw new Error(`@next/font/google has no default export`)
@@ -77,6 +79,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     preload,
     selectedVariableAxes: axes,
     fallback,
+    adjustFontFallback,
   }
 }
 

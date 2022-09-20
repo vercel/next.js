@@ -51,6 +51,7 @@ type FontModule = { className: string, variable: string, style: { fontFamily: st
     display?:Display,
     preload?:boolean,
     fallback?: string[]
+    adjustFontFallback?: boolean
     ${
       optionalAxes
         ? `axes?:(${optionalAxes.map(({ tag }) => `'${tag}'`).join('|')})[]`

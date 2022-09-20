@@ -12,62 +12,60 @@ describe('@next/font/google loader', () => {
     test.each([
       [
         'Inter',
-        [],
+        {},
         'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional',
       ],
       [
         'Inter',
-        [{ variant: '400' }],
+        { variant: '400' },
         'https://fonts.googleapis.com/css2?family=Inter:wght@400&display=optional',
       ],
       [
         'Inter',
-        [{ variant: '900', display: 'block' }],
+        { variant: '900', display: 'block' },
         'https://fonts.googleapis.com/css2?family=Inter:wght@900&display=block',
       ],
       [
         'Source_Sans_Pro',
-        [{ variant: '900', display: 'auto' }],
+        { variant: '900', display: 'auto' },
         'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@900&display=auto',
       ],
       [
         'Source_Sans_Pro',
-        [{ variant: '200-italic' }],
+        { variant: '200-italic' },
         'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@1,200&display=optional',
       ],
       [
         'Roboto_Flex',
-        [{ display: 'swap' }],
+        { display: 'swap' },
         'https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@100..1000&display=swap',
       ],
       [
         'Roboto_Flex',
-        [{ display: 'fallback', variant: 'variable', axes: ['opsz'] }],
+        { display: 'fallback', variant: 'variable', axes: ['opsz'] },
         'https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=fallback',
       ],
       [
         'Roboto_Flex',
-        [
-          {
-            display: 'optional',
-            axes: ['YTUC', 'slnt', 'wdth', 'opsz', 'XTRA', 'YTAS'],
-          },
-        ],
+        {
+          display: 'optional',
+          axes: ['YTUC', 'slnt', 'wdth', 'opsz', 'XTRA', 'YTAS'],
+        },
         'https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,slnt,wdth,wght,XTRA,YTAS,YTUC@8..144,-10..0,25..151,100..1000,323..603,649..854,528..760&display=optional',
       ],
       [
         'Oooh_Baby',
-        [{ variant: '400' }],
+        { variant: '400' },
         'https://fonts.googleapis.com/css2?family=Oooh+Baby:wght@400&display=optional',
       ],
       [
         'Albert_Sans',
-        [{ variant: 'variable-italic' }],
+        { variant: 'variable-italic' },
         'https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@1,100..900&display=optional',
       ],
       [
         'Fraunces',
-        [{ variant: 'variable-italic', axes: ['WONK', 'opsz', 'SOFT'] }],
+        { variant: 'variable-italic', axes: ['WONK', 'opsz', 'SOFT'] },
         'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@1,9..144,100..900,0..100,0..1&display=optional',
       ],
     ])('%s', async (functionName: string, data: any, url: string) => {
@@ -77,13 +75,105 @@ describe('@next/font/google loader', () => {
       })
       const { css } = await loader({
         functionName,
-        data,
+        data: [{ adjustFontFallback: false, ...data }],
         config: { subsets: [] },
         emitFontFile: jest.fn(),
       })
       expect(css).toBe('OK')
       expect(fetch).toHaveBeenCalledTimes(1)
       expect(fetch).toHaveBeenCalledWith(url, expect.any(Object))
+    })
+  })
+
+  describe('Fallback fonts', () => {
+    test('Inter', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        text: async () => '',
+      })
+      const { css, fallbackFonts } = await loader({
+        functionName: 'Inter',
+        data: [],
+        config: { subsets: [] },
+        emitFontFile: jest.fn(),
+      })
+      expect(css).toMatchInlineSnapshot(`
+"
+    @font-face {
+      font-family: \\"inter-fallback\\";
+      ascent-override: 96.88%;
+      descent-override: 24.15%;
+      line-gap-override: 0.00%;
+      src: local(\\"Arial\\");
+    }
+  "
+`)
+      expect(fallbackFonts).toBeUndefined()
+    })
+
+    test('Source Code Pro', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        text: async () => '',
+      })
+      const { css, fallbackFonts } = await loader({
+        functionName: 'Source_Code_Pro',
+        data: [],
+        config: { subsets: [] },
+        emitFontFile: jest.fn(),
+      })
+      expect(css).toMatchInlineSnapshot(`
+"
+    @font-face {
+      font-family: \\"source-code-pro-fallback\\";
+      ascent-override: 98.40%;
+      descent-override: 27.30%;
+      line-gap-override: 0.00%;
+      src: local(\\"Arial\\");
+    }
+  "
+`)
+      expect(fallbackFonts).toBeUndefined()
+    })
+
+    test('Fraunces', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        text: async () => '',
+      })
+      const { css, fallbackFonts } = await loader({
+        functionName: 'Fraunces',
+        data: [{ fallback: ['Abc', 'Def'] }],
+        config: { subsets: [] },
+        emitFontFile: jest.fn(),
+      })
+      expect(css).toMatchInlineSnapshot(`
+"
+    @font-face {
+      font-family: \\"fraunces-fallback\\";
+      ascent-override: 97.80%;
+      descent-override: 25.50%;
+      line-gap-override: 0.00%;
+      src: local(\\"Times New Roman\\");
+    }
+  "
+`)
+      expect(fallbackFonts).toEqual(['Abc', 'Def'])
+    })
+
+    test('adjustFontFallback disabled', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        text: async () => '',
+      })
+      const { css, fallbackFonts } = await loader({
+        functionName: 'Inter',
+        data: [{ adjustFontFallback: false, fallback: ['system-ui', 'Arial'] }],
+        config: { subsets: [] },
+        emitFontFile: jest.fn(),
+      })
+      expect(css).toBe('')
+      expect(fallbackFonts).toEqual(['system-ui', 'Arial'])
     })
   })
 
