@@ -11,18 +11,18 @@
 ```js
 // next.config.js
 
-const { createNodeFileTrace } = require('@vercel/experimental-nft-next-plugin')
+const { createNodeFileTrace } = require("@vercel/experimental-nft-next-plugin");
 
 const withNodeFileTrace = createNodeFileTrace({
     // experimental nft options
     log: {
         all: true,
     },
-})
+});
 
 module.exports = withNodeFileTrace({
     // next config
-})
+});
 ```
 
 ### experimental nft options

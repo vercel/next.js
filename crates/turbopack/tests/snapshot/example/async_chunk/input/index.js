@@ -1,3 +1,3 @@
-import('foo').then(({ foo }) => {
-  foo(true)
-})
+import("foo").then(({ foo }) => {
+  foo(true);
+});
