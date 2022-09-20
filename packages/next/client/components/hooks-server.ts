@@ -5,7 +5,6 @@ import {
   PreviewDataContext,
   CookiesContext,
   DynamicServerError,
-  StaticGenerationContext,
 } from './hooks-server-context'
 
 export interface StaticGenerationStore {
@@ -25,21 +24,13 @@ if (process.env.NEXT_RUNTIME !== 'edge' && typeof window === 'undefined') {
     new (require('async_hooks').AsyncLocalStorage)()
 }
 
-export function useTrackStaticGeneration() {
-  return useContext<
-    typeof import('./hooks-server-context').StaticGenerationContext
-  >(StaticGenerationContext)
-}
-
 function useStaticGenerationBailout(reason: string) {
-  const staticGenerationContext = useTrackStaticGeneration()
+  const staticGenerationStore =
+    'getStore' in staticGenerationAsyncStorage
+      ? staticGenerationAsyncStorage?.getStore()
+      : staticGenerationAsyncStorage
 
-  if (staticGenerationContext.isStaticGeneration) {
-    const staticGenerationStore =
-      'getStore' in staticGenerationAsyncStorage
-        ? staticGenerationAsyncStorage?.getStore()
-        : staticGenerationAsyncStorage
-
+  if (staticGenerationStore?.isStaticGeneration) {
     // TODO: honor the dynamic: 'force-static'
     if (staticGenerationStore) {
       staticGenerationStore.revalidate = 0

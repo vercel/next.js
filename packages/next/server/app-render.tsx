@@ -517,14 +517,13 @@ export async function renderToHTMLOrFlight(
     )
   }
 
-  const staticGenerationContext: StaticGenerationStore = {
-    isStaticGeneration,
-    inUse: true,
-    pathname,
-  }
-
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
+    const staticGenerationStore =
+      'getStore' in staticGenerationAsyncStorage
+        ? staticGenerationAsyncStorage.getStore()
+        : staticGenerationAsyncStorage
+
     const { CONTEXT_NAMES } =
       require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
 
@@ -620,7 +619,6 @@ export async function renderToHTMLOrFlight(
       [CONTEXT_NAMES.HeadersContext, headers],
       [CONTEXT_NAMES.CookiesContext, cookies],
       [CONTEXT_NAMES.PreviewDataContext, previewData],
-      [CONTEXT_NAMES.StaticGenerationContext, staticGenerationContext],
     ]
 
     type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
@@ -1231,9 +1229,9 @@ export async function renderToHTMLOrFlight(
         serverComponentsRenderOpts.rscChunks
       ).toString()
       ;(renderOpts as any).revalidate =
-        typeof staticGenerationContext.revalidate === 'undefined'
+        typeof staticGenerationStore?.revalidate === 'undefined'
           ? defaultRevalidate
-          : staticGenerationContext.revalidate
+          : staticGenerationStore?.revalidate
 
       return new RenderResult(staticHtml)
     }
@@ -1255,18 +1253,24 @@ export async function renderToHTMLOrFlight(
     }
   }
 
+  const initialStaticGenerationStore = {
+    isStaticGeneration,
+    inUse: true,
+    pathname,
+  }
+
   if ('getStore' in staticGenerationAsyncStorage) {
     return new Promise<UnwrapPromise<ReturnType<typeof renderToHTMLOrFlight>>>(
       (resolve, reject) => {
-        staticGenerationAsyncStorage.run(staticGenerationContext, () => {
+        staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
           wrappedRender().then(resolve).catch(reject)
         })
       }
     )
   } else {
-    Object.assign(staticGenerationAsyncStorage, staticGenerationContext)
+    Object.assign(staticGenerationAsyncStorage, initialStaticGenerationStore)
     return wrappedRender().finally(() => {
-      staticGenerationContext.inUse = false
+      staticGenerationAsyncStorage.inUse = false
     })
   }
 }
