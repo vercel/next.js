@@ -10,6 +10,10 @@ export function middleware(request) {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }
 
+  if (request.nextUrl.pathname === '/redirect-middleware-to-dashboard') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
   if (request.nextUrl.pathname.startsWith('/internal/test')) {
     const method = request.nextUrl.pathname.endsWith('rewrite')
       ? 'rewrite'

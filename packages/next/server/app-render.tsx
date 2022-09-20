@@ -27,6 +27,7 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
+import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -48,7 +49,7 @@ export type RenderOptsPartial = {
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
- * Flight Response is always set to application/octet-stream to ensure it does not
+ * Flight Response is always set to application/octet-stream to ensure it does not get interpreted as HTML.
  */
 class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
@@ -65,14 +66,37 @@ function interopDefault(mod: any) {
 
 // tolerate dynamic server errors during prerendering so console
 // isn't spammed with unactionable errors
-function onError(err: any) {
-  const { DynamicServerError } =
-    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+/**
+ * Create error handler for renderers.
+ */
+function createErrorHandler(
+  /**
+   * Used for debugging
+   */
+  _source: string
+) {
+  return (err: any) => {
+    if (
+      // Use error message instead of type because HTML renderer uses Flight data which is serialized so it's not the same object instance.
+      err.message &&
+      !err.message.includes('Dynamic server usage') &&
+      // TODO-APP: Handle redirect throw
+      err.code !== REDIRECT_ERROR_CODE
+    ) {
+      // Used for debugging error source
+      // console.error(_source, err)
+      console.error(err)
+    }
 
-  if (!(err instanceof DynamicServerError)) {
-    console.error(err)
+    return null
   }
 }
+
+const serverComponentsErrorHandler = createErrorHandler(
+  'serverComponentsRenderer'
+)
+const flightDataRendererErrorHandler = createErrorHandler('flightDataRenderer')
+const htmlRendererErrorHandler = createErrorHandler('htmlRenderer')
 
 let isFetchPatched = false
 
@@ -241,7 +265,7 @@ function createServerComponentRenderer(
         serverComponentManifest,
         {
           context: serverContexts,
-          onError,
+          onError: serverComponentsErrorHandler,
         }
       )
     }
@@ -515,7 +539,7 @@ export async function renderToHTMLOrFlight(
     const flightData: FlightData = pathname + (search ? `?${search}` : '')
     return new FlightRenderResult(
       renderToReadableStream(flightData, serverComponentManifest, {
-        onError,
+        onError: flightDataRendererErrorHandler,
       }).pipeThrough(createBufferedTransformStream())
     )
   }
@@ -1008,7 +1032,7 @@ export async function renderToHTMLOrFlight(
       serverComponentManifest,
       {
         context: serverContexts,
-        onError,
+        onError: flightDataRendererErrorHandler,
       }
     ).pipeThrough(createBufferedTransformStream())
 
@@ -1121,6 +1145,7 @@ export async function renderToHTMLOrFlight(
         ReactDOMServer,
         element: content,
         streamOptions: {
+          onError: htmlRendererErrorHandler,
           nonce,
           // Include hydration scripts in the HTML
           bootstrapScripts: subresourceIntegrityManifest
@@ -1140,7 +1165,11 @@ export async function renderToHTMLOrFlight(
         flushEffectHandler,
         flushEffectsToHead: true,
       })
-    } catch (err) {
+    } catch (err: any) {
+      if (err.code === REDIRECT_ERROR_CODE) {
+        throw err
+      }
+
       // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
       const renderStream = await renderToInitialStream({
         ReactDOMServer,
@@ -1173,9 +1202,8 @@ export async function renderToHTMLOrFlight(
     }
   }
 
-  const readable = await bodyResult()
-
   if (generateStaticHTML) {
+    const readable = await bodyResult()
     let staticHtml = Buffer.from(
       (await readable.getReader().read()).value || ''
     ).toString()
@@ -1190,5 +1218,20 @@ export async function renderToHTMLOrFlight(
 
     return new RenderResult(staticHtml)
   }
-  return new RenderResult(readable)
+
+  try {
+    return new RenderResult(await bodyResult())
+  } catch (err: any) {
+    if (err.code === REDIRECT_ERROR_CODE) {
+      ;(renderOpts as any).pageData = {
+        pageProps: {
+          __N_REDIRECT: err.url,
+          __N_REDIRECT_STATUS: 307,
+        },
+      }
+      ;(renderOpts as any).isRedirect = true
+      return RenderResult.fromStatic('')
+    }
+    throw err
+  }
 }

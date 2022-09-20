@@ -41,7 +41,7 @@ declare module 'react' {
   }
 
   // TODO-APP: check if this is the right type.
-  function experimental_use<T>(promise: Promise<T>): Awaited<T>
+  function experimental_use<T>(promise: Promise<T> | React.Context<T>): T
 }
 
 export type Redirect =
