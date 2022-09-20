@@ -26,7 +26,7 @@ if (process.env.NEXT_RUNTIME !== 'edge' && typeof window === 'undefined') {
 
 function useStaticGenerationBailout(reason: string) {
   const staticGenerationStore =
-    'getStore' in staticGenerationAsyncStorage
+    staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
       ? staticGenerationAsyncStorage?.getStore()
       : staticGenerationAsyncStorage
 
