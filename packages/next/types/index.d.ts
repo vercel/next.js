@@ -178,10 +178,9 @@ export type GetServerSideProps<
   context: GetServerSidePropsContext<Q, D>
 ) => Promise<GetServerSidePropsResult<P>>
 
-export type InferGetServerSidePropsType<T extends (args: any) => any> = Extract<
-  Awaited<ReturnType<T>>,
-  { props: any }
->['props']
+export type InferGetServerSidePropsType<T extends (args: any) => any> = Awaited<
+  Extract<Awaited<ReturnType<T>>, { props: any }>['props']
+>
 
 declare global {
   interface Crypto {
