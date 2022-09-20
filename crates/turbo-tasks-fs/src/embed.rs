@@ -11,11 +11,15 @@ pub async fn content_from_relative_path(module_path: &str, path: &str) -> Result
     let resolved_path = root_path.join(path);
     let resolved_path = std::fs::canonicalize(&resolved_path)
         .context("failed to canonicalize embedded file path")?;
+    let root_path = resolved_path.parent().unwrap();
+    let path = resolved_path.file_name().unwrap().to_str().unwrap();
+
     let disk_fs = DiskFileSystemVc::new(
         resolved_path.to_string_lossy().to_string(),
         root_path.to_string_lossy().to_string(),
     );
     disk_fs.await?.start_watching()?;
+
     let fs_path = FileSystemPathVc::new(disk_fs.into(), path);
     Ok(fs_path.read())
 }
@@ -31,12 +35,15 @@ pub async fn content_from_str(string: &str) -> Result<FileContentVc> {
 #[cfg(debug_assertions)]
 #[macro_export]
 macro_rules! embed_file {
-    ($path:expr) => {
+    ($path:expr) => {{
+        // check that the file exists at compile time
+        let _ = include_str!($path);
+
         turbo_tasks_fs::embed::content_from_relative_path(
             concat!(env!("CARGO_WORKSPACE_DIR"), file!()),
             $path,
         )
-    };
+    }};
 }
 
 /// Embeds a file's content into the binary (production).
