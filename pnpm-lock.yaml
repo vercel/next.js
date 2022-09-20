@@ -2,7 +2,7 @@ lockfileVersion: 5.4
 
 overrides:
   browserslist: 4.20.2
-  caniuse-lite: 1.0.30001332
+  caniuse-lite: 1.0.30001406
   '@babel/core': 7.18.0
   '@babel/parser': 7.18.0
   '@babel/types': 7.18.0
@@ -141,8 +141,8 @@ importers:
       react-17: npm:react@17.0.2
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-exp: npm:react-dom@0.0.0-experimental-e6a062bd2-20220913
-      react-exp: npm:react@0.0.0-experimental-e6a062bd2-20220913
+      react-dom-exp: npm:react-dom@0.0.0-experimental-8951c5fc9-20220915
+      react-exp: npm:react@0.0.0-experimental-8951c5fc9-20220915
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -297,8 +297,8 @@ importers:
       react-17: /react/17.0.2
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-exp: /react-dom/0.0.0-experimental-e6a062bd2-20220913_react@18.2.0
-      react-exp: /react/0.0.0-experimental-e6a062bd2-20220913
+      react-dom-exp: /react-dom/0.0.0-experimental-8951c5fc9-20220915_react@18.2.0
+      react-exp: /react/0.0.0-experimental-8951c5fc9-20220915
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -367,7 +367,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.3.1-canary.3
+      '@next/eslint-plugin-next': 12.3.1
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -423,12 +423,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.3.1-canary.3
-      '@next/polyfill-module': 12.3.1-canary.3
-      '@next/polyfill-nomodule': 12.3.1-canary.3
-      '@next/react-dev-overlay': 12.3.1-canary.3
-      '@next/react-refresh-utils': 12.3.1-canary.3
-      '@next/swc': 12.3.1-canary.3
+      '@next/env': 12.3.1
+      '@next/polyfill-module': 12.3.1
+      '@next/polyfill-nomodule': 12.3.1
+      '@next/react-dev-overlay': 12.3.1
+      '@next/react-refresh-utils': 12.3.1
+      '@next/swc': 12.3.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.11
       '@taskr/clear': 1.1.0
@@ -483,7 +483,7 @@ importers:
       browserslist: 4.20.2
       buffer: 5.6.0
       bytes: 3.1.1
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       chalk: 2.4.2
       ci-info: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       cli-select: 1.1.2
@@ -550,7 +550,7 @@ importers:
       raw-body: 2.4.1
       react-is: 17.0.2
       react-refresh: 0.12.0
-      react-server-dom-webpack: 0.0.0-experimental-975b64464-20220914
+      react-server-dom-webpack: 0.0.0-experimental-8951c5fc9-20220915
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0
       schema-utils2: npm:schema-utils@2.7.1
@@ -586,7 +586,7 @@ importers:
     dependencies:
       '@next/env': link:../next-env
       '@swc/helpers': 0.4.11
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       postcss: 8.4.14
       styled-jsx: 5.0.7_@babel+core@7.18.0
       use-sync-external-store: 1.2.0
@@ -739,7 +739,7 @@ importers:
       raw-body: 2.4.1
       react-is: 17.0.2
       react-refresh: 0.12.0
-      react-server-dom-webpack: 0.0.0-experimental-975b64464-20220914_webpack@5.74.0
+      react-server-dom-webpack: 0.0.0-experimental-8951c5fc9-20220915_webpack@5.74.0
       regenerator-runtime: 0.13.4
       sass-loader: 12.4.0_webpack@5.74.0
       schema-utils2: /schema-utils/2.7.1
@@ -9053,7 +9053,7 @@ packages:
       postcss: ^8.1.0
     dependencies:
       browserslist: 4.20.2
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       fraction.js: 4.2.0
       normalize-range: 0.1.2
       picocolors: 1.0.0
@@ -9072,7 +9072,7 @@ packages:
       postcss: ^8.1.0
     dependencies:
       browserslist: 4.20.2
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       fraction.js: 4.2.0
       normalize-range: 0.1.2
       picocolors: 1.0.0
@@ -9089,7 +9089,7 @@ packages:
     hasBin: true
     dependencies:
       browserslist: 4.20.2
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       chalk: 2.4.2
       normalize-range: 0.1.2
       num2fraction: 1.2.2
@@ -9751,7 +9751,7 @@ packages:
     engines: { node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7 }
     hasBin: true
     dependencies:
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       electron-to-chromium: 1.4.118
       escalade: 3.1.1
       node-releases: 2.0.3
@@ -10149,15 +10149,15 @@ packages:
       }
     dependencies:
       browserslist: 4.20.2
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       lodash.memoize: 4.1.2
       lodash.uniq: 4.5.0
     dev: true
 
-  /caniuse-lite/1.0.30001332:
+  /caniuse-lite/1.0.30001406:
     resolution:
       {
-        integrity: sha512-10T30NYOEQtN6C11YGg411yebhvpnC6Z102+B95eAsN0oB6KUs01ivE8u+G6FMIRtIrVlYXhL+LUwQ3/hXwDWw==,
+        integrity: sha512-bWTlaXUy/rq0BBtYShc/jArYfBPjEV95euvZ8JVtO43oQExEN/WquoqpufFjNu4kSpi5cy5kMbNvzztWDfv1Jg==,
       }
 
   /capital-case/1.0.4:
@@ -11896,7 +11896,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.1
     dependencies:
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       postcss: 8.2.13
     dev: true
 
@@ -11908,7 +11908,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001406
       postcss: 8.4.14
     dev: true
 
@@ -24371,17 +24371,17 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
-  /react-dom/0.0.0-experimental-e6a062bd2-20220913_react@18.2.0:
+  /react-dom/0.0.0-experimental-8951c5fc9-20220915_react@18.2.0:
     resolution:
       {
-        integrity: sha512-4e/0ZV5I4gUWRw6EohI9lEglfGYcSxPWoUcAXVLvRxzLTfFqnuLFplu33Z6Bvrs9Jnr6skDdskyyzFn0rRSJnQ==,
+        integrity: sha512-zRK9YAhohnYYJ4WhtZ1MyfR1w2XA+yiaAJAqx5Zg6Wyi0tHE1tQfhmoF7wdI4k3ZTvPjQO+IxkI+/sfOcu6OTA==,
       }
     peerDependencies:
-      react: 0.0.0-experimental-e6a062bd2-20220913
+      react: 0.0.0-experimental-8951c5fc9-20220915
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.0.0-experimental-e6a062bd2-20220913
+      scheduler: 0.0.0-experimental-8951c5fc9-20220915
     dev: true
 
   /react-dom/17.0.2_react@18.2.0:
@@ -24446,14 +24446,14 @@ packages:
     engines: { node: '>=0.10.0' }
     dev: true
 
-  /react-server-dom-webpack/0.0.0-experimental-975b64464-20220914_webpack@5.74.0:
+  /react-server-dom-webpack/0.0.0-experimental-8951c5fc9-20220915_webpack@5.74.0:
     resolution:
       {
-        integrity: sha512-RU8yWstn6EpbprfOEnpCpp4fzSTgRLIjvWjJYZq2AiVrXXaAl54stVC1LlZ5Ox4hNXBc6K/FAuQqF4nopXx5Aw==,
+        integrity: sha512-gIz7hb0Sp8v3y66K5sETigHSC1VS2k/w2UvJ5vuIr+oXsp30M3QzINxHKVuausgIP+2X8c5J9BZukh3fMutiyw==,
       }
     engines: { node: '>=0.10.0' }
     peerDependencies:
-      react: 0.0.0-experimental-975b64464-20220914
+      react: 0.0.0-experimental-8951c5fc9-20220915
       webpack: ^5.59.0
     dependencies:
       acorn: 6.4.2
@@ -24495,10 +24495,10 @@ packages:
       react-lifecycles-compat: 3.0.4
     dev: true
 
-  /react/0.0.0-experimental-e6a062bd2-20220913:
+  /react/0.0.0-experimental-8951c5fc9-20220915:
     resolution:
       {
-        integrity: sha512-osFjPYWDSg98xRjj0RDMF9gLczBcixdsC3vb1+vq6tw99Po31KgkiIfLtLMYGjD6qmASXlMVKZgFDbYDNGGC9Q==,
+        integrity: sha512-/pGYDqlIZAF4UMSTvlTU1Gd9etFqsUAT51vebc9Az13tE0hV0dmFdHa4T79Qx1JJ6Bd146X2RjScBhbx/ROmQA==,
       }
     engines: { node: '>=0.10.0' }
     dependencies:
@@ -25840,10 +25840,10 @@ packages:
       xmlchars: 2.2.0
     dev: true
 
-  /scheduler/0.0.0-experimental-e6a062bd2-20220913:
+  /scheduler/0.0.0-experimental-8951c5fc9-20220915:
     resolution:
       {
-        integrity: sha512-Rv+woqQhdMt6JaiDCHpRsbG0f3LxIYKX/eo3tK+KIqi4TiTYZAYTxO5HJXvJgKPHegAtKMcjm2D3HXDWl2m/nw==,
+        integrity: sha512-3ar+dNPu8yBC0DK1aEgT+dPUwEFoVQjVmsjcqKuYK7inTwsgQkDeTlGVQV1ELULf9vUwyuodHjGBFQI+XBQ0bg==,
       }
     dependencies:
       loose-envify: 1.4.0

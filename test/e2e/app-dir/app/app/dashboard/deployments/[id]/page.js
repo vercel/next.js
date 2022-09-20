@@ -1,15 +1,17 @@
-export async function getServerSideProps({ params }) {
+import { experimental_use as use } from 'react'
+
+async function getData({ params }) {
   return {
-    props: {
-      id: params.id,
-    },
+    id: params.id,
   }
 }
 
 export default function DeploymentsPage(props) {
+  const data = use(getData(props))
+
   return (
     <>
-      <p>hello from app/dashboard/deployments/[id]. ID is: {props.id}</p>
+      <p>hello from app/dashboard/deployments/[id]. ID is: {data.id}</p>
     </>
   )
 }

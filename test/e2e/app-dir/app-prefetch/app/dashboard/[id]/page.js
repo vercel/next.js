@@ -1,13 +1,17 @@
 import Link from 'next/link'
+import { experimental_use as use } from 'react'
 
-export async function getServerSideProps() {
+async function getData() {
   await new Promise((resolve) => setTimeout(resolve, 1000))
   return {
-    props: { a: 'b' },
+    a: 'b',
   }
 }
 
 export default function IdPage({ params }) {
+  const data = use(getData())
+  console.log(data)
+
   if (params.id === '123') {
     return (
       <>
@@ -24,3 +28,4 @@ export default function IdPage({ params }) {
     </>
   )
 }
+//

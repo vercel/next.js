@@ -227,11 +227,7 @@ impl<C: Comments> ReactServerComponents<C> {
                     handler
                         .struct_span_err(
                             import.source.1,
-                            format!(
-                                "Disallowed import of `{}` in the Server Components compilation.",
-                                source
-                            )
-                            .as_str(),
+                            format!("NEXT_RSC_ERR_SERVER_IMPORT: {}", source).as_str(),
                         )
                         .emit()
                 })
@@ -243,12 +239,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             handler
                                 .struct_span_err(
                                     specifier.1,
-                                    format!(
-                                        "Disallowed React API `{}` in the Server Components \
-                                         compilation.",
-                                        &specifier.0
-                                    )
-                                    .as_str(),
+                                    format!("NEXT_RSC_ERR_REACT_API: {}", &specifier.0).as_str(),
                                 )
                                 .emit()
                         })
@@ -262,12 +253,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             handler
                                 .struct_span_err(
                                     specifier.1,
-                                    format!(
-                                        "Disallowed ReactDOM API `{}` in the Server Components \
-                                         compilation.",
-                                        &specifier.0
-                                    )
-                                    .as_str(),
+                                    format!("NEXT_RSC_ERR_REACT_API: {}", &specifier.0).as_str(),
                                 )
                                 .emit()
                         })
@@ -285,11 +271,7 @@ impl<C: Comments> ReactServerComponents<C> {
                     handler
                         .struct_span_err(
                             import.source.1,
-                            format!(
-                                "Disallowed import of `{}` in the Client Components compilation.",
-                                source
-                            )
-                            .as_str(),
+                            format!("NEXT_RSC_ERR_CLIENT_IMPORT: {}", source).as_str(),
                         )
                         .emit()
                 })
