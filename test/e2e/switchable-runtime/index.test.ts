@@ -37,6 +37,12 @@ describe('Switchable runtime', () => {
   let next: NextInstance
   let context
 
+  if ((global as any).isNextDeploy) {
+    // TODO-APP: re-enable after Prerenders are handled on deploy
+    it('should skip for deploy temporarily', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -161,6 +167,14 @@ describe('Switchable runtime', () => {
         )
       })
 
+      it('should not consume server.js file extension', async () => {
+        const { status } = await fetchViaHTTP(
+          context.appPort,
+          '/legacy-extension'
+        )
+        expect(status).toBe(404)
+      })
+
       it('should build /api/hello and /api/edge as an api route with edge runtime', async () => {
         let response = await fetchViaHTTP(context.appPort, '/api/hello')
         let text = await response.text()
@@ -216,7 +230,7 @@ describe('Switchable runtime', () => {
           export const config = {
             runtime: 'experimental-edge',
           }
-  
+
           export default () => new Response('edge response')
           `
         )
@@ -246,7 +260,7 @@ describe('Switchable runtime', () => {
           export const config = {
             runtime: 'experimental-edge',
           }
-  
+
           export default () => new Response('edge response again')
           `
         )
@@ -327,7 +341,7 @@ describe('Switchable runtime', () => {
           export const config = {
             runtime: 'experimental-edge',
           }
-  
+
           export default () => new Response('edge response')
           `
         )
@@ -360,7 +374,7 @@ describe('Switchable runtime', () => {
         export const config = {
           runtime: 'experimental-edge',
         }
-    
+
         export default  => new Response('edge response')
         `
         )
@@ -378,7 +392,7 @@ describe('Switchable runtime', () => {
           export const config = {
             runtime: 'experimental-edge',
           }
-          
+
         `
         )
         await check(
@@ -400,7 +414,7 @@ describe('Switchable runtime', () => {
           export default function Page() {
             return <p>Hello from page with invalid type</p>
           }
-          
+
           export const config = {
             runtime: 10,
           }
@@ -421,7 +435,7 @@ describe('Switchable runtime', () => {
             export default function Page() {
               return <p>Hello from page with invalid runtime</p>
             }
-            
+
             export const config = {
               runtime: "asd"
             }
@@ -442,11 +456,11 @@ describe('Switchable runtime', () => {
         export default function Page() {
           return <p>Hello from page without errors</p>
         }
-        
+
         export const config = {
           runtime: 'experimental-edge',
         }
-  
+
         `
         )
         await check(

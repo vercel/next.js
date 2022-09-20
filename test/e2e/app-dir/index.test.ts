@@ -20,7 +20,7 @@ describe('app dir', () => {
   }
   let next: NextInstance
 
-  function runTests({ assetPrefix }: { assetPrefix?: boolean }) {
+  function runTests() {
     beforeAll(async () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
@@ -31,15 +31,6 @@ describe('app dir', () => {
         skipStart: true,
       })
 
-      if (assetPrefix) {
-        const content = await next.readFile('next.config.js')
-        await next.patchFile(
-          'next.config.js',
-          content
-            .replace('// assetPrefix', 'assetPrefix')
-            .replace('// beforeFiles', 'beforeFiles')
-        )
-      }
       await next.start()
     })
     afterAll(() => next.destroy())
@@ -1545,11 +1536,5 @@ describe('app dir', () => {
     })
   }
 
-  describe('without assetPrefix', () => {
-    runTests({})
-  })
-
-  describe('with assetPrefix', () => {
-    runTests({ assetPrefix: true })
-  })
+  runTests()
 })
