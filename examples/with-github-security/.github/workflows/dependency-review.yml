@@ -1,0 +1,30 @@
+name: 'Dependency Review'
+
+on: [pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v3
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v2
+        with:
+          # Possible values: "critical", "high", "moderate", "low"
+          fail-on-severity: critical
+          #
+          # Possible values: Any available git ref
+          # base-ref: ${{ github.event.pull_request.base.ref }}
+          # head-ref: ${{ github.event.pull_request.head.ref }}
+          #
+          # You can only include one of these two options: `allow-licenses` and `deny-licenses`. These options are not supported on GHES.
+          #
+          # Possible values: Any `spdx_id` value(s) from https://docs.github.com/en/rest/licenses
+          # allow-licenses: GPL-3.0, BSD-3-Clause, MIT
+          #
+          # Possible values: Any `spdx_id` value(s) from https://docs.github.com/en/rest/licenses
+          # deny-licenses: LGPL-2.0, BSD-2-Clause
