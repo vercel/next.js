@@ -38,7 +38,7 @@ function MyComponent() {
 ```
 Another example:
 
-React does not tolerate having a div inside p etc so it will cause "Hydration failed because the initial UI does not match what was rendered on the server".
+Invalid HTML may cause hydration mismatch such as div inside p.
 ```jsx
 export const IncorrectComponent = ()=>{
   return(
@@ -60,7 +60,6 @@ export const CorrectComponent = ()=>{
   )
 }
 ```
-Credits : stackoverflow user : @Motsi url https://stackoverflow.com/a/71870995
 
 Common causes with css-in-js libraries:
 
