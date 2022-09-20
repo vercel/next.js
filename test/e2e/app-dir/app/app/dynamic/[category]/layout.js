@@ -1,11 +1,3 @@
-export async function getServerSideProps({ params }) {
-  return {
-    props: {
-      params,
-    },
-  }
-}
-
 export default function CategoryLayout({ children, params }) {
   return (
     <>

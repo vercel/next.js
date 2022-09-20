@@ -3,12 +3,13 @@ import { a, b, c, d, e } from '../../components/shared-exports'
 // client default, named exports
 import DefaultArrow, {
   Named as ClientNamed,
-} from '../../components/client-exports.client'
+} from '../../components/client-exports'
 
-import { Cjs as CjsShared } from '../../components/cjs'
-import { Cjs as CjsClient } from '../../components/cjs.client'
+import { Cjs as CjsShared } from '../../components/cjs-server'
+import { Cjs as CjsClient } from '../../components/cjs-client'
 
-import { One, Two, TwoAliased } from '../../components/export-all/index.client'
+// client exports all
+import { One, Two, TwoAliased } from '../../components/export-all'
 
 export default function Page() {
   return (

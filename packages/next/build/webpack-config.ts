@@ -693,6 +693,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
+    /styled-jsx[\\/]/,
   ]
 
   // Support for NODE_PATH
@@ -1474,24 +1475,22 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        ...(hasServerComponents
-          ? isNodeServer || isEdgeServer
-            ? [
-                // RSC server compilation loaders
-                {
-                  test: codeCondition.test,
-                  include: [
-                    dir,
-                    // To let the internal client components passing through flight loader
-                    /next[\\/]dist[\\/]client[\\/]/,
-                  ],
-                  issuerLayer: WEBPACK_LAYERS.server,
-                  use: {
-                    loader: 'next-flight-loader',
-                  },
+        ...(hasServerComponents && (isNodeServer || isEdgeServer)
+          ? [
+              // RSC server compilation loaders
+              {
+                test: codeCondition.test,
+                include: [
+                  dir,
+                  // To let the internal client components passing through flight loader
+                  /next[\\/]dist/,
+                ],
+                issuerLayer: WEBPACK_LAYERS.server,
+                use: {
+                  loader: 'next-flight-loader',
                 },
-              ]
-            : []
+              },
+            ]
           : []),
         ...(hasServerComponents && isEdgeServer
           ? [

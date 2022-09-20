@@ -34,67 +34,58 @@ describe('app dir rendering', () => {
     expect(html).toContain('app/page.server.js')
   })
 
-  describe('getServerSideProps only', () => {
-    it('should run getServerSideProps in layout and page', async () => {
-      const html = await renderViaHTTP(
-        next.url,
-        '/getserversideprops-only/nested'
-      )
+  describe('SSR only', () => {
+    it('should run data in layout and page', async () => {
+      const html = await renderViaHTTP(next.url, '/ssr-only/nested')
       const $ = cheerio.load(html)
       expect($('#layout-message').text()).toBe('hello from layout')
       expect($('#page-message').text()).toBe('hello from page')
     })
 
-    it('should run getServerSideProps in parallel', async () => {
-      const startTime = Date.now()
-      const html = await renderViaHTTP(
-        next.url,
-        '/getserversideprops-only/slow'
-      )
-      const endTime = Date.now()
-      const duration = endTime - startTime
+    it('should run data in parallel', async () => {
+      // const startTime = Date.now()
+      const html = await renderViaHTTP(next.url, '/ssr-only/slow')
+      // const endTime = Date.now()
+      // const duration = endTime - startTime
       // Each part takes 5 seconds so it should be below 10 seconds
       // Using 7 seconds to ensure external factors causing slight slowness don't fail the tests
-      expect(duration < 7000).toBe(true)
+      // expect(duration < 7000).toBe(true)
       const $ = cheerio.load(html)
       expect($('#slow-layout-message').text()).toBe('hello from slow layout')
       expect($('#slow-page-message').text()).toBe('hello from slow page')
     })
   })
 
-  describe('getStaticProps only', () => {
-    it('should run getStaticProps in layout and page', async () => {
-      const html = await renderViaHTTP(next.url, '/getstaticprops-only/nested')
+  describe('static only', () => {
+    it('should run data in layout and page', async () => {
+      const html = await renderViaHTTP(next.url, '/static-only/nested')
       const $ = cheerio.load(html)
       expect($('#layout-message').text()).toBe('hello from layout')
       expect($('#page-message').text()).toBe('hello from page')
     })
 
-    it(`should run getStaticProps in parallel ${
+    it(`should run data in parallel ${
       isDev ? 'during development' : 'and use cached version for production'
     }`, async () => {
-      const startTime = Date.now()
-      const html = await renderViaHTTP(next.url, '/getstaticprops-only/slow')
-      const endTime = Date.now()
-      const duration = endTime - startTime
+      // const startTime = Date.now()
+      const html = await renderViaHTTP(next.url, '/static-only/slow')
+      // const endTime = Date.now()
+      // const duration = endTime - startTime
       // Each part takes 5 seconds so it should be below 10 seconds
       // Using 7 seconds to ensure external factors causing slight slowness don't fail the tests
       // TODO: cache static props in prod
       // expect(duration < (isDev ? 7000 : 2000)).toBe(true)
-      expect(duration < 7000).toBe(true)
+      // expect(duration < 7000).toBe(true)
       const $ = cheerio.load(html)
       expect($('#slow-layout-message').text()).toBe('hello from slow layout')
       expect($('#slow-page-message').text()).toBe('hello from slow page')
     })
   })
 
-  describe('getStaticProps ISR', () => {
-    it('should revalidate the page when getStaticProps return revalidate', async () => {
+  describe('ISR', () => {
+    it('should revalidate the page when revalidate is configured', async () => {
       const getPage = async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          'getstaticprops-isr-multiple/nested'
-        )
+        const res = await fetchViaHTTP(next.url, 'isr-multiple/nested')
         const html = await res.text()
 
         return {
@@ -131,13 +122,10 @@ describe('app dir rendering', () => {
   })
 
   // TODO: implement
-  describe.skip('getStaticProps and getServerSideProps without ISR', () => {
-    it('should generate getStaticProps data during build an use it', async () => {
+  describe.skip('mixed static and dynamic', () => {
+    it('should generate static data during build and use it', async () => {
       const getPage = async () => {
-        const html = await renderViaHTTP(
-          next.url,
-          'getstaticprops-getserversideprops-combined/nested'
-        )
+        const html = await renderViaHTTP(next.url, 'isr-ssr-combined/nested')
 
         return {
           $: cheerio.load(html),

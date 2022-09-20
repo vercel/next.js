@@ -2,7 +2,7 @@
 
 import type { PropsWithChildren, ReactElement, ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -29,14 +29,22 @@ import {
 } from './hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 
+function urlToUrlWithoutFlightParameters(url: string): URL {
+  const urlWithoutFlightParameters = new URL(url, location.origin)
+  urlWithoutFlightParameters.searchParams.delete('__flight__')
+  urlWithoutFlightParameters.searchParams.delete('__flight_router_state_tree__')
+  urlWithoutFlightParameters.searchParams.delete('__flight_prefetch__')
+  return urlWithoutFlightParameters
+}
+
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
  */
-function fetchFlight(
+export async function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
   prefetch?: true
-): ReadableStream {
+): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
   // Enable flight response
@@ -50,26 +58,14 @@ function fetchFlight(
     searchParams.append('__flight_prefetch__', '1')
   }
 
-  // TODO-APP: Verify that TransformStream is supported.
-  const { readable, writable } = new TransformStream()
+  const res = await fetch(flightUrl.toString())
+  const canonicalUrl = res.redirected
+    ? urlToUrlWithoutFlightParameters(res.url)
+    : undefined
 
-  fetch(flightUrl.toString()).then((res) => {
-    res.body?.pipeTo(writable)
-  })
-
-  return readable
-}
-
-/**
- * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
- */
-export function fetchServerResponse(
-  url: URL,
-  flightRouterState: FlightRouterState,
-  prefetch?: true
-): Promise<FlightData> {
   // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-  return createFromReadableStream(fetchFlight(url, flightRouterState, prefetch))
+  const flightData: FlightData = await createFromFetch(Promise.resolve(res))
+  return [flightData, canonicalUrl]
 }
 
 /**
@@ -156,11 +152,16 @@ export default function AppRouter({
    * Server response that only patches the cache and tree.
    */
   const changeByServerResponse = useCallback(
-    (previousTree: FlightRouterState, flightData: FlightData) => {
+    (
+      previousTree: FlightRouterState,
+      flightData: FlightData,
+      overrideCanonicalUrl: URL | undefined
+    ) => {
       dispatch({
         type: ACTION_SERVER_PATCH,
         flightData,
         previousTree,
+        overrideCanonicalUrl,
         cache: {
           data: null,
           subTreeData: null,
@@ -208,19 +209,18 @@ export default function AppRouter({
 
         try {
           // TODO-APP: handle case where history.state is not the new router history entry
-          const r = fetchServerResponse(
+          const serverResponse = await fetchServerResponse(
             url,
             // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
             window.history.state?.tree || initialTree,
             true
           )
-          const flightData = await r
           // @ts-ignore startTransition exists
           React.startTransition(() => {
             dispatch({
               type: ACTION_PREFETCH,
               url,
-              flightData,
+              serverResponse,
             })
           })
         } catch (err) {

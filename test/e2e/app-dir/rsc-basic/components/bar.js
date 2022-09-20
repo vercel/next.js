@@ -1,4 +1,4 @@
-import Foo from './foo.client'
+import Foo from './foo'
 
 export default function Bar() {
   return (

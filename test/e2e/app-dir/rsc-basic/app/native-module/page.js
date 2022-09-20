@@ -1,6 +1,6 @@
 import fs from 'fs'
 
-import Foo from '../../components/foo.client'
+import Foo from '../../components/foo'
 
 export default function Page() {
   return (

@@ -1,5 +1,5 @@
 // CSS modules can only be imported inside client components for now.
-import RedText from '../../components/red/index.client'
+import RedText from '../../components/red/index'
 
 export default function CSSM() {
   return (

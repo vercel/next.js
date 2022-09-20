@@ -1,9 +1,5 @@
 import Widget from './components/widget'
 
-export function getServerSideProps({ params }) {
-  return { props: { params } }
-}
-
 export default function Page({ params }) {
   return (
     <>

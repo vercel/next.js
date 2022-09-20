@@ -1,16 +1,18 @@
-export async function getServerSideProps() {
+import { experimental_use as use } from 'react'
+
+async function getData() {
   await new Promise((resolve) => setTimeout(resolve, 1000))
   return {
-    props: {
-      message: 'hello from slow layout',
-    },
+    message: 'hello from slow layout',
   }
 }
 
 export default function SlowLayout(props) {
+  const data = use(getData())
+
   return (
     <>
-      <p id="slow-layout-message">{props.message}</p>
+      <p id="slow-layout-message">{data.message}</p>
       {props.children}
     </>
   )
