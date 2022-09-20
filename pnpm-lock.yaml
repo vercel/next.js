@@ -96,6 +96,7 @@ importers:
       eslint-plugin-react-hooks: 4.5.0
       event-stream: 4.0.1
       execa: 2.0.3
+      expect-type: 0.14.2
       express: 4.17.0
       faker: 5.5.3
       faunadb: 2.6.1
@@ -251,6 +252,7 @@ importers:
       eslint-plugin-react-hooks: 4.5.0_eslint@7.24.0
       event-stream: 4.0.1
       execa: 2.0.3
+      expect-type: 0.14.2
       express: 4.17.0
       faker: 5.5.3
       faunadb: 2.6.1
@@ -14086,6 +14088,13 @@ packages:
     engines: { node: '>=0.10.0' }
     dependencies:
       homedir-polyfill: 1.0.3
+    dev: true
+
+  /expect-type/0.14.2:
+    resolution:
+      {
+        integrity: sha512-ed3+tr5ujbIYXZ8Pl/VgIphwJQ0q5tBLGGdn7Zvwt1WyPBRX83xjT5pT77P/GkuQbctx0K2ZNSSan7eruJqTCQ==,
+      }
     dev: true
 
   /expect/26.6.2:
