@@ -1,7 +1,8 @@
 use anyhow::Result;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{Callee, Expr, ExprOrSpread, Ident},
+    ecma::ast::{Callee, Expr, ExprOrSpread, Ident, Lit, Str},
+    quote,
 };
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
@@ -106,6 +107,15 @@ impl ChunkableAssetReference for CjsRequireAssetReference {
     }
 }
 
+/// Creates a IIFE that throws an error with the given error message.
+fn throw_expr(message: Str) -> Expr {
+    let message_arg = Expr::Lit(Lit::Str(message));
+    quote!(
+        "function() { throw new Error($arg) }()" as Expr,
+        arg: Expr = message_arg
+    )
+}
+
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireAssetReference {
     #[turbo_tasks::function]
@@ -125,8 +135,10 @@ impl CodeGenerateable for CjsRequireAssetReference {
 
         let path = &self.path.await?;
         if let PatternMapping::Invalid = &*pm {
+            let request_string = self.request.to_string().await?.clone();
             visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-                *expr = Expr::Ident(Ident::new("undefined".into(), DUMMY_SP));
+                // In Node.js, a require call that cannot be resolved will throw an error.
+                *expr = throw_expr(format!("Cannot find {request_string}").into());
             }));
         } else {
             visitors.push(
@@ -209,8 +221,10 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
 
         let path = &self.path.await?;
         if let PatternMapping::Invalid = &*pm {
+            let request_string = self.request.to_string().await?.clone();
             visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-                *expr = Expr::Ident(Ident::new("undefined".into(), DUMMY_SP));
+                // In Node.js, a require.resolve call that cannot be resolved will throw an error.
+                *expr = throw_expr(format!("Cannot find {request_string}").into());
             }));
         } else {
             // Inline the result of the `require.resolve` call as a string literal.
