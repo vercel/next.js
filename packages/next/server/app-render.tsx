@@ -76,14 +76,14 @@ function createErrorHandler(
   _source: string
 ) {
   return (err: any) => {
-    const { DynamicServerError } =
-      require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
-
     if (
-      !(err instanceof DynamicServerError) &&
+      // Use error message instead of type because HTML renderer uses Flight data which is serialized so it's not the same object instance.
+      err?.message !== 'Dynamic server usage' &&
       // TODO-APP: Handle redirect throw
       err.code !== REDIRECT_ERROR_CODE
     ) {
+      // Used for debugging error source
+      // console.error(_source, err)
       console.error(err)
     }
 
