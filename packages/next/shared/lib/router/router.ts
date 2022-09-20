@@ -307,7 +307,7 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // we'll format them into the string version here.
   let [resolvedHref, resolvedAs] = resolveHref(router, url, true)
   const origin = getLocationOrigin()
-  const hrefHadOrigin = resolvedHref.startsWith(origin) && stripOrigin(resolvedHref).indexOf('/') == 0
+  const hrefHadOrigin = resolvedHref.startsWith(origin)
   const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
 
   resolvedHref = stripOrigin(resolvedHref)
