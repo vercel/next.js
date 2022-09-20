@@ -11,6 +11,7 @@ mod command;
 mod nft_bench;
 mod publish;
 mod summarize_bench;
+mod visualize_bundler_bench;
 
 use nft_bench::show_result;
 use publish::{publish_workspace, run_bump, run_publish};
@@ -50,6 +51,11 @@ fn cli() -> Command<'static> {
                     "Normalize all raw data based on similar benchmarks, average data by \
                      system+sha and compute latest by system",
                 )
+                .arg(arg!(<PATH> "the path to the benchmark data directory")),
+        )
+        .subcommand(
+            Command::new("visualize-bundler-benchmarks")
+                .about("Generate visualizations of bundler benchmarks")
                 .arg(arg!(<PATH> "the path to the benchmark data directory")),
         )
 }
@@ -143,6 +149,14 @@ fn main() {
             let path = PathBuf::from(path);
             let path = path.canonicalize().unwrap();
             summarize_bench::process_all(path);
+        }
+        Some(("visualize-bundler-benchmarks", sub_matches)) => {
+            let path = sub_matches
+                .get_one::<String>("PATH")
+                .expect("PATH is required");
+            let path = PathBuf::from(path);
+            let path = path.canonicalize().unwrap();
+            visualize_bundler_bench::generate(path).unwrap();
         }
         _ => {
             panic!("Unknown command {:?}", matches.subcommand().map(|c| c.0));

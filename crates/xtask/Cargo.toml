@@ -17,6 +17,7 @@ chrono = "0.4.22"
 clap = { version = "3.2.1", features = ["derive"] }
 inquire = { version = "0.3.0-alpha.2" }
 owo-colors = "3"
+plotters = { version = "0.3.4", features = ["full_palette"] }
 semver = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"

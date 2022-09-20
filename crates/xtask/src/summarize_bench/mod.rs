@@ -1,4 +1,4 @@
-mod data;
+pub(crate) mod data;
 
 use std::{
     collections::{hash_map::Entry, BTreeMap, HashMap, HashSet},
