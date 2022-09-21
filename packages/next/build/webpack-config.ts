@@ -1010,13 +1010,17 @@ export default async function getBaseWebpackConfig(
     const resolveWithReactServerCondition =
       layer === WEBPACK_LAYERS.server
         ? getResolve({
-            alias: {
-              ...reactAliases,
-              'react/package.json': `${reactDir}/package.json`,
-              'react/jsx-runtime': `${reactDir}/jsx-runtime`,
-              'react/jsx-dev-runtime': `${reactDir}/jsx-dev-runtime`,
-              'react-dom/package.json': `${reactDomDir}/package.json`,
-            },
+            // If React is aliased to another channel during Next.js' local development,
+            // we need to provide that alias to webpack's resolver.
+            alias: process.env.__NEXT_REACT_CHANNEL
+              ? {
+                  ...reactAliases,
+                  'react/package.json': `${reactDir}/package.json`,
+                  'react/jsx-runtime': `${reactDir}/jsx-runtime`,
+                  'react/jsx-dev-runtime': `${reactDir}/jsx-dev-runtime`,
+                  'react-dom/package.json': `${reactDomDir}/package.json`,
+                }
+              : false,
             conditionNames: ['react-server'],
           })
         : null
