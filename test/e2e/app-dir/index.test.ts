@@ -38,13 +38,28 @@ describe('app dir', () => {
     it('should use application/octet-stream for flight', async () => {
       const res = await fetchViaHTTP(
         next.url,
-        '/dashboard/deployments/123?__flight__'
+        '/dashboard/deployments/123',
+        {},
+        {
+          headers: {
+            __flight__: '1',
+          },
+        }
       )
       expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
     })
 
     it('should use application/octet-stream for flight with edge runtime', async () => {
-      const res = await fetchViaHTTP(next.url, '/dashboard?__flight__')
+      const res = await fetchViaHTTP(
+        next.url,
+        '/dashboard',
+        {},
+        {
+          headers: {
+            __flight__: '1',
+          },
+        }
+      )
       expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
     })
 

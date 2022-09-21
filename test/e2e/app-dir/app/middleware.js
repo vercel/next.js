@@ -20,7 +20,7 @@ export function middleware(request) {
       : 'redirect'
 
     const internal = ['__flight__', '__flight_router_state_tree__']
-    if (internal.some((name) => request.nextUrl.searchParams.has(name))) {
+    if (internal.some((name) => request.headers.has(name))) {
       return NextResponse[method](new URL('/internal/failure', request.url))
     }
 
