@@ -63,7 +63,6 @@
     "@next/bundle-analyzer": "workspace:*",
     "@next/env": "workspace:*",
     "@next/eslint-plugin-next": "workspace:*",
-    "@next/font": "workspace:*",
     "@next/mdx": "workspace:*",
     "@next/plugin-storybook": "workspace:*",
     "@next/polyfill-module": "workspace:*",
