@@ -493,6 +493,57 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
+function isNavigatingToNewRootLayout(
+  loaderTree: LoaderTree,
+  flightRouterState: FlightRouterState
+): boolean {
+  const getRootLayoutPath = (
+    [segment, parallelRoutes, { layout }]: LoaderTree,
+    rootLayoutPath = ''
+  ): string | undefined => {
+    rootLayoutPath += `${segment}/`
+    const isLayout = typeof layout !== 'undefined'
+    if (isLayout) return rootLayoutPath
+    // Will never be anything else than `children`, parallel routes layout will have already been found
+    const child = parallelRoutes.children
+    if (!child) return
+    return getRootLayoutPath(child, rootLayoutPath)
+  }
+
+  const findRootLayoutInFlightRouterState = (
+    [segment, parallelRoutes]: FlightRouterState,
+    rootLayoutSegments: string,
+    segments = ''
+  ): boolean => {
+    segments += `${segment}/`
+    if (segments === rootLayoutSegments) {
+      return true
+    } else if (segments.length > rootLayoutSegments.length) {
+      return false
+    }
+    const child = parallelRoutes.children
+    if (!child) return false
+    return findRootLayoutInFlightRouterState(
+      child,
+      rootLayoutSegments,
+      segments
+    )
+  }
+
+  const newRootLayout = getRootLayoutPath(loaderTree)
+  // should always be a root layout
+  if (newRootLayout) {
+    const hasSameRootLayout = findRootLayoutInFlightRouterState(
+      flightRouterState,
+      newRootLayout
+    )
+
+    return !hasSameRootLayout
+  }
+
+  return false
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -548,8 +599,7 @@ export async function renderToHTMLOrFlight(
     const isFlight = query.__flight__ !== undefined
     const isPrefetch = query.__flight_prefetch__ !== undefined
 
-    // Handle client-side navigation to pages directory
-    if (isFlight && isPagesDir) {
+    const doFullPageNavigation = () => {
       stripInternalQueries(query)
       const search = stringifyQuery(query)
 
@@ -560,6 +610,11 @@ export async function renderToHTMLOrFlight(
           onError: flightDataRendererErrorHandler,
         }).pipeThrough(createBufferedTransformStream())
       )
+    }
+
+    // Handle client-side navigation to pages directory
+    if (isFlight && isPagesDir) {
+      return doFullPageNavigation()
     }
 
     // TODO-APP: verify the tree is valid
@@ -573,6 +628,20 @@ export async function renderToHTMLOrFlight(
         ? JSON.parse(query.__flight_router_state_tree__ as string)
         : {}
       : undefined
+
+    /**
+     * The tree created in next-app-loader that holds component segments and modules
+     */
+    const loaderTree: LoaderTree = ComponentMod.tree
+
+    // If navigating to a new root layout we need to do a full page navigation.
+    if (
+      isFlight &&
+      providedFlightRouterState &&
+      isNavigatingToNewRootLayout(loaderTree, providedFlightRouterState)
+    ) {
+      return doFullPageNavigation()
+    }
 
     stripInternalQueries(query)
 
@@ -588,11 +657,6 @@ export async function renderToHTMLOrFlight(
     // TODO-APP: fix type of req
     // @ts-expect-error
     const cookies = req.cookies
-
-    /**
-     * The tree created in next-app-loader that holds component segments and modules
-     */
-    const loaderTree: LoaderTree = ComponentMod.tree
 
     const tryGetPreviewData =
       process.env.NEXT_RUNTIME === 'edge'
