@@ -390,6 +390,9 @@ const configSchema = {
         workerThreads: {
           type: 'boolean',
         },
+        fontLoaders: {
+          type: 'object',
+        },
       },
       type: 'object',
     },

@@ -151,6 +151,7 @@ export interface ExperimentalConfig {
     algorithm?: SubresourceIntegrityAlgorithm
   }
   adjustFontFallbacks?: boolean
+  fontLoaders?: { [fontLoader: string]: any }
 }
 
 export type ExportPathMap = {
