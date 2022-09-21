@@ -318,81 +318,80 @@ impl<B: Backend> TurboTasks<B> {
     }
 
     pub(crate) fn schedule(&self, task_id: TaskId) {
-        let this = self.pin();
         self.begin_primary_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
+
         #[cfg(feature = "tokio_tracing")]
-        let description = this.backend.get_task_description(task_id);
+        let description = self.backend.get_task_description(task_id);
+
+        let this = self.pin();
+        let future = async move {
+            loop {
+                if this.stopped.load(Ordering::Acquire) {
+                    break;
+                }
+                if let Some(execution) = this.backend.try_start_task_execution(task_id, &*this) {
+                    // Setup thread locals
+                    let has_cell_mappings = execution.cell_mappings.is_some();
+
+                    let cell_mappings = RefCell::new(execution.cell_mappings.unwrap_or_default());
+                    let (result, duration, cell_mappings) = PREVIOUS_CELLS
+                        .scope(cell_mappings, async {
+                            let (result, duration) =
+                                TimedFuture::new(AssertUnwindSafe(execution.future).catch_unwind())
+                                    .await;
+                            let cell_mappings = if has_cell_mappings {
+                                Some(PREVIOUS_CELLS.with(|s| take(&mut *s.borrow_mut())))
+                            } else {
+                                None
+                            };
+                            (result, duration, cell_mappings)
+                        })
+                        .await;
+                    if duration.as_millis() > 1000 {
+                        println!(
+                            "{} took {}",
+                            this.backend.get_task_description(task_id),
+                            FormatDuration(duration)
+                        )
+                    }
+                    let result = result.map_err(|any| match any.downcast::<String>() {
+                        Ok(owned) => Some(Cow::Owned(*owned)),
+                        Err(any) => match any.downcast::<&'static str>() {
+                            Ok(str) => Some(Cow::Borrowed(*str)),
+                            Err(_) => None,
+                        },
+                    });
+                    this.backend.task_execution_result(task_id, result, &*this);
+                    this.notify_scheduled_tasks_internal();
+                    let reexecute = this.backend.task_execution_completed(
+                        task_id,
+                        cell_mappings,
+                        duration,
+                        &*this,
+                    );
+                    if !reexecute {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            this.finish_primary_job();
+            anyhow::Ok(())
+        };
+
         let future = TURBO_TASKS.scope(
-            this.clone(),
+            self.pin(),
             CURRENT_TASK_ID.scope(
                 task_id,
                 TASKS_TO_NOTIFY.scope(
                     Default::default(),
-                    self.backend.execution_scope(task_id, async move {
-                        loop {
-                            if this.stopped.load(Ordering::Acquire) {
-                                break;
-                            }
-                            if let Some(execution) =
-                                this.backend.try_start_task_execution(task_id, &*this)
-                            {
-                                // Setup thread locals
-                                let has_cell_mappings = execution.cell_mappings.is_some();
-
-                                let cell_mappings =
-                                    RefCell::new(execution.cell_mappings.unwrap_or_default());
-                                let (result, duration, cell_mappings) = PREVIOUS_CELLS
-                                    .scope(cell_mappings, async {
-                                        let (result, duration) = TimedFuture::new(
-                                            AssertUnwindSafe(execution.future).catch_unwind(),
-                                        )
-                                        .await;
-                                        let cell_mappings = if has_cell_mappings {
-                                            Some(
-                                                PREVIOUS_CELLS.with(|s| take(&mut *s.borrow_mut())),
-                                            )
-                                        } else {
-                                            None
-                                        };
-                                        (result, duration, cell_mappings)
-                                    })
-                                    .await;
-                                if duration.as_millis() > 1000 {
-                                    println!(
-                                        "{} took {}",
-                                        this.backend.get_task_description(task_id),
-                                        FormatDuration(duration)
-                                    )
-                                }
-                                let result = result.map_err(|any| match any.downcast::<String>() {
-                                    Ok(owned) => Some(Cow::Owned(*owned)),
-                                    Err(any) => match any.downcast::<&'static str>() {
-                                        Ok(str) => Some(Cow::Borrowed(*str)),
-                                        Err(_) => None,
-                                    },
-                                });
-                                this.backend.task_execution_result(task_id, result, &*this);
-                                this.notify_scheduled_tasks_internal();
-                                let reexecute = this.backend.task_execution_completed(
-                                    task_id,
-                                    cell_mappings,
-                                    duration,
-                                    &*this,
-                                );
-                                if !reexecute {
-                                    break;
-                                }
-                            } else {
-                                break;
-                            }
-                        }
-                        this.finish_primary_job();
-                        Ok::<(), anyhow::Error>(())
-                    }),
+                    self.backend.execution_scope(task_id, future),
                 ),
             ),
         );
+
         #[cfg(feature = "tokio_tracing")]
         tokio::task::Builder::new().name(&description).spawn(future);
         #[cfg(not(feature = "tokio_tracing"))]

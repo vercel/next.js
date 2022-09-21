@@ -86,6 +86,7 @@ pub use value_type::{
     TraitMethod, TraitType, Typed, TypedForInput, ValueTraitVc, ValueType, ValueVc,
 };
 
+#[doc(hidden)]
 pub mod macro_helpers {
     pub use once_cell::sync::{Lazy, OnceCell};
 

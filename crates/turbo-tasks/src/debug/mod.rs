@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 pub use turbo_tasks_macros::ValueDebugFormat;
 
@@ -16,13 +16,13 @@ use internal::PassthroughDebug;
 #[turbo_tasks::value]
 pub struct ValueDebugString(String);
 
-impl std::fmt::Debug for ValueDebugString {
+impl Debug for ValueDebugString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
     }
 }
 
-impl std::fmt::Display for ValueDebugString {
+impl Display for ValueDebugString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
     }
@@ -47,7 +47,7 @@ impl ValueDebugStringVc {
 ///
 /// # Usage
 ///
-/// ```rust
+/// ```ignore
 /// dbg!(any_vc.dbg().await?);
 /// ```
 #[turbo_tasks::value_trait(no_debug)]
@@ -69,7 +69,7 @@ pub trait ValueDebugFormat {
 // [1] https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
 impl<T> ValueDebugFormat for &T
 where
-    T: std::fmt::Debug,
+    T: Debug,
 {
     fn value_debug_format(&self) -> ValueDebugFormatString {
         ValueDebugFormatString::Sync(format!("{:#?}", self))
@@ -108,6 +108,7 @@ where
             .iter()
             .map(|value| value.value_debug_format())
             .collect::<Vec<_>>();
+
         ValueDebugFormatString::Async(Box::pin(async move {
             let mut values_string = vec![];
             for value in values {
@@ -125,6 +126,34 @@ where
     }
 }
 
+impl<K, V> ValueDebugFormat for std::collections::HashMap<K, V>
+where
+    K: Debug,
+    V: ValueDebugFormat,
+{
+    fn value_debug_format(&self) -> ValueDebugFormatString {
+        let values = self
+            .iter()
+            .map(|(key, value)| (format!("{:#?}", key), value.value_debug_format()))
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = std::collections::HashMap::new();
+            for (key, value) in values {
+                match value {
+                    ValueDebugFormatString::Sync(string) => {
+                        values_string.insert(key, PassthroughDebug::new_string(string));
+                    }
+                    ValueDebugFormatString::Async(future) => {
+                        values_string.insert(key, PassthroughDebug::new_string(future.await?));
+                    }
+                }
+            }
+            Ok(format!("{:#?}", values_string))
+        }))
+    }
+}
+
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: ValueDebugFormat),+> ValueDebugFormat for ($($name,)+)
@@ -133,6 +162,7 @@ macro_rules! tuple_impls {
             fn value_debug_format(&self) -> ValueDebugFormatString {
                 let ($($name,)+) = self;
                 let ($($name,)+) = ($($name.value_debug_format(),)+);
+
                 ValueDebugFormatString::Async(Box::pin(async move {
                     let values = ($(PassthroughDebug::new_string($name.try_to_string().await?),)+);
                     Ok(format!("{:#?}", values))

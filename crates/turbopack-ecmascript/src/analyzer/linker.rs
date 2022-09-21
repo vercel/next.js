@@ -258,9 +258,8 @@ where
                     val.normalize_shallow();
                 }
 
-                let m;
-                (val, m) = val.visit_async_until_settled(&mut visitor).await?;
-                if m {
+                let (val, visit_modified) = val.visit_async_until_settled(&mut visitor).await?;
+                if visit_modified {
                     if val.total_nodes() > LIMIT_NODE_SIZE {
                         done.push((JsValue::Unknown(None, "node limit reached"), true));
                         break;

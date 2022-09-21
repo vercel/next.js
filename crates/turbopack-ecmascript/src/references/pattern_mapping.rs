@@ -119,7 +119,9 @@ impl PatternMappingVc {
                 CodeGenerationIssue {
                     severity: IssueSeverity::Bug.into(),
                     code: None,
-                    title: StringVc::cell("not implemented result for pattern mapping".to_string()),
+                    title: StringVc::cell(
+                        "pattern mapping is not implemented for this result".to_string(),
+                    ),
                     message: StringVc::cell(format!(
                         "the reference resolves to a non-trivial result, which is not supported \
                          yet: {:?}",

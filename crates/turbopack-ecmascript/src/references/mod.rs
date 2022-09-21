@@ -1240,9 +1240,9 @@ async fn value_visitor(
     v: JsValue,
     environment: EnvironmentVc,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, m) = value_visitor_inner(source, context, v, environment).await?;
+    let (mut v, modified) = value_visitor_inner(source, context, v, environment).await?;
     v.normalize_shallow();
-    Ok((v, m))
+    Ok((v, modified))
 }
 
 async fn value_visitor_inner(
@@ -1363,9 +1363,9 @@ async fn value_visitor_inner(
                 "cross function analyzing is not yet supported",
             ),
             _ => {
-                let (mut v, m1) = replace_well_known(v, environment).await?;
-                let m2 = replace_builtin(&mut v);
-                return Ok((v, m1 || m2));
+                let (mut v, mut modified) = replace_well_known(v, environment).await?;
+                modified = replace_builtin(&mut v) || modified;
+                return Ok((v, modified));
             }
         },
         true,
@@ -1443,6 +1443,7 @@ struct AssetReferencesVisitor<'a> {
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
 }
+
 impl<'a> AssetReferencesVisitor<'a> {
     fn new(
         eval_context: &'a EvalContext,
@@ -1527,6 +1528,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         self.analysis.add_code_gen(EsmModuleItemVc::new(path));
         export.visit_children_with_path(self, ast_path);
     }
+
     fn visit_named_export<'ast: 'r, 'r>(
         &mut self,
         export: &'ast NamedExport,
@@ -1583,6 +1585,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         self.analysis.add_code_gen(EsmModuleItemVc::new(path));
         export.visit_children_with_path(self, ast_path);
     }
+
     fn visit_export_decl<'ast: 'r, 'r>(
         &mut self,
         export: &'ast ExportDecl,
@@ -1598,6 +1601,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
             ))));
         export.visit_children_with_path(self, ast_path);
     }
+
     fn visit_export_default_expr<'ast: 'r, 'r>(
         &mut self,
         export: &'ast ExportDefaultExpr,
@@ -1613,6 +1617,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
             ))));
         export.visit_children_with_path(self, ast_path);
     }
+
     fn visit_export_default_decl<'ast: 'r, 'r>(
         &mut self,
         export: &'ast ExportDefaultDecl,
@@ -1640,6 +1645,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
             ))));
         export.visit_children_with_path(self, ast_path);
     }
+
     fn visit_import_decl<'ast: 'r, 'r>(
         &mut self,
         import: &'ast ImportDecl,

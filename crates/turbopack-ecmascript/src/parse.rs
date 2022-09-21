@@ -21,14 +21,19 @@ use swc_core::{
         ast::{EsVersion, Module, Program},
         parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig},
         transforms::{
-            base::{helpers::Helpers, resolver},
-            react::react,
+            base::{
+                feature::FeatureFlag,
+                helpers::{Helpers, HELPERS},
+                resolver,
+            },
+            module::{common_js, util::ImportInterop},
+            react::{react, RefreshOptions},
         },
         visit::{FoldWith, VisitMutWith},
     },
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString};
-use turbo_tasks_fs::FileContent;
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetVc,
     code_builder::{EncodedSourceMap, EncodedSourceMapVc},
@@ -220,156 +225,186 @@ pub async fn parse(
     let transforms = transforms.await?;
     Ok(match &*content.await? {
         FileContent::NotFound => ParseResult::NotFound.into(),
-        FileContent::Content(file) => match String::from_utf8(file.content().to_vec()) {
-            Err(_err) => ParseResult::Unparseable.into(),
-            Ok(string) => {
-                let cm: Lrc<SourceMap> = Default::default();
-                let handler = Handler::with_emitter(
-                    true,
-                    false,
-                    box IssueEmitter {
-                        source,
-                        title: Some("Parsing failed".to_string()),
-                    },
-                );
-
-                let file_name = FileName::Custom(fs_path);
-                let fm = cm.new_source_file(file_name.clone(), string);
-
-                let comments = SingleThreadedComments::default();
-                let lexer = Lexer::new(
-                    match ty {
-                        ModuleAssetType::Ecmascript => Syntax::Es(EsConfig {
-                            jsx: true,
-                            fn_bind: true,
-                            decorators: true,
-                            decorators_before_export: true,
-                            export_default_from: true,
-                            import_assertions: true,
-                            private_in_object: true,
-                            allow_super_outside_method: true,
-                            allow_return_outside_function: true,
-                        }),
-                        ModuleAssetType::Typescript => Syntax::Typescript(TsConfig {
-                            decorators: true,
-                            dts: false,
-                            no_early_errors: true,
-                            tsx: true,
-                        }),
-                        ModuleAssetType::TypescriptDeclaration => Syntax::Typescript(TsConfig {
-                            decorators: true,
-                            dts: true,
-                            no_early_errors: true,
-                            tsx: true,
-                        }),
-                    },
-                    EsVersion::latest(),
-                    StringInput::from(&*fm),
-                    Some(&comments),
-                );
-
-                let mut parser = Parser::new_from(lexer);
-
-                let mut has_errors = false;
-                for e in parser.take_errors() {
-                    e.into_diagnostic(&handler).emit();
-                    has_errors = true
-                }
-
-                if has_errors {
-                    return Ok(ParseResult::Unparseable.into());
-                }
-
-                match parser.parse_program() {
-                    Err(e) => {
-                        e.into_diagnostic(&handler).emit();
-                        return Ok(ParseResult::Unparseable.into());
-                    }
-                    Ok(mut parsed_program) => {
-                        drop(parser);
-                        let globals = Globals::new();
-                        let eval_context = GLOBALS.set(&globals, || {
-                                let unresolved_mark = Mark::new();
-                                let top_level_mark = Mark::new();
-                                HANDLER.set(&handler, || {
-                                    parsed_program.visit_mut_with(&mut resolver(
-                                        unresolved_mark,
-                                        top_level_mark,
-                                        false,
-                                    ));
-
-                                    swc_core::ecma::transforms::base::helpers::HELPERS.set(
-                                        &Helpers::new(true),
-                                        || {
-                                            for transform in transforms.iter() {
-                                                match transform {
-                                                    EcmascriptInputTransform::React { refresh } => {
-                                                        parsed_program.visit_mut_with(&mut react(
-                                                            cm.clone(),
-                                                            Some(comments.clone()),
-                                                            swc_core::ecma::transforms::react::Options {
-                                                                runtime: Some(
-                                                                    swc_core::ecma::transforms::react::Runtime::Automatic,
-                                                                ),
-                                                                refresh: if *refresh {
-                                                                    Some(
-                                                                        swc_core::ecma::transforms::react::RefreshOptions {
-                                                                            ..Default::default()
-                                                                        }
-                                                                    )
-                                                                } else { None },
-                                                                ..Default::default()
-                                                            },
-                                                            top_level_mark,
-                                                        ));
-                                                    }
-                                                    EcmascriptInputTransform::CommonJs => {
-                                                        parsed_program.visit_mut_with(
-                                                            &mut swc_core::ecma::transforms::module::common_js(
-                                                                unresolved_mark,
-                                                                swc_core::ecma::transforms::module::util::Config {
-                                                                    allow_top_level_this: true,
-                                                                    import_interop: Some(swc_core::ecma::transforms::module::util::ImportInterop::Swc),
-                                                                    ..Default::default()
-                                                                },
-                                                                swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
-                                                                Some(comments.clone()),
-                                                            ),
-                                                        );
-                                                    },
-                                                    EcmascriptInputTransform::StyledJsx => {
-                                                        // Modeled after https://github.com/swc-project/plugins/blob/ae735894cdb7e6cfd776626fe2bc580d3e80fed9/packages/styled-jsx/src/lib.rs
-                                                        let real_parsed_program = std::mem::replace(&mut parsed_program, Program::Module(Module::dummy()));
-                                                        parsed_program = real_parsed_program.fold_with(&mut styled_jsx::styled_jsx(cm.clone(), file_name.clone()));
-                                                    },
-                                                    EcmascriptInputTransform::TypeScript => {
-                                                        use swc_core::ecma::transforms::typescript::strip;
-
-                                                        parsed_program.visit_mut_with(&mut strip(top_level_mark));
-                                                    }
-                                                    EcmascriptInputTransform::Custom => todo!()
-                                                }
-                                            }
-                                        },
-                                    );
-                                });
-
-                                EvalContext::new(&parsed_program, unresolved_mark)
-                            });
-
-                        let (mut leading, mut trailing) = comments.take_all();
-                        ParseResult::Ok {
-                            program: parsed_program,
-                            leading_comments: take(Rc::make_mut(&mut leading)).into_inner(),
-                            trailing_comments: take(Rc::make_mut(&mut trailing)).into_inner(),
-                            eval_context,
-                            globals,
-                            source_map: cm,
-                        }
-                        .into()
-                    }
-                }
-            }
-        },
+        FileContent::Content(file) => parse_file(file, fs_path, source, ty, &*transforms)?,
     })
+}
+
+fn parse_file(
+    file: &File,
+    path: String,
+    source: AssetVc,
+    ty: ModuleAssetType,
+    transforms: &[EcmascriptInputTransform],
+) -> Result<ParseResultVc> {
+    let string = match String::from_utf8(file.content().to_vec()) {
+        Ok(string) => string,
+        // FIXME: report error
+        Err(_err) => return Ok(ParseResult::Unparseable.into()),
+    };
+
+    let source_map: Arc<SourceMap> = Default::default();
+    let handler = Handler::with_emitter(
+        true,
+        false,
+        box IssueEmitter {
+            source,
+            title: Some("Parsing failed".to_string()),
+        },
+    );
+
+    let file_name = FileName::Custom(path);
+    let fm = source_map.new_source_file(file_name.clone(), string);
+
+    let comments = SingleThreadedComments::default();
+    let lexer = Lexer::new(
+        match ty {
+            ModuleAssetType::Ecmascript => Syntax::Es(EsConfig {
+                jsx: true,
+                fn_bind: true,
+                decorators: true,
+                decorators_before_export: true,
+                export_default_from: true,
+                import_assertions: true,
+                private_in_object: true,
+                allow_super_outside_method: true,
+                allow_return_outside_function: true,
+            }),
+            ModuleAssetType::Typescript => Syntax::Typescript(TsConfig {
+                decorators: true,
+                dts: false,
+                no_early_errors: true,
+                tsx: true,
+            }),
+            ModuleAssetType::TypescriptDeclaration => Syntax::Typescript(TsConfig {
+                decorators: true,
+                dts: true,
+                no_early_errors: true,
+                tsx: true,
+            }),
+        },
+        EsVersion::latest(),
+        StringInput::from(&*fm),
+        Some(&comments),
+    );
+
+    let mut parser = Parser::new_from(lexer);
+
+    let mut has_errors = false;
+    for e in parser.take_errors() {
+        e.into_diagnostic(&handler).emit();
+        has_errors = true
+    }
+
+    if has_errors {
+        return Ok(ParseResult::Unparseable.into());
+    }
+
+    let mut parsed_program = match parser.parse_program() {
+        Ok(parsed_program) => parsed_program,
+        Err(e) => {
+            e.into_diagnostic(&handler).emit();
+            return Ok(ParseResult::Unparseable.into());
+        }
+    };
+
+    drop(parser);
+
+    let globals = Globals::new();
+    let eval_context = GLOBALS.set(&globals, || {
+        HANDLER.set(&handler, || {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            parsed_program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+
+            HELPERS.set(&Helpers::new(true), || {
+                run_transforms(
+                    &mut parsed_program,
+                    file_name,
+                    transforms,
+                    source_map.clone(),
+                    &comments,
+                    unresolved_mark,
+                    top_level_mark,
+                );
+            });
+
+            EvalContext::new(&parsed_program, unresolved_mark)
+        })
+    });
+
+    let (mut leading, mut trailing) = comments.take_all();
+    Ok(ParseResult::Ok {
+        program: parsed_program,
+        leading_comments: take(Rc::make_mut(&mut leading)).into_inner(),
+        trailing_comments: take(Rc::make_mut(&mut trailing)).into_inner(),
+        eval_context,
+        globals,
+        source_map,
+    }
+    .into())
+}
+
+fn run_transforms(
+    program: &mut Program,
+    file_name: FileName,
+    transforms: &[EcmascriptInputTransform],
+    source_map: Lrc<SourceMap>,
+    comments: &SingleThreadedComments,
+    unresolved_mark: Mark,
+    top_level_mark: Mark,
+) {
+    for transform in transforms.iter() {
+        match transform {
+            EcmascriptInputTransform::React { refresh } => {
+                use swc_core::ecma::transforms::react::{Options, Runtime};
+
+                program.visit_mut_with(&mut react(
+                    source_map.clone(),
+                    Some(comments.clone()),
+                    Options {
+                        runtime: Some(Runtime::Automatic),
+                        refresh: if *refresh {
+                            Some(RefreshOptions {
+                                ..Default::default()
+                            })
+                        } else {
+                            None
+                        },
+                        ..Default::default()
+                    },
+                    top_level_mark,
+                ));
+            }
+            EcmascriptInputTransform::CommonJs => {
+                use swc_core::ecma::transforms::module::util::Config;
+
+                program.visit_mut_with(&mut common_js(
+                    unresolved_mark,
+                    Config {
+                        allow_top_level_this: true,
+                        import_interop: Some(ImportInterop::Swc),
+                        ..Default::default()
+                    },
+                    FeatureFlag::all(),
+                    Some(comments.clone()),
+                ));
+            }
+            EcmascriptInputTransform::StyledJsx => {
+                // Modeled after https://github.com/swc-project/plugins/blob/ae735894cdb7e6cfd776626fe2bc580d3e80fed9/packages/styled-jsx/src/lib.rs
+                let real_program = std::mem::replace(program, Program::Module(Module::dummy()));
+
+                *program = real_program.fold_with(&mut styled_jsx::styled_jsx(
+                    source_map.clone(),
+                    file_name.clone(),
+                ));
+            }
+            EcmascriptInputTransform::TypeScript => {
+                use swc_core::ecma::transforms::typescript::strip;
+
+                program.visit_mut_with(&mut strip(top_level_mark));
+            }
+            EcmascriptInputTransform::Custom => todo!(),
+        }
+    }
 }

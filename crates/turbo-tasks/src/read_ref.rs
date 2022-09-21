@@ -83,7 +83,7 @@ impl<T, U: Hash> Hash for ReadRef<T, U> {
 
 impl<T, U> Borrow<U> for ReadRef<T, U> {
     fn borrow(&self) -> &U {
-        &self
+        self
     }
 }
 

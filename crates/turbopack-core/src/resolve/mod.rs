@@ -539,6 +539,7 @@ pub async fn resolve(
             ImportMapResult::NoEntry => unreachable!(),
         }
     }
+
     async fn resolved(
         fs_path: FileSystemPathVc,
         resolved_map: Option<ResolvedMapVc>,
@@ -665,7 +666,7 @@ pub async fn resolve(
         Ok(ResolveResult::unresolveable().into())
     }
 
-    // This explicit deref of `context` is necessary
+    // This explicit deref of `options` is necessary
     #[allow(clippy::explicit_auto_deref)]
     let options_value: &ResolveOptions = &*options.await?;
 
