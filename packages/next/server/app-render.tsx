@@ -637,7 +637,7 @@ export async function renderToHTMLOrFlight(
     // If navigating to a new root layout we need to do a full page navigation.
     if (
       isFlight &&
-      providedFlightRouterState &&
+      Array.isArray(providedFlightRouterState) &&
       isNavigatingToNewRootLayout(loaderTree, providedFlightRouterState)
     ) {
       return doFullPageNavigation()
