@@ -1160,11 +1160,16 @@ export default async function getBaseWebpackConfig(
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
-        const [resolved] = await resolveWithReactServerCondition!(
-          context,
-          request
-        )
-        return resolved
+        try {
+          const [resolved] = await resolveWithReactServerCondition!(
+            context,
+            request
+          )
+          return resolved
+        } catch (err) {
+          // The `react-server` condition is not matched, fallback.
+          return
+        }
       }
 
       // Anything else that is standard JavaScript within `node_modules`

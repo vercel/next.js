@@ -104,15 +104,15 @@ let isFetchPatched = false
 
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
-function patchFetch() {
+function patchFetch(ComponentMod: any) {
   if (isFetchPatched) return
   isFetchPatched = true
 
   const { DynamicServerError } =
-    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+    ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
   const { staticGenerationAsyncStorage } =
-    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
+    require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
 
   const origFetch = (global as any).fetch
 
@@ -504,10 +504,19 @@ export async function renderToHTMLOrFlight(
   isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
-  patchFetch()
+  const {
+    buildManifest,
+    subresourceIntegrityManifest,
+    serverComponentManifest,
+    serverCSSManifest = {},
+    supportsDynamicHTML,
+    ComponentMod,
+  } = renderOpts
+
+  patchFetch(ComponentMod)
 
   const { staticGenerationAsyncStorage } =
-    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
+    require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
 
   if (
     !('getStore' in staticGenerationAsyncStorage) &&
@@ -526,26 +535,10 @@ export async function renderToHTMLOrFlight(
         : staticGenerationAsyncStorage
 
     const { CONTEXT_NAMES } =
-      require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
-
-    // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
-    if (typeof React.createServerContext === 'undefined') {
-      throw new Error(
-        '"app" directory requires React.createServerContext which is not available in the version of React you are using. Please update to react@experimental and react-dom@experimental.'
-      )
-    }
+      ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
     // don't modify original query object
     query = Object.assign({}, query)
-
-    const {
-      buildManifest,
-      subresourceIntegrityManifest,
-      serverComponentManifest,
-      serverCSSManifest = {},
-      supportsDynamicHTML,
-      ComponentMod,
-    } = renderOpts
 
     const isFlight = query.__flight__ !== undefined
     const isPrefetch = query.__flight_prefetch__ !== undefined

@@ -388,9 +388,7 @@ export default async function exportPage({
         // and bail when dynamic dependencies are detected
         // only fully static paths are fully generated here
         if (isAppDir) {
-          const {
-            DynamicServerError,
-          } = require('../client/components/hooks-server-context')
+          const { DynamicServerError } = components.ComponentMod.serverHooks
 
           const { renderToHTMLOrFlight } =
             require('../server/app-render') as typeof import('../server/app-render')
