@@ -287,6 +287,7 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       serverDistDir: this.serverDistDir,
+      appDir: this.nextConfig.experimental.appDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -824,7 +825,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (
       this.nextConfig.experimental.appDir &&
-      (renderOpts.isAppPath || query.__flight__)
+      (renderOpts.isAppPath || req.headers.__flight__)
     ) {
       const isPagesDir = !renderOpts.isAppPath
       return appRenderToHTMLOrFlight(
@@ -980,7 +981,6 @@ export default class NextNodeServer extends BaseServer {
                   __nextDataReq: query.__nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
-                  __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.

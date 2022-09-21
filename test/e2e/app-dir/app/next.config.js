@@ -8,10 +8,8 @@ module.exports = {
       algorithm: 'sha256',
     },
   },
-  // assetPrefix: '/assets',
   rewrites: async () => {
     return {
-      // beforeFiles: [ { source: '/assets/:path*', destination: '/:path*' } ],
       afterFiles: [
         {
           source: '/rewritten-to-dashboard',
@@ -19,5 +17,14 @@ module.exports = {
         },
       ],
     }
+  },
+  redirects: () => {
+    return [
+      {
+        source: '/redirect/a',
+        destination: '/dashboard',
+        permanent: false,
+      },
+    ]
   },
 }
