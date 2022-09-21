@@ -388,7 +388,7 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-      serverComponents: nextConfig.experimental.serverComponents,
+      serverComponents: !!nextConfig.experimental.appDir,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -613,7 +613,7 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: nextConfig.experimental.serverComponents,
+            serverComponents: !!nextConfig.experimental.appDir,
             appPaths: options.appPaths || [],
           })
 

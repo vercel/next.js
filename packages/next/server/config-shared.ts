@@ -114,7 +114,6 @@ export interface ExperimentalConfig {
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
   runtime?: Exclude<ServerRuntime, undefined>
-  serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string

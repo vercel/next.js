@@ -544,22 +544,16 @@ export default async function getBaseWebpackConfig(
           '`experimental.runtime` requires React 18 to be installed.'
         )
       }
-      if (config.experimental.serverComponents) {
+      if (config.experimental.appDir) {
         throw new Error(
-          '`experimental.serverComponents` requires React 18 to be installed.'
+          '`experimental.appDir` requires React 18 to be installed.'
         )
       }
-    }
-    if (!config.experimental.appDir && config.experimental.serverComponents) {
-      throw new Error(
-        '`experimental.serverComponents` requires experimental.appDir to be enabled.'
-      )
     }
   }
 
   const hasConcurrentFeatures = hasReactRoot
-  const hasServerComponents =
-    hasConcurrentFeatures && !!config.experimental.serverComponents
+  const hasServerComponents = !!config.experimental.appDir
   const disableOptimizedLoading = hasConcurrentFeatures
     ? true
     : config.experimental.disableOptimizedLoading
@@ -1747,7 +1741,7 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
             const devPlugins = [
               new NextJsRequireCacheHotReloader({
-                hasServerComponents: config.experimental.serverComponents,
+                hasServerComponents,
               }),
             ]
 
@@ -1816,11 +1810,9 @@ export default async function getBaseWebpackConfig(
           },
         }),
       !!config.experimental.appDir &&
-        hasServerComponents &&
         isClient &&
         new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
-        !!config.experimental.appDir &&
         (isClient
           ? new FlightManifestPlugin({
               dev,
