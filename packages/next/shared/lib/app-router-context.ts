@@ -61,7 +61,8 @@ export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
   changeByServerResponse: (
     previousTree: FlightRouterState,
-    flightData: FlightData
+    flightData: FlightData,
+    overrideCanonicalUrl: URL | undefined
   ) => void
   focusAndScrollRef: FocusAndScrollRef
 }>(null as any)

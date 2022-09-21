@@ -1,24 +1,40 @@
+import type { AsyncLocalStorage } from 'async_hooks'
 import { useContext } from 'react'
 import {
   HeadersContext,
   PreviewDataContext,
   CookiesContext,
   DynamicServerError,
-  StaticGenerationContext,
 } from './hooks-server-context'
 
-export function useTrackStaticGeneration() {
-  return useContext<
-    typeof import('./hooks-server-context').StaticGenerationContext
-  >(StaticGenerationContext)
+export interface StaticGenerationStore {
+  inUse?: boolean
+  pathname?: string
+  revalidate?: number
+  fetchRevalidate?: number
+  isStaticGeneration?: boolean
+}
+
+export let staticGenerationAsyncStorage:
+  | AsyncLocalStorage<StaticGenerationStore>
+  | StaticGenerationStore = {}
+
+if (process.env.NEXT_RUNTIME !== 'edge' && typeof window === 'undefined') {
+  staticGenerationAsyncStorage =
+    new (require('async_hooks').AsyncLocalStorage)()
 }
 
 function useStaticGenerationBailout(reason: string) {
-  const staticGenerationContext = useTrackStaticGeneration()
+  const staticGenerationStore =
+    staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
+      ? staticGenerationAsyncStorage?.getStore()
+      : staticGenerationAsyncStorage
 
-  if (staticGenerationContext.isStaticGeneration) {
+  if (staticGenerationStore?.isStaticGeneration) {
     // TODO: honor the dynamic: 'force-static'
-    staticGenerationContext.revalidate = 0
+    if (staticGenerationStore) {
+      staticGenerationStore.revalidate = 0
+    }
     throw new DynamicServerError(reason)
   }
 }

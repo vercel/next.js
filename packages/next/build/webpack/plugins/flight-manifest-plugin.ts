@@ -112,7 +112,7 @@ export class FlightManifestPlugin {
       if (mod.resource === '' && mod.buildInfo.rsc) {
         const { requests = [] } = mod.buildInfo.rsc
         requests.forEach((r: string) => {
-          clientRequestsSet.add(require.resolve(r))
+          clientRequestsSet.add(r)
         })
       }
     }
