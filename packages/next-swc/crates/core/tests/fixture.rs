@@ -4,6 +4,7 @@ use next_swc::{
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
+    react_server_components::server_components,
     relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
@@ -204,6 +205,44 @@ fn shake_exports_fixture_default(input: PathBuf) {
             shake_exports(ShakeExportsConfig {
                 ignore: vec![String::from("default").into()],
             })
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/react-server-components/server-graph/**/input.js")]
+fn react_server_components_server_graph_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            server_components(
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                next_swc::react_server_components::Config::WithOptions(
+                    next_swc::react_server_components::Options { is_server: true },
+                ),
+                tr.comments.as_ref().clone(),
+            )
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/react-server-components/client-graph/**/input.js")]
+fn react_server_components_client_graph_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            server_components(
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                next_swc::react_server_components::Config::WithOptions(
+                    next_swc::react_server_components::Options { is_server: false },
+                ),
+                tr.comments.as_ref().clone(),
+            )
         },
         &input,
         &output,

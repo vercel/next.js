@@ -219,6 +219,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        adjustFontFallbacks: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -337,9 +340,6 @@ const configSchema = {
           type: 'string',
         },
         scrollRestoration: {
-          type: 'boolean',
-        },
-        serverComponents: {
           type: 'boolean',
         },
         sharedPool: {
