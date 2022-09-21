@@ -1,4 +1,4 @@
-import type { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 
@@ -499,7 +499,7 @@ const FLIGHT_PARAMETERS = [
   '__flight_prefetch__',
 ] as const
 
-function headersWithoutFlight(headers: { [key: string]: string }) {
+function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
   for (const param of FLIGHT_PARAMETERS) {
     delete newHeaders[param]
