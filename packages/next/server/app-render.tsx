@@ -27,6 +27,7 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
+import type { UnwrapPromise } from '../lib/coalesced-function'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 
 // this needs to be required lazily so that `next-server` can set
@@ -109,26 +110,24 @@ function patchFetch() {
   const { DynamicServerError } =
     require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
 
-  const { useTrackStaticGeneration } =
+  const { staticGenerationAsyncStorage } =
     require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
 
   const origFetch = (global as any).fetch
 
   ;(global as any).fetch = async (init: any, opts: any) => {
-    let staticGenerationContext: ReturnType<typeof useTrackStaticGeneration> =
-      {}
-    try {
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      staticGenerationContext = useTrackStaticGeneration() || {}
-    } catch (_) {}
+    const staticGenerationStore =
+      'getStore' in staticGenerationAsyncStorage
+        ? staticGenerationAsyncStorage.getStore()
+        : staticGenerationAsyncStorage
 
     const { isStaticGeneration, fetchRevalidate, pathname } =
-      staticGenerationContext
+      staticGenerationStore || {}
 
-    if (isStaticGeneration) {
+    if (staticGenerationStore && isStaticGeneration) {
       if (opts && typeof opts === 'object') {
         if (opts.cache === 'no-store') {
-          staticGenerationContext.revalidate = 0
+          staticGenerationStore.revalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
@@ -141,7 +140,7 @@ function patchFetch() {
           (typeof fetchRevalidate === 'undefined' ||
             opts.revalidate < fetchRevalidate)
         ) {
-          staticGenerationContext.fetchRevalidate = opts.revalidate
+          staticGenerationStore.fetchRevalidate = opts.revalidate
         }
       }
     }
@@ -505,311 +504,366 @@ export async function renderToHTMLOrFlight(
 ): Promise<RenderResult | null> {
   patchFetch()
 
-  const { CONTEXT_NAMES } =
-    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+  const { staticGenerationAsyncStorage } =
+    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
 
-  // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
-  if (typeof React.createServerContext === 'undefined') {
+  if (
+    !('getStore' in staticGenerationAsyncStorage) &&
+    staticGenerationAsyncStorage.inUse
+  ) {
     throw new Error(
-      '"app" directory requires React.createServerContext which is not available in the version of React you are using. Please update to react@experimental and react-dom@experimental.'
+      `Invariant: A separate worker must be used for each render when AsyncLocalStorage is not available`
     )
   }
 
-  // don't modify original query object
-  query = Object.assign({}, query)
+  // we wrap the render in an AsyncLocalStorage context
+  const wrappedRender = async () => {
+    const staticGenerationStore =
+      'getStore' in staticGenerationAsyncStorage
+        ? staticGenerationAsyncStorage.getStore()
+        : staticGenerationAsyncStorage
 
-  const {
-    buildManifest,
-    subresourceIntegrityManifest,
-    serverComponentManifest,
-    serverCSSManifest = {},
-    supportsDynamicHTML,
-    ComponentMod,
-  } = renderOpts
+    const { CONTEXT_NAMES } =
+      require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
 
-  const isFlight = query.__flight__ !== undefined
-  const isPrefetch = query.__flight_prefetch__ !== undefined
+    // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
+    if (typeof React.createServerContext === 'undefined') {
+      throw new Error(
+        '"app" directory requires React.createServerContext which is not available in the version of React you are using. Please update to react@experimental and react-dom@experimental.'
+      )
+    }
 
-  // Handle client-side navigation to pages directory
-  if (isFlight && isPagesDir) {
+    // don't modify original query object
+    query = Object.assign({}, query)
+
+    const {
+      buildManifest,
+      subresourceIntegrityManifest,
+      serverComponentManifest,
+      serverCSSManifest = {},
+      supportsDynamicHTML,
+      ComponentMod,
+    } = renderOpts
+
+    const isFlight = query.__flight__ !== undefined
+    const isPrefetch = query.__flight_prefetch__ !== undefined
+
+    // Handle client-side navigation to pages directory
+    if (isFlight && isPagesDir) {
+      stripInternalQueries(query)
+      const search = stringifyQuery(query)
+
+      // Empty so that the client-side router will do a full page navigation.
+      const flightData: FlightData = pathname + (search ? `?${search}` : '')
+      return new FlightRenderResult(
+        renderToReadableStream(flightData, serverComponentManifest, {
+          onError: flightDataRendererErrorHandler,
+        }).pipeThrough(createBufferedTransformStream())
+      )
+    }
+
+    // TODO-APP: verify the tree is valid
+    // TODO-APP: verify query param is single value (not an array)
+    // TODO-APP: verify tree can't grow out of control
+    /**
+     * Router state provided from the client-side router. Used to handle rendering from the common layout down.
+     */
+    const providedFlightRouterState: FlightRouterState = isFlight
+      ? query.__flight_router_state_tree__
+        ? JSON.parse(query.__flight_router_state_tree__ as string)
+        : {}
+      : undefined
+
     stripInternalQueries(query)
-    const search = stringifyQuery(query)
 
-    // Empty so that the client-side router will do a full page navigation.
-    const flightData: FlightData = pathname + (search ? `?${search}` : '')
-    return new FlightRenderResult(
-      renderToReadableStream(flightData, serverComponentManifest, {
-        onError: flightDataRendererErrorHandler,
-      }).pipeThrough(createBufferedTransformStream())
+    const LayoutRouter =
+      ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+    const RenderFromTemplateContext =
+      ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context.client').default
+    const HotReloader = ComponentMod.HotReloader as
+      | typeof import('../client/components/hot-reloader.client').default
+      | null
+
+    const headers = req.headers
+    // TODO-APP: fix type of req
+    // @ts-expect-error
+    const cookies = req.cookies
+
+    /**
+     * The tree created in next-app-loader that holds component segments and modules
+     */
+    const loaderTree: LoaderTree = ComponentMod.tree
+
+    const tryGetPreviewData =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? () => false
+        : require('./api-utils/node').tryGetPreviewData
+
+    // Reads of this are cached on the `req` object, so this should resolve
+    // instantly. There's no need to pass this data down from a previous
+    // invoke, where we'd have to consider server & serverless.
+    const previewData = tryGetPreviewData(
+      req,
+      res,
+      (renderOpts as any).previewProps
     )
-  }
+    /**
+     * Server Context is specifically only available in Server Components.
+     * It has to hold values that can't change while rendering from the common layout down.
+     * An example of this would be that `headers` are available but `searchParams` are not because that'd mean we have to render from the root layout down on all requests.
+     */
 
-  // TODO-APP: verify the tree is valid
-  // TODO-APP: verify query param is single value (not an array)
-  // TODO-APP: verify tree can't grow out of control
-  /**
-   * Router state provided from the client-side router. Used to handle rendering from the common layout down.
-   */
-  const providedFlightRouterState: FlightRouterState = isFlight
-    ? query.__flight_router_state_tree__
-      ? JSON.parse(query.__flight_router_state_tree__ as string)
-      : {}
-    : undefined
-
-  stripInternalQueries(query)
-
-  const LayoutRouter =
-    ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
-  const RenderFromTemplateContext =
-    ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context.client').default
-  const HotReloader = ComponentMod.HotReloader as
-    | typeof import('../client/components/hot-reloader.client').default
-    | null
-
-  const headers = req.headers
-  // TODO-APP: fix type of req
-  // @ts-expect-error
-  const cookies = req.cookies
-
-  /**
-   * The tree created in next-app-loader that holds component segments and modules
-   */
-  const loaderTree: LoaderTree = ComponentMod.tree
-
-  const tryGetPreviewData =
-    process.env.NEXT_RUNTIME === 'edge'
-      ? () => false
-      : require('./api-utils/node').tryGetPreviewData
-
-  // Reads of this are cached on the `req` object, so this should resolve
-  // instantly. There's no need to pass this data down from a previous
-  // invoke, where we'd have to consider server & serverless.
-  const previewData = tryGetPreviewData(
-    req,
-    res,
-    (renderOpts as any).previewProps
-  )
-  /**
-   * Server Context is specifically only available in Server Components.
-   * It has to hold values that can't change while rendering from the common layout down.
-   * An example of this would be that `headers` are available but `searchParams` are not because that'd mean we have to render from the root layout down on all requests.
-   */
-  const staticGenerationContext: {
-    revalidate?: undefined | number
-    isStaticGeneration: boolean
-    pathname: string
-  } = { isStaticGeneration, pathname }
-
-  const serverContexts: Array<[string, any]> = [
-    ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
-    [CONTEXT_NAMES.HeadersContext, headers],
-    [CONTEXT_NAMES.CookiesContext, cookies],
-    [CONTEXT_NAMES.PreviewDataContext, previewData],
-    [CONTEXT_NAMES.StaticGenerationContext, staticGenerationContext],
-  ]
-
-  type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
-
-  /**
-   * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
-   */
-  const pathParams = (renderOpts as any).params as ParsedUrlQuery
-
-  /**
-   * Parse the dynamic segment and return the associated value.
-   */
-  const getDynamicParamFromSegment = (
-    // [slug] / [[slug]] / [...slug]
-    segment: string
-  ): {
-    param: string
-    value: string | string[] | null
-    treeSegment: Segment
-    type: DynamicParamTypesShort
-  } | null => {
-    const segmentParam = getSegmentParam(segment)
-    if (!segmentParam) {
-      return null
-    }
-
-    const key = segmentParam.param
-    const value = pathParams[key]
-
-    if (!value) {
-      // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
-      if (segmentParam.type === 'optional-catchall') {
-        const type = getShortDynamicParamType(segmentParam.type)
-        return {
-          param: key,
-          value: null,
-          type: type,
-          // This value always has to be a string.
-          treeSegment: [key, '', type],
-        }
-      }
-      return null
-    }
-
-    const type = getShortDynamicParamType(segmentParam.type)
-
-    return {
-      param: key,
-      // The value that is passed to user code.
-      value: value,
-      // The value that is rendered in the router tree.
-      treeSegment: [key, Array.isArray(value) ? value.join('/') : value, type],
-      type: type,
-    }
-  }
-
-  const createFlightRouterStateFromLoaderTree = ([
-    segment,
-    parallelRoutes,
-  ]: LoaderTree): FlightRouterState => {
-    const dynamicParam = getDynamicParamFromSegment(segment)
-
-    const segmentTree: FlightRouterState = [
-      dynamicParam ? dynamicParam.treeSegment : segment,
-      {},
+    const serverContexts: Array<[string, any]> = [
+      ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
+      [CONTEXT_NAMES.HeadersContext, headers],
+      [CONTEXT_NAMES.CookiesContext, cookies],
+      [CONTEXT_NAMES.PreviewDataContext, previewData],
     ]
 
-    if (parallelRoutes) {
-      segmentTree[1] = Object.keys(parallelRoutes).reduce(
-        (existingValue, currentValue) => {
-          existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
-            parallelRoutes[currentValue]
-          )
-          return existingValue
-        },
-        {} as FlightRouterState[1]
-      )
+    type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
+
+    /**
+     * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
+     */
+    const pathParams = (renderOpts as any).params as ParsedUrlQuery
+
+    /**
+     * Parse the dynamic segment and return the associated value.
+     */
+    const getDynamicParamFromSegment = (
+      // [slug] / [[slug]] / [...slug]
+      segment: string
+    ): {
+      param: string
+      value: string | string[] | null
+      treeSegment: Segment
+      type: DynamicParamTypesShort
+    } | null => {
+      const segmentParam = getSegmentParam(segment)
+      if (!segmentParam) {
+        return null
+      }
+
+      const key = segmentParam.param
+      const value = pathParams[key]
+
+      if (!value) {
+        // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
+        if (segmentParam.type === 'optional-catchall') {
+          const type = getShortDynamicParamType(segmentParam.type)
+          return {
+            param: key,
+            value: null,
+            type: type,
+            // This value always has to be a string.
+            treeSegment: [key, '', type],
+          }
+        }
+        return null
+      }
+
+      const type = getShortDynamicParamType(segmentParam.type)
+
+      return {
+        param: key,
+        // The value that is passed to user code.
+        value: value,
+        // The value that is rendered in the router tree.
+        treeSegment: [
+          key,
+          Array.isArray(value) ? value.join('/') : value,
+          type,
+        ],
+        type: type,
+      }
     }
 
-    return segmentTree
-  }
-
-  let defaultRevalidate: false | undefined | number = false
-
-  /**
-   * Use the provided loader tree to create the React Component tree.
-   */
-  const createComponentTree = async ({
-    createSegmentPath,
-    loaderTree: [
+    const createFlightRouterStateFromLoaderTree = ([
       segment,
       parallelRoutes,
-      { layoutOrPagePath, layout, template, error, loading, page },
-    ],
-    parentParams,
-    firstItem,
-    rootLayoutIncluded,
-  }: {
-    createSegmentPath: CreateSegmentPath
-    loaderTree: LoaderTree
-    parentParams: { [key: string]: any }
-    rootLayoutIncluded?: boolean
-    firstItem?: boolean
-  }): Promise<{ Component: React.ComponentType }> => {
-    // TODO-APP: enable stylesheet per layout/page
-    const stylesheets: string[] = layoutOrPagePath
-      ? getCssInlinedLinkTags(
-          serverComponentManifest,
-          serverCSSManifest!,
-          layoutOrPagePath
+    ]: LoaderTree): FlightRouterState => {
+      const dynamicParam = getDynamicParamFromSegment(segment)
+
+      const segmentTree: FlightRouterState = [
+        dynamicParam ? dynamicParam.treeSegment : segment,
+        {},
+      ]
+
+      if (parallelRoutes) {
+        segmentTree[1] = Object.keys(parallelRoutes).reduce(
+          (existingValue, currentValue) => {
+            existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
+              parallelRoutes[currentValue]
+            )
+            return existingValue
+          },
+          {} as FlightRouterState[1]
         )
-      : []
-    const Template = template
-      ? await interopDefault(template())
-      : React.Fragment
-    const ErrorComponent = error ? await interopDefault(error()) : undefined
-    const Loading = loading ? await interopDefault(loading()) : undefined
-    const isLayout = typeof layout !== 'undefined'
-    const isPage = typeof page !== 'undefined'
-    const layoutOrPageMod = isLayout
-      ? await layout()
-      : isPage
-      ? await page()
-      : undefined
+      }
 
-    if (layoutOrPageMod?.config) {
-      defaultRevalidate = layoutOrPageMod.config.revalidate
-    }
-    /**
-     * Checks if the current segment is a root layout.
-     */
-    const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
-    /**
-     * Checks if the current segment or any level above it has a root layout.
-     */
-    const rootLayoutIncludedAtThisLevelOrAbove =
-      rootLayoutIncluded || rootLayoutAtThisLevel
-
-    // TODO-APP: move these errors to the loader instead?
-    // we will also need a migration doc here to link to
-    if (typeof layoutOrPageMod?.getServerSideProps === 'function') {
-      throw new Error(
-        `getServerSideProps is not supported in app/, detected in ${segment}`
-      )
+      return segmentTree
     }
 
-    if (typeof layoutOrPageMod?.getStaticProps === 'function') {
-      throw new Error(
-        `getStaticProps is not supported in app/, detected in ${segment}`
-      )
-    }
+    let defaultRevalidate: false | undefined | number = false
 
     /**
-     * The React Component to render.
+     * Use the provided loader tree to create the React Component tree.
      */
-    const Component = layoutOrPageMod
-      ? interopDefault(layoutOrPageMod)
-      : undefined
+    const createComponentTree = async ({
+      createSegmentPath,
+      loaderTree: [
+        segment,
+        parallelRoutes,
+        { layoutOrPagePath, layout, template, error, loading, page },
+      ],
+      parentParams,
+      firstItem,
+      rootLayoutIncluded,
+    }: {
+      createSegmentPath: CreateSegmentPath
+      loaderTree: LoaderTree
+      parentParams: { [key: string]: any }
+      rootLayoutIncluded?: boolean
+      firstItem?: boolean
+    }): Promise<{ Component: React.ComponentType }> => {
+      // TODO-APP: enable stylesheet per layout/page
+      const stylesheets: string[] = layoutOrPagePath
+        ? getCssInlinedLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            layoutOrPagePath
+          )
+        : []
+      const Template = template
+        ? await interopDefault(template())
+        : React.Fragment
+      const ErrorComponent = error ? await interopDefault(error()) : undefined
+      const Loading = loading ? await interopDefault(loading()) : undefined
+      const isLayout = typeof layout !== 'undefined'
+      const isPage = typeof page !== 'undefined'
+      const layoutOrPageMod = isLayout
+        ? await layout()
+        : isPage
+        ? await page()
+        : undefined
 
-    // Handle dynamic segment params.
-    const segmentParam = getDynamicParamFromSegment(segment)
-    /**
-     * Create object holding the parent params and current params
-     */
-    const currentParams =
-      // Handle null case where dynamic param is optional
-      segmentParam && segmentParam.value !== null
-        ? {
-            ...parentParams,
-            [segmentParam.param]: segmentParam.value,
-          }
-        : // Pass through parent params to children
-          parentParams
-    // Resolve the segment param
-    const actualSegment = segmentParam ? segmentParam.treeSegment : segment
+      if (layoutOrPageMod?.config) {
+        defaultRevalidate = layoutOrPageMod.config.revalidate
+      }
+      /**
+       * Checks if the current segment is a root layout.
+       */
+      const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+      /**
+       * Checks if the current segment or any level above it has a root layout.
+       */
+      const rootLayoutIncludedAtThisLevelOrAbove =
+        rootLayoutIncluded || rootLayoutAtThisLevel
 
-    // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
-    const parallelRouteMap = await Promise.all(
-      Object.keys(parallelRoutes).map(
-        async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
-          const currentSegmentPath: FlightSegmentPath = firstItem
-            ? [parallelRouteKey]
-            : [actualSegment, parallelRouteKey]
+      // TODO-APP: move these errors to the loader instead?
+      // we will also need a migration doc here to link to
+      if (typeof layoutOrPageMod?.getServerSideProps === 'function') {
+        throw new Error(
+          `getServerSideProps is not supported in app/, detected in ${segment}`
+        )
+      }
 
-          const childSegment = parallelRoutes[parallelRouteKey][0]
-          const childSegmentParam = getDynamicParamFromSegment(childSegment)
+      if (typeof layoutOrPageMod?.getStaticProps === 'function') {
+        throw new Error(
+          `getStaticProps is not supported in app/, detected in ${segment}`
+        )
+      }
 
-          if (isPrefetch && Loading) {
+      /**
+       * The React Component to render.
+       */
+      const Component = layoutOrPageMod
+        ? interopDefault(layoutOrPageMod)
+        : undefined
+
+      // Handle dynamic segment params.
+      const segmentParam = getDynamicParamFromSegment(segment)
+      /**
+       * Create object holding the parent params and current params
+       */
+      const currentParams =
+        // Handle null case where dynamic param is optional
+        segmentParam && segmentParam.value !== null
+          ? {
+              ...parentParams,
+              [segmentParam.param]: segmentParam.value,
+            }
+          : // Pass through parent params to children
+            parentParams
+      // Resolve the segment param
+      const actualSegment = segmentParam ? segmentParam.treeSegment : segment
+
+      // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
+      const parallelRouteMap = await Promise.all(
+        Object.keys(parallelRoutes).map(
+          async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
+            const currentSegmentPath: FlightSegmentPath = firstItem
+              ? [parallelRouteKey]
+              : [actualSegment, parallelRouteKey]
+
+            const childSegment = parallelRoutes[parallelRouteKey][0]
+            const childSegmentParam = getDynamicParamFromSegment(childSegment)
+
+            if (isPrefetch && Loading) {
+              const childProp: ChildProp = {
+                // Null indicates the tree is not fully rendered
+                current: null,
+                segment: childSegmentParam
+                  ? childSegmentParam.treeSegment
+                  : childSegment,
+              }
+
+              // This is turned back into an object below.
+              return [
+                parallelRouteKey,
+                <LayoutRouter
+                  parallelRouterKey={parallelRouteKey}
+                  segmentPath={createSegmentPath(currentSegmentPath)}
+                  loading={Loading ? <Loading /> : undefined}
+                  error={ErrorComponent}
+                  template={
+                    <Template>
+                      <RenderFromTemplateContext />
+                    </Template>
+                  }
+                  childProp={childProp}
+                  rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
+                />,
+              ]
+            }
+
+            // Create the child component
+            const { Component: ChildComponent } = await createComponentTree({
+              createSegmentPath: (child) => {
+                return createSegmentPath([...currentSegmentPath, ...child])
+              },
+              loaderTree: parallelRoutes[parallelRouteKey],
+              parentParams: currentParams,
+              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+            })
+
             const childProp: ChildProp = {
-              // Null indicates the tree is not fully rendered
-              current: null,
+              current: <ChildComponent />,
               segment: childSegmentParam
                 ? childSegmentParam.treeSegment
                 : childSegment,
             }
+
+            const segmentPath = createSegmentPath(currentSegmentPath)
 
             // This is turned back into an object below.
             return [
               parallelRouteKey,
               <LayoutRouter
                 parallelRouterKey={parallelRouteKey}
-                segmentPath={createSegmentPath(currentSegmentPath)}
-                loading={Loading ? <Loading /> : undefined}
+                segmentPath={segmentPath}
                 error={ErrorComponent}
+                loading={Loading ? <Loading /> : undefined}
                 template={
                   <Template>
                     <RenderFromTemplateContext />
@@ -820,418 +874,402 @@ export async function renderToHTMLOrFlight(
               />,
             ]
           }
+        )
+      )
 
-          // Create the child component
-          const { Component: ChildComponent } = await createComponentTree({
-            createSegmentPath: (child) => {
-              return createSegmentPath([...currentSegmentPath, ...child])
-            },
-            loaderTree: parallelRoutes[parallelRouteKey],
-            parentParams: currentParams,
-            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-          })
+      // Convert the parallel route map into an object after all promises have been resolved.
+      const parallelRouteComponents = parallelRouteMap.reduce(
+        (list, [parallelRouteKey, Comp]) => {
+          list[parallelRouteKey] = Comp
+          return list
+        },
+        {} as { [key: string]: React.ReactNode }
+      )
 
-          const childProp: ChildProp = {
-            current: <ChildComponent />,
-            segment: childSegmentParam
-              ? childSegmentParam.treeSegment
-              : childSegment,
-          }
+      // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
+      if (!Component) {
+        return {
+          Component: () => <>{parallelRouteComponents.children}</>,
+        }
+      }
 
-          const segmentPath = createSegmentPath(currentSegmentPath)
+      return {
+        Component: () => {
+          let props = {}
 
-          // This is turned back into an object below.
-          return [
-            parallelRouteKey,
-            <LayoutRouter
-              parallelRouterKey={parallelRouteKey}
-              segmentPath={segmentPath}
-              error={ErrorComponent}
-              loading={Loading ? <Loading /> : undefined}
-              template={
-                <Template>
-                  <RenderFromTemplateContext />
-                </Template>
+          return (
+            <>
+              {stylesheets
+                ? stylesheets.map((href) => (
+                    <link
+                      rel="stylesheet"
+                      href={`/_next/${href}?ts=${Date.now()}`}
+                      // `Precedence` is an opt-in signal for React to handle
+                      // resource loading and deduplication, etc:
+                      // https://github.com/facebook/react/pull/25060
+                      // @ts-ignore
+                      precedence="high"
+                      key={href}
+                    />
+                  ))
+                : null}
+              <Component
+                {...props}
+                {...parallelRouteComponents}
+                // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+                // Params are always the current params that apply to the layout
+                // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
+                params={currentParams}
+                // Query is only provided to page
+                {...(isPage ? { searchParams: query } : {})}
+              />
+            </>
+          )
+        },
+      }
+    }
+
+    /**
+     * Rules of Static & Dynamic HTML:
+     *
+     *    1.) We must generate static HTML unless the caller explicitly opts
+     *        in to dynamic HTML support.
+     *
+     *    2.) If dynamic HTML support is requested, we must honor that request
+     *        or throw an error. It is the sole responsibility of the caller to
+     *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+     *
+     * These rules help ensure that other existing features like request caching,
+     * coalescing, and ISR continue working as intended.
+     */
+    const generateStaticHTML = supportsDynamicHTML !== true
+
+    // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
+    if (isFlight) {
+      // TODO-APP: throw on invalid flightRouterState
+      /**
+       * Use router state to decide at what common layout to render the page.
+       * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
+       */
+      const walkTreeWithFlightRouterState = async (
+        loaderTreeToFilter: LoaderTree,
+        parentParams: { [key: string]: string | string[] },
+        flightRouterState?: FlightRouterState,
+        parentRendered?: boolean
+      ): Promise<FlightDataPath> => {
+        const [segment, parallelRoutes] = loaderTreeToFilter
+        const parallelRoutesKeys = Object.keys(parallelRoutes)
+
+        // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
+        const segmentParam = getDynamicParamFromSegment(segment)
+        const currentParams =
+          // Handle null case where dynamic param is optional
+          segmentParam && segmentParam.value !== null
+            ? {
+                ...parentParams,
+                [segmentParam.param]: segmentParam.value,
               }
-              childProp={childProp}
-              rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
-            />,
+            : parentParams
+        const actualSegment: Segment = segmentParam
+          ? segmentParam.treeSegment
+          : segment
+
+        /**
+         * Decide if the current segment is where rendering has to start.
+         */
+        const renderComponentsOnThisLevel =
+          // No further router state available
+          !flightRouterState ||
+          // Segment in router state does not match current segment
+          !matchSegment(actualSegment, flightRouterState[0]) ||
+          // Last item in the tree
+          parallelRoutesKeys.length === 0 ||
+          // Explicit refresh
+          flightRouterState[3] === 'refetch'
+
+        if (!parentRendered && renderComponentsOnThisLevel) {
+          return [
+            actualSegment,
+            // Create router state using the slice of the loaderTree
+            createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
+            // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
+            isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
+              ? null
+              : // Create component tree using the slice of the loaderTree
+                React.createElement(
+                  (
+                    await createComponentTree(
+                      // This ensures flightRouterPath is valid and filters down the tree
+                      {
+                        createSegmentPath: (child) => child,
+                        loaderTree: loaderTreeToFilter,
+                        parentParams: currentParams,
+                        firstItem: true,
+                      }
+                    )
+                  ).Component
+                ),
           ]
         }
-      )
-    )
 
-    // Convert the parallel route map into an object after all promises have been resolved.
-    const parallelRouteComponents = parallelRouteMap.reduce(
-      (list, [parallelRouteKey, Comp]) => {
-        list[parallelRouteKey] = Comp
-        return list
-      },
-      {} as { [key: string]: React.ReactNode }
-    )
+        // Walk through all parallel routes.
+        for (const parallelRouteKey of parallelRoutesKeys) {
+          const parallelRoute = parallelRoutes[parallelRouteKey]
+          const path = await walkTreeWithFlightRouterState(
+            parallelRoute,
+            currentParams,
+            flightRouterState && flightRouterState[1][parallelRouteKey],
+            parentRendered || renderComponentsOnThisLevel
+          )
 
-    // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
-    if (!Component) {
-      return {
-        Component: () => <>{parallelRouteComponents.children}</>,
+          if (typeof path[path.length - 1] !== 'string') {
+            return [actualSegment, parallelRouteKey, ...path]
+          }
+        }
+
+        return [actualSegment]
       }
+
+      // Flight data that is going to be passed to the browser.
+      // Currently a single item array but in the future multiple patches might be combined in a single request.
+      const flightData: FlightData = [
+        // TODO-APP: change walk to output without ''
+        (
+          await walkTreeWithFlightRouterState(
+            loaderTree,
+            {},
+            providedFlightRouterState
+          )
+        ).slice(1),
+      ]
+
+      const readable = renderToReadableStream(
+        flightData,
+        serverComponentManifest,
+        {
+          context: serverContexts,
+          onError: flightDataRendererErrorHandler,
+        }
+      ).pipeThrough(createBufferedTransformStream())
+
+      if (generateStaticHTML) {
+        let staticHtml = Buffer.from(
+          (await readable.getReader().read()).value || ''
+        ).toString()
+        return new FlightRenderResult(staticHtml)
+      }
+      return new FlightRenderResult(readable)
     }
 
-    return {
-      Component: () => {
-        let props = {}
+    // Below this line is handling for rendering to HTML.
+
+    // Create full component tree from root to leaf.
+    const { Component: ComponentTree } = await createComponentTree({
+      createSegmentPath: (child) => child,
+      loaderTree: loaderTree,
+      parentParams: {},
+      firstItem: true,
+    })
+
+    // AppRouter is provided by next-app-loader
+    const AppRouter =
+      ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
+
+    let serverComponentsInlinedTransformStream: TransformStream<
+      Uint8Array,
+      Uint8Array
+    > = new TransformStream()
+
+    // TODO-APP: validate req.url as it gets passed to render.
+    const initialCanonicalUrl = req.url!
+
+    // Get the nonce from the incomming request if it has one.
+    const csp = req.headers['content-security-policy']
+    let nonce: string | undefined
+    if (csp && typeof csp === 'string') {
+      nonce = getScriptNonceFromHeader(csp)
+    }
+
+    const serverComponentsRenderOpts = {
+      transformStream: serverComponentsInlinedTransformStream,
+      serverComponentManifest,
+      serverContexts,
+      rscChunks: [],
+    }
+
+    /**
+     * A new React Component that renders the provided React Component
+     * using Flight which can then be rendered to HTML.
+     */
+    const ServerComponentsRenderer = createServerComponentRenderer(
+      () => {
+        const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
         return (
-          <>
-            {stylesheets
-              ? stylesheets.map((href) => (
-                  <link
-                    rel="stylesheet"
-                    href={`/_next/${href}?ts=${Date.now()}`}
-                    // `Precedence` is an opt-in signal for React to handle
-                    // resource loading and deduplication, etc:
-                    // https://github.com/facebook/react/pull/25060
-                    // @ts-ignore
-                    precedence="high"
-                    key={href}
-                  />
-                ))
-              : null}
-            <Component
-              {...props}
-              {...parallelRouteComponents}
-              // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
-              // Params are always the current params that apply to the layout
-              // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
-              params={currentParams}
-              // Query is only provided to page
-              {...(isPage ? { searchParams: query } : {})}
-            />
-          </>
+          <AppRouter
+            hotReloader={
+              HotReloader && (
+                <HotReloader assetPrefix={renderOpts.assetPrefix || ''} />
+              )
+            }
+            initialCanonicalUrl={initialCanonicalUrl}
+            initialTree={initialTree}
+          >
+            <ComponentTree />
+          </AppRouter>
         )
       },
+      ComponentMod,
+      serverComponentsRenderOpts,
+      nonce
+    )
+
+    const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
+    function FlushEffects({ children }: { children: JSX.Element }) {
+      // Reset flushEffectsHandler on each render
+      flushEffectsCallbacks.clear()
+      const addFlushEffects = React.useCallback(
+        (handler: () => React.ReactNode) => {
+          flushEffectsCallbacks.add(handler)
+        },
+        []
+      )
+
+      return (
+        <FlushEffectsContext.Provider value={addFlushEffects}>
+          {children}
+        </FlushEffectsContext.Provider>
+      )
     }
-  }
 
-  /**
-   * Rules of Static & Dynamic HTML:
-   *
-   *    1.) We must generate static HTML unless the caller explicitly opts
-   *        in to dynamic HTML support.
-   *
-   *    2.) If dynamic HTML support is requested, we must honor that request
-   *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
-   *
-   * These rules help ensure that other existing features like request caching,
-   * coalescing, and ISR continue working as intended.
-   */
-  const generateStaticHTML = supportsDynamicHTML !== true
+    const bodyResult = async () => {
+      const content = (
+        <FlushEffects>
+          <ServerComponentsRenderer />
+        </FlushEffects>
+      )
 
-  // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
-  if (isFlight) {
-    // TODO-APP: throw on invalid flightRouterState
-    /**
-     * Use router state to decide at what common layout to render the page.
-     * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
-     */
-    const walkTreeWithFlightRouterState = async (
-      loaderTreeToFilter: LoaderTree,
-      parentParams: { [key: string]: string | string[] },
-      flightRouterState?: FlightRouterState,
-      parentRendered?: boolean
-    ): Promise<FlightDataPath> => {
-      const [segment, parallelRoutes] = loaderTreeToFilter
-      const parallelRoutesKeys = Object.keys(parallelRoutes)
-
-      // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
-      const segmentParam = getDynamicParamFromSegment(segment)
-      const currentParams =
-        // Handle null case where dynamic param is optional
-        segmentParam && segmentParam.value !== null
-          ? {
-              ...parentParams,
-              [segmentParam.param]: segmentParam.value,
-            }
-          : parentParams
-      const actualSegment: Segment = segmentParam
-        ? segmentParam.treeSegment
-        : segment
-
-      /**
-       * Decide if the current segment is where rendering has to start.
-       */
-      const renderComponentsOnThisLevel =
-        // No further router state available
-        !flightRouterState ||
-        // Segment in router state does not match current segment
-        !matchSegment(actualSegment, flightRouterState[0]) ||
-        // Last item in the tree
-        parallelRoutesKeys.length === 0 ||
-        // Explicit refresh
-        flightRouterState[3] === 'refetch'
-
-      if (!parentRendered && renderComponentsOnThisLevel) {
-        return [
-          actualSegment,
-          // Create router state using the slice of the loaderTree
-          createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
-          // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-          isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
-            ? null
-            : // Create component tree using the slice of the loaderTree
-              React.createElement(
-                (
-                  await createComponentTree(
-                    // This ensures flightRouterPath is valid and filters down the tree
-                    {
-                      createSegmentPath: (child) => child,
-                      loaderTree: loaderTreeToFilter,
-                      parentParams: currentParams,
-                      firstItem: true,
-                    }
-                  )
-                ).Component
-              ),
-        ]
+      const flushEffectHandler = (): string => {
+        const flushed = ReactDOMServer.renderToString(
+          <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
+        )
+        return flushed
       }
 
-      // Walk through all parallel routes.
-      for (const parallelRouteKey of parallelRoutesKeys) {
-        const parallelRoute = parallelRoutes[parallelRouteKey]
-        const path = await walkTreeWithFlightRouterState(
-          parallelRoute,
-          currentParams,
-          flightRouterState && flightRouterState[1][parallelRouteKey],
-          parentRendered || renderComponentsOnThisLevel
-        )
+      try {
+        const renderStream = await renderToInitialStream({
+          ReactDOMServer,
+          element: content,
+          streamOptions: {
+            onError: htmlRendererErrorHandler,
+            nonce,
+            // Include hydration scripts in the HTML
+            bootstrapScripts: subresourceIntegrityManifest
+              ? buildManifest.rootMainFiles.map((src) => ({
+                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                  integrity: subresourceIntegrityManifest[src],
+                }))
+              : buildManifest.rootMainFiles.map(
+                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                ),
+          },
+        })
 
-        if (typeof path[path.length - 1] !== 'string') {
-          return [actualSegment, parallelRouteKey, ...path]
+        return await continueFromInitialStream(renderStream, {
+          dataStream: serverComponentsInlinedTransformStream?.readable,
+          generateStaticHTML: generateStaticHTML,
+          flushEffectHandler,
+          flushEffectsToHead: true,
+        })
+      } catch (err: any) {
+        if (err.code === REDIRECT_ERROR_CODE) {
+          throw err
         }
-      }
 
-      return [actualSegment]
+        // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
+        const renderStream = await renderToInitialStream({
+          ReactDOMServer,
+          element: (
+            <html id="__next_error__">
+              <head></head>
+              <body></body>
+            </html>
+          ),
+          streamOptions: {
+            nonce,
+            // Include hydration scripts in the HTML
+            bootstrapScripts: subresourceIntegrityManifest
+              ? buildManifest.rootMainFiles.map((src) => ({
+                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                  integrity: subresourceIntegrityManifest[src],
+                }))
+              : buildManifest.rootMainFiles.map(
+                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                ),
+          },
+        })
+
+        return await continueFromInitialStream(renderStream, {
+          dataStream: serverComponentsInlinedTransformStream?.readable,
+          generateStaticHTML: generateStaticHTML,
+          flushEffectHandler,
+          flushEffectsToHead: true,
+        })
+      }
     }
-
-    // Flight data that is going to be passed to the browser.
-    // Currently a single item array but in the future multiple patches might be combined in a single request.
-    const flightData: FlightData = [
-      // TODO-APP: change walk to output without ''
-      (
-        await walkTreeWithFlightRouterState(
-          loaderTree,
-          {},
-          providedFlightRouterState
-        )
-      ).slice(1),
-    ]
-
-    const readable = renderToReadableStream(
-      flightData,
-      serverComponentManifest,
-      {
-        context: serverContexts,
-        onError: flightDataRendererErrorHandler,
-      }
-    ).pipeThrough(createBufferedTransformStream())
 
     if (generateStaticHTML) {
+      const readable = await bodyResult()
       let staticHtml = Buffer.from(
         (await readable.getReader().read()).value || ''
       ).toString()
-      return new FlightRenderResult(staticHtml)
-    }
-    return new FlightRenderResult(readable)
-  }
 
-  // Below this line is handling for rendering to HTML.
+      ;(renderOpts as any).pageData = Buffer.concat(
+        serverComponentsRenderOpts.rscChunks
+      ).toString()
+      ;(renderOpts as any).revalidate =
+        typeof staticGenerationStore?.revalidate === 'undefined'
+          ? defaultRevalidate
+          : staticGenerationStore?.revalidate
 
-  // Create full component tree from root to leaf.
-  const { Component: ComponentTree } = await createComponentTree({
-    createSegmentPath: (child) => child,
-    loaderTree: loaderTree,
-    parentParams: {},
-    firstItem: true,
-  })
-
-  // AppRouter is provided by next-app-loader
-  const AppRouter =
-    ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
-
-  let serverComponentsInlinedTransformStream: TransformStream<
-    Uint8Array,
-    Uint8Array
-  > = new TransformStream()
-
-  // TODO-APP: validate req.url as it gets passed to render.
-  const initialCanonicalUrl = req.url!
-
-  // Get the nonce from the incomming request if it has one.
-  const csp = req.headers['content-security-policy']
-  let nonce: string | undefined
-  if (csp && typeof csp === 'string') {
-    nonce = getScriptNonceFromHeader(csp)
-  }
-
-  const serverComponentsRenderOpts = {
-    transformStream: serverComponentsInlinedTransformStream,
-    serverComponentManifest,
-    serverContexts,
-    rscChunks: [],
-  }
-
-  /**
-   * A new React Component that renders the provided React Component
-   * using Flight which can then be rendered to HTML.
-   */
-  const ServerComponentsRenderer = createServerComponentRenderer(
-    () => {
-      const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
-
-      return (
-        <AppRouter
-          hotReloader={
-            HotReloader && (
-              <HotReloader assetPrefix={renderOpts.assetPrefix || ''} />
-            )
-          }
-          initialCanonicalUrl={initialCanonicalUrl}
-          initialTree={initialTree}
-        >
-          <ComponentTree />
-        </AppRouter>
-      )
-    },
-    ComponentMod,
-    serverComponentsRenderOpts,
-    nonce
-  )
-
-  const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
-  function FlushEffects({ children }: { children: JSX.Element }) {
-    // Reset flushEffectsHandler on each render
-    flushEffectsCallbacks.clear()
-    const addFlushEffects = React.useCallback(
-      (handler: () => React.ReactNode) => {
-        flushEffectsCallbacks.add(handler)
-      },
-      []
-    )
-
-    return (
-      <FlushEffectsContext.Provider value={addFlushEffects}>
-        {children}
-      </FlushEffectsContext.Provider>
-    )
-  }
-
-  const bodyResult = async () => {
-    const content = (
-      <FlushEffects>
-        <ServerComponentsRenderer />
-      </FlushEffects>
-    )
-
-    const flushEffectHandler = (): string => {
-      const flushed = ReactDOMServer.renderToString(
-        <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
-      )
-      return flushed
+      return new RenderResult(staticHtml)
     }
 
     try {
-      const renderStream = await renderToInitialStream({
-        ReactDOMServer,
-        element: content,
-        streamOptions: {
-          onError: htmlRendererErrorHandler,
-          nonce,
-          // Include hydration scripts in the HTML
-          bootstrapScripts: subresourceIntegrityManifest
-            ? buildManifest.rootMainFiles.map((src) => ({
-                src: `${renderOpts.assetPrefix || ''}/_next/` + src,
-                integrity: subresourceIntegrityManifest[src],
-              }))
-            : buildManifest.rootMainFiles.map(
-                (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-              ),
-        },
-      })
-
-      return await continueFromInitialStream(renderStream, {
-        dataStream: serverComponentsInlinedTransformStream?.readable,
-        generateStaticHTML: generateStaticHTML,
-        flushEffectHandler,
-        flushEffectsToHead: true,
-      })
+      return new RenderResult(await bodyResult())
     } catch (err: any) {
       if (err.code === REDIRECT_ERROR_CODE) {
-        throw err
+        ;(renderOpts as any).pageData = {
+          pageProps: {
+            __N_REDIRECT: err.url,
+            __N_REDIRECT_STATUS: 307,
+          },
+        }
+        ;(renderOpts as any).isRedirect = true
+        return RenderResult.fromStatic('')
       }
-
-      // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
-      const renderStream = await renderToInitialStream({
-        ReactDOMServer,
-        element: (
-          <html id="__next_error__">
-            <head></head>
-            <body></body>
-          </html>
-        ),
-        streamOptions: {
-          nonce,
-          // Include hydration scripts in the HTML
-          bootstrapScripts: subresourceIntegrityManifest
-            ? buildManifest.rootMainFiles.map((src) => ({
-                src: `${renderOpts.assetPrefix || ''}/_next/` + src,
-                integrity: subresourceIntegrityManifest[src],
-              }))
-            : buildManifest.rootMainFiles.map(
-                (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-              ),
-        },
-      })
-
-      return await continueFromInitialStream(renderStream, {
-        dataStream: serverComponentsInlinedTransformStream?.readable,
-        generateStaticHTML: generateStaticHTML,
-        flushEffectHandler,
-        flushEffectsToHead: true,
-      })
+      throw err
     }
   }
 
-  if (generateStaticHTML) {
-    const readable = await bodyResult()
-    let staticHtml = Buffer.from(
-      (await readable.getReader().read()).value || ''
-    ).toString()
-
-    ;(renderOpts as any).pageData = Buffer.concat(
-      serverComponentsRenderOpts.rscChunks
-    ).toString()
-    ;(renderOpts as any).revalidate =
-      typeof staticGenerationContext.revalidate === 'undefined'
-        ? defaultRevalidate
-        : staticGenerationContext.revalidate
-
-    return new RenderResult(staticHtml)
+  const initialStaticGenerationStore = {
+    isStaticGeneration,
+    inUse: true,
+    pathname,
   }
 
-  try {
-    return new RenderResult(await bodyResult())
-  } catch (err: any) {
-    if (err.code === REDIRECT_ERROR_CODE) {
-      ;(renderOpts as any).pageData = {
-        pageProps: {
-          __N_REDIRECT: err.url,
-          __N_REDIRECT_STATUS: 307,
-        },
+  if ('getStore' in staticGenerationAsyncStorage) {
+    return new Promise<UnwrapPromise<ReturnType<typeof renderToHTMLOrFlight>>>(
+      (resolve, reject) => {
+        staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
+          wrappedRender().then(resolve).catch(reject)
+        })
       }
-      ;(renderOpts as any).isRedirect = true
-      return RenderResult.fromStatic('')
-    }
-    throw err
+    )
+  } else {
+    Object.assign(staticGenerationAsyncStorage, initialStaticGenerationStore)
+    return wrappedRender().finally(() => {
+      staticGenerationAsyncStorage.inUse = false
+    })
   }
 }
