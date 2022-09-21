@@ -6,7 +6,7 @@ if (!global.fetch) {
       ? require('next/dist/compiled/undici')
       : require('next/dist/compiled/node-fetch')
   }
-  // Due to limitation of global configuartion, we have to do this resolution at runtime
+  // Due to limitation of global configuration, we have to do this resolution at runtime
   global.fetch = (...args) => {
     const fetchImpl = getFetchImpl()
 
