@@ -94,7 +94,8 @@ describe('app dir - react server components', () => {
       '__nextDefaultLocale',
       '__nextIsNotFound',
       '__flight__',
-      '__flight_router_path__',
+      '__flight_router_state_tree__',
+      '__flight_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -110,14 +111,15 @@ describe('app dir - react server components', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
-          const url = request.url()
-          if (
-            url.includes('__flight__=1') &&
-            // Prefetches also include `__flight__`
-            !url.includes('__flight_prefetch__=1')
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__flight__ === '1' &&
+              // Prefetches also include `__flight__`
+              headers.__flight_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -215,14 +217,14 @@ describe('app dir - react server components', () => {
     const browser = await webdriver(next.url, '/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
-          const url = request.url()
-          if (
-            url.includes('__flight__=1') &&
-            // Prefetches also include `__flight__`
-            !url.includes('__flight_prefetch__=1')
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__flight__ === '1' &&
+              headers.__flight_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -336,7 +338,16 @@ describe('app dir - react server components', () => {
   })
 
   it('should support streaming for flight response', async () => {
-    await fetchViaHTTP(next.url, '/?__flight__=1').then(async (response) => {
+    await fetchViaHTTP(
+      next.url,
+      '/',
+      {},
+      {
+        headers: {
+          __flight__: '1',
+        },
+      }
+    ).then(async (response) => {
       const result = await resolveStreamResponse(response)
       expect(result).toContain('component:index.server')
     })

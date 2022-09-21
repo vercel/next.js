@@ -1,4 +1,4 @@
-import type { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 
@@ -495,6 +495,20 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
+const FLIGHT_PARAMETERS = [
+  '__flight__',
+  '__flight_router_state_tree__',
+  '__flight_prefetch__',
+] as const
+
+function headersWithoutFlight(headers: IncomingHttpHeaders) {
+  const newHeaders = { ...headers }
+  for (const param of FLIGHT_PARAMETERS) {
+    delete newHeaders[param]
+  }
+  return newHeaders
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -540,8 +554,8 @@ export async function renderToHTMLOrFlight(
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const isFlight = query.__flight__ !== undefined
-    const isPrefetch = query.__flight_prefetch__ !== undefined
+    const isFlight = req.headers.__flight__ !== undefined
+    const isPrefetch = req.headers.__flight_prefetch__ !== undefined
 
     // Handle client-side navigation to pages directory
     if (isFlight && isPagesDir) {
@@ -568,8 +582,8 @@ export async function renderToHTMLOrFlight(
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     const providedFlightRouterState: FlightRouterState = isFlight
-      ? query.__flight_router_state_tree__
-        ? JSON.parse(query.__flight_router_state_tree__ as string)
+      ? req.headers.__flight_router_state_tree__
+        ? JSON.parse(req.headers.__flight_router_state_tree__ as string)
         : {}
       : undefined
 
@@ -583,7 +597,7 @@ export async function renderToHTMLOrFlight(
       | typeof import('../client/components/hot-reloader.client').default
       | null
 
-    const headers = req.headers
+    const headers = headersWithoutFlight(req.headers)
     // TODO-APP: fix type of req
     // @ts-expect-error
     const cookies = req.cookies
