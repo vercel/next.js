@@ -32,32 +32,36 @@ describe('app-dir mpa navigation', () => {
   afterAll(() => next.destroy())
 
   describe('Should do a full page reload when switching root layout', () => {
-    it('should work with route groups', async () => {
-      const browser = await webdriver(next.url, '/one')
+    it('should work with basic routes', async () => {
+      const browser = await webdriver(next.url, '/basic-route')
 
-      expect(await browser.elementByCss('p').text()).toBe('One')
+      expect(await browser.elementById('basic-route').text()).toBe(
+        'Basic route'
+      )
       await browser.eval('window.__TEST_NO_RELOAD = true')
 
       // Navigate to page with same root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#one-inner')
+      await browser.waitForElementByCss('#inner-basic-route')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
 
       // Navigate to page with different root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#two')
+      await browser.waitForElementByCss('#route-group')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
 
-    it('should work with parallel routes', async () => {
-      const browser = await webdriver(next.url, '/two')
+    it('should work with route groups', async () => {
+      const browser = await webdriver(next.url, '/route-group')
 
-      expect(await browser.elementByCss('p').text()).toBe('Two')
+      expect(await browser.elementById('route-group').text()).toBe(
+        'Route group'
+      )
       await browser.eval('window.__TEST_NO_RELOAD = true')
 
       // Navigate to page with same root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#two-inner')
+      await browser.waitForElementByCss('#nested-route-group')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
 
       // Navigate to page with different root layout
@@ -67,8 +71,8 @@ describe('app-dir mpa navigation', () => {
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
 
-    it('should work with ordinary route', async () => {
-      const browser = await webdriver(next.url, '/parallel')
+    it('should work with parallel routes', async () => {
+      const browser = await webdriver(next.url, '/with-parallel-routes')
 
       expect(await browser.elementById('parallel-one').text()).toBe('One')
       expect(await browser.elementById('parallel-two').text()).toBe('Two')
@@ -81,7 +85,7 @@ describe('app-dir mpa navigation', () => {
 
       // Navigate to page with different root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#three')
+      await browser.waitForElementByCss('#inner-basic-route')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
   })
