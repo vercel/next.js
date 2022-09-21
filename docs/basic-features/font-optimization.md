@@ -65,6 +65,57 @@ module.exports = {
 }
 ```
 
+# Optimize CLS for Fonts
+
+NextJS can additionally optimize the Cumulative Layout Shift ([CLS](https://web.dev/cls/)) score of your site by adjusting the size of your fallback fonts along with inlining the font CSS.
+
+Sites that load fonts with font-display: swap usually suffer from a layout shift ([CLS](https://web.dev/cls/)) when the web font loads and replaces the fallback font. This is due to differences in height, width, and alignment between the main and fallback fonts, which is common even if the CSS font size is the same.
+
+NextJS can reduce CLS by adjusting the size of the fallback font to match that of the main font using font override metric properties such as `size-adjust`, `ascent-override`, `descent-override`, and `line-gap-override`.
+
+The feature can be enabled by setting the experimental flag `experimental.adjustFallbacks` in your next.config.js file.
+
+```js
+module.exports = {
+  experimental: {
+    adjustFallbacks: true,
+  },
+}
+```
+
+When this flag is enabled, Next.js will generate a fallback font definition with the correct size overrides in the format `{hyphenatedFontName}-fallback`.
+E.g.: for the font `Inter` the fallback font will be `fallback-inter`.
+
+You can then use the fallback font in your stylesheets (hyphenated font name + "-fallback" +)
+
+```CSS
+body {
+ font-family: "Inter", inter-fallback, sans-serif;
+}
+```
+
+> **NOTE**: Next.js currently supports one cross-platform serif font ('Times New Roman') and one cross-platform sans-serif font ('Arial')
+
+The final output will include the fallback override definition.
+
+```html
+// Injected into index.html during build/render
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<style data-href="https://fonts.googleapis.com/css2?family=Inter&display=swap">
+  @font-face{
+    font-family:'Inter';
+    font-style:normal...
+  }
+
+  @font-face {
+    font-family: inter-fallback,
+    src: local('Arial');
+    ascent-override: 96.975%;
+    ...
+  }
+</style>
+```
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
