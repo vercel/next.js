@@ -29,11 +29,9 @@ import {
 } from './hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 
-function urlToUrlWithoutFlightParameters(url: string): URL {
+function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
-  urlWithoutFlightParameters.searchParams.delete('__flight__')
-  urlWithoutFlightParameters.searchParams.delete('__flight_router_state_tree__')
-  urlWithoutFlightParameters.searchParams.delete('__flight_prefetch__')
+  // TODO-APP: handle .rsc for static export case
   return urlWithoutFlightParameters
 }
 
@@ -45,22 +43,26 @@ export async function fetchServerResponse(
   flightRouterState: FlightRouterState,
   prefetch?: true
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
-  const flightUrl = new URL(url)
-  const searchParams = flightUrl.searchParams
-  // Enable flight response
-  searchParams.append('__flight__', '1')
-  // Provide the current router state
-  searchParams.append(
-    '__flight_router_state_tree__',
-    JSON.stringify(flightRouterState)
-  )
+  const headers: {
+    __flight__: '1'
+    __flight_router_state_tree__: string
+    __flight_prefetch__?: '1'
+  } = {
+    // Enable flight response
+    __flight__: '1',
+    // Provide the current router state
+    __flight_router_state_tree__: JSON.stringify(flightRouterState),
+  }
   if (prefetch) {
-    searchParams.append('__flight_prefetch__', '1')
+    // Enable prefetch response
+    headers.__flight_prefetch__ = '1'
   }
 
-  const res = await fetch(flightUrl.toString())
+  const res = await fetch(url.toString(), {
+    headers,
+  })
   const canonicalUrl = res.redirected
-    ? urlToUrlWithoutFlightParameters(res.url)
+    ? urlToUrlWithoutFlightMarker(res.url)
     : undefined
 
   // Handle the `fetch` readable stream that can be unwrapped by `React.use`.

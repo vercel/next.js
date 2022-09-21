@@ -35,6 +35,12 @@ class NextRequestHint extends NextRequest {
   }
 }
 
+const FLIGHT_PARAMETERS = [
+  '__flight__',
+  '__flight_router_state_tree__',
+  '__flight_prefetch__',
+] as const
+
 export async function adapter(params: {
   handler: NextMiddleware
   page: string
@@ -58,11 +64,12 @@ export async function adapter(params: {
     requestUrl.pathname = '/'
   }
 
-  // Preserve flight data.
-  const flightSearchParameters = requestUrl.flightSearchParameters
+  const requestHeaders = fromNodeHeaders(params.request.headers)
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
-    requestUrl.flightSearchParameters = undefined
+    for (const param of FLIGHT_PARAMETERS) {
+      requestHeaders.delete(param)
+    }
   }
 
   // Strip internal query parameters off the request.
@@ -74,7 +81,7 @@ export async function adapter(params: {
     init: {
       body: params.request.body,
       geo: params.request.geo,
-      headers: fromNodeHeaders(params.request.headers),
+      headers: requestHeaders,
       ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
@@ -112,8 +119,6 @@ export async function adapter(params: {
 
     if (rewriteUrl.host === request.nextUrl.host) {
       rewriteUrl.buildId = buildId || rewriteUrl.buildId
-      rewriteUrl.flightSearchParameters =
-        flightSearchParameters || rewriteUrl.flightSearchParameters
       response.headers.set('x-middleware-rewrite', String(rewriteUrl))
     }
 
@@ -151,8 +156,6 @@ export async function adapter(params: {
 
     if (redirectURL.host === request.nextUrl.host) {
       redirectURL.buildId = buildId || redirectURL.buildId
-      redirectURL.flightSearchParameters =
-        flightSearchParameters || redirectURL.flightSearchParameters
       response.headers.set('Location', String(redirectURL))
     }
 
