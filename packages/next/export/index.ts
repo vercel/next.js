@@ -615,6 +615,7 @@ export default async function exportApp(
             httpAgentOptions: nextConfig.httpAgentOptions,
             serverComponents: nextConfig.experimental.serverComponents,
             appPaths: options.appPaths || [],
+            enableUndici: nextConfig.experimental.enableUndici,
           })
 
           for (const validation of result.ampValidations || []) {

@@ -68,6 +68,7 @@ interface ExportPageInput {
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
   appPaths: string[]
+  enableUndici: NextConfigComplete['experimental']['enableUndici']
 }
 
 interface ExportPageResults {
