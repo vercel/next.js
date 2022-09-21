@@ -92,10 +92,7 @@ async fn main() -> Result<()> {
     let tt = TurboTasks::new(MemoryBackend::new());
     let tt_clone = tt.clone();
 
-    let server = NextDevServerBuilder::new()
-        .turbo_tasks(tt)
-        .project_dir(dir)
-        .root_dir(root_dir)
+    let server = NextDevServerBuilder::new(tt, dir, root_dir)
         .entry_request("src/index".into())
         .eager_compile(args.eager_compile)
         .hostname(args.hostname)

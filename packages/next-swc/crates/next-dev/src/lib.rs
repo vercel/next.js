@@ -22,9 +22,9 @@ use turbopack_dev_server::{
 mod turbo_tasks_viz;
 
 pub struct NextDevServerBuilder {
-    turbo_tasks: Option<Arc<TurboTasks<MemoryBackend>>>,
-    project_dir: Option<String>,
-    root_dir: Option<String>,
+    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    project_dir: String,
+    root_dir: String,
     entry_requests: Vec<String>,
     eager_compile: bool,
     hostname: Option<IpAddr>,
@@ -34,18 +34,16 @@ pub struct NextDevServerBuilder {
     log_detail: bool,
 }
 
-impl Default for NextDevServerBuilder {
-    fn default() -> Self {
-        NextDevServerBuilder::new()
-    }
-}
-
 impl NextDevServerBuilder {
-    pub fn new() -> NextDevServerBuilder {
+    pub fn new(
+        turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+        project_dir: String,
+        root_dir: String,
+    ) -> NextDevServerBuilder {
         NextDevServerBuilder {
-            turbo_tasks: None,
-            project_dir: None,
-            root_dir: None,
+            turbo_tasks,
+            project_dir,
+            root_dir,
             entry_requests: vec![],
             eager_compile: false,
             hostname: None,
@@ -54,21 +52,6 @@ impl NextDevServerBuilder {
             show_all: false,
             log_detail: false,
         }
-    }
-
-    pub fn turbo_tasks(mut self, tt: Arc<TurboTasks<MemoryBackend>>) -> NextDevServerBuilder {
-        self.turbo_tasks = Some(tt);
-        self
-    }
-
-    pub fn project_dir(mut self, project_dir: String) -> NextDevServerBuilder {
-        self.project_dir = Some(project_dir);
-        self
-    }
-
-    pub fn root_dir(mut self, root_dir: String) -> NextDevServerBuilder {
-        self.root_dir = Some(root_dir);
-        self
     }
 
     pub fn entry_request(mut self, entry_asset_path: String) -> NextDevServerBuilder {
@@ -107,10 +90,10 @@ impl NextDevServerBuilder {
     }
 
     pub async fn build(self) -> Result<DevServer> {
-        let turbo_tasks = self.turbo_tasks.context("turbo_tasks must be set")?;
+        let turbo_tasks = self.turbo_tasks;
 
-        let project_dir = self.project_dir.context("project_dir must be set")?;
-        let root_dir = self.root_dir.context("root_dir must be set")?;
+        let project_dir = self.project_dir;
+        let root_dir = self.root_dir;
         let entry_requests = self.entry_requests;
         let eager_compile = self.eager_compile;
         let show_all = self.show_all;

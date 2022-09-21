@@ -118,20 +118,21 @@ async fn run_test(resource: &str) -> JestRunResult {
     );
 
     let requested_addr = get_free_local_addr().unwrap();
-    let server = NextDevServerBuilder::new()
-        .turbo_tasks(TurboTasks::new(MemoryBackend::new()))
-        .root_dir("tests".into())
-        .project_dir("tests".into())
-        .entry_request("harness.js".into())
-        .entry_request(
-            sys_to_unix(test_entry.strip_prefix("tests").unwrap().to_str().unwrap()).to_string(),
-        )
-        .eager_compile(false)
-        .hostname(requested_addr.ip())
-        .port(requested_addr.port())
-        .build()
-        .await
-        .unwrap();
+    let server = NextDevServerBuilder::new(
+        TurboTasks::new(MemoryBackend::new()),
+        "tests".into(),
+        "tests".into(),
+    )
+    .entry_request("harness.js".into())
+    .entry_request(
+        sys_to_unix(test_entry.strip_prefix("tests").unwrap().to_str().unwrap()).to_string(),
+    )
+    .eager_compile(false)
+    .hostname(requested_addr.ip())
+    .port(requested_addr.port())
+    .build()
+    .await
+    .unwrap();
 
     println!("server started at http://{}", server.addr);
 
