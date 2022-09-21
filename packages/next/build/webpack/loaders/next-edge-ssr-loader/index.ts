@@ -68,29 +68,33 @@ export default async function edgeSSRLoader(this: any) {
     import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
     import { getRender } from 'next/dist/build/webpack/loaders/next-edge-ssr-loader/render'
 
-    import Document from ${stringifiedDocumentPath}
-
     enhanceGlobals()
 
+    const pageType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
         ? `
+      const Document = null
       const appRenderToHTML = require('next/dist/server/app-render').renderToHTMLOrFlight
       const pagesRenderToHTML = null
       const pageMod = require(${JSON.stringify(pageModPath)})
+      const appMod = null
+      const errorMod = null
+      const error500Mod = null
     `
         : `
+      const Document = require(${stringifiedDocumentPath}).default
       const appRenderToHTML = null
       const pagesRenderToHTML = require('next/dist/server/render').renderToHTML
       const pageMod = require(${stringifiedPagePath})
+      const appMod = require(${stringifiedAppPath})
+      const errorMod = require(${stringifiedErrorPath})
+      const error500Mod = ${
+        stringified500Path ? `require(${stringified500Path})` : 'null'
+      }
     `
     }
 
-    const appMod = require(${stringifiedAppPath})
-    const errorMod = require(${stringifiedErrorPath})
-    const error500Mod = ${
-      stringified500Path ? `require(${stringified500Path})` : 'null'
-    }
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
@@ -101,6 +105,7 @@ export default async function edgeSSRLoader(this: any) {
     }
 
     const render = getRender({
+      pageType,
       dev: ${dev},
       page: ${JSON.stringify(page)},
       appMod,
