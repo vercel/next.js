@@ -35,6 +35,8 @@ class NextRequestHint extends NextRequest {
   }
 }
 
+const ResponseToRequest = new WeakMap<Response, NextRequestHint>()
+
 export async function adapter(params: {
   handler: NextMiddleware
   page: string
@@ -170,6 +172,10 @@ export async function adapter(params: {
     }
   }
 
+  if (response) {
+    ResponseToRequest.set(response, request)
+  }
+
   return {
     response: response || NextResponse.next(),
     waitUntil: Promise.all(event[waitUntilSymbol]),
@@ -180,6 +186,15 @@ export function blockUnallowedResponse(
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
   return promise.then((result) => {
+    const { nextUrl } = ResponseToRequest.get(result.response) || {}
+
+    if (
+      nextUrl &&
+      (nextUrl.pathname === '/api' || nextUrl.pathname.startsWith('/api/'))
+    ) {
+      return result
+    }
+
     if (result.response?.body) {
       console.error(
         new Error(

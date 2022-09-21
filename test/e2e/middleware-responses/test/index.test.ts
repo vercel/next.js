@@ -43,6 +43,21 @@ describe('Middleware Responses', () => {
       }
     })
 
+    it(`${label}should successfuly return a body for an API endpoint request`, async () => {
+      const res = await fetchViaHTTP(next.url, `/api/send-response`)
+      expect({
+        text: await res.text(),
+        status: res.status,
+        headers: Object.fromEntries(res.headers),
+      }).toEqual({
+        text: 'Unauthorized',
+        status: 401,
+        headers: expect.objectContaining({
+          'x-custom-header': 'yes',
+        }),
+      })
+    })
+
     it(`${label}should fail when returning a text body`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/send-response`)
       expect(res.status).toBe(500)

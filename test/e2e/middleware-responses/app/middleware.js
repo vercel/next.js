@@ -17,6 +17,13 @@ export async function middleware(request, ev) {
     return NextResponse.next()
   }
 
+  if (url.pathname === '/api/send-response') {
+    return new Response('Unauthorized', {
+      status: 401,
+      headers: { 'x-custom-header': 'yes' },
+    })
+  }
+
   // Header based on query param
   if (url.searchParams.get('nested-header') === 'true') {
     next.headers.set('x-nested-header', 'valid')
