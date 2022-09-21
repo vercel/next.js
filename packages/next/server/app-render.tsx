@@ -1,12 +1,13 @@
-import type { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
 
 // TODO-APP: change to React.use once it becomes stable
+// @ts-ignore
 import React, { experimental_use as use } from 'react'
+
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
-import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
 import {
@@ -103,15 +104,15 @@ let isFetchPatched = false
 
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
-function patchFetch() {
+function patchFetch(ComponentMod: any) {
   if (isFetchPatched) return
   isFetchPatched = true
 
   const { DynamicServerError } =
-    require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
+    ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
   const { staticGenerationAsyncStorage } =
-    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
+    require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
 
   const origFetch = (global as any).fetch
 
@@ -224,6 +225,7 @@ function useFlightResponse(
 function createServerComponentRenderer(
   ComponentToRender: React.ComponentType,
   ComponentMod: {
+    renderToReadableStream: any
     __next_app_webpack_require__?: any
     __next_rsc__?: {
       __webpack_require__?: any
@@ -259,7 +261,7 @@ function createServerComponentRenderer(
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
     if (!RSCStream) {
-      RSCStream = renderToReadableStream(
+      RSCStream = ComponentMod.renderToReadableStream(
         <ComponentToRender />,
         serverComponentManifest,
         {
@@ -493,6 +495,20 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
+const FLIGHT_PARAMETERS = [
+  '__flight__',
+  '__flight_router_state_tree__',
+  '__flight_prefetch__',
+] as const
+
+function headersWithoutFlight(headers: IncomingHttpHeaders) {
+  const newHeaders = { ...headers }
+  for (const param of FLIGHT_PARAMETERS) {
+    delete newHeaders[param]
+  }
+  return newHeaders
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -502,10 +518,19 @@ export async function renderToHTMLOrFlight(
   isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
-  patchFetch()
+  const {
+    buildManifest,
+    subresourceIntegrityManifest,
+    serverComponentManifest,
+    serverCSSManifest = {},
+    supportsDynamicHTML,
+    ComponentMod,
+  } = renderOpts
+
+  patchFetch(ComponentMod)
 
   const { staticGenerationAsyncStorage } =
-    require('../client/components/hooks-server') as typeof import('../client/components/hooks-server')
+    require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
 
   if (
     !('getStore' in staticGenerationAsyncStorage) &&
@@ -524,29 +549,13 @@ export async function renderToHTMLOrFlight(
         : staticGenerationAsyncStorage
 
     const { CONTEXT_NAMES } =
-      require('../client/components/hooks-server-context') as typeof import('../client/components/hooks-server-context')
-
-    // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
-    if (typeof React.createServerContext === 'undefined') {
-      throw new Error(
-        '"app" directory requires React.createServerContext which is not available in the version of React you are using. Please update to react@experimental and react-dom@experimental.'
-      )
-    }
+      ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const {
-      buildManifest,
-      subresourceIntegrityManifest,
-      serverComponentManifest,
-      serverCSSManifest = {},
-      supportsDynamicHTML,
-      ComponentMod,
-    } = renderOpts
-
-    const isFlight = query.__flight__ !== undefined
-    const isPrefetch = query.__flight_prefetch__ !== undefined
+    const isFlight = req.headers.__flight__ !== undefined
+    const isPrefetch = req.headers.__flight_prefetch__ !== undefined
 
     // Handle client-side navigation to pages directory
     if (isFlight && isPagesDir) {
@@ -556,9 +565,13 @@ export async function renderToHTMLOrFlight(
       // Empty so that the client-side router will do a full page navigation.
       const flightData: FlightData = pathname + (search ? `?${search}` : '')
       return new FlightRenderResult(
-        renderToReadableStream(flightData, serverComponentManifest, {
-          onError: flightDataRendererErrorHandler,
-        }).pipeThrough(createBufferedTransformStream())
+        ComponentMod.renderToReadableStream(
+          flightData,
+          serverComponentManifest,
+          {
+            onError: flightDataRendererErrorHandler,
+          }
+        ).pipeThrough(createBufferedTransformStream())
       )
     }
 
@@ -569,8 +582,8 @@ export async function renderToHTMLOrFlight(
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     const providedFlightRouterState: FlightRouterState = isFlight
-      ? query.__flight_router_state_tree__
-        ? JSON.parse(query.__flight_router_state_tree__ as string)
+      ? req.headers.__flight_router_state_tree__
+        ? JSON.parse(req.headers.__flight_router_state_tree__ as string)
         : {}
       : undefined
 
@@ -584,7 +597,7 @@ export async function renderToHTMLOrFlight(
       | typeof import('../client/components/hot-reloader.client').default
       | null
 
-    const headers = req.headers
+    const headers = headersWithoutFlight(req.headers)
     // TODO-APP: fix type of req
     // @ts-expect-error
     const cookies = req.cookies
@@ -1043,7 +1056,7 @@ export async function renderToHTMLOrFlight(
         ).slice(1),
       ]
 
-      const readable = renderToReadableStream(
+      const readable = ComponentMod.renderToReadableStream(
         flightData,
         serverComponentManifest,
         {

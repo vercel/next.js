@@ -342,9 +342,6 @@ const configSchema = {
         scrollRestoration: {
           type: 'boolean',
         },
-        serverComponents: {
-          type: 'boolean',
-        },
         sharedPool: {
           type: 'boolean',
         },

@@ -828,7 +828,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (
       this.nextConfig.experimental.appDir &&
-      (renderOpts.isAppPath || query.__flight__)
+      (renderOpts.isAppPath || req.headers.__flight__)
     ) {
       const isPagesDir = !renderOpts.isAppPath
       return appRenderToHTMLOrFlight(
@@ -984,7 +984,6 @@ export default class NextNodeServer extends BaseServer {
                   __nextDataReq: query.__nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
-                  __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
@@ -1007,12 +1006,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.serverComponents) return undefined
+    if (!this.nextConfig.experimental.appDir) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getServerCSSManifest() {
-    if (!this.nextConfig.experimental.serverComponents) return undefined
+    if (!this.nextConfig.experimental.appDir) return undefined
     return require(join(
       this.distDir,
       'server',
