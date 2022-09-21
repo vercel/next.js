@@ -32,8 +32,12 @@ const clientGlobs = [
     globs: ['fetched-pages/**/*.html'],
   },
   {
-    name: 'Edge SSR Page bundle Size',
+    name: 'Pages edge SSR bundle Size',
     globs: ['.next/server/pages/edge-ssr.js'],
+  },
+  {
+    name: 'App edge SSR bundle Size',
+    globs: ['.next/server/app/app-edge-ssr/page.js'],
   },
   {
     name: 'Middleware size',
