@@ -11,7 +11,9 @@ describe('next/jest', () => {
     return
   }
 
-  beforeAll(async () => {
+  afterEach(() => next.destroy())
+
+  it('should work', async () => {
     next = await createNext({
       files: {
         'public/vercel.svg':
@@ -140,11 +142,104 @@ describe('next/jest', () => {
       },
       buildCommand: `yarn build`,
     })
-  })
-  afterAll(() => next.destroy())
 
-  it('should work', async () => {
     const html = await renderViaHTTP(next.url, '/')
+
     expect(html).toContain('hello world')
+  })
+
+  it(`should use normal Link behavior when newNextLinkBehavior is unset`, async () => {
+    next = await createNext({
+      files: {
+        'pages/index.jsx': `
+          import Link from 'next/link'
+
+          export default function Page() {
+            return <Link href='https://example.com'><a>Hello World!</a></Link>
+          }
+        `,
+        'test/index.test.jsx': `
+          import { render, screen, act } from '@testing-library/react'
+          import Page from '../pages/index'
+
+          it('Link', () => {
+            act(() => {
+              render(<Page />)
+
+              const link = screen.getByRole('link', { name: 'Hello World!' })
+              expect(link.getAttribute('href')).toBe('https://example.com')
+            })
+          })
+        `,
+        'jest.config.js': `
+          const nextJest = require('next/jest')
+          const createJestConfig = nextJest({ dir: './' })
+          module.exports = createJestConfig({
+            testEnvironment: 'jest-environment-jsdom',
+          })
+        `,
+      },
+      dependencies: {
+        jest: '27.4.7',
+        '@testing-library/react': '12.1.2',
+      },
+      packageJson: {
+        scripts: {
+          build: 'next build && yarn jest --forceExit test/index.test.jsx',
+        },
+      },
+      buildCommand: `yarn build`,
+    })
+
+    expect.pass('jest test passed!')
+  })
+
+  it(`should use new link behavior when newNextLinkBehavior is true`, async () => {
+    next = await createNext({
+      files: {
+        'pages/index.jsx': `
+          import Link from 'next/link'
+
+          export default function Page() {
+            return <Link href='https://example.com'>Hello World!</Link>
+          }
+        `,
+        'test/index.test.jsx': `
+          import { render, screen, act } from '@testing-library/react'
+          import Page from '../pages/index'
+
+          it('Link', () => {
+            act(() => {
+              render(<Page />)
+
+              const link = screen.getByRole('link', { name: 'Hello World!' })
+              expect(link.getAttribute('href')).toBe('https://example.com')
+            })
+          })
+        `,
+        'jest.config.js': `
+          const nextJest = require('next/jest')
+          const createJestConfig = nextJest({ dir: './' })
+          module.exports = createJestConfig({
+            testEnvironment: 'jest-environment-jsdom',
+          })
+        `,
+        'next.config.js': `
+          module.exports = { experimental: { newNextLinkBehavior: true } }
+        `,
+      },
+      dependencies: {
+        jest: '27.4.7',
+        '@testing-library/react': '12.1.2',
+      },
+      packageJson: {
+        scripts: {
+          build: 'next build && yarn jest --forceExit test/index.test.jsx',
+        },
+      },
+      buildCommand: `yarn build`,
+    })
+
+    expect.pass('jest test passed!')
   })
 })
