@@ -29,9 +29,6 @@ describe('app dir', () => {
           'react-dom': 'experimental',
         },
         skipStart: true,
-        env: {
-          VERCEL_ANALYTICS_ID: 'fake-analytics-id',
-        },
       })
 
       await next.start()
@@ -623,7 +620,7 @@ describe('app dir', () => {
         })
 
         // TODO-APP: investigate hydration not kicking in on some runs
-        it.skip('should serve client-side', async () => {
+        it('should serve client-side', async () => {
           const browser = await webdriver(next.url, '/client-component-route')
 
           // After hydration count should be 1
@@ -643,8 +640,7 @@ describe('app dir', () => {
           expect($('p').text()).toBe('hello from app/client-nested')
         })
 
-        // TODO-APP: investigate hydration not kicking in on some runs
-        it.skip('should include it client-side', async () => {
+        it('should include it client-side', async () => {
           const browser = await webdriver(next.url, '/client-nested')
 
           // After hydration count should be 1
@@ -1448,40 +1444,6 @@ describe('app dir', () => {
       })
     })
 
-    // Analytics events are only sent in production
-    ;(isDev ? describe.skip : describe)('Vercel analytics', () => {
-      it('should send web vitals to Vercel analytics', async () => {
-        let eventsCount = 0
-        let countEvents = false
-        const browser = await webdriver(next.url, '/client-nested', {
-          beforePageLoad(page) {
-            page.route(
-              'https://vitals.vercel-insights.com/v1/vitals',
-              (route) => {
-                if (countEvents) {
-                  eventsCount += 1
-                }
-
-                route.fulfill()
-              }
-            )
-          },
-        })
-
-        // Start counting analytics events
-        countEvents = true
-
-        // Refresh will trigger CLS and LCP. When page loads FCP and TTFB will trigger:
-        await browser.refresh()
-
-        // After interaction LCP and FID will trigger
-        await browser.elementByCss('button').click()
-
-        // Make sure all registered events in performance-relayer has fired
-        await check(() => eventsCount, /6/)
-      })
-    })
-
     describe('known bugs', () => {
       it('should not share flight data between requests', async () => {
         const fetches = await Promise.all(
@@ -1494,6 +1456,82 @@ describe('app dir', () => {
           const $ = cheerio.load(text)
           expect($('#category-id').text()).toBe('electronicsabc')
         }
+      })
+    })
+
+    describe('redirect', () => {
+      describe('components', () => {
+        it.skip('should redirect in a server component', async () => {
+          const browser = await webdriver(next.url, '/redirect/servercomponent')
+          await browser.waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
+
+        it('should redirect in a client component', async () => {
+          const browser = await webdriver(next.url, '/redirect/clientcomponent')
+          await browser.waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
+
+        it('should redirect client-side', async () => {
+          const browser = await webdriver(next.url, '/redirect/client-side')
+          await browser
+            .elementByCss('button')
+            .click()
+            .waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
+      })
+
+      describe('next.config.js redirects', () => {
+        it('should redirect from next.config.js', async () => {
+          const browser = await webdriver(next.url, '/redirect/a')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+
+        it('should redirect from next.config.js with link navigation', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect/next-config-redirect'
+          )
+          await browser
+            .elementByCss('#redirect-a')
+            .click()
+            .waitForElementByCss('h1')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+      })
+
+      describe('middleware redirects', () => {
+        it('should redirect from middleware', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect-middleware-to-dashboard'
+          )
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+
+        it('should redirect from middleware with link navigation', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect/next-middleware-redirect'
+          )
+          await browser
+            .elementByCss('#redirect-middleware')
+            .click()
+            .waitForElementByCss('h1')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
       })
     })
   }
