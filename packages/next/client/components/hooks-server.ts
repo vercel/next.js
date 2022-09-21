@@ -1,4 +1,3 @@
-import type { AsyncLocalStorage } from 'async_hooks'
 import { useContext } from 'react'
 import {
   HeadersContext,
@@ -6,23 +5,7 @@ import {
   CookiesContext,
   DynamicServerError,
 } from './hooks-server-context'
-
-export interface StaticGenerationStore {
-  inUse?: boolean
-  pathname?: string
-  revalidate?: number
-  fetchRevalidate?: number
-  isStaticGeneration?: boolean
-}
-
-export let staticGenerationAsyncStorage:
-  | AsyncLocalStorage<StaticGenerationStore>
-  | StaticGenerationStore = {}
-
-if (process.env.NEXT_RUNTIME !== 'edge' && typeof window === 'undefined') {
-  staticGenerationAsyncStorage =
-    new (require('async_hooks').AsyncLocalStorage)()
-}
+import { staticGenerationAsyncStorage } from './static-generation-async-storage'
 
 function useStaticGenerationBailout(reason: string) {
   const staticGenerationStore =
