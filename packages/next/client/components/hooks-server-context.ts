@@ -33,7 +33,6 @@ export const CONTEXT_NAMES = {
   HeadersContext: 'HeadersContext',
   PreviewDataContext: 'PreviewDataContext',
   CookiesContext: 'CookiesContext',
-  StaticGenerationContext: 'StaticGenerationContext',
   FetchRevalidateContext: 'FetchRevalidateContext',
 } as const
 
@@ -42,7 +41,3 @@ export const PreviewDataContext = createContext(
   CONTEXT_NAMES.PreviewDataContext
 )
 export const CookiesContext = createContext(CONTEXT_NAMES.CookiesContext)
-export const StaticGenerationContext = createContext(
-  CONTEXT_NAMES.StaticGenerationContext,
-  { isStaticGeneration: false }
-)
