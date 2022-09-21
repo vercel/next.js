@@ -4,21 +4,20 @@ import {
   PreviewDataContext,
   CookiesContext,
   DynamicServerError,
-  StaticGenerationContext,
 } from './hooks-server-context'
-
-export function useTrackStaticGeneration() {
-  return useContext<
-    typeof import('./hooks-server-context').StaticGenerationContext
-  >(StaticGenerationContext)
-}
+import { staticGenerationAsyncStorage } from './static-generation-async-storage'
 
 function useStaticGenerationBailout(reason: string) {
-  const staticGenerationContext = useTrackStaticGeneration()
+  const staticGenerationStore =
+    staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
+      ? staticGenerationAsyncStorage?.getStore()
+      : staticGenerationAsyncStorage
 
-  if (staticGenerationContext.isStaticGeneration) {
+  if (staticGenerationStore?.isStaticGeneration) {
     // TODO: honor the dynamic: 'force-static'
-    staticGenerationContext.revalidate = 0
+    if (staticGenerationStore) {
+      staticGenerationStore.revalidate = 0
+    }
     throw new DynamicServerError(reason)
   }
 }

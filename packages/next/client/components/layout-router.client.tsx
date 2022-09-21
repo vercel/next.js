@@ -23,6 +23,8 @@ import {
   TemplateContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
+import { createInfinitePromise } from './infinite-promise'
+
 // import { matchSegment } from './match-segments'
 
 /**
@@ -93,29 +95,6 @@ function walkAddRefetch(
   }
 
   return treeToRecreate
-}
-
-/**
- * Used to cache in createInfinitePromise
- */
-let infinitePromise: Promise<void> | Error
-
-/**
- * Create a Promise that does not resolve. This is used to suspend when data is not available yet.
- */
-function createInfinitePromise() {
-  if (!infinitePromise) {
-    // Only create the Promise once
-    infinitePromise = new Promise((/* resolve */) => {
-      // This is used to debug when the rendering is never updated.
-      // setTimeout(() => {
-      //   infinitePromise = new Error('Infinite promise')
-      //   resolve()
-      // }, 5000)
-    })
-  }
-
-  return infinitePromise
 }
 
 /**
@@ -237,7 +216,7 @@ export function InnerLayoutRouter({
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const [flightData] = use(childNode.data)
+    const [flightData, overrideCanonicalUrl] = use(childNode.data)
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {
@@ -245,52 +224,25 @@ export function InnerLayoutRouter({
       return null
     }
 
-    /**
-     * If the fast path was triggered.
-     * The fast path is when the returned Flight data path matches the layout segment path, then we can write the data to the cache in render instead of dispatching an action.
-     */
-    let fastPath: boolean = false
+    // segmentPath from the server does not match the layout's segmentPath
+    childNode.data = null
 
-    // If there are multiple patches returned in the Flight data we need to dispatch to ensure a single render.
-    // if (flightData.length === 1) {
-    //   const flightDataPath = flightData[0]
-
-    //   if (segmentPathMatches(flightDataPath, segmentPath)) {
-    //     // Ensure data is set to null as subTreeData will be set in the cache now.
-    //     childNode.data = null
-    //     // Last item is the subtreeData
-    //     // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
-    //     const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
-    //     // Add subTreeData into the cache
-    //     childNode.subTreeData = subTreeData
-    //     // This field is required for new items
-    //     childNode.parallelRoutes = new Map()
-    //     fastPath = true
-    //   }
-    // }
-
-    // When the fast path is not used a new action is dispatched to update the tree and cache.
-    if (!fastPath) {
-      // segmentPath from the server does not match the layout's segmentPath
-      childNode.data = null
-
-      // setTimeout is used to start a new transition during render, this is an intentional hack around React.
-      setTimeout(() => {
-        // @ts-ignore startTransition exists
-        React.startTransition(() => {
-          // TODO-APP: handle redirect
-          changeByServerResponse(fullTree, flightData)
-        })
+    // setTimeout is used to start a new transition during render, this is an intentional hack around React.
+    setTimeout(() => {
+      // @ts-ignore startTransition exists
+      React.startTransition(() => {
+        // TODO-APP: handle redirect
+        changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
       })
-      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-      throw createInfinitePromise()
-    }
+    })
+    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+    use(createInfinitePromise())
   }
 
   // If cache node has no subTreeData and no data request we have to infinitely suspend as the data will likely flow in from another place.
   // TODO-APP: double check users can't return null in a component that will kick in here.
   if (!childNode.subTreeData) {
-    throw createInfinitePromise()
+    use(createInfinitePromise())
   }
 
   const subtree = (

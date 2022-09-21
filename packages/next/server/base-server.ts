@@ -363,7 +363,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    const serverComponents = this.nextConfig.experimental.serverComponents
+    const serverComponents = !!this.nextConfig.experimental.appDir
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
@@ -1032,7 +1032,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && query.__flight__
+      this.serverComponentManifest && req.headers.__flight__
     )
 
     // we need to ensure the status code if /404 is visited directly

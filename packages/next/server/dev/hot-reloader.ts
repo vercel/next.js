@@ -217,8 +217,7 @@ export default class HotReloader {
 
     this.config = config
     this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-    this.hasServerComponents =
-      this.hasReactRoot && !!config.experimental.serverComponents
+    this.hasServerComponents = this.hasReactRoot && !!config.experimental.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
