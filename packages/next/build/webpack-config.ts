@@ -544,22 +544,16 @@ export default async function getBaseWebpackConfig(
           '`experimental.runtime` requires React 18 to be installed.'
         )
       }
-      if (config.experimental.serverComponents) {
+      if (config.experimental.appDir) {
         throw new Error(
-          '`experimental.serverComponents` requires React 18 to be installed.'
+          '`experimental.appDir` requires React 18 to be installed.'
         )
       }
-    }
-    if (!config.experimental.appDir && config.experimental.serverComponents) {
-      throw new Error(
-        '`experimental.serverComponents` requires experimental.appDir to be enabled.'
-      )
     }
   }
 
   const hasConcurrentFeatures = hasReactRoot
-  const hasServerComponents =
-    hasConcurrentFeatures && !!config.experimental.serverComponents
+  const hasServerComponents = !!config.experimental.appDir
   const disableOptimizedLoading = hasConcurrentFeatures
     ? true
     : config.experimental.disableOptimizedLoading
@@ -693,6 +687,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/](esm[\\/])?client/,
     /next[\\/]dist[\\/](esm[\\/])?pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
+    /styled-jsx[\\/]/,
   ]
 
   // Support for NODE_PATH
@@ -834,6 +829,14 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
+  const reactAliases = {
+    react: reactDir,
+    'react-dom$': reactDomDir,
+    'react-dom/server$': `${reactDomDir}/server`,
+    'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+    'react-dom/client$': `${reactDomDir}/client`,
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -846,11 +849,8 @@ export default async function getBaseWebpackConfig(
     alias: {
       next: NEXT_PROJECT_ROOT,
 
-      react: `${reactDir}`,
-      'react-dom$': `${reactDomDir}`,
-      'react-dom/server$': `${reactDomDir}/server`,
-      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-      'react-dom/client$': `${reactDomDir}/client`,
+      ...reactAliases,
+
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
 
@@ -980,6 +980,7 @@ export default async function getBaseWebpackConfig(
     context: string,
     request: string,
     dependencyType: string,
+    layer: string | null,
     getResolve: (
       options: any
     ) => (
@@ -1004,14 +1005,47 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
+    const resolveWithReactServerCondition =
+      layer === WEBPACK_LAYERS.server
+        ? getResolve({
+            // If React is aliased to another channel during Next.js' local development,
+            // we need to provide that alias to webpack's resolver.
+            alias: process.env.__NEXT_REACT_CHANNEL
+              ? {
+                  ...reactAliases,
+                  'react/package.json': `${reactDir}/package.json`,
+                  'react/jsx-runtime': `${reactDir}/jsx-runtime`,
+                  'react/jsx-dev-runtime': `${reactDir}/jsx-dev-runtime`,
+                  'react-dom/package.json': `${reactDomDir}/package.json`,
+                }
+              : false,
+            conditionNames: ['react-server'],
+          })
+        : null
+
+    // Special internal modules that must be bundled for Server Components.
+    if (layer === WEBPACK_LAYERS.server) {
+      if (!isLocal && /^react(?:$|\/)/.test(request)) {
+        const [resolved] = await resolveWithReactServerCondition!(
+          context,
+          request
+        )
+        return resolved
+      }
+      if (
+        request ===
+        'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+      ) {
+        return
+      }
+    }
+
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      // styled-jsx is also marked as externals here to avoid being
-      // bundled in client components for RSC.
-      if (/^(?:next$|styled-jsx$|react(?:$|\/))/.test(request)) {
+      if (/^(?:next$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -1125,9 +1159,22 @@ export default async function getBaseWebpackConfig(
       return
     }
 
-    // Anything else that is standard JavaScript within `node_modules`
-    // can be externalized.
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
+      if (layer === WEBPACK_LAYERS.server) {
+        try {
+          const [resolved] = await resolveWithReactServerCondition!(
+            context,
+            request
+          )
+          return resolved
+        } catch (err) {
+          // The `react-server` condition is not matched, fallback.
+          return
+        }
+      }
+
+      // Anything else that is standard JavaScript within `node_modules`
+      // can be externalized.
       return `${externalType} ${request}`
     }
 
@@ -1179,11 +1226,17 @@ export default async function getBaseWebpackConfig(
               context,
               request,
               dependencyType,
+              contextInfo,
               getResolve,
             }: {
               context: string
               request: string
               dependencyType: string
+              contextInfo: {
+                issuer: string
+                issuerLayer: string | null
+                compiler: string
+              }
               getResolve: (
                 options: any
               ) => (
@@ -1196,24 +1249,31 @@ export default async function getBaseWebpackConfig(
                 ) => void
               ) => void
             }) =>
-              handleExternals(context, request, dependencyType, (options) => {
-                const resolveFunction = getResolve(options)
-                return (resolveContext: string, requestToResolve: string) =>
-                  new Promise((resolve, reject) => {
-                    resolveFunction(
-                      resolveContext,
-                      requestToResolve,
-                      (err, result, resolveData) => {
-                        if (err) return reject(err)
-                        if (!result) return resolve([null, false])
-                        const isEsm = /\.js$/i.test(result)
-                          ? resolveData?.descriptionFileData?.type === 'module'
-                          : /\.mjs$/i.test(result)
-                        resolve([result, isEsm])
-                      }
-                    )
-                  })
-              }),
+              handleExternals(
+                context,
+                request,
+                dependencyType,
+                contextInfo.issuerLayer,
+                (options) => {
+                  const resolveFunction = getResolve(options)
+                  return (resolveContext: string, requestToResolve: string) =>
+                    new Promise((resolve, reject) => {
+                      resolveFunction(
+                        resolveContext,
+                        requestToResolve,
+                        (err, result, resolveData) => {
+                          if (err) return reject(err)
+                          if (!result) return resolve([null, false])
+                          const isEsm = /\.js$/i.test(result)
+                            ? resolveData?.descriptionFileData?.type ===
+                              'module'
+                            : /\.mjs$/i.test(result)
+                          resolve([result, isEsm])
+                        }
+                      )
+                    })
+                }
+              ),
           ]
         : [
             // When the 'serverless' target is used all node_modules will be compiled into the output bundles
@@ -1750,7 +1810,7 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
             const devPlugins = [
               new NextJsRequireCacheHotReloader({
-                hasServerComponents: config.experimental.serverComponents,
+                hasServerComponents,
               }),
             ]
 
@@ -1819,11 +1879,9 @@ export default async function getBaseWebpackConfig(
           },
         }),
       !!config.experimental.appDir &&
-        hasServerComponents &&
         isClient &&
         new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
-        !!config.experimental.appDir &&
         (isClient
           ? new FlightManifestPlugin({
               dev,
