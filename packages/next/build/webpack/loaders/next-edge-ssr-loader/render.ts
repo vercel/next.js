@@ -2,6 +2,7 @@ import type { NextConfig } from '../../../../server/config-shared'
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
+import type { FontLoaderManifest } from '../../plugins/font-loader-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -27,6 +28,7 @@ export function getRender({
   serverCSSManifest,
   config,
   buildId,
+  fontLoaderManifest,
 }: {
   dev: boolean
   page: string
@@ -45,12 +47,14 @@ export function getRender({
   appServerMod: any
   config: NextConfig
   buildId: string
+  fontLoaderManifest: FontLoaderManifest
 }) {
   const baseLoadComponentResult = {
     dev,
     buildManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
+    fontLoaderManifest,
     Document,
     App: appMod.default as AppType,
   }

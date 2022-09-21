@@ -1781,6 +1781,7 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+          hasFontLoaders: !!config.experimental.fontLoaders,
         }),
       isClient &&
         new BuildManifestPlugin({
