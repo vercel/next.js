@@ -73,12 +73,12 @@ Sites that load fonts with font-display: swap usually suffer from a layout shift
 
 NextJS can reduce CLS by adjusting the size of the fallback font to match that of the main font using font override metric properties such as `size-adjust`, `ascent-override`, `descent-override`, and `line-gap-override`.
 
-The feature can be enabled by setting the experimental flag `experimental.adjustFallbacks` in your next.config.js file.
+The feature can be enabled by setting the experimental flag `experimental.adjustFontFallbacks` in your next.config.js file.
 
 ```js
 module.exports = {
   experimental: {
-    adjustFallbacks: true,
+    adjustFontFallbacks: true,
   },
 }
 ```
