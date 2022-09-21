@@ -363,7 +363,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    const serverComponents = this.nextConfig.experimental.serverComponents
+    const serverComponents = !!this.nextConfig.experimental.appDir
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
