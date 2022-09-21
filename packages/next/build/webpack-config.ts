@@ -1017,14 +1017,14 @@ export default async function getBaseWebpackConfig(
                   'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
                   'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
                 }
-              : {},
+              : false,
             conditionNames: ['react-server'],
           })
         : null
 
-    // Special internal modules that should be bundled for Server Components.
+    // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (request === 'react') {
+      if (!isLocal && /^react(?:$|\/)/.test(request)) {
         const [resolved] = await resolveWithReactServerCondition!(
           context,
           request
