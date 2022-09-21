@@ -111,14 +111,15 @@ describe('app dir - react server components', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
-          const headers = request.allHeaders()
-          if (
-            headers.__flight__ === '1' &&
-            // Prefetches also include `__flight__`
-            headers.__flight_prefetch__ !== '1'
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__flight__ === '1' &&
+              // Prefetches also include `__flight__`
+              headers.__flight_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -216,13 +217,14 @@ describe('app dir - react server components', () => {
     const browser = await webdriver(next.url, '/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
-          const headers = request.allHeaders()
-          if (
-            headers.__flight__ === '1' &&
-            headers.__flight_prefetch__ !== '1'
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__flight__ === '1' &&
+              headers.__flight_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
