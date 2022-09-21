@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Value};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Value};
 use turbo_tasks_fs::{
     glob::{Glob, GlobVc},
     FileSystemPathVc,
@@ -18,7 +18,9 @@ use crate::resolve::parse::RequestVc;
 #[derive(Hash, Debug)]
 pub struct LockedVersions {}
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
+)]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
@@ -59,7 +61,9 @@ pub enum ResolveIntoPackage {
     Default(String),
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
+)]
 pub enum ImportMapping {
     External(Option<String>),
     Alias(String, Option<FileSystemPathVc>),

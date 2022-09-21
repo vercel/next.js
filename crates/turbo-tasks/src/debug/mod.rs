@@ -125,6 +125,36 @@ where
     }
 }
 
+macro_rules! tuple_impls {
+    ( $( $name:ident )+ ) => {
+        impl<$($name: ValueDebugFormat),+> ValueDebugFormat for ($($name,)+)
+        {
+            #[allow(non_snake_case)]
+            fn value_debug_format(&self) -> ValueDebugFormatString {
+                let ($($name,)+) = self;
+                let ($($name,)+) = ($($name.value_debug_format(),)+);
+                ValueDebugFormatString::Async(Box::pin(async move {
+                    let values = ($(PassthroughDebug::new_string($name.try_to_string().await?),)+);
+                    Ok(format!("{:#?}", values))
+                }))
+            }
+        }
+    };
+}
+
+tuple_impls! { A }
+tuple_impls! { A B }
+tuple_impls! { A B C }
+tuple_impls! { A B C D }
+tuple_impls! { A B C D E }
+tuple_impls! { A B C D E F }
+tuple_impls! { A B C D E F G }
+tuple_impls! { A B C D E F G H }
+tuple_impls! { A B C D E F G H I }
+tuple_impls! { A B C D E F G H I J }
+tuple_impls! { A B C D E F G H I J K }
+tuple_impls! { A B C D E F G H I J K L }
+
 /// Output of `ValueDebugFormat::value_debug_format`.
 pub enum ValueDebugFormatString<'a> {
     /// For the `T: Debug` fallback implementation, we can output a string
@@ -142,10 +172,17 @@ impl<'a> ValueDebugFormatString<'a> {
     /// Convert the `ValueDebugFormatString` into a `String`.
     ///
     /// This can fail when resolving `Vc` types.
-    pub async fn try_to_value_debug_string(self) -> anyhow::Result<ValueDebugStringVc> {
-        Ok(ValueDebugStringVc::new(match self {
+    pub async fn try_to_string(self) -> anyhow::Result<String> {
+        Ok(match self {
             ValueDebugFormatString::Sync(value) => value,
             ValueDebugFormatString::Async(future) => future.await?,
-        }))
+        })
+    }
+
+    /// Convert the `ValueDebugFormatString` into a `ValueDebugStringVc`.
+    ///
+    /// This can fail when resolving `Vc` types.
+    pub async fn try_to_value_debug_string(self) -> anyhow::Result<ValueDebugStringVc> {
+        Ok(ValueDebugStringVc::new(self.try_to_string().await?))
     }
 }
