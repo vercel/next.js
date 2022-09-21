@@ -5,7 +5,6 @@ module.exports = {
   },
   experimental: {
     appDir: true,
-    serverComponents: true,
   },
   rewrites: async () => {
     return {

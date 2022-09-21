@@ -688,7 +688,11 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     }
 
     if (input.scroll) {
+      const htmlElement = document.documentElement
+      const existing = htmlElement.style.scrollBehavior
+      htmlElement.style.scrollBehavior = 'auto'
       window.scrollTo(input.scroll.x, input.scroll.y)
+      htmlElement.style.scrollBehavior = existing
     }
   }
 
