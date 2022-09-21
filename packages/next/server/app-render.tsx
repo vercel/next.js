@@ -1,12 +1,14 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
+import type { ComponentType, ReactNode } from 'react'
 
 // TODO-APP: change to React.use once it becomes stable
+// @ts-ignore
 import React, { experimental_use as use } from 'react'
+
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
-import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
 import {
@@ -199,8 +201,9 @@ function useFlightResponse(
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 function createServerComponentRenderer(
-  ComponentToRender: React.ComponentType,
+  ComponentToRender: ComponentType,
   ComponentMod: {
+    renderToReadableStream: any
     __next_app_webpack_require__?: any
     __next_rsc__?: {
       __webpack_require__?: any
@@ -236,7 +239,7 @@ function createServerComponentRenderer(
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
     if (!RSCStream) {
-      RSCStream = renderToReadableStream(
+      RSCStream = ComponentMod.renderToReadableStream(
         <ComponentToRender />,
         serverComponentManifest,
         {
@@ -340,7 +343,7 @@ export type FlightDataPath =
       ...FlightSegmentPath,
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode | null // Can be null during prefetch if there's no loading component
+      /* subTreeData: */ ReactNode | null // Can be null during prefetch if there's no loading component
     ]
 
 /**
@@ -355,7 +358,7 @@ export type ChildProp = {
   /**
    * Null indicates that the tree is partial
    */
-  current: React.ReactNode | null
+  current: ReactNode | null
   segment: Segment
 }
 
@@ -514,7 +517,7 @@ export async function renderToHTMLOrFlight(
     // Empty so that the client-side router will do a full page navigation.
     const flightData: FlightData = pathname + (search ? `?${search}` : '')
     return new FlightRenderResult(
-      renderToReadableStream(flightData, serverComponentManifest, {
+      ComponentMod.renderToReadableStream(flightData, serverComponentManifest, {
         onError,
       }).pipeThrough(createBufferedTransformStream())
     )
@@ -685,7 +688,7 @@ export async function renderToHTMLOrFlight(
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
-  }): Promise<{ Component: React.ComponentType }> => {
+  }): Promise<{ Component: ComponentType }> => {
     // TODO-APP: enable stylesheet per layout/page
     const stylesheets: string[] = layoutOrPagePath
       ? getCssInlinedLinkTags(
@@ -761,7 +764,7 @@ export async function renderToHTMLOrFlight(
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const parallelRouteMap = await Promise.all(
       Object.keys(parallelRoutes).map(
-        async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
+        async (parallelRouteKey): Promise<[string, ReactNode]> => {
           const currentSegmentPath: FlightSegmentPath = firstItem
             ? [parallelRouteKey]
             : [actualSegment, parallelRouteKey]
@@ -843,7 +846,7 @@ export async function renderToHTMLOrFlight(
         list[parallelRouteKey] = Comp
         return list
       },
-      {} as { [key: string]: React.ReactNode }
+      {} as { [key: string]: ReactNode }
     )
 
     // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
@@ -1003,7 +1006,7 @@ export async function renderToHTMLOrFlight(
       ).slice(1),
     ]
 
-    const readable = renderToReadableStream(
+    const readable = ComponentMod.renderToReadableStream(
       flightData,
       serverComponentManifest,
       {
@@ -1084,16 +1087,13 @@ export async function renderToHTMLOrFlight(
     nonce
   )
 
-  const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
+  const flushEffectsCallbacks: Set<() => ReactNode> = new Set()
   function FlushEffects({ children }: { children: JSX.Element }) {
     // Reset flushEffectsHandler on each render
     flushEffectsCallbacks.clear()
-    const addFlushEffects = React.useCallback(
-      (handler: () => React.ReactNode) => {
-        flushEffectsCallbacks.add(handler)
-      },
-      []
-    )
+    const addFlushEffects = React.useCallback((handler: () => ReactNode) => {
+      flushEffectsCallbacks.add(handler)
+    }, [])
 
     return (
       <FlushEffectsContext.Provider value={addFlushEffects}>

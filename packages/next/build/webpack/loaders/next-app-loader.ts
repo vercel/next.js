@@ -191,6 +191,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         : 'null'
     }
 
+    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server').renderToReadableStream
     export const __next_app_webpack_require__ = __webpack_require__
   `
 

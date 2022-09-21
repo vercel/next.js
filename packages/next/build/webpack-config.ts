@@ -977,6 +977,7 @@ export default async function getBaseWebpackConfig(
     context: string,
     request: string,
     dependencyType: string,
+    layer: string | null,
     getResolve: (
       options: any
     ) => (
@@ -1001,14 +1002,49 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
+    const resolveWithReactServerCondition =
+      layer === WEBPACK_LAYERS.server
+        ? getResolve({
+            alias: process.env.__NEXT_REACT_CHANNEL
+              ? {
+                  react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                  'react/package.json': `react-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
+                  'react/jsx-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-runtime`,
+                  'react/jsx-dev-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-dev-runtime`,
+                  'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                  'react-dom/package.json': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
+                  'react-dom/server': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server`,
+                  'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
+                  'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
+                }
+              : {},
+            conditionNames: ['react-server'],
+          })
+        : null
+
+    // Special internal modules that should be bundled for Server Components.
+    if (layer === WEBPACK_LAYERS.server) {
+      if (request === 'react') {
+        const [resolved] = await resolveWithReactServerCondition!(
+          context,
+          request
+        )
+        return resolved
+      }
+      if (
+        request ===
+        'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+      ) {
+        return
+      }
+    }
+
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      // styled-jsx is also marked as externals here to avoid being
-      // bundled in client components for RSC.
-      if (/^(?:next$|styled-jsx$|react(?:$|\/))/.test(request)) {
+      if (/^(?:next$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -1122,9 +1158,17 @@ export default async function getBaseWebpackConfig(
       return
     }
 
-    // Anything else that is standard JavaScript within `node_modules`
-    // can be externalized.
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
+      if (layer === WEBPACK_LAYERS.server) {
+        const [resolved] = await resolveWithReactServerCondition!(
+          context,
+          request
+        )
+        return resolved
+      }
+
+      // Anything else that is standard JavaScript within `node_modules`
+      // can be externalized.
       return `${externalType} ${request}`
     }
 
@@ -1176,11 +1220,17 @@ export default async function getBaseWebpackConfig(
               context,
               request,
               dependencyType,
+              contextInfo,
               getResolve,
             }: {
               context: string
               request: string
               dependencyType: string
+              contextInfo: {
+                issuer: string
+                issuerLayer: string | null
+                compiler: string
+              }
               getResolve: (
                 options: any
               ) => (
@@ -1193,24 +1243,31 @@ export default async function getBaseWebpackConfig(
                 ) => void
               ) => void
             }) =>
-              handleExternals(context, request, dependencyType, (options) => {
-                const resolveFunction = getResolve(options)
-                return (resolveContext: string, requestToResolve: string) =>
-                  new Promise((resolve, reject) => {
-                    resolveFunction(
-                      resolveContext,
-                      requestToResolve,
-                      (err, result, resolveData) => {
-                        if (err) return reject(err)
-                        if (!result) return resolve([null, false])
-                        const isEsm = /\.js$/i.test(result)
-                          ? resolveData?.descriptionFileData?.type === 'module'
-                          : /\.mjs$/i.test(result)
-                        resolve([result, isEsm])
-                      }
-                    )
-                  })
-              }),
+              handleExternals(
+                context,
+                request,
+                dependencyType,
+                contextInfo.issuerLayer,
+                (options) => {
+                  const resolveFunction = getResolve(options)
+                  return (resolveContext: string, requestToResolve: string) =>
+                    new Promise((resolve, reject) => {
+                      resolveFunction(
+                        resolveContext,
+                        requestToResolve,
+                        (err, result, resolveData) => {
+                          if (err) return reject(err)
+                          if (!result) return resolve([null, false])
+                          const isEsm = /\.js$/i.test(result)
+                            ? resolveData?.descriptionFileData?.type ===
+                              'module'
+                            : /\.mjs$/i.test(result)
+                          resolve([result, isEsm])
+                        }
+                      )
+                    })
+                }
+              ),
           ]
         : [
             // When the 'serverless' target is used all node_modules will be compiled into the output bundles

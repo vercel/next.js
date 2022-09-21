@@ -59,11 +59,11 @@ export class FlightClientEntryPlugin {
     )
 
     compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
-      return this.createClientEndpoints(compiler, compilation)
+      return this.createClientEntries(compiler, compilation)
     })
   }
 
-  async createClientEndpoints(compiler: any, compilation: any) {
+  async createClientEntries(compiler: any, compilation: any) {
     const promises: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
