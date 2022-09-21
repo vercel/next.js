@@ -21,7 +21,6 @@ erased-serde = "0.3.20"
 event-listener = "2.5.2"
 flurry = "0.4.0"
 futures = "0.3.21"
-lazy_static = "1.4.0"
 mopa = "0.2.0"
 once_cell = "1.13.0"
 serde = { version = "1.0.136", features = ["rc", "derive"] }

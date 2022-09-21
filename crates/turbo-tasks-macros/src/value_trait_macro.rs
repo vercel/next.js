@@ -177,20 +177,24 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #(#attrs)*
-        #vis #trait_token #ident #colon_token #(std::convert::Into<#supertrait_refs>)+* {
+        #vis #trait_token #ident #colon_token #(#supertraits)+* {
             #(#items)*
         }
 
         #(#native_functions)*
 
-        turbo_tasks::lazy_static! {
-            pub(crate) static ref #trait_type_ident: turbo_tasks::TraitType = {
+        #[doc(hidden)]
+        pub(crate) static #trait_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitType> =
+            turbo_tasks::macro_helpers::Lazy::new(|| {
                 let mut trait_type = turbo_tasks::TraitType::new(std::any::type_name::<#ref_ident>().to_string());;
                 #(#default_method_registers)*
                 trait_type
-            };
-            pub(crate) static ref #trait_type_id_ident: turbo_tasks::TraitTypeId = turbo_tasks::registry::get_trait_type_id(&#trait_type_ident);
-        }
+            });
+        #[doc(hidden)]
+        static #trait_type_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitTypeId> =
+            turbo_tasks::macro_helpers::Lazy::new(|| {
+                turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
+            });
 
         #[derive(Clone, Copy, Debug, std::cmp::PartialOrd, std::cmp::Ord, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
         #vis struct #ref_ident {

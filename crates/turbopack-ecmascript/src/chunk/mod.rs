@@ -19,8 +19,8 @@ use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
     chunk::{
         chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
-        ChunkGroupVc, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc,
-        FromChunkableAsset, ModuleId, ModuleIdReadRef, ModuleIdVc, ModuleIdsVc,
+        ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc,
+        ChunkingContextVc, FromChunkableAsset, ModuleId, ModuleIdReadRef, ModuleIdVc, ModuleIdsVc,
     },
     code_builder::{Code, CodeReadRef, CodeVc},
     reference::{AssetReferenceVc, AssetReferencesVc},

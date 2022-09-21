@@ -28,11 +28,27 @@ pub fn get_trait_type_ident(ident: &Ident) -> Ident {
     )
 }
 
-pub fn get_trait_impl_function_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
+pub fn get_impl_function_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
         &format!(
             "{}_IMPL_{}_FUNCTION",
             struct_ident.to_string().to_uppercase(),
+            ident.to_string().to_uppercase()
+        ),
+        ident.span(),
+    )
+}
+
+pub fn get_trait_impl_function_ident(
+    struct_ident: &Ident,
+    trait_ident: &Ident,
+    ident: &Ident,
+) -> Ident {
+    Ident::new(
+        &format!(
+            "{}_IMPL_TRAIT_{}_{}_FUNCTION",
+            struct_ident.to_string().to_uppercase(),
+            trait_ident.to_string().to_uppercase(),
             ident.to_string().to_uppercase()
         ),
         ident.span(),

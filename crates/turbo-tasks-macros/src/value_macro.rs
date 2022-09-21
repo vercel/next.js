@@ -526,7 +526,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     } else {
         quote! {
-            turbo_tasks::ReadRef<#ident>
+            turbo_tasks::ReadRef<#ident, #ident>
         }
     };
     let read_ref = quote! {
@@ -562,9 +562,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             #cell_struct
         }
 
+        #[doc(hidden)]
         static #value_type_init_ident: turbo_tasks::macro_helpers::OnceCell<
             turbo_tasks::ValueType,
         > = turbo_tasks::macro_helpers::OnceCell::new();
+        #[doc(hidden)]
         pub(crate) static #value_type_ident: turbo_tasks::macro_helpers::Lazy<&turbo_tasks::ValueType> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
                 #value_type_init_ident.get_or_init(|| {
@@ -576,6 +578,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                     )
                 })
             });
+        #[doc(hidden)]
         static #value_type_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
                 turbo_tasks::registry::get_value_type_id(*#value_type_ident)

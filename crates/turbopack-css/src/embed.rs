@@ -1,4 +1,4 @@
-use turbo_tasks::ValueToStringVc;
+use turbo_tasks::{ValueToString, ValueToStringVc};
 use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc, reference::AssetReferencesVc};
 
 #[turbo_tasks::value_trait]

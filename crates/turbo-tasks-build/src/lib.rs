@@ -13,7 +13,7 @@ use syn::{
     PathArguments, PathSegment, TraitItem, TraitItemMethod, Type, TypePath,
 };
 use turbo_tasks_macros_shared::{
-    get_function_ident, get_ref_ident, get_register_trait_methods_ident,
+    get_function_ident, get_impl_function_ident, get_ref_ident, get_register_trait_methods_ident,
     get_register_value_type_ident, get_trait_default_impl_function_ident,
     get_trait_impl_function_ident, get_trait_type_ident, ValueTraitArguments,
 };
@@ -203,7 +203,7 @@ impl<'a> RegisterContext<'a> {
             let ident = &fn_item.sig.ident;
             let type_ident = get_function_ident(ident);
 
-            self.register(type_ident, self.get_global_name(ident, None))?;
+            self.register(type_ident, self.get_global_name(&[ident]))?;
         }
         Ok(())
     }
@@ -221,11 +221,11 @@ impl<'a> RegisterContext<'a> {
                         ident: struct_ident,
                     }) = segments.first()
                     {
-                        if let Some(trait_ident) =
+                        let trait_ident =
                             impl_item.trait_.as_ref().and_then(|(_, trait_path, _)| {
                                 trait_path.segments.last().map(|s| &s.ident)
-                            })
-                        {
+                            });
+                        if let Some(trait_ident) = trait_ident {
                             self.add_value_trait(struct_ident, trait_ident);
                         }
 
@@ -235,13 +235,23 @@ impl<'a> RegisterContext<'a> {
                                 // is_attribute(a,
                                 // "function")) {
                                 let method_ident = &method_item.sig.ident;
-                                let function_type_ident =
-                                    get_trait_impl_function_ident(struct_ident, method_ident);
+                                let function_type_ident = if let Some(trait_ident) = trait_ident {
+                                    get_trait_impl_function_ident(
+                                        struct_ident,
+                                        trait_ident,
+                                        method_ident,
+                                    )
+                                } else {
+                                    get_impl_function_ident(struct_ident, method_ident)
+                                };
 
-                                self.register(
-                                    function_type_ident,
-                                    self.get_global_name(struct_ident, Some(method_ident)),
-                                )?;
+                                let global_name = if let Some(trait_ident) = trait_ident {
+                                    self.get_global_name(&[struct_ident, trait_ident, method_ident])
+                                } else {
+                                    self.get_global_name(&[struct_ident, method_ident])
+                                };
+
+                                self.register(function_type_ident, global_name)?;
                             }
                         }
                     }
@@ -298,18 +308,18 @@ impl<'a> RegisterContext<'a> {
 
                     self.register(
                         function_type_ident,
-                        self.get_global_name(trait_ident, Some(method_ident)),
+                        self.get_global_name(&[trait_ident, method_ident]),
                     )?;
                 }
             }
 
             let trait_type_ident = get_trait_type_ident(trait_ident);
-            self.register(trait_type_ident, self.get_global_name(trait_ident, None))?;
+            self.register(trait_type_ident, self.get_global_name(&[trait_ident]))?;
 
             let trait_args: ValueTraitArguments = parse_attr_args(attr)?.unwrap_or_default();
             if trait_args.debug {
                 let ref_ident = get_ref_ident(trait_ident);
-                self.register_debug_impl(&ref_ident)?;
+                self.register_debug_impl(&ref_ident, DebugType::Trait)?;
             }
         }
         Ok(())
@@ -317,25 +327,27 @@ impl<'a> RegisterContext<'a> {
 }
 
 impl<'a> RegisterContext<'a> {
-    fn get_global_name(&self, type_ident: &Ident, fn_ident: Option<&Ident>) -> String {
+    fn get_global_name(&self, parts: &[&Ident]) -> String {
         format!(
-            "r##\"{}{}::{type_ident}{}\"##",
+            "r##\"{}{}::{}\"##",
             self.prefix,
             self.mod_path,
-            fn_ident
-                .map(|name| format!("::{}", name))
-                .unwrap_or_default()
+            parts
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("::")
         )
     }
 
     fn add_value(&mut self, ident: &Ident) {
         let key: ValueKey = (self.mod_path.to_owned(), ident.clone());
-        let value: ValueEntry = (self.get_global_name(ident, None), Vec::new());
+        let value: ValueEntry = (self.get_global_name(&[ident]), Vec::new());
 
         assert!(self.values.insert(key, value).is_none());
 
         // register default debug impl generated by proc macro
-        self.register_debug_impl(ident).unwrap();
+        self.register_debug_impl(ident, DebugType::Value).unwrap();
         self.add_value_trait(ident, &Ident::new("ValueDebug", ident.span()));
     }
 
@@ -362,14 +374,33 @@ impl<'a> RegisterContext<'a> {
     }
 
     /// Declares the default derive of the `ValueDebug` trait.
-    fn register_debug_impl(&mut self, ident: &Ident) -> std::fmt::Result {
+    fn register_debug_impl(&mut self, ident: &Ident, dbg_ty: DebugType) -> std::fmt::Result {
         let fn_ident = Ident::new("dbg", ident.span());
 
-        self.register(
-            get_trait_impl_function_ident(ident, &fn_ident),
-            self.get_global_name(ident, Some(&fn_ident)),
-        )
+        let (impl_fn_ident, global_name) = match dbg_ty {
+            DebugType::Value => {
+                let trait_ident = Ident::new("ValueDebug", ident.span());
+                (
+                    get_trait_impl_function_ident(ident, &trait_ident, &fn_ident),
+                    self.get_global_name(&[ident, &trait_ident, &fn_ident]),
+                )
+            }
+            DebugType::Trait => (
+                get_impl_function_ident(ident, &fn_ident),
+                self.get_global_name(&[ident, &fn_ident]),
+            ),
+        };
+
+        self.register(impl_fn_ident, global_name)
     }
+}
+
+// FIXME: traits currently don't implement the trait directly because
+// `turbo_tasks::value_impl` would try to wrap the TraitVc in another Vc
+// (TraitVcVc).
+enum DebugType {
+    Value,
+    Trait,
 }
 
 fn has_attribute(attrs: &[Attribute], name: &str) -> bool {

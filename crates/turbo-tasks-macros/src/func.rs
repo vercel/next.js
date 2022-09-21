@@ -172,24 +172,31 @@ pub fn gen_native_function_code(
     };
     (
         quote! {
-            turbo_tasks::lazy_static! {
-                pub(crate) static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_owned(), |inputs| {
-                    let mut __iter = inputs.iter();
-                    #(#input_extraction)*
-                    if __iter.next().is_some() {
-                        return Err(anyhow::anyhow!("{}() called with too many arguments", #name_code));
-                    }
-                    #(#input_convert)*
-                    Ok(Box::new(move || {
-                        #(#input_clone)*
-                        Box::pin(async move {
-                            #(#input_final)*
-                            #original_call_code
-                        })
-                    }))
+            #[doc(hidden)]
+            pub(crate) static #function_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::NativeFunction> =
+                turbo_tasks::macro_helpers::Lazy::new(|| {
+                    turbo_tasks::NativeFunction::new(#name_code.to_owned(), |inputs| {
+                        let mut __iter = inputs.iter();
+                        #(#input_extraction)*
+                        if __iter.next().is_some() {
+                            return Err(anyhow::anyhow!("{}() called with too many arguments", #name_code));
+                        }
+                        #(#input_convert)*
+                        Ok(Box::new(move || {
+                            #(#input_clone)*
+                            Box::pin(async move {
+                                #(#input_final)*
+                                #original_call_code
+                            })
+                        }))
+                    })
                 });
-                pub(crate) static ref #function_id_ident: turbo_tasks::FunctionId = turbo_tasks::registry::get_function_id(&#function_ident);
-            }
+
+            #[doc(hidden)]
+            pub(crate) static #function_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::FunctionId> =
+                turbo_tasks::macro_helpers::Lazy::new(|| {
+                    turbo_tasks::registry::get_function_id(&#function_ident)
+                });
         },
         input_raw_vc_arguments,
     )

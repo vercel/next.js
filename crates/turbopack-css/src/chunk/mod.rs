@@ -9,8 +9,8 @@ use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
         chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
-        ChunkGroupVc, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc,
-        FromChunkableAsset,
+        ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc,
+        ChunkingContextVc, FromChunkableAsset,
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
 };

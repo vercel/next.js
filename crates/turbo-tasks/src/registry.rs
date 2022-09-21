@@ -1,7 +1,7 @@
 use std::{fmt::Debug, hash::Hash, ops::Deref};
 
 use flurry::HashMap;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 use crate::{
     id::{FunctionId, TraitTypeId, ValueTypeId},
@@ -10,26 +10,23 @@ use crate::{
     NativeFunction, TraitType, ValueType,
 };
 
-lazy_static! {
-    static ref FUNCTION_ID_FACTORY: IdFactory<FunctionId> = IdFactory::new();
-    static ref FUNCTIONS_BY_NAME: HashMap<String, FunctionId> = HashMap::new();
-    static ref FUNCTIONS_BY_VALUE: HashMap<&'static NativeFunction, FunctionId> = HashMap::new();
-    static ref FUNCTIONS: NoMoveVec<(&'static NativeFunction, String)> = NoMoveVec::new();
-}
+static FUNCTION_ID_FACTORY: IdFactory<FunctionId> = IdFactory::new();
+static FUNCTIONS_BY_NAME: Lazy<HashMap<String, FunctionId>> = Lazy::new(HashMap::new);
+static FUNCTIONS_BY_VALUE: Lazy<HashMap<&'static NativeFunction, FunctionId>> =
+    Lazy::new(HashMap::new);
+static FUNCTIONS: Lazy<NoMoveVec<(&'static NativeFunction, String)>> = Lazy::new(NoMoveVec::new);
 
-lazy_static! {
-    static ref VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new();
-    static ref VALUE_TYPES_BY_NAME: HashMap<String, ValueTypeId> = HashMap::new();
-    static ref VALUE_TYPES_BY_VALUE: HashMap<&'static ValueType, ValueTypeId> = HashMap::new();
-    static ref VALUE_TYPES: NoMoveVec<(&'static ValueType, String)> = NoMoveVec::new();
-}
+static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new();
+static VALUE_TYPES_BY_NAME: Lazy<HashMap<String, ValueTypeId>> = Lazy::new(HashMap::new);
+static VALUE_TYPES_BY_VALUE: Lazy<HashMap<&'static ValueType, ValueTypeId>> =
+    Lazy::new(HashMap::new);
+static VALUE_TYPES: Lazy<NoMoveVec<(&'static ValueType, String)>> = Lazy::new(NoMoveVec::new);
 
-lazy_static! {
-    static ref TRAIT_TYPE_ID_FACTORY: IdFactory<TraitTypeId> = IdFactory::new();
-    static ref TRAIT_TYPES_BY_NAME: HashMap<String, TraitTypeId> = HashMap::new();
-    static ref TRAIT_TYPES_BY_VALUE: HashMap<&'static TraitType, TraitTypeId> = HashMap::new();
-    static ref TRAIT_TYPES: NoMoveVec<(&'static TraitType, String)> = NoMoveVec::new();
-}
+static TRAIT_TYPE_ID_FACTORY: IdFactory<TraitTypeId> = IdFactory::new();
+static TRAIT_TYPES_BY_NAME: Lazy<HashMap<String, TraitTypeId>> = Lazy::new(HashMap::new);
+static TRAIT_TYPES_BY_VALUE: Lazy<HashMap<&'static TraitType, TraitTypeId>> =
+    Lazy::new(HashMap::new);
+static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, String)>> = Lazy::new(NoMoveVec::new);
 
 fn register_thing<
     K: From<usize> + Deref<Target = usize> + Sync + Send + Copy,

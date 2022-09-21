@@ -18,7 +18,7 @@ impl<T: From<usize> + Deref<Target = usize>> Default for IdFactory<T> {
 }
 
 impl<T: From<usize> + Deref<Target = usize>> IdFactory<T> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             next_id: AtomicUsize::new(1),
             phantom_data: PhantomData,

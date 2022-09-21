@@ -6,7 +6,8 @@ use syn::{
     Path, Receiver, ReturnType, Signature, Token, Type, TypePath,
 };
 use turbo_tasks_macros_shared::{
-    get_ref_ident, get_register_trait_methods_ident, get_trait_impl_function_ident,
+    get_impl_function_ident, get_ref_ident, get_register_trait_methods_ident,
+    get_trait_impl_function_ident,
 };
 
 use crate::{
@@ -21,11 +22,27 @@ fn get_internal_trait_impl_function_ident(trait_ident: &Ident, ident: &Ident) ->
     )
 }
 
-fn get_trait_impl_function_id_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
+fn get_impl_function_id_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
         &format!(
             "{}_IMPL_{}_FUNCTION_ID",
             struct_ident.to_string().to_uppercase(),
+            ident.to_string().to_uppercase()
+        ),
+        ident.span(),
+    )
+}
+
+fn get_trait_impl_function_id_ident(
+    struct_ident: &Ident,
+    trait_ident: &Ident,
+    ident: &Ident,
+) -> Ident {
+    Ident::new(
+        &format!(
+            "{}_IMPL_TRAIT_{}_{}_FUNCTION_ID",
+            struct_ident.to_string().to_uppercase(),
+            trait_ident.to_string().to_uppercase(),
             ident.to_string().to_uppercase()
         ),
         ident.span(),
@@ -80,8 +97,8 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     split_signature(sig);
 
                 let inline_ident = &inline_sig.ident;
-                let function_ident = get_trait_impl_function_ident(vc_ident, ident);
-                let function_id_ident = get_trait_impl_function_id_ident(vc_ident, ident);
+                let function_ident = get_impl_function_ident(vc_ident, ident);
+                let function_id_ident = get_impl_function_id_ident(vc_ident, ident);
 
                 let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
                     // use const string
@@ -159,8 +176,10 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     ..
                 } = sig;
                 let output_type = get_return_type(output);
-                let function_ident = get_trait_impl_function_ident(struct_ident, ident);
-                let function_id_ident = get_trait_impl_function_id_ident(struct_ident, ident);
+                let function_ident =
+                    get_trait_impl_function_ident(struct_ident, trait_ident, ident);
+                let function_id_ident =
+                    get_trait_impl_function_id_ident(struct_ident, trait_ident, ident);
                 let internal_function_ident =
                     get_internal_trait_impl_function_ident(trait_ident, ident);
                 trait_registers.push(quote! {

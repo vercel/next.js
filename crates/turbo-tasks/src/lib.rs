@@ -69,7 +69,6 @@ pub use id::{
     ValueTypeId,
 };
 pub use join_iter_ext::{JoinIterExt, TryJoinIterExt};
-pub use lazy_static::lazy_static;
 pub use manager::{
     dynamic_call, emit, get_invalidator, spawn_blocking, spawn_thread, trait_call, turbo_tasks,
     Invalidator, TaskIdProvider, TurboTasks, TurboTasksApi, TurboTasksBackendApi,
