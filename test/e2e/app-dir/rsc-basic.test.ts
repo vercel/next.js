@@ -44,7 +44,7 @@ describe('app dir - react server components', () => {
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/non-isomorphic-text ./node_modules; cp -r ./node_modules_bak/random-module-instance ./node_modules`,
+          setup: `cp -r ./node_modules_bak/* ./node_modules`,
           build: 'yarn setup && next build',
           dev: 'yarn setup && next dev',
           start: 'next start',
@@ -395,6 +395,26 @@ describe('app dir - react server components', () => {
     )
     expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
       'count: 1'
+    )
+  })
+
+  it('should resolve the subset react in server components based on the react-server condition', async () => {
+    await fetchViaHTTP(next.url, '/react-server').then(async (response) => {
+      const result = await resolveStreamResponse(response)
+      expect(result).toContain('Server: <!-- -->subset')
+      expect(result).toContain('Client: <!-- -->full')
+    })
+  })
+
+  it('should resolve 3rd party package exports based on the react-server condition', async () => {
+    await fetchViaHTTP(next.url, '/react-server/3rd-party-package').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('Server: index.react-server')
+        expect(result).toContain('Server subpath: subpath.react-server')
+        expect(result).toContain('Client: index.default')
+        expect(result).toContain('Client subpath: subpath.default')
+      }
     )
   })
 

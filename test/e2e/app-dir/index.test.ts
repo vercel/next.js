@@ -780,7 +780,8 @@ describe('app dir', () => {
       })
 
       describe('next/router', () => {
-        it('should always return null when accessed from /app', async () => {
+        // `useRouter` should not be accessible in server components.
+        it.skip('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')
 
           try {
