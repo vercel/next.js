@@ -1,3 +1,4 @@
+import type { FontLoader } from 'next/font'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 // @ts-ignore
@@ -9,19 +10,12 @@ import {
   validateData,
 } from './utils'
 
-type FontLoaderOptions = {
-  functionName: string
-  data: any[]
-  config: any
-  emitFontFile: (content: Buffer, ext: string, preload: boolean) => string
-}
-
-export default async function downloadGoogleFonts({
+const downloadGoogleFonts: FontLoader = async ({
   functionName,
   data,
   config,
   emitFontFile,
-}: FontLoaderOptions) {
+}) => {
   if (!config?.subsets) {
     throw new Error(
       'Please specify subsets for `@next/font/google` in your `next.config.js`'
@@ -119,3 +113,5 @@ export default async function downloadGoogleFonts({
     fallbackFonts: fallback,
   }
 }
+
+export default downloadGoogleFonts

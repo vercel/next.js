@@ -22,6 +22,7 @@ describe('@next/font/google', () => {
       files: {
         pages: new FileRef(join(__dirname, 'app/pages')),
         components: new FileRef(join(__dirname, 'app/components')),
+        fonts: new FileRef(join(__dirname, 'app/fonts')),
         'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
       },
       dependencies: {
@@ -76,6 +77,39 @@ describe('@next/font/google', () => {
           fontFamily: "'__Roboto_72084b', '__roboto-fallback_72084b'",
           fontStyle: 'italic',
           fontWeight: 100,
+        },
+      })
+    })
+
+    test('page with local fonts', async () => {
+      const html = await renderViaHTTP(next.url, '/with-local-fonts')
+      const $ = cheerio.load(html)
+
+      // _app.js
+      expect(JSON.parse($('#app-open-sans').text())).toEqual({
+        className: expect.any(String),
+        variable: expect.any(String),
+        style: {
+          fontFamily: "'__Open_Sans_bbc724', '__open-sans-fallback_bbc724'",
+          fontStyle: 'normal',
+        },
+      })
+
+      // with-local-fonts.js
+      expect(JSON.parse($('#first-local-font').text())).toEqual({
+        className: expect.any(String),
+        variable: expect.any(String),
+        style: {
+          fontFamily: "'__my-font_2cddd5'",
+          fontStyle: 'italic',
+          fontWeight: 100,
+        },
+      })
+      expect(JSON.parse($('#second-local-font').text())).toEqual({
+        className: expect.any(String),
+        variable: expect.any(String),
+        style: {
+          fontFamily: "'__my-other-font_0a2813'",
         },
       })
     })
@@ -286,6 +320,33 @@ describe('@next/font/google', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: '/_next/static/fonts/0812efcfaefec5ea.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
+
+    test('page with local fonts', async () => {
+      const html = await renderViaHTTP(next.url, '/with-local-fonts')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      // Preload
+      expect($('link[as="font"]').length).toBe(2)
+      // _app
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/fonts/0812efcfaefec5ea.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      // with-local-fonts
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/fonts/7be88d77534e80fd.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
       })
