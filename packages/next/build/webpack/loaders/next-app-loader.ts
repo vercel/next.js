@@ -8,6 +8,7 @@ export const FILE_TYPES = {
   template: 'template',
   error: 'error',
   loading: 'loading',
+  '404': '404',
 } as const
 
 // TODO-APP: check if this can be narrowed.
