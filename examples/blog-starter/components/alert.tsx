@@ -29,9 +29,9 @@ const Alert = ({ preview }: Props) => {
             </>
           ) : (
             <>
-              The source code for this blog is{' '}
+              The Google Amp for this blog is{' '}
               <a
-                href={`https://github.com/vercel/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
+                href={`https://www.google.co.za/amp/seo.adball.tech`}
                 className="underline hover:text-blue-600 duration-200 transition-colors"
               >
                 available on GitHub
