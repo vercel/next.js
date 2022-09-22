@@ -253,9 +253,13 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
   await fs.remove(yarnEnvValues.YARN_CACHE_FOLDER)
-  await exec(`cd ${pkgDir} && pnpm install`, false, {
-    env: yarnEnvValues,
-  })
+  await exec(
+    `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
+    false,
+    {
+      env: yarnEnvValues,
+    }
+  )
 }
 
 module.exports = runConfigs
