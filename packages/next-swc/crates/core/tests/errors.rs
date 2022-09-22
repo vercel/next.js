@@ -1,6 +1,7 @@
 use next_swc::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page, next_dynamic::next_dynamic,
-    next_ssg::next_ssg, react_server_components::server_components,
+    next_font_loaders::next_font_loaders, next_ssg::next_ssg,
+    react_server_components::server_components,
 };
 use std::path::PathBuf;
 use swc_core::{
@@ -90,6 +91,17 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
                 tr.comments.as_ref().clone(),
             )
         },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/errors/next-font-loaders/**/input.js")]
+fn next_font_loaders_errors(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture_allowing_error(
+        syntax(),
+        &|_tr| next_font_loaders(vec!["@next/font/google".into(), "cool-fonts".into()]),
         &input,
         &output,
     );

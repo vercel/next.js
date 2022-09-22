@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    let postSlug = req.body.fields.slug['en-US']
+    let postSlug = JSON.parse(req.body).fields.slug['en-US']
 
     // revalidate the individual post and the home page
     await res.revalidate(`/posts/${postSlug}`)

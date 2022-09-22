@@ -131,6 +131,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
+  protected getFontLoaderManifest() {
+    return this.serverOptions.webServerConfig.extendRenderOpts
+      .fontLoaderManifest
+  }
+
   protected generateRoutes(): {
     headers: Route[]
     rewrites: {
