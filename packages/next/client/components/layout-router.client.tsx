@@ -299,7 +299,7 @@ class NotFoundErrorBoundary extends React.Component<
     this.state = { notFoundTriggered: false }
   }
 
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(error: any) {
     if (error.code === 'NEXT_NOT_FOUND') {
       return { notFoundTriggered: true }
     }
