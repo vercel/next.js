@@ -1,4 +1,4 @@
-import type { FontLoader } from '../../../../types'
+import type { FontLoader } from '../../../../font'
 
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'

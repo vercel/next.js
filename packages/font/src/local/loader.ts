@@ -1,4 +1,4 @@
-import type { FontLoader } from 'next'
+import type { FontLoader } from 'next/font'
 
 import { promisify } from 'util'
 import { validateData } from './utils'

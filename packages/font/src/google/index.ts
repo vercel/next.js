@@ -1,4 +1,4 @@
-import type { FontModule } from 'next'
+import type { FontModule } from 'next/font'
 type Display = 'auto' | 'block' | 'swap' | 'fallback' | 'optional'
 export declare function ABeeZee(options: {
   variant: '400' | '400-italic'

@@ -1,4 +1,4 @@
-import type { FontLoader } from 'next'
+import type { FontLoader } from 'next/font'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 // @ts-ignore

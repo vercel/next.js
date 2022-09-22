@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type { FontModule } from 'next'
+import type { FontModule } from 'next/font'
 type Display = 'auto' | 'block' | 'swap' | 'fallback' | 'optional'
 type LocalFont = {
   src: string | Array<{ file: string; unicodeRange: string }>
