@@ -94,6 +94,7 @@ module.exports = {
             module.exports = {
               experimental: {
                 appDir: true,
+                serverComponents: true,
               },
               generateBuildId: () => 'BUILD_ID',
               webpack(config) {
@@ -118,6 +119,7 @@ module.exports = {
           module.exports = {
               experimental: {
                 appDir: true,
+                serverComponents: true,
               },
               generateBuildId: () => 'BUILD_ID'
             }
