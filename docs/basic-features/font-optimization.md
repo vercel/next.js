@@ -65,15 +65,15 @@ module.exports = {
 }
 ```
 
-# Optimize CLS for Fonts
+## Optimize CLS for Fonts
 
-NextJS can additionally optimize the Cumulative Layout Shift ([CLS](https://web.dev/cls/)) score of your site by adjusting the size of your fallback fonts along with inlining the font CSS.
+Next.js can reduce the Cumulative Layout Shift ([CLS](https://web.dev/cls/)) of your website by adjusting the size of your fallback fonts and inlining the font CSS.
 
-Sites that load fonts with font-display: swap usually suffer from a layout shift ([CLS](https://web.dev/cls/)) when the web font loads and replaces the fallback font. This is due to differences in height, width, and alignment between the main and fallback fonts, which is common even if the CSS font size is the same.
+Sites that load fonts with `font-display: swap` usually suffer from ([CLS](https://web.dev/cls/)) when the web font loads and replaces the fallback font. This is due to differences in height, width, and alignment between the main and fallback fonts, which is common even if the CSS font size is the same.
 
-NextJS can reduce CLS by adjusting the size of the fallback font to match that of the main font using font override metric properties such as `size-adjust`, `ascent-override`, `descent-override`, and `line-gap-override`.
+Next.js can reduce CLS automatically by adjusting the size of the fallback font to match that of the main font using font override metric properties such as `size-adjust`, `ascent-override`, `descent-override`, and `line-gap-override`.
 
-The feature can be enabled by setting the experimental flag `experimental.adjustFontFallbacks` in your next.config.js file.
+To enable this experimental feature, update your `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
@@ -83,14 +83,14 @@ module.exports = {
 }
 ```
 
-When this flag is enabled, Next.js will generate a fallback font definition with the correct size overrides in the format `{hyphenatedFontName}-fallback`.
-E.g.: for the font `Inter` the fallback font will be `fallback-inter`.
+When enabled, Next.js will generate a fallback font definition with the correct size overrides in the format `{hyphenatedFontName}-fallback`.
+For example, the font `Inter` will generate the fallback font `fallback-inter`.
 
-You can then use the fallback font in your stylesheets (hyphenated font name + "-fallback" +)
+You can then use the fallback font in your stylesheets such as the following:
 
-```CSS
+```css
 body {
- font-family: "Inter", inter-fallback, sans-serif;
+  font-family: 'Inter', inter-fallback, sans-serif;
 }
 ```
 
@@ -104,7 +104,8 @@ The final output will include the fallback override definition.
 <style data-href="https://fonts.googleapis.com/css2?family=Inter&display=swap">
   @font-face{
     font-family:'Inter';
-    font-style:normal...
+    font-style:normal
+    ...
   }
 
   @font-face {
