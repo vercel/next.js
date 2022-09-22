@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 
 const path = require('path')
 const { readdir } = require('fs/promises')
