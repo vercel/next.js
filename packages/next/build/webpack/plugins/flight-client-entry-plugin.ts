@@ -11,7 +11,13 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import { APP_DIR_ALIAS } from '../../../lib/constants'
+import {
+  APP_DIR_ALIAS,
+  DOT_NEXT_ALIAS,
+  PAGES_DIR_ALIAS,
+  ROOT_DIR_ALIAS,
+  RSC_MOD_REF_PROXY_ALIAS,
+} from '../../../lib/constants'
 import {
   COMPILER_NAMES,
   FLIGHT_SERVER_CSS_MANIFEST,
@@ -54,6 +60,47 @@ export class FlightClientEntryPlugin {
         compilation.dependencyTemplates.set(
           (webpack as any).dependencies.ModuleDependency,
           new (webpack as any).dependencies.NullDependency.Template()
+        )
+
+        normalModuleFactory.hooks.resolve.tap(
+          PLUGIN_NAME,
+          function (resolveData: any) {
+            if (
+              resolveData.contextInfo.issuerLayer === 'sc_server' &&
+              // TODO-APP: Handle edge-server here correctly.
+              resolveData.contextInfo.compiler === 'server'
+            ) {
+              if (
+                [
+                  PAGES_DIR_ALIAS,
+                  ROOT_DIR_ALIAS,
+                  DOT_NEXT_ALIAS,
+                  APP_DIR_ALIAS,
+                  RSC_MOD_REF_PROXY_ALIAS,
+                ].some((alias) => resolveData.request.startsWith(alias))
+              ) {
+                return
+              }
+
+              resolveData.resolveOptions = {
+                ...resolveData.resolveOptions,
+                conditionNames: ['react-server'],
+                alias: process.env.__NEXT_REACT_CHANNEL
+                  ? {
+                      react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                      'react/package.json': `react-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
+                      'react/jsx-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-runtime`,
+                      'react/jsx-dev-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-dev-runtime`,
+                      'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                      'react-dom/package.json': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
+                      'react-dom/server': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server`,
+                      'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
+                      'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
+                    }
+                  : false,
+              }
+            }
+          }
         )
       }
     )

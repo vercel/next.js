@@ -998,36 +998,10 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
-    const resolveWithReactServerCondition =
-      layer === WEBPACK_LAYERS.server
-        ? getResolve({
-            // If React is aliased to another channel during Next.js' local development,
-            // we need to provide that alias to webpack's resolver.
-            alias: process.env.__NEXT_REACT_CHANNEL
-              ? {
-                  react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react/package.json': `react-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
-                  'react/jsx-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-runtime`,
-                  'react/jsx-dev-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-dev-runtime`,
-                  'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react-dom/package.json': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
-                  'react-dom/server': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server`,
-                  'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
-                  'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
-                }
-              : false,
-            conditionNames: ['react-server'],
-          })
-        : null
-
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (!isLocal && /^react(?:$|\/)/.test(request)) {
-        const [resolved] = await resolveWithReactServerCondition!(
-          context,
-          request
-        )
-        return resolved
+      if (!isLocal && /^react$/.test(request)) {
+        return
       }
       if (
         request ===
@@ -1158,16 +1132,8 @@ export default async function getBaseWebpackConfig(
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
-        try {
-          const [resolved] = await resolveWithReactServerCondition!(
-            context,
-            request
-          )
-          return resolved
-        } catch (err) {
-          // The `react-server` condition is not matched, fallback.
-          return
-        }
+        // All packages should be bundled for the server layer
+        return
       }
 
       // Anything else that is standard JavaScript within `node_modules`
