@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
+#![feature(box_patterns)]
 
 use auto_cjs::contains_cjs;
 use either::Either;
