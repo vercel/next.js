@@ -2,6 +2,7 @@ import type { BuildManifest } from '../../server/get-page-files'
 import type { ServerRuntime } from 'next/types'
 import type { NEXT_DATA } from './utils'
 import type { FontConfig } from '../../server/font-utils'
+import type { FontLoaderManifest } from '../../build/webpack/plugins/font-loader-manifest-plugin'
 
 import { createContext } from 'react'
 
@@ -42,6 +43,7 @@ export type HtmlProps = {
   runtime?: ServerRuntime
   hasConcurrentFeatures?: boolean
   largePageDataBytes?: number
+  fontLoaderManifest?: FontLoaderManifest
 }
 
 export const HtmlContext = createContext<HtmlProps>(null as any)

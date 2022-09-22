@@ -123,6 +123,9 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : false,
+    fontLoaders:
+      nextConfig?.experimental?.fontLoaders &&
+      Object.keys(nextConfig.experimental.fontLoaders),
   }
 }
 

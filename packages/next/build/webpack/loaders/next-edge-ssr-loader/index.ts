@@ -15,6 +15,7 @@ export type EdgeSSRLoaderQuery = {
   appDirLoader?: string
   pagesType?: 'app' | 'pages' | 'root'
   sriEnabled: boolean
+  hasFontLoaders: boolean
 }
 
 /*
@@ -44,6 +45,7 @@ export default async function edgeSSRLoader(this: any) {
     appDirLoader: appDirLoaderBase64,
     pagesType,
     sriEnabled,
+    hasFontLoaders,
   } = this.getOptions()
 
   const appDirLoader = Buffer.from(
@@ -89,29 +91,33 @@ export default async function edgeSSRLoader(this: any) {
     import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
 
-    import Document from ${stringifiedDocumentPath}
-
     enhanceGlobals()
 
+    const pageType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
         ? `
+      const Document = null
       const appRenderToHTML = require('next/dist/esm/server/app-render').renderToHTMLOrFlight
       const pagesRenderToHTML = null
       const pageMod = require(${JSON.stringify(pageModPath)})
+      const appMod = null
+      const errorMod = null
+      const error500Mod = null
     `
         : `
+      const Document = require(${stringifiedDocumentPath}).default
       const appRenderToHTML = null
       const pagesRenderToHTML = require('next/dist/esm/server/render').renderToHTML
       const pageMod = require(${stringifiedPagePath})
+      const appMod = require(${stringifiedAppPath})
+      const errorMod = require(${stringifiedErrorPath})
+      const error500Mod = ${
+        stringified500Path ? `require(${stringified500Path})` : 'null'
+      }
     `
     }
 
-    const appMod = require(${stringifiedAppPath})
-    const errorMod = require(${stringifiedErrorPath})
-    const error500Mod = ${
-      stringified500Path ? `require(${stringified500Path})` : 'null'
-    }
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
@@ -120,8 +126,12 @@ export default async function edgeSSRLoader(this: any) {
     const subresourceIntegrityManifest = ${
       sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
     }
+    const fontLoaderManifest = ${
+      hasFontLoaders ? 'self.__FONT_LOADER_MANIFEST' : 'undefined'
+    }
 
     const render = getRender({
+      pageType,
       dev: ${dev},
       page: ${JSON.stringify(page)},
       appMod,
@@ -138,6 +148,7 @@ export default async function edgeSSRLoader(this: any) {
       subresourceIntegrityManifest,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
+      fontLoaderManifest,
     })
 
     export const ComponentMod = pageMod
