@@ -3,11 +3,13 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
+import { getFontLoader } from './loaders/font-loader'
 import {
   getCustomDocumentError,
   getGlobalImportError,
   getGlobalModuleImportError,
   getLocalModuleImportError,
+  getFontLoaderDocumentImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
@@ -198,6 +200,59 @@ export const css = curry(async function css(
       ],
     })
   )
+
+  // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
+  let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
+    ? Object.entries(ctx.experimental.fontLoaders).map(
+        ([fontLoader, fontLoaderOptions]: any) => [
+          require.resolve(fontLoader),
+          fontLoaderOptions,
+        ]
+      )
+    : undefined
+
+  // Font loaders cannot be imported in _document.
+  fontLoaders?.forEach(([fontLoaderPath, fontLoaderOptions]) => {
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            test: fontLoaderPath,
+            // Use a loose regex so we don't have to crawl the file system to
+            // find the real file name (if present).
+            issuer: /pages[\\/]_document\./,
+            use: {
+              loader: 'error-loader',
+              options: {
+                reason: getFontLoaderDocumentImportError(),
+              },
+            },
+          }),
+        ],
+      })
+    )
+
+    // Matches the resolved font loaders noop files to run next-font-loader
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            sideEffects: false,
+            test: fontLoaderPath,
+            issuer: {
+              and: [
+                {
+                  or: [ctx.rootDirectory, regexClientEntry],
+                },
+              ],
+              not: [/node_modules/],
+            },
+            use: getFontLoader(ctx, lazyPostCSSInitializer, fontLoaderOptions),
+          }),
+        ],
+      })
+    )
+  })
 
   // CSS Modules support must be enabled on the server and client so the class
   // names are available for SSR or Prerendering.

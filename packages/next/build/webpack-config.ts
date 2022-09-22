@@ -61,6 +61,7 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
+import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 
 const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
@@ -1508,6 +1509,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
+        'next-font-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1838,6 +1840,7 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+          hasFontLoaders: !!config.experimental.fontLoaders,
         }),
       isClient &&
         new BuildManifestPlugin({
@@ -1890,6 +1893,9 @@ export default async function getBaseWebpackConfig(
         isClient &&
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
+      isClient &&
+        config.experimental.fontLoaders &&
+        new FontLoaderManifestPlugin(),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
