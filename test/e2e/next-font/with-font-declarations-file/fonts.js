@@ -1,3 +1,4 @@
+import localFont from '@next/font/local'
 import {
   Open_Sans,
   Source_Code_Pro,
@@ -13,4 +14,8 @@ const abel = Abel({ variant: '400', display: 'optional', preload: false })
 const inter = Inter({ display: 'block', preload: true })
 const roboto = Roboto({ variant: '400' })
 
-export { openSans, sourceCodePro, abel, inter, roboto }
+const myLocalFont = localFont({
+  src: './my-font.woff2',
+})
+
+export { openSans, sourceCodePro, abel, inter, roboto, myLocalFont }
