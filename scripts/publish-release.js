@@ -10,7 +10,7 @@ const cwd = process.cwd()
   let isCanary = false
 
   if (!process.env.NPM_TOKEN) {
-    console.log('No NPM_TOKEN, exiting..')
+    console.log('No NPM_TOKEN, exiting...')
     return
   }
 
@@ -22,7 +22,7 @@ const cwd = process.cwd()
     console.log(err)
 
     if (err.message && err.message.includes('no tag exactly matches')) {
-      console.log('Nothing to publish, exiting..')
+      console.log('Nothing to publish, exiting...')
       return
     }
     throw err
