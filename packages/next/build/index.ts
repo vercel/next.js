@@ -58,6 +58,8 @@ import {
   COMPILER_NAMES,
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
+  RSC_MODULE_TYPES,
+  FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -96,7 +98,7 @@ import {
   printTreeView,
   copyTracedFiles,
   isReservedPage,
-  isServerComponentPage,
+  AppConfig,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -269,11 +271,7 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
-      // We enable concurrent features (Fizz-related rendering architecture) when
-      // using React 18 or experimental.
       const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-      const hasServerComponents =
-        hasReactRoot && !!config.experimental.serverComponents
 
       const { target } = config
       const buildId: string = await nextBuildSpan
@@ -489,7 +487,6 @@ export default async function build(
         .traceChild('create-pages-mapping')
         .traceFn(() =>
           createPagesMapping({
-            hasServerComponents,
             isDev: false,
             pageExtensions: config.pageExtensions,
             pagesType: 'pages',
@@ -506,7 +503,6 @@ export default async function build(
           .traceFn(() =>
             createPagesMapping({
               pagePaths: appPaths!,
-              hasServerComponents,
               isDev: false,
               pagesType: 'app',
               pageExtensions: config.pageExtensions,
@@ -518,7 +514,6 @@ export default async function build(
       let mappedRootPaths: { [page: string]: string } = {}
       if (rootPaths.length > 0) {
         mappedRootPaths = createPagesMapping({
-          hasServerComponents,
           isDev: false,
           pageExtensions: config.pageExtensions,
           pagePaths: rootPaths,
@@ -816,7 +811,7 @@ export default async function build(
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-            ...(hasServerComponents
+            ...(appDir
               ? [
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
@@ -834,6 +829,9 @@ export default async function build(
             config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
             BUILD_ID_FILE,
             appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
+            config.experimental.fontLoaders
+              ? path.join(serverDir, FONT_LOADER_MANIFEST)
+              : null,
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),
@@ -914,10 +912,8 @@ export default async function build(
           let edgeServerResult: SingleCompilerResult | null = null
 
           if (isLikeServerless) {
-            if (config.experimental.serverComponents) {
-              throw new Error(
-                'Server Components are not supported in serverless mode.'
-              )
+            if (appDir) {
+              throw new Error('`appDir` is not supported in serverless mode.')
             }
 
             // Build client first
@@ -1068,6 +1064,11 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalSsgPaths = new Map<string, Array<string>>()
       const additionalSsgPathsEncoded = new Map<string, Array<string>>()
+      const appStaticPaths = new Map<string, Array<string>>()
+      const appStaticPathsEncoded = new Map<string, Array<string>>()
+      const appNormalizedPaths = new Map<string, string>()
+      const appDynamicParamPaths = new Set<string>()
+      const appDefaultConfigs = new Map<string, AppConfig>()
       const pageTraceIncludes = new Map<string, Array<string>>()
       const pageTraceExcludes = new Map<string, Array<string>>()
       const pageInfos = new Map<string, PageInfo>()
@@ -1089,6 +1090,26 @@ export default async function build(
         ? require.resolve('./worker')
         : require.resolve('./utils')
       let infoPrinted = false
+
+      let appPathsManifest: Record<string, string> = {}
+      const appPathRoutes: Record<string, string> = {}
+
+      if (appDir) {
+        appPathsManifest = JSON.parse(
+          await promises.readFile(
+            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
+            'utf8'
+          )
+        )
+
+        Object.keys(appPathsManifest).forEach((entry) => {
+          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+        })
+        await promises.writeFile(
+          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
+          JSON.stringify(appPathRoutes, null, 2)
+        )
+      }
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -1258,37 +1279,49 @@ export default async function build(
                 let isHybridAmp = false
                 let ssgPageRoutes: string[] | null = null
 
-                const pagePath =
-                  pageType === 'pages'
-                    ? pagesPaths.find(
-                        (p) =>
-                          p.startsWith(actualPage + '.') ||
-                          p.startsWith(actualPage + '/index.')
+                let pagePath = ''
+
+                if (pageType === 'pages') {
+                  pagePath =
+                    pagesPaths.find(
+                      (p) =>
+                        p.startsWith(actualPage + '.') ||
+                        p.startsWith(actualPage + '/index.')
+                    ) || ''
+                }
+                let originalAppPath: string | undefined
+
+                if (pageType === 'app' && mappedAppPages) {
+                  for (const [originalPath, normalizedPath] of Object.entries(
+                    appPathRoutes
+                  )) {
+                    if (normalizedPath === page) {
+                      pagePath = mappedAppPages[originalPath].replace(
+                        /^private-next-app-dir/,
+                        ''
                       )
-                    : appPaths?.find((p) => p.startsWith(actualPage + '/page.'))
-
-                const pageRuntime =
-                  pagesDir && pageType === 'pages' && pagePath
-                    ? (
-                        await getPageStaticInfo({
-                          pageFilePath: join(pagesDir, pagePath),
-                          nextConfig: config,
-                        })
-                      ).runtime
-                    : undefined
-
-                if (hasServerComponents && pagePath) {
-                  if (isServerComponentPage(config, pagePath)) {
-                    isServerComponent = true
+                      originalAppPath = originalPath
+                      break
+                    }
                   }
                 }
 
-                if (
-                  // Only calculate page static information if the page is not an
-                  // app page.
-                  pageType !== 'app' &&
-                  !isReservedPage(page)
-                ) {
+                const staticInfo = pagePath
+                  ? await getPageStaticInfo({
+                      pageFilePath: join(
+                        (pageType === 'pages' ? pagesDir : appDir) || '',
+                        pagePath
+                      ),
+                      nextConfig: config,
+                    })
+                  : undefined
+
+                const pageRuntime = staticInfo?.runtime
+                isServerComponent =
+                  pageType === 'app' &&
+                  staticInfo?.rsc !== RSC_MODULE_TYPES.client
+
+                if (!isReservedPage(page)) {
                   try {
                     let edgeInfo: any
 
@@ -1298,8 +1331,10 @@ export default async function build(
                         serverDir,
                         MIDDLEWARE_MANIFEST
                       ))
+                      const manifestKey =
+                        pageType === 'pages' ? page : join(page, 'page')
 
-                      edgeInfo = manifest.functions[page]
+                      edgeInfo = manifest.functions[manifestKey]
                     }
 
                     let isPageStaticSpan =
@@ -1308,6 +1343,7 @@ export default async function build(
                       () => {
                         return staticWorkers.isPageStatic({
                           page,
+                          originalAppPath,
                           distDir,
                           serverless: isLikeServerless,
                           configFileName,
@@ -1318,9 +1354,49 @@ export default async function build(
                           parentId: isPageStaticSpan.id,
                           pageRuntime,
                           edgeInfo,
+                          pageType,
+                          hasServerComponents: !!appDir,
                         })
                       }
                     )
+
+                    if (pageType === 'app' && originalAppPath) {
+                      appNormalizedPaths.set(originalAppPath, page)
+
+                      // TODO-APP: handle prerendering with edge
+                      // runtime
+                      if (pageRuntime === 'experimental-edge') {
+                        return
+                      }
+
+                      if (
+                        workerResult.encodedPrerenderRoutes &&
+                        workerResult.prerenderRoutes
+                      ) {
+                        appStaticPaths.set(
+                          originalAppPath,
+                          workerResult.prerenderRoutes
+                        )
+                        appStaticPathsEncoded.set(
+                          originalAppPath,
+                          workerResult.encodedPrerenderRoutes
+                        )
+                      }
+                      if (!isDynamicRoute(page)) {
+                        appStaticPaths.set(originalAppPath, [page])
+                        appStaticPathsEncoded.set(originalAppPath, [page])
+                      }
+                      if (workerResult.prerenderFallback) {
+                        // whether or not to allow requests for paths not
+                        // returned from generateStaticParams
+                        appDynamicParamPaths.add(originalAppPath)
+                      }
+                      appDefaultConfigs.set(
+                        originalAppPath,
+                        workerResult.appConfig || {}
+                      )
+                      return
+                    }
 
                     if (pageRuntime === SERVER_RUNTIME.edge) {
                       if (workerResult.hasStaticProps) {
@@ -1828,24 +1904,6 @@ export default async function build(
         'utf8'
       )
 
-      if (appDir) {
-        const appPathsManifest = JSON.parse(
-          await promises.readFile(
-            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
-            'utf8'
-          )
-        )
-        const appPathRoutes: Record<string, string> = {}
-
-        Object.keys(appPathsManifest).forEach((entry) => {
-          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
-        })
-        await promises.writeFile(
-          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
-          JSON.stringify(appPathRoutes, null, 2)
-        )
-      }
-
       const middlewareManifest: MiddlewareManifest = JSON.parse(
         await promises.readFile(
           path.join(distDir, serverDir, MIDDLEWARE_MANIFEST),
@@ -1872,6 +1930,7 @@ export default async function build(
       }
 
       const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
+      const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
       const tbdPrerenderRoutes: string[] = []
       let ssgNotFoundPaths: string[] = []
 
@@ -1896,7 +1955,16 @@ export default async function build(
 
       const combinedPages = [...staticPages, ...ssgPages]
 
-      if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
+      // we need to trigger automatic exporting when we have
+      // - static 404/500
+      // - getStaticProps paths
+      // - experimental app is enabled
+      if (
+        combinedPages.length > 0 ||
+        useStatic404 ||
+        useDefaultStatic500 ||
+        config.experimental.appDir
+      ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
         await staticGenerationSpan.traceAsyncFn(async () => {
@@ -1993,6 +2061,20 @@ export default async function build(
                 }
               }
 
+              // TODO: output manifest specific to app paths and their
+              // revalidate periods and dynamicParams settings
+              appStaticPaths.forEach((routes, originalAppPath) => {
+                const encodedRoutes = appStaticPathsEncoded.get(originalAppPath)
+
+                routes.forEach((route, routeIdx) => {
+                  defaultMap[route] = {
+                    page: originalAppPath,
+                    query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
+                    _isAppDir: true,
+                  }
+                })
+              })
+
               if (i18n) {
                 for (const page of [
                   ...staticPages,
@@ -2040,6 +2122,58 @@ export default async function build(
           for (const page of staticPages) {
             const serverBundle = getPagePath(page, distDir, isLikeServerless)
             await promises.unlink(serverBundle)
+          }
+
+          for (const [originalAppPath, routes] of appStaticPaths) {
+            const page = appNormalizedPaths.get(originalAppPath) || ''
+            const appConfig = appDefaultConfigs.get(originalAppPath) || {}
+            let hasDynamicData = appConfig.revalidate === 0
+
+            routes.forEach((route) => {
+              let revalidate = exportConfig.initialPageRevalidationMap[route]
+
+              if (typeof revalidate === 'undefined') {
+                revalidate =
+                  typeof appConfig.revalidate !== 'undefined'
+                    ? appConfig.revalidate
+                    : false
+              }
+              if (revalidate !== 0) {
+                const normalizedRoute = normalizePagePath(route)
+                const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+                finalPrerenderRoutes[route] = {
+                  initialRevalidateSeconds: revalidate,
+                  srcRoute: page,
+                  dataRoute,
+                }
+              } else {
+                hasDynamicData = true
+              }
+            })
+
+            if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
+              const normalizedRoute = normalizePagePath(page)
+              const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+
+              // TODO: create a separate manifest to allow enforcing
+              // dynamicParams for non-static paths?
+              finalDynamicRoutes[page] = {
+                routeRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(page).re.source
+                ),
+                dataRoute,
+                // if dynamicParams are enabled treat as fallback:
+                // 'blocking' if not it's fallback: false
+                fallback: appDynamicParamPaths.has(originalAppPath)
+                  ? null
+                  : false,
+                dataRouteRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(
+                    dataRoute.replace(/\.rsc$/, '')
+                  ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                ),
+              }
+            }
           }
 
           const moveExportedPage = async (
@@ -2354,8 +2488,7 @@ export default async function build(
         telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
       }
 
-      if (ssgPages.size > 0) {
-        const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
+      if (ssgPages.size > 0 || appDir) {
         tbdPrerenderRoutes.forEach((tbdRoute) => {
           const normalizedRoute = normalizePagePath(tbdRoute)
           const dataRoute = path.posix.join(

@@ -32,7 +32,7 @@ function onReport(metric: Metric): void {
     const body: Record<string, string> = {
       dsn: process.env.__NEXT_ANALYTICS_ID,
       id: metric.id,
-      page: window.__NEXT_DATA__.page,
+      page: window.__NEXT_DATA__?.page,
       href: initialHref,
       event_name: metric.name,
       value: metric.value.toString(),
