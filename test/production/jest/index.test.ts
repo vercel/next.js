@@ -11,9 +11,7 @@ describe('next/jest', () => {
     return
   }
 
-  afterEach(() => next.destroy())
-
-  it('should work', async () => {
+  beforeAll(async () => {
     next = await createNext({
       files: {
         'public/vercel.svg':
@@ -142,9 +140,11 @@ describe('next/jest', () => {
       },
       buildCommand: `yarn build`,
     })
+  })
+  afterAll(() => next.destroy())
 
+  it('should work', async () => {
     const html = await renderViaHTTP(next.url, '/')
-
     expect(html).toContain('hello world')
   })
 })
