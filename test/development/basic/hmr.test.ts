@@ -793,13 +793,14 @@ describe('basic HMR', () => {
       )
       const newFileContent = currentFileContent.replace(
         '<p>hello world</p>',
-        '<p>hello world!!!</p>'
+        '<p id="updated">hello world!!!</p>'
       )
       await next.patchFile(
         './pages/hmr/anonymous-page-function.js',
         newFileContent
       )
-      await check(() => browser.elementByCss('p').text(), 'hello world!!!')
+
+      await browser.waitForElementByCss('#updated')
 
       // CLI warning and stacktrace
       expect(next.cliOutput.slice(start)).toContain(
@@ -834,9 +835,13 @@ describe('basic HMR', () => {
       const currentFileContent = await next.readFile(
         './pages/hmr/runtime-error.js'
       )
-      const newFileContent = currentFileContent.replace('whoops', '"whoops"')
+      const newFileContent = currentFileContent.replace(
+        'whoops',
+        '<p id="updated">whoops</p>'
+      )
       await next.patchFile('./pages/hmr/runtime-error.js', newFileContent)
-      await check(() => browser.elementByCss('body').text(), 'whoops')
+
+      await browser.waitForElementByCss('#updated')
 
       // CLI warning and stacktrace
       expect(next.cliOutput.slice(start)).toContain(
