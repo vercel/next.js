@@ -646,6 +646,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             isServer: isNodeServer || isEdgeServer,
+            rootDir: dir,
             pagesDir,
             hasReactRefresh: dev && isClient,
             fileReading: config.experimental.swcFileReading,
