@@ -36,7 +36,7 @@ const cwd = process.cwd()
   }
 
   const packagesDir = path.join(cwd, 'packages')
-  const packageDirs = readdir(packagesDir)
+  const packageDirs = await readdir(packagesDir)
 
   const publish = async (pkg, retry = 0) => {
     try {
