@@ -1521,8 +1521,10 @@ describe('app dir', () => {
           )
         })
 
-        it('should redirect client-side', async () => {
+        // TODO-APP: Enable in development
+        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
           const browser = await webdriver(next.url, '/redirect/client-side')
+          await waitFor(3000)
           await browser
             .elementByCss('button')
             .click()
