@@ -119,9 +119,9 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
-  isEdgeServer: boolean
+  nextRuntime: string
 }> = async function nextAppLoader() {
-  const { name, appDir, appPaths, pagePath, pageExtensions, isEdgeServer } =
+  const { name, appDir, appPaths, pagePath, pageExtensions, nextRuntime } =
     this.getOptions() || {}
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -179,7 +179,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     resolveParallelSegments,
   })
 
-  const rootDistFolder = isEdgeServer ? 'next/dist/esm' : 'next/dist'
+  const rootDistFolder = nextRuntime === 'edge' ? 'next/dist/esm' : 'next/dist'
   const result = `
     export ${treeCode}
 
