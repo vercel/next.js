@@ -1,3 +1,5 @@
+'client'
+
 import React from 'react'
 import { UrlObject } from 'url'
 import {
@@ -15,9 +17,6 @@ import {
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
-
-// @ts-ignore useTransition exist
-const hasUseTransition = typeof React.useTransition !== 'undefined'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -110,7 +109,7 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
-  startTransition?: (cb: any) => void,
+  isAppRouter?: boolean,
   prefetchEnabled?: boolean
 ): void {
   const { nodeName } = e.currentTarget
@@ -141,8 +140,9 @@ function linkClicked(
     }
   }
 
-  if (startTransition) {
-    startTransition(navigate)
+  if (isAppRouter) {
+    // @ts-expect-error startTransition exists.
+    React.startTransition(navigate)
   } else {
     navigate()
   }
@@ -305,13 +305,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const p = prefetchProp !== false
-    const [, /* isPending */ startTransition] = hasUseTransition
-      ? // Rules of hooks is disabled here because the useTransition will always exist with React 18.
-        // There is no difference between renders in this case, only between using React 18 vs 17.
-        // @ts-ignore useTransition exists
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        React.useTransition()
-      : []
     let router = React.useContext(RouterContext)
 
     // TODO-APP: type error. Remove `as any`
@@ -442,7 +435,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             shallow,
             scroll,
             locale,
-            appRouter ? startTransition : undefined,
+            Boolean(appRouter),
             p
           )
         }

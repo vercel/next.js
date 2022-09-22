@@ -16,7 +16,7 @@ import type {
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
-import type { FontManifest } from './font-utils'
+import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type {
   GetServerSideProps,
@@ -26,6 +26,7 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -79,7 +80,8 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { shouldUseReactRoot, stripInternalQueries } from './utils'
+import { shouldUseReactRoot } from './utils'
+import { stripInternalQueries } from './internal-utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -222,7 +224,7 @@ export type RenderOptsPartial = {
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  optimizeFonts: boolean
+  optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
   nextScriptWorkers: any
@@ -231,6 +233,7 @@ export type RenderOptsPartial = {
   resolvedAsPath?: string
   serverComponentManifest?: any
   serverCSSManifest?: any
+  fontLoaderManifest?: FontLoaderManifest
   distDir?: string
   locale?: string
   locales?: string[]
@@ -375,7 +378,6 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    serverComponentManifest,
     isDataReq,
     params,
     previewProps,
@@ -384,17 +386,10 @@ export async function renderToHTML(
     supportsDynamicHTML,
     images,
     runtime: globalRuntime,
-    ComponentMod,
     App,
   } = renderOpts
 
   let Document = renderOpts.Document
-
-  // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
-  const isServerComponent =
-    !!process.env.__NEXT_REACT_ROOT &&
-    !!serverComponentManifest &&
-    !!ComponentMod.__next_rsc__?.server
 
   // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
@@ -411,12 +406,6 @@ export async function renderToHTML(
 
   // next internal queries should be stripped out
   stripInternalQueries(query)
-
-  if (isServerComponent) {
-    throw new Error(
-      'Server Components are not supported from the pages/ directory.'
-    )
-  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -1417,7 +1406,6 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
-      rsc: isServerComponent ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
@@ -1460,6 +1448,7 @@ export async function renderToHTML(
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
+    fontLoaderManifest: renderOpts.fontLoaderManifest,
   }
 
   const document = (

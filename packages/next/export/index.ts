@@ -22,6 +22,9 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  FLIGHT_MANIFEST,
+  FLIGHT_SERVER_CSS_MANIFEST,
+  FONT_LOADER_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -41,6 +44,7 @@ import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
+import { FontConfig } from '../server/font-utils'
 
 const exists = promisify(existsOrig)
 
@@ -383,8 +387,12 @@ export default async function exportApp(
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
-      optimizeFonts: nextConfig.optimizeFonts,
+      optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
+      serverComponents: !!nextConfig.experimental.appDir,
+      fontLoaderManifest: nextConfig.experimental.fontLoaders
+        ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
+        : undefined,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -403,15 +411,31 @@ export default async function exportApp(
     }
     const exportPathMap = await nextExportSpan
       .traceChild('run-export-path-map')
-      .traceAsyncFn(() =>
-        nextConfig.exportPathMap(defaultPathMap, {
+      .traceAsyncFn(async () => {
+        const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
           dev: false,
           dir,
           outDir,
           distDir,
           buildId,
         })
-      )
+        return exportMap
+      })
+
+    if (options.buildExport && nextConfig.experimental.appDir) {
+      // @ts-expect-error untyped
+      renderOpts.serverComponentManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        `${FLIGHT_MANIFEST}.json`
+      )) as PagesManifest
+      // @ts-expect-error untyped
+      renderOpts.serverCSSManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        FLIGHT_SERVER_CSS_MANIFEST + '.json'
+      )) as PagesManifest
+    }
 
     // only add missing 404 page when `buildExport` is false
     if (!options.buildExport) {
@@ -587,13 +611,13 @@ export default async function exportApp(
             subFolders,
             buildExport: options.buildExport,
             serverless: isTargetLikeServerless(nextConfig.target),
-            optimizeFonts: nextConfig.optimizeFonts,
+            optimizeFonts: nextConfig.optimizeFonts as FontConfig,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: nextConfig.experimental.serverComponents,
+            serverComponents: !!nextConfig.experimental.appDir,
             appPaths: options.appPaths || [],
           })
 
@@ -639,13 +663,13 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           const pageName = srcRoute || route
-          route = normalizePagePath(route)
 
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
           if (prerenderManifest!.notFoundRoutes.includes(route)) {
             return
           }
+          route = normalizePagePath(route)
 
           const pagePath = getPagePath(pageName, distDir, isLikeServerless)
           const distPagesDir = join(

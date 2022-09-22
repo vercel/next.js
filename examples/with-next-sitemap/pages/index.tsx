@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
-const HelloWorld = () => (
-  <div>
+const IndexPage = () => (
+  <>
     <h1>Hello World Page</h1>
     <ol>
       <li>
@@ -30,7 +30,7 @@ const HelloWorld = () => (
         </Link>
       </li>
     </ol>
-  </div>
+  </>
 )
 
-export default HelloWorld
+export default IndexPage

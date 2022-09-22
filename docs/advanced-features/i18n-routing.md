@@ -183,7 +183,11 @@ export async function middleware(req: NextRequest) {
   }
 
   if (req.nextUrl.locale === 'default') {
-    return NextResponse.redirect(new URL(`/en${req.nextUrl.pathname}`, req.url))
+    const locale = req.cookies.get('NEXT_LOCALE') || 'en'
+
+    return NextResponse.redirect(
+      new URL(`/${locale}${req.nextUrl.pathname}${req.nextUrl.search}`, req.url)
+    )
   }
 }
 ```

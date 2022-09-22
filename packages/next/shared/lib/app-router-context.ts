@@ -61,13 +61,17 @@ export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
   changeByServerResponse: (
     previousTree: FlightRouterState,
-    flightData: FlightData
+    flightData: FlightData,
+    overrideCanonicalUrl: URL | undefined
   ) => void
   focusAndScrollRef: FocusAndScrollRef
 }>(null as any)
+
+export const TemplateContext = React.createContext<React.ReactNode>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
   LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
+  TemplateContext.displayName = 'TemplateContext'
 }

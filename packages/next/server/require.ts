@@ -25,10 +25,10 @@ export function getPagePath(
     distDir,
     serverless && !dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   )
-  let rootPathsManifest: undefined | PagesManifest
+  let appPathsManifest: undefined | PagesManifest
 
   if (appDirEnabled) {
-    rootPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
+    appPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
   }
   const pagesManifest = require(join(
     serverBuildPath,
@@ -58,8 +58,8 @@ export function getPagePath(
   }
   let pagePath: string | undefined
 
-  if (rootPathsManifest) {
-    pagePath = checkManifest(rootPathsManifest)
+  if (appPathsManifest) {
+    pagePath = checkManifest(appPathsManifest)
   }
 
   if (!pagePath) {

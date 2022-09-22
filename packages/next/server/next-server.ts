@@ -45,6 +45,7 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
@@ -224,7 +225,9 @@ export default class NextNodeServer extends BaseServer {
      * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
+        this.renderOpts.optimizeFonts
+      )
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
@@ -248,20 +251,20 @@ export default class NextNodeServer extends BaseServer {
     if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
-      loadComponents(
-        this.distDir,
-        '/_document',
-        this._isLikeServerless,
-        false,
-        false
-      ).catch(() => {})
-      loadComponents(
-        this.distDir,
-        '/_app',
-        this._isLikeServerless,
-        false,
-        false
-      ).catch(() => {})
+      loadComponents({
+        distDir: this.distDir,
+        pathname: '/_document',
+        serverless: this._isLikeServerless,
+        hasServerComponents: false,
+        isAppPath: false,
+      }).catch(() => {})
+      loadComponents({
+        distDir: this.distDir,
+        pathname: '/_app',
+        serverless: this._isLikeServerless,
+        hasServerComponents: false,
+        isAppPath: false,
+      }).catch(() => {})
     }
   }
 
@@ -285,6 +288,7 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       serverDistDir: this.serverDistDir,
+      appDir: this.nextConfig.experimental.appDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -521,7 +525,8 @@ export default class NextNodeServer extends BaseServer {
             params.path[0] === 'media' ||
             params.path[0] === this.buildId ||
             params.path[0] === 'pages' ||
-            params.path[1] === 'pages'
+            params.path[1] === 'pages' ||
+            params.path[0] === 'fonts'
           ) {
             this.setImmutableAssetCacheControl(res)
           }
@@ -763,7 +768,6 @@ export default class NextNodeServer extends BaseServer {
           params,
           page,
           appPaths: null,
-          isAppPath: false,
         })
 
         if (handledAsEdgeFunction) {
@@ -820,10 +824,11 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
     renderOpts.serverCSSManifest = this.serverCSSManifest
+    renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
     if (
       this.nextConfig.experimental.appDir &&
-      (renderOpts.isAppPath || query.__flight__)
+      (renderOpts.isAppPath || req.headers.__flight__)
     ) {
       const isPagesDir = !renderOpts.isAppPath
       return appRenderToHTMLOrFlight(
@@ -913,7 +918,6 @@ export default class NextNodeServer extends BaseServer {
             params: ctx.renderOpts.params,
             page,
             appPaths,
-            isAppPath,
           })
           return null
         }
@@ -934,39 +938,37 @@ export default class NextNodeServer extends BaseServer {
     params: Params | null
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
-    let paths = [
+    const paths: string[] = [pathname]
+    if (query.amp) {
       // try serving a static AMP version first
-      query.amp
-        ? (isAppPath
-            ? normalizeAppPath(pathname)
-            : normalizePagePath(pathname)) + '.amp'
-        : null,
-      pathname,
-    ].filter(Boolean)
+      paths.unshift(
+        (isAppPath ? normalizeAppPath(pathname) : normalizePagePath(pathname)) +
+          '.amp'
+      )
+    }
 
     if (query.__nextLocale) {
-      paths = [
+      paths.unshift(
         ...paths.map(
           (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        ),
-        ...paths,
-      ]
+        )
+      )
     }
 
     for (const pagePath of paths) {
       try {
-        const components = await loadComponents(
-          this.distDir,
-          pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless,
-          !!this.renderOpts.serverComponents,
-          isAppPath
-        )
+        const components = await loadComponents({
+          distDir: this.distDir,
+          pathname: pagePath,
+          serverless: !this.renderOpts.dev && this._isLikeServerless,
+          hasServerComponents: !!this.renderOpts.serverComponents,
+          isAppPath,
+        })
 
         if (
           query.__nextLocale &&
           typeof components.Component === 'string' &&
-          !pagePath?.startsWith(`/${query.__nextLocale}`)
+          !pagePath.startsWith(`/${query.__nextLocale}`)
         ) {
           // if loading an static HTML file the locale is required
           // to be present since all HTML files are output under their locale
@@ -982,7 +984,6 @@ export default class NextNodeServer extends BaseServer {
                   __nextDataReq: query.__nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
-                  __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
@@ -1005,17 +1006,22 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.serverComponents) return undefined
+    if (!this.nextConfig.experimental.appDir) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getServerCSSManifest() {
-    if (!this.nextConfig.experimental.serverComponents) return undefined
+    if (!this.nextConfig.experimental.appDir) return undefined
     return require(join(
       this.distDir,
       'server',
       FLIGHT_SERVER_CSS_MANIFEST + '.json'
     ))
+  }
+
+  protected getFontLoaderManifest() {
+    if (!this.nextConfig.experimental.fontLoaders) return undefined
+    return require(join(this.distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
   }
 
   protected getFallback(page: string): Promise<string> {
@@ -2031,12 +2037,12 @@ export default class NextNodeServer extends BaseServer {
     params: Params | undefined
     page: string
     appPaths: string[] | null
-    isAppPath: boolean
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    const page = params.page
+    const { query, page } = params
+
     await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     middlewareInfo = this.getEdgeFunctionInfo({
       page,
@@ -2048,21 +2054,20 @@ export default class NextNodeServer extends BaseServer {
     }
 
     // For middleware to "fetch" we must always provide an absolute URL
-    const isDataReq = !!params.query.__nextDataReq
-    const query = urlQueryToSearchParams(params.query).toString()
-    const locale = params.query.__nextLocale
-    // Use original pathname (without `/page`) instead of appPath for url
-    let normalizedPathname = params.page
+    const locale = query.__nextLocale
+    const isDataReq = !!query.__nextDataReq
+    const queryString = urlQueryToSearchParams(query).toString()
 
     if (isDataReq) {
       params.req.headers['x-nextjs-data'] = '1'
     }
 
+    let normalizedPathname = normalizeAppPath(page)
     if (isDynamicRoute(normalizedPathname)) {
-      const routeRegex = getNamedRouteRegex(params.page)
+      const routeRegex = getNamedRouteRegex(normalizedPathname)
       normalizedPathname = interpolateDynamicPath(
-        params.page,
-        Object.assign({}, params.params, params.query),
+        normalizedPathname,
+        Object.assign({}, params.params, query),
         routeRegex
       )
     }
@@ -2070,7 +2075,7 @@ export default class NextNodeServer extends BaseServer {
     const url = `${getRequestMeta(params.req, '_protocol')}://${
       this.hostname
     }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
-      query ? `?${query}` : ''
+      queryString ? `?${queryString}` : ''
     }`
 
     if (!url.startsWith('http')) {

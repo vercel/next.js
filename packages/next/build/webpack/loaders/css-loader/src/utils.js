@@ -135,7 +135,7 @@ function shouldUseIcssPlugin(options) {
   return options.icss === true || Boolean(options.modules)
 }
 
-function getModulesPlugins(options, loaderContext) {
+function getModulesPlugins(options, loaderContext, meta) {
   const {
     mode,
     getLocalIdent,
@@ -154,11 +154,17 @@ function getModulesPlugins(options, loaderContext) {
       extractImports(),
       modulesScope({
         generateScopedName(exportName) {
-          return getLocalIdent(loaderContext, localIdentName, exportName, {
-            context: localIdentContext,
-            hashPrefix: localIdentHashPrefix,
-            regExp: localIdentRegExp,
-          })
+          return getLocalIdent(
+            loaderContext,
+            localIdentName,
+            exportName,
+            {
+              context: localIdentContext,
+              hashPrefix: localIdentHashPrefix,
+              regExp: localIdentRegExp,
+            },
+            meta
+          )
         },
         exportGlobals: options.modules.exportGlobals,
       }),

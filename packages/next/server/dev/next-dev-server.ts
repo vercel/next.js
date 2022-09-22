@@ -273,12 +273,10 @@ export default class DevServer extends Server {
         })
       }
 
-      const wp = (this.webpackWatcher = new Watchpack({
-        ignored: /([/\\]node_modules[/\\]|[/\\]\.next[/\\]|[/\\]\.git[/\\])/,
-      }))
       const pages = this.pagesDir ? [this.pagesDir] : []
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
+
       const files = this.pagesDir
         ? getPossibleMiddlewareFilenames(
             pathJoin(this.pagesDir, '..'),
@@ -302,6 +300,15 @@ export default class DevServer extends Server {
         pathJoin(this.dir, 'jsconfig.json'),
       ]
       files.push(...tsconfigPaths)
+
+      const wp = (this.webpackWatcher = new Watchpack({
+        ignored: (pathname: string) => {
+          return (
+            !files.some((file) => file.startsWith(pathname)) &&
+            !directories.some((dir) => pathname.startsWith(dir))
+          )
+        },
+      }))
 
       wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
@@ -519,7 +526,6 @@ export default class DevServer extends Server {
                     hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
-                    hasServerComponents: this.hotReloader?.hasServerComponents,
                   })
 
                   Object.keys(plugin.definitions).forEach((key) => {
@@ -1120,6 +1126,10 @@ export default class DevServer extends Server {
     return undefined
   }
 
+  protected getFontLoaderManifest() {
+    return undefined
+  }
+
   protected async hasMiddleware(): Promise<boolean> {
     return this.hasPage(this.actualMiddlewareFile!)
   }
@@ -1257,9 +1267,15 @@ export default class DevServer extends Server {
     return !snippet.includes('data-amp-development-mode-only')
   }
 
-  protected async getStaticPaths(pathname: string): Promise<{
-    staticPaths: string[] | undefined
-    fallbackMode: false | 'static' | 'blocking'
+  protected async getStaticPaths({
+    pathname,
+    originalAppPath,
+  }: {
+    pathname: string
+    originalAppPath?: string
+  }): Promise<{
+    staticPaths?: string[]
+    fallbackMode?: false | 'static' | 'blocking'
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
@@ -1273,20 +1289,22 @@ export default class DevServer extends Server {
       } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
-      const paths = await this.getStaticPathsWorker().loadStaticPaths(
-        this.distDir,
+      const pathsResult = await this.getStaticPathsWorker().loadStaticPaths({
+        distDir: this.distDir,
         pathname,
-        !this.renderOpts.dev && this._isLikeServerless,
-        {
+        serverless: !this.renderOpts.dev && this._isLikeServerless,
+        config: {
           configFileName,
           publicRuntimeConfig,
           serverRuntimeConfig,
         },
         httpAgentOptions,
         locales,
-        defaultLocale
-      )
-      return paths
+        defaultLocale,
+        originalAppPath,
+        isAppPath: !!originalAppPath,
+      })
+      return pathsResult
     }
     const { paths: staticPaths, fallback } = (
       await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
@@ -1299,7 +1317,7 @@ export default class DevServer extends Server {
           ? 'blocking'
           : fallback === true
           ? 'static'
-          : false,
+          : fallback,
     }
   }
 
@@ -1333,14 +1351,13 @@ export default class DevServer extends Server {
         clientOnly: false,
       })
 
-      const serverComponents = this.nextConfig.experimental.serverComponents
-
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (serverComponents) {
+      if (this.nextConfig.experimental.appDir) {
         this.serverComponentManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }
+      this.fontLoaderManifest = super.getFontLoaderManifest()
 
       return super.findPageComponents({ pathname, query, params, isAppPath })
     } catch (err) {
