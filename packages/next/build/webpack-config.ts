@@ -140,7 +140,7 @@ export function getDefineEnv({
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
-      isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : 'browser'
+      isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
     ),
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
       middlewareMatchers || []
