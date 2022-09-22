@@ -455,8 +455,8 @@ export default function OuterLayoutRouter({
             key={preservedSegment}
             value={
               <ErrorBoundary errorComponent={error}>
-                <NotFoundBoundary notFound={notFound}>
-                  <LoadingBoundary loading={loading}>
+                <LoadingBoundary loading={loading}>
+                  <NotFoundBoundary notFound={notFound}>
                     <InnerLayoutRouter
                       parallelRouterKey={parallelRouterKey}
                       url={url}
@@ -470,8 +470,8 @@ export default function OuterLayoutRouter({
                       isActive={currentChildSegment === preservedSegment}
                       rootLayoutIncluded={rootLayoutIncluded}
                     />
-                  </LoadingBoundary>
-                </NotFoundBoundary>
+                  </NotFoundBoundary>
+                </LoadingBoundary>
               </ErrorBoundary>
             }
           >
