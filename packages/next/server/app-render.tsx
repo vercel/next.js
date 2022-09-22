@@ -727,7 +727,15 @@ export async function renderToHTMLOrFlight(
       loaderTree: [
         segment,
         parallelRoutes,
-        { layoutOrPagePath, layout, template, error, loading, page },
+        {
+          layoutOrPagePath,
+          layout,
+          template,
+          error,
+          loading,
+          page,
+          '404': notFound,
+        },
       ],
       parentParams,
       firstItem,
@@ -750,6 +758,7 @@ export async function renderToHTMLOrFlight(
       const Template = template
         ? await interopDefault(template())
         : React.Fragment
+      const NotFound = notFound ? await interopDefault(notFound()) : undefined
       const ErrorComponent = error ? await interopDefault(error()) : undefined
       const Loading = loading ? await interopDefault(loading()) : undefined
       const isLayout = typeof layout !== 'undefined'
@@ -844,6 +853,7 @@ export async function renderToHTMLOrFlight(
                       <RenderFromTemplateContext />
                     </Template>
                   }
+                  notFound={NotFound ? <NotFound /> : undefined}
                   childProp={childProp}
                   rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
                 />,
@@ -882,6 +892,7 @@ export async function renderToHTMLOrFlight(
                     <RenderFromTemplateContext />
                   </Template>
                 }
+                notFound={NotFound ? <NotFound /> : undefined}
                 childProp={childProp}
                 rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
               />,

@@ -1,6 +1,7 @@
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
+    next_font_loaders::next_font_loaders,
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
@@ -244,6 +245,17 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                 tr.comments.as_ref().clone(),
             )
         },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/next-font-loaders/**/input.js")]
+fn next_font_loaders_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| next_font_loaders(vec!["@next/font/google".into(), "cool-fonts".into()]),
         &input,
         &output,
     );

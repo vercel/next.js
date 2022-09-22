@@ -1,5 +1,8 @@
-'client'
+import ClientComp from './client-component'
+import { useHeaders } from 'next/dist/client/components/hooks-server'
 
 export default function Page() {
-  throw new Error('Error during SSR')
+  // Opt-in to SSR.
+  useHeaders()
+  return <ClientComp />
 }
