@@ -17,6 +17,7 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   RSC_MOD_REF_PROXY_ALIAS,
+  WEBPACK_LAYERS,
 } from '../../../lib/constants'
 import {
   COMPILER_NAMES,
@@ -66,7 +67,7 @@ export class FlightClientEntryPlugin {
           PLUGIN_NAME,
           function (resolveData: any) {
             if (
-              resolveData.contextInfo.issuerLayer === 'sc_server' &&
+              resolveData.contextInfo.issuerLayer === WEBPACK_LAYERS.server &&
               // TODO-APP: Handle edge-server here correctly.
               resolveData.contextInfo.compiler === 'server'
             ) {
