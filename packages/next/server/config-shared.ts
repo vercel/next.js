@@ -153,6 +153,8 @@ export interface ExperimentalConfig {
 
   // A list of packages that should be treated as external in the RSC server build
   optoutServerComponentsBundle?: string[]
+
+  fontLoaders?: { [fontLoader: string]: any }
 }
 
 export type ExportPathMap = {

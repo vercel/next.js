@@ -61,6 +61,7 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
+import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 
 const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
@@ -645,6 +646,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             isServer: isNodeServer || isEdgeServer,
+            rootDir: dir,
             pagesDir,
             hasReactRefresh: dev && isClient,
             fileReading: config.experimental.swcFileReading,
@@ -825,14 +827,6 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
-  const reactAliases = {
-    react: reactDir,
-    'react-dom$': reactDomDir,
-    'react-dom/server$': `${reactDomDir}/server`,
-    'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-    'react-dom/client$': `${reactDomDir}/client`,
-  }
-
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -845,7 +839,11 @@ export default async function getBaseWebpackConfig(
     alias: {
       next: NEXT_PROJECT_ROOT,
 
-      ...reactAliases,
+      react: reactDir,
+      'react-dom$': reactDomDir,
+      'react-dom/server$': `${reactDomDir}/server`,
+      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+      'react-dom/client$': `${reactDomDir}/client`,
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
@@ -1008,11 +1006,15 @@ export default async function getBaseWebpackConfig(
             // we need to provide that alias to webpack's resolver.
             alias: process.env.__NEXT_REACT_CHANNEL
               ? {
-                  ...reactAliases,
-                  'react/package.json': `${reactDir}/package.json`,
-                  'react/jsx-runtime': `${reactDir}/jsx-runtime`,
-                  'react/jsx-dev-runtime': `${reactDir}/jsx-dev-runtime`,
-                  'react-dom/package.json': `${reactDomDir}/package.json`,
+                  react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                  'react/package.json': `react-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
+                  'react/jsx-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-runtime`,
+                  'react/jsx-dev-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-dev-runtime`,
+                  'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                  'react-dom/package.json': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
+                  'react-dom/server': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server`,
+                  'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
+                  'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
                 }
               : false,
             conditionNames: ['react-server'],
@@ -1409,7 +1411,7 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isClient
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
-      minimize: !dev && isClient,
+      minimize: !dev && (isClient || isEdgeServer),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
@@ -1516,6 +1518,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
+        'next-font-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1846,6 +1849,7 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+          hasFontLoaders: !!config.experimental.fontLoaders,
         }),
       isClient &&
         new BuildManifestPlugin({
@@ -1898,6 +1902,9 @@ export default async function getBaseWebpackConfig(
         isClient &&
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
+      isClient &&
+        config.experimental.fontLoaders &&
+        new FontLoaderManifestPlugin(),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(

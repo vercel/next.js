@@ -7,6 +7,7 @@ use swc_core::ecma::visit::{noop_visit_type, Visit};
 
 pub struct FontImportsGenerator<'a> {
     pub state: &'a mut super::State,
+    pub relative_path: &'a str,
 }
 
 impl<'a> FontImportsGenerator<'a> {
@@ -41,7 +42,7 @@ impl<'a> FontImportsGenerator<'a> {
                             Some(function) => String::from(&**function),
                             None => String::new(),
                         };
-                        let mut values = vec![function_name];
+                        let mut values = vec![self.relative_path.to_string(), function_name];
                         values.append(&mut json_values);
 
                         return Some(ImportDecl {
