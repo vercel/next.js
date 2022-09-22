@@ -125,7 +125,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
 
     fontDefinitions.forEach((fontDef) => {
       const [url, nonce] = fontDef
-      const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
+      const fallBackLinkTag = `<link rel="preload" href="${url}" as="style" /> <link rel="stylesheet" href="${url}"/>`
       if (
         result.indexOf(`<style data-href="${url}">`) > -1 ||
         result.indexOf(fallBackLinkTag) > -1
@@ -169,7 +169,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
 
     let preconnectTag = ''
     preconnectUrls.forEach((url) => {
-      preconnectTag += `<link rel="preconnect" href="${url}" crossorigin />`
+      preconnectTag += `<link rel="preconnect" href="${url}" crossorigin /> <link rel="dns-prefetch" href="${url}" crossorigin />`
     })
 
     result = result.replace(
