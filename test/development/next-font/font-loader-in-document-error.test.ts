@@ -16,7 +16,7 @@ describe('font-loader-in-document-error', () => {
         ),
       },
       dependencies: {
-        '@next/font': '*',
+        '@next/font': 'canary',
       },
     })
   })

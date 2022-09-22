@@ -59,6 +59,7 @@ import {
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
+  FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -828,6 +829,9 @@ export default async function build(
             config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
             BUILD_ID_FILE,
             appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
+            config.experimental.fontLoaders
+              ? path.join(serverDir, FONT_LOADER_MANIFEST)
+              : null,
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),

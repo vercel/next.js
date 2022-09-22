@@ -11,6 +11,11 @@ const mockedGoogleFontResponses = require.resolve(
 describe('@next/font/google without-preloaded-fonts without _app', () => {
   let next: NextInstance
 
+  if ((global as any).isNextDeploy) {
+    it('should skip next deploy for now', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -25,7 +30,7 @@ describe('@next/font/google without-preloaded-fonts without _app', () => {
         ),
       },
       dependencies: {
-        '@next/font': '*',
+        '@next/font': 'canary',
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
@@ -62,6 +67,11 @@ describe('@next/font/google without-preloaded-fonts without _app', () => {
 describe('@next/font/google no preloads with _app', () => {
   let next: NextInstance
 
+  if ((global as any).isNextDeploy) {
+    it('should skip next deploy for now', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -79,7 +89,7 @@ describe('@next/font/google no preloads with _app', () => {
         ),
       },
       dependencies: {
-        '@next/font': '*',
+        '@next/font': 'canary',
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,

@@ -13,6 +13,11 @@ const isDev = (global as any).isNextDev
 describe('@next/font/google with-font-declarations-file', () => {
   let next: NextInstance
 
+  if ((global as any).isNextDeploy) {
+    it('should skip next deploy for now', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -30,7 +35,7 @@ describe('@next/font/google with-font-declarations-file', () => {
         ),
       },
       dependencies: {
-        '@next/font': '*',
+        '@next/font': 'canary',
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
