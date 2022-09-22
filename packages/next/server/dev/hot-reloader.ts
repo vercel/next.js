@@ -626,6 +626,7 @@ export default class HotReloader {
                         ),
                         appDir: this.appDir!,
                         pageExtensions: this.config.pageExtensions,
+                        isEdgeServer: true,
                       }).import
                     : undefined
 
@@ -705,6 +706,7 @@ export default class HotReloader {
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
+                          isEdgeServer: false,
                         })
                       : relativeRequest,
                   appDir: this.config.experimental.appDir,
