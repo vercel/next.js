@@ -18,6 +18,7 @@ export function getRender({
   pageMod,
   errorMod,
   error500Mod,
+  pagesType,
   Document,
   buildManifest,
   reactLoadableManifest,
@@ -30,6 +31,7 @@ export function getRender({
   buildId,
   fontLoaderManifest,
 }: {
+  pagesType?: 'app' | 'pages' | 'root'
   dev: boolean
   page: string
   appMod: any
@@ -49,6 +51,7 @@ export function getRender({
   buildId: string
   fontLoaderManifest: FontLoaderManifest
 }) {
+  const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
     dev,
     buildManifest,
@@ -56,7 +59,7 @@ export function getRender({
     subresourceIntegrityManifest,
     fontLoaderManifest,
     Document,
-    App: appMod.default as AppType,
+    App: appMod?.default as AppType,
   }
 
   const server = new WebServer({
@@ -76,6 +79,7 @@ export function getRender({
       appRenderToHTML,
       pagesRenderToHTML,
       loadComponent: async (pathname) => {
+        if (isAppPath) return null
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,

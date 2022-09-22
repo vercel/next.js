@@ -98,7 +98,7 @@ function parseGoogleFontName(css: string): Array<string> {
   return [...fontNames]
 }
 
-function calculateOverrideCSS(font: string, fontMetrics: any) {
+export function calculateOverrideCSS(font: string, fontMetrics: any) {
   const fontName = font.toLowerCase().trim().replace(/ /g, '-')
   const fontKey = font.toLowerCase().trim().replace(/ /g, '')
   const { category, ascentOverride, descentOverride, lineGapOverride } =
