@@ -17,21 +17,21 @@ type FontOptions = {
     file: string
     ext: string
     format: string
-    unicodeRange: string
+    unicodeRange?: string
   }>
   display: string
-  weight: string
-  style: string
+  weight?: string
+  style?: string
   fallback?: string[]
   preload: boolean
-  ascentOverride: string
-  descentOverride: string
-  fontStretch: string
-  fontVariant: string
-  fontFeatureSettings: string
-  fontVariationSettings: string
-  lineGapOverride: string
-  sizeAdjust: string
+  ascentOverride?: string
+  descentOverride?: string
+  fontStretch?: string
+  fontVariant?: string
+  fontFeatureSettings?: string
+  fontVariationSettings?: string
+  lineGapOverride?: string
+  sizeAdjust?: string
 }
 export function validateData(functionName: string, data: any): FontOptions {
   if (functionName) {
