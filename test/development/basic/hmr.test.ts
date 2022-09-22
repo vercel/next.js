@@ -800,7 +800,9 @@ describe('basic HMR', () => {
         newFileContent
       )
 
-      await browser.waitForElementByCss('#updated')
+      expect(await browser.waitForElementByCss('#updated').text()).toBe(
+        'hello world!!!'
+      )
 
       // CLI warning and stacktrace
       expect(next.cliOutput.slice(start)).toContain(
@@ -841,7 +843,9 @@ describe('basic HMR', () => {
       )
       await next.patchFile('./pages/hmr/runtime-error.js', newFileContent)
 
-      await browser.waitForElementByCss('#updated')
+      expect(await browser.waitForElementByCss('#updated').text()).toBe(
+        'whoops'
+      )
 
       // CLI warning and stacktrace
       expect(next.cliOutput.slice(start)).toContain(
