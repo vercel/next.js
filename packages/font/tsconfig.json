@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "strict": true,
     "resolveJsonModule": true,
     "module": "commonjs",
     "esModuleInterop": true,
