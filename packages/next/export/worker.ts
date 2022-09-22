@@ -28,6 +28,7 @@ import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -387,9 +388,7 @@ export default async function exportPage({
         // and bail when dynamic dependencies are detected
         // only fully static paths are fully generated here
         if (isAppDir) {
-          const {
-            DynamicServerError,
-          } = require('../client/components/hooks-server-context')
+          const { DynamicServerError } = components.ComponentMod.serverHooks
 
           const { renderToHTMLOrFlight } =
             require('../server/app-render') as typeof import('../server/app-render')
@@ -419,7 +418,10 @@ export default async function exportPage({
               )
             }
           } catch (err) {
-            if (!(err instanceof DynamicServerError)) {
+            if (
+              !(err instanceof DynamicServerError) &&
+              (err as any).code !== REDIRECT_ERROR_CODE
+            ) {
               throw err
             }
           }

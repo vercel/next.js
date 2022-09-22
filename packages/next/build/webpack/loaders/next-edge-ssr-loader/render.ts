@@ -17,6 +17,7 @@ export function getRender({
   pageMod,
   errorMod,
   error500Mod,
+  pagesType,
   Document,
   buildManifest,
   reactLoadableManifest,
@@ -28,6 +29,7 @@ export function getRender({
   config,
   buildId,
 }: {
+  pagesType?: 'app' | 'pages' | 'root'
   dev: boolean
   page: string
   appMod: any
@@ -46,13 +48,14 @@ export function getRender({
   config: NextConfig
   buildId: string
 }) {
+  const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
     dev,
     buildManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
     Document,
-    App: appMod.default as AppType,
+    App: appMod?.default as AppType,
   }
 
   const server = new WebServer({
@@ -72,6 +75,7 @@ export function getRender({
       appRenderToHTML,
       pagesRenderToHTML,
       loadComponent: async (pathname) => {
+        if (isAppPath) return null
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
