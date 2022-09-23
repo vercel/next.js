@@ -675,7 +675,16 @@ pub async fn resolve(
         let result_vc = import_map.lookup(request).await?;
         let result = &*result_vc;
         if !matches!(result, ImportMapResult::NoEntry) {
-            return Ok(resolve_import_map_result(result, context, options));
+            let resolve_result_vc = resolve_import_map_result(result, context, options);
+            // We might have matched an alias in the import map, but there is no guarantee
+            // the alias actually resolves to something. For instance, a tsconfig.json
+            // `compilerOptions.paths` option might alias "@*" to "./*", which
+            // would also match a request to "@emotion/core". Here, we follow what the
+            // Typescript resolution algorithm does in case an alias match
+            // doesn't resolve to anything: fall back to resolving the request normally.
+            if !*resolve_result_vc.is_unresolveable().await? {
+                return Ok(resolve_result_vc);
+            }
         }
     }
 

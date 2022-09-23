@@ -129,7 +129,7 @@ pub async fn apply_tsconfig(
                         .collect();
                     all_paths.insert(
                         key.to_string(),
-                        ImportMapping::aliases(entries, Some(context)),
+                        ImportMapping::primary_alternatives(entries, Some(context)),
                     );
                 }
             }

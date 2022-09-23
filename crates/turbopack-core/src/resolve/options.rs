@@ -66,22 +66,28 @@ pub enum ResolveIntoPackage {
 )]
 pub enum ImportMapping {
     External(Option<String>),
-    Alias(String, Option<FileSystemPathVc>),
+    /// A request alias that will be resolved first, and fall back to resolving
+    /// the original request if it fails. Useful for the tsconfig.json
+    /// `compilerOptions.paths` option.
+    PrimaryAlternative(String, Option<FileSystemPathVc>),
     Ignore,
     Empty,
     Alternatives(Vec<ImportMapping>),
 }
 
 impl ImportMapping {
-    pub fn aliases(list: Vec<String>, context: Option<FileSystemPathVc>) -> ImportMapping {
+    pub fn primary_alternatives(
+        list: Vec<String>,
+        context: Option<FileSystemPathVc>,
+    ) -> ImportMapping {
         if list.is_empty() {
             ImportMapping::Ignore
         } else if list.len() == 1 {
-            ImportMapping::Alias(list.into_iter().next().unwrap(), context)
+            ImportMapping::PrimaryAlternative(list.into_iter().next().unwrap(), context)
         } else {
             ImportMapping::Alternatives(
                 list.into_iter()
-                    .map(|s| ImportMapping::Alias(s, context))
+                    .map(|s| ImportMapping::PrimaryAlternative(s, context))
                     .collect(),
             )
         }
@@ -102,10 +108,9 @@ impl AliasTemplate for ImportMapping {
                     Ok(ImportMapping::External(None))
                 }
             }
-            ImportMapping::Alias(name, context) => Ok(ImportMapping::Alias(
-                name.clone().replace('*', capture),
-                *context,
-            )),
+            ImportMapping::PrimaryAlternative(name, context) => Ok(
+                ImportMapping::PrimaryAlternative(name.clone().replace('*', capture), *context),
+            ),
             ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
             ImportMapping::Alternatives(alternatives) => Ok(ImportMapping::Alternatives(
                 alternatives
@@ -157,7 +162,7 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResult {
         ImportMapping::Empty => {
             ImportMapResult::Result(ResolveResult::Special(SpecialType::Empty, Vec::new()).into())
         }
-        ImportMapping::Alias(name, context) => {
+        ImportMapping::PrimaryAlternative(name, context) => {
             let request = RequestVc::parse(Value::new(name.to_string().into()));
 
             ImportMapResult::Alias(request, *context)
