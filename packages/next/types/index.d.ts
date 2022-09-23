@@ -61,7 +61,17 @@ export type Redirect =
  */
 export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
 
-export type FileSizeSuffix = `${'k' | 'K' | 'm' | 'M' | 'g' | 'G'}${'b' | 'B'}`
+export type FileSizeSuffix = `${
+  | 'k'
+  | 'K'
+  | 'm'
+  | 'M'
+  | 'g'
+  | 'G'
+  | 't'
+  | 'T'
+  | 'p'
+  | 'P'}${'b' | 'B'}`
 
 export type SizeLimit = number | `${number}${FileSizeSuffix}`
 
