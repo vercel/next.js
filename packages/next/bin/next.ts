@@ -2,6 +2,7 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { commands } from '../lib/commands'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -14,18 +15,6 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 })
 
 const defaultCommand = 'dev'
-export type cliCommand = (argv?: string[]) => void
-export const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: () => Promise.resolve(require('../cli/next-build').nextBuild),
-  start: () => Promise.resolve(require('../cli/next-start').nextStart),
-  export: () => Promise.resolve(require('../cli/next-export').nextExport),
-  dev: () => Promise.resolve(require('../cli/next-dev').nextDev),
-  lint: () => Promise.resolve(require('../cli/next-lint').nextLint),
-  telemetry: () =>
-    Promise.resolve(require('../cli/next-telemetry').nextTelemetry),
-  info: () => Promise.resolve(require('../cli/next-info').nextInfo),
-}
-
 const args = arg(
   {
     // Types
@@ -41,9 +30,6 @@ const args = arg(
     permissive: true,
   }
 )
-
-// Detect if react-dom is enabled streaming rendering mode
-const shouldUseReactRoot = !!require('react-dom/server').renderToPipeableStream
 
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
@@ -108,6 +94,10 @@ if (process.env.NODE_ENV) {
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+
+// In node.js runtime, react has to be required after NODE_ENV is set,
+// so that the correct dev/prod bundle could be loaded into require.cache.
+const { shouldUseReactRoot } = require('../server/utils')
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }

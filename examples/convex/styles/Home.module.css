@@ -1,0 +1,112 @@
+.container {
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main {
+  padding: 4rem 0;
+  flex: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.button {
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  margin: 0.5rem;
+  padding: 0.5rem;
+  text-align: left;
+  text-decoration: none;
+  border: 1px solid #eaeaea;
+  border-radius: 10px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  text-align: center;
+  width: 200px;
+}
+
+.button:hover,
+.button:focus,
+.button:active {
+  color: #0070f3;
+  border-color: #0070f3;
+}
+
+.footer {
+  display: flex;
+  flex: 1;
+  padding: 2rem 0;
+  border-top: 1px solid #eaeaea;
+  justify-content: center;
+  align-items: center;
+}
+
+.footer a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.title a {
+  color: #0070f3;
+  text-decoration: none;
+}
+
+.title a:hover,
+.title a:focus,
+.title a:active {
+  text-decoration: underline;
+}
+
+.title {
+  margin: 0;
+  line-height: 1.15;
+  font-size: 3rem;
+}
+
+.title,
+.description {
+  text-align: center;
+}
+
+.description {
+  margin: 2rem 0;
+  line-height: 1.5;
+  font-size: 1.5rem;
+}
+
+.logo {
+  height: 1em;
+  margin-left: 0.5rem;
+}
+
+.loadingLayout {
+  display: flex;
+  height: 100vh;
+}
+
+.loading,
+.loading:after {
+  border-radius: 50%;
+  width: 5em;
+  height: 5em;
+}
+.loading {
+  margin: auto auto;
+  border: 0.8em solid #f4e9f1;
+  border-left: 0.8em solid #8d2676;
+  animation: load8 1.1s infinite linear;
+}
+@keyframes load8 {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

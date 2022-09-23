@@ -26,7 +26,7 @@ export async function downloadWasmSwc(
 
   // get platform specific cache directory adapted from playwright's handling
   // https://github.com/microsoft/playwright/blob/7d924470d397975a74a19184c136b3573a974e13/packages/playwright-core/src/utils/registry.ts#L141
-  const cacheDirectory = (() => {
+  const cacheDirectory = await (async () => {
     let result
     const envDefined = process.env['NEXT_SWC_PATH']
 
@@ -44,8 +44,23 @@ export async function downloadWasmSwc(
           process.env.LOCALAPPDATA ||
           path.join(os.homedir(), 'AppData', 'Local')
       } else {
-        console.error(new Error('Unsupported platform: ' + process.platform))
-        process.exit(0)
+        /// Attempt to use generic tmp location for these platforms
+        if (process.platform === 'freebsd' || process.platform === 'android') {
+          for (const dir of [
+            path.join(os.homedir(), '.cache'),
+            path.join(os.tmpdir()),
+          ]) {
+            if (await fileExists(dir)) {
+              systemCacheDirectory = dir
+              break
+            }
+          }
+        }
+
+        if (!systemCacheDirectory) {
+          console.error(new Error('Unsupported platform: ' + process.platform))
+          process.exit(0)
+        }
       }
       result = path.join(systemCacheDirectory, 'next-swc')
     }
@@ -83,7 +98,7 @@ export async function downloadWasmSwc(
     try {
       const output = execSync('npm config get registry').toString().trim()
       if (output.startsWith('http')) {
-        registry = output
+        registry = output.endsWith('/') ? output : `${output}/`
       }
     } catch (_) {}
 
@@ -107,9 +122,13 @@ export async function downloadWasmSwc(
   const cacheFiles = await fs.promises.readdir(cacheDirectory)
 
   if (cacheFiles.length > MAX_VERSIONS_TO_CACHE) {
-    cacheFiles.sort()
+    cacheFiles.sort((a, b) => {
+      if (a.length < b.length) return -1
+      return a.localeCompare(b)
+    })
 
-    for (let i = MAX_VERSIONS_TO_CACHE - 1; i++; i < cacheFiles.length) {
+    // prune oldest versions in cache
+    for (let i = 0; i++; i < cacheFiles.length - MAX_VERSIONS_TO_CACHE) {
       await fs.promises
         .unlink(path.join(cacheDirectory, cacheFiles[i]))
         .catch(() => {})

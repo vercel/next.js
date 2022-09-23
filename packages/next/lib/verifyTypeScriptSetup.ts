@@ -13,10 +13,16 @@ import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
+import { installDependencies } from './install-dependencies'
+import { isCI } from '../telemetry/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
 
 const requiredPackages = [
-  { file: 'typescript', pkg: 'typescript', exportsRestrict: false },
+  {
+    file: 'typescript/lib/typescript.js',
+    pkg: 'typescript',
+    exportsRestrict: true,
+  },
   {
     file: '@types/react/index.d.ts',
     pkg: '@types/react',
@@ -25,18 +31,25 @@ const requiredPackages = [
   {
     file: '@types/node/index.d.ts',
     pkg: '@types/node',
-    exportsRestrict: false,
+    exportsRestrict: true,
   },
 ]
 
-export async function verifyTypeScriptSetup(
-  dir: string,
-  intentDirs: string[],
-  typeCheckPreflight: boolean,
-  tsconfigPath: string,
-  disableStaticImages: boolean,
+export async function verifyTypeScriptSetup({
+  dir,
+  cacheDir,
+  intentDirs,
+  tsconfigPath,
+  typeCheckPreflight,
+  disableStaticImages,
+}: {
+  dir: string
   cacheDir?: string
-): Promise<{ result?: TypeCheckResult; version: string | null }> {
+  tsconfigPath: string
+  intentDirs: string[]
+  typeCheckPreflight: boolean
+  disableStaticImages: boolean
+}): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
   try {
@@ -47,13 +60,42 @@ export async function verifyTypeScriptSetup(
     }
 
     // Ensure TypeScript and necessary `@types/*` are installed:
-    const deps: NecessaryDependencies = await hasNecessaryDependencies(
+    let deps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
       requiredPackages
     )
 
     if (deps.missing?.length > 0) {
-      await missingDepsError(dir, deps.missing)
+      if (isCI) {
+        // we don't attempt auto install in CI to avoid side-effects
+        // and instead log the error for installing needed packages
+        await missingDepsError(dir, deps.missing)
+      }
+      console.log(
+        chalk.bold.yellow(
+          `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
+        ) +
+          '\n' +
+          'Installing dependencies' +
+          '\n\n' +
+          chalk.bold(
+            'If you are not trying to use TypeScript, please remove the ' +
+              chalk.cyan('tsconfig.json') +
+              ' file from your package root (and any TypeScript files in your pages directory).'
+          ) +
+          '\n'
+      )
+      await installDependencies(dir, deps.missing, true).catch((err) => {
+        if (err && typeof err === 'object' && 'command' in err) {
+          console.error(
+            `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
+              (err as any).command +
+              '\n'
+          )
+        }
+        throw err
+      })
+      deps = await hasNecessaryDependencies(dir, requiredPackages)
     }
 
     // Load TypeScript after we're sure it exists:

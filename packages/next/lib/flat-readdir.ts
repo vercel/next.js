@@ -18,7 +18,7 @@ export async function flatReaddir(dir: string, include: RegExp) {
         return null
       }
 
-      return absolutePath.replace(dir, '')
+      return absolutePath
     })
   )
 

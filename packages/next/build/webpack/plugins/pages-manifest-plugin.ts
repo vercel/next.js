@@ -10,13 +10,15 @@ export type PagesManifest = { [page: string]: string }
 
 let edgeServerPages = {}
 let nodeServerPages = {}
-let edgeServerRootPaths = {}
-let nodeServerRootPaths = {}
+let edgeServerAppPaths = {}
+let nodeServerAppPaths = {}
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
-export default class PagesManifestPlugin implements webpack.Plugin {
+export default class PagesManifestPlugin
+  implements webpack.WebpackPluginInstance
+{
   serverless: boolean
   dev: boolean
   isEdgeRuntime: boolean
@@ -42,7 +44,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
   createAssets(compilation: any, assets: any) {
     const entrypoints = compilation.entrypoints
     const pages: PagesManifest = {}
-    const rootPaths: PagesManifest = {}
+    const appPaths: PagesManifest = {}
 
     for (const entrypoint of entrypoints.values()) {
       const pagePath = getRouteFromEntrypoint(
@@ -78,7 +80,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       file = normalizePathSep(file)
 
       if (entrypoint.name.startsWith('app/')) {
-        rootPaths[pagePath] = file
+        appPaths[pagePath] = file
       } else {
         pages[pagePath] = file
       }
@@ -88,10 +90,10 @@ export default class PagesManifestPlugin implements webpack.Plugin {
     // we need to merge both pages to generate the full manifest.
     if (this.isEdgeRuntime) {
       edgeServerPages = pages
-      edgeServerRootPaths = rootPaths
+      edgeServerAppPaths = appPaths
     } else {
       nodeServerPages = pages
-      nodeServerRootPaths = rootPaths
+      nodeServerAppPaths = appPaths
     }
 
     assets[
@@ -113,8 +115,8 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       ] = new sources.RawSource(
         JSON.stringify(
           {
-            ...edgeServerRootPaths,
-            ...nodeServerRootPaths,
+            ...edgeServerAppPaths,
+            ...nodeServerAppPaths,
           },
           null,
           2

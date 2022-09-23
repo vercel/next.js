@@ -12,6 +12,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
+import { shouldUseReactRoot } from './utils'
 
 let ServerImpl: typeof Server
 
@@ -58,6 +59,15 @@ export class NextServer {
     ) => {
       const requestHandler = await this.getServerRequestHandler()
       return requestHandler(req, res, parsedUrl)
+    }
+  }
+
+  getUpgradeHandler() {
+    return async (req: IncomingMessage, socket: any, head: any) => {
+      const server = await this.getServer()
+      // @ts-expect-error we mark this as protected so it
+      // causes an error here
+      return server.handleUpgrade.apply(server, [req, socket, head])
     }
   }
 
@@ -182,10 +192,6 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
-  // Make sure env of custom server is overridden.
-  // Use dynamic require to make sure it's executed in it's own context.
-  const ReactDOMServer = require('react-dom/server')
-  const shouldUseReactRoot = !!ReactDOMServer.renderToPipeableStream
   if (shouldUseReactRoot) {
     ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }

@@ -7,22 +7,22 @@ use napi::{CallContext, JsObject, Task};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
-use swc::{config::SourceMapsConfig, try_with_handler, TransformOutput};
-use swc_atoms::JsWord;
-use swc_bundler::{Bundler, ModuleData, ModuleRecord};
-use swc_common::{
-    collections::AHashMap,
-    errors::{ColorConfig, Handler},
-    BytePos, FileName, SourceMap, Span,
-};
-use swc_ecma_loader::{
-    resolvers::{lru::CachingResolver, node::NodeModulesResolver},
-    TargetEnv, NODE_BUILTINS,
-};
-use swc_ecmascript::{
-    ast::*,
-    parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax},
-    visit::{noop_visit_type, Visit, VisitWith},
+use swc_core::{
+    base::{config::SourceMapsConfig, try_with_handler, TransformOutput},
+    bundler::{Bundler, ModuleData, ModuleRecord},
+    common::{
+        collections::AHashMap,
+        errors::{ColorConfig, Handler},
+        BytePos, FileName, SourceMap, Span,
+    },
+    ecma::ast::*,
+    ecma::atoms::JsWord,
+    ecma::loader::{
+        resolvers::{lru::CachingResolver, node::NodeModulesResolver},
+        TargetEnv, NODE_BUILTINS,
+    },
+    ecma::parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax},
+    ecma::visit::{noop_visit_type, Visit, VisitWith},
 };
 
 #[js_function(1)]
@@ -44,7 +44,7 @@ struct BundleOption {
 }
 
 struct BundleTask {
-    c: Arc<swc::Compiler>,
+    c: Arc<swc_core::base::Compiler>,
     config: String,
 }
 
@@ -58,7 +58,7 @@ impl Task for BundleTask {
 
         try_with_handler(
             self.c.cm.clone(),
-            swc::HandlerOpts {
+            swc_core::base::HandlerOpts {
                 color: ColorConfig::Never,
                 skip_filename: true,
             },
@@ -79,11 +79,11 @@ impl Task for BundleTask {
                         handler,
                     },
                     make_resolver(),
-                    swc_bundler::Config {
+                    swc_core::bundler::Config {
                         require: true,
                         disable_inliner: false,
                         external_modules: builtins,
-                        module: swc_bundler::ModuleType::Es,
+                        module: swc_core::bundler::ModuleType::Es,
                         ..Default::default()
                     },
                     Box::new(CustomHook),
@@ -156,7 +156,7 @@ struct CustomLoader<'a> {
     cm: Arc<SourceMap>,
 }
 
-impl swc_bundler::Load for CustomLoader<'_> {
+impl swc_core::bundler::Load for CustomLoader<'_> {
     fn load(&self, f: &FileName) -> Result<ModuleData, Error> {
         let fm = match f {
             FileName::Real(path) => self.cm.load_file(path)?,
@@ -188,7 +188,7 @@ impl swc_bundler::Load for CustomLoader<'_> {
 
 struct CustomHook;
 
-impl swc_bundler::Hook for CustomHook {
+impl swc_core::bundler::Hook for CustomHook {
     fn get_import_meta_props(
         &self,
         _span: Span,

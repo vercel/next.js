@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import path from 'path'
-import execa from 'execa'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
@@ -15,15 +14,6 @@ import {
 describe('pnpm support', () => {
   let next: NextInstance | undefined
 
-  beforeAll(async () => {
-    try {
-      const version = await execa('pnpm', ['--version'])
-      console.warn(`using pnpm version`, version.stdout)
-    } catch (_) {
-      // install pnpm if not available
-      await execa('npm', ['i', '-g', 'pnpm@latest'])
-    }
-  })
   afterEach(async () => {
     try {
       await next?.destroy()
@@ -44,7 +34,6 @@ describe('pnpm support', () => {
           start: 'next start',
         },
       },
-      installCommand: 'pnpm install',
       buildCommand: 'pnpm run build',
     })
 
@@ -56,7 +45,7 @@ describe('pnpm support', () => {
     expect(html).toContain('Hello World')
   })
 
-  it('should execute client-side JS on each page in outputStandalone', async () => {
+  it('should execute client-side JS on each page in output: "standalone"', async () => {
     next = await createNext({
       files: {
         pages: new FileRef(path.join(__dirname, '..', 'app-multi-page/pages')),

@@ -28,6 +28,79 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests({ dev, serverless }) {
+  if (!dev) {
+    it('should have correct cache entries on prefetch', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.waitForCondition('!!window.next.router.isReady')
+
+      const getCacheKeys = async () => {
+        return (await browser.eval('Object.keys(window.next.router.sdc)'))
+          .map((key) => {
+            // strip http://localhost:PORT
+            // and then strip buildId prefix
+            return key
+              .substring(key.indexOf('/_next'))
+              .replace(/\/_next\/data\/(.*?)\//, '/_next/data/BUILD_ID/')
+          })
+          .sort()
+      }
+
+      const cacheKeys = await getCacheKeys()
+      expect(cacheKeys).toEqual([
+        ...(process.env.__MIDDLEWARE_TEST
+          ? // data route is fetched with middleware due to query hydration
+            // since middleware matches the index route
+            ['/_next/data/BUILD_ID/index.json']
+          : []),
+        '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
+        '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+        '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
+        '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+      ])
+
+      // ensure no new cache entries after navigation
+      const links = [
+        {
+          linkSelector: '#ssg-catch-all-single',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#ssg-catch-all-single-interpolated',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#ssg-catch-all-multi',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#ssg-catch-all-multi-no-as',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#ssg-catch-all-multi',
+          waitForSelector: '#all-ssg-content',
+        },
+        {
+          linkSelector: '#nested-ssg-catch-all-single',
+          waitForSelector: '#nested-all-ssg-content',
+        },
+        {
+          linkSelector: '#nested-ssg-catch-all-multi',
+          waitForSelector: '#nested-all-ssg-content',
+        },
+      ]
+
+      for (const { linkSelector, waitForSelector } of links) {
+        await browser.elementByCss(linkSelector).click()
+        await browser.waitForElementByCss(waitForSelector)
+        await browser.back()
+        await browser.waitForElementByCss(linkSelector)
+      }
+      const newCacheKeys = await getCacheKeys()
+      expect(newCacheKeys).toEqual(cacheKeys)
+    })
+  }
+
   if (dev) {
     it('should not have error after pinging WebSocket', async () => {
       const browser = await webdriver(appPort, '/')
@@ -931,8 +1004,11 @@ function runTests({ dev, serverless }) {
       () => browser.eval(`document.body.innerHTML`),
       /onmpost:.*post-1/
     )
-    const scrollPosition = await browser.eval('window.pageYOffset')
-    expect(scrollPosition).toBe(7232)
+
+    const elementPosition = await browser.eval(
+      `document.querySelector("#item-400").getBoundingClientRect().y`
+    )
+    expect(elementPosition).toEqual(0)
   })
 
   it('should scroll to a hash on client-side navigation', async () => {
@@ -943,8 +1019,10 @@ function runTests({ dev, serverless }) {
     const text = await browser.elementByCss('#asdf').text()
     expect(text).toMatch(/onmpost:.*test-w-hash/)
 
-    const scrollPosition = await browser.eval('window.pageYOffset')
-    expect(scrollPosition).toBe(7232)
+    const elementPosition = await browser.eval(
+      `document.querySelector("#item-400").getBoundingClientRect().y`
+    )
+    expect(elementPosition).toEqual(0)
   })
 
   it('should prioritize public files over dynamic route', async () => {
@@ -1061,17 +1139,19 @@ function runTests({ dev, serverless }) {
       expect(text).toBe('slug: first')
     })
 
-    it('should show error when interpolating fails for href', async () => {
-      const browser = await webdriver(appPort, '/')
-      await browser
-        .elementByCss('#view-post-1-interpolated-incorrectly')
-        .click()
-      expect(await hasRedbox(browser)).toBe(true)
-      const header = await getRedboxHeader(browser)
-      expect(header).toContain(
-        'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
-      )
-    })
+    if (!process.env.__MIDDLEWARE_TEST) {
+      it('should show error when interpolating fails for href', async () => {
+        const browser = await webdriver(appPort, '/')
+        await browser
+          .elementByCss('#view-post-1-interpolated-incorrectly')
+          .click()
+        expect(await hasRedbox(browser)).toBe(true)
+        const header = await getRedboxHeader(browser)
+        expect(header).toContain(
+          'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
+        )
+      })
+    }
 
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
@@ -1389,6 +1469,23 @@ function runTests({ dev, serverless }) {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Routing', () => {
+  if (process.env.__MIDDLEWARE_TEST) {
+    const middlewarePath = join(__dirname, '../middleware.js')
+
+    beforeAll(async () => {
+      await fs.writeFile(
+        middlewarePath,
+        `
+        import { NextResponse } from 'next/server'
+        export default function middleware() {
+          return NextResponse.next()
+        }
+      `
+      )
+    })
+    afterAll(() => fs.remove(middlewarePath))
+  }
+
   describe('dev mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
@@ -1415,25 +1512,5 @@ describe('Dynamic Routing', () => {
     afterAll(() => killApp(app))
 
     runTests({ dev: false, serverless: false })
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-      buildId = await fs.readFile(buildIdPath, 'utf8')
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
-    runTests({ dev: false, serverless: true })
   })
 })

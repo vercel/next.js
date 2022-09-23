@@ -1,5 +1,6 @@
 import type { RenderOpts } from './render'
-import { parse, HTMLElement } from 'next/dist/compiled/node-html-parser'
+import type { HTMLElement } from 'next/dist/compiled/node-html-parser'
+
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
 import { nonNullable } from '../lib/non-nullable'
 
@@ -7,15 +8,19 @@ let optimizeAmp: typeof import('./optimize-amp').default | undefined
 let getFontDefinitionFromManifest:
   | typeof import('./font-utils').getFontDefinitionFromManifest
   | undefined
+let parse: typeof import('next/dist/compiled/node-html-parser').parse
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
+  parse = (
+    require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
+  ).parse
 }
 
 type postProcessOptions = {
-  optimizeFonts: boolean
+  optimizeFonts: any
 }
 
 type renderOptions = {
@@ -192,7 +197,7 @@ async function postProcessHTML(
           return html
         }
       : null,
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_OPTIMIZE_FONTS
+    process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeFonts
       ? async (html: string) => {
           const getFontDefinition = (url: string): string => {
             if (renderOpts.fontManifest) {

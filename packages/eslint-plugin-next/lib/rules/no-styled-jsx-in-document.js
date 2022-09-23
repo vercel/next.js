@@ -1,13 +1,16 @@
 const path = require('path')
 
+const url = 'https://nextjs.org/docs/messages/no-styled-jsx-in-document'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Disallow using custom styled-jsx inside pages/_document.js',
+      description: 'Prevent usage of `styled-jsx` in `pages/_document.js`.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-styled-jsx-in-document',
+      url,
     },
-    fixable: 'code',
+    type: 'problem',
+    schema: [],
   },
   create: function (context) {
     return {
@@ -35,12 +38,10 @@ module.exports = {
         ) {
           context.report({
             node,
-            message: `styled-jsx can not be used inside pages/_document.js. See https://nextjs.org/docs/messages/no-styled-jsx-in-document.`,
+            message: `\`styled-jsx\` should not be used in \`pages/_document.js\`. See: ${url}`,
           })
         }
       },
     }
   },
 }
-
-module.exports.schema = []

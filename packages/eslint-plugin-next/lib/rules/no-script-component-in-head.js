@@ -1,10 +1,14 @@
+const url = 'https://nextjs.org/docs/messages/no-script-component-in-head'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Disallow using next/script inside the next/head component',
+      description: 'Prevent usage of `next/script` in `next/head` component.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-script-component-in-head-component',
+      url,
     },
+    type: 'problem',
+    schema: [],
   },
   create: function (context) {
     let isNextHead = null
@@ -42,8 +46,7 @@ module.exports = {
         if (scriptTag) {
           context.report({
             node,
-            message:
-              "next/script shouldn't be used inside next/head. See: https://nextjs.org/docs/messages/no-script-component-in-head-component",
+            message: `\`next/script\` should not be used in \`next/head\` component. Move \`<Script />\` outside of \`<Head>\` instead. See: ${url}`,
           })
         }
       },

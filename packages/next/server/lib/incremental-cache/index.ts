@@ -18,6 +18,7 @@ export interface CacheHandlerContext {
   flushToDisk?: boolean
   serverDistDir: string
   maxMemoryCacheSize?: number
+  _appDir?: boolean
 }
 
 export interface CacheHandlerValue {
@@ -47,6 +48,7 @@ export class IncrementalCache {
   constructor({
     fs,
     dev,
+    appDir,
     flushToDisk,
     serverDistDir,
     maxMemoryCacheSize,
@@ -55,6 +57,7 @@ export class IncrementalCache {
   }: {
     fs: CacheFs
     dev: boolean
+    appDir?: boolean
     serverDistDir: string
     flushToDisk?: boolean
     maxMemoryCacheSize?: number
@@ -63,7 +66,7 @@ export class IncrementalCache {
   }) {
     let cacheHandlerMod: any = FileSystemCache
 
-    if (incrementalCacheHandlerPath) {
+    if (process.env.NEXT_RUNTIME !== 'edge' && incrementalCacheHandlerPath) {
       cacheHandlerMod = require(incrementalCacheHandlerPath)
       cacheHandlerMod = cacheHandlerMod.default || cacheHandlerMod
     }
@@ -80,6 +83,7 @@ export class IncrementalCache {
       flushToDisk,
       serverDistDir,
       maxMemoryCacheSize,
+      _appDir: appDir,
     })
   }
 

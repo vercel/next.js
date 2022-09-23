@@ -1,9 +1,9 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default class {
     render() {
         return <div className={_JSXStyle.dynamic([
             [
-                "ac0c5daa02b1aeac",
+                "f6f794581d963a47",
                 [
                     Typography.base.size.default,
                     Typography.base.lineHeight,
@@ -17,7 +17,7 @@ export default class {
 
           <p className={_JSXStyle.dynamic([
             [
-                "ac0c5daa02b1aeac",
+                "f6f794581d963a47",
                 [
                     Typography.base.size.default,
                     Typography.base.lineHeight,
@@ -29,7 +29,7 @@ export default class {
             ]
         ])}>test</p>
 
-          <_JSXStyle id={"ac0c5daa02b1aeac"} dynamic={[
+          <_JSXStyle id={"f6f794581d963a47"} dynamic={[
             Typography.base.size.default,
             Typography.base.lineHeight,
             Target.mediumPlus,
@@ -40,4 +40,4 @@ export default class {
 
         </div>;
     }
-};
+}

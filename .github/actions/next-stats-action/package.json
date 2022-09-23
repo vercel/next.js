@@ -1,8 +1,6 @@
 {
-  "name": "get-stats",
-  "version": "1.0.0",
+  "private": true,
   "main": "src/index.js",
-  "license": "MIT",
   "dependencies": {
     "async-sema": "^3.1.0",
     "fs-extra": "^8.1.0",

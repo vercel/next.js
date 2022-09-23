@@ -6,13 +6,15 @@ import {
   hasNecessaryDependencies,
   NecessaryDependencies,
 } from './has-necessary-dependencies'
-import { isYarn } from './is-yarn'
 import { fileExists } from './file-exists'
 import { FatalError } from './fatal-error'
 import { recursiveDelete } from './recursive-delete'
 import * as Log from '../build/output/log'
+import { getPkgManager } from './helpers/get-pkg-manager'
 
 async function missingDependencyError(dir: string) {
+  const packageManager = getPkgManager(dir)
+
   throw new FatalError(
     chalk.bold.red(
       "It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed."
@@ -21,9 +23,11 @@ async function missingDependencyError(dir: string) {
       chalk.bold(`Please install Partytown by running:`) +
       '\n\n' +
       `\t${chalk.bold.cyan(
-        (await isYarn(dir))
-          ? 'yarn add @builder.io/partytown'
-          : 'npm install @builder.io/partytown'
+        (packageManager === 'yarn'
+          ? 'yarn add --dev'
+          : packageManager === 'pnpm'
+          ? 'pnpm install --save-dev'
+          : 'npm install --save-dev') + ' @builder.io/partytown'
       )}` +
       '\n\n' +
       chalk.bold(

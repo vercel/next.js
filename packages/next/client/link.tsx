@@ -1,3 +1,5 @@
+'client'
+
 import React from 'react'
 import { UrlObject } from 'url'
 import {
@@ -8,13 +10,13 @@ import {
 } from '../shared/lib/router/router'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
-import { AppRouterContext } from '../shared/lib/app-router-context'
+import {
+  AppRouterContext,
+  AppRouterInstance,
+} from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
-
-// @ts-ignore useTransition exist
-const hasUseTransition = typeof React.useTransition !== 'undefined'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -43,10 +45,15 @@ type InternalLinkProps = {
   /**
    * requires experimental.newNextLinkBehavior
    */
+  onTouchStart?: (e: any) => void
+  // e: any because as it would otherwise overlap with existing types
+  /**
+   * requires experimental.newNextLinkBehavior
+   */
   onClick?: (e: any) => void
 }
 
-// TODO: Include the full set of Anchor props
+// TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
 export type LinkProps = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
@@ -66,7 +73,7 @@ function prefetch(
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  router.prefetch(href, as, options).catch((err) => {
+  Promise.resolve(router.prefetch(href, as, options)).catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
@@ -95,14 +102,15 @@ function isModifiedEvent(event: React.MouseEvent): boolean {
 
 function linkClicked(
   e: React.MouseEvent,
-  router: NextRouter,
+  router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
-  startTransition?: (cb: any) => void
+  isAppRouter?: boolean,
+  prefetchEnabled?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -117,16 +125,24 @@ function linkClicked(
   e.preventDefault()
 
   const navigate = () => {
-    // replace state instead of push if prop is present
-    router[replace ? 'replace' : 'push'](href, as, {
-      shallow,
-      locale,
-      scroll,
-    })
+    // If the router is an NextRouter instance it will have `beforePopState`
+    if ('beforePopState' in router) {
+      router[replace ? 'replace' : 'push'](href, as, {
+        shallow,
+        locale,
+        scroll,
+      })
+    } else {
+      // If `beforePopState` doesn't exist on the router it's the AppRouter.
+      const method: keyof AppRouterInstance = replace ? 'replace' : 'push'
+
+      router[method](href, { forceOptimisticNavigation: !prefetchEnabled })
+    }
   }
 
-  if (startTransition) {
-    startTransition(navigate)
+  if (isAppRouter) {
+    // @ts-expect-error startTransition exists.
+    React.startTransition(navigate)
   } else {
     navigate()
   }
@@ -190,6 +206,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         locale: true,
         onClick: true,
         onMouseEnter: true,
+        onTouchStart: true,
         legacyBehavior: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
@@ -214,7 +231,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
-        } else if (key === 'onClick' || key === 'onMouseEnter') {
+        } else if (
+          key === 'onClick' ||
+          key === 'onMouseEnter' ||
+          key === 'onTouchStart'
+        ) {
           if (props[key] && valType !== 'function') {
             throw createPropError({
               key,
@@ -269,27 +290,25 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       locale,
       onClick,
       onMouseEnter,
+      onTouchStart,
       legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
       ...restProps
     } = props
 
     children = childrenProp
 
-    if (legacyBehavior && typeof children === 'string') {
+    if (
+      legacyBehavior &&
+      (typeof children === 'string' || typeof children === 'number')
+    ) {
       children = <a>{children}</a>
     }
 
     const p = prefetchProp !== false
-    const [, /* isPending */ startTransition] = hasUseTransition
-      ? // Rules of hooks is disabled here because the useTransition will always exist with React 18.
-        // There is no difference between renders in this case, only between using React 18 vs 17.
-        // @ts-ignore useTransition exists
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        React.useTransition()
-      : []
     let router = React.useContext(RouterContext)
 
-    const appRouter = React.useContext(AppRouterContext)
+    // TODO-APP: type error. Remove `as any`
+    const appRouter = React.useContext(AppRouterContext) as any
     if (appRouter) {
       router = appRouter
     }
@@ -380,6 +399,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }, [as, href, isVisible, locale, p, router])
 
     const childProps: {
+      onTouchStart: React.TouchEventHandler
       onMouseEnter: React.MouseEventHandler
       onClick: React.MouseEventHandler
       href?: string
@@ -415,7 +435,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             shallow,
             scroll,
             locale,
-            appRouter ? startTransition : undefined
+            Boolean(appRouter),
+            p
           )
         }
       },
@@ -430,8 +451,32 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
-        if (isLocalURL(href)) {
-          prefetch(router, href, as, { priority: true })
+
+        // Check for not prefetch disabled in page using appRouter
+        if (!(!p && appRouter)) {
+          if (isLocalURL(href)) {
+            prefetch(router, href, as, { priority: true })
+          }
+        }
+      },
+      onTouchStart: (e: React.TouchEvent<HTMLAnchorElement>) => {
+        if (!legacyBehavior && typeof onTouchStart === 'function') {
+          onTouchStart(e)
+        }
+
+        if (
+          legacyBehavior &&
+          child.props &&
+          typeof child.props.onTouchStart === 'function'
+        ) {
+          child.props.onTouchStart(e)
+        }
+
+        // Check for not prefetch disabled in page using appRouter
+        if (!(!p && appRouter)) {
+          if (isLocalURL(href)) {
+            prefetch(router, href, as, { priority: true })
+          }
         }
       },
     }

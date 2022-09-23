@@ -178,6 +178,34 @@ describe('CLI Usage', () => {
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
+    test('--port 0', async () => {
+      const output = await runNextCommandDev([dir, '--port', '0'], true)
+      const matches = /on 0.0.0.0:(\d+)/.exec(output)
+      expect(matches).not.toBe(null)
+
+      const port = parseInt(matches[1])
+      // Regression test: port 0 was interpreted as if no port had been
+      // provided, falling back to 3000.
+      expect(port).not.toBe(3000)
+
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+    })
+
+    test('PORT=0', async () => {
+      const output = await runNextCommandDev([dir], true, {
+        env: { PORT: 0 },
+      })
+      const matches = /on 0.0.0.0:(\d+)/.exec(output)
+      expect(matches).not.toBe(null)
+
+      const port = parseInt(matches[1])
+      // Regression test: port 0 was interpreted as if no port had been
+      // provided, falling back to 3000.
+      expect(port).not.toBe(3000)
+
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+    })
+
     test("NODE_OPTIONS='--inspect'", async () => {
       // this test checks that --inspect works by launching a single debugger for the main Next.js process,
       // not for its subprocesses
@@ -394,6 +422,54 @@ describe('CLI Usage', () => {
         'Invalid project directory provided, no such directory'
       )
     })
+
+    test('--keepAliveTimeout string arg', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'string'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "NaN"'
+      )
+    })
+
+    test('--keepAliveTimeout negative number', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout=-100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "-100"'
+      )
+    })
+
+    test('--keepAliveTimeout Infinity', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'Infinity'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "Infinity"'
+      )
+    })
+
+    test('--keepAliveTimeout happy path', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', '100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).not.toContain(
+        'Invalid keep alive timeout provided, expected a non negative number'
+      )
+    })
   })
 
   describe('export', () => {
@@ -506,6 +582,7 @@ describe('CLI Usage', () => {
       pnpm: .*
     Relevant packages:
       next: .*
+      eslint-config-next: .*
       react: .*
       react-dom: .*
 `)
