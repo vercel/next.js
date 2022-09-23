@@ -39,6 +39,7 @@ pub struct State {
     font_functions: AHashMap<Id, FontFunction>,
     removeable_module_items: FxHashSet<BytePos>,
     font_imports: Vec<ModuleItem>,
+    font_exports: Vec<ModuleItem>,
     font_functions_in_allowed_scope: FxHashSet<BytePos>,
 }
 
@@ -76,10 +77,11 @@ impl VisitMut for NextFontLoaders {
             // Remove marked module items
             items.retain(|item| !self.state.removeable_module_items.contains(&item.span_lo()));
 
-            // Add font imports
+            // Add font imports and exports
             let mut new_items = Vec::new();
             new_items.append(&mut self.state.font_imports);
             new_items.append(items);
+            new_items.append(&mut self.state.font_exports);
             *items = new_items;
         }
     }
