@@ -49,12 +49,12 @@ class ReadonlyHeaders {
     const headersInstance = new Headers(headers as any)
     this[INTERNAL_HEADERS_INSTANCE] = headersInstance
 
-    this.entries = headersInstance.entries
-    this.forEach = headersInstance.forEach
-    this.get = headersInstance.get
-    this.has = headersInstance.has
-    this.keys = headersInstance.keys
-    this.values = headersInstance.values
+    this.entries = headersInstance.entries.bind(headersInstance)
+    this.forEach = headersInstance.forEach.bind(headersInstance)
+    this.get = headersInstance.get.bind(headersInstance)
+    this.has = headersInstance.has.bind(headersInstance)
+    this.keys = headersInstance.keys.bind(headersInstance)
+    this.values = headersInstance.values.bind(headersInstance)
   }
   [Symbol.iterator]() {
     return this[INTERNAL_HEADERS_INSTANCE][Symbol.iterator]()
