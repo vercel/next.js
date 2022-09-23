@@ -43,9 +43,11 @@ class ReadonlyHeaders {
   get: Headers['get']
   has: Headers['has']
   keys: Headers['keys']
-  values: Headers['values']
+  values: Headers['values'];
+  [Symbol.iterator]: Headers[typeof Symbol.iterator]
 
   constructor(headers: IncomingHttpHeaders) {
+    // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
     const headersInstance = new Headers(headers as any)
     this[INTERNALS] = {
       headers: headersInstance,
@@ -57,6 +59,7 @@ class ReadonlyHeaders {
     this.has = headersInstance.has
     this.keys = headersInstance.keys
     this.values = headersInstance.values
+    this[Symbol.iterator] = headersInstance[Symbol.iterator]
   }
   append() {
     throw new Error('ReadonlyHeaders cannot be modified')
