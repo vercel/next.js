@@ -781,6 +781,13 @@ export async function renderToHTMLOrFlight(
 
       if (layoutOrPageMod?.config) {
         defaultRevalidate = layoutOrPageMod.config.revalidate
+
+        if (isStaticGeneration && defaultRevalidate === 0) {
+          const { DynamicServerError } =
+            ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
+
+          throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
+        }
       }
       /**
        * Checks if the current segment is a root layout.
