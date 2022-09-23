@@ -314,12 +314,12 @@ impl VisitMut for TranspileCssProp {
                         }),
                         definite: false,
                     };
-                    let stmt = Stmt::Decl(Decl::Var(VarDecl {
+                    let stmt = Stmt::Decl(Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Var,
                         declare: false,
                         decls: vec![var],
-                    }));
+                    })));
                     match inject_after {
                         Some(injector) => {
                             let id = injector.to_id();
@@ -375,11 +375,11 @@ impl VisitMut for TranspileCssProp {
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
                     specifiers: vec![specifier],
-                    src: Str {
+                    src: Box::new(Str {
                         span: DUMMY_SP,
                         value: "styled-components".into(),
                         raw: None,
-                    },
+                    }),
                     type_only: Default::default(),
                     asserts: Default::default(),
                 })),
