@@ -32,7 +32,8 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { Cookies, CookieSerializeOptions } from './web/spec-extension/cookies'
 
 const INTERNALS = Symbol('internal for readonly')
-// const readonlyHeadersError = new Error('ReadonlyHeaders cannot be modified')
+
+const readonlyHeadersError = new Error('ReadonlyHeaders cannot be modified')
 class ReadonlyHeaders {
   [INTERNALS]: {
     headers: Headers
@@ -43,8 +44,7 @@ class ReadonlyHeaders {
   get: Headers['get']
   has: Headers['has']
   keys: Headers['keys']
-  values: Headers['values'];
-  [Symbol.iterator]: Headers[typeof Symbol.iterator]
+  values: Headers['values']
 
   constructor(headers: IncomingHttpHeaders) {
     // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
@@ -59,16 +59,19 @@ class ReadonlyHeaders {
     this.has = headersInstance.has
     this.keys = headersInstance.keys
     this.values = headersInstance.values
-    this[Symbol.iterator] = headersInstance[Symbol.iterator]
   }
+  [Symbol.iterator]() {
+    return this[INTERNALS].headers[Symbol.iterator]()
+  }
+
   append() {
-    throw new Error('ReadonlyHeaders cannot be modified')
+    throw readonlyHeadersError
   }
   delete() {
-    throw new Error('ReadonlyHeaders cannot be modified')
+    throw readonlyHeadersError
   }
   set() {
-    throw new Error('ReadonlyHeaders cannot be modified')
+    throw readonlyHeadersError
   }
 }
 
