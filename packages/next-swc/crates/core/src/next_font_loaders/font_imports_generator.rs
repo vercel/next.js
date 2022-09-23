@@ -68,7 +68,7 @@ impl<'a> FontImportsGenerator<'a> {
         None
     }
 
-    fn check_var_decl(&mut self, var_decl: &VarDecl) {
+    fn check_var_decl(&mut self, var_decl: &VarDecl) -> Option<Ident> {
         if let Some(decl) = var_decl.decls.get(0) {
             let ident = match &decl.name {
                 Pat::Ident(ident) => Ok(ident.id.clone()),
@@ -79,8 +79,6 @@ impl<'a> FontImportsGenerator<'a> {
                     let import_decl = self.check_call_expr(call_expr);
 
                     if let Some(mut import_decl) = import_decl {
-                        self.state.removeable_module_items.insert(var_decl.span.lo);
-
                         match var_decl.kind {
                             VarDeclKind::Const => {}
                             _ => {
@@ -100,12 +98,14 @@ impl<'a> FontImportsGenerator<'a> {
                                 import_decl.specifiers =
                                     vec![ImportSpecifier::Default(ImportDefaultSpecifier {
                                         span: DUMMY_SP,
-                                        local: ident,
+                                        local: ident.clone(),
                                     })];
 
                                 self.state
                                     .font_imports
                                     .push(ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)));
+
+                                return Some(ident);
                             }
                             Err(pattern) => {
                                 HANDLER.with(|handler| {
@@ -122,6 +122,7 @@ impl<'a> FontImportsGenerator<'a> {
                 }
             }
         }
+        None
     }
 }
 
@@ -129,8 +130,37 @@ impl<'a> Visit for FontImportsGenerator<'a> {
     noop_visit_type!();
 
     fn visit_module_item(&mut self, item: &ModuleItem) {
-        if let ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) = item {
-            self.check_var_decl(var_decl);
+        match item {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
+                if self.check_var_decl(var_decl).is_some() {
+                    self.state.removeable_module_items.insert(var_decl.span.lo);
+                }
+            }
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
+                if let Decl::Var(var_decl) = &export_decl.decl {
+                    if let Some(ident) = self.check_var_decl(var_decl) {
+                        self.state
+                            .removeable_module_items
+                            .insert(export_decl.span.lo);
+
+                        self.state.font_exports.push(ModuleItem::ModuleDecl(
+                            ModuleDecl::ExportNamed(NamedExport {
+                                span: DUMMY_SP,
+                                specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(ident),
+                                    span: DUMMY_SP,
+                                    exported: None,
+                                    is_type_only: false,
+                                })],
+                                src: None,
+                                type_only: false,
+                                asserts: None,
+                            }),
+                        ));
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
