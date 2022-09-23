@@ -46,7 +46,7 @@ impl<'a> FontImportsGenerator<'a> {
                         values.append(&mut json_values);
 
                         return Some(ImportDecl {
-                            src: Str {
+                            src: Box::new(Str {
                                 value: JsWord::from(format!(
                                     "{}?{}",
                                     font_function.loader,
@@ -54,7 +54,7 @@ impl<'a> FontImportsGenerator<'a> {
                                 )),
                                 raw: None,
                                 span: DUMMY_SP,
-                            },
+                            }),
                             specifiers: vec![],
                             type_only: false,
                             asserts: None,
