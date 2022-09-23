@@ -4,11 +4,12 @@
 const path = require('path')
 const { readdir } = require('fs/promises')
 const { execSync } = require('child_process')
+const { readJson } = require('fs-extra')
 
 const cwd = process.cwd()
 
 ;(async function () {
-  let isCanary = false
+  let isCanary = true
 
   if (!process.env.NPM_TOKEN) {
     console.log('No NPM_TOKEN, exiting...')
@@ -18,7 +19,10 @@ const cwd = process.cwd()
   try {
     const tagOutput = execSync('git describe --exact-match').toString()
     console.log(tagOutput)
-    isCanary = tagOutput.includes('-canary')
+
+    if (tagOutput.trim().startsWith('v')) {
+      isCanary = tagOutput.includes('-canary')
+    }
   } catch (err) {
     console.log(err)
 
@@ -72,6 +76,14 @@ const cwd = process.cwd()
   }
 
   for (const packageDir of packageDirs) {
+    const pkgJson = await readJson(
+      path.join(packagesDir, packageDir, 'package.json')
+    )
+
+    if (pkgJson.private) {
+      console.log(`Skipping private package ${packageDir}`)
+      continue
+    }
     await publish(packageDir)
   }
 })()
