@@ -28,7 +28,6 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
-import type { UnwrapPromise } from '../lib/coalesced-function'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { Cookies, CookieSerializeOptions } from './web/spec-extension/cookies'
 
