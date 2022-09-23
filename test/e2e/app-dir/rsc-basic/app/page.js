@@ -5,7 +5,8 @@ const envVar = process.env.ENV_VAR_TEST
 const headerKey = 'x-next-test-client'
 
 export default function Index(props) {
-  const header = useHeaders()[headerKey]
+  const headers = useHeaders()
+  const header = headers.get(headerKey)
 
   return (
     <div>

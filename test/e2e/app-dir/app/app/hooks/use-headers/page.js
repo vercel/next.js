@@ -3,8 +3,7 @@ import { useHeaders } from 'next/dist/client/components/hooks-server'
 export default function Page() {
   const headers = useHeaders()
 
-  const hasHeader =
-    'x-use-headers' in headers && headers['x-use-headers'] === 'value'
+  const hasHeader = headers.get('x-use-headers') === 'value'
 
   return (
     <>

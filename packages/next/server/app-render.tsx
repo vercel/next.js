@@ -30,6 +30,7 @@ import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
+import { Cookies } from './web/spec-extension/cookies'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -541,6 +542,7 @@ export async function renderToHTMLOrFlight(
   patchFetch(ComponentMod)
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
+  const requestAsyncStorage = ComponentMod.requestAsyncStorage
 
   if (
     !('getStore' in staticGenerationAsyncStorage) &&
@@ -607,29 +609,10 @@ export async function renderToHTMLOrFlight(
       | typeof import('../client/components/hot-reloader.client').default
       | null
 
-    const headers = headersWithoutFlight(req.headers)
-    // TODO-APP: fix type of req
-    // @ts-expect-error
-    const cookies = req.cookies
-
     /**
      * The tree created in next-app-loader that holds component segments and modules
      */
     const loaderTree: LoaderTree = ComponentMod.tree
-
-    const tryGetPreviewData =
-      process.env.NEXT_RUNTIME === 'edge'
-        ? () => false
-        : require('./api-utils/node').tryGetPreviewData
-
-    // Reads of this are cached on the `req` object, so this should resolve
-    // instantly. There's no need to pass this data down from a previous
-    // invoke, where we'd have to consider server & serverless.
-    const previewData = tryGetPreviewData(
-      req,
-      res,
-      (renderOpts as any).previewProps
-    )
     /**
      * Server Context is specifically only available in Server Components.
      * It has to hold values that can't change while rendering from the common layout down.
@@ -638,9 +621,6 @@ export async function renderToHTMLOrFlight(
 
     const serverContexts: Array<[string, any]> = [
       ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
-      [CONTEXT_NAMES.HeadersContext, headers],
-      [CONTEXT_NAMES.CookiesContext, cookies],
-      [CONTEXT_NAMES.PreviewDataContext, previewData],
     ]
 
     type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
@@ -1306,18 +1286,55 @@ export async function renderToHTMLOrFlight(
     pathname,
   }
 
-  if ('getStore' in staticGenerationAsyncStorage) {
-    return new Promise<UnwrapPromise<ReturnType<typeof renderToHTMLOrFlight>>>(
-      (resolve, reject) => {
-        staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
-          return wrappedRender().then(resolve).catch(reject)
-        })
-      }
-    )
-  } else {
-    Object.assign(staticGenerationAsyncStorage, initialStaticGenerationStore)
-    return wrappedRender().finally(() => {
-      staticGenerationAsyncStorage.inUse = false
-    })
+  const tryGetPreviewData =
+    process.env.NEXT_RUNTIME === 'edge'
+      ? () => false
+      : require('./api-utils/node').tryGetPreviewData
+
+  // Reads of this are cached on the `req` object, so this should resolve
+  // instantly. There's no need to pass this data down from a previous
+  // invoke, where we'd have to consider server & serverless.
+  const previewData = tryGetPreviewData(
+    req,
+    res,
+    (renderOpts as any).previewProps
+  )
+
+  const requestStore = {
+    headers: new Headers(headersWithoutFlight(req.headers)),
+    cookies: new Cookies(req.headers.cookie),
+    previewData,
   }
+
+  function handleRequestStoreRun<T>(fn: () => T): Promise<T> {
+    if ('getStore' in requestAsyncStorage) {
+      return new Promise((resolve, reject) => {
+        requestAsyncStorage.run(requestStore, () => {
+          return Promise.resolve(fn()).then(resolve).catch(reject)
+        })
+      })
+    } else {
+      Object.assign(requestAsyncStorage, requestStore)
+      return Promise.resolve(fn())
+    }
+  }
+
+  function handleStaticGenerationStoreRun<T>(fn: () => T): Promise<T> {
+    if ('getStore' in staticGenerationAsyncStorage) {
+      return new Promise((resolve, reject) => {
+        staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
+          return Promise.resolve(fn()).then(resolve).catch(reject)
+        })
+      })
+    } else {
+      Object.assign(staticGenerationAsyncStorage, initialStaticGenerationStore)
+      return Promise.resolve(fn()).finally(() => {
+        staticGenerationAsyncStorage.inUse = false
+      })
+    }
+  }
+
+  return handleRequestStoreRun(() =>
+    handleStaticGenerationStoreRun(() => wrappedRender())
+  )
 }
