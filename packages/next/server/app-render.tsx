@@ -572,6 +572,8 @@ export async function renderToHTMLOrFlight(
       // For pages dir, there is only the SSR pass and we don't have the bundled
       // React subset. Here we directly import the flight renderer with the
       // unbundled React.
+      // TODO-APP: Is it possible to hard code the flight response here instead of
+      // rendering it?
       const ReactServerDOMWebpack = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server')
 
       // Empty so that the client-side router will do a full page navigation.
