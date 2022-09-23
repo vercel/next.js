@@ -1475,6 +1475,34 @@ describe('app dir', () => {
       })
     })
 
+    describe('404', () => {
+      it.skip('should trigger 404 in a server component', async () => {
+        const browser = await webdriver(next.url, '/not-found/servercomponent')
+
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('404!')
+      })
+
+      it.skip('should trigger 404 in a client component', async () => {
+        const browser = await webdriver(next.url, '/not-found/clientcomponent')
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('404!')
+      })
+
+      it('should trigger 404 client-side', async () => {
+        const browser = await webdriver(next.url, '/not-found/client-side')
+        await browser
+          .elementByCss('button')
+          .click()
+          .waitForElementByCss('#not-found-component')
+        expect(await browser.elementByCss('#not-found-component').text()).toBe(
+          '404!'
+        )
+      })
+    })
+
     describe('redirect', () => {
       describe('components', () => {
         it.skip('should redirect in a server component', async () => {

@@ -94,6 +94,7 @@ module.exports = {
             module.exports = {
               experimental: {
                 appDir: true,
+                // remove after next stable relase (current v12.3.1)
                 serverComponents: true,
               },
               generateBuildId: () => 'BUILD_ID',
@@ -119,6 +120,7 @@ module.exports = {
           module.exports = {
               experimental: {
                 appDir: true,
+                // remove after next stable relase (current v12.3.1)
                 serverComponents: true,
               },
               generateBuildId: () => 'BUILD_ID'
@@ -157,6 +159,8 @@ module.exports = {
             module.exports = {
               experimental: {
                 appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true
               },
               generateBuildId: () => 'BUILD_ID',
               swcMinify: true,
@@ -182,6 +186,8 @@ module.exports = {
             module.exports = {
               experimental: {
                 appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true
               },
               swcMinify: true,
               generateBuildId: () => 'BUILD_ID'

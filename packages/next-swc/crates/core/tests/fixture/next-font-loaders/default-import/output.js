@@ -1,1 +1,1 @@
-import font from 'cool-fonts?;{"prop":true}';
+import font from 'cool-fonts?pages/test.tsx;;{"prop":true}';

@@ -285,6 +285,47 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
+interface NotFoundBoundaryProps {
+  notFound?: React.ReactNode
+  children: React.ReactNode
+}
+
+class NotFoundErrorBoundary extends React.Component<
+  NotFoundBoundaryProps,
+  { notFoundTriggered: boolean }
+> {
+  constructor(props: NotFoundBoundaryProps) {
+    super(props)
+    this.state = { notFoundTriggered: false }
+  }
+
+  static getDerivedStateFromError(error: any) {
+    if (error.code === 'NEXT_NOT_FOUND') {
+      return { notFoundTriggered: true }
+    }
+    // Re-throw if error is not for 404
+    throw error
+  }
+
+  render() {
+    if (this.state.notFoundTriggered) {
+      return this.props.notFound
+    }
+
+    return this.props.children
+  }
+}
+
+function NotFoundBoundary({ notFound, children }: NotFoundBoundaryProps) {
+  return notFound ? (
+    <NotFoundErrorBoundary notFound={notFound}>
+      {children}
+    </NotFoundErrorBoundary>
+  ) : (
+    <>{children}</>
+  )
+}
+
 type ErrorComponent = React.ComponentType<{ error: Error; reset: () => void }>
 interface ErrorBoundaryProps {
   errorComponent: ErrorComponent
@@ -355,6 +396,7 @@ export default function OuterLayoutRouter({
   error,
   loading,
   template,
+  notFound,
   rootLayoutIncluded,
 }: {
   parallelRouterKey: string
@@ -363,6 +405,7 @@ export default function OuterLayoutRouter({
   error: ErrorComponent
   template: React.ReactNode
   loading: React.ReactNode | undefined
+  notFound: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
   const { childNodes, tree, url } = useContext(LayoutRouterContext)
@@ -412,21 +455,23 @@ export default function OuterLayoutRouter({
             key={preservedSegment}
             value={
               <ErrorBoundary errorComponent={error}>
-                <LoadingBoundary loading={loading}>
-                  <InnerLayoutRouter
-                    parallelRouterKey={parallelRouterKey}
-                    url={url}
-                    tree={tree}
-                    childNodes={childNodesForParallelRouter!}
-                    childProp={
-                      childPropSegment === preservedSegment ? childProp : null
-                    }
-                    segmentPath={segmentPath}
-                    path={preservedSegment}
-                    isActive={currentChildSegment === preservedSegment}
-                    rootLayoutIncluded={rootLayoutIncluded}
-                  />
-                </LoadingBoundary>
+                <NotFoundBoundary notFound={notFound}>
+                  <LoadingBoundary loading={loading}>
+                    <InnerLayoutRouter
+                      parallelRouterKey={parallelRouterKey}
+                      url={url}
+                      tree={tree}
+                      childNodes={childNodesForParallelRouter!}
+                      childProp={
+                        childPropSegment === preservedSegment ? childProp : null
+                      }
+                      segmentPath={segmentPath}
+                      path={preservedSegment}
+                      isActive={currentChildSegment === preservedSegment}
+                      rootLayoutIncluded={rootLayoutIncluded}
+                    />
+                  </LoadingBoundary>
+                </NotFoundBoundary>
               </ErrorBoundary>
             }
           >

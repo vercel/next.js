@@ -1,4 +1,5 @@
 use fxhash::FxHashSet;
+use serde::Deserialize;
 use swc_core::{
     common::{collections::AHashMap, BytePos, Spanned},
     ecma::{
@@ -12,9 +13,16 @@ mod find_functions_outside_module_scope;
 mod font_functions_collector;
 mod font_imports_generator;
 
-pub fn next_font_loaders(font_loaders: Vec<JsWord>) -> impl Fold + VisitMut {
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct Config {
+    pub font_loaders: Vec<JsWord>,
+    pub relative_file_path_from_root: JsWord,
+}
+
+pub fn next_font_loaders(config: Config) -> impl Fold + VisitMut {
     as_folder(NextFontLoaders {
-        font_loaders,
+        config,
         state: State {
             ..Default::default()
         },
@@ -35,7 +43,7 @@ pub struct State {
 }
 
 struct NextFontLoaders {
-    font_loaders: Vec<JsWord>,
+    config: Config,
     state: State,
 }
 
@@ -45,7 +53,7 @@ impl VisitMut for NextFontLoaders {
     fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
         // Find imported functions from font loaders
         let mut functions_collector = font_functions_collector::FontFunctionsCollector {
-            font_loaders: &self.font_loaders,
+            font_loaders: &self.config.font_loaders,
             state: &mut self.state,
         };
         items.visit_with(&mut functions_collector);
@@ -54,6 +62,7 @@ impl VisitMut for NextFontLoaders {
             // Generate imports from font function calls
             let mut import_generator = font_imports_generator::FontImportsGenerator {
                 state: &mut self.state,
+                relative_path: &self.config.relative_file_path_from_root,
             };
             items.visit_with(&mut import_generator);
 

@@ -829,9 +829,12 @@ export default async function build(
             config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
             BUILD_ID_FILE,
             appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
-            config.experimental.fontLoaders
-              ? path.join(serverDir, FONT_LOADER_MANIFEST)
-              : null,
+            ...(config.experimental.fontLoaders
+              ? [
+                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+                ]
+              : []),
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),

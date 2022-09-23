@@ -1,6 +1,8 @@
 use next_swc::{
-    disallow_re_export_all_in_page::disallow_re_export_all_in_page, next_dynamic::next_dynamic,
-    next_font_loaders::next_font_loaders, next_ssg::next_ssg,
+    disallow_re_export_all_in_page::disallow_re_export_all_in_page,
+    next_dynamic::next_dynamic,
+    next_font_loaders::{next_font_loaders, Config as FontLoaderConfig},
+    next_ssg::next_ssg,
     react_server_components::server_components,
 };
 use std::path::PathBuf;
@@ -101,7 +103,12 @@ fn next_font_loaders_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture_allowing_error(
         syntax(),
-        &|_tr| next_font_loaders(vec!["@next/font/google".into(), "cool-fonts".into()]),
+        &|_tr| {
+            next_font_loaders(FontLoaderConfig {
+                relative_file_path_from_root: "pages/test.tsx".into(),
+                font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
+            })
+        },
         &input,
         &output,
     );
