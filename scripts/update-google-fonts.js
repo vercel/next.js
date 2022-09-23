@@ -7,8 +7,8 @@ const fetch = require('node-fetch')
     'https://fonts.google.com/metadata/fonts'
   ).then((r) => r.json())
 
-  let fontFunctions = `type Display = 'auto'|'block'|'swap'|'fallback'|'optional'
-type FontModule = { className: string, variable: string, style: { fontFamily: string, fontWeight?: number, fontStyle?: string } }
+  let fontFunctions = `import type { FontModule } from 'next/font'
+  type Display = 'auto'|'block'|'swap'|'fallback'|'optional'
   `
   const fontData = {}
   for (let { family, fonts, axes } of familyMetadataList) {

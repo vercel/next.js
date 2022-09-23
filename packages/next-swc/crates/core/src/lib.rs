@@ -36,7 +36,6 @@ use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
-use swc_core::ecma::atoms::JsWord;
 
 use swc_core::{
     base::config::ModuleConfig,
@@ -113,7 +112,7 @@ pub struct TransformOptions {
     pub modularize_imports: Option<modularize_imports::Config>,
 
     #[serde(default)]
-    pub font_loaders: Option<Vec<JsWord>>,
+    pub font_loaders: Option<next_font_loaders::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -218,10 +217,9 @@ where
             None => Either::Right(noop()),
         },
         match &opts.font_loaders {
-            Some(font_loaders) =>
-                Either::Left(next_font_loaders::next_font_loaders(font_loaders.clone())),
+            Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
     )
 }
 
