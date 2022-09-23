@@ -47,7 +47,7 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale?: string) {
+  async setup(browserName: string, locale?: string, args?: Array<string>) {
     if (browser) return
     const headless = !!process.env.HEADLESS
     let device
@@ -63,11 +63,11 @@ export class Playwright extends BrowserInterface {
     }
 
     if (browserName === 'safari') {
-      browser = await webkit.launch({ headless })
+      browser = await webkit.launch({ headless, args })
     } else if (browserName === 'firefox') {
-      browser = await firefox.launch({ headless })
+      browser = await firefox.launch({ headless, args })
     } else {
-      browser = await chromium.launch({ headless, devtools: !headless })
+      browser = await chromium.launch({ headless, devtools: !headless, args })
     }
     context = await browser.newContext({ locale, ...device })
   }
