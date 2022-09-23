@@ -8,6 +8,7 @@ export const FILE_TYPES = {
   template: 'template',
   error: 'error',
   loading: 'loading',
+  '404': '404',
 } as const
 
 // TODO-APP: check if this can be narrowed.
@@ -190,6 +191,8 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         ? `require('next/dist/client/components/hot-reloader.client.js').default`
         : 'null'
     }
+
+    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage.js').staticGenerationAsyncStorage
 
     export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
 
