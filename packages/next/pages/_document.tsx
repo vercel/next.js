@@ -1,4 +1,5 @@
-import React, { ReactElement, ReactNode, useContext } from 'react'
+import * as React from 'react'
+import { ReactElement, ReactNode, useContext } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
