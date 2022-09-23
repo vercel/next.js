@@ -31,16 +31,41 @@ import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { Cookies, CookieSerializeOptions } from './web/spec-extension/cookies'
 
-const readonlyHeadersError = new Error('ReadonlyHeaders cannot be modified')
-class ReadonlyHeaders extends Headers {
+const INTERNALS = Symbol('internal for readonly')
+// const readonlyHeadersError = new Error('ReadonlyHeaders cannot be modified')
+class ReadonlyHeaders {
+  [INTERNALS]: {
+    headers: Headers
+  }
+
+  entries: Headers['entries']
+  forEach: Headers['forEach']
+  get: Headers['get']
+  has: Headers['has']
+  keys: Headers['keys']
+  values: Headers['values']
+
+  constructor(headers: IncomingHttpHeaders) {
+    const headersInstance = new Headers(headers as any)
+    this[INTERNALS] = {
+      headers: headersInstance,
+    }
+
+    this.entries = headersInstance.entries
+    this.forEach = headersInstance.forEach
+    this.get = headersInstance.get
+    this.has = headersInstance.has
+    this.keys = headersInstance.keys
+    this.values = headersInstance.values
+  }
   append() {
-    throw readonlyHeadersError
+    throw new Error('ReadonlyHeaders cannot be modified')
   }
   delete() {
-    throw readonlyHeadersError
+    throw new Error('ReadonlyHeaders cannot be modified')
   }
   set() {
-    throw readonlyHeadersError
+    throw new Error('ReadonlyHeaders cannot be modified')
   }
 }
 
@@ -1327,7 +1352,7 @@ export async function renderToHTMLOrFlight(
   )
 
   const requestStore = {
-    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers) as any),
+    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers)),
     cookies: new ReadonlyCookies(req.headers.cookie),
     previewData,
   }
