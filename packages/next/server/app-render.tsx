@@ -75,7 +75,8 @@ function createErrorHandler(
   /**
    * Used for debugging
    */
-  _source: string
+  _source: string,
+  capturedErrors: Error[]
 ) {
   return (err: any) => {
     if (
@@ -83,22 +84,17 @@ function createErrorHandler(
       err.message &&
       !err.message.includes('Dynamic server usage') &&
       // TODO-APP: Handle redirect throw
-      err.code !== REDIRECT_ERROR_CODE
+      err.code !== REDIRECT_ERROR_CODE &&
+      err.message !== REDIRECT_ERROR_CODE
     ) {
       // Used for debugging error source
       // console.error(_source, err)
       console.error(err)
+      capturedErrors.push(err)
     }
-
     return null
   }
 }
-
-const serverComponentsErrorHandler = createErrorHandler(
-  'serverComponentsRenderer'
-)
-const flightDataRendererErrorHandler = createErrorHandler('flightDataRenderer')
-const htmlRendererErrorHandler = createErrorHandler('htmlRenderer')
 
 let isFetchPatched = false
 
@@ -111,8 +107,7 @@ function patchFetch(ComponentMod: any) {
   const { DynamicServerError } =
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
-  const { staticGenerationAsyncStorage } =
-    require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
+  const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
   const origFetch = (global as any).fetch
 
@@ -244,6 +239,7 @@ function createServerComponentRenderer(
     >
     rscChunks: Uint8Array[]
   },
+  serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
 ): () => JSX.Element {
   // We need to expose the `__webpack_require__` API globally for
@@ -518,6 +514,21 @@ export async function renderToHTMLOrFlight(
   isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
+  const capturedErrors: Error[] = []
+
+  const serverComponentsErrorHandler = createErrorHandler(
+    'serverComponentsRenderer',
+    capturedErrors
+  )
+  const flightDataRendererErrorHandler = createErrorHandler(
+    'flightDataRenderer',
+    capturedErrors
+  )
+  const htmlRendererErrorHandler = createErrorHandler(
+    'htmlRenderer',
+    capturedErrors
+  )
+
   const {
     buildManifest,
     subresourceIntegrityManifest,
@@ -529,8 +540,7 @@ export async function renderToHTMLOrFlight(
 
   patchFetch(ComponentMod)
 
-  const { staticGenerationAsyncStorage } =
-    require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
+  const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
   if (
     !('getStore' in staticGenerationAsyncStorage) &&
@@ -771,6 +781,13 @@ export async function renderToHTMLOrFlight(
 
       if (layoutOrPageMod?.config) {
         defaultRevalidate = layoutOrPageMod.config.revalidate
+
+        if (isStaticGeneration && defaultRevalidate === 0) {
+          const { DynamicServerError } =
+            ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
+
+          throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
+        }
       }
       /**
        * Checks if the current segment is a root layout.
@@ -1145,6 +1162,7 @@ export async function renderToHTMLOrFlight(
       },
       ComponentMod,
       serverComponentsRenderOpts,
+      serverComponentsErrorHandler,
       nonce
     )
 
@@ -1248,6 +1266,12 @@ export async function renderToHTMLOrFlight(
         (await readable.getReader().read()).value || ''
       ).toString()
 
+      // if we encountered any unexpected errors during build
+      // we fail the prerendering phase and the build
+      if (capturedErrors.length > 0) {
+        throw capturedErrors[0]
+      }
+
       ;(renderOpts as any).pageData = Buffer.concat(
         serverComponentsRenderOpts.rscChunks
       ).toString()
@@ -1286,7 +1310,7 @@ export async function renderToHTMLOrFlight(
     return new Promise<UnwrapPromise<ReturnType<typeof renderToHTMLOrFlight>>>(
       (resolve, reject) => {
         staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
-          wrappedRender().then(resolve).catch(reject)
+          return wrappedRender().then(resolve).catch(reject)
         })
       }
     )
