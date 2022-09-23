@@ -31,13 +31,11 @@ import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { Cookies, CookieSerializeOptions } from './web/spec-extension/cookies'
 
-const INTERNALS = Symbol('internal for readonly')
+const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 const readonlyHeadersError = new Error('ReadonlyHeaders cannot be modified')
 class ReadonlyHeaders {
-  [INTERNALS]: {
-    headers: Headers
-  }
+  [INTERNAL_HEADERS_INSTANCE]: Headers
 
   entries: Headers['entries']
   forEach: Headers['forEach']
@@ -49,9 +47,7 @@ class ReadonlyHeaders {
   constructor(headers: IncomingHttpHeaders) {
     // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
     const headersInstance = new Headers(headers as any)
-    this[INTERNALS] = {
-      headers: headersInstance,
-    }
+    this[INTERNAL_HEADERS_INSTANCE] = headersInstance
 
     this.entries = headersInstance.entries
     this.forEach = headersInstance.forEach
@@ -61,7 +57,7 @@ class ReadonlyHeaders {
     this.values = headersInstance.values
   }
   [Symbol.iterator]() {
-    return this[INTERNALS].headers[Symbol.iterator]()
+    return this[INTERNAL_HEADERS_INSTANCE][Symbol.iterator]()
   }
 
   append() {
