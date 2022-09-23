@@ -72,6 +72,8 @@ interface StaticRequire {
 
 type StaticImport = StaticRequire | StaticImageData
 
+type NumericValue = number | `${number}`
+
 function isStaticRequire(
   src: StaticRequire | StaticImageData
 ): src is StaticRequire {
@@ -98,11 +100,11 @@ export type ImageProps = Omit<
 > & {
   src: string | StaticImport
   alt: string
-  width?: number | string
-  height?: number | string
+  width?: NumericValue
+  height?: NumericValue
   fill?: boolean
   loader?: ImageLoader
-  quality?: number | string
+  quality?: NumericValue
   priority?: boolean
   loading?: LoadingValue
   placeholder?: PlaceholderValue
