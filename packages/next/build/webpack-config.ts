@@ -1490,6 +1490,32 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(config.experimental.appDir && !isClient && !isEdgeServer
+          ? [
+              {
+                issuerLayer: WEBPACK_LAYERS.server,
+                resolve: process.env.__NEXT_REACT_CHANNEL
+                  ? {
+                      conditionNames: ['react-server'],
+                      alias: {
+                        react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                        'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                      },
+                    }
+                  : {
+                      conditionNames: ['react-server'],
+                      alias: {
+                        // If missing the alias override here, the default alias will be used which aliases
+                        // react to the direct file path, not the package name. In that case the condition
+                        // will be ignored completely.
+                        react: 'react',
+                        'react-dom': 'react-dom',
+                      },
+                    },
+              },
+            ]
+          : []),
+
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified

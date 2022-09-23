@@ -406,7 +406,7 @@ describe('app dir - react server components', () => {
     })
   })
 
-  it.only('should resolve 3rd party package exports based on the react-server condition', async () => {
+  it('should resolve 3rd party package exports based on the react-server condition', async () => {
     await fetchViaHTTP(next.url, '/react-server/3rd-party-package').then(
       async (response) => {
         const result = await resolveStreamResponse(response)
