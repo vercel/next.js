@@ -30,7 +30,37 @@ import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
-import { Cookies } from './web/spec-extension/cookies'
+import { Cookies, CookieSerializeOptions } from './web/spec-extension/cookies'
+
+const readonlyHeadersError = new Error('ReadonlyHeaders cannot be modified')
+class ReadonlyHeaders extends Headers {
+  append() {
+    throw readonlyHeadersError
+  }
+  delete() {
+    throw readonlyHeadersError
+  }
+  set() {
+    throw readonlyHeadersError
+  }
+}
+
+const readonlyCookiesError = new Error('ReadonlyCookies cannot be modified')
+class ReadonlyCookies extends Cookies {
+  clear() {
+    throw readonlyCookiesError
+  }
+  delete(_key: string): boolean {
+    throw readonlyCookiesError
+  }
+  set(
+    _key: string,
+    _value: unknown,
+    _options: CookieSerializeOptions = {}
+  ): this {
+    throw readonlyCookiesError
+  }
+}
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -1301,8 +1331,8 @@ export async function renderToHTMLOrFlight(
   )
 
   const requestStore = {
-    headers: new Headers(headersWithoutFlight(req.headers)),
-    cookies: new Cookies(req.headers.cookie),
+    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers) as any),
+    cookies: new ReadonlyCookies(req.headers.cookie),
     previewData,
   }
 
