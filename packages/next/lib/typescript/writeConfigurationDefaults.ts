@@ -27,7 +27,7 @@ function getDesiredCompilerOptions(
     lib: { suggested: ['dom', 'dom.iterable', 'esnext'] },
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
-    strict: { suggested: false },
+    strict: { suggested: true },
     forceConsistentCasingInFileNames: { suggested: true },
     noEmit: { suggested: true },
     ...(semver.gte(ts.version, '4.4.2')
