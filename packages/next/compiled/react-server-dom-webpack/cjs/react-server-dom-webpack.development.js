@@ -57,8 +57,12 @@ function resolveModuleReference(bundlerConfig, moduleData) {
 // replicate it in user space. null means that it has already loaded.
 
 var chunkCache = new Map();
-var asyncModuleCache = new Map(); // Start preloading the modules since we might need them soon.
+var asyncModuleCache = new Map();
+
+function ignoreReject() {// We rely on rejected promises to be handled by another listener.
+} // Start preloading the modules since we might need them soon.
 // This function doesn't suspend.
+
 
 function preloadModule(moduleData) {
   var chunks = moduleData.chunks;
@@ -73,9 +77,10 @@ function preloadModule(moduleData) {
 
       promises.push(thenable);
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
-      var reject = chunkCache.set.bind(chunkCache, chunkId);
-      thenable.then(resolve, reject);
+      thenable.then(resolve, ignoreReject);
       chunkCache.set(chunkId, thenable);
+    } else if (entry !== null) {
+      promises.push(entry);
     }
   }
 

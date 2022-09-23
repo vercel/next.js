@@ -1,5 +1,5 @@
 
-  x Disallowed import of `server-only` in the Client Components compilation.
+  x NEXT_RSC_ERR_CLIENT_IMPORT: server-only
    ,-[input.js:9:1]
  9 | import "server-only"
    : ^^^^^^^^^^^^^^^^^^^^

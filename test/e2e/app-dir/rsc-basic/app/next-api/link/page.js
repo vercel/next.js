@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import Nav from '../../../components/nav'
 
-export default function LinkPage({ queryId }) {
+export default function LinkPage({ searchParams }) {
+  const queryId = searchParams.id || '0'
   const id = parseInt(queryId)
   return (
     <>
@@ -14,13 +15,4 @@ export default function LinkPage({ queryId }) {
       <Nav />
     </>
   )
-}
-
-export function getServerSideProps(ctx) {
-  const { searchParams } = ctx
-  return {
-    props: {
-      queryId: searchParams.id || '0',
-    },
-  }
 }

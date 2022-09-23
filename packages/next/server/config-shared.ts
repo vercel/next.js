@@ -114,7 +114,6 @@ export interface ExperimentalConfig {
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
   runtime?: Exclude<ServerRuntime, undefined>
-  serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -151,6 +150,7 @@ export interface ExperimentalConfig {
     algorithm?: SubresourceIntegrityAlgorithm
   }
   adjustFontFallbacks?: boolean
+  fontLoaders?: { [fontLoader: string]: any }
 }
 
 export type ExportPathMap = {
@@ -570,7 +570,6 @@ export const defaultConfig: NextConfig = {
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
-    serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     swcTraceProfiling: false,

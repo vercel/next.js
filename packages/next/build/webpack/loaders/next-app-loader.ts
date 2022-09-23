@@ -8,6 +8,7 @@ export const FILE_TYPES = {
   template: 'template',
   error: 'error',
   loading: 'loading',
+  '404': '404',
 } as const
 
 // TODO-APP: check if this can be narrowed.
@@ -191,6 +192,9 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         : 'null'
     }
 
+    export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
+
+    export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server').renderToReadableStream
     export const __next_app_webpack_require__ = __webpack_require__
   `
 

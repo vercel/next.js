@@ -978,10 +978,14 @@ export default function Image({
     imageSrcSetPropName = 'imageSrcSet'
     imageSizesPropName = 'imageSizes'
   }
-  const linkProps = {
+  const linkProps: React.DetailedHTMLProps<
+    React.LinkHTMLAttributes<HTMLLinkElement>,
+    HTMLLinkElement
+  > = {
     // Note: imagesrcset and imagesizes are not in the link element type with react 17.
     [imageSrcSetPropName]: imgAttributes.srcSet,
     [imageSizesPropName]: imgAttributes.sizes,
+    crossOrigin: rest.crossOrigin,
   }
 
   const useLayoutEffect =
