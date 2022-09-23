@@ -1513,7 +1513,7 @@ describe('app dir', () => {
           )
         })
 
-        it('should redirect in a client component', async () => {
+        it.skip('should redirect in a client component', async () => {
           const browser = await webdriver(next.url, '/redirect/clientcomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1521,7 +1521,8 @@ describe('app dir', () => {
           )
         })
 
-        it('should redirect client-side', async () => {
+        // TODO-APP: Enable in development
+        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
           const browser = await webdriver(next.url, '/redirect/client-side')
           await browser
             .elementByCss('button')
