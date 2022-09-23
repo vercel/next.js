@@ -1,13 +1,24 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[root of the dev server]/snapshot/example/example/output/snapshot_example_example_input_index.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[root of the dev server]/snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_index.js.eval.js", {
 
-"[project]/snapshot/example/example/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
+"[project]/snapshot/example/async_chunk/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
 
-console.log("hello world");
+__turbopack_require__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/manifest loader")(__turbopack_import__).then(({ foo  })=>{
+    foo(true);
+});
 
+})()),
+"[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/manifest loader": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+
+__turbopack_export_value__((__turbopack_import__) => {
+    return __turbopack_load__("[root of the dev server]/snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_node_modules_foo_index.js_manifest-chunk.js", "./snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_node_modules_foo_index.js_manifest-chunk.js").then(() => {
+        return __turbopack_require__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/__/manifest chunk");
+    }).then(() => __turbopack_import__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js (ecmascript)"));
+});
 })()),
 }, ({ chunks, instantiateRuntimeModule }) => {
     if(!(true)) return true;
-    instantiateRuntimeModule("[project]/snapshot/example/example/input/index.js (ecmascript)");
+    instantiateRuntimeModule("[project]/snapshot/example/async_chunk/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -699,4 +710,4 @@ console.log("hello world");
 })();
 
 
-//# sourceMappingURL=snapshot_example_example_input_index.js.6d9fdf588ed655c0.map
+//# sourceMappingURL=snapshot_example_async_chunk_input_index.js.eval.js.1c5be465cc830a32.map

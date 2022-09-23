@@ -664,8 +664,27 @@ impl EcmascriptChunkVc {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptChunk {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.context.chunk_path(self.main_entry.path(), ".js")
+    async fn path(&self) -> Result<FileSystemPathVc> {
+        // Avoid collisions between evaluated and non-evaluated chunks.
+        let path = if let Some(EcmascriptChunkEvaluate { runtime_entries }) = self.evaluate {
+            if let Some(runtime_entries) = runtime_entries {
+                let mut hasher = Xxh3Hash64Hasher::new();
+                for entry in &*runtime_entries.await? {
+                    let path = entry.path().to_string().await?;
+                    hasher.write(path.as_bytes());
+                }
+                let hash = hasher.finish();
+                self.main_entry
+                    .path()
+                    .append(&format!(".eval{}", encode_hex(hash)))
+            } else {
+                self.main_entry.path().append(".eval")
+            }
+        } else {
+            self.main_entry.path()
+        };
+
+        Ok(self.context.chunk_path(path, ".js"))
     }
 
     #[turbo_tasks::function]

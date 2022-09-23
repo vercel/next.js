@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/snapshot/example/runtime_entry/input/index.js"],"sourcesContent":["console.log(\"hello world\");\n"],"names":[],"mappings":"AAAA,OAAO,CAAC,GAAG,CAAC,aAAa,CAAC,CAAC"}},
+    {"offset": {"line": 3, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
+}

@@ -1,4 +1,4 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[root of the dev server]/snapshot/example/chunked/output/snapshot_example_chunked_input_index.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[root of the dev server]/snapshot/example/chunked/output/snapshot_example_chunked_input_index.js.eval.js", {
 
 "[project]/snapshot/example/chunked/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
 
@@ -702,4 +702,4 @@ __TURBOPACK__imported__module__$5b$project$5d2f$snapshot$2f$example$2f$chunked$2
 })();
 
 
-//# sourceMappingURL=snapshot_example_chunked_input_index.js.e8f46483d93439b6.map
+//# sourceMappingURL=snapshot_example_chunked_input_index.js.eval.js.e8f46483d93439b6.map
