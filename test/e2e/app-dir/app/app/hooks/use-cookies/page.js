@@ -2,8 +2,9 @@ import { useCookies } from 'next/dist/client/components/hooks-server'
 
 export default function Page() {
   const cookies = useCookies()
+  const cookie = cookies.get('use-cookies')
 
-  const hasCookie = cookies.get('use-cookies') === 'value'
+  const hasCookie = cookie === 'value'
 
   return (
     <>

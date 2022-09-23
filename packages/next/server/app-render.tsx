@@ -29,7 +29,7 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
-import { Cookies, CookieSerializeOptions } from './web/spec-extension/cookies'
+import { NextCookies } from './web/spec-extension/cookies'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -71,19 +71,48 @@ class ReadonlyHeaders {
   }
 }
 
+const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
 const readonlyCookiesError = new Error('ReadonlyCookies cannot be modified')
-class ReadonlyCookies extends Cookies {
+class ReadonlyNextCookies {
+  [INTERNAL_COOKIES_INSTANCE]: NextCookies
+
+  entries: NextCookies['entries']
+  forEach: NextCookies['forEach']
+  get: NextCookies['get']
+  getWithOptions: NextCookies['getWithOptions']
+  has: NextCookies['has']
+  keys: NextCookies['keys']
+  values: NextCookies['values']
+
+  constructor(request: {
+    headers: {
+      get(key: 'cookie'): string | null | undefined
+    }
+  }) {
+    // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
+    // Request overridden to not have to provide a fully request object.
+    const cookiesInstance = new NextCookies(request as Request)
+    this[INTERNAL_COOKIES_INSTANCE] = cookiesInstance
+
+    this.entries = cookiesInstance.entries.bind(cookiesInstance)
+    this.forEach = cookiesInstance.forEach.bind(cookiesInstance)
+    this.get = cookiesInstance.get.bind(cookiesInstance)
+    this.getWithOptions = cookiesInstance.getWithOptions.bind(cookiesInstance)
+    this.has = cookiesInstance.has.bind(cookiesInstance)
+    this.keys = cookiesInstance.keys.bind(cookiesInstance)
+    this.values = cookiesInstance.values.bind(cookiesInstance)
+  }
+  [Symbol.iterator]() {
+    return this[INTERNAL_COOKIES_INSTANCE][Symbol.iterator]()
+  }
+
   clear() {
     throw readonlyCookiesError
   }
-  delete(_key: string): boolean {
+  delete() {
     throw readonlyCookiesError
   }
-  set(
-    _key: string,
-    _value: unknown,
-    _options: CookieSerializeOptions = {}
-  ): this {
+  set() {
     throw readonlyCookiesError
   }
 }
@@ -1355,7 +1384,16 @@ export async function renderToHTMLOrFlight(
 
   const requestStore = {
     headers: new ReadonlyHeaders(headersWithoutFlight(req.headers)),
-    cookies: new ReadonlyCookies(req.headers.cookie),
+    cookies: new ReadonlyNextCookies({
+      headers: {
+        get: (key) => {
+          if (key !== 'cookie') {
+            throw new Error('Only cookie header is supported')
+          }
+          return req.headers.cookie
+        },
+      },
+    }),
     previewData,
   }
 
