@@ -197,6 +197,9 @@ type LinkPropsReal = React.PropsWithChildren<
     LinkProps
 >
 
+/**
+ * React Component that enables client-side page transitions between routes.
+ */
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
     if (process.env.NODE_ENV !== 'production') {
