@@ -33,7 +33,9 @@ import { NextCookies } from './web/spec-extension/cookies'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
-const readonlyHeadersError = new Error('ReadonlyHeaders cannot be modified')
+function readonlyHeadersError() {
+  return new Error('ReadonlyHeaders cannot be modified')
+}
 class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
@@ -61,18 +63,20 @@ class ReadonlyHeaders {
   }
 
   append() {
-    throw readonlyHeadersError
+    throw readonlyHeadersError()
   }
   delete() {
-    throw readonlyHeadersError
+    throw readonlyHeadersError()
   }
   set() {
-    throw readonlyHeadersError
+    throw readonlyHeadersError()
   }
 }
 
 const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
-const readonlyCookiesError = new Error('ReadonlyCookies cannot be modified')
+function readonlyCookiesError() {
+  return new Error('ReadonlyCookies cannot be modified')
+}
 class ReadonlyNextCookies {
   [INTERNAL_COOKIES_INSTANCE]: NextCookies
 
@@ -107,13 +111,13 @@ class ReadonlyNextCookies {
   }
 
   clear() {
-    throw readonlyCookiesError
+    throw readonlyCookiesError()
   }
   delete() {
-    throw readonlyCookiesError
+    throw readonlyCookiesError()
   }
   set() {
-    throw readonlyCookiesError
+    throw readonlyCookiesError()
   }
 }
 
