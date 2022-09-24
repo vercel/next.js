@@ -47,7 +47,8 @@
     "types/index.d.ts",
     "types/global.d.ts",
     "types/compiled.d.ts",
-    "image-types/global.d.ts"
+    "image-types/global.d.ts",
+    "font"
   ],
   "bin": {
     "next": "./dist/bin/next"
