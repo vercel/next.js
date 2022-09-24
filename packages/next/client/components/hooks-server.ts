@@ -17,8 +17,8 @@ function staticGenerationBailout(reason: string) {
   }
 }
 
-export function useHeaders(): Headers {
-  staticGenerationBailout('useHeaders')
+export function headers(): Headers {
+  staticGenerationBailout('headers')
   const requestStore =
     requestAsyncStorage && 'getStore' in requestAsyncStorage
       ? requestAsyncStorage.getStore()!
@@ -27,8 +27,8 @@ export function useHeaders(): Headers {
   return requestStore.headers
 }
 
-export function usePreviewData() {
-  staticGenerationBailout('usePreviewData')
+export function previewData() {
+  staticGenerationBailout('previewData')
   const requestStore =
     requestAsyncStorage && 'getStore' in requestAsyncStorage
       ? requestAsyncStorage.getStore()!
@@ -36,8 +36,8 @@ export function usePreviewData() {
   return requestStore.previewData
 }
 
-export function useCookies() {
-  staticGenerationBailout('useCookies')
+export function cookies() {
+  staticGenerationBailout('cookies')
   const requestStore =
     requestAsyncStorage && 'getStore' in requestAsyncStorage
       ? requestAsyncStorage.getStore()!
