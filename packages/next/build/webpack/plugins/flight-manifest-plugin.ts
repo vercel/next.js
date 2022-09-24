@@ -43,6 +43,11 @@ interface ManifestNode {
      * Chunks for the module. JS and CSS.
      */
     chunks: ManifestChunks
+
+    /**
+     * If chunk contains async module
+     */
+    async?: boolean
   }
 }
 
@@ -260,6 +265,8 @@ export class FlightManifestPlugin {
               id,
               name,
               chunks: requiredChunks,
+              // Forcing the chunk to be `async` for esm compatible
+              async: true,
             }
           }
 
