@@ -57,7 +57,7 @@
     "release": "taskr release",
     "build": "pnpm release && pnpm types",
     "prepublishOnly": "cd ../../ && turbo run build",
-    "types": "cat server/app-render.tsx && tsc --declaration --emitDeclarationOnly --declarationDir dist",
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsec --noEmit",
     "ncc-compiled": "ncc cache clean && taskr ncc"
   },
