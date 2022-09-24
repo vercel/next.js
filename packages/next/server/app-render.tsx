@@ -558,9 +558,6 @@ export async function renderToHTMLOrFlight(
         ? staticGenerationAsyncStorage.getStore()
         : staticGenerationAsyncStorage
 
-    const { CONTEXT_NAMES } =
-      ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
-
     // don't modify original query object
     query = Object.assign({}, query)
 
@@ -572,10 +569,17 @@ export async function renderToHTMLOrFlight(
       stripInternalQueries(query)
       const search = stringifyQuery(query)
 
+      // For pages dir, there is only the SSR pass and we don't have the bundled
+      // React subset. Here we directly import the flight renderer with the
+      // unbundled React.
+      // TODO-APP: Is it possible to hard code the flight response here instead of
+      // rendering it?
+      const ReactServerDOMWebpack = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server')
+
       // Empty so that the client-side router will do a full page navigation.
       const flightData: FlightData = pathname + (search ? `?${search}` : '')
       return new FlightRenderResult(
-        ComponentMod.renderToReadableStream(
+        ReactServerDOMWebpack.renderToReadableStream(
           flightData,
           serverComponentManifest,
           {
@@ -584,6 +588,9 @@ export async function renderToHTMLOrFlight(
         ).pipeThrough(createBufferedTransformStream())
       )
     }
+
+    const { CONTEXT_NAMES } =
+      ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
     // TODO-APP: verify the tree is valid
     // TODO-APP: verify query param is single value (not an array)
@@ -1084,6 +1091,8 @@ export async function renderToHTMLOrFlight(
         ).slice(1),
       ]
 
+      // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
+      // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
         serverComponentManifest,
