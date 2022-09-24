@@ -649,6 +649,9 @@ export async function renderToHTMLOrFlight(
         ? staticGenerationAsyncStorage.getStore()
         : staticGenerationAsyncStorage
 
+    const { CONTEXT_NAMES } =
+      ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
+
     // don't modify original query object
     query = Object.assign({}, query)
 
