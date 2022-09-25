@@ -72,13 +72,12 @@ async function processHTML(
     return
   }
 
-  await Promise.allSettled(
-    middlewareRegistry.map(
-      (middleWare) =>
-        (!middleware.condition || middleware.condition(options)) &&
-        callMiddleWare(middleWare?.middleware)
-    )
-  );
+  for (let i = 0; i < middlewareRegistry.length; i++) {
+    let middleware = middlewareRegistry[i]
+    if (!middleware.condition || middleware.condition(options)) {
+      await callMiddleWare(middlewareRegistry[i].middleware)
+    }
+  }
 
   return document
 }
