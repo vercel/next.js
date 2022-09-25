@@ -46,6 +46,7 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
+import type { PageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 
 function diff(a: Set<any>, b: Set<any>) {
@@ -596,7 +597,7 @@ export default class HotReloader {
             }
 
             const isAppPath = !!this.appDir && bundlePath.startsWith('app/')
-            const staticInfo = isEntry
+            const staticInfo: Partial<PageStaticInfo> = isEntry
               ? await getPageStaticInfo({
                   pageFilePath: entryData.absolutePagePath,
                   nextConfig: this.config,
@@ -644,6 +645,7 @@ export default class HotReloader {
                     pages: this.pagesMapping,
                     isServerComponent,
                     appDirLoader,
+                    userConfig: undefined,
                     pagesType: isAppPath ? 'app' : undefined,
                   }),
                   appDir: this.config.experimental.appDir,
