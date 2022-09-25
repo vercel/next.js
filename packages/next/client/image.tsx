@@ -20,7 +20,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const transitionThrottle = (nxtCb) => React.startTransition ? React.startTransition(() => nxtCb()) : () => nxtCb();
+const transitionThrottle = (nxtCb) => React?.startTransition ? React.startTransition(() => nxtCb()) : () => nxtCb();
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
