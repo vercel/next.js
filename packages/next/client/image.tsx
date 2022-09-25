@@ -20,6 +20,8 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
+const transitionThrottle = (nxtCb) => React.startTransition ? React.startTransition(() => nxtCb()) : () => nxtCb();
+
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
@@ -489,6 +491,7 @@ const ImageElement = ({
   onError,
   isVisible,
   noscriptSizes,
+  currentViewPriority,
   ...rest
 }: ImageElementProps) => {
   loading = isLazy ? 'lazy' : loading
@@ -501,6 +504,7 @@ const ImageElement = ({
         data-nimg={layout}
         className={className}
         style={{ ...imgStyle, ...blurStyle }}
+        fetchpriority={currentViewPriority ? "high" : undefined}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
             if (process.env.NODE_ENV !== 'production') {
@@ -600,6 +604,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
+  const [currentViewPriority, setCurrentViewPriority] = useState(loading !== 'lazy')
   const configContext = useContext(ImageConfigContext)
   const config: ImageConfig = useMemo(() => {
     const c = configEnv || configContext || imageConfigDefault
@@ -682,6 +687,20 @@ export default function Image({
       disabled: !isLazy,
     })
   const isVisible = !isLazy || isIntersected
+
+  useEffect(() => {
+    if (isIntersected) {
+      transitionThrottle(() => {
+        setCurrentViewPriority(true)
+      })
+    }
+
+    if (!isIntersected) {
+      transitionThrottle(() => {
+        setCurrentViewPriority(false)
+      })
+    }
+  }, [isIntersected])
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
     boxSizing: 'border-box',
@@ -1025,6 +1044,7 @@ export default function Image({
     setIntersection,
     isVisible,
     noscriptSizes: sizes,
+    currentViewPriority,
     ...rest,
   }
   return (
