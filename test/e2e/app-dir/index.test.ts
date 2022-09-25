@@ -799,8 +799,8 @@ describe('app dir', () => {
       })
 
       describe('hooks', () => {
-        describe('useCookies', () => {
-          it('should retrive cookies in a server component', async () => {
+        describe('cookies function', () => {
+          it('should retrieve cookies in a server component', async () => {
             const browser = await webdriver(next.url, '/hooks/use-cookies')
 
             try {
@@ -852,7 +852,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('useHeaders', () => {
+        describe('headers function', () => {
           it('should have access to incoming headers in a server component', async () => {
             // Check to see that we can't see the header when it's not present.
             let html = await renderViaHTTP(
@@ -889,7 +889,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('usePreviewData', () => {
+        describe('previewData function', () => {
           it('should return no preview data when there is none', async () => {
             const browser = await webdriver(next.url, '/hooks/use-preview-data')
 
@@ -985,7 +985,7 @@ describe('app dir', () => {
 
     describe('client components', () => {
       describe('hooks', () => {
-        describe('useCookies', () => {
+        describe('cookies function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -997,7 +997,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('usePreviewData', () => {
+        describe('previewData function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -1009,7 +1009,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('useHeaders', () => {
+        describe('headers function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
