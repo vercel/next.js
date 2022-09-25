@@ -103,6 +103,7 @@ import { IncrementalCache } from './lib/incremental-cache'
 import { interpolateDynamicPath } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { applyResponseToServerResponse } from './apply-response-to-server-response'
 
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
@@ -2109,21 +2110,10 @@ export default class NextNodeServer extends BaseServer {
       onWarning: params.onWarning,
     })
 
-    params.res.statusCode = result.response.status
-    params.res.statusMessage = result.response.statusText
-
-    result.response.headers.forEach((value, key) => {
-      params.res.appendHeader(key, value)
-    })
-
-    if (result.response.body) {
-      // TODO(gal): not sure that we always need to stream
-      bodyStreamToNodeStream(result.response.body).pipe(
-        (params.res as NodeNextResponse).originalResponse
-      )
-    } else {
-      ;(params.res as NodeNextResponse).originalResponse.end()
-    }
+    applyResponseToServerResponse(
+      result.response,
+      (params.res as NodeNextResponse).originalResponse
+    )
 
     return result
   }

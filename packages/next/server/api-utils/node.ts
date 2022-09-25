@@ -36,6 +36,7 @@ import {
   RESPONSE_LIMIT_DEFAULT,
 } from './index'
 import { mockRequest } from '../lib/mock-request'
+import { applyResponseToServerResponse } from '../apply-response-to-server-response'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest,
@@ -519,7 +520,11 @@ export async function apiResolver(
     }
 
     // Call API route method
-    await resolver(req, res)
+    const maybeResponse = await resolver(req, res)
+
+    if (maybeResponse instanceof Response) {
+      applyResponseToServerResponse(maybeResponse, res)
+    }
 
     if (
       process.env.NODE_ENV !== 'production' &&
