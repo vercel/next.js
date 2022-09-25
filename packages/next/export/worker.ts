@@ -29,11 +29,7 @@ import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
-import type { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
-
-// hooks-server-context can't be imported because it will cause React.createServerContext to be called.
-const DYNAMIC_ERROR_CODE_CONST: typeof DYNAMIC_ERROR_CODE =
-  'DYNAMIC_SERVER_USAGE'
+import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -422,7 +418,7 @@ export default async function exportPage({
             }
           } catch (err: any) {
             if (
-              err.digest !== DYNAMIC_ERROR_CODE_CONST &&
+              err.digest !== DYNAMIC_ERROR_CODE &&
               err.digest !== REDIRECT_ERROR_CODE
             ) {
               throw err
