@@ -604,7 +604,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  const [currentViewPriority, setCurrentViewPriority] = useState(loading !== 'lazy')
+  const [currentViewPriority, setCurrentViewPriority] = useState(!(loading === 'lazy'))
   const configContext = useContext(ImageConfigContext)
   const config: ImageConfig = useMemo(() => {
     const c = configEnv || configContext || imageConfigDefault
