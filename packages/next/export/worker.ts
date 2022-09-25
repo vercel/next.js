@@ -29,6 +29,7 @@ import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
+import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -417,10 +418,10 @@ export default async function exportPage({
                 flightData
               )
             }
-          } catch (err) {
+          } catch (err: any) {
             if (
-              !(err instanceof DynamicServerError) &&
-              (err as any).code !== REDIRECT_ERROR_CODE
+              err.digest !== DYNAMIC_ERROR_CODE &&
+              err.digest !== REDIRECT_ERROR_CODE
             ) {
               throw err
             }

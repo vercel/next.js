@@ -174,15 +174,16 @@ function createErrorHandler(
       err.message &&
       !err.message.includes('Dynamic server usage') &&
       // TODO-APP: Handle redirect throw
-      err.code !== REDIRECT_ERROR_CODE &&
+      err.digest !== REDIRECT_ERROR_CODE &&
       err.message !== REDIRECT_ERROR_CODE
     ) {
       // Used for debugging error source
       // console.error(_source, err)
       console.error(err)
       capturedErrors.push(err)
+      return err.message
     }
-    return null
+    return err.digest || err
   }
 }
 
@@ -1299,7 +1300,7 @@ export async function renderToHTMLOrFlight(
           flushEffectsToHead: true,
         })
       } catch (err: any) {
-        if (err.code === REDIRECT_ERROR_CODE) {
+        if (err.digest === REDIRECT_ERROR_CODE) {
           throw err
         }
 
@@ -1361,7 +1362,7 @@ export async function renderToHTMLOrFlight(
     try {
       return new RenderResult(await bodyResult())
     } catch (err: any) {
-      if (err.code === REDIRECT_ERROR_CODE) {
+      if (err.digest === REDIRECT_ERROR_CODE) {
         ;(renderOpts as any).pageData = {
           pageProps: {
             __N_REDIRECT: err.url,
