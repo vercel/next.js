@@ -1,4 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { AppConfig } from 'next/types'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
@@ -23,11 +24,11 @@ import {
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
-  CustomRoutes,
   normalizeRouteRegex,
-  Redirect,
-  Rewrite,
-  RouteType,
+  type CustomRoutes,
+  type Redirect,
+  type Rewrite,
+  type RouteType,
 } from '../lib/load-custom-routes'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { nonNullable } from '../lib/non-nullable'
@@ -98,7 +99,6 @@ import {
   printTreeView,
   copyTracedFiles,
   isReservedPage,
-  AppConfig,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'

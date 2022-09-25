@@ -62,7 +62,7 @@ export type Redirect =
 export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
 
 /**
- * `Config` type, use it for export const config
+ * `Config` type, use it for export const config in pages/
  */
 export type PageConfig = {
   amp?: boolean | 'hybrid'
@@ -91,6 +91,18 @@ export type PageConfig = {
   unstable_JsPreload?: false
   unstable_includeFiles?: string[]
   unstable_excludeFiles?: string[]
+}
+
+/**
+ * `Config` type, use it for export const config in app/
+ */
+export type AppConfig = {
+  runtime?: ServerRuntime
+  revalidate?: number | false
+  dynamicParams?: true | false
+  dynamic?: 'auto' | 'error' | 'force-static'
+  fetchCache?: 'force-cache' | 'only-cache'
+  preferredRegion?: string
 }
 
 export {

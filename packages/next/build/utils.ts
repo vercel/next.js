@@ -1,4 +1,5 @@
 import type { NextConfigComplete } from '../server/config-shared'
+import type { AppConfig } from 'next/types'
 
 import '../server/node-polyfill-fetch'
 import loadRequireHook from '../build/webpack/require-hook'
@@ -1029,13 +1030,6 @@ export async function buildStaticPaths({
   }
 }
 
-export type AppConfig = {
-  revalidate?: number | false
-  dynamicParams?: true | false
-  dynamic?: 'auto' | 'error' | 'force-static'
-  fetchCache?: 'force-cache' | 'only-cache'
-  preferredRegion?: string
-}
 type GenerateParams = Array<{
   config: AppConfig
   segmentPath: string
