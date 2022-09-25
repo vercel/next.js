@@ -30,6 +30,7 @@ import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
+import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -170,20 +171,18 @@ function createErrorHandler(
 ) {
   return (err: any) => {
     if (
-      // Use error message instead of type because HTML renderer uses Flight data which is serialized so it's not the same object instance.
-      err.message &&
-      !err.message.includes('Dynamic server usage') &&
       // TODO-APP: Handle redirect throw
-      err.digest !== REDIRECT_ERROR_CODE &&
-      err.message !== REDIRECT_ERROR_CODE
+      err.digest !== DYNAMIC_ERROR_CODE &&
+      err.digest !== REDIRECT_ERROR_CODE
     ) {
       // Used for debugging error source
       // console.error(_source, err)
       console.error(err)
       capturedErrors.push(err)
-      return err.message
+      return err.digest || err.message
     }
-    return err.digest || err
+
+    return err.digest
   }
 }
 
