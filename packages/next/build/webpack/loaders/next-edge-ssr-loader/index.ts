@@ -16,6 +16,7 @@ export type EdgeSSRLoaderQuery = {
   pagesType?: 'app' | 'pages' | 'root'
   sriEnabled: boolean
   hasFontLoaders: boolean
+  userConfig?: string
 }
 
 export default async function edgeSSRLoader(this: any) {
@@ -34,6 +35,7 @@ export default async function edgeSSRLoader(this: any) {
     pagesType,
     sriEnabled,
     hasFontLoaders,
+    userConfig,
   } = this.getOptions()
 
   const appDirLoader = Buffer.from(
@@ -48,6 +50,7 @@ export default async function edgeSSRLoader(this: any) {
     page: page,
     isAppDir,
   }
+  buildInfo.nextUserConfig = userConfig ? JSON.parse(userConfig) : undefined
   buildInfo.route = {
     page,
     absolutePagePath,

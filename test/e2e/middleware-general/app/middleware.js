@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse, URLPattern } from 'next/server'
 import magicValue from 'shared-package'
 
+export const config = { customConfig: true }
+
 const PATTERNS = [
   [
     new URLPattern({ pathname: '/:locale/:id' }),

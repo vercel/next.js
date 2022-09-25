@@ -36,6 +36,8 @@ export interface EdgeFunctionDefinition {
   matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
+  // TODO(schniz): mark as optional
+  userConfig: Record<string, unknown> | undefined
 }
 
 export interface MiddlewareManifest {
@@ -49,6 +51,8 @@ interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
+  // TODO(schniz): mark as optional
+  userConfig: Record<string, unknown> | undefined
   env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
@@ -170,6 +174,7 @@ function getCreateAssets(params: {
         name: entrypoint.name,
         page: page,
         matchers,
+        userConfig: metadata.userConfig,
         wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
           name,
           filePath,
@@ -675,6 +680,7 @@ function getExtractMetadata(params: {
         env: new Set<string>(),
         wasmBindings: new Map(),
         assetBindings: new Map(),
+        userConfig: undefined,
       }
 
       for (const module of modules) {
@@ -757,6 +763,10 @@ function getExtractMetadata(params: {
           for (const envName of buildInfo.nextUsedEnvVars) {
             entryMetadata.env.add(envName)
           }
+        }
+
+        if (buildInfo?.nextUserConfig) {
+          entryMetadata.userConfig = buildInfo.nextUserConfig
         }
 
         /**

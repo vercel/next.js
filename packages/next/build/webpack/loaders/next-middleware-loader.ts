@@ -8,6 +8,7 @@ export type MiddlewareLoaderOptions = {
   page: string
   rootDir: string
   matchers?: string
+  userConfig?: string
 }
 
 // matchers can have special characters that break the loader params
@@ -28,10 +29,12 @@ export default function middlewareLoader(this: any) {
     page,
     rootDir,
     matchers: encodedMatchers,
+    userConfig,
   }: MiddlewareLoaderOptions = this.getOptions()
   const matchers = encodedMatchers ? decodeMatchers(encodedMatchers) : undefined
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const buildInfo = getModuleBuildInfo(this._module)
+  buildInfo.nextUserConfig = userConfig ? JSON.parse(userConfig) : undefined
   buildInfo.nextEdgeMiddleware = {
     matchers,
     page:

@@ -166,6 +166,8 @@ export function getEdgeServerEntry(opts: {
   middleware?: Partial<MiddlewareConfig>
   pagesType?: 'app' | 'pages' | 'root'
   appDirLoader?: string
+  // TODO(schniz): mark as optional
+  userConfig: Record<string, unknown> | undefined
 }) {
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
@@ -175,6 +177,7 @@ export function getEdgeServerEntry(opts: {
       matchers: opts.middleware?.matchers
         ? encodeMatchers(opts.middleware.matchers)
         : '',
+      ...(opts.userConfig && { userConfig: JSON.stringify(opts.userConfig) }),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -185,6 +188,7 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       rootDir: opts.rootDir,
+      ...(opts.userConfig && { userConfig: JSON.stringify(opts.userConfig) }),
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
@@ -205,6 +209,7 @@ export function getEdgeServerEntry(opts: {
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
     hasFontLoaders: !!opts.config.experimental.fontLoaders,
+    ...(opts.userConfig && { userConfig: JSON.stringify(opts.userConfig) }),
   }
 
   return {
@@ -493,6 +498,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             middleware: staticInfo?.middleware,
             pagesType,
             appDirLoader,
+            userConfig: staticInfo?.userConfig,
           })
         },
       })

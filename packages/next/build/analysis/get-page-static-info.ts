@@ -31,6 +31,7 @@ export interface PageStaticInfo {
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
+  userConfig: Record<string, unknown> | undefined
   middleware?: Partial<MiddlewareConfig>
 }
 
@@ -239,6 +240,23 @@ function warnAboutUnsupportedValue(
   warnedUnsupportedValueMap.set(pageFilePath, true)
 }
 
+function getUserConfig(
+  config: any,
+  middlewareConfig: Partial<MiddlewareConfig>
+) {
+  if (!config) return
+
+  const userConfig = config && { ...config }
+  if (userConfig) {
+    delete userConfig.runtime
+    if (middlewareConfig.matchers) {
+      delete userConfig.matcher
+    }
+  }
+
+  return userConfig
+}
+
 /**
  * For a given pageFilePath and nextConfig, if the config supports it, this
  * function will read the file and return the runtime that should be used.
@@ -256,7 +274,7 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|getStaticProps|getServerSideProps|matcher|unstable_allowDynamic/.test(
+    /runtime|getStaticProps|getServerSideProps|matcher|unstable_allowDynamic|export (let|var|const) config/.test(
       fileContent
     )
   ) {
@@ -315,6 +333,7 @@ export async function getPageStaticInfo(params: {
       ssr,
       ssg,
       rsc,
+      userConfig: getUserConfig(config, middlewareConfig),
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(runtime && { runtime }),
     }
@@ -325,5 +344,6 @@ export async function getPageStaticInfo(params: {
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
     runtime: nextConfig.experimental?.runtime,
+    userConfig: undefined,
   }
 }
