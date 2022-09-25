@@ -62,7 +62,7 @@ describe('API Endpoints can return a Response object', () => {
     }).toEqual({
       status: 201,
       headers: expect.objectContaining({
-        'x-incoming-url': '/api/node-streams',
+        'x-incoming-url': '/api/web-streams',
         'x-from-node-api': '1',
         'x-will-be-merged': '1',
       }),

@@ -28,7 +28,6 @@ export function applyResponseToServerResponse(
     } else if ('pipe' in stdResponse.body) {
       stdResponse.body.pipe(nodeResponse)
     } else {
-      console.log(stdResponse.body)
       nodeResponse.end(stdResponse.body)
     }
   } else {
