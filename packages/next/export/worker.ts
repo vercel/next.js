@@ -419,7 +419,7 @@ export default async function exportPage({
           } catch (err: any) {
             if (
               err.digest !== DYNAMIC_ERROR_CODE &&
-              err.digest !== REDIRECT_ERROR_CODE
+              !err.digest.startsWith(REDIRECT_ERROR_CODE)
             ) {
               throw err
             }
