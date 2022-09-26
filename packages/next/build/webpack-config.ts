@@ -1133,7 +1133,20 @@ export default async function getBaseWebpackConfig(
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
-        // All packages should be bundled for the server layer
+        // All packages should be bundled for the server layer if they're not opted out.
+        if (
+          config.experimental.optoutServerComponentsBundle?.some(
+            (p: string) => {
+              return (
+                res.includes('node_modules/' + p + '/') ||
+                res.includes('node_modules\\' + p + '\\')
+              )
+            }
+          )
+        ) {
+          return `${externalType} ${request}`
+        }
+
         return
       }
 
@@ -1495,6 +1508,18 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 issuerLayer: WEBPACK_LAYERS.server,
+                test: (req: string) => {
+                  if (
+                    config.experimental.optoutServerComponentsBundle?.some(
+                      (mod) => {
+                        return req.includes('/node_modules/' + mod + '/')
+                      }
+                    )
+                  ) {
+                    return false
+                  }
+                  return true
+                },
                 resolve: process.env.__NEXT_REACT_CHANNEL
                   ? {
                       conditionNames: ['react-server'],
