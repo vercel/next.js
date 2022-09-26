@@ -1007,21 +1007,14 @@ export default async function getBaseWebpackConfig(
             alias: process.env.__NEXT_REACT_CHANNEL
               ? {
                   react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react/package.json': `react-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
-                  'react/jsx-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-runtime`,
-                  'react/jsx-dev-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-dev-runtime`,
                   'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react-dom/package.json': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
-                  'react-dom/server': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server`,
-                  'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
-                  'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
                 }
               : false,
             conditionNames: ['react-server'],
           })
         : null
 
-    // Special internal modules that must be bundled for Server Components.
+    // Special internal modules that require to be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
       if (!isLocal && /^react(?:$|\/)/.test(request)) {
         const [resolved] = await resolveWithReactServerCondition!(
@@ -1158,16 +1151,24 @@ export default async function getBaseWebpackConfig(
     }
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server) {
+      if (
+        layer === WEBPACK_LAYERS.server &&
+        (!config.experimental?.optoutServerComponentsBundle ||
+          !config.experimental?.optoutServerComponentsBundle.some(
+            // Check if a package is opt-out of Server Components bundling.
+            (packageName) =>
+              new RegExp(`node_modules[/\\\\]${packageName}[/\\\\]`).test(res)
+          ))
+      ) {
         try {
           const [resolved] = await resolveWithReactServerCondition!(
             context,
             request
           )
-          return resolved
+          return `${externalType} ${resolved}`
         } catch (err) {
-          // The `react-server` condition is not matched, fallback.
           return
+          // The `react-server` condition is not matched, fallback.
         }
       }
 
