@@ -1196,6 +1196,13 @@ export default async function getBaseWebpackConfig(
   const rscSharedRegex =
     /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context|flush-effects)\.js|node_modules\/styled-jsx\/)/
 
+  const fontLoaderTargets =
+    config.experimental.fontLoaders &&
+    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
+      const resolved = require.resolve(fontLoader)
+      return path.join(resolved, '../target.css')
+    })
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     // @ts-ignore
@@ -1885,10 +1892,12 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
+              fontLoaderTargets,
             })
           : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
+              fontLoaderTargets,
             })),
       !dev &&
         isClient &&

@@ -19,6 +19,7 @@ import { isClientComponentModule } from '../loaders/utils'
 
 interface Options {
   dev: boolean
+  fontLoaderTargets?: string[]
 }
 
 /**
@@ -62,9 +63,11 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
+  fontLoaderTargets?: Options['fontLoaderTargets']
 
   constructor(options: Options) {
     this.dev = options.dev
+    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -104,6 +107,7 @@ export class FlightManifestPlugin {
       __ssr_module_mapping__: {},
     }
     const dev = this.dev
+    const fontLoaderTargets = this.fontLoaderTargets
 
     const clientRequestsSet = new Set()
 
@@ -142,7 +146,11 @@ export class FlightManifestPlugin {
         id: ModuleId,
         mod: webpack.NormalModule
       ) {
+        const isFontLoader = fontLoaderTargets?.some((fontLoaderTarget) =>
+          mod.resource?.startsWith(`${fontLoaderTarget}?`)
+        )
         const isCSSModule =
+          isFontLoader ||
           mod.resource?.endsWith('.css') ||
           mod.type === 'css/mini-extract' ||
           (!!mod.loaders &&
