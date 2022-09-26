@@ -62,10 +62,10 @@ describe('@next/font/google', () => {
 
       // CompWithFonts.js
       expect(JSON.parse($('#comp-with-fonts-inter').text())).toEqual({
-        className: '__className_17e98a',
-        variable: '__variable_17e98a',
+        className: '__className_756950',
+        variable: '__variable_756950',
         style: {
-          fontFamily: "'__Inter_17e98a', '__inter-fallback_17e98a'",
+          fontFamily: "'__Inter_756950', '__Inter_Fallback_756950'",
           fontStyle: 'normal',
           fontWeight: 900,
         },
@@ -90,7 +90,7 @@ describe('@next/font/google', () => {
         className: expect.any(String),
         variable: expect.any(String),
         style: {
-          fontFamily: "'__Open_Sans_bbc724', '__open-sans-fallback_bbc724'",
+          fontFamily: "'__Open_Sans_e14a42', '__Open_Sans_Fallback_e14a42'",
           fontStyle: 'normal',
         },
       })
@@ -168,7 +168,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#comp-with-fonts-inter")).fontFamily'
         )
-      ).toBe('__Inter_17e98a, __inter-fallback_17e98a')
+      ).toBe('__Inter_756950, __Inter_Fallback_756950')
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#comp-with-fonts-inter")).fontWeight'
@@ -229,12 +229,12 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#variables-inter-900")).fontFamily'
         )
-      ).toBe('__Inter_ea3712, __inter-fallback_ea3712')
+      ).toBe('__Inter_d725c5, __Inter_Fallback_d725c5')
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#without-variables-inter-900")).fontFamily'
         )
-      ).not.toBe('__Inter_ea3712, __inter-fallback_ea3712')
+      ).not.toBe('__Inter_d725c5, __Inter_Fallback_d725c5')
 
       // Roboto 100 Italic
       expect(
