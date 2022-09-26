@@ -175,7 +175,7 @@ function createErrorHandler(
       // TODO-APP: Handle redirect throw
       err.digest !== DYNAMIC_ERROR_CODE &&
       err.digest !== NOT_FOUND_ERROR_CODE &&
-      !err.digest.startsWith(REDIRECT_ERROR_CODE)
+      !err.digest?.startsWith(REDIRECT_ERROR_CODE)
     ) {
       // Used for debugging error source
       // console.error(_source, err)
