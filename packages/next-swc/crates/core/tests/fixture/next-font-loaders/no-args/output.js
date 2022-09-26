@@ -1,1 +1,1 @@
-import fira from "@next/font/google?Fira_Code";
+import fira from "@next/font/google?pages/test.tsx;Fira_Code";

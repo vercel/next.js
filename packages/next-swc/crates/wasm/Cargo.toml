@@ -31,7 +31,7 @@ wasm-bindgen-futures = "0.4.8"
 getrandom = { version = "0.2.5", optional = true, default-features = false }
 js-sys = "0.3.59"
 
-swc_core = { version = "0.23.24", features = [
+swc_core = { version = "0.26.0", features = [
   "common_concurrent",
   "binding_macro_wasm",
   "ecma_codegen",

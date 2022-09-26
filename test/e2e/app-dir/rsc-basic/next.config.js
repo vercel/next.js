@@ -5,6 +5,7 @@ module.exports = {
   },
   experimental: {
     appDir: true,
+    optoutServerComponentsBundle: ['conditional-exports-optout'],
   },
   rewrites: async () => {
     return {

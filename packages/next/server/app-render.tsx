@@ -28,8 +28,100 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
-import type { UnwrapPromise } from '../lib/coalesced-function'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
+import { NextCookies } from './web/spec-extension/cookies'
+import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
+import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+
+const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
+
+function readonlyHeadersError() {
+  return new Error('ReadonlyHeaders cannot be modified')
+}
+class ReadonlyHeaders {
+  [INTERNAL_HEADERS_INSTANCE]: Headers
+
+  entries: Headers['entries']
+  forEach: Headers['forEach']
+  get: Headers['get']
+  has: Headers['has']
+  keys: Headers['keys']
+  values: Headers['values']
+
+  constructor(headers: IncomingHttpHeaders) {
+    // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
+    const headersInstance = new Headers(headers as any)
+    this[INTERNAL_HEADERS_INSTANCE] = headersInstance
+
+    this.entries = headersInstance.entries.bind(headersInstance)
+    this.forEach = headersInstance.forEach.bind(headersInstance)
+    this.get = headersInstance.get.bind(headersInstance)
+    this.has = headersInstance.has.bind(headersInstance)
+    this.keys = headersInstance.keys.bind(headersInstance)
+    this.values = headersInstance.values.bind(headersInstance)
+  }
+  [Symbol.iterator]() {
+    return this[INTERNAL_HEADERS_INSTANCE][Symbol.iterator]()
+  }
+
+  append() {
+    throw readonlyHeadersError()
+  }
+  delete() {
+    throw readonlyHeadersError()
+  }
+  set() {
+    throw readonlyHeadersError()
+  }
+}
+
+const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
+function readonlyCookiesError() {
+  return new Error('ReadonlyCookies cannot be modified')
+}
+class ReadonlyNextCookies {
+  [INTERNAL_COOKIES_INSTANCE]: NextCookies
+
+  entries: NextCookies['entries']
+  forEach: NextCookies['forEach']
+  get: NextCookies['get']
+  getWithOptions: NextCookies['getWithOptions']
+  has: NextCookies['has']
+  keys: NextCookies['keys']
+  values: NextCookies['values']
+
+  constructor(request: {
+    headers: {
+      get(key: 'cookie'): string | null | undefined
+    }
+  }) {
+    // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
+    // Request overridden to not have to provide a fully request object.
+    const cookiesInstance = new NextCookies(request as Request)
+    this[INTERNAL_COOKIES_INSTANCE] = cookiesInstance
+
+    this.entries = cookiesInstance.entries.bind(cookiesInstance)
+    this.forEach = cookiesInstance.forEach.bind(cookiesInstance)
+    this.get = cookiesInstance.get.bind(cookiesInstance)
+    this.getWithOptions = cookiesInstance.getWithOptions.bind(cookiesInstance)
+    this.has = cookiesInstance.has.bind(cookiesInstance)
+    this.keys = cookiesInstance.keys.bind(cookiesInstance)
+    this.values = cookiesInstance.values.bind(cookiesInstance)
+  }
+  [Symbol.iterator]() {
+    return this[INTERNAL_COOKIES_INSTANCE][Symbol.iterator]()
+  }
+
+  clear() {
+    throw readonlyCookiesError()
+  }
+  delete() {
+    throw readonlyCookiesError()
+  }
+  set() {
+    throw readonlyCookiesError()
+  }
+}
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -75,30 +167,26 @@ function createErrorHandler(
   /**
    * Used for debugging
    */
-  _source: string
+  _source: string,
+  capturedErrors: Error[]
 ) {
   return (err: any) => {
     if (
-      // Use error message instead of type because HTML renderer uses Flight data which is serialized so it's not the same object instance.
-      err.message &&
-      !err.message.includes('Dynamic server usage') &&
       // TODO-APP: Handle redirect throw
-      err.code !== REDIRECT_ERROR_CODE
+      err.digest !== DYNAMIC_ERROR_CODE &&
+      err.digest !== NOT_FOUND_ERROR_CODE &&
+      !err.digest?.startsWith(REDIRECT_ERROR_CODE)
     ) {
       // Used for debugging error source
       // console.error(_source, err)
       console.error(err)
+      capturedErrors.push(err)
+      return err.digest || err.message
     }
 
-    return null
+    return err.digest
   }
 }
-
-const serverComponentsErrorHandler = createErrorHandler(
-  'serverComponentsRenderer'
-)
-const flightDataRendererErrorHandler = createErrorHandler('flightDataRenderer')
-const htmlRendererErrorHandler = createErrorHandler('htmlRenderer')
 
 let isFetchPatched = false
 
@@ -111,8 +199,7 @@ function patchFetch(ComponentMod: any) {
   const { DynamicServerError } =
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
-  const { staticGenerationAsyncStorage } =
-    require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
+  const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
 
   const origFetch = (global as any).fetch
 
@@ -244,6 +331,7 @@ function createServerComponentRenderer(
     >
     rscChunks: Uint8Array[]
   },
+  serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
 ): () => JSX.Element {
   // We need to expose the `__webpack_require__` API globally for
@@ -518,6 +606,21 @@ export async function renderToHTMLOrFlight(
   isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
+  const capturedErrors: Error[] = []
+
+  const serverComponentsErrorHandler = createErrorHandler(
+    'serverComponentsRenderer',
+    capturedErrors
+  )
+  const flightDataRendererErrorHandler = createErrorHandler(
+    'flightDataRenderer',
+    capturedErrors
+  )
+  const htmlRendererErrorHandler = createErrorHandler(
+    'htmlRenderer',
+    capturedErrors
+  )
+
   const {
     buildManifest,
     subresourceIntegrityManifest,
@@ -529,8 +632,8 @@ export async function renderToHTMLOrFlight(
 
   patchFetch(ComponentMod)
 
-  const { staticGenerationAsyncStorage } =
-    require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
+  const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
+  const requestAsyncStorage = ComponentMod.requestAsyncStorage
 
   if (
     !('getStore' in staticGenerationAsyncStorage) &&
@@ -548,9 +651,6 @@ export async function renderToHTMLOrFlight(
         ? staticGenerationAsyncStorage.getStore()
         : staticGenerationAsyncStorage
 
-    const { CONTEXT_NAMES } =
-      ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
-
     // don't modify original query object
     query = Object.assign({}, query)
 
@@ -562,10 +662,17 @@ export async function renderToHTMLOrFlight(
       stripInternalQueries(query)
       const search = stringifyQuery(query)
 
+      // For pages dir, there is only the SSR pass and we don't have the bundled
+      // React subset. Here we directly import the flight renderer with the
+      // unbundled React.
+      // TODO-APP: Is it possible to hard code the flight response here instead of
+      // rendering it?
+      const ReactServerDOMWebpack = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server')
+
       // Empty so that the client-side router will do a full page navigation.
       const flightData: FlightData = pathname + (search ? `?${search}` : '')
       return new FlightRenderResult(
-        ComponentMod.renderToReadableStream(
+        ReactServerDOMWebpack.renderToReadableStream(
           flightData,
           serverComponentManifest,
           {
@@ -597,29 +704,10 @@ export async function renderToHTMLOrFlight(
       | typeof import('../client/components/hot-reloader.client').default
       | null
 
-    const headers = headersWithoutFlight(req.headers)
-    // TODO-APP: fix type of req
-    // @ts-expect-error
-    const cookies = req.cookies
-
     /**
      * The tree created in next-app-loader that holds component segments and modules
      */
     const loaderTree: LoaderTree = ComponentMod.tree
-
-    const tryGetPreviewData =
-      process.env.NEXT_RUNTIME === 'edge'
-        ? () => false
-        : require('./api-utils/node').tryGetPreviewData
-
-    // Reads of this are cached on the `req` object, so this should resolve
-    // instantly. There's no need to pass this data down from a previous
-    // invoke, where we'd have to consider server & serverless.
-    const previewData = tryGetPreviewData(
-      req,
-      res,
-      (renderOpts as any).previewProps
-    )
     /**
      * Server Context is specifically only available in Server Components.
      * It has to hold values that can't change while rendering from the common layout down.
@@ -628,9 +716,6 @@ export async function renderToHTMLOrFlight(
 
     const serverContexts: Array<[string, any]> = [
       ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
-      [CONTEXT_NAMES.HeadersContext, headers],
-      [CONTEXT_NAMES.CookiesContext, cookies],
-      [CONTEXT_NAMES.PreviewDataContext, previewData],
     ]
 
     type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
@@ -771,6 +856,13 @@ export async function renderToHTMLOrFlight(
 
       if (layoutOrPageMod?.config) {
         defaultRevalidate = layoutOrPageMod.config.revalidate
+
+        if (isStaticGeneration && defaultRevalidate === 0) {
+          const { DynamicServerError } =
+            ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
+
+          throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
+        }
       }
       /**
        * Checks if the current segment is a root layout.
@@ -1067,6 +1159,8 @@ export async function renderToHTMLOrFlight(
         ).slice(1),
       ]
 
+      // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
+      // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
         serverComponentManifest,
@@ -1145,6 +1239,7 @@ export async function renderToHTMLOrFlight(
       },
       ComponentMod,
       serverComponentsRenderOpts,
+      serverComponentsErrorHandler,
       nonce
     )
 
@@ -1206,10 +1301,6 @@ export async function renderToHTMLOrFlight(
           flushEffectsToHead: true,
         })
       } catch (err: any) {
-        if (err.code === REDIRECT_ERROR_CODE) {
-          throw err
-        }
-
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
@@ -1248,6 +1339,12 @@ export async function renderToHTMLOrFlight(
         (await readable.getReader().read()).value || ''
       ).toString()
 
+      // if we encountered any unexpected errors during build
+      // we fail the prerendering phase and the build
+      if (capturedErrors.length > 0) {
+        throw capturedErrors[0]
+      }
+
       ;(renderOpts as any).pageData = Buffer.concat(
         serverComponentsRenderOpts.rscChunks
       ).toString()
@@ -1259,21 +1356,7 @@ export async function renderToHTMLOrFlight(
       return new RenderResult(staticHtml)
     }
 
-    try {
-      return new RenderResult(await bodyResult())
-    } catch (err: any) {
-      if (err.code === REDIRECT_ERROR_CODE) {
-        ;(renderOpts as any).pageData = {
-          pageProps: {
-            __N_REDIRECT: err.url,
-            __N_REDIRECT_STATUS: 307,
-          },
-        }
-        ;(renderOpts as any).isRedirect = true
-        return RenderResult.fromStatic('')
-      }
-      throw err
-    }
+    return new RenderResult(await bodyResult())
   }
 
   const initialStaticGenerationStore = {
@@ -1282,18 +1365,64 @@ export async function renderToHTMLOrFlight(
     pathname,
   }
 
-  if ('getStore' in staticGenerationAsyncStorage) {
-    return new Promise<UnwrapPromise<ReturnType<typeof renderToHTMLOrFlight>>>(
-      (resolve, reject) => {
-        staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
-          wrappedRender().then(resolve).catch(reject)
-        })
-      }
-    )
-  } else {
-    Object.assign(staticGenerationAsyncStorage, initialStaticGenerationStore)
-    return wrappedRender().finally(() => {
-      staticGenerationAsyncStorage.inUse = false
-    })
+  const tryGetPreviewData =
+    process.env.NEXT_RUNTIME === 'edge'
+      ? () => false
+      : require('./api-utils/node').tryGetPreviewData
+
+  // Reads of this are cached on the `req` object, so this should resolve
+  // instantly. There's no need to pass this data down from a previous
+  // invoke, where we'd have to consider server & serverless.
+  const previewData = tryGetPreviewData(
+    req,
+    res,
+    (renderOpts as any).previewProps
+  )
+
+  const requestStore = {
+    headers: new ReadonlyHeaders(headersWithoutFlight(req.headers)),
+    cookies: new ReadonlyNextCookies({
+      headers: {
+        get: (key) => {
+          if (key !== 'cookie') {
+            throw new Error('Only cookie header is supported')
+          }
+          return req.headers.cookie
+        },
+      },
+    }),
+    previewData,
   }
+
+  function handleRequestStoreRun<T>(fn: () => T): Promise<T> {
+    if ('getStore' in requestAsyncStorage) {
+      return new Promise((resolve, reject) => {
+        requestAsyncStorage.run(requestStore, () => {
+          return Promise.resolve(fn()).then(resolve).catch(reject)
+        })
+      })
+    } else {
+      Object.assign(requestAsyncStorage, requestStore)
+      return Promise.resolve(fn())
+    }
+  }
+
+  function handleStaticGenerationStoreRun<T>(fn: () => T): Promise<T> {
+    if ('getStore' in staticGenerationAsyncStorage) {
+      return new Promise((resolve, reject) => {
+        staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
+          return Promise.resolve(fn()).then(resolve).catch(reject)
+        })
+      })
+    } else {
+      Object.assign(staticGenerationAsyncStorage, initialStaticGenerationStore)
+      return Promise.resolve(fn()).finally(() => {
+        staticGenerationAsyncStorage.inUse = false
+      })
+    }
+  }
+
+  return handleRequestStoreRun(() =>
+    handleStaticGenerationStoreRun(() => wrappedRender())
+  )
 }

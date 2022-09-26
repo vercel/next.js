@@ -16,7 +16,8 @@ import {
   COMPILER_NAMES,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest } from './flight-manifest-plugin'
+import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
+import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule } from '../loaders/utils'
 
 interface Options {
@@ -60,6 +61,18 @@ export class FlightClientEntryPlugin {
 
     compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
       return this.createClientEntries(compiler, compilation)
+    })
+
+    compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
+      traverseModules(compilation, (mod) => {
+        // The module must has request, and resource so it's not a new entry created with loader.
+        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
+        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
+          if (compilation.moduleGraph.isAsync(mod)) {
+            ASYNC_CLIENT_MODULES.add(mod.resource)
+          }
+        }
+      })
     })
   }
 
@@ -372,6 +385,7 @@ export class FlightClientEntryPlugin {
             compilation.hooks.failedEntry.call(entry, options, err)
             return reject(err)
           }
+
           compilation.hooks.succeedEntry.call(entry, options, module)
           return resolve(module)
         }

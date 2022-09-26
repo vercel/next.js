@@ -1,11 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react'
 
 export default function Index() {
-  const workerRef = useRef()
+  const workerRef = useRef<Worker>()
+
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../worker.js', import.meta.url))
-    workerRef.current.onmessage = (evt) =>
-      alert(`WebWorker Response => ${evt.data}`)
+    workerRef.current = new Worker(new URL('../worker.ts', import.meta.url))
+    workerRef.current.onmessage = (event: MessageEvent<number>) =>
+      alert(`WebWorker Response => ${event.data}`)
     return () => {
       workerRef.current.terminate()
     }
@@ -16,9 +17,9 @@ export default function Index() {
   }, [])
 
   return (
-    <div>
+    <>
       <p>Do work in a WebWorker!</p>
       <button onClick={handleWork}>Calculate PI</button>
-    </div>
+    </>
   )
 }
