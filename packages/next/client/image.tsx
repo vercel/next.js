@@ -218,7 +218,7 @@ interface StaticRequire {
 
 type StaticImport = StaticRequire | StaticImageData
 
-type NumericValue = number | `${number}`
+type SafeNumber = number | `${number}`
 
 function isStaticRequire(
   src: StaticRequire | StaticImageData
@@ -245,11 +245,11 @@ export type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
-  width?: NumericValue
-  height?: NumericValue
+  width?: SafeNumber
+  height?: SafeNumber
   layout?: LayoutValue
   loader?: ImageLoader
-  quality?: NumericValue
+  quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
   lazyRoot?: React.RefObject<HTMLElement> | null
