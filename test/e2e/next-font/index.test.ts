@@ -42,20 +42,20 @@ describe('@next/font/google', () => {
 
       // _app.js
       expect(JSON.parse($('#app-open-sans').text())).toEqual({
-        className: '__className_bbc724',
-        variable: '__variable_bbc724',
+        className: '__className_e14a42',
+        variable: '__variable_e14a42',
         style: {
-          fontFamily: "'__Open_Sans_bbc724', '__open-sans-fallback_bbc724'",
+          fontFamily: "'__Open_Sans_e14a42', '__Open_Sans_Fallback_e14a42'",
           fontStyle: 'normal',
         },
       })
 
       // with-fonts.js
       expect(JSON.parse($('#with-fonts-open-sans').text())).toEqual({
-        className: '__className_bbc724',
-        variable: '__variable_bbc724',
+        className: '__className_e14a42',
+        variable: '__variable_e14a42',
         style: {
-          fontFamily: "'__Open_Sans_bbc724', '__open-sans-fallback_bbc724'",
+          fontFamily: "'__Open_Sans_e14a42', '__Open_Sans_Fallback_e14a42'",
           fontStyle: 'normal',
         },
       })
@@ -124,7 +124,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#app-open-sans")).fontFamily'
         )
-      ).toBe('__Open_Sans_bbc724, __open-sans-fallback_bbc724')
+      ).toBe('__Open_Sans_e14a42, __Open_Sans_Fallback_e14a42')
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#app-open-sans")).fontWeight'
@@ -141,7 +141,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fonts-open-sans")).fontFamily'
         )
-      ).toBe('__Open_Sans_bbc724, __open-sans-fallback_bbc724')
+      ).toBe('__Open_Sans_e14a42, __Open_Sans_Fallback_e14a42')
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fonts-open-sans")).fontWeight'
@@ -205,12 +205,12 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#variables-fira-code")).fontFamily'
         )
-      ).toBe('__Fira_Code_a1dc08, __fira-code-fallback_a1dc08')
+      ).toBe('__Fira_Code_e071cd, __Fira_Code_Fallback_e071cd')
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#without-variables-fira-code")).fontFamily'
         )
-      ).not.toBe('__Fira_Code_a1dc08, __fira-code-fallback_a1dc08')
+      ).not.toBe('__Fira_Code_e071cd, __Fira_Code_Fallback_e071cd')
 
       // Albert Sant Variable Italic
       expect(
@@ -258,7 +258,7 @@ describe('@next/font/google', () => {
           'getComputedStyle(document.querySelector("#with-fallback-fonts-classname")).fontFamily'
         )
       ).toBe(
-        '__Open_Sans_bbc724, system-ui, Arial, __open-sans-fallback_bbc724'
+        '__Open_Sans_e14a42, system-ui, Arial, __Open_Sans_Fallback_e14a42'
       )
 
       // .style
@@ -267,7 +267,7 @@ describe('@next/font/google', () => {
           'getComputedStyle(document.querySelector("#with-fallback-fonts-style")).fontFamily'
         )
       ).toBe(
-        '__Open_Sans_bbc724, system-ui, Arial, __open-sans-fallback_bbc724'
+        '__Open_Sans_e14a42, system-ui, Arial, __Open_Sans_Fallback_e14a42'
       )
 
       // .variable
@@ -276,7 +276,7 @@ describe('@next/font/google', () => {
           'getComputedStyle(document.querySelector("#with-fallback-fonts-variable")).fontFamily'
         )
       ).toBe(
-        '__Open_Sans_bbc724, system-ui, Arial, __open-sans-fallback_bbc724'
+        '__Open_Sans_e14a42, system-ui, Arial, __Open_Sans_Fallback_e14a42'
       )
     })
   })
