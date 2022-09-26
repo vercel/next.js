@@ -333,6 +333,8 @@ export class FlightManifestPlugin {
     const file = 'server/' + FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
 
+    ASYNC_CLIENT_MODULES.clear()
+
     assets[file + '.js'] = new sources.RawSource(
       'self.__RSC_MANIFEST=' + json
       // Work around webpack 4 type of RawSource being used
