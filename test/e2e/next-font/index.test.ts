@@ -71,10 +71,10 @@ describe('@next/font/google', () => {
         },
       })
       expect(JSON.parse($('#comp-with-fonts-roboto').text())).toEqual({
-        className: '__className_72084b',
-        variable: '__variable_72084b',
+        className: '__className_572732',
+        variable: '__variable_572732',
         style: {
-          fontFamily: "'__Roboto_72084b', '__roboto-fallback_72084b'",
+          fontFamily: "'__Roboto_572732', '__Roboto_Fallback_572732'",
           fontStyle: 'italic',
           fontWeight: 100,
         },
@@ -184,7 +184,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#comp-with-fonts-roboto")).fontFamily'
         )
-      ).toBe('__Roboto_72084b, __roboto-fallback_72084b')
+      ).toBe('__Roboto_572732, __Roboto_Fallback_572732')
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#comp-with-fonts-roboto")).fontWeight'
@@ -241,7 +241,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#variables-roboto-100-italic")).fontFamily'
         )
-      ).toBe('__Roboto_72084b, __roboto-fallback_72084b')
+      ).toBe('__Roboto_572732, __Roboto_Fallback_572732')
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#without-variables-roboto-100-italic")).fontFamily'
