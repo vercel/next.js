@@ -65,7 +65,36 @@ export type FlightCSSManifest = {
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
+// Collect modules from server/edge compiler in client layer,
+// and detect if it's been used, and mark it as `async: true` for react.
+// So that react could unwrap the async module from promise and render module itself.
 export const ASYNC_CLIENT_MODULES = new Set<string>()
+
+export function traverseModules(
+  compilation: webpack.Compilation,
+  callback: (
+    mod: any,
+    chunk: webpack.Chunk,
+    chunkGroup: typeof compilation.chunkGroups[0]
+  ) => any
+) {
+  compilation.chunkGroups.forEach((chunkGroup) => {
+    chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+      const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+        chunk
+        // TODO: Update type so that it doesn't have to be cast.
+      ) as Iterable<webpack.NormalModule>
+      for (const mod of chunkModules) {
+        callback(mod, chunk, chunkGroup)
+        const anyModule = mod as any
+        if (anyModule.modules) {
+          for (const subMod of anyModule.modules)
+            callback(subMod, chunk, chunkGroup)
+        }
+      }
+    })
+  })
+}
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
@@ -124,21 +153,7 @@ export class FlightManifestPlugin {
       }
     }
 
-    compilation.chunkGroups.forEach((chunkGroup) => {
-      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-          chunk
-          // TODO: Update type so that it doesn't have to be cast.
-        ) as Iterable<webpack.NormalModule>
-        for (const mod of chunkModules) {
-          collectClientRequest(mod)
-          const anyModule = mod as any
-          if (anyModule.modules) {
-            for (const subMod of anyModule.modules) collectClientRequest(subMod)
-          }
-        }
-      })
-    })
+    traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
       const cssResourcesInChunkGroup = new Set<string>()
@@ -215,16 +230,7 @@ export class FlightManifestPlugin {
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const isAsync = false // ASYNC_CLIENT_MODULES.has(mod.resource) // compilation.moduleGraph.isAsync(mod)
-
-        if (isAsync) {
-          console.log('!!!!!!', mod.resource)
-        }
-
-        // if (mod.resource.includes('random')) {
-        //   console.log('!!!!!!!', mod.resource, isAsync, compilation.moduleGraph._getModuleGraphModule(mod).async, compilation.moduleGraph.isAsync)
-        //   console.log('???????', mod.resource, ASYNC_CLIENT_MODULES.has(mod.resource))
-        // }
+        const isAsyncModule = ASYNC_CLIENT_MODULES.has(mod.resource)
 
         const cjsExports = [
           ...new Set([
@@ -278,8 +284,10 @@ export class FlightManifestPlugin {
               id,
               name,
               chunks: requiredChunks,
-              // Forcing the chunk to be `async` for esm compatible
-              async: isAsync,
+              // E.g.
+              // page (server) -> local module (client) -> package (esm)
+              // The esm package will bubble up to make the entire chain till the client entry as async module.
+              async: isAsyncModule,
             }
           }
 

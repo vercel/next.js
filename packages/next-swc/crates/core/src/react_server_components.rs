@@ -161,29 +161,47 @@ impl<C: Comments> ReactServerComponents<C> {
         prepend_stmts(
             &mut module.body,
             vec![
-                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                    kind: VarDeclKind::Const,
+                    decls: vec![VarDeclarator {
                         span: DUMMY_SP,
-                        local: proxy_ident.clone(),
-                        imported: None,
-                        is_type_only: false,
-                    })],
-                    src: Box::new(Str {
-                        span: DUMMY_SP,
-                        raw: None,
-                        value: "private-next-rsc-mod-ref-proxy".into(),
-                    }),
-                    type_only: Default::default(),
-                    asserts: Default::default(),
-                })),
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                        name: Pat::Object(ObjectPat {
+                            span: DUMMY_SP,
+                            props: vec![ObjectPatProp::Assign(AssignPatProp {
+                                span: DUMMY_SP,
+                                key: proxy_ident,
+                                value: None,
+                            })],
+                            optional: false,
+                            type_ann: None,
+                        }),
+                        init: Some(Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("require").as_callee(),
+                            args: vec![quote_str!("private-next-rsc-mod-ref-proxy").as_arg()],
+                            type_args: Default::default(),
+                        }))),
+                        definite: false,
+                    }],
+                    declare: false,
+                })))),
+                ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
-                    expr: Box::new(Expr::Call(CallExpr {
+                    expr: Box::new(Expr::Assign(AssignExpr {
                         span: DUMMY_SP,
-                        callee: proxy_ident.clone().as_callee(),
-                        args: vec![filepath.as_arg()],
-                        type_args: None,
+                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                            span: DUMMY_SP,
+                            obj: Box::new(Expr::Ident(quote_ident!("module"))),
+                            prop: MemberProp::Ident(quote_ident!("exports")),
+                        }))),
+                        op: op!("="),
+                        right: Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("createProxy").as_callee(),
+                            args: vec![filepath.as_arg()],
+                            type_args: Default::default(),
+                        })),
                     })),
                 })),
             ]

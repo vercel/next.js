@@ -16,7 +16,7 @@ import {
   COMPILER_NAMES,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import type { FlightCSSManifest } from './flight-manifest-plugin'
+import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule } from '../loaders/utils'
 
@@ -64,15 +64,15 @@ export class FlightClientEntryPlugin {
     })
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
-      ;(compilation.moduleGraph._moduleMap as any).forEach(
-        (_: any, mod: any) => {
-          if (mod.request && mod.resource && !mod.buildInfo.rsc) {
-            if (compilation.moduleGraph.isAsync(mod)) {
-              ASYNC_CLIENT_MODULES.add(mod.resource)
-            }
+      traverseModules(compilation, (mod) => {
+        // The module must has request, and resource so it's not a new entry created with loader.
+        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
+        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
+          if (compilation.moduleGraph.isAsync(mod)) {
+            ASYNC_CLIENT_MODULES.add(mod.resource)
           }
         }
-      )
+      })
     })
   }
 
@@ -91,13 +91,6 @@ export class FlightClientEntryPlugin {
       if (!entryDependency || !entryDependency.request) continue
 
       const request = entryDependency.request
-
-      console.log('------', request)
-      // if (modRequest.includes('random')) {
-      //   globalThis.__G = compilation.moduleGraph
-      //   globalThis.__R = mod
-      //   console.log(modRequest, '->', compilation.moduleGraph.isAsync(mod))
-      // }
 
       if (
         !request.startsWith('next-edge-ssr-loader?') &&
@@ -392,16 +385,6 @@ export class FlightClientEntryPlugin {
             compilation.hooks.failedEntry.call(entry, options, err)
             return reject(err)
           }
-
-          // console.log(entry);
-
-          // [...module.dependencies].forEach(m => {
-          //   if (m.request && m.request.includes('random')) {
-          //     globalThis.__G = compilation.moduleGraph
-          //     globalThis.__R = m
-          //     console.log(m.request, '->', compilation.moduleGraph.isAsync(m), Object.keys(m))
-          //   }
-          // })
 
           compilation.hooks.succeedEntry.call(entry, options, module)
           return resolve(module)
