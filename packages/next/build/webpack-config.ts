@@ -1021,7 +1021,7 @@ export default async function getBaseWebpackConfig(
           })
         : null
 
-    // Special internal modules that must be bundled for Server Components.
+    // Special internal modules that require to be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
       if (!isLocal && /^react(?:$|\/)/.test(request)) {
         const [resolved] = await resolveWithReactServerCondition!(
@@ -1158,7 +1158,15 @@ export default async function getBaseWebpackConfig(
     }
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server) {
+      if (
+        layer === WEBPACK_LAYERS.server &&
+        (!config.experimental?.optoutServerComponentsBundle ||
+          !config.experimental?.optoutServerComponentsBundle.some(
+            // Check if a package is opt-out of Server Components bundling.
+            (packageName) =>
+              new RegExp(`node_modules[/\\\\]${packageName}[/\\\\]`).test(res)
+          ))
+      ) {
         try {
           const [resolved] = await resolveWithReactServerCondition!(
             context,
