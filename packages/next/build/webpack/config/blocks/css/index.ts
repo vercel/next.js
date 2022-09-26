@@ -1,3 +1,4 @@
+import path from 'path'
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
@@ -217,7 +218,7 @@ export const css = curry(async function css(
       loader({
         oneOf: [
           markRemovable({
-            test: fontLoaderPath,
+            test: path.join(fontLoaderPath, '../target.css'),
             // Use a loose regex so we don't have to crawl the file system to
             // find the real file name (if present).
             issuer: /pages[\\/]_document\./,
@@ -238,7 +239,7 @@ export const css = curry(async function css(
         oneOf: [
           markRemovable({
             sideEffects: false,
-            test: fontLoaderPath,
+            test: path.join(fontLoaderPath, '../target.css'),
             issuer: {
               and: [
                 {

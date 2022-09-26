@@ -48,7 +48,7 @@ impl<'a> FontImportsGenerator<'a> {
                         return Some(ImportDecl {
                             src: Box::new(Str {
                                 value: JsWord::from(format!(
-                                    "{}?{}",
+                                    "{}/target.css?{}",
                                     font_function.loader,
                                     values.join(";")
                                 )),
