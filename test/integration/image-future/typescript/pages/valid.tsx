@@ -28,6 +28,7 @@ const Page = () => {
         id="fill-no-width-and-height"
         src="https://image-optimization-test.vercel.app/test.jpg"
         fill
+        alt=""
       />
       <Image
         id="quality-num"
@@ -35,6 +36,7 @@ const Page = () => {
         quality={80}
         width={500}
         height={500}
+        alt=""
       />
       <Image
         id="quality-str"
