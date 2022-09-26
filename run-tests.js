@@ -242,9 +242,14 @@ async function main() {
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
+
+      const useReplayJestConfig =
+        process.env.RECORD_REPLAY && !process.env.RECORD_REPLAY_NO_RECORD
+
       const child = spawn(
         jestPath,
         [
+          ...(useReplayJestConfig ? [`--config=jest.replay.config.js`] : []),
           '--runInBand',
           '--forceExit',
           '--verbose',

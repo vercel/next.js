@@ -357,7 +357,7 @@ jobs:
             test/traces
 
   testDevE2E:
-    name: Test Development (E2E) (record)
+    name: Test Development (E2E)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
     env:
@@ -417,16 +417,12 @@ jobs:
           RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
           # DEBUG: pw:browser*
 
-      # - uses: replayio/action-upload@v0.4.4
-      #   if: always()
-      #   with:
-      #     # TODO: Change this to a secret
-      #     api-key: rwk_1LfNb6DteBpcQbb5dcy3XZbo1jidYqN5qQr5uYYfiVt
-      #     public: true
-
-      # Check if Replays are being generated properly first
-      - run: npx @replayio/replay ls --json
+      - uses: replayio/action-upload@v0.4.5
         if: always()
+        with:
+          api-key: rwk_1LfNb6DteBpcQbb5dcy3XZbo1jidYqN5qQr5uYYfiVt
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
       - name: Upload test trace
         if: always()
