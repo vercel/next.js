@@ -309,7 +309,7 @@ class RedirectErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.code === 'NEXT_REDIRECT') {
+    if (error.digest === 'NEXT_REDIRECT') {
       return { redirect: error.url }
     }
     // Re-throw if error is not for 404

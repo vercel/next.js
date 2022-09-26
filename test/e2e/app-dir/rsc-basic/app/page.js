@@ -1,11 +1,12 @@
 import Nav from '../components/nav'
-import { useHeaders } from 'next/dist/client/components/hooks-server'
+import { headers } from 'next/dist/client/components/hooks-server'
 
 const envVar = process.env.ENV_VAR_TEST
 const headerKey = 'x-next-test-client'
 
 export default function Index(props) {
-  const header = useHeaders()[headerKey]
+  const headersList = headers()
+  const header = headersList.get(headerKey)
 
   return (
     <div>
