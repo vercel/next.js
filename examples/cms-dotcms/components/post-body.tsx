@@ -14,7 +14,7 @@ export default function PostBody({ content }) {
         ) : null}
       </div>
       <div className="mb-6 text-lg">
-        {content.postingDate != 'now' ? (
+        {content.postingDate !== 'now' ? (
           <div className="mb-6 text-lg">
             Posted <DateComponent dateString={content.postingDate} />
           </div>

@@ -1,16 +1,16 @@
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import ErrorPage from 'next/error'
-import Container from '../../components/container'
-import MoreStories from '../../components/more-stories'
-import Header from '../../components/header'
-import PostHeader from '../../components/post-header'
-import PostBody from '../../components/post-body'
-import SectionSeparator from '../../components/section-separator'
-import Layout from '../../components/layout'
-import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
-import PostTitle from '../../components/post-title'
-import { CMS_NAME } from '../../lib/constants'
+import Container from '@components/container'
+import MoreStories from '@components/more-stories'
+import Header from '@components/header'
+import PostHeader from '@components/post-header'
+import PostBody from '@components/post-body'
+import SectionSeparator from '@components/section-separator'
+import Layout from '@components/layout'
+import PostTitle from '@components/post-title'
+import { CMS_NAME } from '@lib/constants'
+import { getAllPostsWithSlug, getPostAndMorePosts } from '@lib/api'
 
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
@@ -18,6 +18,8 @@ export default function Post({ post, morePosts, preview }) {
   if (!router.isFallback && !post) {
     return <ErrorPage statusCode={404} />
   }
+
+  const title = `${post?.title || 'dotcms'} | Next.js Blog Example with ${CMS_NAME}`;
 
   return (
     <Layout preview={preview}>
@@ -29,9 +31,7 @@ export default function Post({ post, morePosts, preview }) {
           <>
             <article>
               <Head>
-                <title>
-                  {post.title} | Next.js Blog Example with {CMS_NAME}
-                </title>
+                <title>{title}</title>
                 <meta
                   property="og:image"
                   content={`${process.env.NEXT_PUBLIC_DOTCMS_HOST}${post.image.idPath}`}
