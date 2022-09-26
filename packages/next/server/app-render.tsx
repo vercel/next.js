@@ -31,6 +31,7 @@ import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
+import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -173,6 +174,7 @@ function createErrorHandler(
     if (
       // TODO-APP: Handle redirect throw
       err.digest !== DYNAMIC_ERROR_CODE &&
+      err.digest !== NOT_FOUND_ERROR_CODE &&
       !err.digest.startsWith(REDIRECT_ERROR_CODE)
     ) {
       // Used for debugging error source
