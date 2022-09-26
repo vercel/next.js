@@ -87,8 +87,8 @@ describe('@next/font/google', () => {
 
       // _app.js
       expect(JSON.parse($('#app-open-sans').text())).toEqual({
-        className: expect.any(String),
-        variable: expect.any(String),
+        className: '__className_f32d04',
+        variable: '__variable_f32d04',
         style: {
           fontFamily: "'__Open_Sans_e14a42', '__Open_Sans_Fallback_e14a42'",
           fontStyle: 'normal',
@@ -97,19 +97,19 @@ describe('@next/font/google', () => {
 
       // with-local-fonts.js
       expect(JSON.parse($('#first-local-font').text())).toEqual({
-        className: expect.any(String),
-        variable: expect.any(String),
+        className: '__className_410624',
+        variable: '__variable_410624',
         style: {
-          fontFamily: "'__my-font_2cddd5'",
+          fontFamily: "'__my-font_410624'",
           fontStyle: 'italic',
           fontWeight: 100,
         },
       })
       expect(JSON.parse($('#second-local-font').text())).toEqual({
-        className: expect.any(String),
-        variable: expect.any(String),
+        className: '__className_3ff726',
+        variable: '__variable_3ff726',
         style: {
-          fontFamily: "'__my-other-font_0a2813'",
+          fontFamily: "'__my-other-font_3ff726'",
         },
       })
     })
@@ -217,12 +217,12 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#variables-albert-sans-italic")).fontFamily'
         )
-      ).toBe('__Albert_Sans_2b85d2')
+      ).toBe('__Albert_Sans_3a491b')
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#without-variables-albert-sans-italic")).fontFamily'
         )
-      ).not.toBe('__Albert_Sans_2b85d2')
+      ).not.toBe('__Albert_Sans_3a491b')
 
       // Inter 900
       expect(
@@ -246,7 +246,7 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#without-variables-roboto-100-italic")).fontFamily'
         )
-      ).not.toBe('__Roboto_72084b')
+      ).not.toBe('__Roboto_29a3c6, __roboto-fallback_29a3c6')
     })
 
     test('page using fallback fonts', async () => {
@@ -294,14 +294,14 @@ describe('@next/font/google', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/fonts/0812efcfaefec5ea.p.woff2',
+        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
       })
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/fonts/4f3dcdf40b3ca86d.p.woff2',
+        href: '/_next/static/media/4f3dcdf40b3ca86d.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
       })
@@ -319,7 +319,7 @@ describe('@next/font/google', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/fonts/0812efcfaefec5ea.p.woff2',
+        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
       })
@@ -338,7 +338,7 @@ describe('@next/font/google', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/fonts/0812efcfaefec5ea.p.woff2',
+        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
       })
@@ -346,7 +346,7 @@ describe('@next/font/google', () => {
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/fonts/7be88d77534e80fd.p.woff2',
+        href: '/_next/static/media/7be88d77534e80fd.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
       })
