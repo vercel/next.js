@@ -192,6 +192,9 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         : 'null'
     }
 
+    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage.js').staticGenerationAsyncStorage
+    export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
+
     export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
 
     export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server').renderToReadableStream

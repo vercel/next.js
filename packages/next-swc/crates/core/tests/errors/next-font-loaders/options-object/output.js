@@ -1,7 +1,7 @@
-import a from "@next/font/google?ABeeZee;{}";
-import a from "@next/font/google?ABeeZee;{}";
-import a from "@next/font/google?ABeeZee;{}";
-import a from "@next/font/google?ABeeZee;{}";
+import a from "@next/font/google?pages/test.tsx;ABeeZee;{}";
+import a from "@next/font/google?pages/test.tsx;ABeeZee;{}";
+import a from "@next/font/google?pages/test.tsx;ABeeZee;{}";
+import a from "@next/font/google?pages/test.tsx;ABeeZee;{}";
 const a = fn({
     10: 'hello'
 });
