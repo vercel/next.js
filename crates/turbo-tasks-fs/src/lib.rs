@@ -1211,11 +1211,28 @@ impl FileContentVc {
     }
 }
 
+/// A file's content interpreted as a JSON value.
 #[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileJsonContent {
     Content(#[turbo_tasks(trace_ignore)] JsonValue),
     Unparseable,
     NotFound,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for FileJsonContent {
+    /// Returns the JSON file content as a UTF-8 string.
+    ///
+    /// This operation will only succeed if the file contents are a valid JSON
+    /// value.
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        match self {
+            FileJsonContent::Content(json) => Ok(StringVc::cell(json.to_string())),
+            FileJsonContent::Unparseable => Err(anyhow!("File is not valid JSON")),
+            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

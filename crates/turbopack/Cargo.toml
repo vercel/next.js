@@ -28,6 +28,7 @@ turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-css = { path = "../turbopack-css" }
 turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+turbopack-json = { path = "../turbopack-json" }
 turbopack-static = { path = "../turbopack-static" }
 url = "2.2.2"
 # turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed

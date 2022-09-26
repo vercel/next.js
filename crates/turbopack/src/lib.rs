@@ -31,7 +31,6 @@ use turbopack_core::{
 };
 
 mod graph;
-pub mod json;
 pub mod module_options;
 pub mod rebase;
 pub mod resolve;
@@ -102,7 +101,7 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
                 )
                 .into()
             }
-            ModuleType::Json => json::JsonModuleAssetVc::new(source).into(),
+            ModuleType::Json => turbopack_json::JsonModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
             ModuleType::Css => turbopack_css::CssModuleAssetVc::new(source, context.into()).into(),
             ModuleType::Static => {
@@ -491,6 +490,7 @@ pub fn register() {
     turbopack_core::register();
     turbopack_ecmascript::register();
     turbopack_css::register();
+    turbopack_json::register();
     turbopack_static::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
