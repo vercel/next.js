@@ -64,7 +64,11 @@ export class FlightClientEntryPlugin {
     })
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
-      ASYNC_CLIENT_MODULES.clear()
+      if (!this.isEdgeServer) {
+        // Reset only in server compiler for each round of compilation,
+        // then it's still preserved for edge compiler
+        ASYNC_CLIENT_MODULES.clear()
+      }
       traverseModules(compilation, (mod) => {
         // The module must has request, and resource so it's not a new entry created with loader.
         // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
