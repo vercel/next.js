@@ -151,7 +151,7 @@ export class FlightClientEntryPlugin {
           compilation,
           entryName: name,
           clientComponentImports: [...internalClientComponentEntryImports],
-          bundlePath: 'app-internals',
+          bundlePath: 'app-internals' + (this.isEdgeServer ? '-edge' : ''),
         })
       )
     }
