@@ -74,12 +74,10 @@ describe('app dir - react server components', () => {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
-    // TODO: support next/head
-    // expect(homeHTML).toMatch('<meta name="rsc-title" content="index"/>')
     expect(homeHTML).toContain('component:index.server')
-    // TODO: support env
-    // expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
+    // support esm module on server side
+    expect(homeHTML).toContain('random-module-instance')
 
     const inlineFlightContents = []
     const $ = cheerio.load(homeHTML)
@@ -132,26 +130,6 @@ describe('app dir - react server components', () => {
     const html = await renderViaHTTP(next.url, '/multi')
     expect(html).toContain('bar.server.js:')
     expect(html).toContain('foo.client')
-  })
-
-  it('should resolve different kinds of components correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/shared')
-    const main = getNodeBySelector(html, '#main').html()
-
-    // Should have 5 occurrences of "client_component".
-    expect(Array.from(main.matchAll(/client_component/g)).length).toBe(5)
-
-    // Should have 2 occurrences of "shared:server", and 2 occurrences of
-    // "shared:client".
-    const sharedServerModule = Array.from(main.matchAll(/shared:server:(\d+)/g))
-    const sharedClientModule = Array.from(main.matchAll(/shared:client:(\d+)/g))
-    expect(sharedServerModule.length).toBe(2)
-    expect(sharedClientModule.length).toBe(2)
-
-    // Should have 2 modules created for the shared component.
-    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
-    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
-    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
   })
 
   it('should be able to navigate between rsc routes', async () => {
@@ -304,10 +282,25 @@ describe('app dir - react server components', () => {
     expect(content).toContain('foo.client')
   })
 
-  it('should support the re-export syntax in server component', async () => {
+  it('should resolve different kinds of components correctly', async () => {
     const html = await renderViaHTTP(next.url, '/shared')
+    const main = getNodeBySelector(html, '#main').html()
     const content = getNodeBySelector(html, '#bar').text()
 
+    // Should have 5 occurrences of "client_component".
+    expect(Array.from(main.matchAll(/client_component/g)).length).toBe(5)
+
+    // Should have 2 occurrences of "shared:server", and 2 occurrences of
+    // "shared:client".
+    const sharedServerModule = Array.from(main.matchAll(/shared:server:(\d+)/g))
+    const sharedClientModule = Array.from(main.matchAll(/shared:client:(\d+)/g))
+    expect(sharedServerModule.length).toBe(2)
+    expect(sharedClientModule.length).toBe(2)
+
+    // Should have 2 modules created for the shared component.
+    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
+    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
+    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
     expect(content).toContain('bar.server.js:')
   })
 
