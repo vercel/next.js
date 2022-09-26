@@ -30,6 +30,7 @@ import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
+import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -419,7 +420,8 @@ export default async function exportPage({
           } catch (err: any) {
             if (
               err.digest !== DYNAMIC_ERROR_CODE &&
-              err.digest !== REDIRECT_ERROR_CODE
+              err.digest !== NOT_FOUND_ERROR_CODE &&
+              !err.digest?.startsWith(REDIRECT_ERROR_CODE)
             ) {
               throw err
             }

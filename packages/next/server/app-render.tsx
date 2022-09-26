@@ -31,6 +31,7 @@ import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
+import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -173,7 +174,8 @@ function createErrorHandler(
     if (
       // TODO-APP: Handle redirect throw
       err.digest !== DYNAMIC_ERROR_CODE &&
-      err.digest !== REDIRECT_ERROR_CODE
+      err.digest !== NOT_FOUND_ERROR_CODE &&
+      !err.digest?.startsWith(REDIRECT_ERROR_CODE)
     ) {
       // Used for debugging error source
       // console.error(_source, err)
@@ -1299,10 +1301,6 @@ export async function renderToHTMLOrFlight(
           flushEffectsToHead: true,
         })
       } catch (err: any) {
-        if (err.digest === REDIRECT_ERROR_CODE) {
-          throw err
-        }
-
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
@@ -1358,21 +1356,7 @@ export async function renderToHTMLOrFlight(
       return new RenderResult(staticHtml)
     }
 
-    try {
-      return new RenderResult(await bodyResult())
-    } catch (err: any) {
-      if (err.digest === REDIRECT_ERROR_CODE) {
-        ;(renderOpts as any).pageData = {
-          pageProps: {
-            __N_REDIRECT: err.url,
-            __N_REDIRECT_STATUS: 307,
-          },
-        }
-        ;(renderOpts as any).isRedirect = true
-        return RenderResult.fromStatic('')
-      }
-      throw err
-    }
+    return new RenderResult(await bodyResult())
   }
 
   const initialStaticGenerationStore = {
