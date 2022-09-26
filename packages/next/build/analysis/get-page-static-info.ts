@@ -246,12 +246,10 @@ function getUserConfig(
 ) {
   if (!config) return
 
-  const userConfig = config && { ...config }
-  if (userConfig) {
-    delete userConfig.runtime
-    if (middlewareConfig.matchers) {
-      delete userConfig.matcher
-    }
+  const userConfig = { ...config }
+  delete userConfig.runtime
+  if (middlewareConfig.matchers) {
+    delete userConfig.matcher
   }
 
   return userConfig
