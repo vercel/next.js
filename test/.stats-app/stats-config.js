@@ -32,8 +32,11 @@ const clientGlobs = [
     globs: ['fetched-pages/**/*.html'],
   },
   {
-    name: 'Edge SSR Page bundle Size',
-    globs: ['.next/server/pages/edge-ssr.js'],
+    name: 'Edge SSR bundle Size',
+    globs: [
+      '.next/server/pages/edge-ssr.js',
+      '.next/server/app/app-edge-ssr/page.js',
+    ],
   },
   {
     name: 'Middleware size',
@@ -89,6 +92,11 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true,
+              },
               generateBuildId: () => 'BUILD_ID',
               webpack(config) {
                 config.optimization.minimize = false
@@ -109,7 +117,12 @@ module.exports = {
         {
           path: 'next.config.js',
           content: `
-            module.exports = {
+          module.exports = {
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true,
+              },
               generateBuildId: () => 'BUILD_ID'
             }
           `,
@@ -144,6 +157,11 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true
+              },
               generateBuildId: () => 'BUILD_ID',
               swcMinify: true,
               webpack(config) {
@@ -166,6 +184,11 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true
+              },
               swcMinify: true,
               generateBuildId: () => 'BUILD_ID'
             }

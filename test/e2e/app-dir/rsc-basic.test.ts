@@ -44,7 +44,7 @@ describe('app dir - react server components', () => {
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/non-isomorphic-text ./node_modules; cp -r ./node_modules_bak/random-module-instance ./node_modules`,
+          setup: `cp -r ./node_modules_bak/* ./node_modules`,
           build: 'yarn setup && next build',
           dev: 'yarn setup && next dev',
           start: 'next start',
@@ -94,8 +94,8 @@ describe('app dir - react server components', () => {
       '__nextDefaultLocale',
       '__nextIsNotFound',
       '__flight__',
-      '__props__',
-      '__flight_router_path__',
+      '__flight_router_state_tree__',
+      '__flight_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -111,14 +111,15 @@ describe('app dir - react server components', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
-          const url = request.url()
-          if (
-            url.includes('__flight__=1') &&
-            // Prefetches also include `__flight__`
-            !url.includes('__flight_prefetch__=1')
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__flight__ === '1' &&
+              // Prefetches also include `__flight__`
+              headers.__flight_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -151,17 +152,6 @@ describe('app dir - react server components', () => {
     expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
     expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
     expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
-
-    // Note: This is currently unsupported because packages from another layer
-    // will not be re-initialized by webpack.
-    // Should import 2 module instances for node_modules too.
-    // const modFromClient = main.match(
-    //   /node_modules instance from \.client\.js:(\d+)/
-    // )
-    // const modFromServer = main.match(
-    //   /node_modules instance from \.server\.js:(\d+)/
-    // )
-    // expect(modFromClient[1]).not.toBe(modFromServer[1])
   })
 
   it('should be able to navigate between rsc routes', async () => {
@@ -227,14 +217,14 @@ describe('app dir - react server components', () => {
     const browser = await webdriver(next.url, '/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
-          const url = request.url()
-          if (
-            url.includes('__flight__=1') &&
-            // Prefetches also include `__flight__`
-            !url.includes('__flight_prefetch__=1')
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__flight__ === '1' &&
+              headers.__flight_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -348,7 +338,16 @@ describe('app dir - react server components', () => {
   })
 
   it('should support streaming for flight response', async () => {
-    await fetchViaHTTP(next.url, '/?__flight__=1').then(async (response) => {
+    await fetchViaHTTP(
+      next.url,
+      '/',
+      {},
+      {
+        headers: {
+          __flight__: '1',
+        },
+      }
+    ).then(async (response) => {
       const result = await resolveStreamResponse(response)
       expect(result).toContain('component:index.server')
     })
@@ -396,6 +395,38 @@ describe('app dir - react server components', () => {
     )
     expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
       'count: 1'
+    )
+  })
+
+  it('should resolve the subset react in server components based on the react-server condition', async () => {
+    await fetchViaHTTP(next.url, '/react-server').then(async (response) => {
+      const result = await resolveStreamResponse(response)
+      expect(result).toContain('Server: <!-- -->subset')
+      expect(result).toContain('Client: <!-- -->full')
+    })
+  })
+
+  it('should resolve 3rd party package exports based on the react-server condition', async () => {
+    await fetchViaHTTP(next.url, '/react-server/3rd-party-package').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('Server: index.react-server')
+        expect(result).toContain('Server subpath: subpath.react-server')
+        expect(result).toContain('Client: index.default')
+        expect(result).toContain('Client subpath: subpath.default')
+      }
+    )
+  })
+
+  it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
+    await fetchViaHTTP(next.url, '/react-server/optout').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('Server: index.default')
+        expect(result).toContain('Server subpath: subpath.default')
+        expect(result).toContain('Client: index.default')
+        expect(result).toContain('Client subpath: subpath.default')
+      }
     )
   })
 
