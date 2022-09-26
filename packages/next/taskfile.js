@@ -1447,6 +1447,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
   await task
     .source(require.resolve('react-server-dom-webpack'))
     .target('compiled/react-server-dom-webpack')
+
   await task
     .source(
       join(
@@ -1983,6 +1984,12 @@ export async function server(task, opts) {
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
+
+  await fs.copyFile(
+    join(__dirname, 'server/google-font-metrics.json'),
+    join(__dirname, 'dist/server/google-font-metrics.json')
+  )
+
   notify('Compiled server files')
 }
 

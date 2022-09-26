@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 import { isWasm, transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'
-import { isAbsolute } from 'path'
+import path, { isAbsolute } from 'path'
 
 async function loaderTransform(parentTrace, source, inputSourceMap) {
   // Make the loader async
@@ -38,6 +38,8 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   const {
     isServer,
+    isServerLayer,
+    rootDir,
     pagesDir,
     hasReactRefresh,
     nextConfig,
@@ -46,11 +48,13 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     swcCacheDir,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
+  const relativeFilePathFromRoot = path.relative(rootDir, filename)
 
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
     filename,
-    isServer: isServer,
+    isServer,
+    isServerLayer,
     isPageFile,
     development: this.mode === 'development',
     hasReactRefresh,
@@ -58,6 +62,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
+    relativeFilePathFromRoot,
   })
 
   const programmaticOptions = {

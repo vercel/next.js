@@ -107,7 +107,7 @@ describe('Navigation', () => {
 })
 ```
 
-You can use `cy.visit("/")` instead of `cy.visit("http://localhost:3000/")` if you add `"baseUrl": "http://localhost:3000"` to the `cypress.json` configuration file.
+You can use `cy.visit("/")` instead of `cy.visit("http://localhost:3000/")` if you add `baseUrl: 'http://localhost:3000'` to the `cypress.config.js` configuration file.
 
 ### Running your Cypress tests
 

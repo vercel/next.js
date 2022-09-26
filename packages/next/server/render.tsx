@@ -16,7 +16,7 @@ import type {
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
-import type { FontManifest } from './font-utils'
+import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type {
   GetServerSideProps,
@@ -26,6 +26,7 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -79,7 +80,8 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { shouldUseReactRoot, stripInternalQueries } from './utils'
+import { shouldUseReactRoot } from './utils'
+import { stripInternalQueries } from './internal-utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -222,7 +224,7 @@ export type RenderOptsPartial = {
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  optimizeFonts: boolean
+  optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
   nextScriptWorkers: any
@@ -231,6 +233,7 @@ export type RenderOptsPartial = {
   resolvedAsPath?: string
   serverComponentManifest?: any
   serverCSSManifest?: any
+  fontLoaderManifest?: FontLoaderManifest
   distDir?: string
   locale?: string
   locales?: string[]
@@ -1445,6 +1448,7 @@ export async function renderToHTML(
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
+    fontLoaderManifest: renderOpts.fontLoaderManifest,
   }
 
   const document = (

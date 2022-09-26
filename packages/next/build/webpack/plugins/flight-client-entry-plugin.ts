@@ -1,7 +1,6 @@
 import { stringify } from 'querystring'
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { clientComponentRegex } from '../loaders/utils'
 import {
   getInvalidator,
   entries,
@@ -18,6 +17,7 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
 import { FlightCSSManifest } from './flight-manifest-plugin'
+import { isClientComponentModule } from '../loaders/utils'
 
 interface Options {
   dev: boolean
@@ -59,11 +59,11 @@ export class FlightClientEntryPlugin {
     )
 
     compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
-      return this.createClientEndpoints(compiler, compilation)
+      return this.createClientEntries(compiler, compilation)
     })
   }
 
-  async createClientEndpoints(compiler: any, compilation: any) {
+  async createClientEntries(compiler: any, compilation: any) {
     const promises: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
@@ -131,10 +131,7 @@ export class FlightClientEntryPlugin {
           : layoutOrPageRequest
 
         // Replace file suffix as `.js` will be added.
-        const bundlePath = relativeRequest.replace(
-          /(\.server|\.client)?\.(js|ts)x?$/,
-          ''
-        )
+        const bundlePath = relativeRequest.replace(/\.(js|ts)x?$/, '')
 
         promises.push(
           this.injectClientEntryAndSSRModules({
@@ -240,7 +237,7 @@ export class FlightClientEntryPlugin {
       visitedBySegment[layoutOrPageRequest].add(modRequest)
 
       const isCSS = regexCSS.test(modRequest)
-      const isClientComponent = clientComponentRegex.test(modRequest)
+      const isClientComponent = isClientComponentModule(mod)
 
       if (isCSS) {
         serverCSSImports[layoutOrPageRequest] =

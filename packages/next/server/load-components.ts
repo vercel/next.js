@@ -40,6 +40,7 @@ export type LoadComponentsReturnType = {
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
   isAppPath?: boolean
+  pathname: string
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
@@ -57,6 +58,7 @@ export async function loadDefaultErrorComponents(distDir: string) {
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
     reactLoadableManifest: {},
     ComponentMod,
+    pathname: '/_error',
   }
 }
 
@@ -150,5 +152,6 @@ export async function loadComponents({
     getStaticPaths,
     serverComponentManifest,
     isAppPath,
+    pathname,
   }
 }

@@ -20,7 +20,7 @@ describe('app dir', () => {
   }
   let next: NextInstance
 
-  function runTests({ assetPrefix }: { assetPrefix?: boolean }) {
+  function runTests() {
     beforeAll(async () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
@@ -31,18 +31,37 @@ describe('app dir', () => {
         skipStart: true,
       })
 
-      if (assetPrefix) {
-        const content = await next.readFile('next.config.js')
-        await next.patchFile(
-          'next.config.js',
-          content
-            .replace('// assetPrefix', 'assetPrefix')
-            .replace('// beforeFiles', 'beforeFiles')
-        )
-      }
       await next.start()
     })
     afterAll(() => next.destroy())
+
+    it('should use application/octet-stream for flight', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/dashboard/deployments/123',
+        {},
+        {
+          headers: {
+            __flight__: '1',
+          },
+        }
+      )
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    })
+
+    it('should use application/octet-stream for flight with edge runtime', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/dashboard',
+        {},
+        {
+          headers: {
+            __flight__: '1',
+          },
+        }
+      )
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    })
 
     it('should pass props from getServerSideProps in root layout', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard')
@@ -105,7 +124,7 @@ describe('app dir', () => {
       expect($('p').text()).toBe('hello from app/dashboard/integrations')
     })
 
-    // TODO: handle new root layout
+    // TODO-APP: handle new root layout
     it.skip('should not include parent when not in parent directory with route in directory', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/hello')
       const $ = cheerio.load(html)
@@ -211,16 +230,40 @@ describe('app dir', () => {
       expect(await res.text()).toContain('This page could not be found')
     })
 
-    // TODO: do we want to make this only work for /root or is it allowed
+    // TODO-APP: do we want to make this only work for /root or is it allowed
     // to work for /pages as well?
     it.skip('should match partial parameters', async () => {
       const html = await renderViaHTTP(next.url, '/partial-match-123')
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
     })
 
-    it('should support rewrites', async () => {
-      const html = await renderViaHTTP(next.url, '/rewritten-to-dashboard')
-      expect(html).toContain('hello from app/dashboard')
+    describe('rewrites', () => {
+      // TODO-APP:
+      it.skip('should support rewrites on initial load', async () => {
+        const browser = await webdriver(next.url, '/rewritten-to-dashboard')
+        expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+        expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+      })
+
+      it('should support rewrites on client-side navigation', async () => {
+        const browser = await webdriver(next.url, '/rewrites')
+
+        try {
+          // Click the link.
+          await browser.elementById('link').click()
+          await browser.waitForElementByCss('#from-dashboard')
+
+          // Check to see that we were rewritten and not redirected.
+          expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+          // Check to see that the page we navigated to is in fact the dashboard.
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
     })
 
     // TODO-APP: Enable in development
@@ -266,23 +309,25 @@ describe('app dir', () => {
       }
     })
 
-    it('should match parallel routes', async () => {
-      const html = await renderViaHTTP(next.url, '/parallel/nested')
-      expect(html).toContain('parallel/layout')
-      expect(html).toContain('parallel/@foo/nested/layout')
-      expect(html).toContain('parallel/@foo/nested/@a/page')
-      expect(html).toContain('parallel/@foo/nested/@b/page')
-      expect(html).toContain('parallel/@bar/nested/layout')
-      expect(html).toContain('parallel/@bar/nested/@a/page')
-      expect(html).toContain('parallel/@bar/nested/@b/page')
-      expect(html).toContain('parallel/nested/page')
-    })
+    describe('parallel routes', () => {
+      it('should match parallel routes', async () => {
+        const html = await renderViaHTTP(next.url, '/parallel/nested')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/@foo/nested/layout')
+        expect(html).toContain('parallel/@foo/nested/@a/page')
+        expect(html).toContain('parallel/@foo/nested/@b/page')
+        expect(html).toContain('parallel/@bar/nested/layout')
+        expect(html).toContain('parallel/@bar/nested/@a/page')
+        expect(html).toContain('parallel/@bar/nested/@b/page')
+        expect(html).toContain('parallel/nested/page')
+      })
 
-    it('should match parallel routes in route groups', async () => {
-      const html = await renderViaHTTP(next.url, '/parallel/nested-2')
-      expect(html).toContain('parallel/layout')
-      expect(html).toContain('parallel/(new)/layout')
-      expect(html).toContain('parallel/(new)/@baz/nested/page')
+      it('should match parallel routes in route groups', async () => {
+        const html = await renderViaHTTP(next.url, '/parallel/nested-2')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/(new)/layout')
+        expect(html).toContain('parallel/(new)/@baz/nested/page')
+      })
     })
 
     describe('<Link />', () => {
@@ -451,28 +496,6 @@ describe('app dir', () => {
         }
       })
 
-      it('should respect rewrites', async () => {
-        const browser = await webdriver(next.url, '/rewrites')
-
-        try {
-          // Click the link.
-          await browser.elementById('link').click()
-          await browser.waitForElementByCss('#from-dashboard')
-
-          // Check to see that we were rewritten and not redirected.
-          const pathname = await browser.eval('window.location.pathname')
-          expect(pathname).toBe('/rewritten-to-dashboard')
-
-          // Check to see that the page we navigated to is in fact the dashboard.
-          const html = await browser.eval(
-            'window.document.documentElement.innerText'
-          )
-          expect(html).toContain('hello from app/dashboard')
-        } finally {
-          await browser.close()
-        }
-      })
-
       // TODO-APP: should enable when implemented
       it.skip('should allow linking from app page to pages page', async () => {
         const browser = await webdriver(next.url, '/pages-linking')
@@ -492,7 +515,7 @@ describe('app dir', () => {
     })
 
     describe('server components', () => {
-      // TODO: why is this not servable but /dashboard+rootonly/hello.server.js
+      // TODO-APP: why is this not servable but /dashboard+rootonly/hello.server.js
       // should be? Seems like they both either should be servable or not
       it('should not serve .server.js as a path', async () => {
         // Without .server.js should serve
@@ -611,8 +634,8 @@ describe('app dir', () => {
           )
         })
 
-        // TODO: investigate hydration not kicking in on some runs
-        it.skip('should serve client-side', async () => {
+        // TODO-APP: investigate hydration not kicking in on some runs
+        it('should serve client-side', async () => {
           const browser = await webdriver(next.url, '/client-component-route')
 
           // After hydration count should be 1
@@ -632,8 +655,7 @@ describe('app dir', () => {
           expect($('p').text()).toBe('hello from app/client-nested')
         })
 
-        // TODO: investigate hydration not kicking in on some runs
-        it.skip('should include it client-side', async () => {
+        it('should include it client-side', async () => {
           const browser = await webdriver(next.url, '/client-nested')
 
           // After hydration count should be 1
@@ -660,7 +682,7 @@ describe('app dir', () => {
           const browser = await webdriver(next.url, '/slow-page-with-loading', {
             waitHydration: false,
           })
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
 
           expect(await browser.elementByCss('#slow-page-message').text()).toBe(
@@ -686,7 +708,7 @@ describe('app dir', () => {
               waitHydration: false,
             }
           )
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
 
           expect(
@@ -717,7 +739,7 @@ describe('app dir', () => {
               waitHydration: false,
             }
           )
-          // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+          // TODO-APP: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
           // expect(await browser.elementByCss('#loading-layout').text()).toBe('Loading...')
           // expect(await browser.elementByCss('#loading-page').text()).toBe('Loading...')
 
@@ -731,8 +753,35 @@ describe('app dir', () => {
         })
       })
 
+      describe('middleware', () => {
+        it.each(['rewrite', 'redirect'])(
+          `should strip internal query parameters from requests to middleware for %s`,
+          async (method) => {
+            const browser = await webdriver(next.url, '/internal')
+
+            try {
+              // Wait for and click the navigation element, this should trigger
+              // the flight request that'll be caught by the middleware. If the
+              // middleware sees any flight data on the request it'll redirect to
+              // a page with an element of #failure, otherwise, we'll see the
+              // element for #success.
+              await browser
+                .waitForElementByCss(`#navigate-${method}`)
+                .elementById(`navigate-${method}`)
+                .click()
+              expect(
+                await browser.waitForElementByCss('#success', 3000).text()
+              ).toBe('Success')
+            } finally {
+              await browser.close()
+            }
+          }
+        )
+      })
+
       describe('next/router', () => {
-        it('should always return null when accessed from /app', async () => {
+        // `useRouter` should not be accessible in server components.
+        it.skip('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')
 
           try {
@@ -750,8 +799,8 @@ describe('app dir', () => {
       })
 
       describe('hooks', () => {
-        describe('useCookies', () => {
-          it('should retrive cookies in a server component', async () => {
+        describe('cookies function', () => {
+          it('should retrieve cookies in a server component', async () => {
             const browser = await webdriver(next.url, '/hooks/use-cookies')
 
             try {
@@ -803,7 +852,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('useHeaders', () => {
+        describe('headers function', () => {
           it('should have access to incoming headers in a server component', async () => {
             // Check to see that we can't see the header when it's not present.
             let html = await renderViaHTTP(
@@ -840,7 +889,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('usePreviewData', () => {
+        describe('previewData function', () => {
           it('should return no preview data when there is none', async () => {
             const browser = await webdriver(next.url, '/hooks/use-preview-data')
 
@@ -936,7 +985,7 @@ describe('app dir', () => {
 
     describe('client components', () => {
       describe('hooks', () => {
-        describe('useCookies', () => {
+        describe('cookies function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -948,7 +997,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('usePreviewData', () => {
+        describe('previewData function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -960,7 +1009,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('useHeaders', () => {
+        describe('headers function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -1033,7 +1082,7 @@ describe('app dir', () => {
       if (isDev) {
         it('should throw an error when getServerSideProps is used', async () => {
           const pageFile =
-            'app/client-with-errors/get-server-side-props/page.client.js'
+            'app/client-with-errors/get-server-side-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
             '// export function getServerSideProps',
@@ -1056,13 +1105,12 @@ describe('app dir', () => {
 
           expect(res.status).toBe(500)
           expect(await res.text()).toContain(
-            'getServerSideProps is not supported in client components'
+            '`getServerSideProps` is not allowed in Client Components'
           )
         })
 
         it('should throw an error when getStaticProps is used', async () => {
-          const pageFile =
-            'app/client-with-errors/get-static-props/page.client.js'
+          const pageFile = 'app/client-with-errors/get-static-props/page.js'
           const content = await next.readFile(pageFile)
           const uncomment = content.replace(
             '// export function getStaticProps',
@@ -1084,7 +1132,7 @@ describe('app dir', () => {
 
           expect(res.status).toBe(500)
           expect(await res.text()).toContain(
-            'getStaticProps is not supported in client components'
+            '`getStaticProps` is not allowed in Client Components'
           )
         })
       }
@@ -1426,13 +1474,112 @@ describe('app dir', () => {
         }
       })
     })
+
+    describe('404', () => {
+      it.skip('should trigger 404 in a server component', async () => {
+        const browser = await webdriver(next.url, '/not-found/servercomponent')
+
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('404!')
+      })
+
+      it.skip('should trigger 404 in a client component', async () => {
+        const browser = await webdriver(next.url, '/not-found/clientcomponent')
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('404!')
+      })
+
+      it('should trigger 404 client-side', async () => {
+        const browser = await webdriver(next.url, '/not-found/client-side')
+        await browser
+          .elementByCss('button')
+          .click()
+          .waitForElementByCss('#not-found-component')
+        expect(await browser.elementByCss('#not-found-component').text()).toBe(
+          '404!'
+        )
+      })
+    })
+
+    describe('redirect', () => {
+      describe('components', () => {
+        it.skip('should redirect in a server component', async () => {
+          const browser = await webdriver(next.url, '/redirect/servercomponent')
+          await browser.waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
+
+        it.skip('should redirect in a client component', async () => {
+          const browser = await webdriver(next.url, '/redirect/clientcomponent')
+          await browser.waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
+
+        // TODO-APP: Enable in development
+        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
+          const browser = await webdriver(next.url, '/redirect/client-side')
+          await browser
+            .elementByCss('button')
+            .click()
+            .waitForElementByCss('#result-page')
+          expect(await browser.elementByCss('#result-page').text()).toBe(
+            'Result Page'
+          )
+        })
+      })
+
+      describe('next.config.js redirects', () => {
+        it('should redirect from next.config.js', async () => {
+          const browser = await webdriver(next.url, '/redirect/a')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+
+        it('should redirect from next.config.js with link navigation', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect/next-config-redirect'
+          )
+          await browser
+            .elementByCss('#redirect-a')
+            .click()
+            .waitForElementByCss('h1')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+      })
+
+      describe('middleware redirects', () => {
+        it('should redirect from middleware', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect-middleware-to-dashboard'
+          )
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+
+        it('should redirect from middleware with link navigation', async () => {
+          const browser = await webdriver(
+            next.url,
+            '/redirect/next-middleware-redirect'
+          )
+          await browser
+            .elementByCss('#redirect-middleware')
+            .click()
+            .waitForElementByCss('h1')
+          expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
+          expect(await browser.url()).toBe(next.url + '/dashboard')
+        })
+      })
+    })
   }
 
-  describe('without assetPrefix', () => {
-    runTests({})
-  })
-
-  describe('with assetPrefix', () => {
-    runTests({ assetPrefix: true })
-  })
+  runTests()
 })

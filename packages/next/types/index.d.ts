@@ -39,6 +39,9 @@ declare module 'react' {
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
   }
+
+  // TODO-APP: check if this is the right type.
+  function experimental_use<T>(promise: Promise<T> | React.Context<T>): T
 }
 
 export type Redirect =
@@ -125,13 +128,10 @@ export type GetStaticProps<
   context: GetStaticPropsContext<Q, D>
 ) => Promise<GetStaticPropsResult<P>> | GetStaticPropsResult<P>
 
-export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
-  ? P
-  : T extends (
-      context?: GetStaticPropsContext<any>
-    ) => Promise<GetStaticPropsResult<infer P>> | GetStaticPropsResult<infer P>
-  ? P
-  : never
+export type InferGetStaticPropsType<T extends (args: any) => any> = Extract<
+  Awaited<ReturnType<T>>,
+  { props: any }
+>['props']
 
 export type GetStaticPathsContext = {
   locales?: string[]
@@ -178,16 +178,9 @@ export type GetServerSideProps<
   context: GetServerSidePropsContext<Q, D>
 ) => Promise<GetServerSidePropsResult<P>>
 
-export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
-  infer P,
-  any
+export type InferGetServerSidePropsType<T extends (args: any) => any> = Awaited<
+  Extract<Awaited<ReturnType<T>>, { props: any }>['props']
 >
-  ? P
-  : T extends (
-      context?: GetServerSidePropsContext<any>
-    ) => Promise<GetServerSidePropsResult<infer P>>
-  ? P
-  : never
 
 declare global {
   interface Crypto {
