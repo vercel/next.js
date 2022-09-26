@@ -65,6 +65,8 @@ export type FlightCSSManifest = {
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
+export const ASYNC_CLIENT_MODULES = new Set<string>()
+
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
 
@@ -213,6 +215,17 @@ export class FlightManifestPlugin {
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
+        const isAsync = false // ASYNC_CLIENT_MODULES.has(mod.resource) // compilation.moduleGraph.isAsync(mod)
+
+        if (isAsync) {
+          console.log('!!!!!!', mod.resource)
+        }
+
+        // if (mod.resource.includes('random')) {
+        //   console.log('!!!!!!!', mod.resource, isAsync, compilation.moduleGraph._getModuleGraphModule(mod).async, compilation.moduleGraph.isAsync)
+        //   console.log('???????', mod.resource, ASYNC_CLIENT_MODULES.has(mod.resource))
+        // }
+
         const cjsExports = [
           ...new Set([
             ...mod.dependencies.map((dep) => {
@@ -266,7 +279,7 @@ export class FlightManifestPlugin {
               name,
               chunks: requiredChunks,
               // Forcing the chunk to be `async` for esm compatible
-              async: true,
+              async: isAsync,
             }
           }
 
