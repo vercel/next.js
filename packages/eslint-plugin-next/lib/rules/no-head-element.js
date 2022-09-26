@@ -14,7 +14,10 @@ module.exports = {
   create: function (context) {
     return {
       JSXOpeningElement(node) {
-        if (node.name.name !== 'head') {
+        const paths = context.getFilename()
+
+        // Only lint the <head> element in pages directory
+        if (node.name.name !== 'head' || !paths.startsWith('pages')) {
           return
         }
 

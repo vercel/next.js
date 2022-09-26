@@ -48,6 +48,21 @@ ruleTester.run('no-head-element', rule, {
     `,
       filename: 'pages/index.tsx',
     },
+    {
+      code: `
+      export default function Layout({ children }) {
+        return (
+          <html>
+            <head>
+              <title>layout</title>
+            </head>
+            <body>{children}</body>
+          </html>
+        );
+      }
+    `,
+      filename: 'app/layout.js',
+    },
   ],
   invalid: [
     {
