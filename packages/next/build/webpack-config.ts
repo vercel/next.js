@@ -1510,6 +1510,7 @@ export default async function getBaseWebpackConfig(
                 issuerLayer: WEBPACK_LAYERS.server,
                 test: (req: string) => {
                   if (
+                    !/\.m?js/.test(req) ||
                     config.experimental.optoutServerComponentsBundle?.some(
                       (mod) => {
                         return req.includes('/node_modules/' + mod + '/')
@@ -1522,14 +1523,14 @@ export default async function getBaseWebpackConfig(
                 },
                 resolve: process.env.__NEXT_REACT_CHANNEL
                   ? {
-                      conditionNames: ['react-server'],
+                      conditionNames: ['react-server', 'node', 'require'],
                       alias: {
                         react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
                         'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
                       },
                     }
                   : {
-                      conditionNames: ['react-server'],
+                      conditionNames: ['react-server', 'node', 'require'],
                       alias: {
                         // If missing the alias override here, the default alias will be used which aliases
                         // react to the direct file path, not the package name. In that case the condition
