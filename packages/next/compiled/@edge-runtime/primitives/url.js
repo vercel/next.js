@@ -3372,10 +3372,10 @@ module.exports = __toCommonJS(url_exports);
 init_define_process();
 var import_whatwg_url = __toESM(require_whatwg_url());
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.6/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.9/node_modules/urlpattern-polyfill/index.js
 init_define_process();
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.6/node_modules/urlpattern-polyfill/dist/urlpattern.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.9/node_modules/urlpattern-polyfill/dist/urlpattern.js
 init_define_process();
 var regexIdentifierStart = /[$_\p{ID_Start}]/u;
 var regexIdentifierPart = /[$_\u200C\u200D\p{ID_Continue}]/u;
@@ -3489,10 +3489,9 @@ function lexer(str, lenient = false) {
 }
 __name(lexer, "lexer");
 function parse(str, options = {}) {
-  var _a;
   const tokens = lexer(str);
   const { prefixes = "./" } = options;
-  const defaultPattern = `[^${escapeString((_a = options.delimiter) != null ? _a : "/#?")}]+?`;
+  const defaultPattern = `[^${escapeString(options.delimiter === void 0 ? "/#?" : options.delimiter)}]+?`;
   const result = [];
   let key = 0;
   let i = 0;
@@ -3641,15 +3640,14 @@ function stringToRegexp(path, keys, options) {
 }
 __name(stringToRegexp, "stringToRegexp");
 function tokensToRegexp(tokens, keys, options = {}) {
-  var _a, _b;
   const {
     strict = false,
     start = true,
     end = true,
     encode = /* @__PURE__ */ __name((x) => x, "encode")
   } = options;
-  const endsWith = `[${escapeString((_a = options.endsWith) != null ? _a : "")}]|$`;
-  const delimiter = `[${escapeString((_b = options.delimiter) != null ? _b : "/#?")}]`;
+  const endsWith = `[${escapeString(options.endsWith === void 0 ? "" : options.endsWith)}]|$`;
+  const delimiter = `[${escapeString(options.delimiter === void 0 ? "/#?" : options.delimiter)}]`;
   let route = start ? "^" : "";
   for (const token of tokens) {
     if (typeof token === "string") {
@@ -4334,9 +4332,8 @@ function escapeRegexpString(value) {
 }
 __name(escapeRegexpString, "escapeRegexpString");
 function tokensToPattern(tokens, options) {
-  var _a;
   const wildcardPattern = ".*";
-  const segmentWildcardPattern = `[^${escapeRegexpString((_a = options.delimiter) != null ? _a : "/#?")}]+?`;
+  const segmentWildcardPattern = `[^${escapeRegexpString(options.delimiter === void 0 ? "/#?" : options.delimiter)}]+?`;
   const regexIdentifierPart2 = /[$_\u200C\u200D\p{ID_Continue}]/u;
   let result = "";
   for (let i = 0; i < tokens.length; ++i) {
@@ -4617,7 +4614,7 @@ var URLPattern = /* @__PURE__ */ __name(class {
   }
 }, "URLPattern");
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.6/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.9/node_modules/urlpattern-polyfill/index.js
 if (!globalThis.URLPattern) {
   globalThis.URLPattern = URLPattern;
 }

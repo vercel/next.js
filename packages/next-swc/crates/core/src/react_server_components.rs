@@ -161,7 +161,7 @@ impl<C: Comments> ReactServerComponents<C> {
         prepend_stmts(
             &mut module.body,
             vec![
-                ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Const,
                     decls: vec![VarDeclarator {
@@ -185,7 +185,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         definite: false,
                     }],
                     declare: false,
-                }))),
+                })))),
                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
                     expr: Box::new(Expr::Assign(AssignExpr {
@@ -395,8 +395,14 @@ pub fn server_components<C: Comments>(
             JsWord::from("client-only"),
             JsWord::from("react-dom/client"),
             JsWord::from("react-dom/server"),
+            // TODO-APP: JsWord::from("next/router"),
+            // TODO-APP: Rule out client hooks.
         ],
-        invalid_client_imports: vec![JsWord::from("server-only")],
+        invalid_client_imports: vec![
+            JsWord::from("server-only"),
+            // TODO-APP: Rule out server hooks such as `useCookies`, `useHeaders`,
+            // `usePreviewData`.
+        ],
         invalid_server_react_dom_apis: vec![
             JsWord::from("findDOMNode"),
             JsWord::from("flushSync"),
