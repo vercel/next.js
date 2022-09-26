@@ -1007,14 +1007,7 @@ export default async function getBaseWebpackConfig(
             alias: process.env.__NEXT_REACT_CHANNEL
               ? {
                   react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react/package.json': `react-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
-                  'react/jsx-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-runtime`,
-                  'react/jsx-dev-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-dev-runtime`,
                   'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react-dom/package.json': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
-                  'react-dom/server': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server`,
-                  'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
-                  'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
                 }
               : false,
             conditionNames: ['react-server'],
@@ -1172,10 +1165,10 @@ export default async function getBaseWebpackConfig(
             context,
             request
           )
-          return resolved
+          return `${externalType} ${resolved}`
         } catch (err) {
-          // The `react-server` condition is not matched, fallback.
           return
+          // The `react-server` condition is not matched, fallback.
         }
       }
 

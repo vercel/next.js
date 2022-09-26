@@ -44,6 +44,11 @@ interface ManifestNode {
      * Chunks for the module. JS and CSS.
      */
     chunks: ManifestChunks
+
+    /**
+     * If chunk contains async module
+     */
+    async?: boolean
   }
 }
 
@@ -60,6 +65,37 @@ export type FlightCSSManifest = {
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
+
+// Collect modules from server/edge compiler in client layer,
+// and detect if it's been used, and mark it as `async: true` for react.
+// So that react could unwrap the async module from promise and render module itself.
+export const ASYNC_CLIENT_MODULES = new Set<string>()
+
+export function traverseModules(
+  compilation: webpack.Compilation,
+  callback: (
+    mod: any,
+    chunk: webpack.Chunk,
+    chunkGroup: typeof compilation.chunkGroups[0]
+  ) => any
+) {
+  compilation.chunkGroups.forEach((chunkGroup) => {
+    chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+      const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+        chunk
+        // TODO: Update type so that it doesn't have to be cast.
+      ) as Iterable<webpack.NormalModule>
+      for (const mod of chunkModules) {
+        callback(mod, chunk, chunkGroup)
+        const anyModule = mod as any
+        if (anyModule.modules) {
+          for (const subMod of anyModule.modules)
+            callback(subMod, chunk, chunkGroup)
+        }
+      }
+    })
+  })
+}
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
@@ -121,21 +157,7 @@ export class FlightManifestPlugin {
       }
     }
 
-    compilation.chunkGroups.forEach((chunkGroup) => {
-      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-        const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
-          chunk
-          // TODO: Update type so that it doesn't have to be cast.
-        ) as Iterable<webpack.NormalModule>
-        for (const mod of chunkModules) {
-          collectClientRequest(mod)
-          const anyModule = mod as any
-          if (anyModule.modules) {
-            for (const subMod of anyModule.modules) collectClientRequest(subMod)
-          }
-        }
-      })
-    })
+    traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
       const cssResourcesInChunkGroup = new Set<string>()
@@ -216,6 +238,8 @@ export class FlightManifestPlugin {
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
+        const isAsyncModule = ASYNC_CLIENT_MODULES.has(mod.resource)
+
         const cjsExports = [
           ...new Set([
             ...mod.dependencies.map((dep) => {
@@ -268,6 +292,10 @@ export class FlightManifestPlugin {
               id,
               name,
               chunks: requiredChunks,
+              // E.g.
+              // page (server) -> local module (client) -> package (esm)
+              // The esm package will bubble up to make the entire chain till the client entry as async module.
+              async: isAsyncModule,
             }
           }
 
@@ -312,6 +340,8 @@ export class FlightManifestPlugin {
 
     const file = 'server/' + FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
+
+    ASYNC_CLIENT_MODULES.clear()
 
     assets[file + '.js'] = new sources.RawSource(
       'self.__RSC_MANIFEST=' + json
