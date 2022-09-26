@@ -418,6 +418,18 @@ describe('app dir - react server components', () => {
     )
   })
 
+  it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
+    await fetchViaHTTP(next.url, '/react-server/optout').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('Server: index.default')
+        expect(result).toContain('Server subpath: subpath.default')
+        expect(result).toContain('Client: index.default')
+        expect(result).toContain('Client subpath: subpath.default')
+      }
+    )
+  })
+
   if (!isNextDev) {
     it('should generate edge SSR manifests for Node.js', async () => {
       const distServerDir = path.join(distDir, 'server')

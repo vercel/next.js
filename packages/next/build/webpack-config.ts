@@ -644,6 +644,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             isServer: isNodeServer || isEdgeServer,
+            rootDir: dir,
             pagesDir,
             hasReactRefresh: dev && isClient,
             fileReading: config.experimental.swcFileReading,
@@ -828,14 +829,6 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
-  const reactAliases = {
-    react: reactDir,
-    'react-dom$': reactDomDir,
-    'react-dom/server$': `${reactDomDir}/server`,
-    'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-    'react-dom/client$': `${reactDomDir}/client`,
-  }
-
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -848,7 +841,11 @@ export default async function getBaseWebpackConfig(
     alias: {
       next: NEXT_PROJECT_ROOT,
 
-      ...reactAliases,
+      react: reactDir,
+      'react-dom$': reactDomDir,
+      'react-dom/server$': `${reactDomDir}/server`,
+      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+      'react-dom/client$': `${reactDomDir}/client`,
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
@@ -1011,18 +1008,22 @@ export default async function getBaseWebpackConfig(
             // we need to provide that alias to webpack's resolver.
             alias: process.env.__NEXT_REACT_CHANNEL
               ? {
-                  ...reactAliases,
-                  'react/package.json': `${reactDir}/package.json`,
-                  'react/jsx-runtime': `${reactDir}/jsx-runtime`,
-                  'react/jsx-dev-runtime': `${reactDir}/jsx-dev-runtime`,
-                  'react-dom/package.json': `${reactDomDir}/package.json`,
+                  react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                  'react/package.json': `react-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
+                  'react/jsx-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-runtime`,
+                  'react/jsx-dev-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-dev-runtime`,
+                  'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                  'react-dom/package.json': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
+                  'react-dom/server': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server`,
+                  'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
+                  'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
                 }
               : false,
             conditionNames: ['react-server'],
           })
         : null
 
-    // Special internal modules that must be bundled for Server Components.
+    // Special internal modules that require to be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
       if (!isLocal && /^react(?:$|\/)/.test(request)) {
         const [resolved] = await resolveWithReactServerCondition!(
@@ -1159,7 +1160,15 @@ export default async function getBaseWebpackConfig(
     }
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (layer === WEBPACK_LAYERS.server) {
+      if (
+        layer === WEBPACK_LAYERS.server &&
+        (!config.experimental?.optoutServerComponentsBundle ||
+          !config.experimental?.optoutServerComponentsBundle.some(
+            // Check if a package is opt-out of Server Components bundling.
+            (packageName) =>
+              new RegExp(`node_modules[/\\\\]${packageName}[/\\\\]`).test(res)
+          ))
+      ) {
         try {
           const [resolved] = await resolveWithReactServerCondition!(
             context,

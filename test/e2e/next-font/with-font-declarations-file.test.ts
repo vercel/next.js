@@ -30,6 +30,9 @@ describe('@next/font/google with-font-declarations-file', () => {
         'fonts.js': new FileRef(
           join(__dirname, 'with-font-declarations-file/fonts.js')
         ),
+        'my-font.woff2': new FileRef(
+          join(__dirname, 'with-font-declarations-file/my-font.woff2')
+        ),
         'next.config.js': new FileRef(
           join(__dirname, 'with-font-declarations-file/next.config.js')
         ),
@@ -53,7 +56,7 @@ describe('@next/font/google with-font-declarations-file', () => {
 
     if (isDev) {
       // In dev all fonts will be preloaded since it's before DCE
-      expect($('link[as="font"]').length).toBe(3)
+      expect($('link[as="font"]').length).toBe(4)
     } else {
       // Preload
       expect($('link[as="font"]').length).toBe(2)
@@ -85,7 +88,7 @@ describe('@next/font/google with-font-declarations-file', () => {
 
     if (isDev) {
       // In dev all fonts will be preloaded since it's before DCE
-      expect($('link[as="font"]').length).toBe(3)
+      expect($('link[as="font"]').length).toBe(4)
     } else {
       // Preload
       expect($('link[as="font"]').length).toBe(2)
@@ -102,6 +105,38 @@ describe('@next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: '/_next/static/fonts/9a7e84b4dd095b33.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    }
+  })
+
+  test('preload correct files at /local-font', async () => {
+    const html = await renderViaHTTP(next.url, '/local-font')
+    const $ = cheerio.load(html)
+
+    // Preconnect
+    expect($('link[rel="preconnect"]').length).toBe(0)
+
+    if (isDev) {
+      // In dev all fonts will be preloaded since it's before DCE
+      expect($('link[as="font"]').length).toBe(4)
+    } else {
+      // Preload
+      expect($('link[as="font"]').length).toBe(2)
+      // From /_app
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/fonts/0812efcfaefec5ea.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      // From /local-font
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/fonts/2a931eed088772c9.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
       })

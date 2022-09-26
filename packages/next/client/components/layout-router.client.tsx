@@ -11,7 +11,10 @@ import type {
   ChildProp,
   //Segment
 } from '../../server/app-render'
-import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
+import type {
+  AppRouterInstance,
+  ChildSegmentMap,
+} from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -21,6 +24,7 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
+  AppRouterContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
 import { createInfinitePromise } from './infinite-promise'
@@ -285,6 +289,97 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
+interface RedirectBoundaryProps {
+  router: AppRouterInstance
+  children: React.ReactNode
+}
+
+function InfinitePromiseComponent() {
+  use(createInfinitePromise())
+  return <></>
+}
+
+class RedirectErrorBoundary extends React.Component<
+  RedirectBoundaryProps,
+  { redirect: string | null }
+> {
+  constructor(props: RedirectBoundaryProps) {
+    super(props)
+    this.state = { redirect: null }
+  }
+
+  static getDerivedStateFromError(error: any) {
+    if (error.digest === 'NEXT_REDIRECT') {
+      return { redirect: error.url }
+    }
+    // Re-throw if error is not for 404
+    throw error
+  }
+
+  render() {
+    const redirect = this.state.redirect
+    if (redirect !== null) {
+      setTimeout(() => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          this.props.router.replace(redirect, {})
+        })
+      })
+      return <InfinitePromiseComponent />
+    }
+
+    return this.props.children
+  }
+}
+
+function RedirectBoundary({ children }: { children: React.ReactNode }) {
+  const router = useContext(AppRouterContext)
+  return (
+    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
+  )
+}
+
+interface NotFoundBoundaryProps {
+  notFound?: React.ReactNode
+  children: React.ReactNode
+}
+
+class NotFoundErrorBoundary extends React.Component<
+  NotFoundBoundaryProps,
+  { notFoundTriggered: boolean }
+> {
+  constructor(props: NotFoundBoundaryProps) {
+    super(props)
+    this.state = { notFoundTriggered: false }
+  }
+
+  static getDerivedStateFromError(error: any) {
+    if (error.code === 'NEXT_NOT_FOUND') {
+      return { notFoundTriggered: true }
+    }
+    // Re-throw if error is not for 404
+    throw error
+  }
+
+  render() {
+    if (this.state.notFoundTriggered) {
+      return this.props.notFound
+    }
+
+    return this.props.children
+  }
+}
+
+function NotFoundBoundary({ notFound, children }: NotFoundBoundaryProps) {
+  return notFound ? (
+    <NotFoundErrorBoundary notFound={notFound}>
+      {children}
+    </NotFoundErrorBoundary>
+  ) : (
+    <>{children}</>
+  )
+}
+
 type ErrorComponent = React.ComponentType<{ error: Error; reset: () => void }>
 interface ErrorBoundaryProps {
   errorComponent: ErrorComponent
@@ -355,6 +450,7 @@ export default function OuterLayoutRouter({
   error,
   loading,
   template,
+  notFound,
   rootLayoutIncluded,
 }: {
   parallelRouterKey: string
@@ -363,6 +459,7 @@ export default function OuterLayoutRouter({
   error: ErrorComponent
   template: React.ReactNode
   loading: React.ReactNode | undefined
+  notFound: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
   const { childNodes, tree, url } = useContext(LayoutRouterContext)
@@ -413,19 +510,25 @@ export default function OuterLayoutRouter({
             value={
               <ErrorBoundary errorComponent={error}>
                 <LoadingBoundary loading={loading}>
-                  <InnerLayoutRouter
-                    parallelRouterKey={parallelRouterKey}
-                    url={url}
-                    tree={tree}
-                    childNodes={childNodesForParallelRouter!}
-                    childProp={
-                      childPropSegment === preservedSegment ? childProp : null
-                    }
-                    segmentPath={segmentPath}
-                    path={preservedSegment}
-                    isActive={currentChildSegment === preservedSegment}
-                    rootLayoutIncluded={rootLayoutIncluded}
-                  />
+                  <NotFoundBoundary notFound={notFound}>
+                    <RedirectBoundary>
+                      <InnerLayoutRouter
+                        parallelRouterKey={parallelRouterKey}
+                        url={url}
+                        tree={tree}
+                        childNodes={childNodesForParallelRouter!}
+                        childProp={
+                          childPropSegment === preservedSegment
+                            ? childProp
+                            : null
+                        }
+                        segmentPath={segmentPath}
+                        path={preservedSegment}
+                        isActive={currentChildSegment === preservedSegment}
+                        rootLayoutIncluded={rootLayoutIncluded}
+                      />
+                    </RedirectBoundary>
+                  </NotFoundBoundary>
                 </LoadingBoundary>
               </ErrorBoundary>
             }

@@ -78,6 +78,8 @@ describe('@next/font/google loader', () => {
         data: [{ adjustFontFallback: false, ...data }],
         config: { subsets: [] },
         emitFontFile: jest.fn(),
+        resolve: jest.fn(),
+        fs: {} as any,
       })
       expect(css).toBe('OK')
       expect(fetch).toHaveBeenCalledTimes(1)
@@ -96,6 +98,8 @@ describe('@next/font/google loader', () => {
         data: [],
         config: { subsets: [] },
         emitFontFile: jest.fn(),
+        resolve: jest.fn(),
+        fs: {} as any,
       })
       expect(css).toMatchInlineSnapshot(`
 "
@@ -121,6 +125,8 @@ describe('@next/font/google loader', () => {
         data: [],
         config: { subsets: [] },
         emitFontFile: jest.fn(),
+        resolve: jest.fn(),
+        fs: {} as any,
       })
       expect(css).toMatchInlineSnapshot(`
 "
@@ -146,6 +152,8 @@ describe('@next/font/google loader', () => {
         data: [{ fallback: ['Abc', 'Def'] }],
         config: { subsets: [] },
         emitFontFile: jest.fn(),
+        resolve: jest.fn(),
+        fs: {} as any,
       })
       expect(css).toMatchInlineSnapshot(`
 "
@@ -171,6 +179,8 @@ describe('@next/font/google loader', () => {
         data: [{ adjustFontFallback: false, fallback: ['system-ui', 'Arial'] }],
         config: { subsets: [] },
         emitFontFile: jest.fn(),
+        resolve: jest.fn(),
+        fs: {} as any,
       })
       expect(css).toBe('')
       expect(fallbackFonts).toEqual(['system-ui', 'Arial'])
@@ -189,6 +199,8 @@ describe('@next/font/google loader', () => {
           data: [],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
                         "Failed to fetch font  \`Inter\`.
@@ -203,6 +215,8 @@ describe('@next/font/google loader', () => {
           data: [],
           config: undefined,
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Please specify subsets for \`@next/font/google\` in your \`next.config.js\`"`
@@ -216,6 +230,8 @@ describe('@next/font/google loader', () => {
           data: [],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"@next/font/google has no default export"`
@@ -229,6 +245,8 @@ describe('@next/font/google loader', () => {
           data: [],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unknown font \`Unknown Font\`"`
@@ -242,6 +260,8 @@ describe('@next/font/google loader', () => {
           data: [{ variant: '123' }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
                       "Unknown variant \`123\` for font \`Inter\`.
@@ -256,6 +276,8 @@ describe('@next/font/google loader', () => {
           data: [],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Missing variant for font \`Abel\`.
@@ -270,6 +292,8 @@ describe('@next/font/google loader', () => {
           data: [{ display: 'invalid' }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
                       "Invalid display value \`invalid\` for font \`Inter\`.
@@ -284,6 +308,8 @@ describe('@next/font/google loader', () => {
           data: [{ variant: '400', axes: [] }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Axes can only be defined for variable fonts"`
@@ -297,6 +323,8 @@ describe('@next/font/google loader', () => {
           data: [{ axes: [] }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Font \`Lora\` has no definable \`axes\`"`
@@ -310,6 +338,8 @@ describe('@next/font/google loader', () => {
           data: [{ axes: true }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid axes value for font \`Inter\`, expected an array of axes.
@@ -324,6 +354,8 @@ describe('@next/font/google loader', () => {
           data: [{ axes: ['INVALID'] }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          fs: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid axes value \`INVALID\` for font \`Roboto Flex\`.

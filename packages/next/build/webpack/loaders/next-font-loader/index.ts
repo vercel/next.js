@@ -1,13 +1,10 @@
+import type { FontLoader } from '../../../../font'
+
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import postcssFontLoaderPlugn from './postcss-font-loader'
-
-type FontLoader = (options: {
-  functionName: string
-  data: any[]
-  config: any
-  emitFontFile: (content: Buffer, ext: string, preload: boolean) => string
-}) => Promise<{ css: string; fallbackFonts: string[] }>
+import { promisify } from 'util'
+import chalk from 'next/dist/compiled/chalk'
 
 export default async function nextFontLoader(this: any) {
   const fontLoaderSpan = this.currentTraceSpan.traceChild('next-font-loader')
@@ -36,7 +33,9 @@ export default async function nextFontLoader(this: any) {
     }
 
     // next-swc next_font_loaders turns each function call argument into JSON seperated by semicolons
-    let [functionName, ...data] = this.resourceQuery.slice(1).split(';')
+    let [relativeFilePathFromRoot, functionName, ...data] = this.resourceQuery
+      .slice(1)
+      .split(';')
     data = data.map((value: string) => JSON.parse(value))
 
     try {
@@ -49,6 +48,12 @@ export default async function nextFontLoader(this: any) {
         data,
         config: fontLoaderOptions,
         emitFontFile,
+        resolve: (src: string) =>
+          promisify(this.resolve)(
+            path.dirname(path.join(this.rootContext, relativeFilePathFromRoot)),
+            src
+          ),
+        fs: this.fs,
       })
 
       const { postcss } = await getPostcss()
@@ -77,6 +82,9 @@ export default async function nextFontLoader(this: any) {
       callback(null, result.css, null, { exports, ast, fontFamilyHash })
     } catch (err: any) {
       err.stack = false
+      err.message += `
+
+${chalk.cyan(`Location: ${relativeFilePathFromRoot}`)}`
       callback(err)
     }
   })

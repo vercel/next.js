@@ -4,6 +4,7 @@ module.exports = {
       '@next/font/google': {
         subsets: ['latin'],
       },
+      '@next/font/local': {},
     },
   },
 }
