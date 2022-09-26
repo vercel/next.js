@@ -83,14 +83,14 @@ module.exports = {
 }
 ```
 
-When enabled, Next.js will generate a fallback font definition with the correct size overrides in the format `{hyphenatedFontName}-fallback`.
-For example, the font `Inter` will generate the fallback font `fallback-inter`.
+When enabled, Next.js will generate a fallback font definition with the correct size overrides in the format `{fontName} Fallback`.
+For example, the font `Inter` will generate the fallback font `Inter Fallback`.
 
 You can then use the fallback font in your stylesheets such as the following:
 
 ```css
 body {
-  font-family: 'Inter', inter-fallback, sans-serif;
+  font-family: 'Inter', 'Inter Fallback', sans-serif;
 }
 ```
 
@@ -103,13 +103,13 @@ The final output will include the fallback override definition.
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <style data-href="https://fonts.googleapis.com/css2?family=Inter&display=swap">
   @font-face{
-    font-family:'Inter';
+    font-family: 'Inter';
     font-style:normal
     ...
   }
 
   @font-face {
-    font-family: inter-fallback,
+    font-family: 'Inter Fallback',
     src: local('Arial');
     ascent-override: 96.975%;
     ...
