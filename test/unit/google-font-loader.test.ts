@@ -104,7 +104,7 @@ describe('@next/font/google loader', () => {
       expect(css).toMatchInlineSnapshot(`
 "
     @font-face {
-      font-family: \\"inter-fallback\\";
+      font-family: \\"Inter Fallback\\";
       ascent-override: 96.88%;
       descent-override: 24.15%;
       line-gap-override: 0.00%;
@@ -131,7 +131,7 @@ describe('@next/font/google loader', () => {
       expect(css).toMatchInlineSnapshot(`
 "
     @font-face {
-      font-family: \\"source-code-pro-fallback\\";
+      font-family: \\"Source Code Pro Fallback\\";
       ascent-override: 98.40%;
       descent-override: 27.30%;
       line-gap-override: 0.00%;
@@ -158,7 +158,7 @@ describe('@next/font/google loader', () => {
       expect(css).toMatchInlineSnapshot(`
 "
     @font-face {
-      font-family: \\"fraunces-fallback\\";
+      font-family: \\"Fraunces Fallback\\";
       ascent-override: 97.80%;
       descent-override: 25.50%;
       line-gap-override: 0.00%;
