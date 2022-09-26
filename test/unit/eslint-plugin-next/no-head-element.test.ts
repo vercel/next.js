@@ -61,7 +61,7 @@ ruleTester.run('no-head-element', rule, {
         );
       }
     `,
-      filename: 'app/layout.js',
+      filename: './app/layout.js',
     },
   ],
   invalid: [
@@ -78,7 +78,7 @@ ruleTester.run('no-head-element', rule, {
           );
         }
       }`,
-      filename: 'pages/index.js',
+      filename: './pages/index.js',
       errors: [
         {
           message:
