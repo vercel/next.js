@@ -120,8 +120,12 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
   serverComponents,
+  enableUndici,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpClientAndAgentOptions({ httpAgentOptions })
+  setHttpClientAndAgentOptions({
+    httpAgentOptions,
+    experimental: { enableUndici },
+  })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
