@@ -46,7 +46,7 @@ type InternalLinkProps = {
   /**
    * Replace the current `history` state instead of adding a new url into the stack.
    *
-   * @defaultValue `false`
+   * @defaultValue `true`
    */
   scroll?: boolean
   /**
