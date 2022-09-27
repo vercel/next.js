@@ -159,8 +159,9 @@ export class NextInstance {
     // then copy the modules back to node_modules after installation.
     const tempNodeModulesPath = path.join(this.testDir, tempNodeModulesFolder)
     const nodeModulesDir = path.join(this.testDir, 'node_modules')
-    const nodeModulesStats = await fs.stat(nodeModulesDir)
-    const hasNodeModulesDir = nodeModulesStats.isDirectory()
+    const hasNodeModulesDir =
+      fs.existsSync(nodeModulesDir) &&
+      (await fs.stat(nodeModulesDir)).isDirectory()
     if (hasNodeModulesDir) {
       // Move node_modules to temp folder
       await fs.move(nodeModulesDir, tempNodeModulesPath)
