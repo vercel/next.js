@@ -18,6 +18,7 @@ import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
   unstable_allowDynamicGlobs: string[]
+  regions: string[] | string
 }
 
 export interface MiddlewareMatcher {
@@ -31,7 +32,6 @@ export interface PageStaticInfo {
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
-  userConfig: Record<string, unknown> | undefined
   middleware?: Partial<MiddlewareConfig>
 }
 
@@ -185,6 +185,10 @@ function getMiddlewareConfig(
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
+  if (typeof config.regions === 'string' || Array.isArray(config.regions)) {
+    result.regions = config.regions
+  }
+
   if (config.unstable_allowDynamic) {
     result.unstable_allowDynamicGlobs = Array.isArray(
       config.unstable_allowDynamic
@@ -316,7 +320,6 @@ export async function getPageStaticInfo(params: {
       ssr,
       ssg,
       rsc,
-      userConfig: config,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(runtime && { runtime }),
     }
@@ -327,6 +330,5 @@ export async function getPageStaticInfo(params: {
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
     runtime: nextConfig.experimental?.runtime,
-    userConfig: undefined,
   }
 }

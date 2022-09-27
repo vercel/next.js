@@ -14,7 +14,6 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
     nextEdgeApiFunction?: EdgeMiddlewareMeta
     nextEdgeSSR?: EdgeSSRMeta
     nextUsedEnvVars?: Set<string>
-    nextUserConfig?: Record<string, unknown> | undefined
     nextWasmMiddlewareBinding?: AssetBinding
     nextAssetMiddlewareBinding?: AssetBinding
     usingIndirectEval?: boolean | Set<string>

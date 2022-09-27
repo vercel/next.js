@@ -36,7 +36,6 @@ export interface EdgeFunctionDefinition {
   matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
-  // TODO(schniz): mark as optional
   regions?: string[] | string
 }
 
@@ -51,10 +50,10 @@ interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
-  userConfig: Record<string, unknown> | undefined
   env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
+  regions?: string[] | string
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -167,13 +166,6 @@ function getCreateAssets(params: {
         { regexp: namedRegex },
       ]
 
-      const regions =
-        metadata.userConfig &&
-        (Array.isArray(metadata.userConfig.regions) ||
-          typeof metadata.userConfig.regions === 'string')
-          ? metadata.userConfig.regions
-          : undefined
-
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata, opts),
@@ -188,7 +180,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
-        ...(regions && { regions }),
+        ...(metadata.regions && { regions: metadata.regions }),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {
@@ -686,7 +678,6 @@ function getExtractMetadata(params: {
         env: new Set<string>(),
         wasmBindings: new Map(),
         assetBindings: new Map(),
-        userConfig: undefined,
       }
 
       for (const module of modules) {
@@ -749,6 +740,18 @@ function getExtractMetadata(params: {
           }
         }
 
+        if (edgeFunctionConfig?.config?.regions) {
+          telemetry.record({
+            eventName: 'NEXT_EDGE_REGIONS_USED',
+            payload: {
+              ...edgeFunctionConfig,
+              file: edgeFunctionConfig.file.replace(rootDir ?? '', ''),
+            },
+          })
+
+          entryMetadata.regions = edgeFunctionConfig.config.regions
+        }
+
         /**
          * The entry module has to be either a page or a middleware and hold
          * the corresponding metadata.
@@ -769,10 +772,6 @@ function getExtractMetadata(params: {
           for (const envName of buildInfo.nextUsedEnvVars) {
             entryMetadata.env.add(envName)
           }
-        }
-
-        if (buildInfo?.nextUserConfig) {
-          entryMetadata.userConfig = buildInfo.nextUserConfig
         }
 
         /**

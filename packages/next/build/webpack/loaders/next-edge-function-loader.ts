@@ -5,19 +5,13 @@ export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
   page: string
   rootDir: string
-  userConfig?: string
 }
 
 export default function middlewareLoader(this: any) {
-  const {
-    absolutePagePath,
-    page,
-    rootDir,
-    userConfig,
-  }: EdgeFunctionLoaderOptions = this.getOptions()
+  const { absolutePagePath, page, rootDir }: EdgeFunctionLoaderOptions =
+    this.getOptions()
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.nextUserConfig = userConfig ? JSON.parse(userConfig) : undefined
   buildInfo.nextEdgeApiFunction = {
     page: page || '/',
   }
