@@ -628,52 +628,59 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  const getBabelOrSwcLoader = () => {
-    if (useSWCLoader && config?.experimental?.swcTraceProfiling) {
+  const getBabelLoader = () => {
+    return {
+      loader: require.resolve('./babel/loader/index'),
+      options: {
+        configFile: babelConfigFile,
+        isServer: isNodeServer || isEdgeServer,
+        distDir,
+        pagesDir,
+        cwd: dir,
+        development: dev,
+        hasReactRefresh: dev && isClient,
+        hasJsxRuntime: true,
+      },
+    }
+  }
+
+  let swcTraceProfilingInitialized = false
+  const getSwcLoader = (extraOptions?: any) => {
+    if (
+      config?.experimental?.swcTraceProfiling &&
+      !swcTraceProfilingInitialized
+    ) {
       // This will init subscribers once only in a single process lifecycle,
       // even though it can be called multiple times.
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
+      swcTraceProfilingInitialized = true
       require('./swc')?.initCustomTraceSubscriber?.(
         path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
       )
     }
 
-    return useSWCLoader
-      ? {
-          loader: 'next-swc-loader',
-          options: {
-            isServer: isNodeServer || isEdgeServer,
-            rootDir: dir,
-            pagesDir,
-            hasReactRefresh: dev && isClient,
-            fileReading: config.experimental.swcFileReading,
-            nextConfig: config,
-            jsConfig,
-            supportedBrowsers: config.experimental.browsersListForSwc
-              ? supportedBrowsers
-              : undefined,
-            swcCacheDir: path.join(
-              dir,
-              config?.distDir ?? '.next',
-              'cache',
-              'swc'
-            ),
-          },
-        }
-      : {
-          loader: require.resolve('./babel/loader/index'),
-          options: {
-            configFile: babelConfigFile,
-            isServer: isNodeServer || isEdgeServer,
-            distDir,
-            pagesDir,
-            cwd: dir,
-            development: dev,
-            hasReactRefresh: dev && isClient,
-            hasJsxRuntime: true,
-          },
-        }
+    return {
+      loader: 'next-swc-loader',
+      options: {
+        isServer: isNodeServer || isEdgeServer,
+        rootDir: dir,
+        pagesDir,
+        hasReactRefresh: dev && isClient,
+        fileReading: config.experimental.swcFileReading,
+        nextConfig: config,
+        jsConfig,
+        supportedBrowsers: config.experimental.browsersListForSwc
+          ? supportedBrowsers
+          : undefined,
+        swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        ...extraOptions,
+      },
+    }
+  }
+
+  const getBabelOrSwcLoader = () => {
+    return useSWCLoader ? getSwcLoader() : getBabelLoader()
   }
 
   const defaultLoaders = {
@@ -1613,13 +1620,16 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
-                    use: {
-                      ...defaultLoaders.babel,
-                      options: {
-                        ...defaultLoaders.babel.options,
-                        isServerLayer: true,
-                      },
-                    },
+                    use: useSWCLoader
+                      ? getSwcLoader({ isServerLayer: true })
+                      : // When using Babel, we will have to add the SWC loader
+                        // as an additional pass to handle RSC correctly.
+                        // This will cause some performance overhead but
+                        // acceptable as Babel will not be recommended.
+                        [
+                          getSwcLoader({ isServerLayer: true }),
+                          getBabelLoader(),
+                        ],
                   },
                 ]
               : []),
