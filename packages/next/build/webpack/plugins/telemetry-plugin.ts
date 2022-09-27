@@ -110,15 +110,11 @@ function findFeatureInModule(module: Module): Feature | undefined {
  * dependency.
  */
 function findUniqueOriginModulesInConnections(
-  connections: Connection[],
-  originModule: Module
+  connections: Connection[]
 ): Set<unknown> {
   const originModules = new Set()
   for (const connection of connections) {
-    if (
-      !originModules.has(connection.originModule) &&
-      connection.originModule !== originModule
-    ) {
+    if (!originModules.has(connection.originModule)) {
       originModules.add(connection.originModule)
     }
   }
@@ -165,10 +161,8 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
               const connections = (
                 compilation as any
               ).moduleGraph.getIncomingConnections(module)
-              const originModules = findUniqueOriginModulesInConnections(
-                connections,
-                module
-              )
+              const originModules =
+                findUniqueOriginModulesInConnections(connections)
               this.usageTracker.get(feature)!.invocationCount =
                 originModules.size
             }

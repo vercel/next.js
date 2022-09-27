@@ -18,18 +18,6 @@ export type EdgeSSRLoaderQuery = {
   hasFontLoaders: boolean
 }
 
-/*
-For pages SSR'd at the edge, we bundle them with the ESM version of Next in order to
-benefit from the better tree-shaking and thus, smaller bundle sizes.
-
-The absolute paths for _app, _error and _document, used in this loader, link to the regular CJS modules.
-They are generated in `createPagesMapping` where we don't have access to `isEdgeRuntime`,
-so we have to do it here. It's not that bad because it keeps all references to ESM modules magic in this place.
-*/
-function swapDistFolderWithEsmDistFolder(path: string) {
-  return path.replace('next/dist/pages', 'next/dist/esm/pages')
-}
-
 export default async function edgeSSRLoader(this: any) {
   const {
     dev,
@@ -66,18 +54,9 @@ export default async function edgeSSRLoader(this: any) {
   }
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
-  const stringifiedAppPath = stringifyRequest(
-    this,
-    swapDistFolderWithEsmDistFolder(absoluteAppPath)
-  )
-  const stringifiedErrorPath = stringifyRequest(
-    this,
-    swapDistFolderWithEsmDistFolder(absoluteErrorPath)
-  )
-  const stringifiedDocumentPath = stringifyRequest(
-    this,
-    swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
-  )
+  const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)
+  const stringifiedErrorPath = stringifyRequest(this, absoluteErrorPath)
+  const stringifiedDocumentPath = stringifyRequest(this, absoluteDocumentPath)
   const stringified500Path = absolute500Path
     ? stringifyRequest(this, absolute500Path)
     : null
@@ -88,8 +67,8 @@ export default async function edgeSSRLoader(this: any) {
   )}`
 
   const transformed = `
-    import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
-    import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
+    import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
+    import { getRender } from 'next/dist/build/webpack/loaders/next-edge-ssr-loader/render'
 
     enhanceGlobals()
 
@@ -98,7 +77,7 @@ export default async function edgeSSRLoader(this: any) {
       isAppDir
         ? `
       const Document = null
-      const appRenderToHTML = require('next/dist/esm/server/app-render').renderToHTMLOrFlight
+      const appRenderToHTML = require('next/dist/server/app-render').renderToHTMLOrFlight
       const pagesRenderToHTML = null
       const pageMod = require(${JSON.stringify(pageModPath)})
       const appMod = null
@@ -108,7 +87,7 @@ export default async function edgeSSRLoader(this: any) {
         : `
       const Document = require(${stringifiedDocumentPath}).default
       const appRenderToHTML = null
-      const pagesRenderToHTML = require('next/dist/esm/server/render').renderToHTML
+      const pagesRenderToHTML = require('next/dist/server/render').renderToHTML
       const pageMod = require(${stringifiedPagePath})
       const appMod = require(${stringifiedAppPath})
       const errorMod = require(${stringifiedErrorPath})

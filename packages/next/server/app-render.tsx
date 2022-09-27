@@ -258,10 +258,7 @@ function useFlightResponse(
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
-    moduleMap:
-      process.env.NEXT_RUNTIME === 'edge'
-        ? serverComponentManifest.__edge_ssr_module_mapping__
-        : serverComponentManifest.__ssr_module_mapping__,
+    moduleMap: serverComponentManifest.__ssr_module_mapping__,
   })
   flightResponseRef.current = res
 
@@ -273,7 +270,7 @@ function useFlightResponse(
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
 
-  function read() {
+  function process() {
     forwardReader.read().then(({ done, value }) => {
       if (value) {
         rscChunks.push(value)
@@ -299,11 +296,11 @@ function useFlightResponse(
         )})</script>`
 
         writer.write(encodeText(scripts))
-        read()
+        process()
       }
     })
   }
-  read()
+  process()
 
   return res
 }
