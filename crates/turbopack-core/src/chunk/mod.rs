@@ -360,12 +360,12 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
                             false
                         };
                     if is_async {
-                        if let Some((direct_chunk_item, fat_chunk_asset)) =
+                        if let Some((manifest_loader_item, manifest_chunk)) =
                             I::from_async_asset(context, chunkable_asset).await?
                         {
-                            inner_chunk_items.push(direct_chunk_item);
+                            inner_chunk_items.push(manifest_loader_item);
                             inner_chunk_groups
-                                .push(ChunkGroupVc::from_asset(fat_chunk_asset, context));
+                                .push(ChunkGroupVc::from_asset(manifest_chunk, context));
                             inner_chunk_groups
                                 .push(ChunkGroupVc::from_asset(chunkable_asset, context));
                             continue;

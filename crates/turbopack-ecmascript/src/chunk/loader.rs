@@ -20,7 +20,6 @@ use crate::{
         EcmascriptExportsVc,
     },
     utils::{stringify_module_id, stringify_str},
-    EcmascriptModuleAssetVc,
 };
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic
@@ -164,12 +163,7 @@ impl ManifestChunkAssetVc {
     #[turbo_tasks::function]
     async fn chunks(self) -> Result<ChunksVc> {
         let this = self.await?;
-        let chunk_group =
-            if let Some(ecma) = EcmascriptModuleAssetVc::resolve_from(this.asset).await? {
-                ChunkGroupVc::from_chunk(ecma.as_evaluated_chunk(this.chunking_context, None))
-            } else {
-                ChunkGroupVc::from_asset(this.asset, this.chunking_context)
-            };
+        let chunk_group = ChunkGroupVc::from_asset(this.asset, this.chunking_context);
         Ok(chunk_group.chunks())
     }
 }
