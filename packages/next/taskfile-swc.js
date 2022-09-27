@@ -18,7 +18,6 @@ module.exports = function (task) {
         stripExtension,
         keepImportAssertions = false,
         interopClientDefaultExport = false,
-        esm = false,
       } = {}
     ) {
       // Don't compile .d.ts
@@ -29,7 +28,7 @@ module.exports = function (task) {
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
         module: {
-          type: esm ? 'es6' : 'commonjs',
+          type: 'commonjs',
           ignoreDynamic: true,
         },
         jsc: {
@@ -60,7 +59,7 @@ module.exports = function (task) {
       /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
         module: {
-          type: esm ? 'es6' : 'commonjs',
+          type: 'commonjs',
           ignoreDynamic: true,
         },
         env: {
@@ -127,7 +126,7 @@ module.exports = function (task) {
       }
 
       if (output.map) {
-        if (interopClientDefaultExport && !esm) {
+        if (interopClientDefaultExport) {
           output.code += `
 if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
   Object.defineProperty(exports.default, '__esModule', { value: true });
