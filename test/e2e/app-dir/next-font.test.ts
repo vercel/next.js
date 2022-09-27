@@ -38,26 +38,26 @@ describe('app dir next-font', () => {
 
       // layout
       expect(JSON.parse($('#root-layout').text())).toEqual({
-        className: '__className_93eede',
-        variable: '__variable_93eede',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: "'__font1_93eede'",
+          fontFamily: expect.stringMatching(/^'__font1_.{6}'$/),
         },
       })
       // page
       expect(JSON.parse($('#root-page').text())).toEqual({
-        className: '__className_4b5678',
-        variable: '__variable_4b5678',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: "'__font2_4b5678'",
+          fontFamily: expect.stringMatching(/^'__font2_.{6}'$/),
         },
       })
       // Comp
       expect(JSON.parse($('#root-comp').text())).toEqual({
-        className: '__className_6bca31',
-        variable: '__variable_6bca31',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: "'__font3_6bca31'",
+          fontFamily: expect.stringMatching(/^'__font3_.{6}'$/),
           fontStyle: 'italic',
           fontWeight: 900,
         },
@@ -70,37 +70,37 @@ describe('app dir next-font', () => {
 
       // root layout
       expect(JSON.parse($('#root-layout').text())).toEqual({
-        className: '__className_93eede',
-        variable: '__variable_93eede',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: "'__font1_93eede'",
+          fontFamily: expect.stringMatching(/^'__font1_.{6}'$/),
         },
       })
 
       // layout
       expect(JSON.parse($('#client-layout').text())).toEqual({
-        className: '__className_d04ca7',
-        variable: '__variable_d04ca7',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: "'__font4_d04ca7'",
+          fontFamily: expect.stringMatching(/^'__font4_.{6}'$/),
           fontWeight: 100,
         },
       })
       // page
       expect(JSON.parse($('#client-page').text())).toEqual({
-        className: '__className_946a38',
-        variable: '__variable_946a38',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: "'__font5_946a38'",
+          fontFamily: expect.stringMatching(/^'__font5_.{6}'$/),
           fontStyle: 'italic',
         },
       })
       // Comp
       expect(JSON.parse($('#client-comp').text())).toEqual({
-        className: '__className_325599',
-        variable: '__variable_325599',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: "'__font6_325599'",
+          fontFamily: expect.stringMatching(/^'__font6_.{6}'$/),
         },
       })
     })
@@ -115,7 +115,7 @@ describe('app dir next-font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#root-layout")).fontFamily'
         )
-      ).toBe('__font1_93eede')
+      ).toMatch(/^__font1_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#root-layout")).fontWeight'
@@ -132,7 +132,7 @@ describe('app dir next-font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#root-page")).fontFamily'
         )
-      ).toBe('__font2_4b5678')
+      ).toMatch(/^__font2_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#root-page")).fontWeight'
@@ -149,7 +149,7 @@ describe('app dir next-font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#root-comp")).fontFamily'
         )
-      ).toBe('__font3_6bca31')
+      ).toMatch(/^__font3_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#root-comp")).fontWeight'
@@ -170,7 +170,7 @@ describe('app dir next-font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#root-layout")).fontFamily'
         )
-      ).toBe('__font1_93eede')
+      ).toMatch(/^__font1_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#root-layout")).fontWeight'
@@ -187,7 +187,7 @@ describe('app dir next-font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#client-layout")).fontFamily'
         )
-      ).toBe('__font4_d04ca7')
+      ).toMatch(/^__font4_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#client-layout")).fontWeight'
@@ -204,7 +204,7 @@ describe('app dir next-font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#client-page")).fontFamily'
         )
-      ).toBe('__font5_946a38')
+      ).toMatch(/^__font5_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#client-page")).fontWeight'
@@ -221,7 +221,7 @@ describe('app dir next-font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#client-comp")).fontFamily'
         )
-      ).toBe('__font6_325599')
+      ).toMatch(/^__font6_.{6}$/)
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#client-comp")).fontWeight'
