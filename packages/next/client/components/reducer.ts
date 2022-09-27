@@ -7,9 +7,46 @@ import type {
   Segment,
 } from '../../server/app-render'
 // TODO-APP: change to React.use once it becomes stable
-import { experimental_use as use } from 'react'
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
+
+type Thenable<T> = Promise<T> & {
+  status: 'pending' | 'fulfilled' | 'rejected'
+  value: T
+}
+
+/**
+ * Create data fetching record for Promise.
+ */
+function createRecordFromThenable<T>(thenable: Thenable<T>): Promise<T> {
+  thenable.status = 'pending'
+  thenable.then(
+    (value) => {
+      if (thenable.status === 'pending') {
+        thenable.status = 'fulfilled'
+        thenable.value = value
+      }
+    },
+    (err) => {
+      if (thenable.status === 'pending') {
+        thenable.status = 'rejected'
+        thenable.value = err
+      }
+    }
+  )
+  return thenable
+}
+
+/**
+ * Read record value or throw Promise if it's not resolved yet.
+ */
+function readRecordValue<T>(thenable: Thenable<T>): T {
+  if (thenable.status === 'fulfilled') {
+    return thenable.value
+  } else {
+    throw thenable
+  }
+}
 
 function createHrefFromUrl(url: URL): string {
   return url.pathname + url.search + url.hash
@@ -781,11 +818,13 @@ export function reducer(
 
       // If no in-flight fetch at the top, start it.
       if (!cache.data) {
-        cache.data = fetchServerResponse(url, state.tree)
+        cache.data = createRecordFromThenable(
+          fetchServerResponse(url, state.tree)
+        )
       }
 
       // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-      const [flightData, canonicalUrlOverride] = use(cache.data)
+      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -993,14 +1032,16 @@ export function reducer(
 
       if (!cache.data) {
         // Fetch data from the root of the tree.
-        cache.data = fetchServerResponse(new URL(href, location.origin), [
-          state.tree[0],
-          state.tree[1],
-          state.tree[2],
-          'refetch',
-        ])
+        cache.data = createRecordFromThenable(
+          fetchServerResponse(new URL(href, location.origin), [
+            state.tree[0],
+            state.tree[1],
+            state.tree[2],
+            'refetch',
+          ])
+        )
       }
-      const [flightData, canonicalUrlOverride] = use(cache.data)
+      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
