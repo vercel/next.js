@@ -1,0 +1,14 @@
+{
+  "name": "stats-app",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "webpack-stats-plugin": "^0.3.0",
+    "webpack-bundle-analyzer": "^3.3.2"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  }
+}
