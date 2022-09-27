@@ -1,2 +1,2 @@
-import inter from "@next/font/google?pages/test.tsx;Inter;{};[]";
+import inter from "@next/font/google/target.css?pages/test.tsx;Inter;{};[]";
 const a = fn(...{}, ...[]);
