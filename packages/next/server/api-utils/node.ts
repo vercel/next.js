@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
-import type { PageConfig } from 'next/types'
+import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
 import {
   checkIsManualRevalidate,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
@@ -141,7 +141,7 @@ function parseJson(str: string): object {
  */
 export async function parseBody(
   req: IncomingMessage,
-  limit: string | number
+  limit: SizeLimit
 ): Promise<any> {
   let contentType
   try {
@@ -183,7 +183,7 @@ type ApiContext = __ApiPreviewProps & {
   revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
 }
 
-function getMaxContentLength(responseLimit?: number | string | boolean) {
+function getMaxContentLength(responseLimit?: ResponseLimit) {
   if (responseLimit && typeof responseLimit !== 'boolean') {
     return bytes.parse(responseLimit)
   }
