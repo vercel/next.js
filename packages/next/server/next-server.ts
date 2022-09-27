@@ -978,6 +978,8 @@ export default class NextNodeServer extends BaseServer {
         return {
           components,
           query: {
+            // For appDir params is excluded.
+            ...((isAppPath ? {} : params) || {}),
             ...(components.getStaticProps
               ? ({
                   amp: query.amp,
@@ -986,8 +988,6 @@ export default class NextNodeServer extends BaseServer {
                   __nextDefaultLocale: query.__nextDefaultLocale,
                 } as NextParsedUrlQuery)
               : query),
-            // For appDir params is excluded.
-            ...((isAppPath ? {} : params) || {}),
           },
         }
       } catch (err) {
