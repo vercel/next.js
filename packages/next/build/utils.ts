@@ -1126,7 +1126,7 @@ export async function buildAppStaticPaths({
         const result = await curGenerate.generateStaticParams({ params })
         // TODO: validate the result is valid here or wait for
         // buildStaticPaths to validate?
-        for (const item of result.params) {
+        for (const item of result) {
           newParams.push({ ...params, ...item })
         }
       }
