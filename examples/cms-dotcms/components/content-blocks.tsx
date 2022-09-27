@@ -27,7 +27,6 @@ export const ContentBlocks = ({ content }) => {
                 <ContentBlocks content={data.content} />
               </Paragraph>
             )
-
           case 'heading':
             return (
               <Heading key={index} level={data.attrs.level}>
@@ -82,7 +81,7 @@ export const ContentBlocks = ({ content }) => {
               </ListItem>
             )
 
-          case 'default':
+          default:
             return <p>Block not supported</p>
         }
       })}

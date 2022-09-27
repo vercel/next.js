@@ -38,7 +38,7 @@ async function fetchAPI(query, { variables } = { variables: null }) {
  * @param preview
  * @returns {string}
  */
- const showPreviewPosts = (preview) => {
+const showPreviewPosts = (preview) => {
   return preview === true
     ? '+working:true +deleted:false'
     : '+live:true +deleted:false'
@@ -51,7 +51,7 @@ async function fetchAPI(query, { variables } = { variables: null }) {
  * @param {boolean} preview - Whether or not to fetch the live post
  * @returns An object with a post and more posts array
  */
- export async function getPostAndMorePosts(slug, preview) {
+export async function getPostAndMorePosts(slug, preview) {
   const data = await fetchAPI(
     `
     query PostBySlug($query: String!, $morePostsQuery: String!) {
