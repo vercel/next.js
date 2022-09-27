@@ -354,7 +354,7 @@ impl VisitMut for DisplayNameAndId {
 
         self.add_config(
             expr,
-            display_name.map(|s| DISPLAY_NAME_REGEX.replace_all(&*s, "").into()),
+            display_name.map(|s| DISPLAY_NAME_REGEX.replace_all(&s, "").into()),
             component_id,
         )
     }
