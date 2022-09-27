@@ -125,8 +125,20 @@ describe('Middleware Runtime', () => {
             matchers: [{ regexp: '^/.*$' }],
             wasm: [],
             assets: [],
+            regions: 'auto',
           },
         })
+      })
+
+      it('should have the custom config in the manifest', async () => {
+        const manifest = await fs.readJSON(
+          join(next.testDir, '.next/server/middleware-manifest.json')
+        )
+
+        expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
+          'regions',
+          'default'
+        )
       })
 
       it('should have correct files in manifest', async () => {
