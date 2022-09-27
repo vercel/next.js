@@ -13,23 +13,25 @@ function runTest() {
     beforeAll(async () => {
       next = await createNext({
         files: {
-          node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
+          node_modules: new FileRef(path.join(appDir, 'node_modules')),
           pages: new FileRef(path.join(appDir, 'pages')),
           '.npmrc': new FileRef(path.join(appDir, '.npmrc')),
         },
         packageJson: {
           scripts: {
-            setup: `cp -r ./node_modules_bak/my-comps ./node_modules;`,
-            build: `yarn setup && next build`,
-            dev: `yarn setup && next dev`,
+            build: 'next build',
+            dev: 'next dev',
             start: 'next start',
           },
         },
         dependencies: {
-          'styled-jsx': '5.0.0', // styled-jsx on user side
+          // A different version of styled-jsx on user side,
+          // using a different patch version comparing to the one from next.js
+          'styled-jsx': '5.0.0',
         },
         startCommand: 'yarn ' + ((global as any).isNextDev ? 'dev' : 'start'),
-        buildCommand: `yarn build`,
+        buildCommand: 'yarn build',
+        installCommand: 'yarn',
       })
     })
     afterAll(() => next.destroy())

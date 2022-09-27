@@ -22,7 +22,7 @@ export default async function nextFontLoader(this: any) {
       const interpolatedName = loaderUtils.interpolateName(
         this,
         // Font files ending with .p.(woff|woff2|eot|ttf|otf) are preloaded
-        `static/fonts/[hash]${preload ? '.p' : ''}.${ext}`,
+        `static/media/[hash]${preload ? '.p' : ''}.${ext}`,
         opts
       )
       const outputPath = `${assetPrefix}/_next/${interpolatedName}`
