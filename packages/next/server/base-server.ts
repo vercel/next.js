@@ -78,6 +78,15 @@ export type FindComponentsResult = {
   query: NextParsedUrlQuery
 }
 
+export type FindComponentsParams = {
+  pathname: string
+  query: NextParsedUrlQuery
+  params: Params
+  isAppPath: boolean
+  appPaths?: string[] | null
+  sriEnabled?: boolean
+}
+
 export interface RoutingItem {
   page: string
   match: RouteMatch
@@ -243,14 +252,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getBuildId(): string
 
   protected abstract getFilesystemPaths(): Set<string>
-  protected abstract findPageComponents(params: {
-    pathname: string
-    query: NextParsedUrlQuery
-    params: Params
-    isAppPath: boolean
-    appPaths?: string[] | null
-    sriEnabled?: boolean
-  }): Promise<FindComponentsResult | null>
+  protected abstract findPageComponents(
+    params: FindComponentsParams
+  ): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any

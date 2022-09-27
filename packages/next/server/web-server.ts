@@ -2,10 +2,9 @@ import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import { NoFallbackError, Options } from './base-server'
+import { FindComponentsParams, NoFallbackError, Options } from './base-server'
 import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { NextConfig } from './config-shared'
 
@@ -418,23 +417,15 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     pathname,
     query,
     params,
-  }: {
-    pathname: string
-    query: NextParsedUrlQuery
-    params: Params | null
-    isAppPath: boolean
-  }) {
-    const result = await this.serverOptions.webServerConfig.loadComponent(
+  }: FindComponentsParams) {
+    const components = await this.serverOptions.webServerConfig.loadComponent(
       pathname
     )
-    if (!result) return null
+    if (!components) return null
 
     return {
-      query: {
-        ...(query || {}),
-        ...(params || {}),
-      },
-      components: result,
+      components,
+      query: { ...params, ...query },
     }
   }
 }

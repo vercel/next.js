@@ -71,7 +71,7 @@ import loadRequireHook from '../build/webpack/require-hook'
 
 import BaseServer, {
   Options,
-  FindComponentsResult,
+  FindComponentsParams,
   prepareServerlessUrl,
   MiddlewareRoutingItem,
   RoutingItem,
@@ -932,12 +932,7 @@ export default class NextNodeServer extends BaseServer {
     query,
     params,
     isAppPath,
-  }: {
-    pathname: string
-    query: NextParsedUrlQuery
-    params: Params | null
-    isAppPath: boolean
-  }): Promise<FindComponentsResult | null> {
+  }: FindComponentsParams) {
     const paths: string[] = [pathname]
     if (query.amp) {
       // try serving a static AMP version first
@@ -979,7 +974,7 @@ export default class NextNodeServer extends BaseServer {
           components,
           query: {
             // For appDir params is excluded.
-            ...((isAppPath ? {} : params) || {}),
+            ...(isAppPath ? {} : params),
             ...(components.getStaticProps
               ? ({
                   amp: query.amp,
