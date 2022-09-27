@@ -177,11 +177,11 @@ export default async function handler(req: NextRequest) {
 
 ### Summary of changes
 
-| Added                   | Removed       |
-| ----------------------- | ------------- |
-| `cookie.set`            | `cookie`      |
-| `cookie.delete`         | `clearCookie` |
-| `cookie.getWithOptions` | `cookies`     |
+| Added                    | Removed       |
+| ------------------------ | ------------- |
+| `cookies.set`            | `cookie`      |
+| `cookies.delete`         | `clearCookie` |
+| `cookies.getWithOptions` | `cookies`     |
 
 ### Explanation
 
