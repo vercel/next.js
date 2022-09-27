@@ -278,11 +278,14 @@ export function InnerLayoutRouter({
 function LoadingBoundary({
   children,
   loading,
+  hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
+  hasLoading: boolean
 }): JSX.Element {
-  if (loading) {
+  if (hasLoading) {
+    // @ts-expect-error TODO-APP: React.Suspense fallback type is wrong
     return <React.Suspense fallback={loading}>{children}</React.Suspense>
   }
 
@@ -450,6 +453,7 @@ export default function OuterLayoutRouter({
   childProp,
   error,
   loading,
+  hasLoading,
   template,
   notFound,
   rootLayoutIncluded,
@@ -460,6 +464,7 @@ export default function OuterLayoutRouter({
   error: ErrorComponent
   template: React.ReactNode
   loading: React.ReactNode | undefined
+  hasLoading: boolean
   notFound: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
@@ -510,7 +515,7 @@ export default function OuterLayoutRouter({
             key={preservedSegment}
             value={
               <ErrorBoundary errorComponent={error}>
-                <LoadingBoundary loading={loading}>
+                <LoadingBoundary hasLoading={hasLoading} loading={loading}>
                   <NotFoundBoundary notFound={notFound}>
                     <RedirectBoundary>
                       <InnerLayoutRouter

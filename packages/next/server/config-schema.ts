@@ -240,6 +240,12 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        optoutServerComponentsBundle: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         browsersListForSwc: {
           type: 'boolean',
         },
@@ -383,6 +389,9 @@ const configSchema = {
             type: 'string',
           },
           type: 'array',
+        },
+        enableUndici: {
+          type: 'boolean',
         },
         workerThreads: {
           type: 'boolean',

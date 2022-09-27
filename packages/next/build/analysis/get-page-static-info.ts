@@ -18,6 +18,7 @@ import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
   unstable_allowDynamicGlobs: string[]
+  regions: string[] | string
 }
 
 export interface MiddlewareMatcher {
@@ -184,6 +185,14 @@ function getMiddlewareConfig(
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
+  if (typeof config.regions === 'string' || Array.isArray(config.regions)) {
+    result.regions = config.regions
+  } else if (typeof config.regions !== 'undefined') {
+    Log.warn(
+      `The \`regions\` config was ignored: config must be empty, a string or an array of strings. (${pageFilePath})`
+    )
+  }
+
   if (config.unstable_allowDynamic) {
     result.unstable_allowDynamicGlobs = Array.isArray(
       config.unstable_allowDynamic
@@ -256,7 +265,7 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|getStaticProps|getServerSideProps|matcher|unstable_allowDynamic/.test(
+    /runtime|getStaticProps|getServerSideProps|export const config/.test(
       fileContent
     )
   ) {
