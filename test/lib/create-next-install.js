@@ -7,12 +7,12 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
-async function createNextInstall(
+async function createNextInstall({
   dependencies,
   installCommand,
   packageJson = {},
-  packageLockPath = ''
-) {
+  packageLockPath = '',
+}) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
   const installDir = path.join(

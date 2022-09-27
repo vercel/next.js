@@ -7,7 +7,7 @@ describe('@next/font/local', () => {
         functionName: '',
         data: [{ src: './my-font.woff2' }],
         config: {},
-        emitFontFile: () => '/_next/static/fonts/my-font.woff2',
+        emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
         fs: {
           readFile: (_, cb) => cb(null, 'fontdata'),
@@ -17,7 +17,7 @@ describe('@next/font/local', () => {
       expect(css).toMatchInlineSnapshot(`
 "@font-face {
 font-family: 'my-font';
-src: url(/_next/static/fonts/my-font.woff2) format('woff2');
+src: url(/_next/static/media/my-font.woff2) format('woff2');
 font-display: optional;
 }"
 `)
@@ -30,7 +30,7 @@ font-display: optional;
           { src: [{ file: './my-font.woff2', unicodeRange: 'unicode-range' }] },
         ],
         config: {},
-        emitFontFile: () => '/_next/static/fonts/my-font.woff2',
+        emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
         fs: {
           readFile: (_, cb) => cb(null, 'fontdata'),
@@ -40,7 +40,7 @@ font-display: optional;
       expect(css).toMatchInlineSnapshot(`
 "@font-face {
 font-family: 'my-font';
-src: url(/_next/static/fonts/my-font.woff2) format('woff2');
+src: url(/_next/static/media/my-font.woff2) format('woff2');
 font-display: optional;
 unicode-range: unicode-range;
 }"
@@ -52,7 +52,7 @@ unicode-range: unicode-range;
         functionName: '',
         data: [{ src: [{ file: './my-font.woff2' }] }],
         config: {},
-        emitFontFile: () => '/_next/static/fonts/my-font.woff2',
+        emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
         fs: {
           readFile: (_, cb) => cb(null, 'fontdata'),
@@ -62,7 +62,7 @@ unicode-range: unicode-range;
       expect(css).toMatchInlineSnapshot(`
 "@font-face {
 font-family: 'my-font';
-src: url(/_next/static/fonts/my-font.woff2) format('woff2');
+src: url(/_next/static/media/my-font.woff2) format('woff2');
 font-display: optional;
 }"
 `)
@@ -73,7 +73,7 @@ font-display: optional;
         functionName: '',
         data: [{ src: './my-font.woff2', weight: '100 900', style: 'italic' }],
         config: {},
-        emitFontFile: () => '/_next/static/fonts/my-font.woff2',
+        emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
         fs: {
           readFile: (_, cb) => cb(null, 'fontdata'),
@@ -83,7 +83,7 @@ font-display: optional;
       expect(css).toMatchInlineSnapshot(`
 "@font-face {
 font-family: 'my-font';
-src: url(/_next/static/fonts/my-font.woff2) format('woff2');
+src: url(/_next/static/media/my-font.woff2) format('woff2');
 font-display: optional;
 font-weight: 100 900;
 font-style: italic;
@@ -108,7 +108,7 @@ font-style: italic;
           },
         ],
         config: {},
-        emitFontFile: () => '/_next/static/fonts/my-font.woff2',
+        emitFontFile: () => '/_next/static/media/my-font.woff2',
         resolve: jest.fn(),
         fs: {
           readFile: (_, cb) => cb(null, 'fontdata'),
@@ -118,7 +118,7 @@ font-style: italic;
       expect(css).toMatchInlineSnapshot(`
 "@font-face {
 font-family: 'my-font';
-src: url(/_next/static/fonts/my-font.woff2) format('woff2');
+src: url(/_next/static/media/my-font.woff2) format('woff2');
 font-display: optional;
 font-weight: 100 900;
 font-style: italic;
@@ -147,7 +147,7 @@ size-adjust: sizeAdjust;
           },
         ],
         config: {},
-        emitFontFile: () => `/_next/static/fonts/font-file`,
+        emitFontFile: () => `/_next/static/media/font-file`,
         resolve: jest.fn(),
         fs: {
           readFile: (_, cb) => cb(null, 'fontdata'),
@@ -157,31 +157,31 @@ size-adjust: sizeAdjust;
       expect(css).toMatchInlineSnapshot(`
 "@font-face {
 font-family: 'my-font1';
-src: url(/_next/static/fonts/font-file) format('woff');
+src: url(/_next/static/media/font-file) format('woff');
 font-display: optional;
 unicode-range: 1;
 }
 @font-face {
 font-family: 'my-font1';
-src: url(/_next/static/fonts/font-file) format('woff2');
+src: url(/_next/static/media/font-file) format('woff2');
 font-display: optional;
 unicode-range: 2;
 }
 @font-face {
 font-family: 'my-font1';
-src: url(/_next/static/fonts/font-file) format('embedded-opentype');
+src: url(/_next/static/media/font-file) format('embedded-opentype');
 font-display: optional;
 unicode-range: 3;
 }
 @font-face {
 font-family: 'my-font1';
-src: url(/_next/static/fonts/font-file) format('truetype');
+src: url(/_next/static/media/font-file) format('truetype');
 font-display: optional;
 unicode-range: 4;
 }
 @font-face {
 font-family: 'my-font1';
-src: url(/_next/static/fonts/font-file) format('opentype');
+src: url(/_next/static/media/font-file) format('opentype');
 font-display: optional;
 unicode-range: 5;
 }"
