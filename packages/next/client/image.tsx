@@ -477,6 +477,7 @@ const ImageElement = ({
   blurStyle,
   isLazy,
   placeholder,
+  priority,
   loading,
   srcString,
   config,
@@ -501,6 +502,7 @@ const ImageElement = ({
         data-nimg={layout}
         className={className}
         style={{ ...imgStyle, ...blurStyle }}
+        fetchPriority={priority ? "high" : null}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
             if (process.env.NODE_ENV !== 'production') {
@@ -567,6 +569,7 @@ const ImageElement = ({
               sizes: noscriptSizes,
               loader,
             })}
+            fetchPriority={priority ? "high" : null}
             decoding="async"
             data-nimg={layout}
             style={imgStyle}
@@ -1018,6 +1021,7 @@ export default function Image({
     config,
     unoptimized,
     placeholder,
+    priority,
     loader,
     srcString,
     onLoadingCompleteRef,
