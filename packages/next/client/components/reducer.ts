@@ -615,7 +615,7 @@ type AppRouterState = {
 /**
  * Reducer that handles the app-router state updates.
  */
-export function reducer(
+function clientReducer(
   state: Readonly<AppRouterState>,
   action: Readonly<
     | ReloadAction
@@ -1108,3 +1108,20 @@ export function reducer(
       throw new Error('Unknown action')
   }
 }
+
+function serverReducer(
+  state: Readonly<AppRouterState>,
+  _action: Readonly<
+    | ReloadAction
+    | NavigateAction
+    | RestoreAction
+    | ServerPatchAction
+    | PrefetchAction
+  >
+): AppRouterState {
+  return state
+}
+
+// we don't run the client reducer on the server, so we use a noop function for better tree shaking
+export const reducer =
+  typeof window === 'undefined' ? serverReducer : clientReducer
