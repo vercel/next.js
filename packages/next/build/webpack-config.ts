@@ -1001,29 +1001,10 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
-    const resolveWithReactServerCondition =
-      layer === WEBPACK_LAYERS.server
-        ? getResolve({
-            // If React is aliased to another channel during Next.js' local development,
-            // we need to provide that alias to webpack's resolver.
-            alias: process.env.__NEXT_REACT_CHANNEL
-              ? {
-                  react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                }
-              : false,
-            conditionNames: ['react-server'],
-          })
-        : null
-
-    // Special internal modules that require to be bundled for Server Components.
+    // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (!isLocal && /^react(?:$|\/)/.test(request)) {
-        const [resolved] = await resolveWithReactServerCondition!(
-          context,
-          request
-        )
-        return resolved
+      if (!isLocal && /^react$/.test(request)) {
+        return
       }
       if (
         request ===
@@ -1153,25 +1134,22 @@ export default async function getBaseWebpackConfig(
     }
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (
-        layer === WEBPACK_LAYERS.server &&
-        (!config.experimental?.optoutServerComponentsBundle ||
-          !config.experimental?.optoutServerComponentsBundle.some(
-            // Check if a package is opt-out of Server Components bundling.
-            (packageName) =>
-              new RegExp(`node_modules[/\\\\]${packageName}[/\\\\]`).test(res)
-          ))
-      ) {
-        try {
-          const [resolved] = await resolveWithReactServerCondition!(
-            context,
-            request
+      if (layer === WEBPACK_LAYERS.server) {
+        // All packages should be bundled for the server layer if they're not opted out.
+        if (
+          config.experimental.optoutServerComponentsBundle?.some(
+            (p: string) => {
+              return (
+                res.includes('node_modules/' + p + '/') ||
+                res.includes('node_modules\\' + p + '\\')
+              )
+            }
           )
-          return `${externalType} ${resolved}`
-        } catch (err) {
-          return
-          // The `react-server` condition is not matched, fallback.
+        ) {
+          return `${externalType} ${request}`
         }
+
+        return
       }
 
       // Anything else that is standard JavaScript within `node_modules`
@@ -1528,6 +1506,45 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(config.experimental.appDir && !isClient && !isEdgeServer
+          ? [
+              {
+                issuerLayer: WEBPACK_LAYERS.server,
+                test: (req: string) => {
+                  if (
+                    !/\.m?js/.test(req) ||
+                    config.experimental.optoutServerComponentsBundle?.some(
+                      (mod) => {
+                        return req.includes('/node_modules/' + mod + '/')
+                      }
+                    )
+                  ) {
+                    return false
+                  }
+                  return true
+                },
+                resolve: process.env.__NEXT_REACT_CHANNEL
+                  ? {
+                      conditionNames: ['react-server', 'node', 'require'],
+                      alias: {
+                        react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                        'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                      },
+                    }
+                  : {
+                      conditionNames: ['react-server', 'node', 'require'],
+                      alias: {
+                        // If missing the alias override here, the default alias will be used which aliases
+                        // react to the direct file path, not the package name. In that case the condition
+                        // will be ignored completely.
+                        react: 'react',
+                        'react-dom': 'react-dom',
+                      },
+                    },
+              },
+            ]
+          : []),
+
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
