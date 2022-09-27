@@ -24,6 +24,7 @@ use turbopack_core::{
     resolve::{ResolveResult, ResolveResultVc},
     wrapper_asset::WrapperAssetVc,
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
 use super::{
     nodejs_bootstrap::NodeJsBootstrapAsset,
@@ -45,6 +46,7 @@ pub struct ServerRenderedAsset {
     path: FileSystemPathVc,
     context: AssetContextVc,
     entry_asset: AssetVc,
+    runtime_entries: EcmascriptChunkPlaceablesVc,
     context_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
     request_data: String,
@@ -57,6 +59,7 @@ impl ServerRenderedAssetVc {
         path: FileSystemPathVc,
         context: AssetContextVc,
         entry_asset: AssetVc,
+        runtime_entries: EcmascriptChunkPlaceablesVc,
         context_path: FileSystemPathVc,
         intermediate_output_path: FileSystemPathVc,
         request_data: String,
@@ -65,6 +68,7 @@ impl ServerRenderedAssetVc {
             path,
             context,
             entry_asset,
+            runtime_entries,
             context_path,
             intermediate_output_path,
             request_data,
@@ -88,6 +92,7 @@ impl Asset for ServerRenderedAsset {
                 get_intermediate_asset(
                     self.context,
                     self.entry_asset,
+                    self.runtime_entries,
                     self.context_path,
                     self.intermediate_output_path,
                 ),
@@ -104,6 +109,7 @@ impl Asset for ServerRenderedAsset {
                 get_intermediate_asset(
                     self.context,
                     self.entry_asset,
+                    self.runtime_entries,
                     self.context_path,
                     self.intermediate_output_path,
                 ),
@@ -155,6 +161,7 @@ fn get_server_renderer() -> FileContentVc {
 async fn get_intermediate_asset(
     context: AssetContextVc,
     entry_asset: AssetVc,
+    runtime_entries: EcmascriptChunkPlaceablesVc,
     context_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<AssetVc> {
@@ -172,7 +179,9 @@ async fn get_intermediate_asset(
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React { refresh: false }]),
         context.environment(),
     );
-    let chunk = module.as_evaluated_chunk(chunking_context.into(), None);
+
+    let chunk = module.as_evaluated_chunk(chunking_context.into(), Some(runtime_entries));
+
     let chunk_group = ChunkGroupVc::from_chunk(chunk);
     Ok(NodeJsBootstrapAsset {
         path: intermediate_output_path.join("index.js"),

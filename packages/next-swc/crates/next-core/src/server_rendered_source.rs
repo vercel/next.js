@@ -26,8 +26,11 @@ use turbopack_dev_server::{
         ContentSourceVc, NoContentSourceVc,
     },
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
+use turbopack_env::{ProcessEnvAssetVc, ProcessEnvVc};
 
 use crate::{
+    env::filter_for_client,
     next_client::{NextClientTransition, RuntimeReference},
     react_refresh::{assert_can_resolve_react_refresh, react_refresh_request},
     server_render::asset::ServerRenderedAssetVc,
@@ -40,6 +43,7 @@ pub async fn create_server_rendered_source(
     root_path: FileSystemPathVc,
     output_path: FileSystemPathVc,
     target_root: FileSystemPathVc,
+    env: ProcessEnvVc,
 ) -> Result<ContentSourceVc> {
     let pages = root_path.join("pages");
     let src_pages = root_path.join("src/pages");
@@ -79,10 +83,21 @@ pub async fn create_server_rendered_source(
         ..Default::default()
     }
     .cell();
+
+    let server_runtime_entries =
+        vec![ProcessEnvAssetVc::new(root_path, env).as_ecmascript_chunk_placeable()];
+    let mut client_runtime_references = vec![RuntimeReference::Reference(
+        SingleAssetReferenceVc::new(
+            ProcessEnvAssetVc::new(root_path, filter_for_client(env)).as_asset(),
+            StringVc::cell(".env".to_string()),
+        )
+        .into(),
+    )];
+
     let enable_react_refresh =
         *assert_can_resolve_react_refresh(root_path, client_resolve_options_context).await?;
-    let runtime_references = if enable_react_refresh {
-        vec![
+    if enable_react_refresh {
+        client_runtime_references.extend(vec![
             RuntimeReference::Request(react_refresh_request(), root_path),
             RuntimeReference::Reference(
                 SingleAssetReferenceVc::new(
@@ -91,9 +106,7 @@ pub async fn create_server_rendered_source(
                 )
                 .into(),
             ),
-        ]
-    } else {
-        Vec::new()
+        ]);
     };
     let client_module_options_context = ModuleOptionsContext {
         enable_react_refresh,
@@ -108,7 +121,7 @@ pub async fn create_server_rendered_source(
         client_resolve_options_context,
         client_environment,
         server_root: target_root,
-        runtime_references,
+        runtime_references: client_runtime_references,
     }
     .cell()
     .into();
@@ -148,6 +161,7 @@ pub async fn create_server_rendered_source(
     Ok(create_server_rendered_source_for_directory(
         context,
         dir,
+        EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
         target_root,
         target_root,
         output_path,
@@ -160,6 +174,7 @@ pub async fn create_server_rendered_source(
 async fn create_server_rendered_source_for_file(
     context: AssetContextVc,
     entry: FileSystemPathVc,
+    runtime_entries: EcmascriptChunkPlaceablesVc,
     target_root: FileSystemPathVc,
     target_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
@@ -173,6 +188,7 @@ async fn create_server_rendered_source_for_file(
         target_path,
         context,
         module,
+        runtime_entries,
         context_path,
         intermediate_output_path,
         "{\"props\":{}}\n".to_string(),
@@ -190,6 +206,7 @@ async fn create_server_rendered_source_for_file(
 async fn create_server_rendered_source_for_directory(
     context: AssetContextVc,
     input_dir: FileSystemPathVc,
+    runtime_entries: EcmascriptChunkPlaceablesVc,
     target_root: FileSystemPathVc,
     target_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
@@ -216,6 +233,7 @@ async fn create_server_rendered_source_for_directory(
                                     create_server_rendered_source_for_file(
                                         context,
                                         *file,
+                                        runtime_entries,
                                         target_root,
                                         target_path,
                                         intermediate_output_path,
@@ -232,6 +250,7 @@ async fn create_server_rendered_source_for_directory(
                         create_server_rendered_source_for_directory(
                             context,
                             *dir,
+                            runtime_entries,
                             target_root,
                             target_path.join(name),
                             intermediate_output_path.join(name),

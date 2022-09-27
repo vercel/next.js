@@ -4,7 +4,7 @@
 use std::{net::IpAddr, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
-use next_core::{create_server_rendered_source, create_web_entry_source};
+use next_core::{create_server_rendered_source, create_web_entry_source, env::load_env};
 use turbo_tasks::{CollectiblesSource, TransientInstance, TurboTasks, Value};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
@@ -180,6 +180,8 @@ async fn source(
         .unwrap_or(project_relative);
     let project_path = FileSystemPathVc::new(fs, project_relative);
 
+    let env = load_env(project_path);
+
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     let web_source = create_web_entry_source(
         project_path,
@@ -188,12 +190,14 @@ async fn source(
             .map(|a| RequestVc::relative(Value::new(a.to_string().into()), false))
             .collect(),
         dev_server_fs,
+        env,
         eager_compile,
     );
     let rendered_source = create_server_rendered_source(
         project_path,
         FileSystemPathVc::new(output_fs, ""),
         FileSystemPathVc::new(dev_server_fs, ""),
+        env,
     );
     let viz = turbo_tasks_viz::TurboTasksSource {
         turbo_tasks: turbo_tasks.into(),
