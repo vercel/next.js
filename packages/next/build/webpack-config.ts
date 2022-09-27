@@ -139,11 +139,9 @@ export function getDefineEnv({
         }),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
-    ...((isNodeServer || isEdgeServer) && {
-      'process.env.NEXT_RUNTIME': JSON.stringify(
-        isEdgeServer ? 'edge' : 'nodejs'
-      ),
-    }),
+    'process.env.NEXT_RUNTIME': JSON.stringify(
+      isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
+    ),
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
       middlewareMatchers || []
     ),
@@ -685,9 +683,9 @@ export default async function getBaseWebpackConfig(
   const pageExtensions = config.pageExtensions
 
   const babelIncludeRegexes: RegExp[] = [
-    /next[\\/]dist[\\/]shared[\\/]lib/,
-    /next[\\/]dist[\\/]client/,
-    /next[\\/]dist[\\/]pages/,
+    /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
+    /next[\\/]dist[\\/](esm[\\/])?client/,
+    /next[\\/]dist[\\/](esm[\\/])?pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
     /styled-jsx[\\/]/,
   ]
@@ -796,7 +794,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_app.js',
+      isEdgeServer ? 'next/dist/esm/pages/_app.js' : 'next/dist/pages/_app.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -805,7 +803,9 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      'next/dist/pages/_error.js',
+      isEdgeServer
+        ? 'next/dist/esm/pages/_error.js'
+        : 'next/dist/pages/_error.js',
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -814,7 +814,9 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `next/dist/pages/_document.js`,
+      isEdgeServer
+        ? `next/dist/esm/pages/_document.js`
+        : `next/dist/pages/_document.js`,
     ]
   }
 

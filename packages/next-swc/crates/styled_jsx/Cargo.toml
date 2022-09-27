@@ -5,7 +5,7 @@ edition = "2018"
 license = "Apache-2.0"
 name = "styled_jsx"
 repository = "https://github.com/vercel/next.js.git"
-version = "0.19.0"
+version = "0.20.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,7 +13,7 @@ version = "0.19.0"
 easy-error = "1.0.0"
 tracing = "0.1.32"
 
-swc_core = { version = "0.26.0", features = [
+swc_core = { version = "0.27.4", features = [
   "common",
   "css_ast",
   "css_codegen",
@@ -27,7 +27,7 @@ swc_core = { version = "0.26.0", features = [
 ] }
 
 [dev-dependencies]
-testing = "0.30.10"
-swc_core = { version = "0.26.0", features = [
+testing = "0.31.1"
+swc_core = { version = "0.27.4", features = [
   "testing_transform"
 ] }
