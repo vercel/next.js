@@ -1,9 +1,11 @@
-import type { GetStaticPaths } from 'next/types'
 import type { NextConfigComplete } from '../config-shared'
-import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import '../node-polyfill-fetch'
-import { buildStaticPaths } from '../../build/utils'
+import {
+  buildAppStaticPaths,
+  buildStaticPaths,
+  collectGenerateParams,
+} from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpAgentOptions } from '../config'
 
@@ -14,20 +16,31 @@ let workerWasUsed = false
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
 // during a production build
-export async function loadStaticPaths(
-  distDir: string,
-  pathname: string,
-  serverless: boolean,
-  config: RuntimeConfig,
-  httpAgentOptions: NextConfigComplete['httpAgentOptions'],
-  locales?: string[],
+export async function loadStaticPaths({
+  distDir,
+  pathname,
+  serverless,
+  config,
+  httpAgentOptions,
+  locales,
+  defaultLocale,
+  isAppPath,
+  originalAppPath,
+}: {
+  distDir: string
+  pathname: string
+  serverless: boolean
+  config: RuntimeConfig
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  locales?: string[]
   defaultLocale?: string
-): Promise<
-  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
-    paths: string[]
-    encodedPaths: string[]
-  }
-> {
+  isAppPath?: boolean
+  originalAppPath?: string
+}): Promise<{
+  paths?: string[]
+  encodedPaths?: string[]
+  fallback?: boolean | 'blocking'
+}> {
   // we only want to use each worker once to prevent any invalid
   // caches
   if (workerWasUsed) {
@@ -40,26 +53,35 @@ export async function loadStaticPaths(
 
   const components = await loadComponents({
     distDir,
-    pathname,
+    pathname: originalAppPath || pathname,
     serverless,
     hasServerComponents: false,
-    isAppPath: false,
+    isAppPath: !!isAppPath,
   })
 
-  if (!components.getStaticPaths) {
+  if (!components.getStaticPaths && !isAppPath) {
     // we shouldn't get to this point since the worker should
     // only be called for SSG pages with getStaticPaths
     throw new Error(
       `Invariant: failed to load page with getStaticPaths for ${pathname}`
     )
   }
-
   workerWasUsed = true
-  return buildStaticPaths(
-    pathname,
-    components.getStaticPaths,
-    config.configFileName,
+
+  if (isAppPath) {
+    const generateParams = collectGenerateParams(components.ComponentMod.tree)
+    return buildAppStaticPaths({
+      page: pathname,
+      generateParams,
+      configFileName: config.configFileName,
+    })
+  }
+
+  return buildStaticPaths({
+    page: pathname,
+    getStaticPaths: components.getStaticPaths,
+    configFileName: config.configFileName,
     locales,
-    defaultLocale
-  )
+    defaultLocale,
+  })
 }

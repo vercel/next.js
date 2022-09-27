@@ -35,25 +35,17 @@ describe('app dir - react server components', () => {
   }
 
   beforeAll(async () => {
-    const appDir = path.join(__dirname, './rsc-basic')
     next = await createNext({
-      files: {
-        node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
-        public: new FileRef(path.join(appDir, 'public')),
-        components: new FileRef(path.join(appDir, 'components')),
-        app: new FileRef(path.join(appDir, 'app')),
-        'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
-      },
+      files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
-        'styled-components': '6.0.0-alpha.5',
+        'styled-components': '6.0.0-beta.2',
         react: 'experimental',
         'react-dom': 'experimental',
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/non-isomorphic-text ./node_modules; cp -r ./node_modules_bak/random-module-instance ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          build: 'next build',
+          dev: 'next dev',
           start: 'next start',
         },
       },
@@ -81,12 +73,10 @@ describe('app dir - react server components', () => {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
-    // TODO: support next/head
-    // expect(homeHTML).toMatch('<meta name="rsc-title" content="index"/>')
     expect(homeHTML).toContain('component:index.server')
-    // TODO: support env
-    // expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
+    // support esm module on server side
+    expect(homeHTML).toContain('random-module-instance')
 
     const inlineFlightContents = []
     const $ = cheerio.load(homeHTML)
@@ -101,8 +91,8 @@ describe('app dir - react server components', () => {
       '__nextDefaultLocale',
       '__nextIsNotFound',
       '__flight__',
-      '__props__',
-      '__flight_router_path__',
+      '__flight_router_state_tree__',
+      '__flight_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -118,14 +108,15 @@ describe('app dir - react server components', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
-          const url = request.url()
-          if (
-            url.includes('__flight__=1') &&
-            // Prefetches also include `__flight__`
-            !url.includes('__flight_prefetch__=1')
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__flight__ === '1' &&
+              // Prefetches also include `__flight__`
+              headers.__flight_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -138,37 +129,6 @@ describe('app dir - react server components', () => {
     const html = await renderViaHTTP(next.url, '/multi')
     expect(html).toContain('bar.server.js:')
     expect(html).toContain('foo.client')
-  })
-
-  it('should resolve different kinds of components correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/shared')
-    const main = getNodeBySelector(html, '#main').html()
-
-    // Should have 5 occurrences of "client_component".
-    expect(Array.from(main.matchAll(/client_component/g)).length).toBe(5)
-
-    // Should have 2 occurrences of "shared:server", and 2 occurrences of
-    // "shared:client".
-    const sharedServerModule = Array.from(main.matchAll(/shared:server:(\d+)/g))
-    const sharedClientModule = Array.from(main.matchAll(/shared:client:(\d+)/g))
-    expect(sharedServerModule.length).toBe(2)
-    expect(sharedClientModule.length).toBe(2)
-
-    // Should have 2 modules created for the shared component.
-    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
-    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
-    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
-
-    // Note: This is currently unsupported because packages from another layer
-    // will not be re-initialized by webpack.
-    // Should import 2 module instances for node_modules too.
-    // const modFromClient = main.match(
-    //   /node_modules instance from \.client\.js:(\d+)/
-    // )
-    // const modFromServer = main.match(
-    //   /node_modules instance from \.server\.js:(\d+)/
-    // )
-    // expect(modFromClient[1]).not.toBe(modFromServer[1])
   })
 
   it('should be able to navigate between rsc routes', async () => {
@@ -234,14 +194,14 @@ describe('app dir - react server components', () => {
     const browser = await webdriver(next.url, '/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
-          const url = request.url()
-          if (
-            url.includes('__flight__=1') &&
-            // Prefetches also include `__flight__`
-            !url.includes('__flight_prefetch__=1')
-          ) {
-            hasFlightRequest = true
-          }
+          return request.allHeaders().then((headers) => {
+            if (
+              headers.__flight__ === '1' &&
+              headers.__flight_prefetch__ !== '1'
+            ) {
+              hasFlightRequest = true
+            }
+          })
         })
       },
     })
@@ -321,10 +281,25 @@ describe('app dir - react server components', () => {
     expect(content).toContain('foo.client')
   })
 
-  it('should support the re-export syntax in server component', async () => {
+  it('should resolve different kinds of components correctly', async () => {
     const html = await renderViaHTTP(next.url, '/shared')
+    const main = getNodeBySelector(html, '#main').html()
     const content = getNodeBySelector(html, '#bar').text()
 
+    // Should have 5 occurrences of "client_component".
+    expect(Array.from(main.matchAll(/client_component/g)).length).toBe(5)
+
+    // Should have 2 occurrences of "shared:server", and 2 occurrences of
+    // "shared:client".
+    const sharedServerModule = Array.from(main.matchAll(/shared:server:(\d+)/g))
+    const sharedClientModule = Array.from(main.matchAll(/shared:client:(\d+)/g))
+    expect(sharedServerModule.length).toBe(2)
+    expect(sharedClientModule.length).toBe(2)
+
+    // Should have 2 modules created for the shared component.
+    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
+    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
+    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
     expect(content).toContain('bar.server.js:')
   })
 
@@ -355,7 +330,16 @@ describe('app dir - react server components', () => {
   })
 
   it('should support streaming for flight response', async () => {
-    await fetchViaHTTP(next.url, '/?__flight__=1').then(async (response) => {
+    await fetchViaHTTP(
+      next.url,
+      '/',
+      {},
+      {
+        headers: {
+          __flight__: '1',
+        },
+      }
+    ).then(async (response) => {
       const result = await resolveStreamResponse(response)
       expect(result).toContain('component:index.server')
     })
@@ -403,6 +387,43 @@ describe('app dir - react server components', () => {
     )
     expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
       'count: 1'
+    )
+  })
+
+  it('should resolve the subset react in server components based on the react-server condition', async () => {
+    await fetchViaHTTP(next.url, '/react-server').then(async (response) => {
+      const result = await resolveStreamResponse(response)
+      expect(result).toContain('Server: <!-- -->subset')
+      expect(result).toContain('Client: <!-- -->full')
+    })
+  })
+
+  it('should resolve 3rd party package exports based on the react-server condition', async () => {
+    await fetchViaHTTP(next.url, '/react-server/3rd-party-package').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+
+        // Package should be resolved based on the react-server condition,
+        // as well as package's dependencies.
+        expect(result).toContain('Server: index.react-server:react.subset')
+        expect(result).toContain('Client: index.default:react.full')
+
+        // Subpath exports should be resolved based on the condition too.
+        expect(result).toContain('Server subpath: subpath.react-server')
+        expect(result).toContain('Client subpath: subpath.default')
+      }
+    )
+  })
+
+  it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
+    await fetchViaHTTP(next.url, '/react-server/optout').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('Server: index.default')
+        expect(result).toContain('Server subpath: subpath.default')
+        expect(result).toContain('Client: index.default')
+        expect(result).toContain('Client subpath: subpath.default')
+      }
     )
   })
 

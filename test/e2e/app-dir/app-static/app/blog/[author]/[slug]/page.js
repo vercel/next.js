@@ -1,0 +1,56 @@
+export const config = {
+  dynamicParams: true,
+}
+
+export default function Page({ params }) {
+  return (
+    <>
+      <p id="page">/blog/[author]/[slug]</p>
+      <p id="params">{JSON.stringify(params)}</p>
+      <p id="date">{Date.now()}</p>
+    </>
+  )
+}
+
+export function generateStaticParams({ params }) {
+  console.log(
+    '/blog/[author]/[slug] generateStaticParams',
+    JSON.stringify(params)
+  )
+
+  switch (params.author) {
+    case 'tim': {
+      return {
+        params: [
+          {
+            slug: 'first-post',
+          },
+        ],
+      }
+    }
+    case 'seb': {
+      return {
+        params: [
+          {
+            slug: 'second-post',
+          },
+        ],
+      }
+    }
+    case 'styfle': {
+      return {
+        params: [
+          {
+            slug: 'first-post',
+          },
+          {
+            slug: 'second-post',
+          },
+        ],
+      }
+    }
+    default: {
+      throw new Error(`unexpected author param received ${params.author}`)
+    }
+  }
+}

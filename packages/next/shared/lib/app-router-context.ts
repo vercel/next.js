@@ -37,12 +37,12 @@ export interface AppRouterInstance {
    * Hard navigate to the provided href. Fetches new data from the server.
    * Pushes a new history entry.
    */
-  push(href: string, options: NavigateOptions): void
+  push(href: string, options?: NavigateOptions): void
   /**
    * Hard navigate to the provided href. Does not fetch data from the server if it was already fetched.
    * Replaces the current history entry.
    */
-  replace(href: string, options: NavigateOptions): void
+  replace(href: string, options?: NavigateOptions): void
   /**
    * Soft prefetch the provided href. Does not fetch data from the server if it was already fetched.
    */
@@ -61,13 +61,17 @@ export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
   changeByServerResponse: (
     previousTree: FlightRouterState,
-    flightData: FlightData
+    flightData: FlightData,
+    overrideCanonicalUrl: URL | undefined
   ) => void
   focusAndScrollRef: FocusAndScrollRef
 }>(null as any)
+
+export const TemplateContext = React.createContext<React.ReactNode>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
   LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
+  TemplateContext.displayName = 'TemplateContext'
 }

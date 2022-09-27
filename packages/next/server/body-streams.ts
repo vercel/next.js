@@ -3,11 +3,14 @@ import { PassThrough, Readable } from 'stream'
 
 export function requestToBodyStream(
   context: { ReadableStream: typeof ReadableStream },
+  KUint8Array: typeof Uint8Array,
   stream: Readable
 ) {
   return new context.ReadableStream({
     start(controller) {
-      stream.on('data', (chunk) => controller.enqueue(chunk))
+      stream.on('data', (chunk) =>
+        controller.enqueue(new KUint8Array([...new Uint8Array(chunk)]))
+      )
       stream.on('end', () => controller.close())
       stream.on('error', (err) => controller.error(err))
     },

@@ -88,6 +88,22 @@ export const config = {
 }
 ```
 
+The `matcher` config allows full regex so matching like negative lookaheads or character matching is supported. An example of a negative lookahead to match all except specific paths can be seen here:
+
+```js
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - static (static files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|static|favicon.ico).*)',
+  ],
+}
+```
+
 > **Note:** The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
 
 Configured matchers:
@@ -100,8 +116,6 @@ Configured matchers:
 Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp#path-to-regexp-1) documentation.
 
 > **Note:** For backward compatibility, Next.js always considers `/public` as `/public/index`. Therefore, a matcher of `/public/:path` will match.
-
-> **Note:** It is not possible to exclude middleware from matching static path starting with `_next/`. This allow enforcing security with middleware.
 
 ### Conditional Statements
 

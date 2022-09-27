@@ -131,6 +131,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
+  protected getFontLoaderManifest() {
+    return this.serverOptions.webServerConfig.extendRenderOpts
+      .fontLoaderManifest
+  }
+
   protected generateRoutes(): {
     headers: Route[]
     rewrites: {
@@ -370,10 +375,14 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
+    const resultContentType = options.result.contentType()
+
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        options.type === 'json'
+        resultContentType
+          ? resultContentType
+          : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )

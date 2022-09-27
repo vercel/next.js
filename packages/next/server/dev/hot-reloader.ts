@@ -20,7 +20,11 @@ import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
-import { BLOCKED_PAGES, COMPILER_NAMES } from '../../shared/lib/constants'
+import {
+  BLOCKED_PAGES,
+  COMPILER_NAMES,
+  RSC_MODULE_TYPES,
+} from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
@@ -35,18 +39,13 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import {
-  difference,
-  withoutRSCExtensions,
-  isMiddlewareFilename,
-} from '../../build/utils'
+import { difference, isMiddlewareFilename } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
-import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 
 function diff(a: Set<any>, b: Set<any>) {
@@ -218,8 +217,7 @@ export default class HotReloader {
 
     this.config = config
     this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-    this.hasServerComponents =
-      this.hasReactRoot && !!config.experimental.serverComponents
+    this.hasServerComponents = this.hasReactRoot && !!config.experimental.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -361,6 +359,10 @@ export default class HotReloader {
               break
             }
             case 'client-full-reload': {
+              traceChild = {
+                name: payload.event,
+                attrs: { stackTrace: payload.stackTrace ?? '' },
+              }
               Log.warn(
                 'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
               )
@@ -400,9 +402,7 @@ export default class HotReloader {
   private async getWebpackConfig(span: Span) {
     const webpackConfigSpan = span.traceChild('get-webpack-config')
 
-    const rawPageExtensions = this.hasServerComponents
-      ? withoutRSCExtensions(this.config.pageExtensions)
-      : this.config.pageExtensions
+    const pageExtensions = this.config.pageExtensions
 
     return webpackConfigSpan.traceAsyncFn(async () => {
       const pagePaths = !this.pagesDir
@@ -411,11 +411,11 @@ export default class HotReloader {
             .traceChild('get-page-paths')
             .traceAsyncFn(() =>
               Promise.all([
-                findPageFile(this.pagesDir!, '/_app', rawPageExtensions, false),
+                findPageFile(this.pagesDir!, '/_app', pageExtensions, false),
                 findPageFile(
                   this.pagesDir!,
                   '/_document',
-                  rawPageExtensions,
+                  pageExtensions,
                   false
                 ),
               ])
@@ -425,7 +425,6 @@ export default class HotReloader {
         .traceChild('create-pages-mapping')
         .traceFn(() =>
           createPagesMapping({
-            hasServerComponents: this.hasServerComponents,
             isDev: true,
             pageExtensions: this.config.pageExtensions,
             pagesType: 'pages',
@@ -440,6 +439,7 @@ export default class HotReloader {
         .traceChild('create-entrypoints')
         .traceAsyncFn(() =>
           createEntrypoints({
+            appDir: this.appDir,
             buildId: this.buildId,
             config: this.config,
             envFiles: [],
@@ -507,6 +507,7 @@ export default class HotReloader {
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({
+          appDir: this.appDir,
           buildId: this.buildId,
           config: this.config,
           envFiles: [],
@@ -594,10 +595,7 @@ export default class HotReloader {
               }
             }
 
-            const isServerComponent = isEntry
-              ? serverComponentRegex.test(entryData.absolutePagePath)
-              : false
-
+            const isAppPath = !!this.appDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
               ? await getPageStaticInfo({
                   pageFilePath: entryData.absolutePagePath,
@@ -605,6 +603,8 @@ export default class HotReloader {
                   isDev: true,
                 })
               : {}
+            const isServerComponent =
+              isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
             await runDependingOnPageType({
               page,
@@ -612,9 +612,8 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
-                const isApp = this.appDir && bundlePath.startsWith('app/')
                 const appDirLoader =
-                  isApp && this.appDir
+                  isAppPath && this.appDir
                     ? getAppEntry({
                         name: bundlePath,
                         appPaths: entryData.appPaths,
@@ -627,6 +626,7 @@ export default class HotReloader {
                         ),
                         appDir: this.appDir!,
                         pageExtensions: this.config.pageExtensions,
+                        nextRuntime: 'edge',
                       }).import
                     : undefined
 
@@ -636,6 +636,7 @@ export default class HotReloader {
                   name: bundlePath,
                   value: getEdgeServerEntry({
                     absolutePagePath: entryData.absolutePagePath,
+                    rootDir: this.dir,
                     buildId: this.buildId,
                     bundlePath,
                     config: this.config,
@@ -644,7 +645,7 @@ export default class HotReloader {
                     pages: this.pagesMapping,
                     isServerComponent,
                     appDirLoader,
-                    pagesType: isApp ? 'app' : undefined,
+                    pagesType: isAppPath ? 'app' : undefined,
                   }),
                   appDir: this.config.experimental.appDir,
                 })
@@ -705,6 +706,7 @@ export default class HotReloader {
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
+                          nextRuntime: 'nodejs',
                         })
                       : relativeRequest,
                   appDir: this.config.experimental.appDir,
