@@ -18,7 +18,7 @@
     "listr2": "5.0.5",
     "p-queue": "7.3.0",
     "term-size": "3.0.2",
-    "webpack-stats-plugin": "^0.3.0",
-    "webpack-bundle-analyzer": "^3.3.2"
+    "webpack-bundle-analyzer": "^4.6.1",
+    "webpack-stats-plugin": "^1.1.0"
   }
 }
