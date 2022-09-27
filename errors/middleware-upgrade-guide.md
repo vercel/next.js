@@ -191,9 +191,9 @@ Based on beta feedback, we are changing the Cookies API in `NextRequest` and `Ne
 
 `NextResponse` now has a `cookies` instance with:
 
-- `cookie.delete`
-- `cookie.set`
-- `cookie.getWithOptions`
+- `cookies.delete`
+- `cookies.set`
+- `cookies.getWithOptions`
 
 As well as other extended methods from `Map`.
 
