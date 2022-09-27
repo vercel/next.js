@@ -44,7 +44,9 @@ type InternalLinkProps = {
    */
   replace?: boolean
   /**
-   * Replace the current `history` state instead of adding a new url into the stack.
+   * Whether to override the default scroll behavior
+   * 
+   * @example https://nextjs.org/docs/api-reference/next/link#disable-scrolling-to-the-top-of-the-page
    *
    * @defaultValue `true`
    */
