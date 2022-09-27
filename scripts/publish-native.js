@@ -39,14 +39,22 @@ const cwd = process.cwd()
           `npm publish ${path.join(
             nativePackagesDir,
             platform
-          )} --access public ${
-            gitref.includes('canary') ? ' --tag canary' : ''
-          }`
+          )} --access public --tag next-12-2-6`
         )
       } catch (err) {
         // don't block publishing other versions on single platform error
         console.error(`Failed to publish`, platform)
-        throw err
+
+        if (
+          err.message &&
+          err.message.includes(
+            'You cannot publish over the previously published versions'
+          )
+        ) {
+          console.error('Ignoring already published error', platform)
+        } else {
+          throw err
+        }
       }
       // lerna publish in next step will fail if git status is not clean
       execSync(
@@ -75,7 +83,7 @@ const cwd = process.cwd()
         `npm publish ${path.join(
           wasmDir,
           `pkg-${wasmTarget}`
-        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
+        )} --access public --tag next-12-2-6`
       )
     }
 
