@@ -299,9 +299,19 @@ export class FlightClientEntryPlugin {
       modules: clientComponentImports,
       server: false,
     }
-    const clientLoader = `next-flight-client-entry-loader?${stringify(
-      loaderOptions
-    )}!`
+
+    // For the client entry, we always use the CJS build of Next.js. If the
+    // server is using the ESM build (when using the Edge runtime), we need to
+    // replace them.
+    const clientLoader = `next-flight-client-entry-loader?${stringify({
+      modules: this.isEdgeServer
+        ? clientComponentImports.map((importPath) =>
+            importPath.replace('next/dist/esm/', 'next/dist/')
+          )
+        : clientComponentImports,
+      server: false,
+    })}!`
+
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
       ...loaderOptions,
       server: true,
