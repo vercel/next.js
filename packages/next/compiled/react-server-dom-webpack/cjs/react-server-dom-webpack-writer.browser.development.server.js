@@ -153,22 +153,8 @@ function serializeRowHeader(tag, id) {
   return tag + id.toString(16) + ':';
 }
 
-function processErrorChunkProd(request, id, digest) {
-  {
-    // These errors should never make it into a build so we don't need to encode them in codes.json
-    // eslint-disable-next-line react-internal/prod-error-codes
-    throw new Error('processErrorChunkProd should never be called while in development mode. Use processErrorChunkDev instead. This is a bug in React.');
-  }
-
+function processErrorChunk(request, id, message, stack) {
   var errorInfo = {
-    digest: digest
-  };
-  var row = serializeRowHeader('E', id) + stringify(errorInfo) + '\n';
-}
-function processErrorChunkDev(request, id, digest, message, stack) {
-
-  var errorInfo = {
-    digest: digest,
     message: message,
     stack: stack
   };
@@ -176,7 +162,6 @@ function processErrorChunkDev(request, id, digest, message, stack) {
   return stringToChunk(row);
 }
 function processModelChunk(request, id, model) {
-  // $FlowFixMe: `json` might be `undefined` when model is a symbol.
   var json = stringify(model, request.toJSON);
   var row = serializeRowHeader('J', id) + json + '\n';
   return stringToChunk(row);
@@ -187,7 +172,6 @@ function processReferenceChunk(request, id, reference) {
   return stringToChunk(row);
 }
 function processModuleChunk(request, id, moduleMetaData) {
-  // $FlowFixMe: `json` might be `undefined` when moduleMetaData is a symbol.
   var json = stringify(moduleMetaData);
   var row = serializeRowHeader('M', id) + json + '\n';
   return stringToChunk(row);
@@ -910,8 +894,8 @@ function readContext(context) {
   return value;
 }
 
-// Corresponds to ReactFiberWakeable and ReactFizzWakeable modules. Generally,
-// changes to one module should be reflected in the others.
+// Corresponds to ReactFiberWakeable module. Generally, changes to one module
+// should be reflected in the other.
 // TODO: Rename this module and the corresponding Fiber one to "Thenable"
 // instead of "Wakeable". Or some other more appropriate name.
 // TODO: Sparse arrays are bad for performance.
@@ -933,6 +917,11 @@ function trackSuspendedWakeable(wakeable) {
   // a listener that will update its status and result when it resolves.
 
   switch (thenable.status) {
+    case 'pending':
+      // Since the status is already "pending", we can assume it will be updated
+      // when it resolves, either by React or something in userspace.
+      break;
+
     case 'fulfilled':
     case 'rejected':
       // A thenable that already resolved shouldn't have been thrown, so this is
@@ -944,13 +933,9 @@ function trackSuspendedWakeable(wakeable) {
 
     default:
       {
-        if (typeof thenable.status === 'string') {
-          // Only instrument the thenable if the status if not defined. If
-          // it's defined, but an unknown value, assume it's been instrumented by
-          // some custom userspace implementation. We treat it as "pending".
-          break;
-        }
-
+        // TODO: Only instrument the thenable if the status if not defined. If
+        // it's defined, but an unknown value, assume it's been instrumented by
+        // some custom userspace implementation.
         var pendingThenable = thenable;
         pendingThenable.status = 'pending';
         pendingThenable.then(function (fulfilledValue) {
@@ -1005,9 +990,7 @@ function prepareToUseHooksForComponent(prevThenableState) {
   thenableState = prevThenableState;
 }
 function getThenableStateAfterSuspending() {
-  var state = thenableState;
-  thenableState = null;
-  return state;
+  return thenableState;
 }
 
 function readContext$1(context) {
@@ -1166,9 +1149,6 @@ function use(usable) {
             }
           }
       }
-    } else if (usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
-      var context = usable;
-      return readContext$1(context);
     }
   } // eslint-disable-next-line react-internal/safe-string-coercion
 
@@ -1179,8 +1159,7 @@ function use(usable) {
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe function signature doesn't reflect the symbol value
-    REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
+    ContextRegistry[globalName] = React.createServerContext(globalName, REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
   }
 
   return ContextRegistry[globalName];
@@ -1313,8 +1292,7 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
             if (extraKeys.length !== 0) {
               error('ServerContext can only have a value prop and children. Found: %s', JSON.stringify(extraKeys));
             }
-          } // $FlowFixMe issue discovered when updating Flow
-
+          }
 
           return [REACT_ELEMENT_TYPE, type, key, // Rely on __popProvider being serialized last to pop the provider.
           {
@@ -1402,16 +1380,7 @@ function serializeModuleReference(request, parent, key, moduleReference) {
   } catch (x) {
     request.pendingChunks++;
     var errorId = request.nextChunkId++;
-    var digest = logRecoverableError(request, x);
-
-    {
-      var _getErrorMessageAndSt = getErrorMessageAndStackDev(x),
-          message = _getErrorMessageAndSt.message,
-          stack = _getErrorMessageAndSt.stack;
-
-      emitErrorChunkDev(request, errorId, digest, message, stack);
-    }
-
+    emitErrorChunk(request, errorId, x);
     return serializeByValueID(errorId);
   }
 }
@@ -1656,16 +1625,7 @@ function resolveModelToJSON(request, parent, key, value) {
 
         request.pendingChunks++;
         var errorId = request.nextChunkId++;
-        var digest = logRecoverableError(request, x);
-
-        {
-          var _getErrorMessageAndSt2 = getErrorMessageAndStackDev(x),
-              message = _getErrorMessageAndSt2.message,
-              stack = _getErrorMessageAndSt2.stack;
-
-          emitErrorChunkDev(request, errorId, digest, message, stack);
-        }
-
+        emitErrorChunk(request, errorId, x);
         return serializeByRefID(errorId);
       }
     }
@@ -1717,8 +1677,7 @@ function resolveModelToJSON(request, parent, key, value) {
           }
         }
       }
-    } // $FlowFixMe
-
+    }
 
     return value;
   }
@@ -1749,14 +1708,12 @@ function resolveModelToJSON(request, parent, key, value) {
 
     if (existingId !== undefined) {
       return serializeByValueID(existingId);
-    } // $FlowFixMe `description` might be undefined
+    }
 
-
-    var name = value.description; // $FlowFixMe `name` might be undefined
+    var name = value.description;
 
     if (Symbol.for(name) !== value) {
-      throw new Error('Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + // $FlowFixMe `description` might be undefined
-      value.description + ") cannot be found among global symbols. ") + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
+      throw new Error('Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + value.description + ") cannot be found among global symbols. ") + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
     }
 
     request.pendingChunks++;
@@ -1776,39 +1733,7 @@ function resolveModelToJSON(request, parent, key, value) {
 
 function logRecoverableError(request, error) {
   var onError = request.onError;
-  var errorDigest = onError(error);
-
-  if (errorDigest != null && typeof errorDigest !== 'string') {
-    // eslint-disable-next-line react-internal/prod-error-codes
-    throw new Error("onError returned something with a type other than \"string\". onError should return a string and may return null or undefined but must not return anything else. It received something of type \"" + typeof errorDigest + "\" instead");
-  }
-
-  return errorDigest || '';
-}
-
-function getErrorMessageAndStackDev(error) {
-  {
-    var message;
-    var stack = '';
-
-    try {
-      if (error instanceof Error) {
-        // eslint-disable-next-line react-internal/safe-string-coercion
-        message = String(error.message); // eslint-disable-next-line react-internal/safe-string-coercion
-
-        stack = String(error.stack);
-      } else {
-        message = 'Error: ' + error;
-      }
-    } catch (x) {
-      message = 'An error occurred but serializing the error message failed.';
-    }
-
-    return {
-      message: message,
-      stack: stack
-    };
-  }
+  onError(error);
 }
 
 function fatalError(request, error) {
@@ -1822,18 +1747,31 @@ function fatalError(request, error) {
   }
 }
 
-function emitErrorChunkProd(request, id, digest) {
-  var processedChunk = processErrorChunkProd(request, id, digest);
-  request.completedErrorChunks.push(processedChunk);
-}
+function emitErrorChunk(request, id, error) {
+  // TODO: We should not leak error messages to the client in prod.
+  // Give this an error code instead and log on the server.
+  // We can serialize the error in DEV as a convenience.
+  var message;
+  var stack = '';
 
-function emitErrorChunkDev(request, id, digest, message, stack) {
-  var processedChunk = processErrorChunkDev(request, id, digest, message, stack);
+  try {
+    if (error instanceof Error) {
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      message = String(error.message); // eslint-disable-next-line react-internal/safe-string-coercion
+
+      stack = String(error.stack);
+    } else {
+      message = 'Error: ' + error;
+    }
+  } catch (x) {
+    message = 'An error occurred but serializing the error message failed.';
+  }
+
+  var processedChunk = processErrorChunk(request, id, message, stack);
   request.completedErrorChunks.push(processedChunk);
 }
 
 function emitModuleChunk(request, id, moduleMetaData) {
-  // $FlowFixMe ModuleMetaData is not a ReactModel
   var processedChunk = processModuleChunk(request, id, moduleMetaData);
   request.completedModuleChunks.push(processedChunk);
 }
@@ -1900,15 +1838,9 @@ function retryTask(request, task) {
     } else {
       request.abortableTasks.delete(task);
       task.status = ERRORED;
-      var digest = logRecoverableError(request, x);
+      logRecoverableError(request, x); // This errored, we need to serialize this error to the
 
-      {
-        var _getErrorMessageAndSt3 = getErrorMessageAndStackDev(x),
-            message = _getErrorMessageAndSt3.message,
-            stack = _getErrorMessageAndSt3.stack;
-
-        emitErrorChunkDev(request, task.id, digest, message, stack);
-      }
+      emitErrorChunk(request, task.id, x);
     }
   }
 }
@@ -2061,20 +1993,10 @@ function abort(request, reason) {
       // to that row from every row that's still remaining.
       var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
 
-      var digest = logRecoverableError(request, _error);
+      logRecoverableError(request, _error);
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
-
-      if (true) {
-        var _getErrorMessageAndSt4 = getErrorMessageAndStackDev(_error),
-            message = _getErrorMessageAndSt4.message,
-            stack = _getErrorMessageAndSt4.stack;
-
-        emitErrorChunkDev(request, errorId, digest, message, stack);
-      } else {
-        emitErrorChunkProd(request, errorId, digest);
-      }
-
+      emitErrorChunk(request, errorId, _error);
       abortableTasks.forEach(function (task) {
         return abortTask(task, request, errorId);
       });
