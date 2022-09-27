@@ -599,7 +599,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     )
     const $ = cheerio.load(html)
     const query = JSON.parse($('#query').text())
-    expect(query.post).toBe('post-1')
+    expect(query.post).toBe('something-else')
   })
 
   it('should parse query values on mount correctly', async () => {
