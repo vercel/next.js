@@ -41,7 +41,7 @@ import {
   LoadComponentsReturnType,
 } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
@@ -1169,6 +1169,7 @@ export async function isPageStatic({
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
+  enableUndici,
   locales,
   defaultLocale,
   parentId,
@@ -1184,6 +1185,7 @@ export async function isPageStatic({
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
@@ -1210,7 +1212,10 @@ export async function isPageStatic({
   return isPageStaticSpan
     .traceAsyncFn(async () => {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-      setHttpAgentOptions(httpAgentOptions)
+      setHttpClientAndAgentOptions({
+        httpAgentOptions,
+        experimental: { enableUndici },
+      })
 
       let componentsResult: LoadComponentsReturnType
       let prerenderRoutes: Array<string> | undefined

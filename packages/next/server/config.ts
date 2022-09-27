@@ -13,6 +13,7 @@ import {
   ExperimentalConfig,
   NextConfigComplete,
   validateConfig,
+  NextConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import {
@@ -22,6 +23,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
+import { gte as semverGte } from 'next/dist/compiled/semver'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -45,12 +47,22 @@ const experimentalWarning = execOnce(
   }
 )
 
-export function setHttpAgentOptions(
-  options: NextConfigComplete['httpAgentOptions']
-) {
+export function setHttpClientAndAgentOptions(options: NextConfig) {
+  if (semverGte(process.version, '16.8.0')) {
+    if (semverGte(process.version, '18.0.0')) {
+      Log.warn(
+        '`enableUndici` option is unnecessary in Node.js v18.0.0 or greater.'
+      )
+    }
+    ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
+  } else if (options.experimental?.enableUndici) {
+    Log.warn(
+      '`enableUndici` option requires Node.js v16.8.0 or greater. Falling back to `node-fetch`'
+    )
+  }
   if ((global as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
-    // to resuse the same agent for all requests.
+    // to reuse the same agent for all requests.
     return
   }
 
@@ -58,8 +70,9 @@ export function setHttpAgentOptions(
     throw new Error('Expected config.httpAgentOptions to be an object')
   }
 
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
+  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = options.httpAgentOptions
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
 }
 
 function assignDefaults(userConfig: { [key: string]: any }) {
@@ -545,9 +558,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   // TODO: Change defaultConfig type to NextConfigComplete
   // so we don't need "!" here.
-  setHttpAgentOptions(
-    result.httpAgentOptions || defaultConfig.httpAgentOptions!
-  )
+  setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -855,6 +866,6 @@ export default async function loadConfig(
   // reactRoot can be updated correctly even with no next.config.js
   const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
   completeConfig.configFileName = configFileName
-  setHttpAgentOptions(completeConfig.httpAgentOptions)
+  setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
 }
