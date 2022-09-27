@@ -38,15 +38,14 @@ describe('app dir - react server components', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
-        'styled-components': '6.0.0-alpha.5',
+        'styled-components': '6.0.0-beta.2',
         react: 'experimental',
         'react-dom': 'experimental',
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/* ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          build: 'next build',
+          dev: 'next dev',
           start: 'next start',
         },
       },
