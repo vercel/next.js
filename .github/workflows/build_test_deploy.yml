@@ -747,7 +747,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
-        timeout-minutes: 3
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
