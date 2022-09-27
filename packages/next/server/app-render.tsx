@@ -30,6 +30,8 @@ import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
+import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
+import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -170,19 +172,19 @@ function createErrorHandler(
 ) {
   return (err: any) => {
     if (
-      // Use error message instead of type because HTML renderer uses Flight data which is serialized so it's not the same object instance.
-      err.message &&
-      !err.message.includes('Dynamic server usage') &&
       // TODO-APP: Handle redirect throw
-      err.code !== REDIRECT_ERROR_CODE &&
-      err.message !== REDIRECT_ERROR_CODE
+      err.digest !== DYNAMIC_ERROR_CODE &&
+      err.digest !== NOT_FOUND_ERROR_CODE &&
+      !err.digest?.startsWith(REDIRECT_ERROR_CODE)
     ) {
       // Used for debugging error source
       // console.error(_source, err)
       console.error(err)
       capturedErrors.push(err)
+      return err.digest || err.message
     }
-    return null
+
+    return err.digest
   }
 }
 
@@ -256,7 +258,10 @@ function useFlightResponse(
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
-    moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    moduleMap:
+      process.env.NEXT_RUNTIME === 'edge'
+        ? serverComponentManifest.__edge_ssr_module_mapping__
+        : serverComponentManifest.__ssr_module_mapping__,
   })
   flightResponseRef.current = res
 
@@ -268,7 +273,7 @@ function useFlightResponse(
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
 
-  function process() {
+  function read() {
     forwardReader.read().then(({ done, value }) => {
       if (value) {
         rscChunks.push(value)
@@ -294,11 +299,11 @@ function useFlightResponse(
         )})</script>`
 
         writer.write(encodeText(scripts))
-        process()
+        read()
       }
     })
   }
-  process()
+  read()
 
   return res
 }
@@ -937,6 +942,7 @@ export async function renderToHTMLOrFlight(
                   parallelRouterKey={parallelRouteKey}
                   segmentPath={createSegmentPath(currentSegmentPath)}
                   loading={Loading ? <Loading /> : undefined}
+                  hasLoading={Boolean(Loading)}
                   error={ErrorComponent}
                   template={
                     <Template>
@@ -977,6 +983,8 @@ export async function renderToHTMLOrFlight(
                 segmentPath={segmentPath}
                 error={ErrorComponent}
                 loading={Loading ? <Loading /> : undefined}
+                // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
+                hasLoading={Boolean(Loading)}
                 template={
                   <Template>
                     <RenderFromTemplateContext />
@@ -1299,10 +1307,6 @@ export async function renderToHTMLOrFlight(
           flushEffectsToHead: true,
         })
       } catch (err: any) {
-        if (err.code === REDIRECT_ERROR_CODE) {
-          throw err
-        }
-
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
@@ -1358,21 +1362,7 @@ export async function renderToHTMLOrFlight(
       return new RenderResult(staticHtml)
     }
 
-    try {
-      return new RenderResult(await bodyResult())
-    } catch (err: any) {
-      if (err.code === REDIRECT_ERROR_CODE) {
-        ;(renderOpts as any).pageData = {
-          pageProps: {
-            __N_REDIRECT: err.url,
-            __N_REDIRECT_STATUS: 307,
-          },
-        }
-        ;(renderOpts as any).isRedirect = true
-        return RenderResult.fromStatic('')
-      }
-      throw err
-    }
+    return new RenderResult(await bodyResult())
   }
 
   const initialStaticGenerationStore = {

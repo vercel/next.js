@@ -9,6 +9,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import browserslist from 'next/dist/compiled/browserslist'
 import {
   Redirect,
   Rewrite,
@@ -22,6 +23,7 @@ import {
   MIDDLEWARE_FILENAME,
   SERVER_RUNTIME,
 } from '../lib/constants'
+import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -1724,4 +1726,33 @@ export class NestedMiddlewareError extends Error {
         `Read More - https://nextjs.org/docs/messages/nested-middleware`
     )
   }
+}
+
+export function getSupportedBrowsers(
+  dir: string,
+  isDevelopment: boolean,
+  config: NextConfigComplete
+): string[] | undefined {
+  let browsers: any
+  try {
+    const browsersListConfig = browserslist.loadConfig({
+      path: dir,
+      env: isDevelopment ? 'development' : 'production',
+    })
+    // Running `browserslist` resolves `extends` and other config features into a list of browsers
+    if (browsersListConfig && browsersListConfig.length > 0) {
+      browsers = browserslist(browsersListConfig)
+    }
+  } catch {}
+
+  // When user has browserslist use that target
+  if (browsers && browsers.length > 0) {
+    return browsers
+  }
+
+  // When user does not have browserslist use the default target
+  // When `experimental.legacyBrowsers: false` the modern default is used
+  return config.experimental.legacyBrowsers
+    ? undefined
+    : MODERN_BROWSERSLIST_TARGET
 }

@@ -1490,8 +1490,7 @@ describe('app dir', () => {
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('404!')
       })
-
-      it('should trigger 404 client-side', async () => {
+      ;(isDev ? it.skip : it)('should trigger 404 client-side', async () => {
         const browser = await webdriver(next.url, '/not-found/client-side')
         await browser
           .elementByCss('button')
