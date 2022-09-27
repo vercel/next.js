@@ -1550,6 +1550,7 @@ export default class Router implements BaseRouter {
         locale: nextState.locale,
         isPreview: nextState.isPreview,
         hasMiddleware: isMiddlewareMatch,
+        unstable_skipClientCache: options.unstable_skipClientCache,
       })
 
       if ('route' in routeInfo && isMiddlewareMatch) {
