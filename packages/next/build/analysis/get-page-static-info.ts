@@ -187,6 +187,10 @@ function getMiddlewareConfig(
 
   if (typeof config.regions === 'string' || Array.isArray(config.regions)) {
     result.regions = config.regions
+  } else if (typeof config.regions !== 'undefined') {
+    Log.warn(
+      `The \`regions\` config was ignored: config must be empty, a string or an array of strings. (${pageFilePath})`
+    )
   }
 
   if (config.unstable_allowDynamic) {
