@@ -309,8 +309,9 @@ class RedirectErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.digest === 'NEXT_REDIRECT') {
-      return { redirect: error.url }
+    if (error.digest?.startsWith('NEXT_REDIRECT')) {
+      const url = error.digest.split(';')[1]
+      return { redirect: url }
     }
     // Re-throw if error is not for 404
     throw error
@@ -354,7 +355,7 @@ class NotFoundErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.code === 'NEXT_NOT_FOUND') {
+    if (error.digest === 'NEXT_NOT_FOUND') {
       return { notFoundTriggered: true }
     }
     // Re-throw if error is not for 404
