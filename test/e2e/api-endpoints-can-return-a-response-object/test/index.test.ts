@@ -18,14 +18,15 @@ describe('API Endpoints can return a Response object', () => {
     const response = await fetchViaHTTP(next.url, '/api/test')
     expect({
       status: response.status,
-      headers: Object.fromEntries(response.headers),
+      headers: response.headers.raw(),
       text: await response.text(),
     }).toEqual({
       status: 201,
       headers: expect.objectContaining({
-        'x-incoming-url': '/api/test',
-        'x-from-node-api': '1',
-        'x-will-be-merged': '1',
+        'x-incoming-url': ['/api/test'],
+        'x-from-node-api': ['1'],
+        'x-will-be-merged': ['1'],
+        'set-cookie': ['test1=1', 'test2=2', 'test3=3', 'test4=4'],
       }),
       text: 'from Response',
     })
@@ -35,13 +36,13 @@ describe('API Endpoints can return a Response object', () => {
     const response = await fetchViaHTTP(next.url, '/api/node-streams')
     expect({
       status: response.status,
-      headers: Object.fromEntries(response.headers),
+      headers: response.headers.raw(),
     }).toEqual({
       status: 201,
       headers: expect.objectContaining({
-        'x-incoming-url': '/api/node-streams',
-        'x-from-node-api': '1',
-        'x-will-be-merged': '1',
+        'x-incoming-url': ['/api/node-streams'],
+        'x-from-node-api': ['1'],
+        'x-will-be-merged': ['1'],
       }),
     })
 
@@ -58,13 +59,13 @@ describe('API Endpoints can return a Response object', () => {
     const response = await fetchViaHTTP(next.url, '/api/web-streams')
     expect({
       status: response.status,
-      headers: Object.fromEntries(response.headers),
+      headers: response.headers.raw(),
     }).toEqual({
       status: 201,
       headers: expect.objectContaining({
-        'x-incoming-url': '/api/web-streams',
-        'x-from-node-api': '1',
-        'x-will-be-merged': '1',
+        'x-incoming-url': ['/api/web-streams'],
+        'x-from-node-api': ['1'],
+        'x-will-be-merged': ['1'],
       }),
     })
 

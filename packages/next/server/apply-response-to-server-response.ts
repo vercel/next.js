@@ -11,11 +11,31 @@ export function applyResponseToServerResponse(
 
   const headers = new Map<string, string[]>()
 
-  stdResponse.headers.forEach((value, key) => {
+  for (const [key, values] of Object.entries(nodeResponse.getHeaders())) {
+    if (typeof values === 'string') {
+      headers.set(key, [values])
+    } else if (Array.isArray(values)) {
+      headers.set(key, values)
+    }
+  }
+
+  const keys =
+    'raw' in stdResponse.headers
+      ? Object.keys(stdResponse.headers.raw())
+      : [...stdResponse.headers.keys()]
+
+  for (const key of keys) {
+    const values: string[] =
+      'getAll' in stdResponse.headers
+        ? // @ts-expect-error
+          stdResponse.headers.getAll(key)
+        : 'raw' in stdResponse.headers
+        ? [...stdResponse.headers.raw()[key]]
+        : [stdResponse.headers.get(key)!]
     const arr = headers.get(key) || []
-    arr.push(value)
+    arr.push(...values)
     headers.set(key, arr)
-  })
+  }
 
   for (const [key, values] of headers) {
     nodeResponse.setHeader(key, values)
