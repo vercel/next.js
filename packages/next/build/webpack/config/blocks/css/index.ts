@@ -1,3 +1,4 @@
+import path from 'path'
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
@@ -180,32 +181,11 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
-  // CSS cannot be imported in _document. This comes before everything because
-  // global CSS nor CSS modules work in said file.
-  fns.push(
-    loader({
-      oneOf: [
-        markRemovable({
-          test: regexLikeCss,
-          // Use a loose regex so we don't have to crawl the file system to
-          // find the real file name (if present).
-          issuer: /pages[\\/]_document\./,
-          use: {
-            loader: 'error-loader',
-            options: {
-              reason: getCustomDocumentError(),
-            },
-          },
-        }),
-      ],
-    })
-  )
-
   // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
   let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
     ? Object.entries(ctx.experimental.fontLoaders).map(
         ([fontLoader, fontLoaderOptions]: any) => [
-          require.resolve(fontLoader),
+          path.join(require.resolve(fontLoader), '../target.css'),
           fontLoaderOptions,
         ]
       )
@@ -253,6 +233,27 @@ export const css = curry(async function css(
       })
     )
   })
+
+  // CSS cannot be imported in _document. This comes before everything because
+  // global CSS nor CSS modules work in said file.
+  fns.push(
+    loader({
+      oneOf: [
+        markRemovable({
+          test: regexLikeCss,
+          // Use a loose regex so we don't have to crawl the file system to
+          // find the real file name (if present).
+          issuer: /pages[\\/]_document\./,
+          use: {
+            loader: 'error-loader',
+            options: {
+              reason: getCustomDocumentError(),
+            },
+          },
+        }),
+      ],
+    })
+  )
 
   // CSS Modules support must be enabled on the server and client so the class
   // names are available for SSR or Prerendering.

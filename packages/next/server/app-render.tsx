@@ -258,7 +258,10 @@ function useFlightResponse(
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
-    moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    moduleMap:
+      process.env.NEXT_RUNTIME === 'edge'
+        ? serverComponentManifest.__edge_ssr_module_mapping__
+        : serverComponentManifest.__ssr_module_mapping__,
   })
   flightResponseRef.current = res
 
@@ -270,7 +273,7 @@ function useFlightResponse(
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
 
-  function process() {
+  function read() {
     forwardReader.read().then(({ done, value }) => {
       if (value) {
         rscChunks.push(value)
@@ -296,11 +299,11 @@ function useFlightResponse(
         )})</script>`
 
         writer.write(encodeText(scripts))
-        process()
+        read()
       }
     })
   }
-  process()
+  read()
 
   return res
 }
@@ -819,7 +822,7 @@ export async function renderToHTMLOrFlight(
           error,
           loading,
           page,
-          '404': notFound,
+          'not-found': notFound,
         },
       ],
       parentParams,
@@ -939,6 +942,7 @@ export async function renderToHTMLOrFlight(
                   parallelRouterKey={parallelRouteKey}
                   segmentPath={createSegmentPath(currentSegmentPath)}
                   loading={Loading ? <Loading /> : undefined}
+                  hasLoading={Boolean(Loading)}
                   error={ErrorComponent}
                   template={
                     <Template>
@@ -979,6 +983,8 @@ export async function renderToHTMLOrFlight(
                 segmentPath={segmentPath}
                 error={ErrorComponent}
                 loading={Loading ? <Loading /> : undefined}
+                // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
+                hasLoading={Boolean(Loading)}
                 template={
                   <Template>
                     <RenderFromTemplateContext />

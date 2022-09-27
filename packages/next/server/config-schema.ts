@@ -240,6 +240,12 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        optoutServerComponentsBundle: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         browsersListForSwc: {
           type: 'boolean',
         },

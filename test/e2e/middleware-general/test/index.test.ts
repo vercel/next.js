@@ -125,8 +125,20 @@ describe('Middleware Runtime', () => {
             matchers: [{ regexp: '^/.*$' }],
             wasm: [],
             assets: [],
+            regions: 'auto',
           },
         })
+      })
+
+      it('should have the custom config in the manifest', async () => {
+        const manifest = await fs.readJSON(
+          join(next.testDir, '.next/server/middleware-manifest.json')
+        )
+
+        expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
+          'regions',
+          'default'
+        )
       })
 
       it('should have correct files in manifest', async () => {
@@ -440,7 +452,7 @@ describe('Middleware Runtime', () => {
       const payload = readMiddlewareJSON(response)
       expect('error' in payload).toBe(true)
       expect(payload.error.name).toBe('AbortError')
-      expect(payload.error.message).toBe('The operation was aborted.')
+      expect(payload.error.message).toContain('The operation was aborted')
     })
 
     it(`should validate & parse request url from any route`, async () => {
