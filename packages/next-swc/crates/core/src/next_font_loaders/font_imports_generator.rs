@@ -31,7 +31,7 @@ impl<'a> FontImportsGenerator<'a> {
                                 });
                             }
 
-                            expr_to_json(&*expr_or_spread.expr)
+                            expr_to_json(&expr_or_spread.expr)
                         })
                         .collect();
 
@@ -182,7 +182,7 @@ fn object_lit_to_json(object_lit: &ObjectLit) -> Value {
                             Err(())
                         }
                     };
-                    let val = expr_to_json(&*key_val.value);
+                    let val = expr_to_json(&key_val.value);
                     if let (Ok(key), Ok(val)) = (key, val) {
                         values.insert(key, val);
                     }
@@ -226,7 +226,7 @@ fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
                                     .emit();
                                 Err(())
                             }),
-                            None => expr_to_json(&*expr.expr),
+                            None => expr_to_json(&expr.expr),
                         }
                     } else {
                         HANDLER.with(|handler| {
