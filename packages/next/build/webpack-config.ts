@@ -1747,12 +1747,12 @@ export default async function getBaseWebpackConfig(
     plugins: [
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
-      (isClient || isEdgeServer) &&
+      isClient &&
         new webpack.ProvidePlugin({
           // Buffer is used by getInlineScriptSource
           Buffer: [require.resolve('buffer'), 'Buffer'],
           // Avoid process being overridden when in web run time
-          ...(isClient && { process: [require.resolve('process')] }),
+          process: [require.resolve('process')],
         }),
       new webpack.DefinePlugin(
         getDefineEnv({
