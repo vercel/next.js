@@ -324,6 +324,7 @@ const ImageElement = ({
   isLazy,
   fill,
   placeholder,
+  priority,
   loading,
   srcString,
   config,
@@ -349,6 +350,7 @@ const ImageElement = ({
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
         loading={loading}
+        fetchPriority={priority ? "high" : null}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp | null) => {
@@ -855,6 +857,7 @@ export default function Image({
     fill,
     unoptimized,
     placeholder,
+    priority,
     loader,
     srcString,
     onLoadingCompleteRef,
