@@ -741,14 +741,6 @@ function getExtractMetadata(params: {
         }
 
         if (edgeFunctionConfig?.config?.regions) {
-          telemetry.record({
-            eventName: 'NEXT_EDGE_REGIONS_USED',
-            payload: {
-              ...edgeFunctionConfig,
-              file: edgeFunctionConfig.file.replace(rootDir ?? '', ''),
-            },
-          })
-
           entryMetadata.regions = edgeFunctionConfig.config.regions
         }
 
