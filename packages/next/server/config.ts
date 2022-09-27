@@ -49,15 +49,20 @@ const experimentalWarning = execOnce(
 
 export function setHttpClientAndAgentOptions(options: NextConfig) {
   if (semverGte(process.version, '16.8.0')) {
+    if (semverGte(process.version, '18.0.0')) {
+      Log.warn(
+        '`enableUndici` option is unnecessary in Node.js v18.0.0 or greater.'
+      )
+    }
     ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
-  } else {
+  } else if (options.experimental?.enableUndici) {
     Log.warn(
-      'Cannot enable undici fetch. Must be on Node.js v16.8.0 or greater.'
+      '`enableUndici` option requires Node.js v16.8.0 or greater. Falling back to `node-fetch`'
     )
   }
   if ((global as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
-    // to resuse the same agent for all requests.
+    // to reuse the same agent for all requests.
     return
   }
 
