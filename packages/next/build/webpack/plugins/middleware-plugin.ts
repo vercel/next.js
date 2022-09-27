@@ -37,7 +37,7 @@ export interface EdgeFunctionDefinition {
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
   // TODO(schniz): mark as optional
-  userConfig: Record<string, unknown> | undefined
+  regions?: string[] | string
 }
 
 export interface MiddlewareManifest {
@@ -51,7 +51,6 @@ interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
-  // TODO(schniz): mark as optional
   userConfig: Record<string, unknown> | undefined
   env: Set<string>
   wasmBindings: Map<string, string>
@@ -168,13 +167,19 @@ function getCreateAssets(params: {
         { regexp: namedRegex },
       ]
 
+      const regions =
+        metadata.userConfig &&
+        (Array.isArray(metadata.userConfig.regions) ||
+          typeof metadata.userConfig.regions === 'string')
+          ? metadata.userConfig.regions
+          : undefined
+
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata, opts),
         name: entrypoint.name,
         page: page,
         matchers,
-        userConfig: metadata.userConfig,
         wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
           name,
           filePath,
@@ -183,6 +188,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
+        ...(regions && { regions }),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {

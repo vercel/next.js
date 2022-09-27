@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse, URLPattern } from 'next/server'
 import magicValue from 'shared-package'
 
-export const config = { customConfig: true }
+export const config = { regions: 'auto' }
 
 const PATTERNS = [
   [

@@ -240,21 +240,6 @@ function warnAboutUnsupportedValue(
   warnedUnsupportedValueMap.set(pageFilePath, true)
 }
 
-function getUserConfig(
-  config: any,
-  middlewareConfig: Partial<MiddlewareConfig>
-) {
-  if (!config) return
-
-  const userConfig = { ...config }
-  delete userConfig.runtime
-  if (middlewareConfig.matchers) {
-    delete userConfig.matcher
-  }
-
-  return userConfig
-}
-
 /**
  * For a given pageFilePath and nextConfig, if the config supports it, this
  * function will read the file and return the runtime that should be used.
@@ -331,7 +316,7 @@ export async function getPageStaticInfo(params: {
       ssr,
       ssg,
       rsc,
-      userConfig: getUserConfig(config, middlewareConfig),
+      userConfig: config,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(runtime && { runtime }),
     }

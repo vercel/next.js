@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-export const config = { runtime: 'experimental-edge', custom: 'config' }
+export const config = { runtime: 'experimental-edge', regions: 'default' }
 
 /**
  * @param {import('next/server').NextRequest}

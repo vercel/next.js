@@ -166,7 +166,6 @@ export function getEdgeServerEntry(opts: {
   middleware?: Partial<MiddlewareConfig>
   pagesType?: 'app' | 'pages' | 'root'
   appDirLoader?: string
-  // TODO(schniz): mark as optional
   userConfig: Record<string, unknown> | undefined
 }) {
   if (isMiddlewareFile(opts.page)) {

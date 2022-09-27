@@ -125,9 +125,7 @@ describe('Middleware Runtime', () => {
             matchers: [{ regexp: '^/.*$' }],
             wasm: [],
             assets: [],
-            userConfig: {
-              customConfig: true,
-            },
+            regions: 'auto',
           },
         })
       })
@@ -138,8 +136,8 @@ describe('Middleware Runtime', () => {
         )
 
         expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
-          'userConfig',
-          { custom: 'config' }
+          'regions',
+          'default'
         )
       })
 
