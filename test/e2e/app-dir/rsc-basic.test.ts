@@ -403,9 +403,14 @@ describe('app dir - react server components', () => {
     await fetchViaHTTP(next.url, '/react-server/3rd-party-package').then(
       async (response) => {
         const result = await resolveStreamResponse(response)
-        expect(result).toContain('Server: index.react-server')
+
+        // Package should be resolved based on the react-server condition,
+        // as well as package's dependencies.
+        expect(result).toContain('Server: index.react-server:react.subset')
+        expect(result).toContain('Client: index.default:react.full')
+
+        // Subpath exports should be resolved based on the condition too.
         expect(result).toContain('Server subpath: subpath.react-server')
-        expect(result).toContain('Client: index.default')
         expect(result).toContain('Client subpath: subpath.default')
       }
     )
