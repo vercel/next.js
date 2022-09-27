@@ -1,5 +1,7 @@
+#![feature(async_closure)]
 #![feature(min_specialization)]
 
+pub mod env;
 pub mod next_client;
 pub mod react_refresh;
 mod server_render;

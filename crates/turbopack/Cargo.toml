@@ -15,7 +15,6 @@ bench_against_node_nft = []
 
 [dependencies]
 anyhow = "1.0.47"
-indexmap = "1.8.0"
 json = "0.12.4"
 lazy_static = "1.4.0"
 rand = "0.8.5"
@@ -28,6 +27,7 @@ turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-css = { path = "../turbopack-css" }
 turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+turbopack-env = { path = "../turbopack-env" }
 turbopack-json = { path = "../turbopack-json" }
 turbopack-static = { path = "../turbopack-static" }
 url = "2.2.2"

@@ -1,3 +1,23 @@
+(self.TURBOPACK = self.TURBOPACK || []).push(["[root of the dev server]/snapshot/example/env/output/snapshot_example_env_input_index.js.eval58e1347db851343c.js", {
+
+"[project]/snapshot/example/env/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
+
+console.log(process.env.FOOBAR);
+
+})()),
+"[project]/snapshot/example/env/input/.env/.env.js": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+
+const env = process.env;
+
+env["FOO"] = "foo";
+env["FOOBAR"] = "foobar";
+
+})()),
+}, ({ chunks, instantiateRuntimeModule }) => {
+    if(!(true)) return true;
+    instantiateRuntimeModule("[project]/snapshot/example/env/input/.env/.env.js");
+instantiateRuntimeModule("[project]/snapshot/example/env/input/index.js (ecmascript)");
+}]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
   // instance of the runtime, or it will push itself onto the list of pending
@@ -685,3 +705,6 @@
   self.TURBOPACK = { push: registerChunk };
   chunksToRegister.forEach(registerChunk);
 })();
+
+
+//# sourceMappingURL=snapshot_example_env_input_index.js.eval58e1347db851343c.js.00ccce92a16632be.map

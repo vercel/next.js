@@ -20,6 +20,8 @@ turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack = { path = "../turbopack" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-dev-server = { path = "../turbopack-dev-server" }
+turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+turbopack-env = { path = "../turbopack-env" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

@@ -488,8 +488,9 @@ pub fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
     turbopack_core::register();
-    turbopack_ecmascript::register();
     turbopack_css::register();
+    turbopack_ecmascript::register();
+    turbopack_env::register();
     turbopack_json::register();
     turbopack_static::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));

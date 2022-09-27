@@ -52,8 +52,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$snapshot$2f$example$2f$chunked$2
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  // TODO: temporary solution
-  var _process = typeof process !== "undefined" ? process : { env: { NODE_ENV: "development" } };
+  var _process = typeof process !== "undefined" ? process : { env: {} };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 

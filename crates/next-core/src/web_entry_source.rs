@@ -24,14 +24,19 @@ use turbopack_dev_server::{
     html_runtime_asset::HtmlRuntimeAssetVc,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
+use turbopack_env::{ProcessEnvAssetVc, ProcessEnvVc};
 
-use crate::react_refresh::{assert_can_resolve_react_refresh, resolve_react_refresh};
+use crate::{
+    env::filter_for_client,
+    react_refresh::{assert_can_resolve_react_refresh, resolve_react_refresh},
+};
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
     root: FileSystemPathVc,
     entry_requests: Vec<RequestVc>,
     dev_server_fs: FileSystemVc,
+    env: ProcessEnvVc,
     eager_compile: bool,
 ) -> Result<ContentSourceVc> {
     let environment = EnvironmentVc::new(
@@ -84,7 +89,10 @@ pub async fn create_web_entry_source(
     }
     .into();
 
-    let mut runtime_entries = vec![HtmlRuntimeAssetVc::new().as_ecmascript_chunk_placeable()];
+    let mut runtime_entries = vec![
+        ProcessEnvAssetVc::new(root, filter_for_client(env)).as_ecmascript_chunk_placeable(),
+        HtmlRuntimeAssetVc::new().as_ecmascript_chunk_placeable(),
+    ];
     if enable_react_refresh {
         runtime_entries.push(resolve_react_refresh(context))
     }

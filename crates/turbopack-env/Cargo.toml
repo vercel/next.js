@@ -1,5 +1,5 @@
 [package]
-name = "turbopack-core"
+name = "turbopack-env"
 version = "0.1.0"
 edition = "2021"
 autobenches = false
@@ -11,24 +11,13 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
-async-trait = "0.1.56"
-json = "0.12.4"
-lazy_static = "1.4.0"
-patricia_tree = "0.3.1"
-rand = "0.8.5"
-regex = "1.5.4"
+dotenvy = "0.15.5"
+indexmap = "1.8.0"
 serde = "1.0.136"
-serde_json = "1.0.81"
-serde_regex = "1.1.0"
-sourcemap = "6.0.2"
-tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack-hash = { path = "../turbopack-hash" }
-url = "2.2.2"
+turbopack-core = { path = "../turbopack-core" }
+turbopack-ecmascript = { path = "../turbopack-ecmascript" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
-
-[dev-dependencies]
-rstest = "0.12.0"

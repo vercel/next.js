@@ -63,8 +63,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  // TODO: temporary solution
-  var _process = typeof process !== "undefined" ? process : { env: { NODE_ENV: "development" } };
+  var _process = typeof process !== "undefined" ? process : { env: {} };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 

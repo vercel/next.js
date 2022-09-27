@@ -15,12 +15,15 @@ use test_generator::test_resources;
 use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks, Value};
 use turbo_tasks_fs::{
     util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, File, FileContent,
-    FileContentVc, FileSystemEntryType, FileSystemPathVc,
+    FileContentVc, FileSystemEntryType, FileSystemPathVc, FileSystemVc,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    ecmascript::EcmascriptModuleAssetVc, register, resolve_options_context::ResolveOptionsContext,
-    transition::TransitionsByNameVc, ModuleAssetContextVc,
+    ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
+    register,
+    resolve_options_context::ResolveOptionsContext,
+    transition::TransitionsByNameVc,
+    ModuleAssetContextVc,
 };
 use turbopack_core::{
     asset::AssetVc,
@@ -33,6 +36,7 @@ use turbopack_core::{
     reference::all_referenced_assets,
     source_asset::SourceAssetVc,
 };
+use turbopack_env::{ProcessEnvAssetVc, ProcessEnvVc};
 
 lazy_static! {
     // Allows for interactive manual debugging of a test case in a browser with:
@@ -78,6 +82,8 @@ async fn run(resource: &'static str) -> Result<()> {
         let test_entry = path.join("input/index.js");
         let entry_asset = sys_to_unix(test_entry.to_str().unwrap());
         let entry_paths = vec![FileSystemPathVc::new(project_fs.into(), &entry_asset)];
+
+        let runtime_entries = maybe_load_env(project_fs.into(), path).await?;
 
         let context: AssetContextVc = ModuleAssetContextVc::new(
             TransitionsByNameVc::cell(HashMap::new()),
@@ -142,7 +148,8 @@ async fn run(resource: &'static str) -> Result<()> {
         let chunks = modules
             .map(|module| async move {
                 if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                    Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), None))
+                    // TODO: Load runtime entries from snapshots
+                    Ok(ecmascript.as_evaluated_chunk(chunking_context.into(), runtime_entries))
                 } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                     Ok(chunkable.as_chunk(chunking_context.into()))
                 } else {
@@ -247,4 +254,23 @@ async fn diff(
 
 fn trimmed_string(input: &[u8]) -> String {
     String::from_utf8_lossy(input).trim().to_string()
+}
+
+async fn maybe_load_env(
+    project_fs: FileSystemVc,
+    path: &Path,
+) -> Result<Option<EcmascriptChunkPlaceablesVc>> {
+    let dotenv_path = path.join("input/.env");
+    let dotenv_path = sys_to_unix(dotenv_path.to_str().unwrap());
+    let dotenv_path = FileSystemPathVc::new(project_fs, &dotenv_path);
+
+    if !dotenv_path.read().await?.is_content() {
+        return Ok(None);
+    }
+
+    let env = ProcessEnvVc::from_dotenv_file(dotenv_path, None);
+    let asset = ProcessEnvAssetVc::new(dotenv_path, env);
+    Ok(Some(EcmascriptChunkPlaceablesVc::cell(vec![
+        asset.as_ecmascript_chunk_placeable()
+    ])))
 }

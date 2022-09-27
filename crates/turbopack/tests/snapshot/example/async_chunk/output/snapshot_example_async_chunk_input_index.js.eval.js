@@ -60,8 +60,7 @@ __turbopack_export_value__((__turbopack_import__) => {
    */
   const moduleChunksMap = new Map();
   var hOP = Object.prototype.hasOwnProperty;
-  // TODO: temporary solution
-  var _process = typeof process !== "undefined" ? process : { env: { NODE_ENV: "development" } };
+  var _process = typeof process !== "undefined" ? process : { env: {} };
 
   var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 

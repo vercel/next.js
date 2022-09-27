@@ -1048,11 +1048,8 @@ impl FileContent {
         FileContent::Content(file)
     }
 
-    pub fn is_content(&self, buffer: &Vec<u8>) -> bool {
-        match self {
-            FileContent::Content(file) => &file.content == buffer,
-            _ => false,
-        }
+    pub fn is_content(&self) -> bool {
+        matches!(self, FileContent::Content(_))
     }
 
     pub fn parse_json(&self) -> FileJsonContent {
