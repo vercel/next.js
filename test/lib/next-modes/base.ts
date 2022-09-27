@@ -143,14 +143,28 @@ export class NextInstance {
       ) {
         await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
       } else if (!skipIsolatedNext) {
-        this.testDir = await createNextInstall(
-          finalDependencies,
-          this.installCommand,
-          this.packageJson,
-          this.packageLockPath
-        )
+        this.testDir = await createNextInstall({
+          dependencies: finalDependencies,
+          installCommand: this.installCommand,
+          packageJson: this.packageJson,
+          packageLockPath: this.packageLockPath,
+        })
       }
       require('console').log('created next.js install, writing test files')
+    }
+
+    const tempNodeModulesFolder = 'node_modules_bak'
+    // Merge customized node_modules and installed node_modules.
+    // Move files[node_modules] to a temporary folder node_modules_back,
+    // then copy the modules back to node_modules after installation.
+    const tempNodeModulesPath = path.join(this.testDir, tempNodeModulesFolder)
+    const nodeModulesDir = path.join(this.testDir, 'node_modules')
+    const hasNodeModulesDir =
+      fs.existsSync(nodeModulesDir) &&
+      (await fs.stat(nodeModulesDir)).isDirectory()
+    if (hasNodeModulesDir) {
+      // Move node_modules to temp folder
+      await fs.move(nodeModulesDir, tempNodeModulesPath)
     }
 
     if (this.files instanceof FileRef) {
@@ -163,6 +177,7 @@ export class NextInstance {
           `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
         )
       }
+
       await fs.copy(this.files.fsPath, this.testDir)
     } else {
       for (const filename of Object.keys(this.files)) {
@@ -176,6 +191,12 @@ export class NextInstance {
           await fs.copy(item.fsPath, outputFilename)
         }
       }
+    }
+
+    if (hasNodeModulesDir) {
+      // Move node_modules from temp back to origin
+      await fs.copy(tempNodeModulesPath, nodeModulesDir)
+      await fs.remove(tempNodeModulesPath)
     }
 
     let nextConfigFile = Object.keys(this.files).find((file) =>
