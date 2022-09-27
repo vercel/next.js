@@ -628,52 +628,59 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  const getBabelOrSwcLoader = () => {
-    if (useSWCLoader && config?.experimental?.swcTraceProfiling) {
+  const getBabelLoader = () => {
+    return {
+      loader: require.resolve('./babel/loader/index'),
+      options: {
+        configFile: babelConfigFile,
+        isServer: isNodeServer || isEdgeServer,
+        distDir,
+        pagesDir,
+        cwd: dir,
+        development: dev,
+        hasReactRefresh: dev && isClient,
+        hasJsxRuntime: true,
+      },
+    }
+  }
+
+  let swcTraceProfilingInitialized = false
+  const getSwcLoader = (extraOptions?: any) => {
+    if (
+      config?.experimental?.swcTraceProfiling &&
+      !swcTraceProfilingInitialized
+    ) {
       // This will init subscribers once only in a single process lifecycle,
       // even though it can be called multiple times.
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
+      swcTraceProfilingInitialized = true
       require('./swc')?.initCustomTraceSubscriber?.(
         path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
       )
     }
 
-    return useSWCLoader
-      ? {
-          loader: 'next-swc-loader',
-          options: {
-            isServer: isNodeServer || isEdgeServer,
-            rootDir: dir,
-            pagesDir,
-            hasReactRefresh: dev && isClient,
-            fileReading: config.experimental.swcFileReading,
-            nextConfig: config,
-            jsConfig,
-            supportedBrowsers: config.experimental.browsersListForSwc
-              ? supportedBrowsers
-              : undefined,
-            swcCacheDir: path.join(
-              dir,
-              config?.distDir ?? '.next',
-              'cache',
-              'swc'
-            ),
-          },
-        }
-      : {
-          loader: require.resolve('./babel/loader/index'),
-          options: {
-            configFile: babelConfigFile,
-            isServer: isNodeServer || isEdgeServer,
-            distDir,
-            pagesDir,
-            cwd: dir,
-            development: dev,
-            hasReactRefresh: dev && isClient,
-            hasJsxRuntime: true,
-          },
-        }
+    return {
+      loader: 'next-swc-loader',
+      options: {
+        isServer: isNodeServer || isEdgeServer,
+        rootDir: dir,
+        pagesDir,
+        hasReactRefresh: dev && isClient,
+        fileReading: config.experimental.swcFileReading,
+        nextConfig: config,
+        jsConfig,
+        supportedBrowsers: config.experimental.browsersListForSwc
+          ? supportedBrowsers
+          : undefined,
+        swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        ...extraOptions,
+      },
+    }
+  }
+
+  const getBabelOrSwcLoader = () => {
+    return useSWCLoader ? getSwcLoader() : getBabelLoader()
   }
 
   const defaultLoaders = {
@@ -1001,29 +1008,10 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
-    const resolveWithReactServerCondition =
-      layer === WEBPACK_LAYERS.server
-        ? getResolve({
-            // If React is aliased to another channel during Next.js' local development,
-            // we need to provide that alias to webpack's resolver.
-            alias: process.env.__NEXT_REACT_CHANNEL
-              ? {
-                  react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                }
-              : false,
-            conditionNames: ['react-server'],
-          })
-        : null
-
-    // Special internal modules that require to be bundled for Server Components.
+    // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (!isLocal && /^react(?:$|\/)/.test(request)) {
-        const [resolved] = await resolveWithReactServerCondition!(
-          context,
-          request
-        )
-        return resolved
+      if (!isLocal && /^react$/.test(request)) {
+        return
       }
       if (
         request ===
@@ -1153,25 +1141,22 @@ export default async function getBaseWebpackConfig(
     }
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (
-        layer === WEBPACK_LAYERS.server &&
-        (!config.experimental?.optoutServerComponentsBundle ||
-          !config.experimental?.optoutServerComponentsBundle.some(
-            // Check if a package is opt-out of Server Components bundling.
-            (packageName) =>
-              new RegExp(`node_modules[/\\\\]${packageName}[/\\\\]`).test(res)
-          ))
-      ) {
-        try {
-          const [resolved] = await resolveWithReactServerCondition!(
-            context,
-            request
+      if (layer === WEBPACK_LAYERS.server) {
+        // All packages should be bundled for the server layer if they're not opted out.
+        if (
+          config.experimental.optoutServerComponentsBundle?.some(
+            (p: string) => {
+              return (
+                res.includes('node_modules/' + p + '/') ||
+                res.includes('node_modules\\' + p + '\\')
+              )
+            }
           )
-          return `${externalType} ${resolved}`
-        } catch (err) {
-          return
-          // The `react-server` condition is not matched, fallback.
+        ) {
+          return `${externalType} ${request}`
         }
+
+        return
       }
 
       // Anything else that is standard JavaScript within `node_modules`
@@ -1528,6 +1513,45 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(config.experimental.appDir && !isClient && !isEdgeServer
+          ? [
+              {
+                issuerLayer: WEBPACK_LAYERS.server,
+                test: (req: string) => {
+                  if (
+                    !/\.m?js/.test(req) ||
+                    config.experimental.optoutServerComponentsBundle?.some(
+                      (mod) => {
+                        return req.includes('/node_modules/' + mod + '/')
+                      }
+                    )
+                  ) {
+                    return false
+                  }
+                  return true
+                },
+                resolve: process.env.__NEXT_REACT_CHANNEL
+                  ? {
+                      conditionNames: ['react-server', 'node', 'require'],
+                      alias: {
+                        react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                        'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                      },
+                    }
+                  : {
+                      conditionNames: ['react-server', 'node', 'require'],
+                      alias: {
+                        // If missing the alias override here, the default alias will be used which aliases
+                        // react to the direct file path, not the package name. In that case the condition
+                        // will be ignored completely.
+                        react: 'react',
+                        'react-dom': 'react-dom',
+                      },
+                    },
+              },
+            ]
+          : []),
+
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1596,13 +1620,16 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
-                    use: {
-                      ...defaultLoaders.babel,
-                      options: {
-                        ...defaultLoaders.babel.options,
-                        isServerLayer: true,
-                      },
-                    },
+                    use: useSWCLoader
+                      ? getSwcLoader({ isServerLayer: true })
+                      : // When using Babel, we will have to add the SWC loader
+                        // as an additional pass to handle RSC correctly.
+                        // This will cause some performance overhead but
+                        // acceptable as Babel will not be recommended.
+                        [
+                          getSwcLoader({ isServerLayer: true }),
+                          getBabelLoader(),
+                        ],
                   },
                 ]
               : []),
