@@ -822,7 +822,7 @@ export async function renderToHTMLOrFlight(
           error,
           loading,
           page,
-          '404': notFound,
+          'not-found': notFound,
         },
       ],
       parentParams,
