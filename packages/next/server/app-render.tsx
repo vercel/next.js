@@ -579,7 +579,7 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 }
 
 const FLIGHT_PARAMETERS = [
-  '__flight__',
+  '__rsc__',
   '__flight_router_state_tree__',
   '__flight_prefetch__',
 ] as const
@@ -650,7 +650,7 @@ export async function renderToHTMLOrFlight(
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const isFlight = req.headers.__flight__ !== undefined
+    const isFlight = req.headers.__rsc__ !== undefined
     const isPrefetch = req.headers.__flight_prefetch__ !== undefined
 
     // Handle client-side navigation to pages directory
