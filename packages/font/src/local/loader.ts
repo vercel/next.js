@@ -25,6 +25,7 @@ const fetchFonts: FontLoader = async ({
     fontStretch,
     fontFeatureSettings,
     sizeAdjust,
+    adjustFontFallback,
   } = validateData(functionName, data)
 
   const fontFaces = await Promise.all(
@@ -62,7 +63,10 @@ ${fontFaceProperties
   return {
     css: fontFaces.join('\n'),
     fallbackFonts: fallback,
+    weight,
+    style,
     variable,
+    adjustFontFallback,
   }
 }
 

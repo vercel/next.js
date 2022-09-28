@@ -4,6 +4,14 @@ export type FontModule = {
   style: { fontFamily: string; fontWeight?: number; fontStyle?: string }
 }
 
+export type AdjustFontFallback = {
+  fallbackFont: string
+  ascentOverride?: string
+  descentOverride?: string
+  lineGapOverride?: string
+  sizeAdjust?: string
+}
+
 export type FontLoader = (options: {
   functionName: string
   data: any[]
@@ -11,4 +19,11 @@ export type FontLoader = (options: {
   emitFontFile: (content: Buffer, ext: string, preload: boolean) => string
   resolve: (src: string) => string
   fs: any
-}) => Promise<{ css: string; variable?: string; fallbackFonts?: string[] }>
+}) => Promise<{
+  css: string
+  fallbackFonts?: string[]
+  variable?: string
+  adjustFontFallback?: AdjustFontFallback
+  weight?: string
+  style?: string
+}>
