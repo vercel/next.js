@@ -466,11 +466,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         'next-trace-entrypoint-plugin'
       )
       traceEntrypointsPluginSpan.traceFn(() => {
-        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
         compilation.hooks.processAssets.tapAsync(
           {
             name: PLUGIN_NAME,
-            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
           },
           (assets: any, callback: any) => {
