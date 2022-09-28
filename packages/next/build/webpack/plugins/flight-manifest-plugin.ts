@@ -19,6 +19,7 @@ import { isClientComponentModule } from '../loaders/utils'
 
 interface Options {
   dev: boolean
+  fontLoaderTargets?: string[]
 }
 
 /**
@@ -53,9 +54,6 @@ interface ManifestNode {
 
 export type FlightManifest = {
   __ssr_module_mapping__: {
-    [moduleId: string]: ManifestNode
-  }
-  __edge_ssr_module_mapping__: {
     [moduleId: string]: ManifestNode
   }
 } & {
@@ -101,9 +99,11 @@ export function traverseModules(
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
+  fontLoaderTargets?: Options['fontLoaderTargets']
 
   constructor(options: Options) {
     this.dev = options.dev
+    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -141,9 +141,9 @@ export class FlightManifestPlugin {
   ) {
     const manifest: FlightManifest = {
       __ssr_module_mapping__: {},
-      __edge_ssr_module_mapping__: {},
     }
     const dev = this.dev
+    const fontLoaderTargets = this.fontLoaderTargets
 
     const clientRequestsSet = new Set()
 
@@ -168,7 +168,11 @@ export class FlightManifestPlugin {
         id: ModuleId,
         mod: webpack.NormalModule
       ) {
+        const isFontLoader = fontLoaderTargets?.some((fontLoaderTarget) =>
+          mod.resource?.startsWith(`${fontLoaderTarget}?`)
+        )
         const isCSSModule =
+          isFontLoader ||
           mod.resource?.endsWith('.css') ||
           mod.type === 'css/mini-extract' ||
           (!!mod.loaders &&
@@ -192,7 +196,6 @@ export class FlightManifestPlugin {
 
         const moduleExports = manifest[resource] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
-        const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
@@ -301,25 +304,10 @@ export class FlightManifestPlugin {
             ...moduleExports[name],
             id: ssrNamedModuleId,
           }
-
-          edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-          edgeModuleIdMapping[id][name] = {
-            ...moduleExports[name],
-            id: ssrNamedModuleId.replace(/\/next\/dist\//, '/next/dist/esm/'),
-          }
         })
 
         manifest[resource] = moduleExports
-
-        // The client compiler will always use the CJS Next.js build, so here we
-        // also add the mapping for the ESM build (Edge runtime) to consume.
-        if (/\/next\/dist\//.test(resource)) {
-          manifest[resource.replace(/\/next\/dist\//, '/next/dist/esm/')] =
-            moduleExports
-        }
-
         manifest.__ssr_module_mapping__ = moduleIdMapping
-        manifest.__edge_ssr_module_mapping__ = edgeModuleIdMapping
       }
 
       chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {

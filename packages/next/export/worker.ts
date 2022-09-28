@@ -23,7 +23,7 @@ import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
@@ -70,6 +70,7 @@ interface ExportPageInput {
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
   appPaths: string[]
+  enableUndici: NextConfigComplete['experimental']['enableUndici']
 }
 
 interface ExportPageResults {
@@ -119,8 +120,12 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
   serverComponents,
+  enableUndici,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpAgentOptions(httpAgentOptions)
+  setHttpClientAndAgentOptions({
+    httpAgentOptions,
+    experimental: { enableUndici },
+  })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
