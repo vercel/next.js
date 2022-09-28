@@ -9,6 +9,7 @@ use mime::TEXT_HTML_UTF_8;
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc, Value, ValueToString,
+    ValueToStringVc,
 };
 use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::{
@@ -140,9 +141,12 @@ impl AssetReference for ServerRenderedClientAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(self.asset, Vec::new()).into()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for ServerRenderedClientAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "client asset {}",
             self.asset.path().to_string().await?

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack::ecmascript::resolve::cjs_resolve;
 use turbopack_core::{
     context::AssetContextVc,
@@ -27,9 +27,12 @@ impl AssetReference for RuntimeAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for RuntimeAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "runtime {}",
             self.request.to_string().await?
