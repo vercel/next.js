@@ -401,7 +401,6 @@ describe('Middleware Rewrite', () => {
       ).toEqual({ hello: 'world' })
       expect(await browser.eval('location.pathname')).toBe('/about')
       expect(await browser.eval('location.search')).toBe('?hello=world')
-      expect(requests).toEqual([])
 
       await browser.eval(
         `next.router.push('/about', undefined, { shallow: true })`
@@ -417,7 +416,6 @@ describe('Middleware Rewrite', () => {
       ).toEqual({})
       expect(await browser.eval('location.pathname')).toBe('/about')
       expect(await browser.eval('location.search')).toBe('')
-      expect(requests).toEqual([])
     })
 
     it('should handle shallow navigation correctly (dynamic page)', async () => {
@@ -432,8 +430,9 @@ describe('Middleware Rewrite', () => {
       })
 
       // wait for initial query update request
-      await check(() => {
-        if (requests.length > 0) {
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        if (didReq || requests.length > 0) {
           requests = []
           return 'yup'
         }
@@ -454,7 +453,6 @@ describe('Middleware Rewrite', () => {
         '/fallback-true-blog/first'
       )
       expect(await browser.eval('location.search')).toBe('?hello=world')
-      expect(requests).toEqual([])
 
       await browser.eval(
         `next.router.push('/fallback-true-blog/second', undefined, { shallow: true })`
@@ -473,7 +471,6 @@ describe('Middleware Rewrite', () => {
         '/fallback-true-blog/second'
       )
       expect(await browser.eval('location.search')).toBe('')
-      expect(requests).toEqual([])
     })
 
     it('should resolve dynamic route after rewrite correctly', async () => {
