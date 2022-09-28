@@ -18,6 +18,7 @@ use crate::resolve::parse::RequestVc;
 #[derive(Hash, Debug)]
 pub struct LockedVersions {}
 
+/// A location where to resolve modules.
 #[derive(
     TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
 )]
@@ -50,14 +51,24 @@ impl From<bool> for ConditionValue {
     }
 }
 
+/// The different ways to resolve a package, as described in package.json.
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub enum ResolveIntoPackage {
+    /// Using the [exports] field.
+    ///
+    /// [exports]: https://nodejs.org/api/packages.html#exports
     ExportsField {
         field: String,
         conditions: BTreeMap<String, ConditionValue>,
         unspecified_conditions: ConditionValue,
     },
+    /// Using a [main]-like field (e.g. [main], [module], [browser], etc.).
+    ///
+    /// [main]: https://nodejs.org/api/packages.html#main
+    /// [module]: https://esbuild.github.io/api/#main-fields
+    /// [browser]: https://esbuild.github.io/api/#main-fields
     MainField(String),
+    /// Default behavior of using the index.js file at the root of the package.
     Default(String),
 }
 
@@ -220,7 +231,9 @@ impl ResolvedMapVc {
 #[derive(Clone, Debug, Default)]
 pub struct ResolveOptions {
     pub extensions: Vec<String>,
+    /// The locations where to resolve modules.
     pub modules: Vec<ResolveModules>,
+    /// How to resolve packages.
     pub into_package: Vec<ResolveIntoPackage>,
     pub import_map: Option<ImportMapVc>,
     pub resolved_map: Option<ResolvedMapVc>,

@@ -107,6 +107,8 @@ pub async fn apply_tsconfig(
     .await?
     {
         if let Some(base_url) = *base_url.await? {
+            // We want to resolve in `compilerOptions.baseUrl` first, then in other
+            // locations as a fallback.
             resolve_options
                 .modules
                 .insert(0, ResolveModules::Path(base_url));
