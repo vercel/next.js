@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
+use serde_json::json;
 
 use crate::util::command;
 
@@ -32,13 +33,13 @@ pub fn install(install_dir: &Path, packages: &[NpmPackage]) -> Result<()> {
     {
         // Create a simple package.json if one doesn't exist
 
-        let package_json = json::object! {
-            private: true,
-            version: "0.0.0",
-        };
+        let package_json = json!({
+            "private": true,
+            "version": "0.0.0",
+        });
 
         File::create(install_dir.join("package.json"))?
-            .write_all(package_json.pretty(2).as_bytes())?;
+            .write_all(format!("{:#}", package_json).as_bytes())?;
     }
 
     let mut args = vec!["install".to_owned(), "--force".to_owned()];

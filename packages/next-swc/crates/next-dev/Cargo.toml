@@ -30,11 +30,11 @@ anyhow = "1.0.47"
 clap = { version = "3", features = ["derive"] }
 console-subscriber = { version = "0.1.6", optional = true }
 futures = "0.3.21"
-json = "0.12.4"
 mime = "0.3.16"
 next-core = { path = "../next-core" }
 portpicker = "0.1.1"
 serde = "1.0.136"
+serde_json = "1.0.85"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }

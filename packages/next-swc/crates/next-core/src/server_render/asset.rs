@@ -6,6 +6,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use futures::{stream::FuturesUnordered, TryStreamExt};
 use mime::TEXT_HTML_UTF_8;
+use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc, Value, ValueToString,
 };
@@ -306,7 +307,7 @@ async fn render(
     .await?;
     let issue = if let Some(last_line) = lines.last() {
         if let Some(data) = last_line.strip_prefix("RESULT=") {
-            let data = json::parse(data)?;
+            let data: JsonValue = serde_json::from_str(data)?;
             if let Some(s) = data.as_str() {
                 return into_result(s.to_string());
             } else {
@@ -319,7 +320,7 @@ async fn render(
                 }
             }
         } else if let Some(data) = last_line.strip_prefix("ERROR=") {
-            let data = json::parse(data)?;
+            let data: JsonValue = serde_json::from_str(data)?;
             if let Some(s) = data.as_str() {
                 RenderingIssue {
                     context: path,
