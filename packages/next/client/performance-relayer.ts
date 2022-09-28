@@ -69,7 +69,7 @@ function onReport(metric: Metric): void {
   }
 }
 
-export default (onPerfEntry?: ReportCallback): void => {
+export default async (onPerfEntry?: ReportCallback): Promise<void> => {
   // Update function if it changes:
   userReportHandler = onPerfEntry
 
@@ -80,10 +80,16 @@ export default (onPerfEntry?: ReportCallback): void => {
   isRegistered = true
 
   for (const webVital of WEB_VITALS) {
-    const m = config?.attributions.includes(webVital)
-      ? require('next/dist/compiled/web-vitals-attribution')
-      : require('next/dist/compiled/web-vitals')
-    m[`on${webVital}`](onReport)
+    try {
+      const m: any = config?.attributions.includes(webVital)
+        ? // @ts-ignore module available at runtime, see taskfile.js
+          await import('../compiled/web-vitals-attribution')
+        : // @ts-ignore module available at runtime, see taskfile.js
+          await import('../compiled/web-vitals')
+      m[`on${webVital}`](onReport)
+    } catch {
+      // Do nothing if the module fails to load
+    }
   }
 }
 
