@@ -14,6 +14,7 @@ describe('skip-trailing-slash-redirect', () => {
       nextConfig: {
         experimental: {
           skipTrailingSlashRedirect: true,
+          skipMiddlewareUrlNormalize: true,
         },
         async redirects() {
           return [
@@ -54,6 +55,46 @@ describe('skip-trailing-slash-redirect', () => {
       ).toBe(false)
     })
   }
+
+  it('should correct skip URL normalizing in middleware', async () => {
+    let res = await fetchViaHTTP(
+      next.url,
+      '/middleware-rewrite-with-slash',
+      undefined,
+      { redirect: 'manual', headers: { 'x-nextjs-data': '1' } }
+    )
+    expect(res.headers.get('x-nextjs-rewrite').endsWith('/another/')).toBe(true)
+
+    res = await fetchViaHTTP(
+      next.url,
+      '/middleware-rewrite-without-slash',
+      undefined,
+      { redirect: 'manual', headers: { 'x-nextjs-data': '1' } }
+    )
+    expect(res.headers.get('x-nextjs-rewrite').endsWith('/another')).toBe(true)
+
+    res = await fetchViaHTTP(
+      next.url,
+      '/middleware-redirect-external-with',
+      undefined,
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(307)
+    expect(res.headers.get('Location')).toBe(
+      'https://example.vercel.sh/somewhere/'
+    )
+
+    res = await fetchViaHTTP(
+      next.url,
+      '/middleware-redirect-external-without',
+      undefined,
+      { redirect: 'manual' }
+    )
+    expect(res.status).toBe(307)
+    expect(res.headers.get('Location')).toBe(
+      'https://example.vercel.sh/somewhere'
+    )
+  })
 
   it('should apply config redirect correctly', async () => {
     const res = await fetchViaHTTP(next.url, '/redirect-me', undefined, {

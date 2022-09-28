@@ -78,6 +78,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  skipMiddlewareUrlNormalize?: boolean
   skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean

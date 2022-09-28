@@ -355,6 +355,9 @@ const configSchema = {
         sharedPool: {
           type: 'boolean',
         },
+        skipMiddlewareUrlNormalize: {
+          type: 'boolean',
+        },
         skipTrailingSlashRedirect: {
           type: 'boolean',
         },

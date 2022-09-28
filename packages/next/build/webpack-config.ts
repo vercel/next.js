@@ -1529,6 +1529,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
           config.experimental.newNextLinkBehavior
         ),
+        'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
+          config.experimental.skipMiddlewareUrlNormalize
+        ),
         'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
           config.experimental.optimisticClientCache
         ),
