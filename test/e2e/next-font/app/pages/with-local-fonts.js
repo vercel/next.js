@@ -8,6 +8,7 @@ const myFont1 = localFont({
 const myFont2 = localFont({
   src: '../fonts/my-other-font.woff',
   preload: false,
+  variable: '--my-font',
 })
 
 export default function WithFonts() {

@@ -55,7 +55,6 @@ describe('app dir next-font', () => {
       // Comp
       expect(JSON.parse($('#root-comp').text())).toEqual({
         className: expect.stringMatching(/^__className_.{6}$/),
-        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(/^'__font3_.{6}'$/),
           fontStyle: 'italic',
@@ -80,7 +79,6 @@ describe('app dir next-font', () => {
       // layout
       expect(JSON.parse($('#client-layout').text())).toEqual({
         className: expect.stringMatching(/^__className_.{6}$/),
-        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(/^'__font4_.{6}'$/),
           fontWeight: 100,
@@ -89,7 +87,6 @@ describe('app dir next-font', () => {
       // page
       expect(JSON.parse($('#client-page').text())).toEqual({
         className: expect.stringMatching(/^__className_.{6}$/),
-        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(/^'__font5_.{6}'$/),
           fontStyle: 'italic',
@@ -98,7 +95,6 @@ describe('app dir next-font', () => {
       // Comp
       expect(JSON.parse($('#client-comp').text())).toEqual({
         className: expect.stringMatching(/^__className_.{6}$/),
-        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(/^'__font6_.{6}'$/),
         },
