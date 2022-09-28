@@ -42,7 +42,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -56,7 +56,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
