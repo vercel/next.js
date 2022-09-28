@@ -902,7 +902,7 @@ export default async function getBaseWebpackConfig(
     },
     mangle: {
       safari10: true,
-      ...(process.env.MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG
         ? {
             toplevel: true,
             module: true,
@@ -917,7 +917,7 @@ export default async function getBaseWebpackConfig(
       comments: false,
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
-      ...(process.env.MANGLING_DEBUG
+      ...(process.env.__NEXT_MANGLING_DEBUG
         ? {
             beautify: true,
           }
