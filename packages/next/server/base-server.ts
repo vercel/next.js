@@ -1028,9 +1028,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
+    // Don't delete query.__rsc__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers.__flight__
+      this.serverComponentManifest && req.headers.__rsc__
     )
 
     // we need to ensure the status code if /404 is visited directly

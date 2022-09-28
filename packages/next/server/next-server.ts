@@ -828,7 +828,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (
       this.nextConfig.experimental.appDir &&
-      (renderOpts.isAppPath || req.headers.__flight__)
+      (renderOpts.isAppPath || req.headers.__rsc__)
     ) {
       const isPagesDir = !renderOpts.isAppPath
       return appRenderToHTMLOrFlight(
