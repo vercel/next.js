@@ -1,4 +1,6 @@
 import { Fira_Code, Albert_Sans, Inter, Roboto } from '@next/font/google'
+import localFont from '@next/font/local'
+
 const firaCode = Fira_Code()
 const albertSans = Albert_Sans({
   variant: 'variable-italic',
@@ -9,6 +11,11 @@ const roboto = Roboto({
   variant: '100-italic',
   display: 'swap',
   preload: true,
+})
+const myFont = localFont({
+  src: '../fonts/my-font.woff2',
+  preload: false,
+  variable: '--my-font',
 })
 
 export default function WithFonts() {
@@ -70,6 +77,21 @@ export default function WithFonts() {
       <div
         id="without-variables-roboto-100-italic"
         style={{ fontFamily: 'var(--next-font-roboto-100-italic)' }}
+      >
+        Without variables
+      </div>
+
+      {/* Local font */}
+      <div
+        id="variables-local-font"
+        className={myFont.variable}
+        style={{ fontFamily: 'var(--my-font)' }}
+      >
+        With variables
+      </div>
+      <div
+        id="without-variables-local-font"
+        style={{ fontFamily: 'var(--my-font)' }}
       >
         Without variables
       </div>
