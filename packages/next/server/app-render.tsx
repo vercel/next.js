@@ -192,7 +192,7 @@ let isFetchPatched = false
 
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
-function patchFetch(ComponentMod: any) {
+function patchFetch(ComponentMod: any, isPagesDir: boolean) {
   if (isFetchPatched) return
   isFetchPatched = true
 
@@ -205,7 +205,7 @@ function patchFetch(ComponentMod: any) {
 
   ;(global as any).fetch = async (init: any, opts: any) => {
     const staticGenerationStore =
-      staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
+      !isPagesDir && 'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
         : staticGenerationAsyncStorage
 
@@ -628,13 +628,13 @@ export async function renderToHTMLOrFlight(
     ComponentMod,
   } = renderOpts
 
-  patchFetch(ComponentMod)
+  patchFetch(ComponentMod, isPagesDir)
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage = ComponentMod.requestAsyncStorage
 
   if (
-    staticGenerationAsyncStorage &&
+    !isPagesDir &&
     !('getStore' in staticGenerationAsyncStorage) &&
     staticGenerationAsyncStorage.inUse
   ) {
@@ -1397,7 +1397,7 @@ export async function renderToHTMLOrFlight(
   }
 
   function handleRequestStoreRun<T>(fn: () => T): Promise<T> {
-    if (!requestAsyncStorage) return Promise.resolve(fn())
+    if (isPagesDir) return Promise.resolve(fn())
     if ('getStore' in requestAsyncStorage) {
       return new Promise((resolve, reject) => {
         requestAsyncStorage.run(requestStore, () => {
@@ -1411,7 +1411,7 @@ export async function renderToHTMLOrFlight(
   }
 
   function handleStaticGenerationStoreRun<T>(fn: () => T): Promise<T> {
-    if (!staticGenerationAsyncStorage) return Promise.resolve(fn())
+    if (isPagesDir) return Promise.resolve(fn())
     if ('getStore' in staticGenerationAsyncStorage) {
       return new Promise((resolve, reject) => {
         staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
