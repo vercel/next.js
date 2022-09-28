@@ -78,6 +78,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean

@@ -355,6 +355,9 @@ const configSchema = {
         sharedPool: {
           type: 'boolean',
         },
+        skipTrailingSlashRedirect: {
+          type: 'boolean',
+        },
         swcFileReading: {
           type: 'boolean',
         },
