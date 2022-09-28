@@ -317,9 +317,6 @@ function createServerComponentRenderer(
   ComponentMod: {
     renderToReadableStream: any
     __next_app_webpack_require__?: any
-    __next_rsc__?: {
-      __webpack_require__?: any
-    }
   },
   {
     transformStream,
@@ -339,11 +336,9 @@ function createServerComponentRenderer(
 ): () => JSX.Element {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app_webpack_require__ || ComponentMod.__next_rsc__) {
+  if (ComponentMod.__next_app_webpack_require__) {
     // @ts-ignore
-    globalThis.__next_require__ =
-      ComponentMod.__next_app_webpack_require__ ||
-      ComponentMod.__next_rsc__?.__webpack_require__
+    globalThis.__next_require__ = ComponentMod.__next_app_webpack_require__
 
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
@@ -587,9 +582,9 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 }
 
 const FLIGHT_PARAMETERS = [
-  '__flight__',
-  '__flight_router_state_tree__',
-  '__flight_prefetch__',
+  '__rsc__',
+  '__next_router_state_tree__',
+  '__next_router_prefetch__',
 ] as const
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
@@ -609,6 +604,8 @@ export async function renderToHTMLOrFlight(
   isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
+  const isFlight = req.headers.__rsc__ !== undefined
+
   const capturedErrors: Error[] = []
 
   const serverComponentsErrorHandler = createErrorHandler(
@@ -633,12 +630,39 @@ export async function renderToHTMLOrFlight(
     ComponentMod,
   } = renderOpts
 
+  // Handle client-side navigation to pages directory
+  // This is handled before
+  if (isFlight && isPagesDir) {
+    stripInternalQueries(query)
+    const search = stringifyQuery(query)
+
+    // For pages dir, there is only the SSR pass and we don't have the bundled
+    // React subset. Here we directly import the flight renderer with the
+    // unbundled React.
+    // TODO-APP: Is it possible to hard code the flight response here instead of
+    // rendering it?
+    const ReactServerDOMWebpack = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server')
+
+    // Empty so that the client-side router will do a full page navigation.
+    const flightData: FlightData = pathname + (search ? `?${search}` : '')
+    return new FlightRenderResult(
+      ReactServerDOMWebpack.renderToReadableStream(
+        flightData,
+        serverComponentManifest,
+        {
+          onError: flightDataRendererErrorHandler,
+        }
+      ).pipeThrough(createBufferedTransformStream())
+    )
+  }
+
   patchFetch(ComponentMod)
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage = ComponentMod.requestAsyncStorage
 
   if (
+    staticGenerationAsyncStorage &&
     !('getStore' in staticGenerationAsyncStorage) &&
     staticGenerationAsyncStorage.inUse
   ) {
@@ -657,33 +681,7 @@ export async function renderToHTMLOrFlight(
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const isFlight = req.headers.__flight__ !== undefined
-    const isPrefetch = req.headers.__flight_prefetch__ !== undefined
-
-    // Handle client-side navigation to pages directory
-    if (isFlight && isPagesDir) {
-      stripInternalQueries(query)
-      const search = stringifyQuery(query)
-
-      // For pages dir, there is only the SSR pass and we don't have the bundled
-      // React subset. Here we directly import the flight renderer with the
-      // unbundled React.
-      // TODO-APP: Is it possible to hard code the flight response here instead of
-      // rendering it?
-      const ReactServerDOMWebpack = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server')
-
-      // Empty so that the client-side router will do a full page navigation.
-      const flightData: FlightData = pathname + (search ? `?${search}` : '')
-      return new FlightRenderResult(
-        ReactServerDOMWebpack.renderToReadableStream(
-          flightData,
-          serverComponentManifest,
-          {
-            onError: flightDataRendererErrorHandler,
-          }
-        ).pipeThrough(createBufferedTransformStream())
-      )
-    }
+    const isPrefetch = req.headers.__next_router_prefetch__ !== undefined
 
     // TODO-APP: verify the tree is valid
     // TODO-APP: verify query param is single value (not an array)
@@ -692,8 +690,8 @@ export async function renderToHTMLOrFlight(
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     const providedFlightRouterState: FlightRouterState = isFlight
-      ? req.headers.__flight_router_state_tree__
-        ? JSON.parse(req.headers.__flight_router_state_tree__ as string)
+      ? req.headers.__next_router_state_tree__
+        ? JSON.parse(req.headers.__next_router_state_tree__ as string)
         : {}
       : undefined
 
@@ -822,7 +820,7 @@ export async function renderToHTMLOrFlight(
           error,
           loading,
           page,
-          '404': notFound,
+          'not-found': notFound,
         },
       ],
       parentParams,
