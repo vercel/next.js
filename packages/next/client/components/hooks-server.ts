@@ -1,39 +1,47 @@
-import { useContext } from 'react'
-import {
-  HeadersContext,
-  PreviewDataContext,
-  CookiesContext,
-  DynamicServerError,
-  StaticGenerationContext,
-} from './hooks-server-context'
+import { DynamicServerError } from './hooks-server-context'
+import { requestAsyncStorage } from './request-async-storage'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage'
 
-export function useTrackStaticGeneration() {
-  return useContext<
-    typeof import('./hooks-server-context').StaticGenerationContext
-  >(StaticGenerationContext)
-}
+function staticGenerationBailout(reason: string) {
+  const staticGenerationStore =
+    staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
+      ? staticGenerationAsyncStorage?.getStore()
+      : staticGenerationAsyncStorage
 
-function useStaticGenerationBailout(reason: string) {
-  const staticGenerationContext = useTrackStaticGeneration()
-
-  if (staticGenerationContext.isStaticGeneration) {
+  if (staticGenerationStore?.isStaticGeneration) {
     // TODO: honor the dynamic: 'force-static'
-    staticGenerationContext.revalidate = 0
+    if (staticGenerationStore) {
+      staticGenerationStore.revalidate = 0
+    }
     throw new DynamicServerError(reason)
   }
 }
 
-export function useHeaders() {
-  useStaticGenerationBailout('useHeaders')
-  return useContext(HeadersContext)
+export function headers(): Headers {
+  staticGenerationBailout('headers')
+  const requestStore =
+    requestAsyncStorage && 'getStore' in requestAsyncStorage
+      ? requestAsyncStorage.getStore()!
+      : requestAsyncStorage
+
+  return requestStore.headers
 }
 
-export function usePreviewData() {
-  useStaticGenerationBailout('usePreviewData')
-  return useContext(PreviewDataContext)
+export function previewData() {
+  staticGenerationBailout('previewData')
+  const requestStore =
+    requestAsyncStorage && 'getStore' in requestAsyncStorage
+      ? requestAsyncStorage.getStore()!
+      : requestAsyncStorage
+  return requestStore.previewData
 }
 
-export function useCookies() {
-  useStaticGenerationBailout('useCookies')
-  return useContext(CookiesContext)
+export function cookies() {
+  staticGenerationBailout('cookies')
+  const requestStore =
+    requestAsyncStorage && 'getStore' in requestAsyncStorage
+      ? requestAsyncStorage.getStore()!
+      : requestAsyncStorage
+
+  return requestStore.cookies
 }

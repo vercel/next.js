@@ -11,6 +11,7 @@ import type {
   NEXT_DATA,
 } from '../shared/lib/utils'
 import type { ScriptProps } from '../client/script'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { htmlEscapeJsonString } from '../server/htmlescape'
@@ -353,6 +354,54 @@ function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
+function getFontLoaderLinks(
+  fontLoaderManifest: FontLoaderManifest | undefined,
+  dangerousAsPath: string,
+  assetPrefix: string = ''
+) {
+  if (!fontLoaderManifest) {
+    return {
+      preconnect: null,
+      preload: null,
+    }
+  }
+
+  const appFontsEntry = fontLoaderManifest.pages['/_app']
+  const pageFontsEntry = fontLoaderManifest.pages[dangerousAsPath]
+
+  const preloadedFontFiles = [
+    ...(appFontsEntry ?? []),
+    ...(pageFontsEntry ?? []),
+  ]
+
+  // If no font files should preload but there's an entry for the path, add a preconnect tag.
+  const preconnectToSelf = !!(
+    preloadedFontFiles.length === 0 &&
+    (appFontsEntry || pageFontsEntry)
+  )
+
+  return {
+    preconnect: preconnectToSelf ? (
+      <link rel="preconnect" href="/" crossOrigin="anonymous" />
+    ) : null,
+    preload: preloadedFontFiles
+      ? preloadedFontFiles.map((fontFile) => {
+          const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+          return (
+            <link
+              key={fontFile}
+              rel="preload"
+              href={`${assetPrefix}/_next/${encodeURI(fontFile)}`}
+              as="font"
+              type={`font/${ext}`}
+              crossOrigin="anonymous"
+            />
+          )
+        })
+      : null,
+  }
+}
+
 // Use `React.Component` to avoid errors from the RSC checks because
 // it can't be imported directly in Server Components:
 //
@@ -608,6 +657,8 @@ export class Head extends React.Component<HeadProps> {
       disableOptimizedLoading,
       optimizeCss,
       optimizeFonts,
+      assetPrefix,
+      fontLoaderManifest,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -722,6 +773,12 @@ export class Head extends React.Component<HeadProps> {
       process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
     )
 
+    const fontLoaderLinks = getFontLoaderLinks(
+      fontLoaderManifest,
+      dangerousAsPath,
+      assetPrefix
+    )
+
     return (
       <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
@@ -761,6 +818,9 @@ export class Head extends React.Component<HeadProps> {
 
         {children}
         {optimizeFonts && <meta name="next-font-preconnect" />}
+
+        {fontLoaderLinks.preconnect}
+        {fontLoaderLinks.preload}
 
         {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>

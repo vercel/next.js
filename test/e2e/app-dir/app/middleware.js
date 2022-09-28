@@ -10,13 +10,17 @@ export function middleware(request) {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }
 
+  if (request.nextUrl.pathname === '/redirect-middleware-to-dashboard') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
   if (request.nextUrl.pathname.startsWith('/internal/test')) {
     const method = request.nextUrl.pathname.endsWith('rewrite')
       ? 'rewrite'
       : 'redirect'
 
-    const internal = ['__flight__', '__flight_router_state_tree__']
-    if (internal.some((name) => request.nextUrl.searchParams.has(name))) {
+    const internal = ['__rsc__', '__next_router_state_tree__']
+    if (internal.some((name) => request.headers.has(name))) {
       return NextResponse[method](new URL('/internal/failure', request.url))
     }
 
