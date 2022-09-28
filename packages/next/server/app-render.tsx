@@ -258,10 +258,7 @@ function useFlightResponse(
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
-    moduleMap:
-      process.env.NEXT_RUNTIME === 'edge'
-        ? serverComponentManifest.__edge_ssr_module_mapping__
-        : serverComponentManifest.__ssr_module_mapping__,
+    moduleMap: serverComponentManifest.__ssr_module_mapping__,
   })
   flightResponseRef.current = res
 
@@ -273,7 +270,7 @@ function useFlightResponse(
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
 
-  function read() {
+  function process() {
     forwardReader.read().then(({ done, value }) => {
       if (value) {
         rscChunks.push(value)
@@ -299,11 +296,11 @@ function useFlightResponse(
         )})</script>`
 
         writer.write(encodeText(scripts))
-        read()
+        process()
       }
     })
   }
-  read()
+  process()
 
   return res
 }
@@ -317,9 +314,6 @@ function createServerComponentRenderer(
   ComponentMod: {
     renderToReadableStream: any
     __next_app_webpack_require__?: any
-    __next_rsc__?: {
-      __webpack_require__?: any
-    }
   },
   {
     transformStream,
@@ -339,11 +333,9 @@ function createServerComponentRenderer(
 ): () => JSX.Element {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app_webpack_require__ || ComponentMod.__next_rsc__) {
+  if (ComponentMod.__next_app_webpack_require__) {
     // @ts-ignore
-    globalThis.__next_require__ =
-      ComponentMod.__next_app_webpack_require__ ||
-      ComponentMod.__next_rsc__?.__webpack_require__
+    globalThis.__next_require__ = ComponentMod.__next_app_webpack_require__
 
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
@@ -639,6 +631,7 @@ export async function renderToHTMLOrFlight(
   const requestAsyncStorage = ComponentMod.requestAsyncStorage
 
   if (
+    staticGenerationAsyncStorage &&
     !('getStore' in staticGenerationAsyncStorage) &&
     staticGenerationAsyncStorage.inUse
   ) {
@@ -822,7 +815,7 @@ export async function renderToHTMLOrFlight(
           error,
           loading,
           page,
-          '404': notFound,
+          'not-found': notFound,
         },
       ],
       parentParams,

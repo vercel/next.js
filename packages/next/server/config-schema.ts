@@ -320,6 +320,12 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
+        optoutServerComponentsBundle: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -383,6 +389,9 @@ const configSchema = {
             type: 'string',
           },
           type: 'array',
+        },
+        enableUndici: {
+          type: 'boolean',
         },
         workerThreads: {
           type: 'boolean',

@@ -1,5 +1,4 @@
 import type { NextConfig } from '../../../../server/config-shared'
-
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
