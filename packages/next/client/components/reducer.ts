@@ -10,24 +10,20 @@ import type {
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
 
-type Thenable<T> = Promise<T> & {
-  status: 'pending' | 'fulfilled' | 'rejected'
-  value: T
-}
-
 /**
  * Create data fetching record for Promise.
  */
-function createRecordFromThenable<T>(thenable: Thenable<T>): Promise<T> {
+// TODO-APP: change `any` to type inference.
+function createRecordFromThenable(thenable: any) {
   thenable.status = 'pending'
   thenable.then(
-    (value) => {
+    (value: any) => {
       if (thenable.status === 'pending') {
         thenable.status = 'fulfilled'
         thenable.value = value
       }
     },
-    (err) => {
+    (err: any) => {
       if (thenable.status === 'pending') {
         thenable.status = 'rejected'
         thenable.value = err
@@ -40,7 +36,7 @@ function createRecordFromThenable<T>(thenable: Thenable<T>): Promise<T> {
 /**
  * Read record value or throw Promise if it's not resolved yet.
  */
-function readRecordValue<T>(thenable: Thenable<T>): T {
+function readRecordValue(thenable: any) {
   if (thenable.status === 'fulfilled') {
     return thenable.value
   } else {
