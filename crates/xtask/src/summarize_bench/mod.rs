@@ -8,6 +8,7 @@ use std::{
     time::{Duration, UNIX_EPOCH},
 };
 
+use anyhow::{anyhow, Context};
 use chrono::{DateTime, Utc};
 use walkdir::WalkDir;
 
@@ -78,7 +79,9 @@ pub fn process_all(path: PathBuf) {
                 .map(|data_file| {
                     let file = File::open(&data_file.path).unwrap();
                     let reader = std::io::BufReader::new(file);
-                    let data: BaseBenchmarks = serde_json::from_reader(reader).unwrap();
+                    let data: BaseBenchmarks = serde_json::from_reader(reader)
+                        .with_context(|| anyhow!("unable to read {}", data_file.path.display()))
+                        .unwrap();
                     data
                 })
                 .collect::<Vec<_>>();
