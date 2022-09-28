@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::{glob::GlobVc, DirectoryEntry, FileContent, FileSystemPathVc};
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{AssetContent, AssetVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         pattern::{Pattern, PatternVc},
@@ -93,74 +93,87 @@ pub async fn resolve_node_pre_gyp_files(
     let config = resolve_raw(context, config_file_pattern, true).await?;
     let compile_target = compile_target.await?;
     if let ResolveResult::Single(ref config_path, _) = &*config {
-        if let FileContent::Content(ref config_file) = &*config_path.content().await? {
-            let config_file_path = config_path.path();
-            let config_file_dir = config_file_path.parent();
-            let node_pre_gyp_config: NodePreGypConfigJson =
-                serde_json::from_slice(config_file.content())?;
-            let mut assets: HashSet<AssetVc> = HashSet::default();
-            for version in node_pre_gyp_config.binary.napi_versions.iter() {
-                let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
-                    node_pre_gyp_config.binary.module_path.as_str(),
-                    format!("{}", version),
-                );
-                let platform = compile_target.platform;
-                let native_binding_path =
-                    PLATFORM_TEMPLATE.replace(&native_binding_path, platform.as_str());
-                let native_binding_path =
-                    ARCH_TEMPLATE.replace(&native_binding_path, compile_target.arch.as_str());
-                let native_binding_path = LIBC_TEMPLATE.replace(
-                    &native_binding_path,
-                    // node-pre-gyp only cares about libc on linux
-                    if platform == Platform::Linux {
-                        compile_target.libc.as_str()
-                    } else {
-                        "unknown"
-                    },
-                );
-                let resolved_file_vc = config_file_dir.join(
-                    format!(
-                        "{}/{}.node",
-                        native_binding_path, node_pre_gyp_config.binary.module_name
-                    )
-                    .as_str(),
-                );
-                for (_, entry) in config_file_dir
-                    .join(native_binding_path.as_ref())
-                    .read_glob(
-                        GlobVc::new(format!("*.{}", compile_target.dylib_ext()).as_str()),
-                        false,
-                    )
+        if let AssetContent::File(file) = &*config_path.content().await? {
+            if let FileContent::Content(ref config_file) = &*file.await? {
+                let config_file_path = config_path.path();
+                let config_file_dir = config_file_path.parent();
+                let node_pre_gyp_config: NodePreGypConfigJson =
+                    serde_json::from_slice(config_file.content())?;
+                let mut assets: HashSet<AssetVc> = HashSet::default();
+                for version in node_pre_gyp_config.binary.napi_versions.iter() {
+                    let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
+                        node_pre_gyp_config.binary.module_path.as_str(),
+                        format!("{}", version),
+                    );
+                    let platform = compile_target.platform;
+                    let native_binding_path =
+                        PLATFORM_TEMPLATE.replace(&native_binding_path, platform.as_str());
+                    let native_binding_path =
+                        ARCH_TEMPLATE.replace(&native_binding_path, compile_target.arch.as_str());
+                    let native_binding_path = LIBC_TEMPLATE.replace(
+                        &native_binding_path,
+                        // node-pre-gyp only cares about libc on linux
+                        if platform == Platform::Linux {
+                            compile_target.libc.as_str()
+                        } else {
+                            "unknown"
+                        },
+                    );
+                    let resolved_file_vc = config_file_dir.join(
+                        format!(
+                            "{}/{}.node",
+                            native_binding_path, node_pre_gyp_config.binary.module_name
+                        )
+                        .as_str(),
+                    );
+                    for (_, entry) in config_file_dir
+                        .join(native_binding_path.as_ref())
+                        .read_glob(
+                            GlobVc::new(format!("*.{}", compile_target.dylib_ext()).as_str()),
+                            false,
+                        )
+                        .await?
+                        .results
+                        .iter()
+                    {
+                        if let DirectoryEntry::File(dylib) | DirectoryEntry::Symlink(dylib) = entry
+                        {
+                            assets.insert(SourceAssetVc::new(*dylib).into());
+                        }
+                    }
+                    assets.insert(SourceAssetVc::new(resolved_file_vc).into());
+                }
+                for entry in config_path
+                    .path()
+                    .parent()
+                    // TODO
+                    // read the dependencies path from `bindings.gyp`
+                    .join("deps/lib")
+                    .read_glob(GlobVc::new("*".to_string().as_str()), false)
                     .await?
                     .results
-                    .iter()
+                    .values()
                 {
-                    if let DirectoryEntry::File(dylib) = entry {
-                        assets.insert(SourceAssetVc::new(*dylib).into());
+                    match entry {
+                        DirectoryEntry::File(dylib) => {
+                            assets.insert(SourceAssetVc::new(*dylib).into());
+                        }
+                        DirectoryEntry::Symlink(dylib) => {
+                            let realpath_with_links = dylib.realpath_with_links().await?;
+                            for symlink in realpath_with_links.symlinks.iter() {
+                                assets.insert(SourceAssetVc::new(*symlink).into());
+                            }
+                            assets.insert(SourceAssetVc::new(*dylib).into());
+                        }
+                        _ => {}
                     }
                 }
-                assets.insert(SourceAssetVc::new(resolved_file_vc).into());
+                return Ok(ResolveResult::Alternatives(
+                    assets.into_iter().collect(),
+                    vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()],
+                )
+                .into());
             }
-            for entry in config_path
-                .path()
-                .parent()
-                // TODO
-                // read the dependencies path from `bindings.gyp`
-                .join("deps/lib")
-                .read_glob(GlobVc::new("*".to_string().as_str()), false)
-                .await?
-                .results
-                .values()
-            {
-                if let DirectoryEntry::File(dylib) = entry {
-                    assets.insert(SourceAssetVc::new(*dylib).into());
-                }
-            }
-            return Ok(ResolveResult::Alternatives(
-                assets.into_iter().collect(),
-                vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()],
-            )
-            .into());
         };
     }
     Ok(ResolveResult::unresolveable().into())
@@ -215,31 +228,33 @@ pub async fn resolve_node_gyp_build_files(
     let gyp_file = resolve_raw(context, binding_gyp_pat, true).await?;
     if let ResolveResult::Single(binding_gyp, gyp_file_references) = &*gyp_file {
         let mut merged_references = gyp_file_references.clone();
-        if let FileContent::Content(config_file) = &*binding_gyp.content().await? {
-            if let Some(captured) =
-                GYP_BUILD_TARGET_NAME.captures(std::str::from_utf8(config_file.content())?)
-            {
-                let mut resolved: HashSet<AssetVc> = HashSet::with_capacity(captured.len());
-                for found in captured.iter().skip(1).flatten() {
-                    let name = found.as_str();
-                    let target_path = context.join("build").join("Release");
-                    let resolved_prebuilt_file = resolve_raw(
-                        target_path,
-                        PatternVc::new(Pattern::Constant(format!("{}.node", name))),
-                        true,
-                    )
-                    .await?;
-                    if let ResolveResult::Single(file, references) = &*resolved_prebuilt_file {
-                        resolved.insert(SourceAssetVc::new(file.path()).into());
-                        merged_references.extend_from_slice(references);
+        if let AssetContent::File(file) = &*binding_gyp.content().await? {
+            if let FileContent::Content(config_file) = &*file.await? {
+                if let Some(captured) =
+                    GYP_BUILD_TARGET_NAME.captures(std::str::from_utf8(config_file.content())?)
+                {
+                    let mut resolved: HashSet<AssetVc> = HashSet::with_capacity(captured.len());
+                    for found in captured.iter().skip(1).flatten() {
+                        let name = found.as_str();
+                        let target_path = context.join("build").join("Release");
+                        let resolved_prebuilt_file = resolve_raw(
+                            target_path,
+                            PatternVc::new(Pattern::Constant(format!("{}.node", name))),
+                            true,
+                        )
+                        .await?;
+                        if let ResolveResult::Single(file, references) = &*resolved_prebuilt_file {
+                            resolved.insert(SourceAssetVc::new(file.path()).into());
+                            merged_references.extend_from_slice(references);
+                        }
                     }
-                }
-                if !resolved.is_empty() {
-                    return Ok(ResolveResult::Alternatives(
-                        resolved.into_iter().collect(),
-                        merged_references,
-                    )
-                    .into());
+                    if !resolved.is_empty() {
+                        return Ok(ResolveResult::Alternatives(
+                            resolved.into_iter().collect(),
+                            merged_references,
+                        )
+                        .into());
+                    }
                 }
             }
         }
@@ -314,8 +329,10 @@ pub async fn resolve_node_bindings_files(
         )
         .await?
         {
-            if let FileContent::Content(_) = &*file.content().await? {
-                break;
+            if let AssetContent::File(file) = &*file.content().await? {
+                if let FileContent::Content(_) = &*file.await? {
+                    break;
+                }
             }
         };
         let current_context = root_context.await?;

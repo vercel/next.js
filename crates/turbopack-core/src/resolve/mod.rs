@@ -300,8 +300,8 @@ async fn type_exists(
     refs: &mut Vec<AssetReferenceVc>,
 ) -> Result<Option<FileSystemPathVc>> {
     let result = fs_path.realpath_with_links().await?;
-    for link in result.symlinks.iter() {
-        refs.push(AffectingResolvingAssetReferenceVc::new(*link).into());
+    for path in result.symlinks.iter() {
+        refs.push(AffectingResolvingAssetReferenceVc::new(*path).into());
     }
     let path = result.path;
     Ok(if *path.get_type().await? == ty {
@@ -427,7 +427,7 @@ async fn find_package(
             }
             ResolveModules::Path(context) => {
                 let package_dir = context.join(&package_name);
-                if let Some(package_dir) = dir_exists(package_dir, &mut references).await? {
+                if dir_exists(package_dir, &mut references).await?.is_some() {
                     packages.push(package_dir.resolve().await?);
                 }
             }
@@ -861,14 +861,14 @@ fn handle_exports_field(
 
 #[turbo_tasks::value]
 pub struct AffectingResolvingAssetReference {
-    file: FileSystemPathVc,
+    path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
 impl AffectingResolvingAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(file: FileSystemPathVc) -> Self {
-        Self::cell(AffectingResolvingAssetReference { file })
+    pub fn new(path: FileSystemPathVc) -> Self {
+        Self::cell(AffectingResolvingAssetReference { path })
     }
 }
 
@@ -876,14 +876,14 @@ impl AffectingResolvingAssetReferenceVc {
 impl AssetReference for AffectingResolvingAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(SourceAssetVc::new(self.file).into(), Vec::new()).into()
+        ResolveResult::Single(SourceAssetVc::new(self.path).into(), Vec::new()).into()
     }
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "resolving is affected by {}",
-            self.file.to_string().await?
+            self.path.to_string().await?
         )))
     }
 }

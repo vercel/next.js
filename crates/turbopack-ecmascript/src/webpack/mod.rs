@@ -1,9 +1,9 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
 use turbo_tasks::{primitives::StringVc, ValueToString};
-use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{parse::RequestVc, resolve, ResolveResult, ResolveResultVc},
@@ -51,7 +51,7 @@ impl Asset for WebpackModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
+    fn content(&self) -> AssetContentVc {
         self.source.content()
     }
 

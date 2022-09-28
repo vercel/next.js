@@ -6,6 +6,8 @@ use std::{
     sync::Arc,
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     debug::{ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
@@ -97,6 +99,25 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         (&**self).into_iter()
+    }
+}
+
+impl<T, U: Serialize> Serialize for ReadRef<T, U> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        (**self).serialize(serializer)
+    }
+}
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for ReadRef<T, T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = T::deserialize(deserializer)?;
+        Ok(Self(Arc::new(value), PhantomData))
     }
 }
 

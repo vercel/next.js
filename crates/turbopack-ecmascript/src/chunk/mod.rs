@@ -16,7 +16,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{embed_file, File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc, AssetsVc},
+    asset::{Asset, AssetContent, AssetContentVc, AssetVc, AssetsVc},
     chunk::{
         chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
         ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc,
@@ -400,7 +400,7 @@ impl EcmascriptChunkContentVc {
         if let Some(evaluate) = &this.evaluate {
             let runtime_code = evaluate.await?.runtime_code.await?;
             let runtime_code = match &*runtime_code {
-                FileContent::NotFound => return Err(anyhow!("failed to read runtime code")),
+                FileContent::NotFound => return Err(anyhow!("runtime code is not found")),
                 FileContent::Content(file) => String::from_utf8(file.content().to_vec())
                     .context("runtime code is invalid UTF-8")?,
             };
@@ -422,16 +422,16 @@ impl EcmascriptChunkContentVc {
     }
 
     #[turbo_tasks::function]
-    async fn content(self) -> Result<FileContentVc> {
+    async fn content(self) -> Result<AssetContentVc> {
         let code = self.code().source_code().await?;
-        Ok(FileContent::Content(File::from_source(code.clone())).into())
+        Ok(AssetContent::File(FileContent::Content(File::from_source(code.clone())).cell()).cell())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl VersionedContent for EcmascriptChunkContent {
     #[turbo_tasks::function]
-    fn content(self_vc: EcmascriptChunkContentVc) -> FileContentVc {
+    fn content(self_vc: EcmascriptChunkContentVc) -> AssetContentVc {
         self_vc.content()
     }
 
@@ -688,7 +688,7 @@ impl Asset for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    fn content(self_vc: EcmascriptChunkVc) -> FileContentVc {
+    fn content(self_vc: EcmascriptChunkVc) -> AssetContentVc {
         self_vc.chunk_content().content()
     }
 

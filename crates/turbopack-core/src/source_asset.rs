@@ -1,8 +1,8 @@
 use anyhow::Result;
-use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPathVc, LinkContent};
 
 use crate::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     reference::AssetReferencesVc,
 };
 
@@ -29,8 +29,23 @@ impl Asset for SourceAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
-        self.path.read()
+    async fn content(&self) -> Result<AssetContentVc> {
+        let file_type = &*self.path.get_type().await?;
+        match file_type {
+            FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
+                LinkContent::Link { target, link_type } => Ok(AssetContent::Redirect {
+                    target: target.to_string(),
+                    link_type: *link_type,
+                }
+                .cell()),
+                _ => Err(anyhow::anyhow!("Invalid symlink")),
+            },
+            FileSystemEntryType::File => Ok(AssetContent::File(self.path.read()).cell()),
+            FileSystemEntryType::NotFound => {
+                Ok(AssetContent::File(FileContent::NotFound.cell()).cell())
+            }
+            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
+        }
     }
 
     #[turbo_tasks::function]

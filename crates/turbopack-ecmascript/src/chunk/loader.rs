@@ -2,9 +2,9 @@ use std::{collections::HashSet, fmt::Write as FmtWrite};
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
         ChunkableAssetVc, ChunkingContextVc, ChunksVc,
@@ -176,7 +176,7 @@ impl Asset for ManifestChunkAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
+    fn content(&self) -> AssetContentVc {
         todo!()
     }
 

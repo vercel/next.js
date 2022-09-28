@@ -108,7 +108,7 @@ where
 {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for (_, map) in self.map.iter() {
-            for (_, value) in map {
+            for value in map.values() {
                 value.trace_raw_vcs(context);
             }
         }

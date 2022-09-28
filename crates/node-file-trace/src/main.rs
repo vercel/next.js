@@ -233,7 +233,7 @@ fn make_relative_path(dir: &Path, context: &str, input: &str) -> Result<String> 
         input = dir.join(input);
     }
     // input = input.canonicalize()?;
-    let input = input.strip_prefix(&context).with_context(|| {
+    let input = input.strip_prefix(context).with_context(|| {
         anyhow!(
             "{} is not part of the context directory {}",
             input.display(),

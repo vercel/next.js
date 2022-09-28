@@ -38,8 +38,8 @@ impl<'a> PageGuard<'a> {
             page: Some(page),
             app: Some(app),
             events: Box::new(futures::stream::select(
-                events.map(|e| Event::EventBindingCalled(e)),
-                errors.map(|e| Event::EventExceptionThrown(e)),
+                events.map(Event::EventBindingCalled),
+                errors.map(Event::EventExceptionThrown),
             )),
         }
     }

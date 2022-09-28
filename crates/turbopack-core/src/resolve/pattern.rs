@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::StringVc, trace::TraceRawVcs, Value, ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
+use turbo_tasks_fs::{
+    util::sys_to_unix, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
+    LinkContent,
+};
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Clone, Debug)]
@@ -670,6 +673,18 @@ pub async fn read_matches(
                                     FileSystemEntryType::Directory => results.push(
                                         PatternMatch::Directory(prefix.to_string(), *fs_path),
                                     ),
+                                    FileSystemEntryType::Symlink => {
+                                        if let LinkContent::Link { target, .. } =
+                                            &*fs_path.read_link().await?
+                                        {
+                                            results.push(PatternMatch::File(
+                                                prefix.to_string(),
+                                                fs_path.parent().join(&sys_to_unix(target)),
+                                            ));
+                                        }
+                                        results
+                                            .push(PatternMatch::File(prefix.to_string(), *fs_path));
+                                    }
                                     _ => {}
                                 }
                                 prefix.truncate(len);

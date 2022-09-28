@@ -1,8 +1,8 @@
 use anyhow::Result;
-use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     reference::AssetReferencesVc,
 };
 
@@ -15,13 +15,13 @@ pub struct WrapperAsset {
     pub asset: AssetVc,
     pub wrapper_name: String,
     /// content can reference the underlying asset with `.`
-    pub content: FileContentVc,
+    pub content: AssetContentVc,
 }
 
 #[turbo_tasks::value_impl]
 impl WrapperAssetVc {
     #[turbo_tasks::function]
-    pub fn new(asset: AssetVc, wrapper_name: &str, content: FileContentVc) -> Self {
+    pub fn new(asset: AssetVc, wrapper_name: &str, content: AssetContentVc) -> Self {
         Self::cell(WrapperAsset {
             asset,
             wrapper_name: wrapper_name.to_string(),
@@ -38,7 +38,7 @@ impl Asset for WrapperAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
+    fn content(&self) -> AssetContentVc {
         self.content
     }
 

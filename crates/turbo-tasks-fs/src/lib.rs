@@ -2,6 +2,7 @@
 #![feature(hash_drain_filter)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
+#![feature(io_error_more)]
 
 pub mod embed;
 pub mod glob;
@@ -25,6 +26,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use bitflags::bitflags;
 use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
 use mime::Mime;
@@ -43,10 +45,9 @@ use turbo_tasks::{
 };
 use util::{join_path, normalize_path, sys_to_unix, unix_to_sys};
 
-use crate::{
-    retry::{retry_blocking, retry_future},
-    util::is_windows_raw_path,
-};
+use crate::retry::{retry_blocking, retry_future};
+#[cfg(target_family = "windows")]
+use crate::util::is_windows_raw_path;
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem {
@@ -54,6 +55,7 @@ pub trait FileSystem {
     fn read_link(&self, fs_path: FileSystemPathVc) -> LinkContentVc;
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
+    fn write_link(&self, fs_path: FileSystemPathVc, target: LinkContentVc) -> CompletionVc;
     fn metadata(&self, fs_path: FileSystemPathVc) -> FileMetaVc;
     fn to_string(&self) -> StringVc;
 }
@@ -300,7 +302,13 @@ impl FileSystem for DiskFileSystem {
         // node-file-trace
         let read_dir = match retry_blocking(&full_path, |path| std::fs::read_dir(path)).await {
             Ok(dir) => dir,
-            Err(e) if e.kind() == ErrorKind::NotFound => return Ok(DirectoryContentVc::not_found()),
+            Err(e)
+                if e.kind() == ErrorKind::NotFound
+                    || e.kind() == ErrorKind::NotADirectory
+                    || e.kind() == ErrorKind::InvalidFilename =>
+            {
+                return Ok(DirectoryContentVc::not_found())
+            }
             Err(e) => {
                 bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
             }
@@ -325,8 +333,7 @@ impl FileSystem for DiskFileSystem {
                 let entry = match e.file_type() {
                     Ok(t) if t.is_file() => DirectoryEntry::File(fs_path),
                     Ok(t) if t.is_dir() => DirectoryEntry::Directory(fs_path),
-                    // TODO: follow the symlink?
-                    Ok(t) if t.is_symlink() => DirectoryEntry::File(fs_path),
+                    Ok(t) if t.is_symlink() => DirectoryEntry::Symlink(fs_path),
                     Ok(_) => DirectoryEntry::Other(fs_path),
                     Err(err) => return Some(Err(err.into())),
                 };
@@ -345,29 +352,70 @@ impl FileSystem for DiskFileSystem {
         let full_path = Path::new(&self.root).join(&*unix_to_sys(&path.path));
         self.register_invalidator(&full_path);
 
-        let file = match retry_future(|| fs::read_link(full_path.clone())).await {
+        let link_path = match retry_future(|| fs::read_link(&full_path)).await {
             Ok(res) => res,
             Err(_) => return Ok(LinkContent::NotFound.cell()),
         };
+        let is_link_absolute = link_path.is_absolute();
+        let mut file = link_path.clone();
+        if !is_link_absolute {
+            if let Some(normalized_linked_path) = full_path.parent().and_then(|p| {
+                p.join(&file)
+                    .to_str()
+                    .and_then(|p| normalize_path(&sys_to_unix(p)))
+            }) {
+                #[cfg(target_family = "windows")]
+                {
+                    file = PathBuf::from(normalized_linked_path);
+                }
+                // `normalize_path` stripped the leading `/` of the path
+                // add it back here or the `strip_prefix` will return `Err`
+                #[cfg(not(target_family = "windows"))]
+                {
+                    file = PathBuf::from(format!("/{normalized_linked_path}"));
+                }
+            } else {
+                return Ok(LinkContent::Invalid.cell());
+            }
+        }
 
-        let result = if is_windows_raw_path(Path::new(&self.root)) && !is_windows_raw_path(&file) {
-            file.strip_prefix(Path::new(&self.root[4..]))
-        } else {
-            file.strip_prefix(Path::new(&self.root))
+        // strip the root from the path, it serves two purpose
+        // 1. ensure the linked path is under the root
+        // 2. strip the root path if the linked path is absolute
+        #[cfg(target_family = "windows")]
+        let result = {
+            let root_path = Path::new(&self.root);
+            if is_windows_raw_path(root_path) && !is_windows_raw_path(&file) {
+                file.strip_prefix(Path::new(&self.root[4..]))
+            } else {
+                file.strip_prefix(root_path)
+            }
         };
 
-        let file = match result {
-            Ok(file) => file,
+        #[cfg(not(target_family = "windows"))]
+        let result = file.strip_prefix(Path::new(&self.root));
+        let relative_to_root_path = match result {
+            Ok(file) => sys_to_unix(&file.to_string_lossy()).to_string(),
             Err(_) => return Ok(LinkContent::Invalid.cell()),
         };
 
-        Ok(if let Some(s) = file.to_str() {
-            LinkContent::Link(FileSystemPathVc::new_normalized(
-                path.fs,
-                sys_to_unix(s).to_string(),
-            ))
-        } else {
-            LinkContent::Invalid
+        Ok(LinkContent::Link {
+            target: if is_link_absolute {
+                relative_to_root_path
+            } else {
+                sys_to_unix(&link_path.to_string_lossy()).to_string()
+            },
+            link_type: {
+                let mut link_type = LinkType::UNSET;
+                if link_path.is_absolute() {
+                    link_type |= LinkType::ABSOLUTE;
+                }
+                #[cfg(target_family = "windows")]
+                if full_path.is_dir() {
+                    link_type |= LinkType::WINDOWS_DIRECTORY;
+                }
+                link_type
+            },
         }
         .cell())
     }
@@ -435,6 +483,79 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        Ok(CompletionVc::new())
+    }
+
+    #[turbo_tasks::function]
+    async fn write_link(
+        &self,
+        fs_path: FileSystemPathVc,
+        target: LinkContentVc,
+    ) -> Result<CompletionVc> {
+        let full_path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
+        let old_content = fs_path
+            .read_link()
+            .await
+            .with_context(|| format!("reading old symlink target of {}", full_path.display()))?;
+        let target_link = target.await?;
+
+        let create_directory = *old_content == LinkContent::NotFound;
+        if create_directory {
+            if let Some(parent) = full_path.parent() {
+                retry_future(move || fs::create_dir_all(parent))
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to create directory {} for write to {}",
+                            parent.display(),
+                            full_path.display()
+                        )
+                    })?;
+            }
+        }
+        match &*target_link {
+            LinkContent::Link { target, link_type } => {
+                let link_type = *link_type;
+                let target_path = if link_type.contains(LinkType::ABSOLUTE) {
+                    unix_to_sys(&fs_path.root().join(target).await?.path).to_string()
+                } else {
+                    unix_to_sys(target).to_string()
+                };
+                retry_blocking(&target_path, move |target_path| {
+                    // we use the sync std method here because `symlink` is fast
+                    // if we put it into a task, it will be slower
+                    #[cfg(target_family = "unix")]
+                    {
+                        std::os::unix::fs::symlink(target_path, &full_path)
+                    }
+                    #[cfg(target_family = "windows")]
+                    {
+                        if link_type.contains(LinkType::WINDOWS_DIRECTORY) {
+                            std::os::windows::fs::symlink_dir(target_path, &full_path)
+                        } else {
+                            std::os::windows::fs::symlink_file(target_path, &full_path)
+                        }
+                    }
+                })
+                .await
+                .with_context(|| format!("create symlink to {target}"))?;
+            }
+            LinkContent::Invalid => {
+                return Err(anyhow!("invalid symlink target: {}", full_path.display()));
+            }
+            LinkContent::NotFound => {
+                retry_future(|| fs::remove_file(full_path.clone()))
+                    .await
+                    .or_else(|err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            Ok(())
+                        } else {
+                            Err(err)
+                        }
+                    })
+                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+            }
+        }
         Ok(CompletionVc::new())
     }
 
@@ -661,6 +782,12 @@ impl FileSystemPathVc {
     pub async fn fs(self) -> Result<FileSystemVc> {
         Ok(self.await?.fs)
     }
+
+    #[turbo_tasks::function]
+    pub async fn extension(self) -> Result<StringVc> {
+        let this = self.await?;
+        Ok(StringVc::cell(this.extension().unwrap_or("").to_string()))
+    }
 }
 
 impl Display for FileSystemPath {
@@ -732,6 +859,11 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
+    pub fn write_link(self, target: LinkContentVc) -> CompletionVc {
+        self.fs().write_link(self, target)
+    }
+
+    #[turbo_tasks::function]
     pub async fn parent(self) -> Result<FileSystemPathVc> {
         let this = self.await?;
         let path = &this.path;
@@ -751,19 +883,38 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
+    //It is important that get_type uses read_dir and not stat/metadata.
+    // - `get_type` is called very very often during resolving and stat would
+    // make it 1 syscall per call, whereas read_dir would make it 1 syscall per
+    // directory.
+    // - `metadata` allows you to use the "wrong" casing on
+    // case-insenstive filesystems, while read_dir gives you the "correct"
+    // casing. We want to enforce "correct" casing to avoid broken builds on
+    // Vercel deployments (case-sensitive).
     pub async fn get_type(self) -> Result<FileSystemEntryTypeVc> {
         let this = self.await?;
         if this.is_root() {
             return Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::Directory));
         }
-
-        let meta_res = self.metadata().await;
-        Ok(match meta_res {
-            Ok(meta) => meta.file_type,
-            // TODO: proper error reporting
-            Err(_) => FileSystemEntryType::Error,
+        let parent = self.parent().resolve().await?;
+        let dir_content = parent.read_dir().await?;
+        match &*dir_content {
+            DirectoryContent::NotFound => {
+                Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::NotFound))
+            }
+            DirectoryContent::Entries(entries) => {
+                let basename = if let Some((_, basename)) = this.path.rsplit_once('/') {
+                    basename
+                } else {
+                    &this.path
+                };
+                if let Some(entry) = entries.get(basename) {
+                    Ok(FileSystemEntryTypeVc::cell(entry.into()))
+                } else {
+                    Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::NotFound))
+                }
+            }
         }
-        .cell())
     }
 
     #[turbo_tasks::function]
@@ -786,9 +937,9 @@ impl FileSystemPathVc {
         let mut symlinks = Vec::new();
         for segment in segments {
             current = current.join(segment);
-            while let LinkContent::Link(target) = &*current.read_link().await? {
+            while let LinkContent::Link { target, .. } = &*current.read_link().await? {
                 symlinks.push(current.resolve().await?);
-                current = *target;
+                current = current.parent().join(&target);
             }
         }
         if symlinks.is_empty() {
@@ -902,9 +1053,21 @@ pub enum FileContent {
     NotFound,
 }
 
+bitflags! {
+  #[derive(Serialize, Deserialize, TraceRawVcs)]
+  pub struct LinkType: u8 {
+      const UNSET = 0;
+      const WINDOWS_DIRECTORY = 0b00000001;
+      const ABSOLUTE = 0b00000010;
+  }
+}
+
 #[turbo_tasks::value(shared)]
+#[derive(Debug)]
 pub enum LinkContent {
-    Link(FileSystemPathVc),
+    // for the relative link, the target is raw value read from the link
+    // for the absolute link, the target is stripped of the root path while reading
+    Link { target: String, link_type: LinkType },
     Invalid,
     NotFound,
 }
@@ -935,7 +1098,6 @@ impl File {
         File {
             meta: FileMeta {
                 permissions: Default::default(),
-                file_type: FileSystemEntryType::File,
                 content_type: None,
             },
             content: str.into_bytes(),
@@ -1024,8 +1186,6 @@ mod mime_option_serde {
 #[derive(Debug, Clone)]
 pub struct FileMeta {
     permissions: Permissions,
-    file_type: FileSystemEntryType,
-
     #[serde(with = "mime_option_serde")]
     #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
@@ -1038,7 +1198,6 @@ impl From<std::fs::Metadata> for FileMeta {
         Self {
             permissions,
             content_type: None,
-            file_type: meta.file_type().into(),
         }
     }
 }
@@ -1328,7 +1487,7 @@ pub struct NullFileSystem;
 impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn read(&self, _fs_path: FileSystemPathVc) -> FileContentVc {
-        FileContent::NotFound.into()
+        FileContent::NotFound.cell()
     }
 
     #[turbo_tasks::function]

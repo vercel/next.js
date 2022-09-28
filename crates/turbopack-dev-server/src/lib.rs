@@ -18,7 +18,7 @@ use mime_guess::mime;
 use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, TurboTasksApi};
 use turbo_tasks_fs::FileContent;
 use turbopack_cli_utils::issue::{group_and_display_issues, LogOptions, LogOptionsVc};
-use turbopack_core::issue::IssueVc;
+use turbopack_core::{asset::AssetContent, issue::IssueVc};
 
 use self::{source::ContentSourceVc, update::UpdateServer};
 use crate::source::ContentSourceResult;
@@ -97,39 +97,42 @@ impl DevServer {
                                     v_content.resolve_strongly_consistent().await?;
                                 let content_vc = resolved_v_content.content();
                                 handle_issues(content_vc, path, "content", log_options).await?;
-                                if let FileContent::Content(content) =
+                                if let AssetContent::File(file) =
                                     &*content_vc.strongly_consistent().await?
                                 {
-                                    let content_type = content.content_type().map_or_else(
-                                        || {
-                                            let guess = mime_guess::from_path(asset_path)
-                                                .first_or_octet_stream();
-                                            // If a text type, application/javascript, or
-                                            // application/json was guessed, use a utf-8 charset as
-                                            // we most likely generated it as such.
-                                            if (guess.type_() == mime::TEXT
-                                                || guess.subtype() == mime::JAVASCRIPT
-                                                || guess.subtype() == mime::JSON)
-                                                && guess.get_param("charset").is_none()
-                                            {
-                                                guess.to_string() + "; charset=utf-8"
-                                            } else {
-                                                guess.to_string()
-                                            }
-                                        },
-                                        |m| m.to_string(),
-                                    );
+                                    if let FileContent::Content(content) = &*file.await? {
+                                        let content_type = content.content_type().map_or_else(
+                                            || {
+                                                let guess = mime_guess::from_path(asset_path)
+                                                    .first_or_octet_stream();
+                                                // If a text type, application/javascript, or
+                                                // application/json was guessed, use a utf-8 charset
+                                                // as
+                                                // we most likely generated it as such.
+                                                if (guess.type_() == mime::TEXT
+                                                    || guess.subtype() == mime::JAVASCRIPT
+                                                    || guess.subtype() == mime::JSON)
+                                                    && guess.get_param("charset").is_none()
+                                                {
+                                                    guess.to_string() + "; charset=utf-8"
+                                                } else {
+                                                    guess.to_string()
+                                                }
+                                            },
+                                            |m| m.to_string(),
+                                        );
 
-                                    let bytes = content.content().to_vec();
-                                    tx.send(
-                                        Response::builder()
-                                            .status(200)
-                                            .header("Content-Type", content_type)
-                                            .header("Content-Length", bytes.len().to_string())
-                                            .body(Body::from(bytes))?,
-                                    )
-                                    .map_err(|_| anyhow!("receiver dropped"))?;
-                                    return Ok(());
+                                        let bytes = content.content().to_vec();
+                                        tx.send(
+                                            Response::builder()
+                                                .status(200)
+                                                .header("Content-Type", content_type)
+                                                .header("Content-Length", bytes.len().to_string())
+                                                .body(Body::from(bytes))?,
+                                        )
+                                        .map_err(|_| anyhow!("receiver dropped"))?;
+                                        return Ok(());
+                                    }
                                 }
                             }
                             tx.send(Response::builder().status(404).body(Body::empty())?)

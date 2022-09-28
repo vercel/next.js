@@ -3,9 +3,9 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc, ValueToString};
-use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkGroupVc, ChunkReferenceVc},
     reference::AssetReferencesVc,
     version::{Update, UpdateVc, Version, VersionVc, VersionedContent, VersionedContentVc},
@@ -29,7 +29,7 @@ impl Asset for DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(self_vc: DevHtmlAssetVc) -> FileContentVc {
+    fn content(self_vc: DevHtmlAssetVc) -> AssetContentVc {
         self_vc.html_content().content()
     }
 
@@ -97,7 +97,7 @@ impl DevHtmlAssetContent {
 #[turbo_tasks::value_impl]
 impl DevHtmlAssetContentVc {
     #[turbo_tasks::function]
-    async fn content(self) -> Result<FileContentVc> {
+    async fn content(self) -> Result<AssetContentVc> {
         let this = self.await?;
 
         let mut scripts = Vec::new();
@@ -139,7 +139,7 @@ impl DevHtmlAssetContentVc {
 #[turbo_tasks::value_impl]
 impl VersionedContent for DevHtmlAssetContent {
     #[turbo_tasks::function]
-    fn content(self_vc: DevHtmlAssetContentVc) -> FileContentVc {
+    fn content(self_vc: DevHtmlAssetContentVc) -> AssetContentVc {
         self_vc.content()
     }
 

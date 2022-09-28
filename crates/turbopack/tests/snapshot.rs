@@ -15,7 +15,7 @@ use test_generator::test_resources;
 use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks, Value};
 use turbo_tasks_fs::{
     util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, File, FileContent,
-    FileContentVc, FileSystemEntryType, FileSystemPathVc, FileSystemVc,
+    FileSystemEntryType, FileSystemPathVc, FileSystemVc,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -26,7 +26,7 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{AssetContent, AssetContentVc, AssetVc},
     chunk::{
         dev::{DevChunkingContext, DevChunkingContextVc},
         ChunkableAssetVc,
@@ -196,7 +196,7 @@ async fn run(resource: &'static str) -> Result<()> {
 fn remove_file(root: &str, path: &str) -> Result<()> {
     // TODO: It'd be great if the entry exposed it's full path joined with the root
     // of its FS. But defining a new Vc is annoying and I want this to be done.
-    let full_path = Path::new(root).join(&path);
+    let full_path = Path::new(root).join(path);
     fs::remove_file(full_path)?;
     Ok(())
 }
@@ -213,7 +213,7 @@ async fn walk_asset(
         return Ok(());
     }
 
-    diff(path, asset.content(), path.read()).await?;
+    diff(path, asset.content(), path.read().into()).await?;
     queue.extend(&*all_referenced_assets(asset).await?);
 
     Ok(())
@@ -221,26 +221,44 @@ async fn walk_asset(
 
 async fn diff(
     path: FileSystemPathVc,
-    actual: FileContentVc,
-    expected: FileContentVc,
+    actual: AssetContentVc,
+    expected: AssetContentVc,
 ) -> Result<()> {
     let path_str = &path.await?.path;
 
     let actual = match &*actual.await? {
-        FileContent::NotFound => bail!("could not generate {} contents", path_str),
-        FileContent::Content(actual) => trimmed_string(actual.content()),
+        AssetContent::File(file) => match &*file.await? {
+            FileContent::NotFound => bail!("could not generate {} contents", path_str),
+            FileContent::Content(actual) => trimmed_string(actual.content()),
+        },
+        AssetContent::Redirect { target, link_type } => {
+            format!(
+                "Redirect {{ target: {target}, link_type: {:?} }}",
+                link_type
+            )
+        }
     };
     let changeset = match &*expected.await? {
-        FileContent::NotFound => Changeset::new("", &actual, "\n"),
-        FileContent::Content(expected) => {
-            let expected = trimmed_string(expected.content());
-            Changeset::new(&expected, &actual, "\n")
-        }
+        AssetContent::File(file) => match &*file.await? {
+            FileContent::NotFound => Changeset::new("", &actual, "\n"),
+            FileContent::Content(expected) => {
+                let expected = trimmed_string(expected.content());
+                Changeset::new(&expected, &actual, "\n")
+            }
+        },
+        AssetContent::Redirect { target, link_type } => Changeset::new(
+            &format!(
+                "Redirect {{ target: {target}, link_type: {:?} }}",
+                link_type
+            ),
+            &actual,
+            "\n",
+        ),
     };
 
     if changeset.distance > 0 {
         if *UPDATE {
-            let content = FileContent::Content(File::from_source(actual)).cell();
+            let content = FileContent::Content(File::from_source(actual)).into();
             path.write(content).await?;
             println!("updated contents of {}", path_str);
         } else {

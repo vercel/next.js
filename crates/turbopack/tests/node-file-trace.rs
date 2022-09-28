@@ -119,6 +119,7 @@ use turbopack_core::{
 #[case::pdfkit("integration/pdfkit.js")]
 #[case::pg("integration/pg.js")]
 #[case::playwright_core("integration/playwright-core.js")]
+#[case::pnpm_like("integration/pnpm/pnpm-like.js")]
 #[case::polyfill_library("integration/polyfill-library.js")]
 #[case::pug("integration/pug.js")]
 #[case::react("integration/react.js")]
@@ -132,7 +133,7 @@ use turbopack_core::{
 #[case::sequelize("integration/sequelize.js")]
 #[cfg_attr(
     target_os = "windows",
-    should_panic(expected = "The specified module could not be found."),
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
@@ -143,6 +144,7 @@ use turbopack_core::{
 #[case::sqlite("integration/sqlite.js")]
 #[case::stripe("integration/stripe.js")]
 #[case::strong_error_handler("integration/strong-error-handler.js")]
+#[case::symlink_to_file("integration/symlink-to-file/index.js")]
 #[case::tensorflow("integration/tensorflow.js")]
 #[case::tiny_json_http("integration/tiny-json-http.js")]
 #[case::twilio("integration/twilio.js")]

@@ -12,9 +12,9 @@
 
 use anyhow::{anyhow, Result};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
@@ -64,7 +64,7 @@ impl Asset for StaticModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
+    fn content(&self) -> AssetContentVc {
         self.source.content()
     }
 
@@ -137,10 +137,15 @@ impl Asset for StaticAsset {
     async fn path(&self) -> Result<FileSystemPathVc> {
         let source_path = self.source.path();
         let content = self.source.content();
-        let content_hash = turbopack_hash::hash_md4(match *content.await? {
-            FileContent::Content(ref file) => file.content(),
-            _ => return Err(anyhow!("StaticAsset::path: unsupported file content")),
-        });
+        let content_hash = if let AssetContent::File(file) = &*content.await? {
+            if let FileContent::Content(file) = &*file.await? {
+                turbopack_hash::hash_md4(file.content())
+            } else {
+                return Err(anyhow!("StaticAsset::path: not found"));
+            }
+        } else {
+            return Err(anyhow!("StaticAsset::path: unsupported file content"));
+        };
         let content_hash_b16 = turbopack_hash::encode_base16(&content_hash);
         let asset_path = match source_path.await?.extension() {
             Some(ext) => format!("{hash}.{ext}", hash = content_hash_b16, ext = ext),
@@ -150,7 +155,7 @@ impl Asset for StaticAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
+    fn content(&self) -> AssetContentVc {
         self.source.content()
     }
 

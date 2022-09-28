@@ -1,14 +1,16 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileContent, FileContentVc};
+use turbo_tasks_fs::{FileContent, FileContentReadRef, LinkType};
 use turbopack_hash::{encode_hex, hash_xxh3_hash64};
+
+use crate::asset::{AssetContent, AssetContentReadRef, AssetContentVc};
 
 /// The content of an [Asset] alongside its version.
 #[turbo_tasks::value_trait]
 pub trait VersionedContent {
     /// The content of the [Asset].
-    fn content(&self) -> FileContentVc;
+    fn content(&self) -> AssetContentVc;
 
     /// Get a unique identifier of the version as a string. There is no way
     /// to convert a version identifier back to the original `VersionedContent`,
@@ -35,44 +37,55 @@ pub trait VersionedContent {
 
 /// A versioned file content.
 #[turbo_tasks::value]
-pub struct VersionedFileContent {
+pub struct VersionedAssetContent {
     // We can't store a `FileContentVc` directly because we don't want
-    // `VersionedFileContentVc` to invalidate when the content changes.
+    // `VersionedAssetContentVc` to invalidate when the content changes.
     // Otherwise, reading `content` and `version` at two different instants in
     // time might return inconsistent values.
-    file_content: FileContent,
+    asset_content: AssetContentReadRef,
+}
+
+#[turbo_tasks::value]
+#[derive(Clone)]
+enum AssetContentSnapshot {
+    File(FileContentReadRef),
+    Redirect { target: String, link_type: LinkType },
 }
 
 #[turbo_tasks::value_impl]
-impl VersionedContent for VersionedFileContent {
+impl VersionedContent for VersionedAssetContent {
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
-        FileContentVc::cell(self.file_content.clone())
+    fn content(&self) -> AssetContentVc {
+        (*self.asset_content).clone().cell()
     }
 
     #[turbo_tasks::function]
     async fn version(&self) -> Result<VersionVc> {
-        Ok(FileHashVersionVc::compute(&self.file_content).await?.into())
+        Ok(FileHashVersionVc::compute(&self.asset_content)
+            .await?
+            .into())
     }
 }
 
-impl VersionedFileContentVc {
-    /// Creates a new [VersionedFileContentVc] from a [FileContentVc].
-    pub async fn new(file_content: FileContentVc) -> Result<Self> {
-        let file_content = (*file_content.strongly_consistent().await?).clone();
-        Ok(Self::cell(VersionedFileContent { file_content }))
+#[turbo_tasks::value_impl]
+impl VersionedAssetContentVc {
+    #[turbo_tasks::function]
+    /// Creates a new [VersionedAssetContentVc] from a [FileContentVc].
+    pub async fn new(asset_content: AssetContentVc) -> Result<Self> {
+        let asset_content = asset_content.strongly_consistent().await?;
+        Ok(Self::cell(VersionedAssetContent { asset_content }))
     }
 }
 
-impl From<FileContent> for VersionedFileContentVc {
-    fn from(file_content: FileContent) -> Self {
-        VersionedFileContent { file_content }.cell()
+impl From<AssetContent> for VersionedAssetContentVc {
+    fn from(asset_content: AssetContent) -> Self {
+        VersionedAssetContentVc::new(asset_content.cell())
     }
 }
 
-impl From<FileContent> for VersionedContentVc {
-    fn from(file_content: FileContent) -> Self {
-        VersionedFileContent { file_content }.cell().into()
+impl From<AssetContent> for VersionedContentVc {
+    fn from(asset_content: AssetContent) -> Self {
+        VersionedAssetContentVc::new(asset_content.cell()).into()
     }
 }
 
@@ -130,14 +143,17 @@ pub struct FileHashVersion {
 
 impl FileHashVersionVc {
     /// Computes a new [`FileHashVersionVc`] from a path.
-    pub async fn compute(file_content: &FileContent) -> Result<Self> {
-        match file_content {
-            FileContent::Content(file) => {
-                let hash = hash_xxh3_hash64(file.content());
-                let hex_hash = encode_hex(hash);
-                Ok(Self::cell(FileHashVersion { hash: hex_hash }))
-            }
-            FileContent::NotFound => Err(anyhow!("file not found")),
+    pub async fn compute(asset_content: &AssetContent) -> Result<Self> {
+        match asset_content {
+            AssetContent::File(file_vc) => match &*file_vc.await? {
+                FileContent::Content(file) => {
+                    let hash = hash_xxh3_hash64(file.content());
+                    let hex_hash = encode_hex(hash);
+                    Ok(Self::cell(FileHashVersion { hash: hex_hash }))
+                }
+                FileContent::NotFound => Err(anyhow!("file not found")),
+            },
+            AssetContent::Redirect { .. } => Err(anyhow!("not a file")),
         }
     }
 }

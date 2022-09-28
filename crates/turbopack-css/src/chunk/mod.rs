@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
         ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc,
@@ -93,7 +93,7 @@ impl Asset for CssChunk {
     }
 
     #[turbo_tasks::function]
-    async fn content(self_vc: CssChunkVc) -> Result<FileContentVc> {
+    async fn content(self_vc: CssChunkVc) -> Result<AssetContentVc> {
         let this = self_vc.await?;
         let content = &*css_chunk_content(this.context, this.entry).await?;
         let c_context = chunk_context(this.context);
@@ -122,7 +122,7 @@ impl Asset for CssChunk {
         let writer = WriterWithIndent::new(&mut code);
         expand_imports(writer, entry_content, &map).await?;
 
-        Ok(FileContent::Content(File::from_source(code)).into())
+        Ok(FileContent::Content(File::from_source(code)).cell().into())
     }
 
     #[turbo_tasks::function]

@@ -383,8 +383,8 @@ async fn emit_assets_recursive(asset: AssetVc) -> Result<()> {
 }
 
 #[turbo_tasks::function]
-pub fn emit_asset(asset: AssetVc) -> CompletionVc {
-    asset.path().write(asset.content())
+pub async fn emit_asset(asset: AssetVc) -> CompletionVc {
+    asset.content().write(asset.path())
 }
 
 #[turbo_tasks::function]
@@ -394,7 +394,7 @@ pub async fn emit_asset_into_dir(
 ) -> Result<CompletionVc> {
     let dir = &*output_dir.await?;
     Ok(if asset.path().await?.is_inside(dir) {
-        asset.path().write(asset.content())
+        emit_asset(asset)
     } else {
         CompletionVc::new()
     })

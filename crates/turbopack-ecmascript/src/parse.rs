@@ -35,7 +35,7 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{AssetContent, AssetVc},
     code_builder::{EncodedSourceMap, EncodedSourceMapVc},
 };
 
@@ -224,8 +224,11 @@ pub async fn parse(
     let ty = ty.into_value();
     let transforms = transforms.await?;
     Ok(match &*content.await? {
-        FileContent::NotFound => ParseResult::NotFound.into(),
-        FileContent::Content(file) => parse_file(file, fs_path, source, ty, &*transforms)?,
+        AssetContent::File(file) => match &*file.await? {
+            FileContent::NotFound => ParseResult::NotFound.cell(),
+            FileContent::Content(file) => parse_file(file, fs_path, source, ty, &transforms)?,
+        },
+        AssetContent::Redirect { .. } => ParseResult::Unparseable.cell(),
     })
 }
 

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use serde_json::json;
-use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     reference::{all_assets, AssetReferencesVc},
 };
 
@@ -31,7 +31,7 @@ impl Asset for NftJsonAsset {
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<FileContentVc> {
+    async fn content(&self) -> Result<AssetContentVc> {
         let context = self.entry.path().parent().await?;
         // For clippy -- This explicit deref is necessary
         let entry_path = &*self.entry.path().await?;
@@ -54,7 +54,7 @@ impl Asset for NftJsonAsset {
           "files": result
         });
 
-        Ok(FileContent::Content(File::from_source(json.to_string())).cell())
+        Ok(FileContent::Content(File::from_source(json.to_string())).into())
     }
 
     #[turbo_tasks::function]

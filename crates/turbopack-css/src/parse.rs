@@ -14,7 +14,7 @@ use swc_core::{
 };
 use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileContent;
-use turbopack_core::asset::AssetVc;
+use turbopack_core::asset::{AssetContent, AssetVc};
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 pub enum ParseResult {
@@ -42,10 +42,13 @@ pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
     let content = source.content();
     let fs_path = source.path().to_string().await?.clone_value();
     Ok(match &*content.await? {
-        FileContent::NotFound => ParseResult::NotFound.into(),
-        FileContent::Content(file) => match String::from_utf8(file.content().to_vec()) {
-            Err(_err) => ParseResult::Unparseable.into(),
-            Ok(string) => parse_content(string, fs_path)?,
+        AssetContent::Redirect { .. } => ParseResult::Unparseable.cell(),
+        AssetContent::File(file) => match &*file.await? {
+            FileContent::NotFound => ParseResult::NotFound.cell(),
+            FileContent::Content(file) => match String::from_utf8(file.content().to_vec()) {
+                Err(_err) => ParseResult::Unparseable.cell(),
+                Ok(string) => parse_content(string, fs_path)?,
+            },
         },
     })
 }

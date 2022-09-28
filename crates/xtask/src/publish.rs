@@ -89,7 +89,7 @@ pub fn run_publish(name: &str) {
                     })
                     .unwrap_or_else(|_| {
                         if let Ok(mut o) = process::Command::new("git")
-                            .args(&["rev-parse", "--short", "HEAD"])
+                            .args(["rev-parse", "--short", "HEAD"])
                             .output()
                             .map(|o| String::from_utf8(o.stdout).expect("Invalid utf8 output"))
                         {
@@ -153,7 +153,7 @@ pub fn run_publish(name: &str) {
                 )
             });
             Command::program("npm")
-                .args(&["publish", "--access", "public", "--tag", tag])
+                .args(["publish", "--access", "public", "--tag", tag])
                 .error_message("Publish npm package failed")
                 .current_dir(target_dir)
                 .execute();
@@ -185,7 +185,7 @@ pub fn run_publish(name: &str) {
             )
         });
         Command::program("npm")
-            .args(&["publish", "--access", "public", "--tag", tag])
+            .args(["publish", "--access", "public", "--tag", tag])
             .error_message("Publish npm package failed")
             .current_dir(target_pkg_dir)
             .execute();
@@ -225,7 +225,7 @@ struct PackageJson {
 
 pub fn run_bump(names: HashSet<String>, dry_run: bool) {
     let workspaces_list_text = Command::program("yarn")
-        .args(&["workspaces", "list", "--json"])
+        .args(["workspaces", "list", "--json"])
         .error_message("List workspaces failed")
         .output_string();
     let workspaces = workspaces_list_text
@@ -356,12 +356,12 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
         ));
     });
     Command::program("yarn")
-        .args(&["version", "apply", "--all"])
+        .args(["version", "apply", "--all"])
         .dry_run(dry_run)
         .error_message("Apply version failed")
         .execute();
     Command::program("git")
-        .args(&["add", "."])
+        .args(["add", "."])
         .dry_run(dry_run)
         .error_message("Stash git changes failed")
         .execute();
@@ -371,7 +371,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
         .collect::<Vec<_>>()
         .join("\n");
     Command::program("git")
-        .args(&[
+        .args([
             "commit",
             "-m",
             "chore: release npm packages",
@@ -384,7 +384,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
     for tag in tags_to_apply {
         Command::program("git")
             .dry_run(dry_run)
-            .args(&["tag", "-s", &tag, "-m", &tag])
+            .args(["tag", "-s", &tag, "-m", &tag])
             .error_message("Tag failed")
             .execute();
     }
@@ -392,7 +392,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
 
 pub fn publish_workspace(dry_run: bool) {
     let commit_message = Command::program("git")
-        .args(&["log", "-1", "--pretty=%B"])
+        .args(["log", "-1", "--pretty=%B"])
         .error_message("Get commit hash failed")
         .output_string();
     for (pkg_name_without_scope, version) in commit_message
@@ -434,7 +434,7 @@ pub fn publish_workspace(dry_run: bool) {
             if dry_run { "--dry-run" } else { "" }
         );
         Command::program("yarn")
-            .args(&["workspace", pkg_name.as_str(), "exec", &npm_publish])
+            .args(["workspace", pkg_name.as_str(), "exec", &npm_publish])
             .error_message("Publish failed")
             .execute();
     }

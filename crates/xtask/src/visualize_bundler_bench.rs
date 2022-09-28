@@ -44,13 +44,11 @@ pub fn generate(summary_path: PathBuf) -> Result<()> {
             continue;
         }
 
-        let by_bundler = by_bench
-            .entry(bench.info.group_id)
-            .or_insert(BTreeMap::new());
+        let by_bundler = by_bench.entry(bench.info.group_id).or_default();
 
         let by_module_count = by_bundler
             .entry(bench.info.function_id.context("Missing function_id")?)
-            .or_insert(BTreeMap::new());
+            .or_default();
 
         by_module_count.insert(
             bench

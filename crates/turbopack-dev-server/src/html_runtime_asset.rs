@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{embed_file, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{embed_file, FileContent, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     reference::AssetReferencesVc,
 };
@@ -40,8 +40,8 @@ impl Asset for HtmlRuntimeAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
-        embed_file!("html-runtime.js")
+    fn content(&self) -> AssetContentVc {
+        embed_file!("html-runtime.js").into()
     }
 
     #[turbo_tasks::function]
@@ -103,20 +103,21 @@ impl EcmascriptChunkItem for HtmlRuntimeChunkItem {
         chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkItemContentVc> {
-        if let FileContent::Content(content) = &*self.inner.content().await? {
-            Ok(EcmascriptChunkItemContent {
-                id: chunk_context.id(self.inner.into()),
-                inner_code: String::from_utf8(content.content().to_vec())?,
-                // TODO: We generate a minimal map for runtime code so that the filename is
-                // displayed in dev tools.
-                source_map: None,
-                options: EcmascriptChunkItemOptions {
-                    ..Default::default()
-                },
+        if let AssetContent::File(file) = &*self.inner.content().await? {
+            if let FileContent::Content(content) = &*file.await? {
+                return Ok(EcmascriptChunkItemContent {
+                    id: chunk_context.id(self.inner.into()),
+                    inner_code: String::from_utf8(content.content().to_vec())?,
+                    // TODO: We generate a minimal map for runtime code so that the filename is
+                    // displayed in dev tools.
+                    source_map: None,
+                    options: EcmascriptChunkItemOptions {
+                        ..Default::default()
+                    },
+                }
+                .cell());
             }
-            .cell())
-        } else {
-            Err(anyhow!("runtime code missing"))
         }
+        Err(anyhow!("runtime code missing"))
     }
 }

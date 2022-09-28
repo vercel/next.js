@@ -8,6 +8,7 @@ use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
     viz, MemoryBackend,
 };
+use turbopack_core::asset::AssetContent;
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
@@ -79,8 +80,11 @@ impl ContentSource for TurboTasksSource {
             _ => return Ok(ContentSourceResult::NotFound.cell()),
         };
         Ok(ContentSourceResult::Static(
-            FileContent::Content(
-                File::from_source(html).with_content_type(Mime::from_str("text/html")?),
+            AssetContent::File(
+                FileContent::Content(
+                    File::from_source(html).with_content_type(Mime::from_str("text/html")?),
+                )
+                .cell(),
             )
             .into(),
         )
