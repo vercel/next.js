@@ -120,8 +120,9 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
+  nextRuntime: string
 }> = async function nextAppLoader() {
-  const { name, appDir, appPaths, pagePath, pageExtensions } =
+  const { name, appDir, appPaths, pagePath, pageExtensions, nextRuntime } =
     this.getOptions() || {}
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -179,23 +180,24 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     resolveParallelSegments,
   })
 
+  const rootDistFolder = nextRuntime === 'edge' ? 'next/dist/esm' : 'next/dist'
   const result = `
     export ${treeCode}
 
-    export const AppRouter = require('next/dist/client/components/app-router.client.js').default
-    export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
-    export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.client.js').default
+    export const AppRouter = require('${rootDistFolder}/client/components/app-router.client.js').default
+    export const LayoutRouter = require('${rootDistFolder}/client/components/layout-router.client.js').default
+    export const RenderFromTemplateContext = require('${rootDistFolder}/client/components/render-from-template-context.client.js').default
     export const HotReloader = ${
       // Disable HotReloader component in production
       this.mode === 'development'
-        ? `require('next/dist/client/components/hot-reloader.client.js').default`
+        ? `require('${rootDistFolder}/client/components/hot-reloader.client.js').default`
         : 'null'
     }
 
-    export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage.js').staticGenerationAsyncStorage
-    export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
+    export const staticGenerationAsyncStorage = require('${rootDistFolder}/client/components/static-generation-async-storage.js').staticGenerationAsyncStorage
+    export const requestAsyncStorage = require('${rootDistFolder}/client/components/request-async-storage.js').requestAsyncStorage
 
-    export const serverHooks = require('next/dist/client/components/hooks-server-context.js')
+    export const serverHooks = require('${rootDistFolder}/client/components/hooks-server-context.js')
 
     export const renderToReadableStream = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server').renderToReadableStream
     export const __next_app_webpack_require__ = __webpack_require__
