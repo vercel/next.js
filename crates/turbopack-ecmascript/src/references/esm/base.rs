@@ -7,7 +7,7 @@ use swc_core::{
 };
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
-    Value, ValueToString,
+    Value, ValueToString, ValueToStringVc,
 };
 use turbopack_core::{
     asset::Asset,
@@ -91,12 +91,16 @@ impl AssetReference for EsmAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         esm_resolve(self.request, self.get_context())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for EsmAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
-            "import {}",
+            "import {} {}",
             self.request.to_string().await?,
+            self.annotations
         )))
     }
 }

@@ -5,7 +5,7 @@ use swc_core::{
 };
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
-    TryJoinIterExt, Value, ValueToString,
+    TryJoinIterExt, Value, ValueToString, ValueToStringVc,
 };
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
@@ -44,9 +44,12 @@ impl AssetReference for AmdDefineAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for AmdDefineAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "AMD define dependency {}",
             self.request.to_string().await?,

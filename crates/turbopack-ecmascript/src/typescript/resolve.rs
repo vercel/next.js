@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -210,9 +210,12 @@ impl AssetReference for TypescriptTypesAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         type_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for TypescriptTypesAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "typescript types {}",
             self.request.to_string().await?,

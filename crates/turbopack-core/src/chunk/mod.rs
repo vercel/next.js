@@ -134,7 +134,7 @@ pub trait Chunk: Asset + ValueToString {}
 
 /// see [Chunk] for explanation
 #[turbo_tasks::value_trait]
-pub trait ParallelChunkReference: AssetReference {
+pub trait ParallelChunkReference: AssetReference + ValueToString {
     fn is_loaded_in_parallel(&self) -> BoolVc;
 }
 
@@ -145,7 +145,7 @@ pub trait ParallelChunkReference: AssetReference {
 /// They are even potentially placed in the same [Chunk] when a chunk type
 /// specific interface is implemented.
 #[turbo_tasks::value_trait]
-pub trait ChunkableAssetReference: AssetReference {
+pub trait ChunkableAssetReference: AssetReference + ValueToString {
     fn is_chunkable(&self) -> BoolVc;
 }
 
@@ -153,7 +153,7 @@ pub trait ChunkableAssetReference: AssetReference {
 /// potentially loaded async, as a separate chunk group. If it's not implemented
 /// chunks are loaded within the current chunk group
 #[turbo_tasks::value_trait]
-pub trait AsyncLoadableReference: AssetReference {
+pub trait AsyncLoadableReference: AssetReference + ValueToString {
     fn is_loaded_async(&self) -> BoolVc;
 }
 
@@ -189,9 +189,12 @@ impl AssetReference for ChunkReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(self.chunk.into(), Vec::new()).into()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for ChunkReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "chunk {}",
             self.chunk.to_string().await?
@@ -234,9 +237,12 @@ impl AssetReference for ChunkGroupReference {
             .collect();
         Ok(ResolveResult::Alternatives(set, Vec::new()).into())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for ChunkGroupReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "chunk group {}",
             self.chunk_group.to_string().await?

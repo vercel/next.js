@@ -6,7 +6,7 @@ use swc_core::{
 };
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
-    Value, ValueToString,
+    Value, ValueToString, ValueToStringVc,
 };
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
@@ -45,9 +45,12 @@ impl AssetReference for CjsAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for CjsAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "generic commonjs {}",
             self.request.to_string().await?,
@@ -89,9 +92,12 @@ impl AssetReference for CjsRequireAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for CjsRequireAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "require {}",
             self.request.to_string().await?,
@@ -184,9 +190,12 @@ impl AssetReference for CjsRequireResolveAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "require.resolve {}",
             self.request.to_string().await?,

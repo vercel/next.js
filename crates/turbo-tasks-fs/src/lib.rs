@@ -939,7 +939,7 @@ impl FileSystemPathVc {
             current = current.join(segment);
             while let LinkContent::Link { target, .. } = &*current.read_link().await? {
                 symlinks.push(current.resolve().await?);
-                current = current.parent().join(&target);
+                current = current.parent().join(target);
             }
         }
         if symlinks.is_empty() {

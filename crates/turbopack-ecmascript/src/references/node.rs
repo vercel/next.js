@@ -1,7 +1,7 @@
 use std::{collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -33,9 +33,12 @@ impl AssetReference for PackageJsonReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(SourceAssetVc::new(self.package_json).into(), Vec::new()).into()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for PackageJsonReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "package.json {}",
             self.package_json.to_string().await?,
@@ -113,9 +116,12 @@ impl AssetReference for DirAssetReference {
         }
         Ok(ResolveResult::Alternatives(result.into_iter().collect(), vec![]).into())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for DirAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "directory assets {}",
             self.path.to_string().await?,

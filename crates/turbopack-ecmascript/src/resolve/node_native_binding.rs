@@ -4,7 +4,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{glob::GlobVc, DirectoryEntry, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{AssetContent, AssetVc},
@@ -61,9 +61,12 @@ impl AssetReference for NodePreGypConfigReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         resolve_node_pre_gyp_files(self.context, self.config_file_pattern, self.compile_target)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for NodePreGypConfigReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "node-gyp in {} with {} for {}",
             self.context.to_string().await?,
@@ -203,9 +206,12 @@ impl AssetReference for NodeGypBuildReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         resolve_node_gyp_build_files(self.context, self.compile_target)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for NodeGypBuildReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "node-gyp in {} for {}",
             self.context.to_string().await?,
@@ -296,9 +302,12 @@ impl AssetReference for NodeBindingsReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         resolve_node_bindings_files(self.context, self.file_name.clone())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for NodeBindingsReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "bindings in {}",
             self.context.to_string().await?,

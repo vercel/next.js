@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
@@ -145,9 +145,12 @@ impl AssetReference for EcmascriptChunkSourceMapAssetReference {
         }
         Ok(ResolveResult::Alternatives(source_maps, vec![]).cell())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for EcmascriptChunkSourceMapAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "source maps for {}",
             self.chunk.path().to_string().await?

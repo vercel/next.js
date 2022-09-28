@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     trace::TraceRawVcs,
-    TryJoinIterExt, Value, ValueToString,
+    TryJoinIterExt, Value, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{
     util::{normalize_path, normalize_request},
@@ -878,9 +878,12 @@ impl AssetReference for AffectingResolvingAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(SourceAssetVc::new(self.path).into(), Vec::new()).into()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for AffectingResolvingAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "resolving is affected by {}",
             self.path.to_string().await?

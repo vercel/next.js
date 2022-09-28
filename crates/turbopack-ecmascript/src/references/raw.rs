@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},
@@ -29,9 +29,12 @@ impl AssetReference for SourceAssetReference {
 
         Ok(resolve_raw(context, self.path, false))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for SourceAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "raw asset {}",
             self.path.to_string().await?,

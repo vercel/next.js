@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     context::AssetContextVc,
@@ -36,9 +36,12 @@ impl AssetReference for TsConfigReference {
         )
         .into()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for TsConfigReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "tsconfig {}",
             self.tsconfig.to_string().await?,
@@ -77,9 +80,12 @@ impl AssetReference for TsReferencePathAssetReference {
             },
         )
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "typescript reference path comment {}",
             self.path,
@@ -111,9 +117,12 @@ impl AssetReference for TsReferenceTypeAssetReference {
             self.context,
         )
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "typescript reference type comment {}",
             self.module,

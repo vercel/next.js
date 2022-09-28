@@ -5,7 +5,7 @@ use swc_core::{
 };
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
-    Value, ValueToString,
+    Value, ValueToString, ValueToStringVc,
 };
 use turbopack_core::{
     chunk::{
@@ -52,9 +52,12 @@ impl AssetReference for EsmAsyncAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         esm_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for EsmAsyncAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "dynamic import {}",
             self.request.to_string().await?,

@@ -1,4 +1,4 @@
-use turbo_tasks::ValueToString;
+use turbo_tasks::{ValueToString, ValueToStringVc};
 pub mod resolve;
 
 use anyhow::Result;
@@ -146,9 +146,12 @@ impl AssetReference for CompilerReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for CompilerReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "compiler reference {}",
             self.request.to_string().await?
@@ -176,9 +179,12 @@ impl AssetReference for TsExtendsReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(self.config, Vec::new()).into()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for TsExtendsReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "tsconfig extends {}",
             self.config.path().to_string().await?,
@@ -207,9 +213,12 @@ impl AssetReference for TsNodeRequireReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for TsNodeRequireReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "tsconfig tsnode require {}",
             self.request.to_string().await?
@@ -238,9 +247,12 @@ impl AssetReference for TsConfigTypesReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         type_resolve(self.request, self.context)
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for TsConfigTypesReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "tsconfig types {}",
             self.request.to_string().await?,

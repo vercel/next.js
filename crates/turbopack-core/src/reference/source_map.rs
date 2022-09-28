@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPathVc};
 
 use super::{AssetReference, AssetReferenceVc};
@@ -35,9 +35,12 @@ impl AssetReference for SourceMap {
         }
         ResolveResult::unresolveable().into()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for SourceMap {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "source map file is referenced by {}",
             self.from.to_string().await?

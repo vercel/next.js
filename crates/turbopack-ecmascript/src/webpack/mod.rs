@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -15,7 +15,7 @@ use self::{
     references::module_references,
 };
 use super::resolve::apply_cjs_specific_options;
-use crate::parse::EcmascriptInputTransformsVc;
+use crate::EcmascriptInputTransformsVc;
 
 pub mod parse;
 pub(crate) mod references;
@@ -97,9 +97,12 @@ impl AssetReference for WebpackChunkAssetReference {
             WebpackRuntime::None => ResolveResult::unresolveable().into(),
         })
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for WebpackChunkAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         let chunk_id = match &self.chunk_id {
             Lit::Str(str) => str.value.to_string(),
             Lit::Num(num) => format!("{num}"),
@@ -126,9 +129,12 @@ impl AssetReference for WebpackEntryAssetReference {
         )
         .into()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for WebpackEntryAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell("webpack entry".to_string()))
     }
 }
@@ -161,9 +167,12 @@ impl AssetReference for WebpackRuntimeAssetReference {
 
         Ok(ResolveResult::unresolveable().into())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
+    async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "webpack {}",
             self.request.to_string().await?,

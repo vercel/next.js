@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 
 use crate::{
     asset::{AssetVc, AssetsVc},
@@ -23,11 +23,10 @@ pub use source_map::SourceMapVc;
 /// [AsyncLoadableReference]: crate::chunk::AsyncLoadableReference
 /// [ParallelChunkReference]: crate::chunk::ParallelChunkReference
 #[turbo_tasks::value_trait]
-pub trait AssetReference {
+pub trait AssetReference: ValueToString {
     fn resolve_reference(&self) -> ResolveResultVc;
     // TODO think about different types
     // fn kind(&self) -> AssetReferenceTypeVc;
-    fn description(&self) -> StringVc;
 }
 
 /// Multiple [AssetReference]s
@@ -63,9 +62,12 @@ impl AssetReference for SingleAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(self.asset, vec![]).cell()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ValueToString for SingleAssetReference {
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
+    fn to_string(&self) -> StringVc {
         self.description
     }
 }
