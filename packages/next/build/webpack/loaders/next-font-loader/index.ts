@@ -43,18 +43,21 @@ export default async function nextFontLoader(this: any) {
         this.resourcePath,
         '../loader.js'
       )).default
-      let { css, fallbackFonts } = await fontLoader({
-        functionName,
-        data,
-        config: fontLoaderOptions,
-        emitFontFile,
-        resolve: (src: string) =>
-          promisify(this.resolve)(
-            path.dirname(path.join(this.rootContext, relativeFilePathFromRoot)),
-            src
-          ),
-        fs: this.fs,
-      })
+      let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
+        await fontLoader({
+          functionName,
+          data,
+          config: fontLoaderOptions,
+          emitFontFile,
+          resolve: (src: string) =>
+            promisify(this.resolve)(
+              path.dirname(
+                path.join(this.rootContext, relativeFilePathFromRoot)
+              ),
+              src
+            ),
+          fs: this.fs,
+        })
 
       const { postcss } = await getPostcss()
 
@@ -68,7 +71,15 @@ export default async function nextFontLoader(this: any) {
       )
       // Add CSS classes, exports and make the font-family localy scoped by turning it unguessable
       const result = await postcss(
-        postcssFontLoaderPlugn(exports, fontFamilyHash, fallbackFonts)
+        postcssFontLoaderPlugn({
+          exports,
+          fontFamilyHash,
+          fallbackFonts,
+          weight,
+          style,
+          adjustFontFallback,
+          variable,
+        })
       ).process(css, {
         from: undefined,
       })
@@ -79,9 +90,14 @@ export default async function nextFontLoader(this: any) {
         version: result.processor.version,
         root: result.root,
       }
-      callback(null, result.css, null, { exports, ast, fontFamilyHash })
+      callback(null, result.css, null, {
+        exports,
+        ast,
+        fontFamilyHash,
+      })
     } catch (err: any) {
       err.stack = false
+      err.message = `Font loader error:\n${err.message}`
       err.message += `
 
 ${chalk.cyan(`Location: ${relativeFilePathFromRoot}`)}`
