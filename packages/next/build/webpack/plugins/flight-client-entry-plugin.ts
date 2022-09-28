@@ -16,12 +16,14 @@ import {
   COMPILER_NAMES,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest } from './flight-manifest-plugin'
+import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
+import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule } from '../loaders/utils'
 
 interface Options {
   dev: boolean
   isEdgeServer: boolean
+  fontLoaderTargets?: string[]
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -37,10 +39,12 @@ const flightCSSManifest: FlightCSSManifest = {}
 export class FlightClientEntryPlugin {
   dev: boolean
   isEdgeServer: boolean
+  fontLoaderTargets?: string[]
 
   constructor(options: Options) {
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
+    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -59,11 +63,23 @@ export class FlightClientEntryPlugin {
     )
 
     compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
-      return this.createClientEndpoints(compiler, compilation)
+      return this.createClientEntries(compiler, compilation)
+    })
+
+    compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
+      traverseModules(compilation, (mod) => {
+        // The module must has request, and resource so it's not a new entry created with loader.
+        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
+        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
+          if (compilation.moduleGraph.isAsync(mod)) {
+            ASYNC_CLIENT_MODULES.add(mod.resource)
+          }
+        }
+      })
     })
   }
 
-  async createClientEndpoints(compiler: any, compilation: any) {
+  async createClientEntries(compiler: any, compilation: any) {
     const promises: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
@@ -216,12 +232,17 @@ export class FlightClientEntryPlugin {
       // Request could be undefined or ''
       if (!rawRequest) return
 
+      const isFontLoader = this.fontLoaderTargets?.some((fontLoaderTarget) =>
+        mod.userRequest.startsWith(`${fontLoaderTarget}?`)
+      )
       const modRequest: string | undefined =
         !rawRequest.endsWith('.css') &&
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
-          ? rawRequest
+          ? isFontLoader
+            ? mod.userRequest
+            : rawRequest
           : mod.resourceResolveData?.path
 
       // Ensure module is not walked again if it's already been visited
@@ -236,7 +257,7 @@ export class FlightClientEntryPlugin {
       }
       visitedBySegment[layoutOrPageRequest].add(modRequest)
 
-      const isCSS = regexCSS.test(modRequest)
+      const isCSS = isFontLoader || regexCSS.test(modRequest)
       const isClientComponent = isClientComponentModule(mod)
 
       if (isCSS) {
@@ -286,9 +307,19 @@ export class FlightClientEntryPlugin {
       modules: clientComponentImports,
       server: false,
     }
-    const clientLoader = `next-flight-client-entry-loader?${stringify(
-      loaderOptions
-    )}!`
+
+    // For the client entry, we always use the CJS build of Next.js. If the
+    // server is using the ESM build (when using the Edge runtime), we need to
+    // replace them.
+    const clientLoader = `next-flight-client-entry-loader?${stringify({
+      modules: this.isEdgeServer
+        ? clientComponentImports.map((importPath) =>
+            importPath.replace('next/dist/esm/', 'next/dist/')
+          )
+        : clientComponentImports,
+      server: false,
+    })}!`
+
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
       ...loaderOptions,
       server: true,
@@ -372,6 +403,7 @@ export class FlightClientEntryPlugin {
             compilation.hooks.failedEntry.call(entry, options, err)
             return reject(err)
           }
+
           compilation.hooks.succeedEntry.call(entry, options, module)
           return resolve(module)
         }

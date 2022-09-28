@@ -24,6 +24,7 @@ import {
   EXPORT_MARKER,
   FLIGHT_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
+  FONT_LOADER_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -388,7 +389,10 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-      serverComponents: nextConfig.experimental.serverComponents,
+      serverComponents: !!nextConfig.experimental.appDir,
+      fontLoaderManifest: nextConfig.experimental.fontLoaders
+        ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
+        : undefined,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -613,8 +617,9 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: nextConfig.experimental.serverComponents,
+            serverComponents: !!nextConfig.experimental.appDir,
             appPaths: options.appPaths || [],
+            enableUndici: nextConfig.experimental.enableUndici,
           })
 
           for (const validation of result.ampValidations || []) {

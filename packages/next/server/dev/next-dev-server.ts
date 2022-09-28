@@ -1126,6 +1126,10 @@ export default class DevServer extends Server {
     return undefined
   }
 
+  protected getFontLoaderManifest() {
+    return undefined
+  }
+
   protected async hasMiddleware(): Promise<boolean> {
     return this.hasPage(this.actualMiddlewareFile!)
   }
@@ -1282,6 +1286,7 @@ export default class DevServer extends Server {
         publicRuntimeConfig,
         serverRuntimeConfig,
         httpAgentOptions,
+        experimental: { enableUndici },
       } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
@@ -1295,6 +1300,7 @@ export default class DevServer extends Server {
           serverRuntimeConfig,
         },
         httpAgentOptions,
+        enableUndici,
         locales,
         defaultLocale,
         originalAppPath,
@@ -1347,14 +1353,13 @@ export default class DevServer extends Server {
         clientOnly: false,
       })
 
-      const serverComponents = this.nextConfig.experimental.serverComponents
-
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (serverComponents) {
+      if (this.nextConfig.experimental.appDir) {
         this.serverComponentManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }
+      this.fontLoaderManifest = super.getFontLoaderManifest()
 
       return super.findPageComponents({ pathname, query, params, isAppPath })
     } catch (err) {

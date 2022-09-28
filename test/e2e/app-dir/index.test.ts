@@ -42,7 +42,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -56,7 +56,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -780,7 +780,8 @@ describe('app dir', () => {
       })
 
       describe('next/router', () => {
-        it('should always return null when accessed from /app', async () => {
+        // `useRouter` should not be accessible in server components.
+        it.skip('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')
 
           try {
@@ -798,8 +799,8 @@ describe('app dir', () => {
       })
 
       describe('hooks', () => {
-        describe('useCookies', () => {
-          it('should retrive cookies in a server component', async () => {
+        describe('cookies function', () => {
+          it('should retrieve cookies in a server component', async () => {
             const browser = await webdriver(next.url, '/hooks/use-cookies')
 
             try {
@@ -851,7 +852,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('useHeaders', () => {
+        describe('headers function', () => {
           it('should have access to incoming headers in a server component', async () => {
             // Check to see that we can't see the header when it's not present.
             let html = await renderViaHTTP(
@@ -888,7 +889,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('usePreviewData', () => {
+        describe('previewData function', () => {
           it('should return no preview data when there is none', async () => {
             const browser = await webdriver(next.url, '/hooks/use-preview-data')
 
@@ -984,7 +985,7 @@ describe('app dir', () => {
 
     describe('client components', () => {
       describe('hooks', () => {
-        describe('useCookies', () => {
+        describe('cookies function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -996,7 +997,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('usePreviewData', () => {
+        describe('previewData function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -1008,7 +1009,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('useHeaders', () => {
+        describe('headers function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -1474,6 +1475,36 @@ describe('app dir', () => {
       })
     })
 
+    describe('not-found', () => {
+      it.skip('should trigger not-found in a server component', async () => {
+        const browser = await webdriver(next.url, '/not-found/servercomponent')
+
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('Not Found!')
+      })
+
+      it.skip('should trigger not-found in a client component', async () => {
+        const browser = await webdriver(next.url, '/not-found/clientcomponent')
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('Not Found!')
+      })
+      ;(isDev ? it.skip : it)(
+        'should trigger not-found client-side',
+        async () => {
+          const browser = await webdriver(next.url, '/not-found/client-side')
+          await browser
+            .elementByCss('button')
+            .click()
+            .waitForElementByCss('#not-found-component')
+          expect(
+            await browser.elementByCss('#not-found-component').text()
+          ).toBe('Not Found!')
+        }
+      )
+    })
+
     describe('redirect', () => {
       describe('components', () => {
         it.skip('should redirect in a server component', async () => {
@@ -1484,7 +1515,7 @@ describe('app dir', () => {
           )
         })
 
-        it('should redirect in a client component', async () => {
+        it.skip('should redirect in a client component', async () => {
           const browser = await webdriver(next.url, '/redirect/clientcomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1492,7 +1523,8 @@ describe('app dir', () => {
           )
         })
 
-        it('should redirect client-side', async () => {
+        // TODO-APP: Enable in development
+        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
           const browser = await webdriver(next.url, '/redirect/client-side')
           await browser
             .elementByCss('button')

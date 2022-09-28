@@ -7,7 +7,7 @@ import {
   collectGenerateParams,
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
-import { setHttpAgentOptions } from '../config'
+import { setHttpClientAndAgentOptions } from '../config'
 
 type RuntimeConfig = any
 
@@ -22,6 +22,7 @@ export async function loadStaticPaths({
   serverless,
   config,
   httpAgentOptions,
+  enableUndici,
   locales,
   defaultLocale,
   isAppPath,
@@ -32,6 +33,7 @@ export async function loadStaticPaths({
   serverless: boolean
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  enableUndici: NextConfigComplete['enableUndici']
   locales?: string[]
   defaultLocale?: string
   isAppPath?: boolean
@@ -49,7 +51,10 @@ export async function loadStaticPaths({
 
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
-  setHttpAgentOptions(httpAgentOptions)
+  setHttpClientAndAgentOptions({
+    httpAgentOptions,
+    experimental: { enableUndici },
+  })
 
   const components = await loadComponents({
     distDir,
