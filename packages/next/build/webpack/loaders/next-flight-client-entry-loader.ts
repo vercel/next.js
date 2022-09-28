@@ -20,30 +20,27 @@ export default async function transformSource(this: any): Promise<string> {
   }
 
   const requests = modules as string[]
-  const code =
-    requests
-      // Filter out css files on the server
-      .filter((request) => (isServer ? !request.endsWith('.css') : true))
-      .map((request) =>
-        request.endsWith('.css')
-          ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(
-              request
-            )}))`
-          : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
-      )
-      .join(';\n') +
-    `
-    export const __next_rsc__ = {
-      server: false,
-      __webpack_require__
-    };
-    export default function RSC() {};
-    `
+  const code = requests
+    // Filter out css files on the server
+    .filter((request) => (isServer ? !request.endsWith('.css') : true))
+    .map((request) =>
+      request.endsWith('.css')
+        ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(request)}))`
+        : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
+    )
+    .join(';\n')
 
   const buildInfo = getModuleBuildInfo(this._module)
+  const resolve = this.getResolve()
+
+  // Resolve to absolute resource url for flight manifest to collect and use to determine client components
+  const resolvedRequests = await Promise.all(
+    requests.map(async (r) => await resolve(this.rootContext, r))
+  )
+
   buildInfo.rsc = {
     type: RSC_MODULE_TYPES.client,
-    requests,
+    requests: resolvedRequests,
   }
 
   return code

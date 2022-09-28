@@ -1,10 +1,10 @@
 'client'
 
-import { usePreviewData } from 'next/dist/client/components/hooks-server'
+import { previewData } from 'next/dist/client/components/hooks-server'
 
 export default function Page() {
   // This should throw an error.
-  usePreviewData()
+  previewData()
 
   return null
 }

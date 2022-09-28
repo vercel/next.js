@@ -14,7 +14,6 @@ export default function Page() {
     <div id="main" suppressHydrationWarning>
       <Random />
       <br />
-      <br />
       <ClientFromDirect />
       <br />
       <ClientFromShared />

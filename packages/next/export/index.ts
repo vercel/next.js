@@ -22,6 +22,9 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  FLIGHT_MANIFEST,
+  FLIGHT_SERVER_CSS_MANIFEST,
+  FONT_LOADER_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -386,6 +389,10 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
+      serverComponents: !!nextConfig.experimental.appDir,
+      fontLoaderManifest: nextConfig.experimental.fontLoaders
+        ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
+        : undefined,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -404,15 +411,31 @@ export default async function exportApp(
     }
     const exportPathMap = await nextExportSpan
       .traceChild('run-export-path-map')
-      .traceAsyncFn(() =>
-        nextConfig.exportPathMap(defaultPathMap, {
+      .traceAsyncFn(async () => {
+        const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
           dev: false,
           dir,
           outDir,
           distDir,
           buildId,
         })
-      )
+        return exportMap
+      })
+
+    if (options.buildExport && nextConfig.experimental.appDir) {
+      // @ts-expect-error untyped
+      renderOpts.serverComponentManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        `${FLIGHT_MANIFEST}.json`
+      )) as PagesManifest
+      // @ts-expect-error untyped
+      renderOpts.serverCSSManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        FLIGHT_SERVER_CSS_MANIFEST + '.json'
+      )) as PagesManifest
+    }
 
     // only add missing 404 page when `buildExport` is false
     if (!options.buildExport) {
@@ -594,8 +617,9 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: nextConfig.experimental.serverComponents,
+            serverComponents: !!nextConfig.experimental.appDir,
             appPaths: options.appPaths || [],
+            enableUndici: nextConfig.experimental.enableUndici,
           })
 
           for (const validation of result.ampValidations || []) {
