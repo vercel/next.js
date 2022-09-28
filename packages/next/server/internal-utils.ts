@@ -8,8 +8,8 @@ const INTERNAL_QUERY_NAMES = [
   // RSC
   '__rsc__',
   // Routing
-  '__flight_router_state_tree__',
-  '__flight_prefetch__',
+  '__next_router_state_tree__',
+  '__next_router_prefetch__',
 ] as const
 
 const EXTENDED_INTERNAL_QUERY_NAMES = ['__nextDataReq'] as const

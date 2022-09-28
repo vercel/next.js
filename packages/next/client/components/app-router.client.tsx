@@ -45,17 +45,17 @@ export async function fetchServerResponse(
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const headers: {
     __rsc__: '1'
-    __flight_router_state_tree__: string
-    __flight_prefetch__?: '1'
+    __next_router_state_tree__: string
+    __next_router_prefetch__?: '1'
   } = {
     // Enable flight response
     __rsc__: '1',
     // Provide the current router state
-    __flight_router_state_tree__: JSON.stringify(flightRouterState),
+    __next_router_state_tree__: JSON.stringify(flightRouterState),
   }
   if (prefetch) {
     // Enable prefetch response
-    headers.__flight_prefetch__ = '1'
+    headers.__next_router_prefetch__ = '1'
   }
 
   const res = await fetch(url.toString(), {

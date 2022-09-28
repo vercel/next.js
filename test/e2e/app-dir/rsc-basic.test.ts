@@ -92,8 +92,8 @@ describe('app dir - react server components', () => {
       '__nextDefaultLocale',
       '__nextIsNotFound',
       '__rsc__',
-      '__flight_router_state_tree__',
-      '__flight_prefetch__',
+      '__next_router_state_tree__',
+      '__next_router_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -113,7 +113,7 @@ describe('app dir - react server components', () => {
             if (
               headers.__rsc__ === '1' &&
               // Prefetches also include `__rsc__`
-              headers.__flight_prefetch__ !== '1'
+              headers.__next_router_prefetch__ !== '1'
             ) {
               hasFlightRequest = true
             }
@@ -198,7 +198,7 @@ describe('app dir - react server components', () => {
           return request.allHeaders().then((headers) => {
             if (
               headers.__rsc__ === '1' &&
-              headers.__flight_prefetch__ !== '1'
+              headers.__next_router_prefetch__ !== '1'
             ) {
               hasFlightRequest = true
             }

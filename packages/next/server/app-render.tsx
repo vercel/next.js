@@ -580,8 +580,8 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 
 const FLIGHT_PARAMETERS = [
   '__rsc__',
-  '__flight_router_state_tree__',
-  '__flight_prefetch__',
+  '__next_router_state_tree__',
+  '__next_router_prefetch__',
 ] as const
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
@@ -651,7 +651,7 @@ export async function renderToHTMLOrFlight(
     query = Object.assign({}, query)
 
     const isFlight = req.headers.__rsc__ !== undefined
-    const isPrefetch = req.headers.__flight_prefetch__ !== undefined
+    const isPrefetch = req.headers.__next_router_prefetch__ !== undefined
 
     // Handle client-side navigation to pages directory
     if (isFlight && isPagesDir) {
@@ -685,8 +685,8 @@ export async function renderToHTMLOrFlight(
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     const providedFlightRouterState: FlightRouterState = isFlight
-      ? req.headers.__flight_router_state_tree__
-        ? JSON.parse(req.headers.__flight_router_state_tree__ as string)
+      ? req.headers.__next_router_state_tree__
+        ? JSON.parse(req.headers.__next_router_state_tree__ as string)
         : {}
       : undefined
 
