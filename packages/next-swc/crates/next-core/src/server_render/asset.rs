@@ -10,12 +10,12 @@ use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc, Value, ValueToString,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetVc, ModuleAssetType,
 };
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         dev::{DevChunkingContext, DevChunkingContextVc},
         ChunkGroupVc,
@@ -86,7 +86,7 @@ impl Asset for ServerRenderedAsset {
     }
 
     #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
+    fn content(&self) -> AssetContentVc {
         render(
             self.path,
             get_renderer_pool(
@@ -151,11 +151,11 @@ impl AssetReference for ServerRenderedClientAssetReference {
 }
 
 #[turbo_tasks::function]
-fn get_server_renderer() -> FileContentVc {
+fn get_server_renderer() -> AssetContentVc {
     FileContent::Content(File::from_source(
         include_str!("server_renderer.js").to_string(),
     ))
-    .cell()
+    .into()
 }
 
 #[turbo_tasks::function]
@@ -202,7 +202,7 @@ async fn emit(
             .await?
             .internal_assets
             .iter()
-            .map(|a| a.path().write(a.content()))
+            .map(|a| a.content().write(a.path()))
             .collect(),
     )
     .all())
@@ -290,11 +290,11 @@ async fn render(
     path: FileSystemPathVc,
     renderer_pool: NodeJsPoolVc,
     request_data: &str,
-) -> Result<FileContentVc> {
-    fn into_result(content: String) -> Result<FileContentVc> {
+) -> Result<AssetContentVc> {
+    fn into_result(content: String) -> Result<AssetContentVc> {
         Ok(
             FileContent::Content(File::from_source(content).with_content_type(TEXT_HTML_UTF_8))
-                .cell(),
+                .into(),
         )
     }
     let pool = renderer_pool.await?;

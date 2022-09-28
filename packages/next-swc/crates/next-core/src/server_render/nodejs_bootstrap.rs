@@ -1,10 +1,10 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::utils::stringify_str;
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkGroupVc, ChunkReferenceVc},
     reference::AssetReferencesVc,
 };
@@ -23,7 +23,7 @@ impl Asset for NodeJsBootstrapAsset {
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<FileContentVc> {
+    async fn content(&self) -> Result<AssetContentVc> {
         let context_path = self.path.parent().await?;
 
         // TODO(sokra) We need to have a chunk format for node.js

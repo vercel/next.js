@@ -108,7 +108,7 @@ pub fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
 
     let npm = command("npm")
         .args(["install", "--prefer-offline", "--loglevel=error"])
-        .current_dir(&test_app.path())
+        .current_dir(test_app.path())
         .output()
         .unwrap();
 
@@ -140,7 +140,7 @@ pub async fn create_browser() -> Browser {
     browser
 }
 
-pub fn resume_on_error<F: FnOnce() -> () + UnwindSafe>(f: F) {
+pub fn resume_on_error<F: FnOnce() + UnwindSafe>(f: F) {
     let runs_as_bench = std::env::args().find(|a| a == "--bench");
 
     if runs_as_bench.is_some() {
