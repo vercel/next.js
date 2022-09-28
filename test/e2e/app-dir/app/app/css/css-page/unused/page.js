@@ -1,6 +1,4 @@
-import './style.css'
-
-import styles from './style.module.css'
+import { styles } from './styles'
 
 export default function Page() {
   return (
