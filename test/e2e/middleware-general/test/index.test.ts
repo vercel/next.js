@@ -56,7 +56,6 @@ describe('Middleware Runtime', () => {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
-          NEXT_RUNTIME: 'edge',
         },
       })
     })
