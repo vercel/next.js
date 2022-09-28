@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use json::JsonValue;
+use serde_json::Value as JsonValue;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
     context::AssetContextVc,
-    issue::{Issue, IssueSeverityVc, IssueVc},
+    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         handle_resolve_error,
@@ -125,14 +125,30 @@ pub async fn apply_tsconfig(
                     }
                 };
                 for (key, value) in paths.iter() {
-                    let entries = value
-                        .members()
-                        .filter_map(|entry| entry.as_str().map(|s| s.to_string()))
-                        .collect();
-                    all_paths.insert(
-                        key.to_string(),
-                        ImportMapping::primary_alternatives(entries, Some(context)),
-                    );
+                    if let JsonValue::Array(vec) = value {
+                        let entries = vec
+                            .iter()
+                            .filter_map(|entry| entry.as_str().map(|s| s.to_string()))
+                            .collect();
+                        all_paths.insert(
+                            key.to_string(),
+                            ImportMapping::primary_alternatives(entries, Some(context)),
+                        );
+                    } else {
+                        TsConfigIssue {
+                            severity: IssueSeverity::Warning.cell(),
+                            path: source.path(),
+                            message: StringVc::cell(format!(
+                                "compilerOptions.paths[{key}] doesn't contains an array as \
+                                 expected\n{key}: {value:#}",
+                                key = serde_json::to_string(key)?,
+                                value = value
+                            )),
+                        }
+                        .cell()
+                        .as_issue()
+                        .emit()
+                    }
                 }
             }
         }

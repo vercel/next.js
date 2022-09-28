@@ -14,5 +14,5 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 clap = { version = "3", features = ["derive"] }
-json = "0.12.4"
+serde_json = "1.0.85"
 tempfile = "3.3.0"

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use json::object;
+use serde_json::json;
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -35,24 +35,26 @@ impl Asset for NftJsonAsset {
         let context = self.entry.path().parent().await?;
         // For clippy -- This explicit deref is necessary
         let entry_path = &*self.entry.path().await?;
-        let self_path = context.get_relative_path_to(entry_path);
         let mut result = Vec::new();
-        let set = all_assets(self.entry);
-        for asset in set.await?.iter() {
-            let path = asset.path().await?;
-            let rel_path = context.get_relative_path_to(&path);
-            if rel_path != self_path {
-                result.push(rel_path);
+        if let Some(self_path) = context.get_relative_path_to(entry_path) {
+            let set = all_assets(self.entry);
+            for asset in set.await?.iter() {
+                let path = asset.path().await?;
+                if let Some(rel_path) = context.get_relative_path_to(&path) {
+                    if rel_path != self_path {
+                        result.push(rel_path);
+                    }
+                }
             }
+            result.sort();
+            result.dedup();
         }
-        result.sort();
-        result.dedup();
-        let json = object! {
-          version: 1u32,
-          files: result
-        };
+        let json = json!({
+          "version": 1,
+          "files": result
+        });
 
-        Ok(FileContent::Content(File::from_source(json.dump())).cell())
+        Ok(FileContent::Content(File::from_source(json.to_string())).cell())
     }
 
     #[turbo_tasks::function]

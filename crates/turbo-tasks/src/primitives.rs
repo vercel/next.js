@@ -21,3 +21,6 @@ pub struct Bool(bool);
 
 #[turbo_tasks::value(transparent)]
 pub struct RawVcSet(HashSet<RawVc>);
+
+#[turbo_tasks::value(transparent)]
+pub struct JsonValue(serde_json::Value);

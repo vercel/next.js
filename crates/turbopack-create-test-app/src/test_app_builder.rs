@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use serde_json::json;
 use tempfile::TempDir;
 
 fn decide(remaining: usize, min_remaining_decisions: usize) -> bool {
@@ -294,18 +295,18 @@ export function getStaticProps() {
 
         if let Some(package_json) = &self.package_json {
             // These dependencies are needed
-            let package_json = json::object! {
-                name: "turbopack-test-app",
-                private: true,
-                version: "0.0.0",
-                dependencies: json::object! {
+            let package_json = json!({
+                "name": "turbopack-test-app",
+                "private": true,
+                "version": "0.0.0",
+                "dependencies": {
                     "react": package_json.react_version.clone(),
                     "react-dom": package_json.react_version.clone(),
                 }
-            };
+            });
             File::create(path.join("package.json"))
                 .context("creating package.json")?
-                .write_all(package_json.pretty(2).as_bytes())
+                .write_all(format!("{:#}", package_json).as_bytes())
                 .context("writing package.json")?;
         }
 

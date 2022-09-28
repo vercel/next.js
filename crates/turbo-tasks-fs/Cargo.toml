@@ -13,11 +13,11 @@ anyhow = "1.0.47"
 concurrent-queue = "1.2.2"
 futures = "0.3.24"
 futures-retry = "0.6.0"
-json = "0.12.4"
 lazy_static = "1.4.0"
 mime = "0.3.16"
 notify = "4.0.17"
 serde = { version = "1.0.136", features = ["rc"] }
+serde_json = "1.0.85"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 

@@ -16,7 +16,7 @@ crossterm = "0.25"
 lazy_static = "1.4.0"
 owo-colors = "3"
 serde = "1.0.136"
-serde_json = "1.0.81"
+serde_json = "1.0.85"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }

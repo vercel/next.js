@@ -30,8 +30,8 @@ turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 # turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 anyhow = "1.0.47"
 console-subscriber = { version = "0.1.6", optional = true }
-json = "0.12.4"
 serde = "1.0.136"
+serde_json = "1.0.85"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack = { path = "../turbopack" }

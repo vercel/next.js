@@ -69,6 +69,7 @@ ignore!(
 );
 ignore!((), String, Duration, anyhow::Error);
 ignore!(Path, PathBuf);
+ignore!(serde_json::Value);
 
 impl<'a> TraceRawVcs for &'a str {
     fn trace_raw_vcs(&self, _context: &mut TraceRawVcsContext) {}

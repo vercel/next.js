@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use json::JsonValue;
+use serde_json::Value;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
@@ -140,19 +140,16 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
         _context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkItemContentVc> {
         let chunks = self.inner.chunks();
-        let mut data = json::Array::new();
+        let mut data = Vec::new();
         let base_path = self.inner.await?.base_path.await?;
         for chunk in chunks.await?.iter() {
             let path = &*chunk.path().await?;
             if let Some(p) = base_path.get_path_to(path) {
-                data.push(json::from(p));
+                data.push(Value::String(p.to_string()));
             }
         }
         Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "__turbopack_export_value__({:#});\n",
-                JsonValue::Array(data)
-            ),
+            inner_code: format!("__turbopack_export_value__({:#});\n", Value::Array(data)),
             source_map: None,
             id: chunk_context.id(self.inner.into()),
             options: Default::default(),

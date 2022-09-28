@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use json::JsonValue;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
@@ -326,7 +325,7 @@ async fn exports_field(
 ) -> Result<ExportsFieldResultVc> {
     if let FileJsonContent::Content(package_json) = &*package_json.await? {
         let field_value = &package_json[field];
-        if let JsonValue::Null = field_value {
+        if let serde_json::Value::Null = field_value {
             return Ok(ExportsFieldResult::None.into());
         }
         let exports_field: Result<ExportsField> = field_value.try_into();

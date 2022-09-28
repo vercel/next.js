@@ -27,12 +27,12 @@ use std::{
 use anyhow::{anyhow, bail, Context, Result};
 use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
-use json::{parse, JsonValue};
 use mime::Mime;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::{
     fs,
     io::{AsyncReadExt, AsyncWriteExt},
@@ -1055,7 +1055,7 @@ impl FileContent {
     pub fn parse_json(&self) -> FileJsonContent {
         match self {
             FileContent::Content(file) => match std::str::from_utf8(&file.content) {
-                Ok(string) => match parse(string) {
+                Ok(string) => match serde_json::from_str(string) {
                     Ok(data) => FileJsonContent::Content(data),
                     Err(_) => FileJsonContent::Unparseable,
                 },
@@ -1068,7 +1068,7 @@ impl FileContent {
     pub fn parse_json_with_comments(&self) -> FileJsonContent {
         match self {
             FileContent::Content(file) => match std::str::from_utf8(&file.content) {
-                Ok(string) => match parse(&skip_json_comments(string)) {
+                Ok(string) => match serde_json::from_str(&skip_json_comments(string)) {
                     Ok(data) => FileJsonContent::Content(data),
                     Err(_) => FileJsonContent::Unparseable,
                 },
@@ -1211,7 +1211,7 @@ impl FileContentVc {
 /// A file's content interpreted as a JSON value.
 #[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileJsonContent {
-    Content(#[turbo_tasks(trace_ignore)] JsonValue),
+    Content(Value),
     Unparseable,
     NotFound,
 }

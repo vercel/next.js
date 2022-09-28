@@ -2,7 +2,7 @@ use turbo_tasks::ValueToString;
 pub mod resolve;
 
 use anyhow::Result;
-use json::JsonValue;
+use serde_json::Value as JsonValue;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{

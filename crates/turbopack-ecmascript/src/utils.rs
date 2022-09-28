@@ -1,4 +1,3 @@
-use json::codegen::Generator;
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, Lit, Str},
@@ -63,9 +62,7 @@ pub fn stringify_module_id(id: &ModuleId) -> String {
 }
 
 pub fn stringify_str(s: &str) -> String {
-    let mut dump = json::codegen::DumpGenerator::new();
-    dump.write_string(s).unwrap();
-    dump.consume()
+    serde_json::to_string(s).unwrap()
 }
 
 pub fn stringify_number(s: u32) -> String {

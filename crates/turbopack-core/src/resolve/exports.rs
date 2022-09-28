@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{anyhow, bail, Result};
-use json::JsonValue;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::{
     alias_map::{AliasMap, AliasMapIterator, AliasPattern, AliasTemplate},
@@ -148,21 +148,20 @@ impl<'a> Iterator for ResultsIterMut<'a> {
     }
 }
 
-impl TryFrom<&JsonValue> for ExportsValue {
+impl TryFrom<&Value> for ExportsValue {
     type Error = anyhow::Error;
 
-    fn try_from(value: &JsonValue) -> Result<Self> {
+    fn try_from(value: &Value) -> Result<Self> {
         match value {
-            JsonValue::Null => Ok(ExportsValue::Excluded),
-            JsonValue::Short(s) => Ok(ExportsValue::Result(s.to_string())),
-            JsonValue::String(s) => Ok(ExportsValue::Result(s.to_string())),
-            JsonValue::Number(_) => Err(anyhow!(
+            Value::Null => Ok(ExportsValue::Excluded),
+            Value::String(s) => Ok(ExportsValue::Result(s.to_string())),
+            Value::Number(_) => Err(anyhow!(
                 "numeric values are invalid in exports field entries"
             )),
-            JsonValue::Boolean(_) => Err(anyhow!(
+            Value::Bool(_) => Err(anyhow!(
                 "boolean values are invalid in exports field entries"
             )),
-            JsonValue::Object(object) => Ok(ExportsValue::Conditional(
+            Value::Object(object) => Ok(ExportsValue::Conditional(
                 object
                     .iter()
                     .map(|(key, value)| {
@@ -177,7 +176,7 @@ impl TryFrom<&JsonValue> for ExportsValue {
                     })
                     .collect::<Result<Vec<_>>>()?,
             )),
-            JsonValue::Array(array) => Ok(ExportsValue::Alternatives(
+            Value::Array(array) => Ok(ExportsValue::Alternatives(
                 array
                     .iter()
                     .map(|value| value.try_into())
@@ -191,14 +190,14 @@ impl TryFrom<&JsonValue> for ExportsValue {
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportsField(AliasMap<ExportsValue>);
 
-impl TryFrom<&JsonValue> for ExportsField {
+impl TryFrom<&Value> for ExportsField {
     type Error = anyhow::Error;
 
-    fn try_from(value: &JsonValue) -> Result<Self> {
+    fn try_from(value: &Value) -> Result<Self> {
         // The "exports" field can be an object, a string, or an array of strings.
         // https://nodejs.org/api/packages.html#exports
         let map = match value {
-            JsonValue::Object(object) => {
+            Value::Object(object) => {
                 let mut map = AliasMap::new();
                 // Conditional exports can also be defined at the top-level of the
                 // exports field, where they will apply to the package itself.
@@ -237,7 +236,7 @@ impl TryFrom<&JsonValue> for ExportsField {
 
                 map
             }
-            JsonValue::Short(string) => {
+            Value::String(string) => {
                 let mut map = AliasMap::new();
                 map.insert(
                     AliasPattern::exact("."),
@@ -245,15 +244,7 @@ impl TryFrom<&JsonValue> for ExportsField {
                 );
                 map
             }
-            JsonValue::String(string) => {
-                let mut map = AliasMap::new();
-                map.insert(
-                    AliasPattern::exact("."),
-                    ExportsValue::Result(string.to_string()),
-                );
-                map
-            }
-            JsonValue::Array(array) => {
+            Value::Array(array) => {
                 let mut map = AliasMap::new();
                 map.insert(
                     AliasPattern::exact("."),
