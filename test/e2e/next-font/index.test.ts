@@ -105,7 +105,7 @@ describe('@next/font/google', () => {
       expect(JSON.parse($('#first-local-font').text())).toEqual({
         className: expect.stringMatching(/__className_.{6}/),
         style: {
-          fontFamily: expect.stringMatching(/^'__my-font_.{6}'$/),
+          fontFamily: expect.stringMatching(/^'__my-font_.{6}', system-ui$/),
           fontStyle: 'italic',
           fontWeight: 100,
         },
@@ -114,7 +114,9 @@ describe('@next/font/google', () => {
         className: expect.stringMatching(/^__className_.{6}$/),
         variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: expect.stringMatching(/^'__my-other-font_.{6}'$/),
+          fontFamily: expect.stringMatching(
+            /^'__my-other-font_.{6}', '__my-other-font_Fallback_.{6}'$/
+          ),
         },
       })
     })
