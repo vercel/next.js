@@ -48,7 +48,6 @@ describe('@next/font/google', () => {
           fontFamily: expect.stringMatching(
             /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
           ),
-          fontStyle: 'normal',
         },
       })
 
@@ -60,7 +59,6 @@ describe('@next/font/google', () => {
           fontFamily: expect.stringMatching(
             /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
           ),
-          fontStyle: 'normal',
         },
       })
 
@@ -72,7 +70,6 @@ describe('@next/font/google', () => {
           fontFamily: expect.stringMatching(
             /^'__Inter_.{6}', '__Inter_Fallback_.{6}'$/
           ),
-          fontStyle: 'normal',
           fontWeight: 900,
         },
       })
@@ -95,22 +92,20 @@ describe('@next/font/google', () => {
 
       // _app.js
       expect(JSON.parse($('#app-open-sans').text())).toEqual({
-        className: expect.stringMatching(/^__className_.{6}$/),
-        variable: expect.stringMatching(/^__variable_.{6}$/),
+        className: expect.stringMatching(/__className_.{6}/),
+        variable: expect.stringMatching(/__variable_.{6}/),
         style: {
           fontFamily: expect.stringMatching(
             /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
           ),
-          fontStyle: 'normal',
         },
       })
 
       // with-local-fonts.js
       expect(JSON.parse($('#first-local-font').text())).toEqual({
-        className: expect.stringMatching(/^__className_.{6}$/),
-        variable: expect.stringMatching(/^__variable_.{6}$/),
+        className: expect.stringMatching(/__className_.{6}/),
         style: {
-          fontFamily: expect.stringMatching(/^'__my-font_.{6}'$/),
+          fontFamily: expect.stringMatching(/^'__my-font_.{6}', system-ui$/),
           fontStyle: 'italic',
           fontWeight: 100,
         },
@@ -119,7 +114,9 @@ describe('@next/font/google', () => {
         className: expect.stringMatching(/^__className_.{6}$/),
         variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
-          fontFamily: expect.stringMatching(/^'__my-other-font_.{6}'$/),
+          fontFamily: expect.stringMatching(
+            /^'__my-other-font_.{6}', '__my-other-font_Fallback_.{6}'$/
+          ),
         },
       })
     })
@@ -261,6 +258,19 @@ describe('@next/font/google', () => {
           'getComputedStyle(document.querySelector("#without-variables-roboto-100-italic")).fontFamily'
         )
       ).not.toMatch(roboto100ItalicRegex)
+
+      // Local font
+      const localFontRegex = /^__my-font_.{6}$/
+      expect(
+        await browser.eval(
+          'getComputedStyle(document.querySelector("#variables-local-font")).fontFamily'
+        )
+      ).toMatch(localFontRegex)
+      expect(
+        await browser.eval(
+          'getComputedStyle(document.querySelector("#without-variables-local-font")).fontFamily'
+        )
+      ).not.toMatch(localFontRegex)
     })
 
     test('page using fallback fonts', async () => {
