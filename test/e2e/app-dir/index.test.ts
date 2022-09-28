@@ -1186,6 +1186,17 @@ describe('app dir', () => {
             )
           ).toBe('rgb(0, 0, 255)')
         })
+
+        if (!isDev) {
+          it('should not include unused css modules in the page in prod', async () => {
+            const browser = await webdriver(next.url, '/css/css-page')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
+              )
+            ).toBe(false)
+          })
+        }
       })
 
       describe('client layouts', () => {
