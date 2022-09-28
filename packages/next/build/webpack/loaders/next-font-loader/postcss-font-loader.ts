@@ -1,10 +1,16 @@
 import postcss, { Declaration } from 'postcss'
 
-const postcssFontLoaderPlugn = (
-  exports: { name: any; value: any }[],
-  fontFamilyHash: string,
-  fallbackFonts: string[] = []
-) => {
+const postcssFontLoaderPlugn = ({
+  exports,
+  fontFamilyHash,
+  fallbackFonts = [],
+  variable,
+}: {
+  exports: { name: any; value: any }[]
+  fontFamilyHash: string
+  fallbackFonts?: string[]
+  variable?: string
+}) => {
   return {
     postcssPlugin: 'postcss-font-loader',
     Once(root: any) {
@@ -104,18 +110,16 @@ const postcssFontLoaderPlugn = (
       root.nodes.push(classRule)
 
       // Add class that defines a variable with the font family
-      const varialbeRule = new postcss.Rule({ selector: '.variable' })
-      varialbeRule.nodes = [
-        new postcss.Declaration({
-          prop: rawFamily
-            ? `--next-font-${rawFamily.toLowerCase().replace(/ /g, '-')}${
-                fontWeight ? `-${fontWeight}` : ''
-              }${fontStyle === 'italic' ? `-${fontStyle}` : ''}`
-            : '',
-          value: formattedFontFamilies,
-        }),
-      ]
-      root.nodes.push(varialbeRule)
+      if (variable) {
+        const varialbeRule = new postcss.Rule({ selector: '.variable' })
+        varialbeRule.nodes = [
+          new postcss.Declaration({
+            prop: variable,
+            value: formattedFontFamilies,
+          }),
+        ]
+        root.nodes.push(varialbeRule)
+      }
 
       // Export @font-face values as is
       exports.push({

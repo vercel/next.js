@@ -43,7 +43,7 @@ export default async function nextFontLoader(this: any) {
         this.resourcePath,
         '../loader.js'
       )).default
-      let { css, fallbackFonts } = await fontLoader({
+      let { css, fallbackFonts, variable } = await fontLoader({
         functionName,
         data,
         config: fontLoaderOptions,
@@ -68,7 +68,12 @@ export default async function nextFontLoader(this: any) {
       )
       // Add CSS classes, exports and make the font-family localy scoped by turning it unguessable
       const result = await postcss(
-        postcssFontLoaderPlugn(exports, fontFamilyHash, fallbackFonts)
+        postcssFontLoaderPlugn({
+          exports,
+          fontFamilyHash,
+          fallbackFonts,
+          variable,
+        })
       ).process(css, {
         from: undefined,
       })

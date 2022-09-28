@@ -1,6 +1,6 @@
 export type FontModule = {
   className: string
-  variable: string
+  variable?: string
   style: { fontFamily: string; fontWeight?: number; fontStyle?: string }
 }
 
@@ -11,4 +11,4 @@ export type FontLoader = (options: {
   emitFontFile: (content: Buffer, ext: string, preload: boolean) => string
   resolve: (src: string) => string
   fs: any
-}) => Promise<{ css: string; fallbackFonts?: string[] }>
+}) => Promise<{ css: string; variable?: string; fallbackFonts?: string[] }>
