@@ -95,8 +95,8 @@ describe('@next/font/google', () => {
 
       // _app.js
       expect(JSON.parse($('#app-open-sans').text())).toEqual({
-        className: '__className_f32d04',
-        variable: '__variable_f32d04',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(
             /^'__Open_Sans_.{6}', '__Open_Sans_Fallback_.{6}'$/
@@ -107,8 +107,8 @@ describe('@next/font/google', () => {
 
       // with-local-fonts.js
       expect(JSON.parse($('#first-local-font').text())).toEqual({
-        className: '__className_410624',
-        variable: '__variable_410624',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(/^'__my-font_.{6}'$/),
           fontStyle: 'italic',
@@ -116,8 +116,8 @@ describe('@next/font/google', () => {
         },
       })
       expect(JSON.parse($('#second-local-font').text())).toEqual({
-        className: '__className_3ff726',
-        variable: '__variable_3ff726',
+        className: expect.stringMatching(/^__className_.{6}$/),
+        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(/^'__my-other-font_.{6}'$/),
         },
