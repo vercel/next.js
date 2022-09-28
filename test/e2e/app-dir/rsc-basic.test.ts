@@ -405,9 +405,11 @@ describe('app dir - react server components', () => {
         const result = await resolveStreamResponse(response)
 
         // Package should be resolved based on the react-server condition,
-        // as well as package's dependencies.
-        expect(result).toContain('Server: index.react-server:react.subset')
-        expect(result).toContain('Client: index.default:react.full')
+        // as well as package's internal & external dependencies.
+        expect(result).toContain(
+          'Server: index.react-server:react.subset:dep.server'
+        )
+        expect(result).toContain('Client: index.default:react.full:dep.default')
 
         // Subpath exports should be resolved based on the condition too.
         expect(result).toContain('Server subpath: subpath.react-server')
