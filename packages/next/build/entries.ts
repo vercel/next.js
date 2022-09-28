@@ -219,7 +219,6 @@ export function getAppEntry(opts: {
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
-  nextRuntime: string
 }) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
@@ -456,7 +455,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
-              nextRuntime: 'nodejs',
             })
           } else if (isTargetLikeServerless(target)) {
             if (page !== '/_app' && page !== '/_document') {
@@ -481,7 +479,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
-              nextRuntime: 'edge',
             }).import
           }
 
