@@ -200,8 +200,31 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct query values for rewrite to ssg page', async () => {
-      const browser = await webdriver(next.url, '/to-ssg')
+      const browser = await webdriver(next.url, '/to-ssg', {
+        waitHydration: false,
+      })
+      const requests = []
+
+      browser.on('request', (req) => {
+        console.error('request', req.url(), req.method())
+        if (req.method() === 'HEAD') {
+          requests.push(req.url())
+        }
+      })
       await browser.eval('window.beforeNav = 1')
+
+      await check(() => {
+        return requests.some((req) =>
+          new URL(req, 'http://n').pathname.endsWith('/to-ssg.json')
+        )
+          ? 'found'
+          : JSON.stringify(requests)
+      }, 'found')
+
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"from":"middleware"/
+      )
 
       await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
 
