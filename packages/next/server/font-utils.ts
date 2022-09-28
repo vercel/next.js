@@ -99,14 +99,13 @@ function parseGoogleFontName(css: string): Array<string> {
 }
 
 export function calculateOverrideValues(font: string, fontMetrics: any) {
-  const fontKey = font.toLowerCase().trim().replace(/ /g, '')
-  const { category, ascentOverride, descentOverride, lineGapOverride } =
-    fontMetrics[fontKey]
+  const fontKey = font.trim()
+  let { category, ascent, descent, lineGap, unitsPerEm } = fontMetrics[fontKey]
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
-  const ascent = (ascentOverride * 100).toFixed(2)
-  const descent = (descentOverride * 100).toFixed(2)
-  const lineGap = (lineGapOverride * 100).toFixed(2)
+  ascent = ((ascent / unitsPerEm) * 100).toFixed(2)
+  descent = ((descent / unitsPerEm) * 100).toFixed(2)
+  lineGap = ((lineGap / unitsPerEm) * 100).toFixed(2)
 
   return {
     ascent,
@@ -117,7 +116,7 @@ export function calculateOverrideValues(font: string, fontMetrics: any) {
 }
 
 function calculateOverrideCSS(font: string, fontMetrics: any) {
-  const fontName = font.toLowerCase().trim().replace(/ /g, '-')
+  const fontName = font.trim()
 
   const { ascent, descent, lineGap, fallbackFont } = calculateOverrideValues(
     font,
@@ -126,7 +125,7 @@ function calculateOverrideCSS(font: string, fontMetrics: any) {
 
   return `
     @font-face {
-      font-family: "${fontName}-fallback";
+      font-family: "${fontName} Fallback";
       ascent-override: ${ascent}%;
       descent-override: ${descent}%;
       line-gap-override: ${lineGap}%;
