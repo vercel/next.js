@@ -3,7 +3,7 @@ pub(crate) mod runtime_reference;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ValueToString};
-use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{embed_file, FileSystemPathVc};
 use turbopack::{
     ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
     module_options::ModuleOptionsContextVc,
@@ -12,7 +12,7 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::{AssetContentVc, AssetVc},
+    asset::AssetVc,
     chunk::{ChunkableAssetVc, ChunkingContextVc},
     context::AssetContext,
     environment::EnvironmentVc,
@@ -22,14 +22,6 @@ use turbopack_core::{
 };
 
 use self::runtime_reference::RuntimeAssetReferenceVc;
-
-#[turbo_tasks::function]
-fn get_next_hydrater() -> AssetContentVc {
-    FileContent::Content(File::from_source(
-        include_str!("next_hydrater.js").to_string(),
-    ))
-    .into()
-}
 
 #[derive(ValueDebugFormat, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 pub enum RuntimeReference {
@@ -56,7 +48,12 @@ pub struct NextClientTransition {
 impl Transition for NextClientTransition {
     #[turbo_tasks::function]
     fn process_source(&self, asset: AssetVc) -> AssetVc {
-        WrapperAssetVc::new(asset, "next-hydrate.js", get_next_hydrater()).into()
+        WrapperAssetVc::new(
+            asset,
+            "next-hydrate.js",
+            embed_file!("next_hydrater.js").into(),
+        )
+        .into()
     }
 
     #[turbo_tasks::function]
