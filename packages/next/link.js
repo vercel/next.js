@@ -1,1 +1,4 @@
-module.exports = require('./dist/client/link')
+module.exports =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? require('./dist/esm/client/link')
+    : require('./dist/client/link')

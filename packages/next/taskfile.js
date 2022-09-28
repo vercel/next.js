@@ -1946,16 +1946,23 @@ export async function compile(task, opts) {
       'cli',
       'bin',
       'server',
+      'server_esm',
       'nextbuild',
       'nextbuildjest',
       'nextbuildstatic',
+      'nextbuild_esm',
       'pages',
+      'pages_esm',
       'lib',
+      'lib_esm',
       'client',
+      'client_esm',
       'telemetry',
       'trace',
       'shared',
+      'shared_esm',
       'shared_re_exported',
+      'shared_re_exported_esm',
       'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
@@ -1990,6 +1997,14 @@ export async function lib(task, opts) {
   notify('Compiled lib files')
 }
 
+export async function lib_esm(task, opts) {
+  await task
+    .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/lib')
+  notify('Compiled lib files')
+}
+
 export async function server(task, opts) {
   await task
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
@@ -2004,6 +2019,14 @@ export async function server(task, opts) {
   notify('Compiled server files')
 }
 
+export async function server_esm(task, opts) {
+  await task
+    .source(opts.src || 'server/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/server')
+  notify('Compiled server files to ESM')
+}
+
 export async function nextbuild(task, opts) {
   await task
     .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
@@ -2012,6 +2035,16 @@ export async function nextbuild(task, opts) {
     .swc('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')
+}
+
+export async function nextbuild_esm(task, opts) {
+  await task
+    .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
+      ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
+    })
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/build')
+  notify('Compiled build files to ESM')
 }
 
 export async function nextbuildjest(task, opts) {
@@ -2030,6 +2063,14 @@ export async function client(task, opts) {
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
   notify('Compiled client files')
+}
+
+export async function client_esm(task, opts) {
+  await task
+    .source(opts.src || 'client/**/*.+(js|ts|tsx)')
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/client')
+  notify('Compiled client files to ESM')
 }
 
 // export is a reserved keyword for functions
@@ -2062,8 +2103,36 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
+export async function pages_app_esm(task, opts) {
+  await task
+    .source('pages/_app.tsx')
+    .swc('client', { dev: opts.dev, keepImportAssertions: true, esm: true })
+    .target('dist/esm/pages')
+}
+
+export async function pages_error_esm(task, opts) {
+  await task
+    .source('pages/_error.tsx')
+    .swc('client', { dev: opts.dev, keepImportAssertions: true, esm: true })
+    .target('dist/esm/pages')
+}
+
+export async function pages_document_esm(task, opts) {
+  await task
+    .source('pages/_document.tsx')
+    .swc('server', { dev: opts.dev, keepImportAssertions: true, esm: true })
+    .target('dist/esm/pages')
+}
+
 export async function pages(task, opts) {
   await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
+}
+
+export async function pages_esm(task, opts) {
+  await task.parallel(
+    ['pages_app_esm', 'pages_error_esm', 'pages_document_esm'],
+    opts
+  )
 }
 
 export async function telemetry(task, opts) {
@@ -2093,11 +2162,15 @@ export default async function (task) {
   await task.watch('bin/*', 'bin', opts)
   await task.watch('pages/**/*.+(js|ts|tsx)', 'pages', opts)
   await task.watch('server/**/*.+(js|ts|tsx)', 'server', opts)
+  await task.watch('server/**/*.+(js|ts|tsx)', 'server_esm', opts)
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
+  await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild_esm', opts)
   await task.watch('build/jest/**/*.+(js|ts|tsx)', 'nextbuildjest', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
+  await task.watch('client/**/*.+(js|ts|tsx)', 'client_esm', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
+  await task.watch('lib/**/*.+(js|ts|tsx)', 'lib_esm', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
   await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
@@ -2109,6 +2182,16 @@ export default async function (task) {
   await task.watch(
     'shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)',
     'shared',
+    opts
+  )
+  await task.watch(
+    'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)',
+    'shared_esm',
+    opts
+  )
+  await task.watch(
+    'shared/lib/{amp,config,constants,dynamic,head}.+(js|ts|tsx)',
+    'shared_re_exported_esm',
     opts
   )
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
@@ -2130,6 +2213,16 @@ export async function shared(task, opts) {
   notify('Compiled shared files')
 }
 
+export async function shared_esm(task, opts) {
+  await task
+    .source(
+      opts.src || 'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)'
+    )
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/shared')
+  notify('Compiled shared files to ESM')
+}
+
 export async function shared_re_exported(task, opts) {
   await task
     .source(
@@ -2139,6 +2232,19 @@ export async function shared_re_exported(task, opts) {
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
   notify('Compiled shared re-exported files')
+}
+
+export async function shared_re_exported_esm(task, opts) {
+  await task
+    .source(
+      opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
+    )
+    .swc('client', {
+      dev: opts.dev,
+      esm: true,
+    })
+    .target('dist/esm/shared')
+  notify('Compiled shared re-exported files as ESM')
 }
 
 export async function server_wasm(task, opts) {
