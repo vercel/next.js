@@ -18,6 +18,7 @@ const fetchFonts: FontLoader = async ({
     style,
     fallback,
     preload,
+    variable,
     ascentOverride,
     descentOverride,
     lineGapOverride,
@@ -61,6 +62,7 @@ ${fontFaceProperties
   return {
     css: fontFaces.join('\n'),
     fallbackFonts: fallback,
+    variable,
   }
 }
 

@@ -8,6 +8,7 @@ type LocalFont = {
   style?: string
   fallback?: string[]
   preload?: boolean
+  variable?: string
 
   ascentOverride?: string
   descentOverride?: string

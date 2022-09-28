@@ -24,6 +24,7 @@ type FontOptions = {
   style?: string
   fallback?: string[]
   preload: boolean
+  variable?: string
   ascentOverride?: string
   descentOverride?: string
   fontStretch?: string
@@ -44,6 +45,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     style,
     fallback,
     preload = true,
+    variable,
     ascentOverride,
     descentOverride,
     fontStretch,
@@ -100,6 +102,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     style,
     fallback,
     preload,
+    variable,
     ascentOverride,
     descentOverride,
     fontStretch,
