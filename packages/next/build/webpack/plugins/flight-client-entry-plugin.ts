@@ -23,6 +23,7 @@ import { isClientComponentModule } from '../loaders/utils'
 interface Options {
   dev: boolean
   isEdgeServer: boolean
+  fontLoaderTargets?: string[]
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -38,10 +39,12 @@ const flightCSSManifest: FlightCSSManifest = {}
 export class FlightClientEntryPlugin {
   dev: boolean
   isEdgeServer: boolean
+  fontLoaderTargets?: string[]
 
   constructor(options: Options) {
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
+    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -229,12 +232,17 @@ export class FlightClientEntryPlugin {
       // Request could be undefined or ''
       if (!rawRequest) return
 
+      const isFontLoader = this.fontLoaderTargets?.some((fontLoaderTarget) =>
+        mod.userRequest.startsWith(`${fontLoaderTarget}?`)
+      )
       const modRequest: string | undefined =
         !rawRequest.endsWith('.css') &&
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
-          ? rawRequest
+          ? isFontLoader
+            ? mod.userRequest
+            : rawRequest
           : mod.resourceResolveData?.path
 
       // Ensure module is not walked again if it's already been visited
@@ -249,7 +257,7 @@ export class FlightClientEntryPlugin {
       }
       visitedBySegment[layoutOrPageRequest].add(modRequest)
 
-      const isCSS = regexCSS.test(modRequest)
+      const isCSS = isFontLoader || regexCSS.test(modRequest)
       const isClientComponent = isClientComponentModule(mod)
 
       if (isCSS) {
@@ -299,19 +307,9 @@ export class FlightClientEntryPlugin {
       modules: clientComponentImports,
       server: false,
     }
-
-    // For the client entry, we always use the CJS build of Next.js. If the
-    // server is using the ESM build (when using the Edge runtime), we need to
-    // replace them.
-    const clientLoader = `next-flight-client-entry-loader?${stringify({
-      modules: this.isEdgeServer
-        ? clientComponentImports.map((importPath) =>
-            importPath.replace('next/dist/esm/', 'next/dist/')
-          )
-        : clientComponentImports,
-      server: false,
-    })}!`
-
+    const clientLoader = `next-flight-client-entry-loader?${stringify(
+      loaderOptions
+    )}!`
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
       ...loaderOptions,
       server: true,

@@ -969,15 +969,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let hasStaticPaths = !!components.getStaticPaths
 
     const hasGetInitialProps = !!components.Component?.getInitialProps
-    const isServerComponent = !!components.ComponentMod?.__next_rsc__
-    let isSSG =
-      !!components.getStaticProps ||
-      // For static server component pages, we currently always consider them
-      // as SSG since we also need to handle the next data (flight JSON).
-      (isServerComponent &&
-        !hasServerProps &&
-        !hasGetInitialProps &&
-        process.env.NEXT_RUNTIME !== 'edge')
+    let isSSG = !!components.getStaticProps
 
     // Toggle whether or not this is a Data request
     const isDataReq =
@@ -986,7 +978,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         (req.headers['x-nextjs-data'] &&
           (this.serverOptions as any).webServerConfig)
       ) &&
-      (isSSG || hasServerProps || isServerComponent)
+      (isSSG || hasServerProps)
 
     delete query.__nextDataReq
 
@@ -1033,7 +1025,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      !isServerComponent &&
       !!req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200)
     ) {
