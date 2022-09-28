@@ -493,8 +493,9 @@ describe('Middleware Rewrite', () => {
       })
 
       // wait for initial query update request
-      await check(() => {
-        if (requests.length > 0) {
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        if (requests.length > 0 || didReq) {
           requests = []
           return 'yup'
         }
