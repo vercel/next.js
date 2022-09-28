@@ -6,7 +6,7 @@ import type { ServerRuntime } from '../types'
 // @ts-ignore
 import React, { experimental_use as use } from 'react'
 
-import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
+import { ParsedUrlQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
