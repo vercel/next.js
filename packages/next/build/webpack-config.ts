@@ -1000,6 +1000,7 @@ export default async function getBaseWebpackConfig(
     if (layer === WEBPACK_LAYERS.server) {
       if (
         request === 'react' ||
+        request === 'react/jsx-runtime' ||
         request ===
           'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
       ) {
@@ -1504,7 +1505,7 @@ export default async function getBaseWebpackConfig(
                 issuerLayer: WEBPACK_LAYERS.server,
                 test: (req: string) => {
                   if (
-                    !/\.m?js/.test(req) ||
+                    !codeCondition.test.test(req) ||
                     config.experimental.optoutServerComponentsBundle?.some(
                       (mod) => {
                         return req.includes('/node_modules/' + mod + '/')
