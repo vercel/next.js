@@ -36,9 +36,9 @@ class NextRequestHint extends NextRequest {
 }
 
 const FLIGHT_PARAMETERS = [
-  '__flight__',
-  '__flight_router_state_tree__',
-  '__flight_prefetch__',
+  '__rsc__',
+  '__next_router_state_tree__',
+  '__next_router_prefetch__',
 ] as const
 
 export async function adapter(params: {
