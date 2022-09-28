@@ -205,7 +205,7 @@ function patchFetch(ComponentMod: any) {
 
   ;(global as any).fetch = async (init: any, opts: any) => {
     const staticGenerationStore =
-      'getStore' in staticGenerationAsyncStorage
+      staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
         : staticGenerationAsyncStorage
 
@@ -646,7 +646,7 @@ export async function renderToHTMLOrFlight(
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
     const staticGenerationStore =
-      'getStore' in staticGenerationAsyncStorage
+      staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
         : staticGenerationAsyncStorage
 
@@ -1397,6 +1397,7 @@ export async function renderToHTMLOrFlight(
   }
 
   function handleRequestStoreRun<T>(fn: () => T): Promise<T> {
+    if (!requestAsyncStorage) return Promise.resolve(fn())
     if ('getStore' in requestAsyncStorage) {
       return new Promise((resolve, reject) => {
         requestAsyncStorage.run(requestStore, () => {
@@ -1410,6 +1411,7 @@ export async function renderToHTMLOrFlight(
   }
 
   function handleStaticGenerationStoreRun<T>(fn: () => T): Promise<T> {
+    if (!staticGenerationAsyncStorage) return Promise.resolve(fn())
     if ('getStore' in staticGenerationAsyncStorage) {
       return new Promise((resolve, reject) => {
         staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
