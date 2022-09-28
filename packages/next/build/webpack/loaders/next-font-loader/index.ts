@@ -87,6 +87,7 @@ export default async function nextFontLoader(this: any) {
       callback(null, result.css, null, { exports, ast, fontFamilyHash })
     } catch (err: any) {
       err.stack = false
+      err.message = `Font loader error:\n${err.message}`
       err.message += `
 
 ${chalk.cyan(`Location: ${relativeFilePathFromRoot}`)}`
