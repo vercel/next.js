@@ -1493,7 +1493,7 @@ export default async function getBaseWebpackConfig(
                 issuerLayer: WEBPACK_LAYERS.server,
                 test: (req: string) => {
                   if (
-                    !/\.(mjs|js|jsx|ts|tsx)/.test(req) ||
+                    !codeCondition.test.test(req) ||
                     config.experimental.optoutServerComponentsBundle?.some(
                       (mod) => {
                         return req.includes('/node_modules/' + mod + '/')
