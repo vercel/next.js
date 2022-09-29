@@ -8,6 +8,42 @@ import nextPkgJson from 'next/package.json'
 import type { UnwrapPromise } from './coalesced-function'
 import { isCI } from '../telemetry/ci-info'
 
+let registry: string | undefined
+
+async function fetchPkgInfo(pkg: string) {
+  if (!registry) {
+    try {
+      const output = execSync('npm config get registry').toString().trim()
+      if (output.startsWith('http')) {
+        registry = output
+
+        if (!registry.endsWith('/')) {
+          registry += '/'
+        }
+      }
+    } catch (_) {
+      registry = `https://registry.npmjs.org/`
+    }
+  }
+  const res = await fetch(`${registry}${pkg}`)
+
+  if (!res.ok) {
+    throw new Error(
+      `Failed to fetch registry info for ${pkg}, got status ${res.status}`
+    )
+  }
+  const data = await res.json()
+  const versionData = data.versions[nextPkgJson.version]
+
+  return {
+    os: versionData.os,
+    cpu: versionData.cpu,
+    engines: versionData.engines,
+    tarball: versionData.dist.tarball,
+    integrity: versionData.dist.integrity,
+  }
+}
+
 /**
  * Attempts to patch npm package-lock.json when it
  * fails to include optionalDependencies for other platforms
@@ -149,40 +185,5 @@ export async function patchIncorrectLockfile(dir: string) {
       `Failed to patch lockfile, please try uninstalling and reinstalling next in this workspace`
     )
     console.error(err)
-  }
-}
-let registry: string | undefined
-
-async function fetchPkgInfo(pkg: string) {
-  if (!registry) {
-    try {
-      const output = execSync('npm config get registry').toString().trim()
-      if (output.startsWith('http')) {
-        registry = output
-
-        if (!registry.endsWith('/')) {
-          registry += '/'
-        }
-      }
-    } catch (_) {
-      registry = `https://registry.npmjs.org/`
-    }
-  }
-  const res = await fetch(`${registry}${pkg}`)
-
-  if (!res.ok) {
-    throw new Error(
-      `Failed to fetch registry info for ${pkg}, got status ${res.status}`
-    )
-  }
-  const data = await res.json()
-  const versionData = data.versions[nextPkgJson.version]
-
-  return {
-    os: versionData.os,
-    cpu: versionData.cpu,
-    engines: versionData.engines,
-    tarball: versionData.dist.tarball,
-    integrity: versionData.dist.integrity,
   }
 }

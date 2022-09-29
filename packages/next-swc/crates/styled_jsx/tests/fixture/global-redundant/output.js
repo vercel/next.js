@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default function IndexPage() {
     return <div className={"jsx-b6abd0684ba81871"}>
 
@@ -7,4 +7,4 @@ export default function IndexPage() {
       <_JSXStyle id={"b6abd0684ba81871"}>{"div{color:blue}"}</_JSXStyle>
 
     </div>;
-};
+}

@@ -9,7 +9,8 @@ module.exports = {
       recommended: true,
       url,
     },
-    fixable: 'code',
+    type: 'problem',
+    schema: [],
   },
   create: function (context) {
     return {
@@ -44,5 +45,3 @@ module.exports = {
     }
   },
 }
-
-module.exports.schema = []

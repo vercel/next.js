@@ -143,16 +143,17 @@ export async function createOriginalStackFrame({
   compilation?: webpack.Compilation
 }): Promise<OriginalStackFrameResponse | null> {
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
-  const result = moduleNotFound
-    ? findOriginalSourcePositionAndContentFromCompilation(
-        modulePath,
-        moduleNotFound,
-        compilation
-      )
-    : await findOriginalSourcePositionAndContent(source, {
-        line,
-        column,
-      })
+  const result =
+    moduleNotFound && compilation
+      ? findOriginalSourcePositionAndContentFromCompilation(
+          modulePath,
+          moduleNotFound,
+          compilation
+        )
+      : await findOriginalSourcePositionAndContent(source, {
+          line,
+          column,
+        })
 
   if (result === null) {
     return null
@@ -204,7 +205,7 @@ export async function createOriginalStackFrame({
 export async function getSourceById(
   isFile: boolean,
   id: string,
-  compilation: webpack.Compilation
+  compilation?: webpack.Compilation
 ): Promise<Source> {
   if (isFile) {
     const fileContent: string | null = await fs
@@ -228,7 +229,7 @@ export async function getSourceById(
   }
 
   try {
-    if (compilation == null) {
+    if (!compilation) {
       return null
     }
 

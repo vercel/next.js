@@ -43,35 +43,22 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_styled_jsx_types(task, opts) {
+export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
   // package is hoisted out of Next.js' node_modules or not
   const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
   const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
-  const outputDir = join(__dirname, 'dist/styled-jsx-types')
-  let typeReferences = ``
-
-  await fs.ensureDir(outputDir)
+  const outputDir = join(__dirname, 'dist/styled-jsx')
+  // Separate type files into different folders to avoid conflicts between
+  // dev dep `styled-jsx` and `next/dist/styled-jsx` for duplicated declare modules
+  const typesDir = join(outputDir, 'types')
+  await fs.ensureDir(typesDir)
 
   for (const file of typeFiles) {
-    const fileNoExt = file.replace(/\.d\.ts/, '')
     const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
-    const exportsIndex = content.indexOf('export')
-
-    await fs.writeFile(
-      join(outputDir, file),
-      `${content.substring(0, exportsIndex)}\n` +
-        `declare module 'styled-jsx${
-          file === 'index.d.ts' ? '' : '/' + fileNoExt
-        }' {
-        ${content.substring(exportsIndex)}
-      }`
-    )
-    typeReferences += `/// <reference types="./${fileNoExt}" />\n`
+    await fs.writeFile(join(typesDir, file), content)
   }
-
-  await fs.writeFile(join(outputDir, 'global.d.ts'), typeReferences)
 }
 
 const externals = {
@@ -97,6 +84,10 @@ const externals = {
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
+
+  // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
+
+  undici: 'undici',
 }
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
@@ -178,6 +169,14 @@ export async function ncc_node_fetch(task, opts) {
     .target('compiled/node-fetch')
 }
 
+externals['undici'] = 'next/dist/compiled/undici'
+export async function ncc_undici(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('undici')))
+    .ncc({ packageName: 'undici', externals })
+    .target('compiled/undici')
+}
+
 // eslint-disable-next-line camelcase
 export async function compile_config_schema(task, opts) {
   const { configSchema } = require('./dist/server/config-schema')
@@ -186,7 +185,15 @@ export async function compile_config_schema(task, opts) {
   // eslint-disable-next-line
   const standaloneCode = require('ajv/dist/standalone').default
   // eslint-disable-next-line
-  const ajv = new Ajv({ code: { source: true }, allErrors: true })
+  const ajv = new Ajv({
+    code: { source: true },
+    allErrors: true,
+    verbose: true,
+  })
+
+  // errorMessage keyword will be consumed by @segment/ajv-human-errors to provide a custom error message
+  ajv.addKeyword('errorMessage')
+
   ajv.addKeyword({
     keyword: 'isFunction',
     schemaType: 'boolean',
@@ -252,11 +259,16 @@ export async function ncc_edge_runtime_primitives() {
     const dest2 = `compiled/@edge-runtime/primitives/${file}`
     await fs.outputJson(join(dest2, 'package.json'), {
       main: `../${file}.js`,
+      types: `../${file}.d.ts`,
     })
 
     await fs.copy(
       require.resolve(`@edge-runtime/primitives/${file}`),
       join(dest, `${file}.js`)
+    )
+    await fs.copy(
+      require.resolve(`@edge-runtime/primitives/types/${file}.d.ts`),
+      join(dest, `${file}.d.ts`)
     )
   }
 
@@ -296,6 +308,15 @@ export async function ncc_edge_runtime(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('edge-runtime')))
     .ncc({ packageName: 'edge-runtime', externals })
     .target('compiled/edge-runtime')
+
+  const outputFile = join(__dirname, 'compiled/edge-runtime/index.js')
+
+  await fs.writeFile(
+    outputFile,
+    (
+      await fs.readFile(outputFile, 'utf8')
+    ).replace(/eval\("require"\)/g, 'require')
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -935,6 +956,19 @@ export async function ncc_async_sema(task, opts) {
     .ncc({ packageName: 'async-sema', externals })
     .target('compiled/async-sema')
 }
+// eslint-disable-next-line camelcase
+export async function ncc_segment_ajv_human_errors(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@segment/ajv-human-errors/'))
+    )
+    .ncc({
+      packageName: '@segment/ajv-human-errors/',
+      externals,
+    })
+    .target('compiled/@segment/ajv-human-errors')
+}
 
 const babelCorePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
@@ -1423,6 +1457,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
   await task
     .source(require.resolve('react-server-dom-webpack'))
     .target('compiled/react-server-dom-webpack')
+
   await task
     .source(
       join(
@@ -1462,15 +1497,22 @@ export async function copy_react_server_dom_webpack(task, opts) {
 // eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
 export async function ncc_sass_loader(task, opts) {
+  const sassLoaderPath = require.resolve('sass-loader')
+  const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
+  const originalContent = await fs.readFile(utilsPath, 'utf8')
+
+  await fs.writeFile(
+    utilsPath,
+    originalContent.replace(
+      /require\.resolve\(["'](sass|node-sass)["']\)/g,
+      'eval("require").resolve("$1")'
+    )
+  )
+
   await task
-    .source(opts.src || relative(__dirname, require.resolve('sass-loader')))
+    .source(opts.src || relative(__dirname, sassLoaderPath))
     .ncc({
       packageName: 'sass-loader',
-      customEmit(path, isRequire) {
-        if (isRequire && path === 'sass') return false
-        if (path.indexOf('node-sass') !== -1)
-          return `eval("require.resolve('node-sass')")`
-      },
       externals: {
         ...externals,
         'schema-utils': externals['schema-utils3'],
@@ -1592,8 +1634,15 @@ export async function ncc_unistore(task, opts) {
 externals['web-vitals'] = 'next/dist/compiled/web-vitals'
 export async function ncc_web_vitals(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('web-vitals')))
-    .ncc({ packageName: 'web-vitals', externals, target: 'es5' })
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          resolve(resolveFrom(__dirname, 'web-vitals'), '../web-vitals.js')
+        )
+    )
+    // web-vitals@3.0.0 is pure ESM, compile to CJS for pre-compiled
+    .ncc({ packageName: 'web-vitals', externals, target: 'es5', esm: false })
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
@@ -1702,13 +1751,12 @@ export async function ncc_webpack_bundle5(task, opts) {
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
     .ncc({
-      packageName: 'webpack5',
+      packageName: 'webpack',
       bundleName: 'webpack',
       customEmit(path) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
       externals: bundleExternals,
-      minify: false,
       target: 'es5',
     })
     .target('compiled/webpack')
@@ -1747,7 +1795,12 @@ export async function path_to_regexp(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'path_to_regexp', 'copy_ncced'],
+    [
+      'browser_polyfills',
+      'path_to_regexp',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+    ],
     opts
   )
 }
@@ -1775,11 +1828,13 @@ export async function ncc(task, opts) {
         'ncc_get_orientation',
         'ncc_hapi_accept',
         'ncc_node_fetch',
+        'ncc_undici',
         'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
+        'ncc_segment_ajv_human_errors',
         'ncc_assert',
         'ncc_browser_zlib',
         'ncc_buffer',
@@ -1843,7 +1898,6 @@ export async function ncc(task, opts) {
         'ncc_postcss_modules_values',
         'ncc_postcss_value_parser',
         'ncc_icss_utils',
-        'ncc_sass_loader',
         'ncc_schema_utils2',
         'ncc_schema_utils3',
         'ncc_semver',
@@ -1877,6 +1931,7 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_react_server_dom_webpack',
       'copy_react_is',
+      'ncc_sass_loader',
       'ncc_jest_worker',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime',
@@ -1891,21 +1946,27 @@ export async function compile(task, opts) {
       'cli',
       'bin',
       'server',
+      'server_esm',
       'nextbuild',
       'nextbuildjest',
       'nextbuildstatic',
+      'nextbuild_esm',
       'pages',
+      'pages_esm',
       'lib',
+      'lib_esm',
       'client',
+      'client_esm',
       'telemetry',
       'trace',
       'shared',
+      'shared_esm',
       'shared_re_exported',
+      'shared_re_exported_esm',
       'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
-      'copy_styled_jsx_types',
     ],
     opts
   )
@@ -1936,12 +1997,34 @@ export async function lib(task, opts) {
   notify('Compiled lib files')
 }
 
+export async function lib_esm(task, opts) {
+  await task
+    .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/lib')
+  notify('Compiled lib files')
+}
+
 export async function server(task, opts) {
   await task
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
+
+  await fs.copyFile(
+    join(__dirname, 'server/google-font-metrics.json'),
+    join(__dirname, 'dist/server/google-font-metrics.json')
+  )
+
   notify('Compiled server files')
+}
+
+export async function server_esm(task, opts) {
+  await task
+    .source(opts.src || 'server/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/server')
+  notify('Compiled server files to ESM')
 }
 
 export async function nextbuild(task, opts) {
@@ -1952,6 +2035,16 @@ export async function nextbuild(task, opts) {
     .swc('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')
+}
+
+export async function nextbuild_esm(task, opts) {
+  await task
+    .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
+      ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
+    })
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/build')
+  notify('Compiled build files to ESM')
 }
 
 export async function nextbuildjest(task, opts) {
@@ -1970,6 +2063,14 @@ export async function client(task, opts) {
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
   notify('Compiled client files')
+}
+
+export async function client_esm(task, opts) {
+  await task
+    .source(opts.src || 'client/**/*.+(js|ts|tsx)')
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/client')
+  notify('Compiled client files to ESM')
 }
 
 // export is a reserved keyword for functions
@@ -2002,8 +2103,36 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
+export async function pages_app_esm(task, opts) {
+  await task
+    .source('pages/_app.tsx')
+    .swc('client', { dev: opts.dev, keepImportAssertions: true, esm: true })
+    .target('dist/esm/pages')
+}
+
+export async function pages_error_esm(task, opts) {
+  await task
+    .source('pages/_error.tsx')
+    .swc('client', { dev: opts.dev, keepImportAssertions: true, esm: true })
+    .target('dist/esm/pages')
+}
+
+export async function pages_document_esm(task, opts) {
+  await task
+    .source('pages/_document.tsx')
+    .swc('server', { dev: opts.dev, keepImportAssertions: true, esm: true })
+    .target('dist/esm/pages')
+}
+
 export async function pages(task, opts) {
   await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
+}
+
+export async function pages_esm(task, opts) {
+  await task.parallel(
+    ['pages_app_esm', 'pages_error_esm', 'pages_document_esm'],
+    opts
+  )
 }
 
 export async function telemetry(task, opts) {
@@ -2033,22 +2162,36 @@ export default async function (task) {
   await task.watch('bin/*', 'bin', opts)
   await task.watch('pages/**/*.+(js|ts|tsx)', 'pages', opts)
   await task.watch('server/**/*.+(js|ts|tsx)', 'server', opts)
+  await task.watch('server/**/*.+(js|ts|tsx)', 'server_esm', opts)
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
+  await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild_esm', opts)
   await task.watch('build/jest/**/*.+(js|ts|tsx)', 'nextbuildjest', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
+  await task.watch('client/**/*.+(js|ts|tsx)', 'client_esm', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
+  await task.watch('lib/**/*.+(js|ts|tsx)', 'lib_esm', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
   await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
   await task.watch(
-    'shared/lib/{amp,config,constants,dynamic,head}.+(js|ts|tsx)',
+    'shared/lib/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)',
     'shared_re_exported',
     opts
   )
   await task.watch(
-    'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)',
+    'shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)',
     'shared',
+    opts
+  )
+  await task.watch(
+    'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)',
+    'shared_esm',
+    opts
+  )
+  await task.watch(
+    'shared/lib/{amp,config,constants,dynamic,head}.+(js|ts|tsx)',
+    'shared_re_exported_esm',
     opts
   )
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
@@ -2062,21 +2205,46 @@ export default async function (task) {
 export async function shared(task, opts) {
   await task
     .source(
-      opts.src || 'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)'
+      opts.src ||
+        'shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev })
     .target('dist/shared')
   notify('Compiled shared files')
 }
 
+export async function shared_esm(task, opts) {
+  await task
+    .source(
+      opts.src || 'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)'
+    )
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/shared')
+  notify('Compiled shared files to ESM')
+}
+
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
+      opts.src ||
+        'shared/**/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
   notify('Compiled shared re-exported files')
+}
+
+export async function shared_re_exported_esm(task, opts) {
+  await task
+    .source(
+      opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
+    )
+    .swc('client', {
+      dev: opts.dev,
+      esm: true,
+    })
+    .target('dist/esm/shared')
+  notify('Compiled shared re-exported files as ESM')
 }
 
 export async function server_wasm(task, opts) {

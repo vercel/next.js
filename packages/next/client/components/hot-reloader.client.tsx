@@ -1,3 +1,5 @@
+'client'
+
 import {
   useCallback,
   useContext,
@@ -6,7 +8,7 @@ import {
   // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
-import { FullAppTreeContext } from '../../shared/lib/app-router-context'
+import { GlobalLayoutRouterContext } from '../../shared/lib/app-router-context'
 import {
   register,
   unregister,
@@ -100,6 +102,23 @@ function canApplyUpdates() {
 //   }
 // }
 
+function performFullReload(err: any, sendMessage: any) {
+  const stackTrace =
+    err &&
+    ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
+      err.message ||
+      err + '')
+
+  sendMessage(
+    JSON.stringify({
+      event: 'client-full-reload',
+      stackTrace,
+    })
+  )
+
+  window.location.reload()
+}
+
 // Attempt to update code on the fly, fall back to a hard reload.
 function tryApplyUpdates(onHotUpdateSuccess: any, sendMessage: any) {
   // @ts-expect-error module.hot exists
@@ -167,23 +186,6 @@ function tryApplyUpdates(onHotUpdateSuccess: any, sendMessage: any) {
       handleApplyUpdates(err, null)
     }
   )
-}
-
-function performFullReload(err: any, sendMessage: any) {
-  const stackTrace =
-    err &&
-    ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
-      err.message ||
-      err + '')
-
-  sendMessage(
-    JSON.stringify({
-      event: 'client-full-reload',
-      stackTrace,
-    })
-  )
-
-  window.location.reload()
 }
 
 function processMessage(
@@ -397,7 +399,7 @@ function processMessage(
 }
 
 export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
-  const { tree } = useContext(FullAppTreeContext)
+  const { tree } = useContext(GlobalLayoutRouterContext)
   const router = useRouter()
 
   const webSocketRef = useRef<WebSocket>()

@@ -7,7 +7,7 @@ In one of your pages or API Routes you did `export const config` with an invalid
 #### Possible Ways to Fix It
 
 The page's config must be an object initialized directly when being exported and not modified dynamically.
-The config object must only contains static constant literals without expressions.
+The config object must only contain static constant literals without expressions.
 
 <table>
 <thead>
@@ -115,5 +115,5 @@ export const config = {}
 ### Useful Links
 
 - [Enabling AMP Support](https://nextjs.org/docs/advanced-features/amp-support/introduction)
-- [API Middlewares](https://nextjs.org/docs/api-routes/api-middlewares)
+- [API Routes Request Helpers](https://nextjs.org/docs/api-routes/request-helpers)
 - [Switchable Runtime](https://nextjs.org/docs/advanced-features/react-18/switchable-runtime)

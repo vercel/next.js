@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default (({ level =1  })=>{
     const Element = `h${level}`;
     return <Element className={"jsx-fca64cc3f069b519" + " " + "root"}>

@@ -1,3 +1,4 @@
+import type { Rewrite, CustomRoutes } from '../../../lib/load-custom-routes'
 import devalue from 'next/dist/compiled/devalue'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -5,7 +6,7 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -13,10 +14,8 @@ import {
 import { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
-import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { spans } from './profiling-plugin'
-import { CustomRoutes } from '../../../lib/load-custom-routes'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -156,7 +155,7 @@ export default class BuildManifestPlugin {
         assetMap.rootMainFiles = [
           ...new Set(
             getEntrypointFiles(
-              entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT)
+              entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
             )
           ),
         ]
@@ -193,7 +192,7 @@ export default class BuildManifestPlugin {
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
-        ...(this.appDirEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT] : []),
+        ...(this.appDirEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] : []),
       ])
 
       for (const entrypoint of compilation.entrypoints.values()) {
@@ -267,11 +266,9 @@ export default class BuildManifestPlugin {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsBuildManifest',
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
