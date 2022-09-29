@@ -16,7 +16,7 @@ once_cell = "1.13.0"
 regex = {version = "1.5.4", features = ["std", "perf"], default-features = false}
 serde = {version = "1.0.130", features = ["derive"]}
 tracing = "0.1.32"
-swc_core = { version = "0.27.4", features = [
+swc_core = { version = "0.28.4", features = [
   "common",
   "ecma_ast",
   "ecma_utils",
@@ -25,8 +25,8 @@ swc_core = { version = "0.27.4", features = [
 
 [dev-dependencies]
 serde_json = "1"
-testing = "0.31.1"
-swc_core = { version = "0.27.4", features = [
+testing = "0.31.3"
+swc_core = { version = "0.28.4", features = [
   "ecma_parser",
   "ecma_transforms",
   "testing_transform"
