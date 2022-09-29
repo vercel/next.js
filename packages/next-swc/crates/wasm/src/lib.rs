@@ -173,11 +173,7 @@ pub fn parse(s: JsString, opts: JsValue) -> js_sys::Promise {
 
 /// Get global sourcemap
 fn compiler() -> Arc<Compiler> {
-    static C: Lazy<Arc<Compiler>> = Lazy::new(|| {
-        let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
+    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
-        Arc::new(Compiler::new(cm))
-    });
-
-    C.clone()
+    Arc::new(Compiler::new(cm))
 }
