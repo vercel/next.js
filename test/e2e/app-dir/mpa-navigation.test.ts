@@ -31,7 +31,7 @@ describe('app-dir mpa navigation', () => {
   })
   afterAll(() => next.destroy())
 
-  describe('Should do a full page reload when switching root layout', () => {
+  describe('Should do a mpa navigation when switching root layout', () => {
     it('should work with basic routes', async () => {
       const browser = await webdriver(next.url, '/basic-route')
 
@@ -42,12 +42,16 @@ describe('app-dir mpa navigation', () => {
 
       // Navigate to page with same root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#inner-basic-route')
+      expect(
+        await browser.waitForElementByCss('#inner-basic-route').text()
+      ).toBe('Inner basic route')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
 
       // Navigate to page with different root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#route-group')
+      expect(await browser.waitForElementByCss('#route-group').text()).toBe(
+        'Route group'
+      )
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
 
@@ -61,13 +65,19 @@ describe('app-dir mpa navigation', () => {
 
       // Navigate to page with same root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#nested-route-group')
+      expect(
+        await browser.waitForElementByCss('#nested-route-group').text()
+      ).toBe('Nested route group')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
 
       // Navigate to page with different root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#parallel-one')
-      await browser.waitForElementByCss('#parallel-two')
+      expect(await browser.waitForElementByCss('#parallel-one').text()).toBe(
+        'One'
+      )
+      expect(await browser.waitForElementByCss('#parallel-two').text()).toBe(
+        'Two'
+      )
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
 
@@ -80,12 +90,39 @@ describe('app-dir mpa navigation', () => {
 
       // Navigate to page with same root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#parallel-one-inner')
+      expect(
+        await browser.waitForElementByCss('#parallel-one-inner').text()
+      ).toBe('One inner')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
 
       // Navigate to page with different root layout
       await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#inner-basic-route')
+      expect(await browser.waitForElementByCss('#dynamic-hello').text()).toBe(
+        'dynamic hello'
+      )
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
+    })
+
+    it('should work with dynamic routes', async () => {
+      const browser = await webdriver(next.url, '/dynamic/first/route')
+
+      expect(await browser.elementById('dynamic-route').text()).toBe(
+        'dynamic route'
+      )
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+
+      // Navigate to page with same root layout
+      await browser.elementByCss('a').click()
+      expect(
+        await browser.waitForElementByCss('#dynamic-second-hello').text()
+      ).toBe('dynamic hello')
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeTrue()
+
+      // Navigate to page with different root layout
+      await browser.elementByCss('a').click()
+      expect(
+        await browser.waitForElementByCss('#inner-basic-route').text()
+      ).toBe('Inner basic route')
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
   })

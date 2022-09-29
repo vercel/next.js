@@ -633,7 +633,7 @@ function isNavigatingToNewRootLayout(
   }
 
   const newRootLayout = getRootLayoutPath(loaderTree)
-  // should always be a root layout
+  // should always have a root layout
   if (newRootLayout) {
     const hasSameRootLayout = findRootLayoutInFlightRouterState(
       flightRouterState,
@@ -757,7 +757,20 @@ export async function renderToHTMLOrFlight(
       Array.isArray(providedFlightRouterState) &&
       isNavigatingToNewRootLayout(loaderTree, providedFlightRouterState)
     ) {
-      return doFullPageNavigation()
+      stripInternalQueries(query)
+      const search = stringifyQuery(query)
+
+      // Empty so that the client-side router will do a full page navigation.
+      const flightData: FlightData = req.url! + (search ? `?${search}` : '')
+      return new FlightRenderResult(
+        ComponentMod.renderToReadableStream(
+          flightData,
+          serverComponentManifest,
+          {
+            onError: flightDataRendererErrorHandler,
+          }
+        ).pipeThrough(createBufferedTransformStream())
+      )
     }
 
     stripInternalQueries(query)
