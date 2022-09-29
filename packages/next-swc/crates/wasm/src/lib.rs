@@ -8,7 +8,9 @@ use wasm_bindgen_futures::future_to_promise;
 
 use swc_core::{
     base::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler},
-    common::{comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap},
+    common::{
+        comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap, GLOBALS,
+    },
     ecma::transforms::base::pass::noop,
 };
 
@@ -29,14 +31,16 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
             skip_filename: false,
         },
         |handler| {
-            let opts: JsMinifyOptions = opts.into_serde().context("failed to parse options")?;
+            GLOBALS.set(&Default::default(), || {
+                let opts: JsMinifyOptions = opts.into_serde().context("failed to parse options")?;
 
-            let fm = c.cm.new_source_file(FileName::Anon, s.into());
-            let program = c
-                .minify(fm, handler, &opts)
-                .context("failed to minify file")?;
+                let fm = c.cm.new_source_file(FileName::Anon, s.into());
+                let program = c
+                    .minify(fm, handler, &opts)
+                    .context("failed to minify file")?;
 
-            JsValue::from_serde(&program).context("failed to serialize json")
+                JsValue::from_serde(&program).context("failed to serialize json")
+            })
         },
     )
     .map_err(convert_err)
@@ -62,43 +66,46 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
             skip_filename: false,
         },
         |handler| {
-            let opts: TransformOptions = opts.into_serde().context("failed to parse options")?;
+            GLOBALS.set(&Default::default(), || {
+                let opts: TransformOptions =
+                    opts.into_serde().context("failed to parse options")?;
 
-            let s = s.dyn_into::<js_sys::JsString>();
-            let out = match s {
-                Ok(s) => {
-                    let fm = c.cm.new_source_file(
-                        if opts.swc.filename.is_empty() {
-                            FileName::Anon
-                        } else {
-                            FileName::Real(opts.swc.filename.clone().into())
-                        },
-                        s.into(),
-                    );
-                    let cm = c.cm.clone();
-                    let file = fm.clone();
-                    c.process_js_with_custom_pass(
-                        fm,
-                        None,
-                        handler,
-                        &opts.swc,
-                        |_, comments| {
-                            custom_before_pass(
-                                cm,
-                                file,
-                                &opts,
-                                comments.clone(),
-                                Default::default(),
-                            )
-                        },
-                        |_, _| noop(),
-                    )
-                    .context("failed to process js file")?
-                }
-                Err(v) => c.process_js(handler, v.into_serde().expect(""), &opts.swc)?,
-            };
+                let s = s.dyn_into::<js_sys::JsString>();
+                let out = match s {
+                    Ok(s) => {
+                        let fm = c.cm.new_source_file(
+                            if opts.swc.filename.is_empty() {
+                                FileName::Anon
+                            } else {
+                                FileName::Real(opts.swc.filename.clone().into())
+                            },
+                            s.into(),
+                        );
+                        let cm = c.cm.clone();
+                        let file = fm.clone();
+                        c.process_js_with_custom_pass(
+                            fm,
+                            None,
+                            handler,
+                            &opts.swc,
+                            |_, comments| {
+                                custom_before_pass(
+                                    cm,
+                                    file,
+                                    &opts,
+                                    comments.clone(),
+                                    Default::default(),
+                                )
+                            },
+                            |_, _| noop(),
+                        )
+                        .context("failed to process js file")?
+                    }
+                    Err(v) => c.process_js(handler, v.into_serde().expect(""), &opts.swc)?,
+                };
 
-            JsValue::from_serde(&out).context("failed to serialize json")
+                JsValue::from_serde(&out).context("failed to serialize json")
+            })
         },
     )
     .map_err(convert_err)
@@ -124,30 +131,33 @@ pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
         },
         |handler| {
             c.run(|| {
-                let opts: ParseOptions = opts.into_serde().context("failed to parse options")?;
+                GLOBALS.set(&Default::default(), || {
+                    let opts: ParseOptions =
+                        opts.into_serde().context("failed to parse options")?;
 
-                let fm = c.cm.new_source_file(FileName::Anon, s.into());
+                    let fm = c.cm.new_source_file(FileName::Anon, s.into());
 
-                let cmts = c.comments().clone();
-                let comments = if opts.comments {
-                    Some(&cmts as &dyn Comments)
-                } else {
-                    None
-                };
+                    let cmts = c.comments().clone();
+                    let comments = if opts.comments {
+                        Some(&cmts as &dyn Comments)
+                    } else {
+                        None
+                    };
 
-                let program = c
-                    .parse_js(
-                        fm,
-                        handler,
-                        opts.target,
-                        opts.syntax,
-                        opts.is_module,
-                        comments,
-                    )
-                    .context("failed to parse code")?;
+                    let program = c
+                        .parse_js(
+                            fm,
+                            handler,
+                            opts.target,
+                            opts.syntax,
+                            opts.is_module,
+                            comments,
+                        )
+                        .context("failed to parse code")?;
 
-                let s = serde_json::to_string(&program).unwrap();
-                Ok(JsValue::from_str(&s))
+                    let s = serde_json::to_string(&program).unwrap();
+                    Ok(JsValue::from_str(&s))
+                })
             })
         },
     )
