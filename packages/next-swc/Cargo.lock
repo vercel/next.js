@@ -2909,9 +2909,9 @@ dependencies = [
 
 [[package]]
 name = "swc"
-version = "0.230.6"
+version = "0.230.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97da7caed228f25b19fa5281e9af08dabd06a777d02609c87a781e148f296647"
+checksum = "0e5ebd8001fd79d11cbe17071549a1ae7c5f48fc8a18fddf6341e781a927486a"
 dependencies = [
  "ahash",
  "anyhow",
@@ -3081,9 +3081,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.28.7"
+version = "0.28.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6ada3e65629085c1d839e69f38c017244a56525efa86adf6a21d55f4ee6a0d7"
+checksum = "fc7f8cae75dbc45f0f2b94efa7d433ccb60d9ed858e6bee32e8a2a2b7547dc0b"
 dependencies = [
  "binding_macros",
  "swc",
@@ -3328,9 +3328,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "0.157.19"
+version = "0.157.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e620a660e1ba7d9f91ab83a298d98443f2f739b03ce5aec5391c8eb32ba2f2ed"
+checksum = "36922330d799ea6e3e4bcc73d009337f31f69564b694a5922386bcf38425d652"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -4442,6 +4442,7 @@ dependencies = [
  "parking_lot_core 0.8.0",
  "path-clean",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
  "swc_core",
  "tracing",
