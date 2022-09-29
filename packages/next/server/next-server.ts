@@ -826,18 +826,13 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
-    if (
-      this.nextConfig.experimental.appDir &&
-      (renderOpts.isAppPath || req.headers.__rsc__)
-    ) {
-      const isPagesDir = !renderOpts.isAppPath
+    if (this.nextConfig.experimental.appDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
         pathname,
         query,
-        renderOpts,
-        isPagesDir
+        renderOpts
       )
     }
 
