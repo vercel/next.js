@@ -23,7 +23,9 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
 
     let c = compiler();
 
-    try_with_handler(
+    let opts: JsMinifyOptions = serde_wasm_bindgen::from_value(opts)?;
+
+    let value = try_with_handler(
         c.cm.clone(),
         swc_core::base::HandlerOpts {
             color: ColorConfig::Never,
@@ -31,18 +33,18 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
         },
         |handler| {
             GLOBALS.set(&Default::default(), || {
-                let opts: JsMinifyOptions = opts.into_serde().context("failed to parse options")?;
-
                 let fm = c.cm.new_source_file(FileName::Anon, s.into());
                 let program = c
                     .minify(fm, handler, &opts)
                     .context("failed to minify file")?;
 
-                JsValue::from_serde(&program).context("failed to serialize json")
+                Ok(program)
             })
         },
     )
-    .map_err(convert_err)
+    .map_err(convert_err)?;
+
+    Ok(serde_wasm_bindgen::to_value(&value)?)
 }
 
 #[wasm_bindgen(js_name = "minify")]
@@ -57,7 +59,9 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
     let c = compiler();
+    let opts: TransformOptions = serde_wasm_bindgen::from_value(opts)?;
 
+    let s = s.dyn_into::<js_sys::JsString>();
     try_with_handler(
         c.cm.clone(),
         swc_core::base::HandlerOpts {
@@ -66,10 +70,6 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
         },
         |handler| {
             GLOBALS.set(&Default::default(), || {
-                let opts: TransformOptions =
-                    opts.into_serde().context("failed to parse options")?;
-
-                let s = s.dyn_into::<js_sys::JsString>();
                 let out = match s {
                     Ok(s) => {
                         let fm = c.cm.new_source_file(
@@ -122,6 +122,7 @@ pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
     let c = swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
+    let opts: ParseOptions = serde_wasm_bindgen::from_value(opts)?;
 
     try_with_handler(
         c.cm.clone(),
@@ -131,9 +132,6 @@ pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
         |handler| {
             c.run(|| {
                 GLOBALS.set(&Default::default(), || {
-                    let opts: ParseOptions =
-                        opts.into_serde().context("failed to parse options")?;
-
                     let fm = c.cm.new_source_file(FileName::Anon, s.into());
 
                     let cmts = c.comments().clone();
