@@ -17,10 +17,7 @@ use turbopack::ecmascript::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{
-        dev::{DevChunkingContext, DevChunkingContextVc},
-        ChunkGroupVc,
-    },
+    chunk::{dev::DevChunkingContextVc, ChunkGroupVc},
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
@@ -48,8 +45,8 @@ pub struct ServerRenderedAsset {
     path: FileSystemPathVc,
     context: AssetContextVc,
     entry_asset: AssetVc,
+    chunking_context: DevChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    context_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
     request_data: String,
 }
@@ -62,7 +59,7 @@ impl ServerRenderedAssetVc {
         context: AssetContextVc,
         entry_asset: AssetVc,
         runtime_entries: EcmascriptChunkPlaceablesVc,
-        context_path: FileSystemPathVc,
+        chunking_context: DevChunkingContextVc,
         intermediate_output_path: FileSystemPathVc,
         request_data: String,
     ) -> Self {
@@ -71,7 +68,7 @@ impl ServerRenderedAssetVc {
             context,
             entry_asset,
             runtime_entries,
-            context_path,
+            chunking_context,
             intermediate_output_path,
             request_data,
         }
@@ -95,7 +92,7 @@ impl Asset for ServerRenderedAsset {
                     self.context,
                     self.entry_asset,
                     self.runtime_entries,
-                    self.context_path,
+                    self.chunking_context,
                     self.intermediate_output_path,
                 ),
                 self.intermediate_output_path,
@@ -112,7 +109,7 @@ impl Asset for ServerRenderedAsset {
                     self.context,
                     self.entry_asset,
                     self.runtime_entries,
-                    self.context_path,
+                    self.chunking_context,
                     self.intermediate_output_path,
                 ),
                 self.intermediate_output_path,
@@ -167,16 +164,9 @@ async fn get_intermediate_asset(
     context: AssetContextVc,
     entry_asset: AssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    context_path: FileSystemPathVc,
+    chunking_context: DevChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<AssetVc> {
-    let chunking_context: DevChunkingContextVc = DevChunkingContext {
-        context_path,
-        chunk_root_path: intermediate_output_path.join("chunks"),
-        asset_root_path: intermediate_output_path.join("assets"),
-        enable_hot_module_replacement: false,
-    }
-    .into();
     let module = EcmascriptModuleAssetVc::new(
         WrapperAssetVc::new(entry_asset, "server-renderer.js", get_server_renderer()).into(),
         context.with_context_path(entry_asset.path()),
