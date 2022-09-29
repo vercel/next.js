@@ -46,3 +46,12 @@ swc_core = { version = "0.28.8", features = [
   "ecma_utils",
   "ecma_visit"
 ] }
+
+
+# Workaround a bug
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+# Workaround a bug
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false
