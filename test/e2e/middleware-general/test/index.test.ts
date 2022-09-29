@@ -212,10 +212,12 @@ describe('Middleware Runtime', () => {
       })
       await browser.eval('window.beforeNav = 1')
 
-      await check(() => {
-        return requests.some((req) =>
-          new URL(req, 'http://n').pathname.endsWith('/to-ssg.json')
-        )
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        return didReq ||
+          requests.some((req) =>
+            new URL(req, 'http://n').pathname.endsWith('/to-ssg.json')
+          )
           ? 'found'
           : JSON.stringify(requests)
       }, 'found')
