@@ -1287,6 +1287,16 @@ export async function renderToHTMLOrFlight(
         return flushed
       }
 
+      const polyfills = buildManifest.polyfillFiles
+        .filter(
+          (polyfill) =>
+            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+        )
+        .map((polyfill) => ({
+          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          integrity: subresourceIntegrityManifest?.[polyfill],
+        }))
+
       try {
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
@@ -1295,14 +1305,16 @@ export async function renderToHTMLOrFlight(
             onError: htmlRendererErrorHandler,
             nonce,
             // Include hydration scripts in the HTML
-            bootstrapScripts: subresourceIntegrityManifest
-              ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
-                  integrity: subresourceIntegrityManifest[src],
-                }))
-              : buildManifest.rootMainFiles.map(
-                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-                ),
+            bootstrapScripts: [
+              ...(subresourceIntegrityManifest
+                ? buildManifest.rootMainFiles.map((src) => ({
+                    src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                    integrity: subresourceIntegrityManifest[src],
+                  }))
+                : buildManifest.rootMainFiles.map(
+                    (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                  )),
+            ],
           },
         })
 
@@ -1311,6 +1323,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           flushEffectHandler,
           flushEffectsToHead: true,
+          polyfills,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1341,6 +1354,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           flushEffectHandler,
           flushEffectsToHead: true,
+          polyfills,
         })
       }
     }
