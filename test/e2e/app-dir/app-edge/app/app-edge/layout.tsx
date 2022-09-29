@@ -7,3 +7,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useSelectedLayoutSegment()
   return children
 }
+
+export const config = {
+  runtime: 'experimental-edge',
+}
