@@ -31,7 +31,13 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
       return {
         ...state,
         nextId: state.nextId + 1,
-        errors: [...state.errors, { id: state.nextId, event: ev }],
+        errors: [
+          ...state.errors.filter((err) => {
+            // Filter out duplicate errors
+            return err.event.reason !== ev.reason
+          }),
+          { id: state.nextId, event: ev },
+        ],
       }
     }
     default: {
@@ -44,12 +50,24 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
 
 type ErrorType = 'runtime' | 'build'
 
+const shouldPreventDisplay = (
+  errorType?: ErrorType | null,
+  preventType?: ErrorType[] | null
+) => {
+  if (!preventType || !errorType) {
+    return false
+  }
+  return preventType.includes(errorType)
+}
+
 const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
   children,
   preventDisplay,
+  globalOverlay,
 }: {
   children?: React.ReactNode
   preventDisplay?: ErrorType[]
+  globalOverlay?: boolean
 }) {
   const [state, dispatch] = React.useReducer<
     React.Reducer<OverlayState, Bus.BusEvent>
@@ -80,11 +98,15 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
 
   return (
     <React.Fragment>
-      <ErrorBoundary onError={onComponentError}>
+      <ErrorBoundary
+        globalOverlay={globalOverlay}
+        isMounted={isMounted}
+        onError={onComponentError}
+      >
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (
-        <ShadowPortal>
+        <ShadowPortal globalOverlay={globalOverlay}>
           <CssReset />
           <Base />
           <ComponentStyles />
@@ -101,16 +123,6 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
       ) : undefined}
     </React.Fragment>
   )
-}
-
-const shouldPreventDisplay = (
-  errorType?: ErrorType | null,
-  preventType?: ErrorType[] | null
-) => {
-  if (!preventType || !errorType) {
-    return false
-  }
-  return preventType.includes(errorType)
 }
 
 export default ReactDevOverlay

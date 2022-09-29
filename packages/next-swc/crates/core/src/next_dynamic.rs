@@ -1,16 +1,18 @@
 use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
-use swc_atoms::js_word;
-use swc_common::errors::HANDLER;
-use swc_common::{FileName, DUMMY_SP};
-use swc_ecmascript::ast::{
-    ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
-    ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
-    MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str,
+
+use swc_core::{
+    common::{errors::HANDLER, FileName, DUMMY_SP},
+    ecma::ast::{
+        ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+        ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
+        MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str, Tpl,
+    },
+    ecma::atoms::js_word,
+    ecma::utils::ExprFactory,
+    ecma::visit::{Fold, FoldWith},
 };
-use swc_ecmascript::utils::ExprFactory;
-use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn next_dynamic(
     is_development: bool,
@@ -61,8 +63,14 @@ impl Fold for NextDynamicPatcher {
     fn fold_call_expr(&mut self, expr: CallExpr) -> CallExpr {
         if self.is_next_dynamic_first_arg {
             if let Callee::Import(..) = &expr.callee {
-                if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr.args[0].expr {
-                    self.dynamically_imported_specifier = Some(value.to_string());
+                match &*expr.args[0].expr {
+                    Expr::Lit(Lit::Str(Str { value, .. })) => {
+                        self.dynamically_imported_specifier = Some(value.to_string());
+                    }
+                    Expr::Tpl(Tpl { exprs, quasis, .. }) if exprs.is_empty() => {
+                        self.dynamically_imported_specifier = Some(quasis[0].raw.to_string());
+                    }
+                    _ => {}
                 }
             }
             return expr.fold_children_with(self);
@@ -311,7 +319,7 @@ fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
         }
     };
 
-    let rel_path = diff_paths(&file, base);
+    let rel_path = diff_paths(file, base);
 
     let rel_path = match rel_path {
         Some(v) => v,

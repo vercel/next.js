@@ -31,6 +31,9 @@ function getBaseSWCOptions({
   nextConfig,
   resolvedBaseUrl,
   jsConfig,
+  swcCacheDir,
+  isServerLayer,
+  relativeFilePathFromRoot,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -46,6 +49,7 @@ function getBaseSWCOptions({
   const plugins = (nextConfig?.experimental?.swcPlugins ?? [])
     .filter(Array.isArray)
     .map(([name, options]) => [require.resolve(name), options])
+
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -54,11 +58,12 @@ function getBaseSWCOptions({
             paths,
           }
         : {}),
-      externalHelpers: !process.versions.pnp,
+      externalHelpers: !process.versions.pnp && !jest,
       parser: parserConfig,
       experimental: {
         keepImportAssertions: true,
         plugins,
+        cacheRoot: swcCacheDir,
       },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
@@ -114,6 +119,18 @@ function getBaseSWCOptions({
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
     emotion: getEmotionOptions(nextConfig, development),
+    serverComponents: nextConfig?.experimental?.appDir
+      ? {
+          isServer: !!isServerLayer,
+        }
+      : false,
+    fontLoaders:
+      nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot
+        ? {
+            fontLoaders: Object.keys(nextConfig.experimental.fontLoaders),
+            relativeFilePathFromRoot,
+          }
+        : null,
   }
 }
 
@@ -149,9 +166,9 @@ function getEmotionOptions(nextConfig, development) {
   return {
     enabled: true,
     autoLabel,
-    labelFormat: nextConfig?.experimental?.emotion?.labelFormat,
+    labelFormat: nextConfig?.compiler?.emotion?.labelFormat,
     sourcemap: development
-      ? nextConfig?.experimental?.emotion?.sourceMap ?? true
+      ? nextConfig?.compiler?.emotion?.sourceMap ?? true
       : false,
   }
 }
@@ -200,12 +217,15 @@ export function getLoaderSWCOptions({
   filename,
   development,
   isServer,
+  isServerLayer,
   pagesDir,
   isPageFile,
   hasReactRefresh,
   nextConfig,
   jsConfig,
   supportedBrowsers,
+  swcCacheDir,
+  relativeFilePathFromRoot,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -217,6 +237,9 @@ export function getLoaderSWCOptions({
     nextConfig,
     jsConfig,
     // resolvedBaseUrl,
+    swcCacheDir,
+    isServerLayer,
+    relativeFilePathFromRoot,
   })
 
   const isNextDist = nextDistPath.test(filename)

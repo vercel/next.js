@@ -28,6 +28,8 @@ declare module 'next/dist/compiled/node-fetch' {
   export * from 'node-fetch'
 }
 
+declare module 'next/dist/compiled/undici' {}
+
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
 }
@@ -44,11 +46,6 @@ declare module 'next/dist/compiled/chalk' {
 declare module 'next/dist/compiled/cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
-}
-
-declare module 'next/dist/compiled/etag' {
-  import m from 'etag'
-  export = m
 }
 
 declare module 'next/dist/compiled/p-limit' {
@@ -289,6 +286,7 @@ declare module 'next/dist/compiled/postcss-scss' {
   import m from 'postcss-scss'
   export = m
 }
+
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -334,15 +332,12 @@ declare module 'next/dist/compiled/@edge-runtime/primitives' {
   export = m
 }
 
-declare module 'pnp-webpack-plugin' {
-  import webpack from 'webpack4'
-
-  class PnpWebpackPlugin extends webpack.Plugin {}
-
-  export = PnpWebpackPlugin
+declare module 'next/dist/compiled/@segment/ajv-human-errors' {
+  import * as m from '@segment/ajv-human-errors'
+  export = m
 }
 
-declare module NodeJS {
+declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string
   }
@@ -356,6 +351,12 @@ declare module 'next/dist/compiled/watchpack' {
 
   class Watchpack extends EventEmitter {
     constructor(options?: any)
+    watch(params: {
+      files?: string[]
+      directories?: string[]
+      startTime?: number
+      missing?: string[]
+    }): void
     watch(files: string[], directories: string[], startTime?: number): void
     close(): void
 
@@ -366,4 +367,8 @@ declare module 'next/dist/compiled/watchpack' {
   }
 
   export default Watchpack
+}
+
+declare module 'next/dist/compiled/is-animated' {
+  export default function isAnimated(buffer: Buffer): boolean
 }

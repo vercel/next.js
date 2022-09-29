@@ -87,7 +87,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       // check we copied default `.gitignore`
       expect(
@@ -175,7 +175,37 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
+    })
+  })
+
+  it('should allow example with GitHub URL with trailing slash', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'github-app'
+      const res = await run(
+        [
+          projectName,
+          '--example',
+          'https://github.com/vercel/nextjs-portfolio-starter/',
+        ],
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.mdx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -201,7 +231,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -233,7 +263,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -417,7 +447,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'pages/index.tsx',
         '.gitignore',
         'package-lock.json',
         'node_modules/next',
@@ -471,7 +501,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'pages/index.tsx',
         '.gitignore',
         'pnpm-lock.yaml',
         'node_modules/next',
