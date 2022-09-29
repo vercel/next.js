@@ -62,7 +62,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     let opts: TransformOptions = serde_wasm_bindgen::from_value(opts)?;
 
     let s = s.dyn_into::<js_sys::JsString>();
-    try_with_handler(
+    let out = try_with_handler(
         c.cm.clone(),
         swc_core::base::HandlerOpts {
             color: ColorConfig::Never,
@@ -100,14 +100,20 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                         )
                         .context("failed to process js file")?
                     }
-                    Err(v) => c.process_js(handler, v.into_serde().expect(""), &opts.swc)?,
+                    Err(v) => c.process_js(
+                        handler,
+                        serde_wasm_bindgen::from_value(v).expect(""),
+                        &opts.swc,
+                    )?,
                 };
 
-                JsValue::from_serde(&out).context("failed to serialize json")
+                Ok(out)
             })
         },
     )
-    .map_err(convert_err)
+    .map_err(convert_err)?;
+
+    Ok(serde_wasm_bindgen::to_value(&out)?)
 }
 
 #[wasm_bindgen(js_name = "transform")]
