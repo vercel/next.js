@@ -1651,7 +1651,9 @@ jobs:
 
       - name: Build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev
+        env:
+          RUST_PROFILE_RELEASE_LTO: false
+        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs
 
       - name: Add target to folder name
         if: ${{needs.build.outputs.docsChange == 'nope'}}
