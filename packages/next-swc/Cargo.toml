@@ -7,7 +7,7 @@ members = [
 ]
 
 [profile.dev.package."*"]
-opt-level = 3
+opt-level = 2
 
 [profile.release]
 lto = true
