@@ -13,23 +13,16 @@ use swc_core::{
         errors::{Handler, HANDLER},
         input::StringInput,
         source_map::SourceMapGenConfig,
-        sync::Lrc,
-        util::take::Take,
         BytePos, FileName, Globals, LineCol, Mark, SourceMap, GLOBALS,
     },
     ecma::{
-        ast::{EsVersion, Module, Program},
+        ast::{EsVersion, Program},
         parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig},
-        transforms::{
-            base::{
-                feature::FeatureFlag,
-                helpers::{Helpers, HELPERS},
-                resolver,
-            },
-            module::{common_js, util::ImportInterop},
-            react::{react, RefreshOptions},
+        transforms::base::{
+            helpers::{Helpers, HELPERS},
+            resolver,
         },
-        visit::{FoldWith, VisitMutWith},
+        visit::VisitMutWith,
     },
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString};
@@ -40,24 +33,12 @@ use turbopack_core::{
 };
 
 use super::ModuleAssetType;
-use crate::{analyzer::graph::EvalContext, emitter::IssueEmitter};
-
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
-pub enum EcmascriptInputTransform {
-    React {
-        #[serde(default)]
-        refresh: bool,
-    },
-    CommonJs,
-    StyledJsx,
-    TypeScript,
-    Custom,
-}
-
-#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
-#[derive(Debug, PartialOrd, Ord, Hash, Clone)]
-pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
+use crate::{
+    analyzer::graph::EvalContext,
+    emitter::IssueEmitter,
+    transform::{EcmascriptInputTransformsVc, TransformContext},
+    EcmascriptInputTransform,
+};
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 #[allow(clippy::large_enum_variant)]
@@ -220,13 +201,13 @@ pub async fn parse(
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<ParseResultVc> {
     let content = source.content();
-    let fs_path = source.path().to_string().await?.clone_value();
+    let fs_path_str = &*source.path().to_string().await?;
     let ty = ty.into_value();
-    let transforms = transforms.await?;
+    let transforms = &*transforms.await?;
     Ok(match &*content.await? {
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
-            FileContent::Content(file) => parse_file(file, fs_path, source, ty, &transforms)?,
+            FileContent::Content(file) => parse_file(file, fs_path_str, source, ty, transforms)?,
         },
         AssetContent::Redirect { .. } => ParseResult::Unparseable.cell(),
     })
@@ -234,7 +215,7 @@ pub async fn parse(
 
 fn parse_file(
     file: &File,
-    path: String,
+    fs_path_str: &str,
     source: AssetVc,
     ty: ModuleAssetType,
     transforms: &[EcmascriptInputTransform],
@@ -255,8 +236,8 @@ fn parse_file(
         },
     );
 
-    let file_name = FileName::Custom(path);
-    let fm = source_map.new_source_file(file_name.clone(), string);
+    let file_name = FileName::Custom(fs_path_str.to_string());
+    let fm = source_map.new_source_file(file_name, string);
 
     let comments = SingleThreadedComments::default();
     let lexer = Lexer::new(
@@ -318,18 +299,26 @@ fn parse_file(
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            parsed_program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
-
             HELPERS.set(&Helpers::new(true), || {
-                run_transforms(
-                    &mut parsed_program,
-                    file_name,
-                    transforms,
-                    source_map.clone(),
-                    &comments,
+                let is_typescript = matches!(
+                    ty,
+                    ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration
+                );
+                parsed_program.visit_mut_with(&mut resolver(
                     unresolved_mark,
                     top_level_mark,
-                );
+                    is_typescript,
+                ));
+
+                let context = TransformContext {
+                    comments: &comments,
+                    source_map: &source_map,
+                    top_level_mark,
+                    unresolved_mark,
+                };
+                for transform in transforms.iter() {
+                    transform.apply(&mut parsed_program, &context)
+                }
             });
 
             EvalContext::new(&parsed_program, unresolved_mark)
@@ -346,68 +335,4 @@ fn parse_file(
         source_map,
     }
     .into())
-}
-
-fn run_transforms(
-    program: &mut Program,
-    file_name: FileName,
-    transforms: &[EcmascriptInputTransform],
-    source_map: Lrc<SourceMap>,
-    comments: &SingleThreadedComments,
-    unresolved_mark: Mark,
-    top_level_mark: Mark,
-) {
-    for transform in transforms.iter() {
-        match transform {
-            EcmascriptInputTransform::React { refresh } => {
-                use swc_core::ecma::transforms::react::{Options, Runtime};
-
-                program.visit_mut_with(&mut react(
-                    source_map.clone(),
-                    Some(comments.clone()),
-                    Options {
-                        runtime: Some(Runtime::Automatic),
-                        refresh: if *refresh {
-                            Some(RefreshOptions {
-                                ..Default::default()
-                            })
-                        } else {
-                            None
-                        },
-                        ..Default::default()
-                    },
-                    top_level_mark,
-                ));
-            }
-            EcmascriptInputTransform::CommonJs => {
-                use swc_core::ecma::transforms::module::util::Config;
-
-                program.visit_mut_with(&mut common_js(
-                    unresolved_mark,
-                    Config {
-                        allow_top_level_this: true,
-                        import_interop: Some(ImportInterop::Swc),
-                        ..Default::default()
-                    },
-                    FeatureFlag::all(),
-                    Some(comments.clone()),
-                ));
-            }
-            EcmascriptInputTransform::StyledJsx => {
-                // Modeled after https://github.com/swc-project/plugins/blob/ae735894cdb7e6cfd776626fe2bc580d3e80fed9/packages/styled-jsx/src/lib.rs
-                let real_program = std::mem::replace(program, Program::Module(Module::dummy()));
-
-                *program = real_program.fold_with(&mut styled_jsx::styled_jsx(
-                    source_map.clone(),
-                    file_name.clone(),
-                ));
-            }
-            EcmascriptInputTransform::TypeScript => {
-                use swc_core::ecma::transforms::typescript::strip;
-
-                program.visit_mut_with(&mut strip(top_level_mark));
-            }
-            EcmascriptInputTransform::Custom => todo!(),
-        }
-    }
 }

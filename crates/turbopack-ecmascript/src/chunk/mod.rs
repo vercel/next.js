@@ -397,7 +397,7 @@ impl EcmascriptChunkContentVc {
         }
 
         if code.has_source_map() {
-            let filename = chunk_path.file_name().unwrap();
+            let filename = chunk_path.file_name();
             let version = self.version().id().await?;
             write!(
                 code,

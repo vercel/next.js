@@ -17,9 +17,9 @@ use turbopack_core::asset::AssetVc;
 
 use crate::{
     analyzer::{graph::EvalContext, JsValue},
-    parse::{parse, EcmascriptInputTransformsVc, ParseResult},
+    parse::{parse, ParseResult},
     utils::unparen,
-    ModuleAssetType,
+    EcmascriptInputTransformsVc, ModuleAssetType,
 };
 
 #[turbo_tasks::value(shared, serialization = "none")]

@@ -65,7 +65,7 @@ use super::{
         WellKnownObjectKind,
     },
     errors,
-    parse::{parse, EcmascriptInputTransformsVc, ParseResult},
+    parse::{parse, ParseResult},
     resolve::{apply_cjs_specific_options, cjs_resolve},
     special_cases::special_cases,
     utils::js_value_to_pattern,
@@ -87,6 +87,7 @@ use crate::{
         },
         esm::{EsmBinding, EsmExportsVc},
     },
+    EcmascriptInputTransformsVc,
 };
 
 #[turbo_tasks::value]

@@ -649,13 +649,15 @@ impl FileSystemPath {
         Some(result.join("/"))
     }
 
-    /// Returns the final component of the FileSystemPath, if there is one.
-    pub fn file_name(&self) -> Option<&str> {
-        self.path.rsplit('/').next()
+    /// Returns the final component of the FileSystemPath, or an empty string
+    /// for the root path.
+    pub fn file_name(&self) -> &str {
+        // rsplit will always give at least one item
+        self.path.rsplit('/').next().unwrap()
     }
 
     pub fn extension(&self) -> Option<&str> {
-        self.path.rsplit('.').next()
+        self.path.rsplit_once('.').map(|(_, ext)| ext)
     }
 }
 

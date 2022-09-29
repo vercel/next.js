@@ -14,8 +14,8 @@ use turbopack_core::{
 
 use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
 use crate::{
-    parse::{parse, Buffer, EcmascriptInputTransformsVc, ParseResult},
-    ModuleAssetType,
+    parse::{parse, Buffer, ParseResult},
+    EcmascriptInputTransformsVc, ModuleAssetType,
 };
 
 #[turbo_tasks::function]

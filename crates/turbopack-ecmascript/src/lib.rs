@@ -18,6 +18,7 @@ mod path_visitor;
 pub(crate) mod references;
 pub mod resolve;
 pub(crate) mod special_cases;
+pub(crate) mod transform;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
@@ -28,7 +29,6 @@ use chunk::{
 };
 use code_gen::CodeGenerateableVc;
 use parse::{parse, ParseResult, ParseResultSourceMap};
-pub use parse::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use path_visitor::ApplyVisitors;
 use references::AnalyzeEcmascriptModuleResult;
 use swc_core::{
@@ -38,6 +38,7 @@ use swc_core::{
         visit::{VisitMutWith, VisitMutWithPath},
     },
 };
+pub use transform::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
