@@ -117,7 +117,7 @@ export function calculateOverrideValues(font: string, fontMetrics: any) {
 }
 
 function calculateOverrideCSS(font: string, fontMetrics: any) {
-  const fontName = font.trim()
+  const fontName = font.toLowerCase().trim().replace(/ /g, '-')
 
   const { ascent, descent, lineGap, fallbackFont } = calculateOverrideValues(
     font,
@@ -126,7 +126,7 @@ function calculateOverrideCSS(font: string, fontMetrics: any) {
 
   return `
     @font-face {
-      font-family: "${fontName} Fallback";
+      font-family: "${fontName}-fallback";
       ascent-override: ${ascent}%;
       descent-override: ${descent}%;
       line-gap-override: ${lineGap}%;
