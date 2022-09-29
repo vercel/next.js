@@ -107,7 +107,7 @@ describe('app dir', () => {
     })
 
     // TODO-APP: handle css modules fouc in dev
-    it.skip('should handle css imports in next/dynamic correctly', async () => {
+    it('should handle css imports in next/dynamic correctly', async () => {
       const browser = await webdriver(next.url, '/dashboard/index')
 
       expect(
@@ -132,7 +132,7 @@ describe('app dir', () => {
     })
 
     // TODO-APP: handle new root layout
-    it.skip('should not include parent when not in parent directory with route in directory', async () => {
+    it('should not include parent when not in parent directory with route in directory', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/hello')
       const $ = cheerio.load(html)
 
@@ -239,14 +239,14 @@ describe('app dir', () => {
 
     // TODO-APP: do we want to make this only work for /root or is it allowed
     // to work for /pages as well?
-    it.skip('should match partial parameters', async () => {
+    it('should match partial parameters', async () => {
       const html = await renderViaHTTP(next.url, '/partial-match-123')
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
     })
 
     describe('rewrites', () => {
       // TODO-APP: rewrite url is broken
-      it.skip('should support rewrites on initial load', async () => {
+      it('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
@@ -295,7 +295,7 @@ describe('app dir', () => {
     })
 
     // TODO-APP: Enable in development
-    ;(isDev ? it.skip : it)(
+    ;(isDev ? it : it)(
       'should not rerender layout when navigating between routes in the same layout',
       async () => {
         const browser = await webdriver(next.url, '/same-layout/first')
@@ -445,7 +445,7 @@ describe('app dir', () => {
       })
 
       // TODO-APP: investigate this test
-      it.skip('should soft replace', async () => {
+      it('should soft replace', async () => {
         const browser = await webdriver(next.url, '/link-soft-replace')
 
         try {
@@ -812,7 +812,7 @@ describe('app dir', () => {
 
       describe('next/router', () => {
         // `useRouter` should not be accessible in server components.
-        it.skip('should always return null when accessed from /app', async () => {
+        it('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')
 
           try {
@@ -948,7 +948,7 @@ describe('app dir', () => {
 
         describe('useRouter', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(next.url, '/hooks/use-router/server')
             expect(res.status).toBe(500)
             expect(await res.text()).toContain('Internal Server Error')
@@ -957,7 +957,7 @@ describe('app dir', () => {
 
         describe('useParams', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(next.url, '/hooks/use-params/server')
             expect(res.status).toBe(500)
             expect(await res.text()).toContain('Internal Server Error')
@@ -966,7 +966,7 @@ describe('app dir', () => {
 
         describe('useSearchParams', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
               next.url,
               '/hooks/use-search-params/server'
@@ -978,7 +978,7 @@ describe('app dir', () => {
 
         describe('usePathname', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
               next.url,
               '/hooks/use-pathname/server'
@@ -990,7 +990,7 @@ describe('app dir', () => {
 
         describe('useLayoutSegments', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
               next.url,
               '/hooks/use-layout-segments/server'
@@ -1002,7 +1002,7 @@ describe('app dir', () => {
 
         describe('useSelectedLayoutSegment', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
               next.url,
               '/hooks/use-selected-layout-segment/server'
@@ -1018,7 +1018,7 @@ describe('app dir', () => {
       describe('hooks', () => {
         describe('cookies function', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
               next.url,
               '/hooks/use-cookies/client'
@@ -1030,7 +1030,7 @@ describe('app dir', () => {
 
         describe('previewData function', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
               next.url,
               '/hooks/use-preview-data/client'
@@ -1042,7 +1042,7 @@ describe('app dir', () => {
 
         describe('headers function', () => {
           // TODO-APP: should enable when implemented
-          it.skip('should throw an error when imported', async () => {
+          it('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
               next.url,
               '/hooks/use-headers/client'
@@ -1422,7 +1422,7 @@ describe('app dir', () => {
       })
 
       // TODO-APP: disable failing test and investigate later
-      it.skip('should render the template that is a server component and rerender on navigation', async () => {
+      it('should render the template that is a server component and rerender on navigation', async () => {
         const browser = await webdriver(next.url, '/template/servercomponent')
         expect(await browser.elementByCss('h1').text()).toStartWith('Template')
 
@@ -1518,7 +1518,7 @@ describe('app dir', () => {
     })
 
     describe('not-found', () => {
-      it.skip('should trigger not-found in a server component', async () => {
+      it('should trigger not-found in a server component', async () => {
         const browser = await webdriver(next.url, '/not-found/servercomponent')
 
         expect(
@@ -1526,30 +1526,27 @@ describe('app dir', () => {
         ).toBe('Not Found!')
       })
 
-      it.skip('should trigger not-found in a client component', async () => {
+      it('should trigger not-found in a client component', async () => {
         const browser = await webdriver(next.url, '/not-found/clientcomponent')
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
         ).toBe('Not Found!')
       })
-      ;(isDev ? it.skip : it)(
-        'should trigger not-found client-side',
-        async () => {
-          const browser = await webdriver(next.url, '/not-found/client-side')
-          await browser
-            .elementByCss('button')
-            .click()
-            .waitForElementByCss('#not-found-component')
-          expect(
-            await browser.elementByCss('#not-found-component').text()
-          ).toBe('Not Found!')
-        }
-      )
+      ;(isDev ? it : it)('should trigger not-found client-side', async () => {
+        const browser = await webdriver(next.url, '/not-found/client-side')
+        await browser
+          .elementByCss('button')
+          .click()
+          .waitForElementByCss('#not-found-component')
+        expect(await browser.elementByCss('#not-found-component').text()).toBe(
+          'Not Found!'
+        )
+      })
     })
 
     describe('redirect', () => {
       describe('components', () => {
-        it.skip('should redirect in a server component', async () => {
+        it('should redirect in a server component', async () => {
           const browser = await webdriver(next.url, '/redirect/servercomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1557,7 +1554,7 @@ describe('app dir', () => {
           )
         })
 
-        it.skip('should redirect in a client component', async () => {
+        it('should redirect in a client component', async () => {
           const browser = await webdriver(next.url, '/redirect/clientcomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1566,7 +1563,7 @@ describe('app dir', () => {
         })
 
         // TODO-APP: Enable in development
-        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
+        ;(isDev ? it : it)('should redirect client-side', async () => {
           const browser = await webdriver(next.url, '/redirect/client-side')
           await browser
             .elementByCss('button')

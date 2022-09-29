@@ -113,7 +113,7 @@ describe('Switchable runtime', () => {
         expect(context.stderr).not.toContain('self is not defined')
       })
 
-      it.skip('should support client side navigation to ssr rsc pages', async () => {
+      it('should support client side navigation to ssr rsc pages', async () => {
         let flightRequest = null
 
         const browser = await webdriver(context.appPort, '/node', {
@@ -140,7 +140,7 @@ describe('Switchable runtime', () => {
         expect(flightRequest).toContain('/node-rsc-ssr')
       })
 
-      it.skip('should support client side navigation to ssg rsc pages', async () => {
+      it('should support client side navigation to ssg rsc pages', async () => {
         const browser = await webdriver(context.appPort, '/node')
 
         await browser
@@ -154,7 +154,7 @@ describe('Switchable runtime', () => {
         )
       })
 
-      it.skip('should support client side navigation to static rsc pages', async () => {
+      it('should support client side navigation to static rsc pages', async () => {
         const browser = await webdriver(context.appPort, '/node')
 
         await browser
@@ -325,7 +325,7 @@ describe('Switchable runtime', () => {
       })
 
       // Doesn't work, see https://github.com/vercel/next.js/pull/39327
-      it.skip('should be possible to switch between runtimes with same content', async () => {
+      it('should be possible to switch between runtimes with same content', async () => {
         const fileContent = await next.readFile(
           'pages/api/switch-in-dev-same-content.js'
         )
@@ -479,7 +479,7 @@ describe('Switchable runtime', () => {
         })
       })
 
-      it.skip('should build /node as a static page with the nodejs runtime', async () => {
+      it('should build /node as a static page with the nodejs runtime', async () => {
         await testRoute(context.appPort, '/node', {
           isStatic: true,
           isEdge: false,
@@ -493,14 +493,14 @@ describe('Switchable runtime', () => {
         })
       })
 
-      it.skip('should build /node-ssg as a static page with the nodejs runtime', async () => {
+      it('should build /node-ssg as a static page with the nodejs runtime', async () => {
         await testRoute(context.appPort, '/node-ssg', {
           isStatic: true,
           isEdge: false,
         })
       })
 
-      it.skip('should build /node-rsc as a static page with the nodejs runtime', async () => {
+      it('should build /node-rsc as a static page with the nodejs runtime', async () => {
         await testRoute(context.appPort, '/node-rsc', {
           isStatic: true,
           isEdge: false,
@@ -508,7 +508,7 @@ describe('Switchable runtime', () => {
       })
 
       // FIXME: rsc hydration
-      it.skip('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
+      it('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
         await testRoute(context.appPort, '/node-rsc-ssr', {
           isStatic: false,
           isEdge: false,
@@ -516,7 +516,7 @@ describe('Switchable runtime', () => {
       })
 
       // FIXME: rsc hydration
-      it.skip('should build /node-rsc-ssg as a static page with the nodejs runtime', async () => {
+      it('should build /node-rsc-ssg as a static page with the nodejs runtime', async () => {
         await testRoute(context.appPort, '/node-rsc-ssg', {
           isStatic: true,
           isEdge: false,
@@ -524,7 +524,7 @@ describe('Switchable runtime', () => {
       })
 
       // FIXME: rsc hydration
-      it.skip('should build /node-rsc-isr as an isr page with the nodejs runtime', async () => {
+      it('should build /node-rsc-isr as an isr page with the nodejs runtime', async () => {
         const html1 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
         const renderedAt1 = +html1.match(/Time: (\d+)/)[1]
         expect(html1).toContain('Runtime: Node.js')
@@ -560,7 +560,7 @@ describe('Switchable runtime', () => {
       })
 
       // TODO: edge rsc in app dir
-      it.skip('should build /edge-rsc as a dynamic page with the edge runtime', async () => {
+      it('should build /edge-rsc as a dynamic page with the edge runtime', async () => {
         await testRoute(context.appPort, '/edge-rsc', {
           isStatic: false,
           isEdge: true,
@@ -614,7 +614,7 @@ describe('Switchable runtime', () => {
         }
       })
 
-      it.skip('should display correct tree view with page types in terminal', async () => {
+      it('should display correct tree view with page types in terminal', async () => {
         const stdoutLines = splitLines(context.stdout).filter((line) =>
           /^[┌├└/]/.test(line)
         )
@@ -647,7 +647,7 @@ describe('Switchable runtime', () => {
       })
 
       // TODO: static opt
-      it.skip('should prefetch data for static pages', async () => {
+      it('should prefetch data for static pages', async () => {
         const dataRequests = []
 
         const browser = await webdriver(context.appPort, '/node', {
@@ -673,7 +673,7 @@ describe('Switchable runtime', () => {
         }
       })
 
-      it.skip('should support client side navigation to ssr rsc pages', async () => {
+      it('should support client side navigation to ssr rsc pages', async () => {
         let flightRequest = null
 
         const browser = await webdriver(context.appPort, '/node', {
@@ -696,7 +696,7 @@ describe('Switchable runtime', () => {
         expect(flightRequest).toContain('/node-rsc-ssr')
       })
 
-      it.skip('should support client side navigation to ssg rsc pages', async () => {
+      it('should support client side navigation to ssg rsc pages', async () => {
         const browser = await webdriver(context.appPort, '/node')
 
         await browser.waitForElementByCss('#link-node-rsc-ssg').click()
@@ -705,7 +705,7 @@ describe('Switchable runtime', () => {
         )
       })
 
-      it.skip('should support client side navigation to static rsc pages', async () => {
+      it('should support client side navigation to static rsc pages', async () => {
         const browser = await webdriver(context.appPort, '/node')
 
         await browser.waitForElementByCss('#link-node-rsc').click()

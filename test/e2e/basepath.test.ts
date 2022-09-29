@@ -450,7 +450,7 @@ describe('basePath', () => {
     // TODO: this test has been passing incorrectly since the below check
     // wasn't being awaited. We need to investigate if this test is
     // correct or not.
-    it.skip('should navigate back to a non-basepath 404 that starts with basepath', async () => {
+    it('should navigate back to a non-basepath 404 that starts with basepath', async () => {
       const browser = await webdriver(next.url, `${basePath}hello`)
       await browser.eval(() => ((window as any).navigationMarker = true))
       await browser.eval(() => (window as any).next.router.push('/hello'))
@@ -509,7 +509,7 @@ describe('basePath', () => {
 
     // TODO: investigate index/index seems this shouldn't work
     // as pages/index.js conflicts with pages/index/index.js
-    it.skip('should navigate to nested index page with getStaticProps', async () => {
+    it('should navigate to nested index page with getStaticProps', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
       await browser.eval('window.beforeNavigate = "hi"')
 

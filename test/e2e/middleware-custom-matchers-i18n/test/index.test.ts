@@ -7,7 +7,7 @@ import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-const itif = (condition: boolean) => (condition ? it : it.skip)
+const itif = (condition: boolean) => (condition ? it : it)
 
 const isModeDeploy = process.env.NEXT_TEST_MODE === 'deploy'
 

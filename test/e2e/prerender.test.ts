@@ -769,7 +769,7 @@ describe('Prerender', () => {
     if ((global as any).isNextStart) {
       // TODO: dev currently renders this page as blocking, meaning it shows the
       // server error instead of continuously retrying. Do we want to change this?
-      it.skip('should reload page on failed data request, and retry', async () => {
+      it('should reload page on failed data request, and retry', async () => {
         const browser = await webdriver(next.url, '/')
         await browser.eval('window.beforeClick = "abc"')
         await browser.elementByCss('#broken-at-first-post').click()

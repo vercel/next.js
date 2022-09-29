@@ -103,7 +103,7 @@ describe('Middleware Rewrite', () => {
     })
 
     // TODO: middleware effect headers aren't available here
-    it.skip('includes the locale in rewrites by default', async () => {
+    it('includes the locale in rewrites by default', async () => {
       const res = await fetchViaHTTP(next.url, `/rewrite-me-to-about`)
       expect(
         res.headers.get('x-middleware-rewrite')?.endsWith('/en/about')
