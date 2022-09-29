@@ -48,12 +48,9 @@ pub struct NextClientTransition {
 impl Transition for NextClientTransition {
     #[turbo_tasks::function]
     fn process_source(&self, asset: AssetVc) -> AssetVc {
-        WrapperAssetVc::new(
-            asset,
-            "next-hydrate.js",
-            embed_file!("next_hydrater.js").into(),
-        )
-        .into()
+        let next_hydrate = embed_file!("next_hydrate.js").into();
+
+        WrapperAssetVc::new(asset, "next-hydrate.js", next_hydrate).into()
     }
 
     #[turbo_tasks::function]
