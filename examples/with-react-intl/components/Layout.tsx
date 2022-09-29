@@ -25,9 +25,8 @@ export default function Layout({ title, description, children }: LayoutProps) {
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{title}</title>
-        {description && <meta name="description" content={description} />}
+        <meta name="description" content={description} />
       </Head>
       <header>
         <Nav />
