@@ -99,6 +99,13 @@ describe('app dir', () => {
       expect(html).toContain('hello from dynamic on client')
     })
 
+    it('should serve polyfills for browsers that do not support modules', async () => {
+      const html = await renderViaHTTP(next.url, '/dashboard/index')
+      expect(html).toMatch(
+        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+      )
+    })
+
     // TODO-APP: handle css modules fouc in dev
     it.skip('should handle css imports in next/dynamic correctly', async () => {
       const browser = await webdriver(next.url, '/dashboard/index')
@@ -517,18 +524,21 @@ describe('app dir', () => {
         }
       })
 
-      // TODO-APP: should enable when implemented
-      it.skip('should allow linking from app page to pages page', async () => {
+      it('should allow linking from app page to pages page', async () => {
         const browser = await webdriver(next.url, '/pages-linking')
 
         try {
           // Click the link.
           await browser.elementById('app-link').click()
-          await browser.waitForElementByCss('#pages-link')
+          expect(await browser.waitForElementByCss('#pages-link').text()).toBe(
+            'To App Page'
+          )
 
           // Click the other link.
           await browser.elementById('pages-link').click()
-          await browser.waitForElementByCss('#app-link')
+          expect(await browser.waitForElementByCss('#app-link').text()).toBe(
+            'To Pages Page'
+          )
         } finally {
           await browser.close()
         }
