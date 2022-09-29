@@ -17,6 +17,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
+  streamToString,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot } from './utils'
@@ -593,6 +594,13 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
     delete newHeaders[param]
   }
   return newHeaders
+}
+
+async function renderToString(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
 }
 
 function isNavigatingToNewRootLayout(
@@ -1346,8 +1354,8 @@ export async function renderToHTMLOrFlight(
         </FlushEffects>
       )
 
-      const flushEffectHandler = (): string => {
-        const flushed = ReactDOMServer.renderToString(
+      const flushEffectHandler = (): Promise<string> => {
+        const flushed = renderToString(
           <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
         )
         return flushed
