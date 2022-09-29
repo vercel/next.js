@@ -1,3 +1,5 @@
+'client'
+
 import React, {
   useRef,
   useEffect,
@@ -70,6 +72,8 @@ interface StaticRequire {
 
 type StaticImport = StaticRequire | StaticImageData
 
+type SafeNumber = number | `${number}`
+
 function isStaticRequire(
   src: StaticRequire | StaticImageData
 ): src is StaticRequire {
@@ -96,11 +100,11 @@ export type ImageProps = Omit<
 > & {
   src: string | StaticImport
   alt: string
-  width?: number | string
-  height?: number | string
+  width?: SafeNumber
+  height?: SafeNumber
   fill?: boolean
   loader?: ImageLoader
-  quality?: number | string
+  quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
   placeholder?: PlaceholderValue
@@ -823,10 +827,14 @@ export default function Image({
     imageSrcSetPropName = 'imageSrcSet'
     imageSizesPropName = 'imageSizes'
   }
-  const linkProps = {
+  const linkProps: React.DetailedHTMLProps<
+    React.LinkHTMLAttributes<HTMLLinkElement>,
+    HTMLLinkElement
+  > = {
     // Note: imagesrcset and imagesizes are not in the link element type with react 17.
     [imageSrcSetPropName]: imgAttributes.srcSet,
     [imageSizesPropName]: imgAttributes.sizes,
+    crossOrigin: rest.crossOrigin,
   }
 
   const onLoadingCompleteRef = useRef(onLoadingComplete)

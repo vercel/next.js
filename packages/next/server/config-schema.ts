@@ -219,6 +219,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        adjustFontFallbacks: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -317,6 +320,12 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
+        optoutServerComponentsBundle: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -337,9 +346,6 @@ const configSchema = {
           type: 'string',
         },
         scrollRestoration: {
-          type: 'boolean',
-        },
-        serverComponents: {
           type: 'boolean',
         },
         sharedPool: {
@@ -384,8 +390,14 @@ const configSchema = {
           },
           type: 'array',
         },
+        enableUndici: {
+          type: 'boolean',
+        },
         workerThreads: {
           type: 'boolean',
+        },
+        fontLoaders: {
+          type: 'object',
         },
       },
       type: 'object',

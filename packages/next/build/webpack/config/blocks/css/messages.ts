@@ -31,3 +31,9 @@ export function getCustomDocumentError() {
     'pages/_document.js'
   )}. Please move global styles to ${chalk.cyan('pages/_app.js')}.`
 }
+
+export function getFontLoaderDocumentImportError() {
+  return `Font loaders ${chalk.bold('cannot')} be used within ${chalk.cyan(
+    'pages/_document.js'
+  )}.`
+}

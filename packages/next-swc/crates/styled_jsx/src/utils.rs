@@ -307,11 +307,11 @@ pub fn styled_jsx_import_decl(style_import_name: &str) -> ModuleItem {
             },
             span: DUMMY_SP,
         })],
-        src: Str {
+        src: Box::new(Str {
             span: DUMMY_SP,
             value: "styled-jsx/style".into(),
             raw: None,
-        },
+        }),
     }))
 }
 
