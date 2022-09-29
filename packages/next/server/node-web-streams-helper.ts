@@ -272,7 +272,7 @@ export async function continueFromInitialStream(
     generateStaticHTML: boolean
     flushEffectHandler?: () => Promise<string>
     flushEffectsToHead: boolean
-    polyfills?: string[]
+    polyfills?: { src: string; integrity: string | undefined }[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -295,7 +295,12 @@ export async function continueFromInitialStream(
       // blocking here and can't be `defer` because other scripts have `async`.
       const polyfillScripts = polyfills
         ? polyfills
-            .map((src) => `<script src="${src}" nomodule=""></script>`)
+            .map(
+              ({ src, integrity }) =>
+                `<script src="${src}" nomodule=""${
+                  integrity ? ` integrity="${integrity}"` : ''
+                }></script>`
+            )
             .join('')
         : ''
 

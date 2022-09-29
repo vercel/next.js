@@ -1292,7 +1292,10 @@ export async function renderToHTMLOrFlight(
           (polyfill) =>
             polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
         )
-        .map((polyfill) => `${renderOpts.assetPrefix || ''}/_next/${polyfill}`)
+        .map((polyfill) => ({
+          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          integrity: subresourceIntegrityManifest?.[polyfill],
+        }))
 
       try {
         const renderStream = await renderToInitialStream({
