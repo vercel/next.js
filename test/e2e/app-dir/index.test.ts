@@ -238,11 +238,32 @@ describe('app dir', () => {
     })
 
     describe('rewrites', () => {
-      // TODO-APP:
+      // TODO-APP: rewrite url is broken
       it.skip('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+      })
+
+      it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
+        const browser = await webdriver(next.url, '/link-to-rewritten-path')
+
+        try {
+          // Click the link.
+          await browser.elementById('link-to-rewritten-path').click()
+          await browser.waitForElementByCss('#from-dashboard')
+
+          // Check to see that we were rewritten and not redirected.
+          // TODO-APP: rewrite url is broken
+          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+          // Check to see that the page we navigated to is in fact the dashboard.
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
+        } finally {
+          await browser.close()
+        }
       })
 
       it('should support rewrites on client-side navigation', async () => {
