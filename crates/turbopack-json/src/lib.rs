@@ -19,9 +19,9 @@ use turbopack_core::{
     reference::AssetReferencesVc,
 };
 use turbopack_ecmascript::chunk::{
-    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
-    EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
-    EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+    EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
+    EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
 };
 
 #[turbo_tasks::value]
@@ -56,17 +56,6 @@ impl Asset for JsonModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for JsonModuleAsset {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{} (json)",
-            self.source.path().to_string().await?
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkableAsset for JsonModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk(self_vc: JsonModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
@@ -96,6 +85,17 @@ struct JsonChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl ValueToString for JsonChunkItem {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "{} (json)",
+            self.module.await?.source.path().to_string().await?
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for JsonChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
@@ -106,11 +106,12 @@ impl ChunkItem for JsonChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for JsonChunkItem {
     #[turbo_tasks::function]
-    async fn content(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemContentVc> {
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
         let inner_code = match self.module.path().read_json().to_string().await {
@@ -136,7 +137,6 @@ impl EcmascriptChunkItem for JsonChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code,
             source_map: None,
-            id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
             options: EcmascriptChunkItemOptions {
                 ..Default::default()
             },

@@ -21,7 +21,6 @@ use crate::{
     create_visitor,
     references::AstPathVc,
     resolve::cjs_resolve,
-    EcmascriptChunkContextVc,
 };
 
 #[turbo_tasks::value]
@@ -125,14 +124,10 @@ fn throw_expr(message: Str) -> Expr {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireAssetReference {
     #[turbo_tasks::function]
-    async fn code_generation(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+    async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
             self.context.context_path(),
-            chunk_context,
+            context,
             cjs_resolve(self.request, self.context),
             Value::new(Cjs),
         )
@@ -214,14 +209,10 @@ impl ChunkableAssetReference for CjsRequireResolveAssetReference {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
-    async fn code_generation(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+    async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
             self.context.context_path(),
-            chunk_context,
+            context,
             cjs_resolve(self.request, self.context),
             Value::new(Cjs),
         )
@@ -263,11 +254,7 @@ pub struct CjsRequireCacheAccess {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireCacheAccess {
     #[turbo_tasks::function]
-    async fn code_generation(
-        &self,
-        _chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+    async fn code_generation(&self, _context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;

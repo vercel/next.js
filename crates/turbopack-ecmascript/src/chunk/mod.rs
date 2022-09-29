@@ -19,8 +19,9 @@ use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc, AssetsVc},
     chunk::{
         chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
-        ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc,
-        ChunkingContextVc, FromChunkableAsset, ModuleId, ModuleIdReadRef, ModuleIdVc, ModuleIdsVc,
+        ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
+        ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleId, ModuleIdReadRef,
+        ModuleIdVc, ModuleIdsVc,
     },
     code_builder::{Code, CodeReadRef, CodeVc},
     reference::{AssetReferenceVc, AssetReferencesVc},
@@ -79,11 +80,6 @@ pub struct EcmascriptChunkEvaluate {
     /// They are useful for applications such as polyfills or hot
     /// module runtimes.
     runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
-}
-
-#[turbo_tasks::function]
-fn chunk_context(_context: ChunkingContextVc) -> EcmascriptChunkContextVc {
-    EcmascriptChunkContextVc::cell(EcmascriptChunkContext {})
 }
 
 #[turbo_tasks::value]
@@ -231,11 +227,7 @@ impl EcmascriptChunkContentVc {
         // TODO(alexkirsz) All of this should be done in a transition, otherwise we run
         // the risks of values not being strongly consistent with each other.
         let chunk_content = ecmascript_chunk_content(context, main_entry, runtime_entries).await?;
-        let c_context = chunk_context(context);
-        let module_factories = chunk_content
-            .chunk_items
-            .to_entry_snapshot(c_context, context)
-            .await?;
+        let module_factories = chunk_content.chunk_items.to_entry_snapshot().await?;
         Ok(EcmascriptChunkContent {
             module_factories,
             chunk_path,
@@ -271,14 +263,10 @@ impl EcmascriptChunkContentEntry {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkContentEntryVc {
     #[turbo_tasks::function]
-    async fn new(
-        chunk_item: EcmascriptChunkItemVc,
-        chunk_context: EcmascriptChunkContextVc,
-        context: ChunkingContextVc,
-    ) -> Result<Self> {
-        let content = chunk_item.content(chunk_context, context);
+    async fn new(chunk_item: EcmascriptChunkItemVc) -> Result<Self> {
+        let content = chunk_item.content();
         let factory = module_factory(content);
-        let id = content.await?.id.await?;
+        let id = chunk_item.id().await?;
         let code = factory.await?;
         let hash = hash_xxh3_hash64(code.source_code().as_bytes());
         Ok(EcmascriptChunkContentEntry {
@@ -610,33 +598,17 @@ impl EcmascriptChunkVc {
                         }
                     }
                 }
-                let c_context = chunk_context(this.context);
+                let context = this.context;
                 let mut entry_modules_ids = if let Some(runtime_entries) = runtime_entries {
                     runtime_entries
                         .await?
                         .iter()
-                        .map({
-                            let context = this.context;
-                            move |entry| async move {
-                                Ok(entry
-                                    .as_chunk_item(context)
-                                    .content(c_context, context)
-                                    .await?
-                                    .id) as Result<_>
-                            }
-                        })
-                        .try_join()
-                        .await?
+                        .map(|entry| entry.as_chunk_item(context).id())
+                        .collect()
                 } else {
                     vec![]
                 };
-                entry_modules_ids.push(
-                    this.main_entry
-                        .as_chunk_item(this.context)
-                        .content(c_context, this.context)
-                        .await?
-                        .id,
-                );
+                entry_modules_ids.push(this.main_entry.as_chunk_item(context).id());
                 (
                     Some(EcmascriptChunkContentEvaluateVc::cell(
                         EcmascriptChunkContentEvaluate {
@@ -744,27 +716,14 @@ pub struct EcmascriptChunkContext {}
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkContextVc {
     #[turbo_tasks::function]
-    pub async fn id(self, placeable: EcmascriptChunkPlaceableVc) -> Result<ModuleIdVc> {
-        Ok(ModuleId::String(placeable.to_string().await?.clone_value()).into())
-    }
-
-    /// Certain assets are split into a "loader" item that can be quickly
-    /// embeded, and a "manifest" chunk which is more expensive to compute.
-    #[turbo_tasks::function]
-    pub fn manifest_loader_id(self, asset: AssetVc) -> ModuleIdVc {
-        self.helper_id("manifest loader", asset)
-    }
-
-    /// Certain assets are split into a "loader" item that can be quickly
-    /// embeded, and a "manifest" chunk which is more expensive to compute.
-    #[turbo_tasks::function]
-    pub fn manifest_chunk_id(self, asset: AssetVc) -> ModuleIdVc {
-        self.helper_id("manifest chunk", asset)
+    pub fn of(_context: ChunkingContextVc) -> EcmascriptChunkContextVc {
+        EcmascriptChunkContextVc::cell(EcmascriptChunkContext {})
     }
 
     #[turbo_tasks::function]
-    async fn helper_id(self, name: &str, asset: AssetVc) -> Result<ModuleIdVc> {
-        Ok(ModuleId::String(format!("{}/__/{}", asset.path().to_string().await?, name)).into())
+    pub async fn chunk_item_id(self, chunk_item: EcmascriptChunkItemVc) -> Result<ModuleIdVc> {
+        let s = chunk_item.to_string().await?.clone_value();
+        Ok(ModuleId::String(s).cell())
     }
 }
 
@@ -777,7 +736,7 @@ pub enum EcmascriptExports {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkPlaceable: Asset + ValueToString {
+pub trait EcmascriptChunkPlaceable: ChunkableAsset + Asset {
     fn as_chunk_item(&self, context: ChunkingContextVc) -> EcmascriptChunkItemVc;
     fn get_exports(&self) -> EcmascriptExportsVc;
 }
@@ -799,7 +758,6 @@ impl EcmascriptChunkPlaceablesVc {
 pub struct EcmascriptChunkItemContent {
     pub inner_code: String,
     pub source_map: Option<ParseResultSourceMapVc>,
-    pub id: ModuleIdVc,
     pub options: EcmascriptChunkItemOptions,
 }
 
@@ -811,13 +769,12 @@ pub struct EcmascriptChunkItemOptions {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkItem: ChunkItem {
-    // TODO handle Source Maps, maybe via separate method "content_with_map"
-    fn content(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        context: ChunkingContextVc,
-    ) -> EcmascriptChunkItemContentVc;
+pub trait EcmascriptChunkItem: ChunkItem + ValueToString {
+    fn content(&self) -> EcmascriptChunkItemContentVc;
+    fn chunking_context(&self) -> ChunkingContextVc;
+    fn id(&self) -> ModuleIdVc {
+        EcmascriptChunkContextVc::of(self.chunking_context()).chunk_item_id(*self)
+    }
 }
 
 #[async_trait::async_trait]
@@ -835,7 +792,7 @@ impl FromChunkableAsset for EcmascriptChunkItemVc {
     ) -> Result<Option<(Self, ChunkableAssetVc)>> {
         let chunk = ManifestChunkAssetVc::new(asset, context);
         Ok(Some((
-            ManifestLoaderItemVc::new(chunk).into(),
+            ManifestLoaderItemVc::new(context, chunk).into(),
             chunk.into(),
         )))
     }
@@ -856,11 +813,7 @@ const LIST_CHUNK_COUNT: usize = 10;
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItemsVc {
     #[turbo_tasks::function]
-    async fn to_entry_snapshot(
-        self,
-        c_context: EcmascriptChunkContextVc,
-        context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkContentEntriesSnapshotVc> {
+    async fn to_entry_snapshot(self) -> Result<EcmascriptChunkContentEntriesSnapshotVc> {
         let list = self.await?;
         if list.len() > MAX_SHORT_LIST_LEN {
             let chunk_size = list.len().div_ceil(LIST_CHUNK_COUNT);
@@ -869,7 +822,7 @@ impl EcmascriptChunkItemsVc {
                     .map(|chunk| {
                         EcmascriptChunkItems(chunk.to_vec())
                             .cell()
-                            .to_entry_snapshot(c_context, context)
+                            .to_entry_snapshot()
                     })
                     .try_join()
                     .await?,
@@ -878,9 +831,7 @@ impl EcmascriptChunkItemsVc {
         } else {
             Ok(EcmascriptChunkContentEntries(
                 list.iter()
-                    .map(|chunk_item| {
-                        EcmascriptChunkContentEntryVc::new(*chunk_item, c_context, context)
-                    })
+                    .map(|chunk_item| EcmascriptChunkContentEntryVc::new(*chunk_item))
                     .collect(),
             )
             .cell()

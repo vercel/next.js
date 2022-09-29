@@ -8,12 +8,12 @@ use swc_core::{
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    chunk::ModuleId,
+    chunk::{ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleId},
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
     resolve::{ResolveResult, ResolveResultVc, SpecialType},
 };
 
-use crate::{utils::module_id_to_lit, EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc};
+use crate::{chunk::EcmascriptChunkItemVc, utils::module_id_to_lit};
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
 /// to corresponding module ids. The same pattern can map to multiple module ids
@@ -94,7 +94,7 @@ impl PatternMappingVc {
     #[turbo_tasks::function]
     pub async fn resolve_request(
         issue_context_path: FileSystemPathVc,
-        chunk_context: EcmascriptChunkContextVc,
+        context: ChunkingContextVc,
         resolve_result: ResolveResultVc,
         resolve_type: Value<ResolveType>,
     ) -> Result<PatternMappingVc> {
@@ -136,29 +136,36 @@ impl PatternMappingVc {
             }
         };
 
-        if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-            let name = &*if *resolve_type == ResolveType::EsmAsync {
-                chunk_context.manifest_loader_id(*asset)
-            } else {
-                chunk_context.id(placeable)
+        if let Some(chunkable) = ChunkableAssetVc::resolve_from(asset).await? {
+            if *resolve_type == ResolveType::EsmAsync {
+                if let Some((loader, _)) =
+                    EcmascriptChunkItemVc::from_async_asset(context, chunkable).await?
+                {
+                    return Ok(PatternMappingVc::cell(PatternMapping::Single(
+                        loader.id().await?.clone_value(),
+                    )));
+                }
+            } else if let Some(chunk_item) =
+                EcmascriptChunkItemVc::from_asset(context, *asset).await?
+            {
+                return Ok(PatternMappingVc::cell(PatternMapping::Single(
+                    chunk_item.id().await?.clone_value(),
+                )));
             }
-            .await?;
-            Ok(PatternMappingVc::cell(PatternMapping::Single(name.clone())))
-        } else {
-            CodeGenerationIssue {
-                severity: IssueSeverity::Bug.into(),
-                code: None,
-                title: StringVc::cell("non-ecmascript placeable asset".to_string()),
-                message: StringVc::cell(format!(
-                    "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
-                    asset.path().to_string().await?
-                )),
-                path: issue_context_path,
-            }
-            .cell()
-            .as_issue()
-            .emit();
-            Ok(PatternMappingVc::cell(PatternMapping::Invalid))
         }
+        CodeGenerationIssue {
+            severity: IssueSeverity::Bug.into(),
+            code: None,
+            title: StringVc::cell("non-ecmascript placeable asset".to_string()),
+            message: StringVc::cell(format!(
+                "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
+                asset.path().to_string().await?
+            )),
+            path: issue_context_path,
+        }
+        .cell()
+        .as_issue()
+        .emit();
+        Ok(PatternMappingVc::cell(PatternMapping::Invalid))
     }
 }

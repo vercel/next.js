@@ -1,24 +1,20 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["[root of the dev server]/snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_index.js.eval.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["[root of the dev server]/snapshot/example/static/output/snapshot_example_static_input_index.js.eval.js", {
 
-"[project]/snapshot/example/async_chunk/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
+"[project]/snapshot/example/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, m: module, e: exports }) => (() => {
 
-__turbopack_require__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/manifest-loader.js")(__turbopack_import__).then(({ foo  })=>{
-    foo(true);
-});
+var __TURBOPACK__imported__module__$5b$project$5d2f$snapshot$2f$example$2f$static$2f$input$2f$vercel$2e$svg__ = __turbopack_import__("[project]/snapshot/example/static/input/vercel.svg (static)");
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$snapshot$2f$example$2f$static$2f$input$2f$vercel$2e$svg__["default"]);
 
 })()),
-"[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/manifest-loader.js": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
+"[project]/snapshot/example/static/input/vercel.svg (static)": (({ r: __turbopack_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process }) => (() => {
 
-
-__turbopack_export_value__((__turbopack_import__) => {
-    return __turbopack_load__("[root of the dev server]/snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_node_modules_foo_index.js_manifest-chunk.js", "./snapshot/example/async_chunk/output/snapshot_example_async_chunk_input_node_modules_foo_index.js_manifest-chunk.js").then(() => {
-        return __turbopack_require__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js/manifest-chunk.js");
-    }).then(() => __turbopack_import__("[project]/snapshot/example/async_chunk/input/node_modules/foo/index.js (ecmascript)"));
-});
+__turbopack_export_value__("/snapshot/example/static/static/04cd41686148faf80b59f60e37c4f0ab.svg");
 })()),
 }, ({ chunks, instantiateRuntimeModule }) => {
     if(!(true)) return true;
-    instantiateRuntimeModule("[project]/snapshot/example/async_chunk/input/index.js (ecmascript)");
+    instantiateRuntimeModule("[project]/snapshot/example/static/input/index.js (ecmascript)");
 }]);
 (() => {
   // When a chunk is executed, it will either register itself with the current
@@ -709,4 +705,4 @@ __turbopack_export_value__((__turbopack_import__) => {
 })();
 
 
-//# sourceMappingURL=snapshot_example_async_chunk_input_index.js.eval.js.d3ba07e4762bde9d.map
+//# sourceMappingURL=snapshot_example_static_input_index.js.eval.js.cd387460f0c242a5.map

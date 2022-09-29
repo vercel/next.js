@@ -7,10 +7,9 @@ use turbopack_core::{
     reference::AssetReferencesVc,
 };
 use turbopack_ecmascript::chunk::{
-    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
-    EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
-    EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports,
-    EcmascriptExportsVc,
+    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+    EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
+    EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
 };
 
 use crate::fs::DevServerFileSystemVc;
@@ -51,14 +50,6 @@ impl Asset for HtmlRuntimeAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for HtmlRuntimeAsset {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        html_runtime_path().to_string()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkableAsset for HtmlRuntimeAsset {
     #[turbo_tasks::function]
     fn as_chunk(self_vc: HtmlRuntimeAssetVc, context: ChunkingContextVc) -> ChunkVc {
@@ -71,9 +62,14 @@ impl EcmascriptChunkPlaceable for HtmlRuntimeAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self_vc: HtmlRuntimeAssetVc,
-        _context: ChunkingContextVc,
+        context: ChunkingContextVc,
     ) -> EcmascriptChunkItemVc {
-        HtmlRuntimeChunkItem { inner: self_vc }.cell().into()
+        HtmlRuntimeChunkItem {
+            context,
+            inner: self_vc,
+        }
+        .cell()
+        .into()
     }
 
     #[turbo_tasks::function]
@@ -84,7 +80,16 @@ impl EcmascriptChunkPlaceable for HtmlRuntimeAsset {
 
 #[turbo_tasks::value]
 struct HtmlRuntimeChunkItem {
+    context: ChunkingContextVc,
     inner: HtmlRuntimeAssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for HtmlRuntimeChunkItem {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> StringVc {
+        html_runtime_path().to_string()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -98,15 +103,15 @@ impl ChunkItem for HtmlRuntimeChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for HtmlRuntimeChunkItem {
     #[turbo_tasks::function]
-    async fn content(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemContentVc> {
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         if let AssetContent::File(file) = &*self.inner.content().await? {
             if let FileContent::Content(content) = &*file.await? {
                 return Ok(EcmascriptChunkItemContent {
-                    id: chunk_context.id(self.inner.into()),
                     inner_code: String::from_utf8(content.content().to_vec())?,
                     // TODO: We generate a minimal map for runtime code so that the filename is
                     // displayed in dev tools.

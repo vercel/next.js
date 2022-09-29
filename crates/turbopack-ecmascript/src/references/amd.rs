@@ -20,7 +20,6 @@ use crate::{
     create_visitor,
     references::{pattern_mapping::PatternMapping, AstPathVc},
     resolve::cjs_resolve,
-    EcmascriptChunkContextVc,
 };
 
 #[turbo_tasks::value]
@@ -90,11 +89,7 @@ impl AmdDefineWithDependenciesCodeGenVc {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
     #[turbo_tasks::function]
-    async fn code_generation(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+    async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
         let dependencies_pms: Vec<_> = self
@@ -103,7 +98,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
             .map(|request| async move {
                 PatternMappingVc::resolve_request(
                     self.context.context_path(),
-                    chunk_context,
+                    context,
                     cjs_resolve(*request, self.context),
                     Value::new(Cjs),
                 )

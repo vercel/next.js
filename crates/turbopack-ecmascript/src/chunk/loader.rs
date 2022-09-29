@@ -14,10 +14,9 @@ use turbopack_core::{
 
 use crate::{
     chunk::{
-        EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports,
-        EcmascriptExportsVc,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+        EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
+        EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
     utils::{stringify_module_id, stringify_str},
 };
@@ -36,25 +35,27 @@ use crate::{
 /// import appears in.
 #[turbo_tasks::value]
 pub struct ManifestLoaderItem {
+    context: ChunkingContextVc,
     manifest: ManifestChunkAssetVc,
 }
 
 #[turbo_tasks::value_impl]
 impl ManifestLoaderItemVc {
     #[turbo_tasks::function]
-    pub fn new(manifest: ManifestChunkAssetVc) -> Self {
-        Self::cell(ManifestLoaderItem { manifest })
+    pub fn new(context: ChunkingContextVc, manifest: ManifestChunkAssetVc) -> Self {
+        Self::cell(ManifestLoaderItem { context, manifest })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ValueToString for ManifestLoaderItem {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "manifest loader for {}",
-            self.manifest.path().await?
-        )))
+    fn to_string(&self) -> StringVc {
+        self.manifest
+            .path()
+            .parent()
+            .join("manifest-loader.js")
+            .to_string()
     }
 }
 
@@ -69,16 +70,17 @@ impl ChunkItem for ManifestLoaderItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
-    async fn content(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemContentVc> {
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let mut code = String::new();
 
         let manifest = self.manifest.await?;
         let asset = manifest.asset.as_asset();
-        let chunk = self.manifest.as_chunk(context);
+        let chunk = self.manifest.as_chunk(self.context);
         let fs = chunk.path();
 
         // We need several items in order for a dynamic import to fully load. First, we
@@ -98,14 +100,14 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
-        let item_id = &*chunk_context.manifest_chunk_id(asset).await?;
+        let item_id = &*self.manifest.as_chunk_item(self.context).id().await?;
 
         // Finally, we need the id of the module that we're actually trying to
         // dynamically import.
         let placeable = EcmascriptChunkPlaceableVc::resolve_from(asset)
             .await?
             .unwrap();
-        let dynamic_id = &*chunk_context.id(placeable).await?;
+        let dynamic_id = &*placeable.as_chunk_item(self.context).id().await?;
 
         // TODO: a dedent macro with expression interpolation would be awesome.
         write!(
@@ -125,7 +127,6 @@ __turbopack_export_value__((__turbopack_import__) => {{
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
             source_map: None,
-            id: chunk_context.manifest_loader_id(asset),
             options: EcmascriptChunkItemOptions {
                 ..Default::default()
             },
@@ -199,9 +200,14 @@ impl EcmascriptChunkPlaceable for ManifestChunkAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self_vc: ManifestChunkAssetVc,
-        _context: ChunkingContextVc,
+        context: ChunkingContextVc,
     ) -> EcmascriptChunkItemVc {
-        ManifestChunkItem { manifest: self_vc }.cell().into()
+        ManifestChunkItem {
+            context,
+            manifest: self_vc,
+        }
+        .cell()
+        .into()
     }
 
     #[turbo_tasks::function]
@@ -210,31 +216,32 @@ impl EcmascriptChunkPlaceable for ManifestChunkAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ManifestChunkAsset {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        self.asset.path().to_string()
-    }
-}
-
 /// The ManifestChunkItem generates a __turbopack_load__ call for every chunk
 /// necessary to load the real asset. Once all the loads resolve, it is safe to
 /// __turbopack_import__ the actual module that was dynamically imported.
 #[turbo_tasks::value]
 struct ManifestChunkItem {
+    context: ChunkingContextVc,
     manifest: ManifestChunkAssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ManifestChunkItem {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(self.manifest.path().to_string())
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
-    async fn content(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemContentVc> {
-        let asset = self.manifest.await?.asset;
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let chunks = self.manifest.chunks().await?;
 
         let mut chunk_ids = HashSet::new();
@@ -275,7 +282,6 @@ __turbopack_export_value__(Promise.all(loads));"
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
             source_map: None,
-            id: chunk_context.manifest_chunk_id(asset.into()),
             options: EcmascriptChunkItemOptions {
                 ..Default::default()
             },

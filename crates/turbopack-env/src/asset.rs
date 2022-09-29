@@ -10,10 +10,9 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports,
-        EcmascriptExportsVc,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+        EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
+        EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
     utils::stringify_str,
 };
@@ -58,14 +57,6 @@ impl Asset for ProcessEnvAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ProcessEnvAsset {
-    #[turbo_tasks::function]
-    fn to_string(self_vc: ProcessEnvAssetVc) -> StringVc {
-        self_vc.path().to_string()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkableAsset for ProcessEnvAsset {
     #[turbo_tasks::function]
     fn as_chunk(self_vc: ProcessEnvAssetVc, context: ChunkingContextVc) -> ChunkVc {
@@ -78,9 +69,14 @@ impl EcmascriptChunkPlaceable for ProcessEnvAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self_vc: ProcessEnvAssetVc,
-        _context: ChunkingContextVc,
+        context: ChunkingContextVc,
     ) -> EcmascriptChunkItemVc {
-        ProcessEnvChunkItem { inner: self_vc }.cell().into()
+        ProcessEnvChunkItem {
+            context,
+            inner: self_vc,
+        }
+        .cell()
+        .into()
     }
 
     #[turbo_tasks::function]
@@ -91,7 +87,16 @@ impl EcmascriptChunkPlaceable for ProcessEnvAsset {
 
 #[turbo_tasks::value]
 struct ProcessEnvChunkItem {
+    context: ChunkingContextVc,
     inner: ProcessEnvAssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ProcessEnvChunkItem {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> StringVc {
+        self.inner.path().to_string()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -105,11 +110,12 @@ impl ChunkItem for ProcessEnvChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ProcessEnvChunkItem {
     #[turbo_tasks::function]
-    async fn content(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemContentVc> {
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let asset = self.inner.await?;
         let env = asset.env.read().await?;
 
@@ -124,7 +130,6 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
         }
 
         Ok(EcmascriptChunkItemContent {
-            id: chunk_context.id(self.inner.into()),
             inner_code: code,
             source_map: None,
             options: EcmascriptChunkItemOptions {

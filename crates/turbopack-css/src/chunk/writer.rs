@@ -1,14 +1,12 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    fmt::Write,
-};
+use std::{collections::VecDeque, fmt::Write};
+
+use turbo_tasks::ValueToString;
 
 use crate::CssChunkItemContentVc;
 
 pub async fn expand_imports<T: Write>(
     mut writer: WriterWithIndent<T>,
     content_vc: CssChunkItemContentVc,
-    map: &HashMap<String, CssChunkItemContentVc>,
 ) -> anyhow::Result<()> {
     let content = &*content_vc.await?;
     let mut stack = vec![(
@@ -18,26 +16,21 @@ pub async fn expand_imports<T: Write>(
     )];
 
     while let Some((content_vc, imports, (indent, close))) = stack.last_mut() {
-        if let Some((import, imported_id)) = imports.pop_front() {
+        if let Some((import, imported_chunk_item)) = imports.pop_front() {
             let (open, inner_indent, close) = import.await?.attributes.await?.print_block()?;
 
-            let id = &*imported_id.await?;
+            let id = &*imported_chunk_item.to_string().await?;
 
             writeln!(writer, "/* import({}) */", id)?;
             writeln!(writer, "{}", open)?;
-            if let Some(imported_content_vc) = map.get(id) {
-                let imported_content = &*(*imported_content_vc).await?;
-                writer.push_indent(inner_indent)?;
-                stack.push((
-                    *imported_content_vc,
-                    imported_content.imports.iter().cloned().collect(),
-                    (inner_indent, close),
-                ));
-            } else {
-                println!("unable to expand css import: {}", id);
-                writeln!(writer, "/* could not expand imported css contents */")?;
-                writeln!(writer, "{}", close)?;
-            }
+            let imported_content_vc = imported_chunk_item.content();
+            let imported_content = &*imported_content_vc.await?;
+            writer.push_indent(inner_indent)?;
+            stack.push((
+                imported_content_vc,
+                imported_content.imports.iter().cloned().collect(),
+                (inner_indent, close),
+            ));
         } else {
             let content = &*(*content_vc).await?;
             writeln!(writer, "{}", content.inner_code)?;

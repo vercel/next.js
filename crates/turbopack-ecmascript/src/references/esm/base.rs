@@ -19,7 +19,7 @@ use turbopack_core::{
 
 use crate::{
     analyzer::imports::ImportAnnotations,
-    chunk::{EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc},
+    chunk::EcmascriptChunkPlaceableVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor, magic_identifier,
     resolve::esm_resolve,
@@ -118,14 +118,13 @@ impl CodeGenerateable for EsmAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self_vc: EsmAssetReferenceVc,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
+        context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) = &*self_vc.get_referenced_asset().await? {
             let ident = get_ident(*asset).await?;
-            let id = chunk_context.id(*asset).await?;
+            let id = asset.as_chunk_item(context).id().await?;
             visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                 let stmt = quote!(
                     "var $name = __turbopack_import__($id);" as Stmt,

@@ -22,10 +22,9 @@ use turbopack_core::{
 use turbopack_css::embed::{CssEmbed, CssEmbedVc, CssEmbeddable, CssEmbeddableVc};
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports,
-        EcmascriptExportsVc,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+        EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
+        EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
     utils::stringify_str,
 };
@@ -114,17 +113,6 @@ impl CssEmbeddable for StaticModuleAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for StaticModuleAsset {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{} (static)",
-            self.source.path().to_string().await?
-        )))
-    }
-}
-
 #[turbo_tasks::value]
 struct StaticAsset {
     context: ChunkingContextVc,
@@ -173,6 +161,17 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl ValueToString for ModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "{} (static)",
+            self.module.await?.source.path().to_string().await?
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
@@ -187,18 +186,18 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    async fn content(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemContentVc> {
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
                 "__turbopack_export_value__({path});",
                 path = stringify_str(&format!("/{}", &*self.static_asset.path().await?))
             ),
             source_map: None,
-            id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
             options: EcmascriptChunkItemOptions {
                 ..Default::default()
             },

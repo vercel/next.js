@@ -24,8 +24,7 @@ pub mod webpack;
 
 use anyhow::Result;
 use chunk::{
-    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc,
-    EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
+    EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
 };
 use code_gen::CodeGenerateableVc;
 use parse::{parse, ParseResult, ParseResultSourceMap};
@@ -166,21 +165,21 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{} (ecmascript)",
-            self.source.path().to_string().await?
-        )))
-    }
-}
-
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: EcmascriptModuleAssetVc,
     context: ChunkingContextVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "{} (ecmascript)",
+            self.module.await?.source.path().to_string().await?
+        )))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -194,24 +193,26 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    async fn content(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemContentVc> {
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let AnalyzeEcmascriptModuleResult {
             references,
             code_generation,
             ..
         } = &*self.module.analyze().await?;
+        let context = self.context;
         let mut code_gens = Vec::new();
         for r in references.await?.iter() {
             if let Some(code_gen) = CodeGenerateableVc::resolve_from(r).await? {
-                code_gens.push(code_gen.code_generation(chunk_context, context));
+                code_gens.push(code_gen.code_generation(context));
             }
         }
         for c in code_generation.await?.iter() {
-            code_gens.push(c.code_generation(chunk_context, context));
+            code_gens.push(c.code_generation(context));
         }
         // need to keep that around to allow references into that
         let code_gens = code_gens.into_iter().try_join().await?;
@@ -276,7 +277,6 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             Ok(EcmascriptChunkItemContent {
                 inner_code: String::from_utf8(bytes)?,
                 source_map: Some(srcmap),
-                id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
                 options: EcmascriptChunkItemOptions {
                     // TODO disable that for ESM
                     module: true,
@@ -292,7 +292,6 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                     self.module.path().to_string().await?
                 ),
                 source_map: None,
-                id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
                 options: EcmascriptChunkItemOptions {
                     ..Default::default()
                 },

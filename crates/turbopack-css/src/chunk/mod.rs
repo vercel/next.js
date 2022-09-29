@@ -1,9 +1,7 @@
 mod writer;
 
-use std::collections::HashMap;
-
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -31,11 +29,6 @@ impl CssChunkVc {
     pub fn new(context: ChunkingContextVc, entry: AssetVc) -> Self {
         Self::cell(CssChunk { context, entry })
     }
-}
-
-#[turbo_tasks::function]
-fn chunk_context(_context: ChunkingContextVc) -> CssChunkContextVc {
-    CssChunkContextVc::cell(CssChunkContext {})
 }
 
 #[turbo_tasks::value]
@@ -95,32 +88,16 @@ impl Asset for CssChunk {
     #[turbo_tasks::function]
     async fn content(self_vc: CssChunkVc) -> Result<AssetContentVc> {
         let this = self_vc.await?;
-        let content = &*css_chunk_content(this.context, this.entry).await?;
-        let c_context = chunk_context(this.context);
 
         let entry_placeable = CssChunkPlaceableVc::cast_from(this.entry);
-        let entry_content = entry_placeable
-            .as_chunk_item(this.context)
-            .content(c_context, this.context);
-
-        let entries = content
-            .chunk_items
-            .iter()
-            .map(|chunk_item| async {
-                let content_vc = chunk_item.content(c_context, this.context);
-                let content = &*content_vc.await?;
-                Ok((content.path.await?.clone_value(), content_vc)) as Result<_>
-            })
-            .try_join()
-            .await?;
-        let map = entries.into_iter().collect::<HashMap<_, _>>();
+        let entry_content = entry_placeable.as_chunk_item(this.context).content();
 
         let path = self_vc.path();
         let chunk_id = path.to_string();
         let mut code = format!("/* chunk {} */\n", chunk_id.await?);
 
         let writer = WriterWithIndent::new(&mut code);
-        expand_imports(writer, entry_content, &map).await?;
+        expand_imports(writer, entry_content).await?;
 
         Ok(FileContent::Content(File::from_source(code)).cell().into())
     }
@@ -152,26 +129,30 @@ impl Asset for CssChunk {
 #[turbo_tasks::value]
 pub struct CssChunkContext {}
 
+#[turbo_tasks::value_impl]
+impl CssChunkContextVc {
+    #[turbo_tasks::function]
+    pub fn of(_context: ChunkingContextVc) -> CssChunkContextVc {
+        // TODO in future we will use something from the chunking context
+        CssChunkContext {}.cell()
+    }
+}
+
 #[turbo_tasks::value_trait]
-pub trait CssChunkPlaceable: ValueToString {
+pub trait CssChunkPlaceable {
     fn as_chunk_item(&self, context: ChunkingContextVc) -> CssChunkItemVc;
 }
 
 #[turbo_tasks::value(shared)]
 pub struct CssChunkItemContent {
     pub inner_code: String,
-    pub path: StringVc,
-    pub imports: Vec<(ImportAssetReferenceVc, StringVc)>,
+    pub imports: Vec<(ImportAssetReferenceVc, CssChunkItemVc)>,
 }
 
 #[turbo_tasks::value_trait]
-pub trait CssChunkItem: ChunkItem {
-    // TODO handle Source Maps, maybe via separate method "content_with_map"
-    fn content(
-        &self,
-        chunk_context: CssChunkContextVc,
-        context: ChunkingContextVc,
-    ) -> CssChunkItemContentVc;
+pub trait CssChunkItem: ChunkItem + ValueToString {
+    // TODO handle Source Maps
+    fn content(&self) -> CssChunkItemContentVc;
 }
 
 #[async_trait::async_trait]

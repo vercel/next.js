@@ -29,8 +29,8 @@ pub(crate) mod references;
 
 use crate::{
     chunk::{
-        CssChunkContextVc, CssChunkItem, CssChunkItemContent, CssChunkItemContentVc,
-        CssChunkItemVc, CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc,
+        CssChunkItem, CssChunkItemContent, CssChunkItemContentVc, CssChunkItemVc,
+        CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc,
     },
     code_gen::CodeGenerateableVc,
     parse::{parse, ParseResult},
@@ -91,22 +91,21 @@ impl CssChunkPlaceable for CssModuleAsset {
         .into()
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CssModuleAsset {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{} (css)",
-            self.source.path().to_string().await?
-        )))
-    }
-}
-
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: CssModuleAssetVc,
     context: ChunkingContextVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "{} (css)",
+            self.module.await?.source.path().to_string().await?
+        )))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -120,19 +119,16 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl CssChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    async fn content(
-        &self,
-        chunk_context: CssChunkContextVc,
-        context: ChunkingContextVc,
-    ) -> Result<CssChunkItemContentVc> {
+    async fn content(&self) -> Result<CssChunkItemContentVc> {
         let references = &*self.module.references().await?;
         let mut imports = vec![];
+        let context = self.context;
 
         for reference in references.iter() {
             if let Some(import) = ImportAssetReferenceVc::resolve_from(reference).await? {
                 for asset in &*import.resolve_reference().primary_assets().await? {
-                    if CssChunkPlaceableVc::resolve_from(asset).await?.is_some() {
-                        imports.push((import, asset.path().to_string()));
+                    if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
+                        imports.push((import, placeable.as_chunk_item(context)));
                     }
                 }
             }
@@ -141,7 +137,7 @@ impl CssChunkItem for ModuleChunkItem {
         let mut code_gens = Vec::new();
         for r in references.iter() {
             if let Some(code_gen) = CodeGenerateableVc::resolve_from(r).await? {
-                code_gens.push(code_gen.code_generation(chunk_context, context));
+                code_gens.push(code_gen.code_generation(context));
             }
         }
         // need to keep that around to allow references into that
@@ -202,7 +198,6 @@ impl CssChunkItem for ModuleChunkItem {
 
             Ok(CssChunkItemContent {
                 inner_code: code_string,
-                path: self.module.path().to_string(),
                 imports,
             }
             .into())
@@ -212,7 +207,6 @@ impl CssChunkItem for ModuleChunkItem {
                     "/* unparseable {} */",
                     self.module.path().to_string().await?
                 ),
-                path: self.module.path().to_string(),
                 imports: vec![],
             }
             .into())

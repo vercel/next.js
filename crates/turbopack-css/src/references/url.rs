@@ -13,7 +13,6 @@ use turbopack_core::{
 };
 
 use crate::{
-    chunk::CssChunkContextVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     embed::CssEmbeddableVc,
@@ -84,7 +83,6 @@ impl CodeGenerateable for UrlAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self_vc: UrlAssetReferenceVc,
-        _chunk_context: CssChunkContextVc,
         context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let this = self_vc.await?;

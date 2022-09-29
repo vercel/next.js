@@ -13,7 +13,6 @@ use turbopack_core::chunk::ChunkingContextVc;
 
 use super::EsmAssetReferenceVc;
 use crate::{
-    chunk::EcmascriptChunkContextVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::{
@@ -35,7 +34,6 @@ impl CodeGenerateable for EsmBinding {
     #[turbo_tasks::function]
     async fn code_generation(
         self_vc: EsmBindingVc,
-        _chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let this = self_vc.await?;

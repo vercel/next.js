@@ -1,8 +1,11 @@
-use turbo_tasks::{ValueToString, ValueToStringVc};
-use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc, reference::AssetReferencesVc};
+use turbopack_core::{
+    asset::{Asset, AssetVc},
+    chunk::{ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    reference::AssetReferencesVc,
+};
 
 #[turbo_tasks::value_trait]
-pub trait CssEmbeddable: ValueToString {
+pub trait CssEmbeddable: ChunkableAsset + Asset {
     fn as_css_embed(&self, context: ChunkingContextVc) -> CssEmbedVc;
 }
 

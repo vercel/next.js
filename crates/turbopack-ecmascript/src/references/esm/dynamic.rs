@@ -19,7 +19,6 @@ use turbopack_core::{
 
 use super::super::pattern_mapping::{PatternMapping, PatternMappingVc, ResolveType::EsmAsync};
 use crate::{
-    chunk::EcmascriptChunkContextVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::AstPathVc,
@@ -84,14 +83,10 @@ impl AsyncLoadableReference for EsmAsyncAssetReference {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for EsmAsyncAssetReference {
     #[turbo_tasks::function]
-    async fn code_generation(
-        &self,
-        chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
+    async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
             self.context.context_path(),
-            chunk_context,
+            context,
             esm_resolve(self.request, self.context),
             Value::new(EsmAsync),
         )

@@ -29,7 +29,7 @@ use super::{
     EsmAssetReferenceVc,
 };
 use crate::{
-    chunk::{EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceableVc, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
 };
@@ -66,7 +66,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
                 message: StringVc::cell(format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \
                      want to import only types with `export type * from \"...\"`?",
-                    asset.to_string().await?
+                    asset.path().to_string().await?
                 )),
                 path: asset.path(),
                 severity: IssueSeverity::Warning.into(),
@@ -82,7 +82,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
                     "export * used with module {} which only has a default export (default export \
                      is not exported with export *)\nDid you want to use `export {{ default }} \
                      from \"...\";` instead?",
-                    asset.to_string().await?
+                    asset.path().to_string().await?
                 )),
                 path: asset.path(),
                 severity: IssueSeverity::Warning.into(),
@@ -98,7 +98,7 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
                     "export * used with module {} which is a CommonJS module with exports only \
                      available at runtime\nList all export names manually (`export {{ a, b, c }} \
                      from \"...\") or rewrite the module to ESM.`",
-                    asset.to_string().await?
+                    asset.path().to_string().await?
                 )),
                 path: asset.path(),
                 severity: IssueSeverity::Warning.into(),
@@ -125,7 +125,6 @@ impl CodeGenerateable for EsmExports {
     #[turbo_tasks::function]
     async fn code_generation(
         self_vc: EsmExportsVc,
-        _chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let this = self_vc.await?;
