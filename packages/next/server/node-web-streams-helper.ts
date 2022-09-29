@@ -265,12 +265,14 @@ export async function continueFromInitialStream(
     generateStaticHTML,
     flushEffectHandler,
     flushEffectsToHead,
+    polyfills,
   }: {
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     flushEffectHandler?: () => Promise<string>
     flushEffectsToHead: boolean
+    polyfills?: string[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -289,13 +291,21 @@ export async function continueFromInitialStream(
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
     createHeadInjectionTransformStream(async () => {
+      // Inject polyfills for browsers that don't support modules. It has to be
+      // blocking here and can't be `defer` because other scripts have `async`.
+      const polyfillScripts = polyfills
+        ? polyfills
+            .map((src) => `<script src="${src}" nomodule=""></script>`)
+            .join('')
+        : ''
+
       // TODO-APP: Inject flush effects to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
       const flushEffectsContent =
         flushEffectHandler && flushEffectsToHead
           ? await flushEffectHandler()
           : ''
-      return flushEffectsContent
+      return polyfillScripts + flushEffectsContent
     }),
   ].filter(nonNullable)
 
