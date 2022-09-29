@@ -1196,6 +1196,18 @@ describe('app dir', () => {
               )
             ).toBe(false)
           })
+
+          it.skip('should not include unused css modules in nested pages in prod', async () => {
+            const browser = await webdriver(
+              next.url,
+              '/css/css-page/unused-nested/inner'
+            )
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included_in_inner_path')))`
+              )
+            ).toBe(false)
+          })
         }
       })
 
