@@ -8,9 +8,6 @@ for folder in examples/* ; do
       del(.license, .version, .name, .author, .description)
     ' | sponge $folder/package.json
   fi
-  if [ -f "$folder/tsconfig.json" ]; then
-    cp packages/create-next-app/templates/typescript/next-env.d.ts $folder/next-env.d.ts
-  fi
 done;
 
 if [[ ! -z $(git status -s) ]];then
