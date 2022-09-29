@@ -30,7 +30,7 @@ next-swc = {version = "0.0.0", path = "../core"}
 once_cell = "1.13.0"
 serde = "1"
 serde_json = "1"
-swc_core = { version = "0.28.4", features = [
+swc_core = { version = "0.27.4", features = [
   "allocator_node",
   "base_concurrent", # concurrent?
   "common_concurrent",
