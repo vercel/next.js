@@ -14,7 +14,7 @@ export default async function loadI18nMessages(
       (module) => module.default
     )
   } catch (error) {
-    console.info(
+    throw new Error(
       'Could not load compiled language files. Please run "npm run i18n:compile" first"'
     )
   }
