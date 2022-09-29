@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type { FontModule } from 'next/font'
+import type { AdjustFontFallback, FontModule } from 'next/font'
 type Display = 'auto' | 'block' | 'swap' | 'fallback' | 'optional'
 type LocalFont = {
   src: string | Array<{ file: string; unicodeRange: string }>
@@ -8,15 +8,18 @@ type LocalFont = {
   style?: string
   fallback?: string[]
   preload?: boolean
+  variable?: string
 
-  ascentOverride?: string
-  descentOverride?: string
   fontStretch?: string
   fontVariant?: string
   fontFeatureSettings?: string
   fontVariationSettings?: string
+  ascentOverride?: string
+  descentOverride?: string
   lineGapOverride?: string
   sizeAdjust?: string
+
+  adjustFontFallback?: AdjustFontFallback
 }
 
 export default function localFont(options: LocalFont): FontModule {

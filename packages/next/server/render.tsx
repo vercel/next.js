@@ -108,6 +108,18 @@ function noRouter() {
   throw new Error(message)
 }
 
+async function renderToString(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
+}
+
+async function renderToStaticMarkup(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToStaticMarkup(element)
+  return renderToString(element)
+}
+
 class ServerRouter implements NextRouter {
   route: string
   pathname: string
@@ -1148,16 +1160,16 @@ export async function renderToHTML(
         _Component: NextComponentType
       ) => Promise<ReactReadableStream>
     ) {
-      const renderPage: RenderPage = (
+      const renderPage: RenderPage = async (
         options: ComponentsEnhancer = {}
-      ): RenderPageResult | Promise<RenderPageResult> => {
+      ): Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
           // Always start rendering the shell even if there's an error.
           if (renderShell) {
             renderShell(App, Component)
           }
 
-          const html = ReactDOMServer.renderToString(
+          const html = await renderToString(
             <Body>
               <ErrorDebug error={ctx.err} />
             </Body>
@@ -1184,7 +1196,7 @@ export async function renderToHTML(
           )
         }
 
-        const html = ReactDOMServer.renderToString(
+        const html = await renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
               {renderPageTree(EnhancedApp, EnhancedComponent, {
@@ -1256,7 +1268,7 @@ export async function renderToHTML(
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head
-        const result = ReactDOMServer.renderToString(content)
+        const result = await renderToString(content)
         const bodyResult = (suffix: string) => streamFromArray([result, suffix])
 
         const styles = jsxStyleRegistry.styles()
@@ -1289,9 +1301,8 @@ export async function renderToHTML(
       ) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when `wrapApp` is called
-        const flushEffectHandler = (): string => {
-          const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
-          return flushed
+        const flushEffectHandler = async (): Promise<string> => {
+          return renderToString(styledJsxFlushEffect())
         }
 
         return continueFromInitialStream(initialStream, {
@@ -1459,7 +1470,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  const documentHTML = ReactDOMServer.renderToStaticMarkup(document)
+  const documentHTML = await renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []

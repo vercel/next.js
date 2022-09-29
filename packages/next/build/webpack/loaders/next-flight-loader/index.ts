@@ -1,15 +1,6 @@
 import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
 import { getRSCModuleType } from '../../../analysis/get-page-static-info'
-import { parse } from '../../../swc'
 import { getModuleBuildInfo } from '../get-module-build-info'
-
-function transformServer(source: string, isESModule: boolean) {
-  return (
-    source +
-    (isESModule ? `export const __next_rsc__` : `exports.__next_rsc__`) +
-    ` = { __webpack_require__, server: true }\n`
-  )
-}
 
 export default async function transformSource(
   this: any,
@@ -21,14 +12,8 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const { resourcePath } = this
   const callback = this.async()
   const buildInfo = getModuleBuildInfo(this._module)
-  const swcAST = await parse(source, {
-    filename: resourcePath,
-    isModule: 'unknown',
-  })
-
   const rscType = getRSCModuleType(source)
 
   // Assign the RSC meta information to buildInfo.
@@ -39,7 +24,5 @@ export default async function transformSource(
     return callback(null, source, sourceMap)
   }
 
-  const isModule = swcAST.type === 'Module'
-  const code = transformServer(source, isModule)
-  return callback(null, code, sourceMap)
+  return callback(null, source, sourceMap)
 }
