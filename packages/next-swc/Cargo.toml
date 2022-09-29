@@ -9,5 +9,9 @@ members = [
 [profile.dev.package.swc_css_prefixer]
 opt-level = 2
 
+# Workaround a bug
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [profile.release]
 lto = true
