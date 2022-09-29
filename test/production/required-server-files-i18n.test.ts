@@ -135,6 +135,27 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('should not apply locale redirect in minimal mode', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      redirect: 'manual',
+      headers: {
+        'accept-language': 'fr',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('index page')
+
+    const resCookie = await fetchViaHTTP(appPort, '/', undefined, {
+      redirect: 'manual',
+      headers: {
+        'accept-language': 'en',
+        cookie: 'NEXT_LOCALE=fr',
+      },
+    })
+    expect(resCookie.status).toBe(200)
+    expect(await resCookie.text()).toContain('index page')
+  })
+
   it('should output required-server-files manifest correctly', async () => {
     expect(requiredFilesManifest.version).toBe(1)
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
@@ -150,7 +171,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
@@ -161,7 +182,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
@@ -173,7 +194,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
@@ -183,7 +204,7 @@ describe('should set-up next', () => {
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
-      redirect: 'manual ',
+      redirect: 'manual',
     })
     await next.patchFile('standalone/data.txt', 'show')
 

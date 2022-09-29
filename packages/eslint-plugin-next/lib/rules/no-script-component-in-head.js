@@ -1,5 +1,4 @@
-const url =
-  'https://nextjs.org/docs/messages/no-script-component-in-head-component'
+const url = 'https://nextjs.org/docs/messages/no-script-component-in-head'
 
 module.exports = {
   meta: {
@@ -8,6 +7,8 @@ module.exports = {
       recommended: true,
       url,
     },
+    type: 'problem',
+    schema: [],
   },
   create: function (context) {
     let isNextHead = null

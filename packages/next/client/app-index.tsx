@@ -2,9 +2,11 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-// @ts-ignore startTransition exists when using React 18
-import React from 'react'
+// TODO-APP: change to React.use once it becomes stable
+import React, { experimental_use as use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+
+import measureWebVitals from './performance-relayer'
 
 /// <reference types="react-dom/experimental" />
 
@@ -32,17 +34,6 @@ self.__next_require__ = __webpack_require__
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (!chunk) return Promise.resolve()
-  if (chunk.endsWith('.css')) {
-    const existingTag = document.querySelector(`link[href="${chunk}"]`)
-    if (!existingTag) {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = '/_next/' + chunk
-      document.head.appendChild(link)
-    }
-    return Promise.resolve()
-  }
-
   const [chunkId, chunkFileName] = chunk.split(':')
   chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
 
@@ -54,21 +45,6 @@ self.__next_require__ = __webpack_require__
 export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
-
-let reactRoot: any = null
-
-function renderReactElement(
-  domEl: HTMLElement | Document,
-  fn: () => JSX.Element
-): void {
-  const reactEl = fn()
-  if (!reactRoot) {
-    // Unlike with createRoot, you don't need a separate root.render() call here
-    reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
-  } else {
-    reactRoot.render(reactEl)
-  }
-}
 
 const getCacheKey = () => {
   const { pathname, search } = location
@@ -83,7 +59,9 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
-function nextServerDataCallback(seg: [number, string, string]) {
+function nextServerDataCallback(
+  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
   } else {
@@ -91,9 +69,9 @@ function nextServerDataCallback(seg: [number, string, string]) {
       throw new Error('Unexpected server data: missing bootstrap script.')
 
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(encoder.encode(seg[2]))
+      initialServerDataWriter.enqueue(encoder.encode(seg[1]))
     } else {
-      initialServerDataBuffer.push(seg[2])
+      initialServerDataBuffer.push(seg[1])
     }
   }
 }
@@ -147,73 +125,7 @@ function createResponseCache() {
 }
 const rscCache = createResponseCache()
 
-async function loadCss(cssChunkInfoJson: string) {
-  const data = JSON.parse(cssChunkInfoJson)
-  await Promise.all(
-    data.chunks.map((chunkId: string) => {
-      // load css related chunks
-      return (self as any).__next_chunk_load__(chunkId)
-    })
-  )
-  // In development mode, import css in dev when it's wrapped by style loader.
-  // In production mode, css are standalone chunk that doesn't need to be imported.
-  if (data.id) {
-    return (self as any).__next_require__(data.id)
-  }
-
-  return Promise.resolve()
-}
-
-function createLoadFlightCssStream(onFlightCssLoaded: () => void) {
-  const promises: Promise<any>[] = []
-  let cssFlushed = false
-
-  const loadCssFromStreamData = (data: string) => {
-    if (data.startsWith('CSS')) {
-      const cssJson = data.slice(4).trim()
-      promises.push(loadCss(cssJson))
-    }
-  }
-
-  // TODO-APP: Refine the buffering code here to make it more correct.
-  let buffer = ''
-  const loadCssFromFlight = new TransformStream({
-    transform(chunk, controller) {
-      const process = (buf: string) => {
-        if (buf) {
-          if (buf.startsWith('CSS:')) {
-            loadCssFromStreamData(buf)
-          } else {
-            controller.enqueue(new TextEncoder().encode(buf))
-
-            if (!cssFlushed) {
-              cssFlushed = true
-              Promise.all(promises).then(() => onFlightCssLoaded())
-            }
-          }
-        }
-      }
-
-      const data = new TextDecoder().decode(chunk)
-      buffer += data
-      let index
-      while ((index = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, index + 1)
-        buffer = buffer.slice(index + 1)
-        process(line)
-      }
-      process(buffer)
-      buffer = ''
-    },
-  })
-
-  return loadCssFromFlight
-}
-
-function useInitialServerResponse(
-  cacheKey: string,
-  onFlightCssLoaded: () => void
-) {
+function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   const response = rscCache.get(cacheKey)
   if (response) return response
 
@@ -223,30 +135,26 @@ function useInitialServerResponse(
     },
   })
 
-  const newResponse = createFromReadableStream(
-    readable.pipeThrough(createLoadFlightCssStream(onFlightCssLoaded))
-  )
+  const newResponse = createFromReadableStream(readable)
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
 }
 
-function ServerRoot({
-  cacheKey,
-  onFlightCssLoaded,
-}: {
-  cacheKey: string
-  onFlightCssLoaded: () => Promise<void>
-}) {
+function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
-  const response = useInitialServerResponse(cacheKey, onFlightCssLoaded)
-  const root = response.readRoot()
+  const response = useInitialServerResponse(cacheKey)
+  const root = use(response)
   return root
 }
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  React.useEffect(() => {
+    measureWebVitals()
+  }, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -261,17 +169,27 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-function RSCComponent(props: any) {
+function RSCComponent(props: any): JSX.Element {
   const cacheKey = getCacheKey()
   return <ServerRoot {...props} cacheKey={cacheKey} />
 }
 
-export function hydrate(opts?: { onFlightCssLoaded?: () => Promise<void> }) {
-  renderReactElement(appElement!, () => (
+export function hydrate() {
+  const reactEl = (
     <React.StrictMode>
       <Root>
-        <RSCComponent onFlightCssLoaded={opts?.onFlightCssLoaded} />
+        <RSCComponent />
       </Root>
     </React.StrictMode>
-  ))
+  )
+
+  const isError = document.documentElement.id === '__next_error__'
+  const reactRoot = isError
+    ? (ReactDOMClient as any).createRoot(appElement)
+    : (React as any).startTransition(() =>
+        (ReactDOMClient as any).hydrateRoot(appElement, reactEl)
+      )
+  if (isError) {
+    reactRoot.render(reactEl)
+  }
 }

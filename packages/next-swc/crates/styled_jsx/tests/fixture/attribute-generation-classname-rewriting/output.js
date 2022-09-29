@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default (()=>{
     const Element = 'div';
     return <div className={"jsx-abb4c2202db1a207"}>

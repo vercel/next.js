@@ -37,16 +37,16 @@ describe('devtool set in development mode in next config', () => {
       // TODO: add win32 snapshot
     } else {
       expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-        "pages/index.js (5:10) @ eval
+"pages/index.js (5:10) @ eval
 
-          3 | export default function Index(props) {
-          4 |   useEffect(() => {
-        > 5 |     throw new Error('this should render')
-            |          ^
-          6 |   }, [])
-          7 |   return <div>Index Page</div>
-          8 | }"
-      `)
+  3 | export default function Index(props) {
+  4 | useEffect(() => {
+> 5 |   throw new Error('this should render')
+    |        ^
+  6 | }, [])
+  7 | return <div>Index Page</div>
+  8 | }"
+`)
     }
     await browser.close()
 
