@@ -96,6 +96,9 @@ export class FlightClientEntryPlugin {
       }) => void
     ) {
       for (const [name, entry] of compilation.entries.entries()) {
+        // Skip for entries under pages/
+        if (name.startsWith('pages/')) continue
+
         // Check if the page entry is a server component or not.
         const entryDependency: webpack.NormalModule | undefined =
           entry.dependencies?.[0]
