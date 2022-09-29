@@ -54,16 +54,20 @@ export class FontStylesheetGatheringPlugin {
   manifestContent: FontManifest = []
   isLikeServerless: boolean
   adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
 
   constructor({
     isLikeServerless,
     adjustFontFallbacks,
+    adjustFontFallbacksWithSizeAdjust,
   }: {
     isLikeServerless: boolean
     adjustFontFallbacks?: boolean
+    adjustFontFallbacksWithSizeAdjust?: boolean
   }) {
     this.isLikeServerless = isLikeServerless
     this.adjustFontFallbacks = adjustFontFallbacks
+    this.adjustFontFallbacksWithSizeAdjust = adjustFontFallbacksWithSizeAdjust
   }
 
   private parserHandler = (
@@ -224,7 +228,11 @@ export class FontStylesheetGatheringPlugin {
             let css = await fontDefinitionPromises[promiseIndex]
 
             if (this.adjustFontFallbacks) {
-              css += getFontOverrideCss(fontStylesheets[promiseIndex], css)
+              css += getFontOverrideCss(
+                fontStylesheets[promiseIndex],
+                css,
+                this.adjustFontFallbacksWithSizeAdjust
+              )
             }
 
             if (css) {
