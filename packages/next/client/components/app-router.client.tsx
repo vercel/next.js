@@ -65,6 +65,14 @@ export async function fetchServerResponse(
     ? urlToUrlWithoutFlightMarker(res.url)
     : undefined
 
+  const isFlightResponse =
+    res.headers.get('content-type') === 'application/octet-stream'
+
+  // If fetch returns something different than flight response handle it like a mpa navigation
+  if (!isFlightResponse) {
+    return [res.url, undefined]
+  }
+
   // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
   const flightData: FlightData = await createFromFetch(Promise.resolve(res))
   return [flightData, canonicalUrl]
