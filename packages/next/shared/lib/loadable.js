@@ -139,11 +139,16 @@ function createLoadableComponent(loadFn, options) {
     // Ref to pass to the inner components
     const innerRef = React.useRef()
 
-    // Modify the instance exposed to parents and expose the innerRef
-    React.useImperativeHandle(ref, () =>
-      Object.assign(innerRef, {
-        retry: subscription.retry,
-      })
+    // Modify the instance exposed to parents prior to being loaded
+    React.useImperativeHandle(
+      ref,
+      () =>
+        state.loaded
+          ? innerRef.current
+          : {
+              retry: subscription.retry,
+            },
+      [state.loaded]
     )
 
     return React.useMemo(() => {
@@ -156,14 +161,21 @@ function createLoadableComponent(loadFn, options) {
           retry: subscription.retry,
         })
       } else if (state.loaded) {
-        return React.createElement(resolve(state.loaded), {
-          ...props,
-          ref: innerRef,
-        })
+        let elProps = props
+
+        // Add innerRef to props if consumer passed outer ref
+        if (ref) {
+          elProps = {
+            ...props,
+            ref: innerRef,
+          }
+        }
+
+        return React.createElement(resolve(state.loaded), elProps)
       } else {
         return null
       }
-    }, [props, state])
+    }, [props, state, ref])
   }
 
   function LazyImpl(props, ref) {
