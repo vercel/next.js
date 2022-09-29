@@ -136,12 +136,14 @@ function createLoadableComponent(loadFn, options) {
       subscription.getCurrentValue
     )
 
-    React.useImperativeHandle(
-      ref,
-      () => ({
+    // Ref to pass to the inner components
+    const innerRef = React.useRef()
+
+    // Modify the instance exposed to parents and expose the innerRef
+    React.useImperativeHandle(ref, () =>
+      Object.assign(innerRef, {
         retry: subscription.retry,
-      }),
-      []
+      })
     )
 
     return React.useMemo(() => {
@@ -154,7 +156,10 @@ function createLoadableComponent(loadFn, options) {
           retry: subscription.retry,
         })
       } else if (state.loaded) {
-        return React.createElement(resolve(state.loaded), props)
+        return React.createElement(resolve(state.loaded), {
+          ...props,
+          ref: innerRef,
+        })
       } else {
         return null
       }
