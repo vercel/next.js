@@ -420,7 +420,7 @@ jobs:
       - uses: replayio/action-upload@v0.4.5
         if: always()
         with:
-          api-key: rwk_1LfNb6DteBpcQbb5dcy3XZbo1jidYqN5qQr5uYYfiVt
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
           public: true
           filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
