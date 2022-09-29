@@ -603,43 +603,39 @@ async function renderToString(element: React.ReactElement) {
   return streamToString(renderStream)
 }
 
+function getRootLayoutPath(
+  [segment, parallelRoutes, { layout }]: LoaderTree,
+  rootLayoutPath = ''
+): string | undefined {
+  rootLayoutPath += `${segment}/`
+  const isLayout = typeof layout !== 'undefined'
+  if (isLayout) return rootLayoutPath
+  // Will never be anything else than `children`, parallel routes layout will have already been found
+  const child = parallelRoutes.children
+  if (!child) return
+  return getRootLayoutPath(child, rootLayoutPath)
+}
+
+function findRootLayoutInFlightRouterState(
+  [segment, parallelRoutes]: FlightRouterState,
+  rootLayoutSegments: string,
+  segments = ''
+): boolean {
+  segments += `${segment}/`
+  if (segments === rootLayoutSegments) {
+    return true
+  } else if (segments.length > rootLayoutSegments.length) {
+    return false
+  }
+  const child = parallelRoutes.children
+  if (!child) return false
+  return findRootLayoutInFlightRouterState(child, rootLayoutSegments, segments)
+}
+
 function isNavigatingToNewRootLayout(
   loaderTree: LoaderTree,
   flightRouterState: FlightRouterState
 ): boolean {
-  const getRootLayoutPath = (
-    [segment, parallelRoutes, { layout }]: LoaderTree,
-    rootLayoutPath = ''
-  ): string | undefined => {
-    rootLayoutPath += `${segment}/`
-    const isLayout = typeof layout !== 'undefined'
-    if (isLayout) return rootLayoutPath
-    // Will never be anything else than `children`, parallel routes layout will have already been found
-    const child = parallelRoutes.children
-    if (!child) return
-    return getRootLayoutPath(child, rootLayoutPath)
-  }
-
-  const findRootLayoutInFlightRouterState = (
-    [segment, parallelRoutes]: FlightRouterState,
-    rootLayoutSegments: string,
-    segments = ''
-  ): boolean => {
-    segments += `${segment}/`
-    if (segments === rootLayoutSegments) {
-      return true
-    } else if (segments.length > rootLayoutSegments.length) {
-      return false
-    }
-    const child = parallelRoutes.children
-    if (!child) return false
-    return findRootLayoutInFlightRouterState(
-      child,
-      rootLayoutSegments,
-      segments
-    )
-  }
-
   const newRootLayout = getRootLayoutPath(loaderTree)
   // should always have a root layout
   if (newRootLayout) {
