@@ -118,6 +118,13 @@ type ExpressMiddleware = (
   next: (err?: Error) => void
 ) => void
 
+type ConstructURLProps = {
+  req: BaseNextRequest | NodeNextRequest
+  query: ParsedUrlQuery
+  params?: Params | undefined
+  pathname: string
+}
+
 export interface NodeRequestHandler {
   (
     req: IncomingMessage | BaseNextRequest,
@@ -790,8 +797,16 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
+    const r = (req as NodeNextRequest).originalRequest
+    const url = new URL(
+      this.constructURL({ req, query, params, pathname: page })
+    )
+
+    // request.url consists of path + search in this context
+    r.url = url.pathname + url.search
+
     await apiResolver(
-      (req as NodeNextRequest).originalRequest,
+      r,
       (res as NodeNextResponse).originalResponse,
       query,
       pageModule,
@@ -826,13 +841,19 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
+    const r = (req as NodeNextRequest).originalRequest
+    const url = new URL(this.constructURL({ req, query, pathname }))
+
+    // request.url consists of path + search in this context
+    r.url = url.pathname + url.search
+
     if (
       this.nextConfig.experimental.appDir &&
       (renderOpts.isAppPath || req.headers.__rsc__)
     ) {
       const isPagesDir = !renderOpts.isAppPath
       return appRenderToHTMLOrFlight(
-        req.originalRequest,
+        r,
         res.originalResponse,
         pathname,
         query,
@@ -841,13 +862,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    return renderToHTML(
-      req.originalRequest,
-      res.originalResponse,
-      pathname,
-      query,
-      renderOpts
-    )
+    return renderToHTML(r, res.originalResponse, pathname, query, renderOpts)
   }
 
   protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
@@ -1713,6 +1728,9 @@ export default class NextNodeServer extends BaseServer {
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
     // For middleware to "fetch" we must always provide an absolute URL
+
+    // TODO check if we can call constructURL() here as well to DRY this up
+
     const query = urlQueryToSearchParams(params.parsed.query).toString()
     const locale = params.parsed.query.__nextLocale
 
@@ -2054,31 +2072,15 @@ export default class NextNodeServer extends BaseServer {
     }
 
     // For middleware to "fetch" we must always provide an absolute URL
-    const locale = query.__nextLocale
-    const isDataReq = !!query.__nextDataReq
-    const queryString = urlQueryToSearchParams(query).toString()
 
-    if (isDataReq) {
-      params.req.headers['x-nextjs-data'] = '1'
-    }
+    const urlString = this.constructURL({
+      req: params.req,
+      query,
+      params: params.params,
+      pathname: page,
+    })
 
-    let normalizedPathname = normalizeAppPath(page)
-    if (isDynamicRoute(normalizedPathname)) {
-      const routeRegex = getNamedRouteRegex(normalizedPathname)
-      normalizedPathname = interpolateDynamicPath(
-        normalizedPathname,
-        Object.assign({}, params.params, query),
-        routeRegex
-      )
-    }
-
-    const url = `${getRequestMeta(params.req, '_protocol')}://${
-      this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
-      queryString ? `?${queryString}` : ''
-    }`
-
-    if (!url.startsWith('http')) {
+    if (!urlString.startsWith('http')) {
       throw new Error(
         'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
       )
@@ -2098,7 +2100,7 @@ export default class NextNodeServer extends BaseServer {
           i18n: this.nextConfig.i18n,
           trailingSlash: this.nextConfig.trailingSlash,
         },
-        url,
+        url: urlString,
         page: {
           name: params.page,
           ...(params.params && { params: params.params }),
@@ -2137,5 +2139,33 @@ export default class NextNodeServer extends BaseServer {
       this.distDir,
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
+  }
+
+  protected constructURL({ req, query, params, pathname }: ConstructURLProps) {
+    const locale = query.__nextLocale
+    const isDataReq = !!query.__nextDataReq
+    const queryString = urlQueryToSearchParams(query).toString()
+
+    if (isDataReq) {
+      req.headers['x-nextjs-data'] = '1'
+    }
+
+    let normalizedPathname = normalizeAppPath(pathname)
+    if (isDynamicRoute(normalizedPathname)) {
+      const routeRegex = getNamedRouteRegex(normalizedPathname)
+      normalizedPathname = interpolateDynamicPath(
+        normalizedPathname,
+        Object.assign({}, params, query),
+        routeRegex
+      )
+    }
+
+    const url = `${getRequestMeta(req, '_protocol')}://${this.hostname}:${
+      this.port
+    }${locale ? `/${locale}` : ''}${normalizedPathname}${
+      queryString ? `?${queryString}` : ''
+    }`
+
+    return url
   }
 }
