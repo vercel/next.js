@@ -255,11 +255,9 @@ export class FontStylesheetGatheringPlugin {
     })
 
     compiler.hooks.make.tap(this.constructor.name, (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: this.constructor.name,
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {

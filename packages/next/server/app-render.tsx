@@ -17,6 +17,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
+  streamToString,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot } from './utils'
@@ -593,6 +594,13 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
     delete newHeaders[param]
   }
   return newHeaders
+}
+
+async function renderToString(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
 }
 
 export async function renderToHTMLOrFlight(
@@ -1245,12 +1253,22 @@ export async function renderToHTMLOrFlight(
         </FlushEffects>
       )
 
-      const flushEffectHandler = (): string => {
-        const flushed = ReactDOMServer.renderToString(
+      const flushEffectHandler = (): Promise<string> => {
+        const flushed = renderToString(
           <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
         )
         return flushed
       }
+
+      const polyfills = buildManifest.polyfillFiles
+        .filter(
+          (polyfill) =>
+            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+        )
+        .map((polyfill) => ({
+          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          integrity: subresourceIntegrityManifest?.[polyfill],
+        }))
 
       try {
         const renderStream = await renderToInitialStream({
@@ -1260,14 +1278,16 @@ export async function renderToHTMLOrFlight(
             onError: htmlRendererErrorHandler,
             nonce,
             // Include hydration scripts in the HTML
-            bootstrapScripts: subresourceIntegrityManifest
-              ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
-                  integrity: subresourceIntegrityManifest[src],
-                }))
-              : buildManifest.rootMainFiles.map(
-                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-                ),
+            bootstrapScripts: [
+              ...(subresourceIntegrityManifest
+                ? buildManifest.rootMainFiles.map((src) => ({
+                    src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                    integrity: subresourceIntegrityManifest[src],
+                  }))
+                : buildManifest.rootMainFiles.map(
+                    (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                  )),
+            ],
           },
         })
 
@@ -1276,6 +1296,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           flushEffectHandler,
           flushEffectsToHead: true,
+          polyfills,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1306,6 +1327,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           flushEffectHandler,
           flushEffectsToHead: true,
+          polyfills,
         })
       }
     }

@@ -99,6 +99,13 @@ describe('app dir', () => {
       expect(html).toContain('hello from dynamic on client')
     })
 
+    it('should serve polyfills for browsers that do not support modules', async () => {
+      const html = await renderViaHTTP(next.url, '/dashboard/index')
+      expect(html).toMatch(
+        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+      )
+    })
+
     // TODO-APP: handle css modules fouc in dev
     it.skip('should handle css imports in next/dynamic correctly', async () => {
       const browser = await webdriver(next.url, '/dashboard/index')
@@ -238,11 +245,32 @@ describe('app dir', () => {
     })
 
     describe('rewrites', () => {
-      // TODO-APP:
+      // TODO-APP: rewrite url is broken
       it.skip('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+      })
+
+      it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
+        const browser = await webdriver(next.url, '/link-to-rewritten-path')
+
+        try {
+          // Click the link.
+          await browser.elementById('link-to-rewritten-path').click()
+          await browser.waitForElementByCss('#from-dashboard')
+
+          // Check to see that we were rewritten and not redirected.
+          // TODO-APP: rewrite url is broken
+          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+          // Check to see that the page we navigated to is in fact the dashboard.
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
+        } finally {
+          await browser.close()
+        }
       })
 
       it('should support rewrites on client-side navigation', async () => {
@@ -1189,6 +1217,17 @@ describe('app dir', () => {
             )
           ).toBe('rgb(0, 0, 255)')
         })
+
+        if (!isDev) {
+          it('should not include unused css modules in the page in prod', async () => {
+            const browser = await webdriver(next.url, '/css/css-page')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
+              )
+            ).toBe(false)
+          })
+        }
       })
 
       describe('client layouts', () => {

@@ -60,7 +60,6 @@ export class CssMinimizerPlugin {
       compilation.hooks.processAssets.tapPromise(
         {
           name: 'CssMinimizerPlugin',
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
         },
         async (assets: any) => {

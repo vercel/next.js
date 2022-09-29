@@ -93,7 +93,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
-      const { css, fallbackFonts } = await loader({
+      const { adjustFontFallback, fallbackFonts } = await loader({
         functionName: 'Inter',
         data: [],
         config: { subsets: [] },
@@ -101,17 +101,12 @@ describe('@next/font/google loader', () => {
         resolve: jest.fn(),
         fs: {} as any,
       })
-      expect(css).toMatchInlineSnapshot(`
-"
-    @font-face {
-      font-family: \\"inter-fallback\\";
-      ascent-override: 96.88%;
-      descent-override: 24.15%;
-      line-gap-override: 0.00%;
-      src: local(\\"Arial\\");
-    }
-  "
-`)
+      expect(adjustFontFallback).toEqual({
+        ascentOverride: '96.88',
+        descentOverride: '24.15',
+        fallbackFont: 'Arial',
+        lineGapOverride: '0.00',
+      })
       expect(fallbackFonts).toBeUndefined()
     })
 
@@ -120,7 +115,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
-      const { css, fallbackFonts } = await loader({
+      const { fallbackFonts, adjustFontFallback } = await loader({
         functionName: 'Source_Code_Pro',
         data: [],
         config: { subsets: [] },
@@ -128,17 +123,12 @@ describe('@next/font/google loader', () => {
         resolve: jest.fn(),
         fs: {} as any,
       })
-      expect(css).toMatchInlineSnapshot(`
-"
-    @font-face {
-      font-family: \\"source-code-pro-fallback\\";
-      ascent-override: 98.40%;
-      descent-override: 27.30%;
-      line-gap-override: 0.00%;
-      src: local(\\"Arial\\");
-    }
-  "
-`)
+      expect(adjustFontFallback).toEqual({
+        ascentOverride: '98.40',
+        descentOverride: '27.30',
+        fallbackFont: 'Arial',
+        lineGapOverride: '0.00',
+      })
       expect(fallbackFonts).toBeUndefined()
     })
 
@@ -147,7 +137,7 @@ describe('@next/font/google loader', () => {
         ok: true,
         text: async () => '',
       })
-      const { css, fallbackFonts } = await loader({
+      const { adjustFontFallback, fallbackFonts } = await loader({
         functionName: 'Fraunces',
         data: [{ fallback: ['Abc', 'Def'] }],
         config: { subsets: [] },
@@ -155,17 +145,12 @@ describe('@next/font/google loader', () => {
         resolve: jest.fn(),
         fs: {} as any,
       })
-      expect(css).toMatchInlineSnapshot(`
-"
-    @font-face {
-      font-family: \\"fraunces-fallback\\";
-      ascent-override: 97.80%;
-      descent-override: 25.50%;
-      line-gap-override: 0.00%;
-      src: local(\\"Times New Roman\\");
-    }
-  "
-`)
+      expect(adjustFontFallback).toEqual({
+        ascentOverride: '97.80',
+        descentOverride: '25.50',
+        fallbackFont: 'Times New Roman',
+        lineGapOverride: '0.00',
+      })
       expect(fallbackFonts).toEqual(['Abc', 'Def'])
     })
 

@@ -1,24 +1,34 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 
+interface User {
+  name: string
+}
+
+interface LoginFormValues {
+  username: string
+  password: string
+  remember: boolean
+}
+
 const IndexPage = () => {
-  const [user, setUser] = useState()
+  const [user, setUser] = useState<User>()
   const {
     register,
     formState: { errors },
     handleSubmit,
-  } = useForm()
-  const onSubmit = ({ username, password, remember }) => {
+  } = useForm<LoginFormValues>()
+  const onSubmit = handleSubmit(({ username, password, remember }) => {
     // You should handle login logic with username, password and remember form data
     setUser({ name: username })
-  }
+  })
 
   return (
     <div className="container">
       {user ? (
         <span className="hello-user">Hello, {user.name}!</span>
       ) : (
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={onSubmit}>
           <div className="row">
             <h3 className="form-header">LOGIN</h3>
           </div>

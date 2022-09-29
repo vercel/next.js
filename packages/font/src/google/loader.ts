@@ -1,8 +1,8 @@
-import type { FontLoader } from 'next/font'
+import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 // @ts-ignore
-import { calculateOverrideCSS } from 'next/dist/server/font-utils'
+import { calculateOverrideValues } from 'next/dist/server/font-utils'
 import {
   fetchCSSFromGoogleFonts,
   getFontAxes,
@@ -97,20 +97,36 @@ const downloadGoogleFonts: FontLoader = async ({
   }
 
   // Add fallback font
+  let adjustFontFallbackMetrics: AdjustFontFallback | undefined
   if (adjustFontFallback) {
     try {
-      updatedCssResponse += calculateOverrideCSS(
-        fontFamily,
-        require('next/dist/server/google-font-metrics.json')
+      const { ascent, descent, lineGap, fallbackFont } =
+        calculateOverrideValues(
+          fontFamily,
+          require('next/dist/server/google-font-metrics.json')
+        )
+      adjustFontFallbackMetrics = {
+        fallbackFont,
+        ascentOverride: ascent,
+        descentOverride: descent,
+        lineGapOverride: lineGap,
+      }
+    } catch {
+      console.error(
+        `Failed to find font override values for font \`${fontFamily}\``
       )
-    } catch (e) {
-      console.log('Error getting font override values - ', e)
     }
   }
 
   return {
     css: updatedCssResponse,
     fallbackFonts: fallback,
+    weight: weight === 'variable' ? undefined : weight,
+    style,
+    variable: `--next-font-${fontFamily.toLowerCase().replace(/ /g, '-')}${
+      weight !== 'variable' ? `-${weight}` : ''
+    }${style === 'italic' ? `-italic` : ''}`,
+    adjustFontFallback: adjustFontFallbackMetrics,
   }
 }
 
