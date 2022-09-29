@@ -10,6 +10,12 @@ With this template you get out-of-the-box:
   - Dark/Light mode
   - Respects `prefers-reduce-motion` for CSS Transitions
 
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-xata)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-xata&project-name=with-xata&repository-name=with-xata)
+
 ## Demo
 
 [nextjs-with-xata.vercel.app](https://nextjs-with-xata.vercel.app)
@@ -53,3 +59,5 @@ Some tips that may help you develop your app.
 - The Xata [VS Code Extension](https://marketplace.visualstudio.com/items?itemName=xata.xata) will make managing your data more comfortable
 - Prefer fetching data from `getServerSideProps()` or `getStaticProps()`
 - Create a Serverless Route(s) to handle data mutations
+
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
