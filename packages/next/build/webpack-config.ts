@@ -580,11 +580,6 @@ export default async function getBaseWebpackConfig(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
       )
     }
-    if (hasServerComponents) {
-      Log.warn(
-        'You have experimental React Server Components enabled. Continue at your own risk.'
-      )
-    }
   }
 
   const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
@@ -902,13 +897,28 @@ export default async function getBaseWebpackConfig(
       comparisons: false,
       inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
     },
-    mangle: { safari10: true },
+    mangle: {
+      safari10: true,
+      ...(process.env.__NEXT_MANGLING_DEBUG
+        ? {
+            toplevel: true,
+            module: true,
+            keep_classnames: true,
+            keep_fnames: true,
+          }
+        : {}),
+    },
     output: {
       ecma: 5,
       safari10: true,
       comments: false,
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
+      ...(process.env.__NEXT_MANGLING_DEBUG
+        ? {
+            beautify: true,
+          }
+        : {}),
     },
   }
 
@@ -990,6 +1000,7 @@ export default async function getBaseWebpackConfig(
     if (layer === WEBPACK_LAYERS.server) {
       if (
         request === 'react' ||
+        request === 'react/jsx-runtime' ||
         request ===
           'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
       ) {
@@ -1152,6 +1163,13 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  const fontLoaderTargets =
+    config.experimental.fontLoaders &&
+    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
+      const resolved = require.resolve(fontLoader)
+      return path.join(resolved, '../target.css')
+    })
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     // @ts-ignore
@@ -1168,6 +1186,10 @@ export default async function getBaseWebpackConfig(
                     '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
                     'next/dist/compiled/chalk': '{}',
+                    './cjs/react-dom-server-legacy.browser.production.min.js':
+                      '{}',
+                    './cjs/react-dom-server-legacy.browser.development.js':
+                      '{}',
                     'react-dom': '{}',
                   },
                   handleWebpackExtenalForEdgeRuntime,
@@ -1487,7 +1509,7 @@ export default async function getBaseWebpackConfig(
                 issuerLayer: WEBPACK_LAYERS.server,
                 test: (req: string) => {
                   if (
-                    !/\.m?js/.test(req) ||
+                    !codeCondition.test.test(req) ||
                     config.experimental.optoutServerComponentsBundle?.some(
                       (mod) => {
                         return req.includes('/node_modules/' + mod + '/')
@@ -1883,10 +1905,12 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
+              fontLoaderTargets,
             })
           : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
+              fontLoaderTargets,
             })),
       !dev &&
         isClient &&

@@ -42,7 +42,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -56,7 +56,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -238,11 +238,32 @@ describe('app dir', () => {
     })
 
     describe('rewrites', () => {
-      // TODO-APP:
+      // TODO-APP: rewrite url is broken
       it.skip('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+      })
+
+      it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
+        const browser = await webdriver(next.url, '/link-to-rewritten-path')
+
+        try {
+          // Click the link.
+          await browser.elementById('link-to-rewritten-path').click()
+          await browser.waitForElementByCss('#from-dashboard')
+
+          // Check to see that we were rewritten and not redirected.
+          // TODO-APP: rewrite url is broken
+          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+          // Check to see that the page we navigated to is in fact the dashboard.
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
+        } finally {
+          await browser.close()
+        }
       })
 
       it('should support rewrites on client-side navigation', async () => {
@@ -1186,6 +1207,17 @@ describe('app dir', () => {
             )
           ).toBe('rgb(0, 0, 255)')
         })
+
+        if (!isDev) {
+          it('should not include unused css modules in the page in prod', async () => {
+            const browser = await webdriver(next.url, '/css/css-page')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
+              )
+            ).toBe(false)
+          })
+        }
       })
 
       describe('client layouts', () => {
@@ -1475,31 +1507,34 @@ describe('app dir', () => {
       })
     })
 
-    describe('404', () => {
-      it.skip('should trigger 404 in a server component', async () => {
+    describe('not-found', () => {
+      it.skip('should trigger not-found in a server component', async () => {
         const browser = await webdriver(next.url, '/not-found/servercomponent')
 
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
-        ).toBe('404!')
+        ).toBe('Not Found!')
       })
 
-      it.skip('should trigger 404 in a client component', async () => {
+      it.skip('should trigger not-found in a client component', async () => {
         const browser = await webdriver(next.url, '/not-found/clientcomponent')
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
-        ).toBe('404!')
+        ).toBe('Not Found!')
       })
-      ;(isDev ? it.skip : it)('should trigger 404 client-side', async () => {
-        const browser = await webdriver(next.url, '/not-found/client-side')
-        await browser
-          .elementByCss('button')
-          .click()
-          .waitForElementByCss('#not-found-component')
-        expect(await browser.elementByCss('#not-found-component').text()).toBe(
-          '404!'
-        )
-      })
+      ;(isDev ? it.skip : it)(
+        'should trigger not-found client-side',
+        async () => {
+          const browser = await webdriver(next.url, '/not-found/client-side')
+          await browser
+            .elementByCss('button')
+            .click()
+            .waitForElementByCss('#not-found-component')
+          expect(
+            await browser.elementByCss('#not-found-component').text()
+          ).toBe('Not Found!')
+        }
+      )
     })
 
     describe('redirect', () => {
