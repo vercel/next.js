@@ -84,7 +84,7 @@ export default async function webdriver(
     const { Selenium, quit } = await import('./browsers/selenium')
     CurrentInterface = Selenium
     browserQuit = quit
-  } else if (process.env.RECORD_REPLAY) {
+  } else if (process.env.RECORD_REPLAY === 'true') {
     const { Replay, quit } = await require('./browsers/replay')
     CurrentInterface = Replay
     browserQuit = quit
