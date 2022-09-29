@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 
 use swc_core::{
     base::{try_with_handler, Compiler},
-    common::{FileName, FilePathMapping, SourceMap, GLOBALS},
+    common::{FileName, FilePathMapping, SourceMap},
     ecma::transforms::base::pass::noop,
 };
 
@@ -41,16 +41,14 @@ export function getServerSideProps() {
     );
     assert!(
         try_with_handler(COMPILER.cm.clone(), Default::default(), |handler| {
-            GLOBALS.set(&Default::default(), || {
-                COMPILER.process_js_with_custom_pass(
-                    fm,
-                    None,
-                    handler,
-                    &Default::default(),
-                    |_, _| next_ssg(eliminated_packages.clone()),
-                    |_, _| noop(),
-                )
-            })
+            COMPILER.process_js_with_custom_pass(
+                fm,
+                None,
+                handler,
+                &Default::default(),
+                |_, _| next_ssg(eliminated_packages.clone()),
+                |_, _| noop(),
+            )
         })
         .is_ok()
     );
