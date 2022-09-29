@@ -181,15 +181,24 @@ async fn create_server_rendered_source_for_file(
 ) -> Result<AssetGraphContentSourceVc> {
     let context_path = context.context_path();
     let source_asset = SourceAssetVc::new(entry).into();
-    let module = context
+    let entry_asset = context
         .with_context_path(entry.parent())
         .process(source_asset);
+
+    let chunking_context = DevChunkingContext {
+        context_path,
+        chunk_root_path: intermediate_output_path.join("chunks"),
+        asset_root_path: target_root.join("_next/static/assets"),
+        enable_hot_module_replacement: false,
+    }
+    .into();
+
     let asset = ServerRenderedAssetVc::new(
         target_path,
         context,
-        module,
+        entry_asset,
         runtime_entries,
-        context_path,
+        chunking_context,
         intermediate_output_path,
         "{\"props\":{}}\n".to_string(),
     );
