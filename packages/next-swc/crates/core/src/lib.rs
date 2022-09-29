@@ -103,10 +103,10 @@ pub struct TransformOptions {
     #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
 
-    /// Accept any value
     #[allow(unused)]
     #[serde(default)]
     #[cfg(target_arch = "wasm32")]
+    /// Accept any value
     pub relay: Option<serde_json::Value>,
 
     #[serde(default)]
