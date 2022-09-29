@@ -1550,6 +1550,8 @@ export default class Router implements BaseRouter {
         locale: nextState.locale,
         isPreview: nextState.isPreview,
         hasMiddleware: isMiddlewareMatch,
+        unstable_skipClientCache: options.unstable_skipClientCache,
+        isQueryUpdating: isQueryUpdating && !this.isFallback,
       })
 
       if ('route' in routeInfo && isMiddlewareMatch) {
@@ -1895,6 +1897,7 @@ export default class Router implements BaseRouter {
     hasMiddleware,
     isPreview,
     unstable_skipClientCache,
+    isQueryUpdating,
   }: {
     route: string
     pathname: string
@@ -1906,6 +1909,7 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
     unstable_skipClientCache?: boolean
+    isQueryUpdating?: boolean
   }) {
     /**
      * This `route` binding can change if there's a rewrite
@@ -1948,6 +1952,7 @@ export default class Router implements BaseRouter {
         persistCache: !isPreview,
         isPrefetch: false,
         unstable_skipClientCache,
+        isBackground: isQueryUpdating,
       }
 
       const data = await withMiddlewareEffects({
@@ -1956,6 +1961,10 @@ export default class Router implements BaseRouter {
         locale: locale,
         router: this,
       })
+
+      if (isQueryUpdating && data) {
+        data.json = self.__NEXT_DATA__.props
+      }
       handleCancelled()
 
       if (

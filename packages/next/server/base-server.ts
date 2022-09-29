@@ -28,6 +28,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
@@ -43,7 +44,7 @@ import {
   getCookieParser,
   checkIsManualRevalidate,
 } from './api-utils'
-import * as envConfig from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config'
 import Router from './router'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
@@ -66,7 +67,6 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
@@ -218,6 +218,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     supportsDynamicHTML?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
+    fontLoaderManifest?: FontLoaderManifest
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
@@ -230,6 +231,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
   protected serverCSSManifest?: any
+  protected fontLoaderManifest?: FontLoaderManifest
   public readonly hostname?: string
   public readonly port?: number
 
@@ -252,6 +254,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
   protected abstract getServerCSSManifest(): any
+  protected abstract getFontLoaderManifest(): FontLoaderManifest | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
     parsedUrl: NextUrlWithParsedQuery
@@ -363,12 +366,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    const serverComponents = this.nextConfig.experimental.serverComponents
+    const serverComponents = !!this.nextConfig.experimental.appDir
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
     this.serverCSSManifest = serverComponents
       ? this.getServerCSSManifest()
+      : undefined
+    this.fontLoaderManifest = this.nextConfig.experimental.fontLoaders
+      ? this.getFontLoaderManifest()
       : undefined
 
     this.renderOpts = {
@@ -408,7 +414,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Initialize next/config with the environment configuration
-    envConfig.setConfig({
+    setConfig({
       serverRuntimeConfig,
       publicRuntimeConfig,
     })
@@ -661,7 +667,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      if (!this.minimalMode && defaultLocale) {
+      if (
+        // Edge runtime always has minimal mode enabled.
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        !this.minimalMode &&
+        defaultLocale
+      ) {
+        const { getLocaleRedirect } =
+          require('../shared/lib/i18n/get-locale-redirect') as typeof import('../shared/lib/i18n/get-locale-redirect')
         const redirect = getLocaleRedirect({
           defaultLocale,
           domainLocale,
@@ -956,15 +969,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let hasStaticPaths = !!components.getStaticPaths
 
     const hasGetInitialProps = !!components.Component?.getInitialProps
-    const isServerComponent = !!components.ComponentMod?.__next_rsc__
-    let isSSG =
-      !!components.getStaticProps ||
-      // For static server component pages, we currently always consider them
-      // as SSG since we also need to handle the next data (flight JSON).
-      (isServerComponent &&
-        !hasServerProps &&
-        !hasGetInitialProps &&
-        process.env.NEXT_RUNTIME !== 'edge')
+    let isSSG = !!components.getStaticProps
 
     // Toggle whether or not this is a Data request
     const isDataReq =
@@ -973,7 +978,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         (req.headers['x-nextjs-data'] &&
           (this.serverOptions as any).webServerConfig)
       ) &&
-      (isSSG || hasServerProps || isServerComponent)
+      (isSSG || hasServerProps)
 
     delete query.__nextDataReq
 
@@ -1020,7 +1025,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      !isServerComponent &&
       !!req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200)
     ) {
@@ -1030,9 +1034,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
+    // Don't delete query.__rsc__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers.__flight__
+      this.serverComponentManifest && req.headers.__rsc__
     )
 
     // we need to ensure the status code if /404 is visited directly
@@ -1369,6 +1373,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         //   getStaticPaths, then finish the data request on the client-side.
         //
         if (
+          process.env.NEXT_RUNTIME !== 'edge' &&
           this.minimalMode !== true &&
           fallbackMode !== 'blocking' &&
           ssgCacheKey &&

@@ -1,10 +1,10 @@
-import { useCookies } from 'next/dist/client/components/hooks-server'
+import { cookies } from 'next/dist/client/components/hooks-server'
 
 export default function Page() {
-  const cookies = useCookies()
+  const cookiesList = cookies()
+  const cookie = cookiesList.get('use-cookies')
 
-  const hasCookie =
-    'use-cookies' in cookies && cookies['use-cookies'] === 'value'
+  const hasCookie = cookie === 'value'
 
   return (
     <>

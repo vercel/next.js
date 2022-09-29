@@ -319,7 +319,7 @@ fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
         }
     };
 
-    let rel_path = diff_paths(&file, base);
+    let rel_path = diff_paths(file, base);
 
     let rel_path = match rel_path {
         Some(v) => v,

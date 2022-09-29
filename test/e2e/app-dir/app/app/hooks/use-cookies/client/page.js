@@ -1,10 +1,10 @@
 'client'
 
-import { useCookies } from 'next/dist/client/components/hooks-server'
+import { cookies } from 'next/dist/client/components/hooks-server'
 
 export default function Page() {
   // This should throw an error.
-  useCookies()
+  cookies()
 
   return null
 }

@@ -6,6 +6,10 @@ import { NextResponse } from 'next/server'
  * @returns {NextResponse | undefined}
  */
 export function middleware(request) {
+  if (request.nextUrl.pathname === '/exists-but-not-routed') {
+    return NextResponse.rewrite(new URL('/dashboard', request.url))
+  }
+
   if (request.nextUrl.pathname === '/middleware-to-dashboard') {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }
@@ -19,7 +23,7 @@ export function middleware(request) {
       ? 'rewrite'
       : 'redirect'
 
-    const internal = ['__flight__', '__flight_router_state_tree__']
+    const internal = ['__rsc__', '__next_router_state_tree__']
     if (internal.some((name) => request.headers.has(name))) {
       return NextResponse[method](new URL('/internal/failure', request.url))
     }

@@ -59,6 +59,7 @@ import {
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
+  FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -270,11 +271,7 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
-      // We enable concurrent features (Fizz-related rendering architecture) when
-      // using React 18 or experimental.
       const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-      const hasServerComponents =
-        hasReactRoot && !!config.experimental.serverComponents
 
       const { target } = config
       const buildId: string = await nextBuildSpan
@@ -814,7 +811,7 @@ export default async function build(
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-            ...(hasServerComponents
+            ...(appDir
               ? [
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
@@ -832,6 +829,12 @@ export default async function build(
             config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
             BUILD_ID_FILE,
             appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
+            ...(config.experimental.fontLoaders
+              ? [
+                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+                ]
+              : []),
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),
@@ -912,10 +915,8 @@ export default async function build(
           let edgeServerResult: SingleCompilerResult | null = null
 
           if (isLikeServerless) {
-            if (config.experimental.serverComponents) {
-              throw new Error(
-                'Server Components are not supported in serverless mode.'
-              )
+            if (appDir) {
+              throw new Error('`appDir` is not supported in serverless mode.')
             }
 
             // Build client first
@@ -1204,6 +1205,7 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               httpAgentOptions: config.httpAgentOptions,
+              enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               pageRuntime: config.experimental.runtime,
@@ -1351,13 +1353,14 @@ export default async function build(
                           configFileName,
                           runtimeEnvConfig,
                           httpAgentOptions: config.httpAgentOptions,
+                          enableUndici: config.experimental.enableUndici,
                           locales: config.i18n?.locales,
                           defaultLocale: config.i18n?.defaultLocale,
                           parentId: isPageStaticSpan.id,
                           pageRuntime,
                           edgeInfo,
                           pageType,
-                          hasServerComponents,
+                          hasServerComponents: !!appDir,
                         })
                       }
                     )
