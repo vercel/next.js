@@ -11,7 +11,7 @@ use turbo_tasks::{
     primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc, Value, ValueToString,
     ValueToStringVc,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{embed_file, DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetVc, ModuleAssetType,
 };
@@ -152,14 +152,6 @@ impl ValueToString for ServerRenderedClientAssetReference {
 }
 
 #[turbo_tasks::function]
-fn get_server_renderer() -> AssetContentVc {
-    FileContent::Content(File::from_source(
-        include_str!("server_renderer.js").to_string(),
-    ))
-    .into()
-}
-
-#[turbo_tasks::function]
 async fn get_intermediate_asset(
     context: AssetContextVc,
     entry_asset: AssetVc,
@@ -167,8 +159,10 @@ async fn get_intermediate_asset(
     chunking_context: DevChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<AssetVc> {
+    let server_renderer = embed_file!("server_renderer.js").into();
+
     let module = EcmascriptModuleAssetVc::new(
-        WrapperAssetVc::new(entry_asset, "server-renderer.js", get_server_renderer()).into(),
+        WrapperAssetVc::new(entry_asset, "server-renderer.js", server_renderer).into(),
         context.with_context_path(entry_asset.path()),
         Value::new(ModuleAssetType::Ecmascript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React { refresh: false }]),
