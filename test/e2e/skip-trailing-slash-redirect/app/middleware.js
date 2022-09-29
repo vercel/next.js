@@ -17,5 +17,11 @@ export default function handler(req) {
     return NextResponse.redirect('https://example.vercel.sh/somewhere', 307)
   }
 
+  if (req.nextUrl.pathname.startsWith('/api/test-cookie')) {
+    const res = NextResponse.next()
+    res.cookies.set('from-middleware', 1)
+    return res
+  }
+
   return NextResponse.next()
 }

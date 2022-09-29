@@ -38,6 +38,31 @@ describe('skip-trailing-slash-redirect', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should merge cookies from middleware and API routes correctly', async () => {
+    const res = await fetchViaHTTP(next.url, '/api/test-cookie', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('set-cookie')).toEqual(
+      'from-middleware=1; Path=/, hello=From API'
+    )
+  })
+
+  it('should merge cookies from middleware and edge API routes correctly', async () => {
+    const res = await fetchViaHTTP(
+      next.url,
+      '/api/test-cookie-edge',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(200)
+    expect(res.headers.get('set-cookie')).toEqual(
+      'from-middleware=1; Path=/, hello=From%20API; Path=/'
+    )
+  })
+
   if ((global as any).isNextStart) {
     it('should not have trailing slash redirects in manifest', async () => {
       const routesManifest = JSON.parse(
