@@ -98,26 +98,51 @@ function parseGoogleFontName(css: string): Array<string> {
   return [...fontNames]
 }
 
+function formatOverrideValue(val: number) {
+  return Math.abs(val * 100).toFixed(2)
+}
+
 export function calculateOverrideValues(font: string, fontMetrics: any) {
-  const fontKey = font.toLowerCase().trim().replace(/ /g, '')
-  const { category, ascentOverride, descentOverride, lineGapOverride } =
-    fontMetrics[fontKey]
+  const fontKey = font.trim()
+  let { category, ascent, descent, lineGap, unitsPerEm } = fontMetrics[fontKey]
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
-  const ascent = (ascentOverride * 100).toFixed(2)
-  const descent = (descentOverride * 100).toFixed(2)
-  const lineGap = (lineGapOverride * 100).toFixed(2)
+  ascent = formatOverrideValue(ascent / unitsPerEm)
+  descent = formatOverrideValue(descent / unitsPerEm)
+  lineGap = formatOverrideValue(lineGap / unitsPerEm)
 
   return {
     ascent,
     descent,
     lineGap,
-    fallbackFont,
+    fallbackFont: fallbackFont.name,
+  }
+}
+
+export function calculateSizeAdjustValues(font: string, fontMetrics: any) {
+  const fontKey = font.trim()
+  let { category, ascent, descent, lineGap, unitsPerEm, xAvgCharWidth } =
+    fontMetrics[fontKey]
+  const fallbackFont =
+    category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
+
+  let sizeAdjust = xAvgCharWidth / fallbackFont.xAvgCharWidth
+
+  ascent = formatOverrideValue(ascent / (unitsPerEm * sizeAdjust))
+  descent = formatOverrideValue(descent / (unitsPerEm * sizeAdjust))
+  lineGap = formatOverrideValue(lineGap / (unitsPerEm * sizeAdjust))
+
+  return {
+    ascent,
+    descent,
+    lineGap,
+    fallbackFont: fallbackFont.name,
+    sizeAdjust: formatOverrideValue(sizeAdjust),
   }
 }
 
 function calculateOverrideCSS(font: string, fontMetrics: any) {
-  const fontName = font.toLowerCase().trim().replace(/ /g, '-')
+  const fontName = font.trim()
 
   const { ascent, descent, lineGap, fallbackFont } = calculateOverrideValues(
     font,
@@ -126,7 +151,7 @@ function calculateOverrideCSS(font: string, fontMetrics: any) {
 
   return `
     @font-face {
-      font-family: "${fontName}-fallback";
+      font-family: "${fontName} Fallback";
       ascent-override: ${ascent}%;
       descent-override: ${descent}%;
       line-gap-override: ${lineGap}%;
@@ -135,17 +160,41 @@ function calculateOverrideCSS(font: string, fontMetrics: any) {
   `
 }
 
-export function getFontOverrideCss(url: string, css: string) {
+function calculateSizeAdjustCSS(font: string, fontMetrics: any) {
+  const fontName = font.trim()
+
+  const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
+    calculateSizeAdjustValues(font, fontMetrics)
+
+  return `
+    @font-face {
+      font-family: "${fontName} Fallback";
+      ascent-override: ${ascent}%;
+      descent-override: ${descent}%;
+      line-gap-override: ${lineGap}%;
+      size-adjust: ${sizeAdjust}%;
+      src: local("${fallbackFont}");
+    }
+  `
+}
+
+export function getFontOverrideCss(
+  url: string,
+  css: string,
+  useSizeAdjust = false
+) {
   if (!isGoogleFont(url)) {
     return ''
   }
+
+  const calcFn = useSizeAdjust ? calculateSizeAdjustCSS : calculateOverrideCSS
 
   try {
     const fontNames = parseGoogleFontName(css)
     const fontMetrics = googleFontsMetrics
 
     const fontCss = fontNames.reduce((cssStr, fontName) => {
-      cssStr += calculateOverrideCSS(fontName, fontMetrics)
+      cssStr += calcFn(fontName, fontMetrics)
       return cssStr
     }, '')
 

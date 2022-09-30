@@ -6,7 +6,7 @@ import type { ServerRuntime } from '../types'
 // @ts-ignore
 import React, { experimental_use as use } from 'react'
 
-import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
+import { ParsedUrlQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
@@ -656,7 +656,6 @@ export async function renderToHTMLOrFlight(
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
   const isFlight = req.headers.__rsc__ !== undefined
@@ -684,32 +683,6 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
     ComponentMod,
   } = renderOpts
-
-  // Handle client-side navigation to pages directory
-  // This is handled before
-  if (isFlight && isPagesDir) {
-    stripInternalQueries(query)
-    const search = stringifyQuery(query)
-
-    // For pages dir, there is only the SSR pass and we don't have the bundled
-    // React subset. Here we directly import the flight renderer with the
-    // unbundled React.
-    // TODO-APP: Is it possible to hard code the flight response here instead of
-    // rendering it?
-    const ReactServerDOMWebpack = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server')
-
-    // Empty so that the client-side router will do a full page navigation.
-    const flightData: FlightData = pathname + (search ? `?${search}` : '')
-    return new FlightRenderResult(
-      ReactServerDOMWebpack.renderToReadableStream(
-        flightData,
-        serverComponentManifest,
-        {
-          onError: flightDataRendererErrorHandler,
-        }
-      ).pipeThrough(createBufferedTransformStream())
-    )
-  }
 
   patchFetch(ComponentMod)
 
@@ -1357,6 +1330,16 @@ export async function renderToHTMLOrFlight(
         return flushed
       }
 
+      const polyfills = buildManifest.polyfillFiles
+        .filter(
+          (polyfill) =>
+            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+        )
+        .map((polyfill) => ({
+          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          integrity: subresourceIntegrityManifest?.[polyfill],
+        }))
+
       try {
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
@@ -1365,14 +1348,16 @@ export async function renderToHTMLOrFlight(
             onError: htmlRendererErrorHandler,
             nonce,
             // Include hydration scripts in the HTML
-            bootstrapScripts: subresourceIntegrityManifest
-              ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
-                  integrity: subresourceIntegrityManifest[src],
-                }))
-              : buildManifest.rootMainFiles.map(
-                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-                ),
+            bootstrapScripts: [
+              ...(subresourceIntegrityManifest
+                ? buildManifest.rootMainFiles.map((src) => ({
+                    src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                    integrity: subresourceIntegrityManifest[src],
+                  }))
+                : buildManifest.rootMainFiles.map(
+                    (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                  )),
+            ],
           },
         })
 
@@ -1381,6 +1366,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           flushEffectHandler,
           flushEffectsToHead: true,
+          polyfills,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1411,6 +1397,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           flushEffectHandler,
           flushEffectsToHead: true,
+          polyfills,
         })
       }
     }
