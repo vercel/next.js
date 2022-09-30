@@ -459,11 +459,11 @@ importers:
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
       '@next/env': 12.3.2-canary.15
-      '@next/polyfill-module': workspace:*
-      '@next/polyfill-nomodule': workspace:*
-      '@next/react-dev-overlay': workspace:*
-      '@next/react-refresh-utils': workspace:*
-      '@next/swc': workspace:*
+      '@next/polyfill-module': 12.3.2-canary.15
+      '@next/polyfill-nomodule': 12.3.2-canary.15
+      '@next/react-dev-overlay': 12.3.2-canary.15
+      '@next/react-refresh-utils': 12.3.2-canary.15
+      '@next/swc': 12.3.2-canary.15
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.11
       '@taskr/clear': 1.1.0
@@ -27104,6 +27104,7 @@ packages:
       {
         integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==,
       }
+    dev: true
 
   /simple-swizzle/0.2.2:
     resolution:
