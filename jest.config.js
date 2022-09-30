@@ -3,6 +3,7 @@ const nextJest = require('next/jest')
 const createJestConfig = nextJest()
 
 // Any custom config you want to pass to Jest
+/** @type {import('jest').Config} */
 const customJestConfig = {
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
@@ -10,6 +11,9 @@ const customJestConfig = {
   rootDir: 'test',
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
+  globals: {
+    AbortSignal: global.AbortSignal,
+  },
 }
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async

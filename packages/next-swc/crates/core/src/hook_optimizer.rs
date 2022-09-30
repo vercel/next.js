@@ -41,7 +41,7 @@ impl Fold for HookOptimizer {
     fn fold_decl(&mut self, node: Decl) -> Decl {
         let node = node.fold_children_with(self);
         match node {
-            Decl::Var(VarDecl {
+            Decl::Var(box VarDecl {
                 decls,
                 span,
                 kind,
@@ -52,12 +52,12 @@ impl Fold for HookOptimizer {
                     new_decls.push(self.get_decl(decl));
                 }
 
-                Decl::Var(VarDecl {
+                Decl::Var(Box::new(VarDecl {
                     decls: new_decls,
                     span,
                     kind,
                     declare,
-                })
+                }))
             }
             _ => node,
         }

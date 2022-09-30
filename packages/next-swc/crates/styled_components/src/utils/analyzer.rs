@@ -23,7 +23,7 @@ impl VisitMut for AsAnalyzer {
     fn visit_mut_module(&mut self, p: &mut Module) {
         let mut v = Analyzer {
             config: &self.config,
-            state: &mut *self.state.borrow_mut(),
+            state: &mut self.state.borrow_mut(),
         };
 
         p.visit_with(&mut v);
@@ -32,7 +32,7 @@ impl VisitMut for AsAnalyzer {
     fn visit_mut_script(&mut self, p: &mut Script) {
         let mut v = Analyzer {
             config: &self.config,
-            state: &mut *self.state.borrow_mut(),
+            state: &mut self.state.borrow_mut(),
         };
 
         p.visit_with(&mut v);

@@ -57,6 +57,7 @@ fn test(input: &Path, minify: bool) {
                 is_page_file: false,
                 is_development: true,
                 is_server: false,
+                server_components: None,
                 styled_components: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
@@ -64,6 +65,7 @@ fn test(input: &Path, minify: bool) {
                 shake_exports: None,
                 emotion: Some(assert_json("{}")),
                 modularize_imports: None,
+                font_loaders: None,
             };
 
             let options = options.patch(&fm);
