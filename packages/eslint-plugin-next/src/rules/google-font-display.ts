@@ -1,8 +1,9 @@
-const NodeAttributes = require('../utils/node-attributes.js')
+import { defineRule } from '../utils/define-rule'
+import NodeAttributes from '../utils/node-attributes'
 
 const url = 'https://nextjs.org/docs/messages/google-font-display'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Enforce font-display behavior with Google Fonts.',
@@ -12,10 +13,10 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     return {
       JSXOpeningElement(node) {
-        let message
+        let message: string | undefined
 
         if (node.name.name !== 'link') {
           return
@@ -58,4 +59,4 @@ module.exports = {
       },
     }
   },
-}
+})

@@ -1,8 +1,9 @@
-const path = require('path')
+import { defineRule } from '../utils/define-rule'
+import * as path from 'path'
 
 const url = 'https://nextjs.org/docs/messages/no-styled-jsx-in-document'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `styled-jsx` in `pages/_document.js`.',
@@ -12,7 +13,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     return {
       JSXOpeningElement(node) {
         const document = context.getFilename().split('pages')[1]
@@ -44,4 +45,4 @@ module.exports = {
       },
     }
   },
-}
+})
