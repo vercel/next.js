@@ -6,8 +6,6 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 
-jest.setTimeout(1000 * 60 * 2)
-
 async function uncommentExport(page) {
   const pagePath = join(appDir, 'pages', page)
   const origContent = await fs.readFile(pagePath, 'utf8')

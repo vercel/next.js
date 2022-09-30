@@ -1,2 +1,3 @@
-export * from './dist/next-server/lib/dynamic'
-export { default } from './dist/next-server/lib/dynamic'
+import dynamic from './dist/shared/lib/dynamic'
+export * from './dist/shared/lib/dynamic'
+export default dynamic

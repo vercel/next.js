@@ -1,8 +1,5 @@
 {
-  "name": "with-react-md",
-  "version": "1.0.0",
   "private": true,
-  "license": "MIT",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,11 +7,11 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-md": "^2.1.1"
   },
   "devDependencies": {
-    "node-sass": "^4.14.1"
+    "sass": "^1.34.1"
   }
 }

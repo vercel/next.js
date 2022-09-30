@@ -1,8 +1,5 @@
 {
-  "name": "with-react-bootstrap",
-  "version": "0.1.0",
-  "author": "Wenzhi Li",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,8 +8,8 @@
   "dependencies": {
     "bootstrap": "^4.4.1",
     "next": "latest",
-    "react": "^16.13.1",
+    "react": "^17.0.2",
     "react-bootstrap": "^1.0.1",
-    "react-dom": "^16.13.1"
+    "react-dom": "^17.0.2"
   }
 }

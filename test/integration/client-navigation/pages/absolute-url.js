@@ -11,6 +11,8 @@ export async function getServerSideProps({ query: { port } }) {
 
 export default function Page({ port }) {
   const router = useRouter()
+  const [hover, setHover] = React.useState(false)
+
   return (
     <>
       <Link href="https://vercel.com/">
@@ -60,6 +62,17 @@ export default function Page({ port }) {
       <br />
       <Link href="mailto:idk@idk.com">
         <a id="mailto-link">mailto:idk@idk.com</a>
+      </Link>
+      <br />
+      <Link href="https://vercel.com/">
+        <a
+          id="absolute-link-mouse-events"
+          data-hover={hover}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+        >
+          https://vercel.com/
+        </a>
       </Link>
     </>
   )

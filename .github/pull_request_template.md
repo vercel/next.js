@@ -1,6 +1,6 @@
 <!--
 Thanks for opening a PR! Your contribution is much appreciated.
-In order to make sure your PR is handled as smoothly as possible we request that you follow the checklist sections below.
+To make sure your PR is handled as smoothly as possible we request that you follow the checklist sections below.
 Choose the right checklist for the change that you're making:
 -->
 
@@ -8,6 +8,7 @@ Choose the right checklist for the change that you're making:
 
 - [ ] Related issues linked using `fixes #number`
 - [ ] Integration tests added
+- [ ] Errors have a helpful link attached, see `contributing.md`
 
 ## Feature
 
@@ -16,7 +17,9 @@ Choose the right checklist for the change that you're making:
 - [ ] Integration tests added
 - [ ] Documentation added
 - [ ] Telemetry added. In case of a feature if it's used or not.
+- [ ] Errors have a helpful link attached, see `contributing.md`
 
 ## Documentation / Examples
 
-- [ ] Make sure the linting passes
+- [ ] Make sure the linting passes by running `pnpm lint`
+- [ ] The "examples guidelines" are followed from [our contributing doc](https://github.com/vercel/next.js/blob/canary/contributing/examples/adding-examples.md)

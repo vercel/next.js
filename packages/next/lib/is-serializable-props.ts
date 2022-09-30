@@ -1,12 +1,18 @@
+import {
+  isPlainObject,
+  getObjectClassLabel,
+} from '../shared/lib/is-plain-object'
+
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
-function isPlainObject(value: any): boolean {
-  if (Object.prototype.toString.call(value) !== '[object Object]') {
-    return false
+export class SerializableError extends Error {
+  constructor(page: string, method: string, path: string, message: string) {
+    super(
+      path
+        ? `Error serializing \`${path}\` returned from \`${method}\` in "${page}".\nReason: ${message}`
+        : `Error serializing props returned from \`${method}\` in "${page}".\nReason: ${message}`
+    )
   }
-
-  const prototype = Object.getPrototypeOf(value)
-  return prototype === null || prototype === Object.prototype
 }
 
 export function isSerializableProps(
@@ -19,7 +25,9 @@ export function isSerializableProps(
       page,
       method,
       '',
-      `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\`.`
+      `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\` (received: \`${getObjectClassLabel(
+        input
+      )}\`).`
     )
   }
 
@@ -132,14 +140,4 @@ export function isSerializableProps(
   }
 
   return isSerializable(new Map(), input, '')
-}
-
-export class SerializableError extends Error {
-  constructor(page: string, method: string, path: string, message: string) {
-    super(
-      path
-        ? `Error serializing \`${path}\` returned from \`${method}\` in "${page}".\nReason: ${message}`
-        : `Error serializing props returned from \`${method}\` in "${page}".\nReason: ${message}`
-    )
-  }
 }

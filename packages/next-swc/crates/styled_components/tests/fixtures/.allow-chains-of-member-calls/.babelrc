@@ -1,0 +1,12 @@
+{
+  "plugins": [
+    [
+      "../../../src",
+      {
+        "ssr": false,
+        "fileName": false,
+        "transpileTemplateLiterals": false
+      }
+    ]
+  ]
+}

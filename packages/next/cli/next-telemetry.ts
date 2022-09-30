@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 import { printAndExit } from '../server/lib/utils'
-import { cliCommand } from '../bin/next'
+import { cliCommand } from '../lib/commands'
 import { Telemetry } from '../telemetry/storage'
+import isError from '../lib/is-error'
 
 const nextTelemetry: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -18,7 +19,7 @@ const nextTelemetry: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -52,9 +53,13 @@ const nextTelemetry: cliCommand = (argv) => {
 
     isEnabled = true
   } else if (args['--disable'] || args._[0] === 'disable') {
-    telemetry.setEnabled(false)
+    const path = telemetry.setEnabled(false)
     if (isEnabled) {
-      console.log(chalk.cyan('Your preference has been saved.'))
+      console.log(
+        chalk.cyan(
+          `Your preference has been saved${path ? ` to ${path}` : ''}.`
+        )
+      )
     } else {
       console.log(
         chalk.yellow(`Next.js' telemetry collection is already disabled.`)

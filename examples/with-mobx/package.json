@@ -1,21 +1,15 @@
 {
-  "name": "with-mobx",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "mobx": "^6.0.1",
-    "mobx-react": "^7.0.0",
+    "mobx": "^6.6.1",
+    "mobx-react-lite": "^3.4.0",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
-  },
-  "license": "MIT",
-  "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.1.0",
-    "@babel/plugin-proposal-decorators": "^7.1.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   }
 }

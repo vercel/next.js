@@ -1,0 +1,22 @@
+{
+  "name": "@next/swc-linux-x64-gnu",
+  "version": "0.0.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "main": "next-swc.linux-x64-gnu.node",
+  "files": [
+    "next-swc.linux-x64-gnu.node"
+  ],
+  "libc": ["glibc"],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}

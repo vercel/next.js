@@ -1,0 +1,19 @@
+
+[build]
+
+rustdocflags = []
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.aarch64-unknown-linux-musl]
+linker = "aarch64-linux-musl-gcc"
+rustflags = [
+  "-C",
+  "target-feature=-crt-static",
+  "-C",
+  "link-arg=-lgcc",
+]
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"

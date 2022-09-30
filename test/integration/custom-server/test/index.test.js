@@ -4,7 +4,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import getPort from 'get-port'
 import cheerio from 'cheerio'
-import clone from 'clone'
+import https from 'https'
 import {
   initNextServerScript,
   killApp,
@@ -20,58 +20,82 @@ const indexPg = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
-jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 
-const startServer = async (optEnv = {}, opts) => {
-  const scriptPath = join(appDir, 'server.js')
-  context.appPort = appPort = await getPort()
-  const env = Object.assign(
-    {},
-    clone(process.env),
-    { PORT: `${appPort}` },
-    optEnv
-  )
+describe.each([
+  { title: 'using HTTP', useHttps: false },
+  { title: 'using HTTPS', useHttps: true },
+])('Custom Server $title', ({ useHttps }) => {
+  let nextUrl
 
-  server = await initNextServerScript(
-    scriptPath,
-    /ready on/i,
-    env,
-    /ReferenceError: options is not defined/,
-    opts
-  )
-}
+  const agent = useHttps
+    ? new https.Agent({
+        rejectUnauthorized: false,
+      })
+    : undefined
 
-describe('Custom Server', () => {
+  const startServer = async (optEnv = {}, opts) => {
+    const scriptPath = join(appDir, 'server.js')
+    context.appPort = appPort = await getPort()
+    nextUrl = `http${useHttps ? 's' : ''}://127.0.0.1:${context.appPort}`
+
+    const env = Object.assign(
+      { ...process.env },
+      { PORT: `${appPort}`, __NEXT_TEST_MODE: 'true', USE_HTTPS: useHttps },
+      optEnv
+    )
+
+    server = await initNextServerScript(
+      scriptPath,
+      /ready on/i,
+      env,
+      /ReferenceError: options is not defined/,
+      opts
+    )
+  }
+
   describe('with dynamic assetPrefix', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
     it('should serve internal file from render', async () => {
-      const data = await renderViaHTTP(appPort, '/static/hello.txt')
+      const data = await renderViaHTTP(
+        nextUrl,
+        '/static/hello.txt',
+        undefined,
+        { agent }
+      )
       expect(data).toMatch(/hello world/)
     })
 
     it('should handle render with undefined query', async () => {
-      expect(await renderViaHTTP(appPort, '/no-query')).toMatch(/"query":/)
+      expect(
+        await renderViaHTTP(nextUrl, '/no-query', undefined, { agent })
+      ).toMatch(/"query":/)
     })
 
     it('should set the assetPrefix dynamically', async () => {
-      const normalUsage = await renderViaHTTP(appPort, '/asset')
+      const normalUsage = await renderViaHTTP(nextUrl, '/asset', undefined, {
+        agent,
+      })
       expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
 
       const dynamicUsage = await renderViaHTTP(
-        appPort,
-        '/asset?setAssetPrefix=1'
+        nextUrl,
+        '/asset?setAssetPrefix=1',
+        undefined,
+        { agent }
       )
       expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
     })
 
     it('should handle null assetPrefix accordingly', async () => {
       const normalUsage = await renderViaHTTP(
-        appPort,
-        '/asset?setEmptyAssetPrefix=1'
+        nextUrl,
+        '/asset?setEmptyAssetPrefix=1',
+        undefined,
+        { agent }
       )
       expect(normalUsage).toMatch(/"\/_next/)
     })
@@ -79,8 +103,10 @@ describe('Custom Server', () => {
     it('should set the assetPrefix to a given request', async () => {
       for (let lc = 0; lc < 1000; lc++) {
         const [normalUsage, dynamicUsage] = await Promise.all([
-          await renderViaHTTP(appPort, '/asset'),
-          await renderViaHTTP(appPort, '/asset?setAssetPrefix=1'),
+          await renderViaHTTP(nextUrl, '/asset', undefined, { agent }),
+          await renderViaHTTP(nextUrl, '/asset?setAssetPrefix=1', undefined, {
+            agent,
+          }),
         ])
 
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
@@ -89,23 +115,28 @@ describe('Custom Server', () => {
     })
 
     it('should render nested index', async () => {
-      const html = await renderViaHTTP(appPort, '/dashboard')
+      const html = await renderViaHTTP(nextUrl, '/dashboard', undefined, {
+        agent,
+      })
       expect(html).toMatch(/made it to dashboard/)
     })
 
     it('should contain customServer in NEXT_DATA', async () => {
-      const html = await renderViaHTTP(appPort, '/')
+      const html = await renderViaHTTP(nextUrl, '/', undefined, { agent })
       const $ = cheerio.load(html)
       expect(JSON.parse($('#__NEXT_DATA__').text()).customServer).toBe(true)
     })
   })
 
   describe('with generateEtags enabled', () => {
-    beforeAll(() => startServer({ GENERATE_ETAGS: 'true' }))
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
+    })
     afterAll(() => killApp(server))
 
     it('response includes etag header', async () => {
-      const response = await fetchViaHTTP(appPort, '/')
+      const response = await fetchViaHTTP(nextUrl, '/', undefined, { agent })
       expect(response.headers.get('etag')).toBeTruthy()
     })
   })
@@ -115,35 +146,48 @@ describe('Custom Server', () => {
     afterAll(() => killApp(server))
 
     it('response does not include etag header', async () => {
-      const response = await fetchViaHTTP(appPort, '/')
+      const response = await fetchViaHTTP(nextUrl, '/', undefined, { agent })
       expect(response.headers.get('etag')).toBeNull()
     })
   })
 
-  describe('HMR with custom server', () => {
-    beforeAll(() => startServer())
-    afterAll(() => {
-      killApp(server)
-      indexPg.restore()
-    })
+  // playwright fails with SSL error due to self-signed cert
+  if (!useHttps) {
+    describe('HMR with custom server', () => {
+      beforeAll(() => startServer())
+      afterAll(() => {
+        killApp(server)
+        indexPg.restore()
+      })
 
-    it('Should support HMR when rendering with /index pathname', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/test-index-hmr')
-        const text = await browser.elementByCss('#go-asset').text()
-        expect(text).toBe('Asset')
+      it('Should support HMR when rendering with /index pathname', async () => {
+        let browser
+        try {
+          browser = await webdriver(nextUrl, '/test-index-hmr')
+          const text = await browser.elementByCss('#go-asset').text()
+          const logs = await browser.log()
+          expect(text).toBe('Asset')
 
-        indexPg.replace('Asset', 'Asset!!')
+          // Hydrates with react 18 is correct as expected
+          expect(
+            logs.some((log) =>
+              log.message.includes(
+                'ReactDOM.hydrate is no longer supported in React 18'
+              )
+            )
+          ).toBe(false)
 
-        await check(() => browser.elementByCss('#go-asset').text(), /Asset!!/)
-      } finally {
-        if (browser) {
-          await browser.close()
+          indexPg.replace('Asset', 'Asset!!')
+
+          await check(() => browser.elementByCss('#go-asset').text(), /Asset!!/)
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
         }
-      }
+      })
     })
-  })
+  }
 
   describe('Error when rendering without starting slash', () => {
     afterEach(() => killApp(server))
@@ -158,7 +202,9 @@ describe('Custom Server', () => {
           },
         }
       )
-      const html = await renderViaHTTP(appPort, '/no-slash')
+      const html = await renderViaHTTP(nextUrl, '/no-slash', undefined, {
+        agent,
+      })
       expect(html).toContain('made it to dashboard')
       expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
@@ -178,7 +224,9 @@ describe('Custom Server', () => {
         }
       )
 
-      const html = await renderViaHTTP(appPort, '/no-slash')
+      const html = await renderViaHTTP(nextUrl, '/no-slash', undefined, {
+        agent,
+      })
       expect(html).toContain('made it to dashboard')
       expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
@@ -191,9 +239,61 @@ describe('Custom Server', () => {
     it.each(['/', '/no-query'])(
       'should handle compression for route %s',
       async (route) => {
-        const response = await fetchViaHTTP(appPort, route)
+        const response = await fetchViaHTTP(nextUrl, route, undefined, {
+          agent,
+        })
         expect(response.headers.get('Content-Encoding')).toBe('gzip')
       }
     )
+  })
+
+  describe('with a custom fetch polyfill', () => {
+    beforeAll(() => startServer({ POLYFILL_FETCH: 'true' }))
+    afterAll(() => killApp(server))
+
+    it('should serve internal file from render', async () => {
+      const data = await renderViaHTTP(
+        nextUrl,
+        '/static/hello.txt',
+        undefined,
+        { agent }
+      )
+      expect(data).toMatch(/hello world/)
+    })
+  })
+
+  describe('unhandled rejection', () => {
+    afterEach(() => killApp(server))
+
+    it('stderr should include error message and stack trace', async () => {
+      let stderr = ''
+      await startServer(
+        {},
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
+      await fetchViaHTTP(nextUrl, '/unhandled-rejection', undefined, { agent })
+      await check(() => stderr, /unhandledRejection/)
+      expect(stderr).toContain(
+        'error - unhandledRejection: Error: unhandled rejection'
+      )
+      expect(stderr).toContain('server.js:31:22')
+    })
+  })
+
+  describe('with middleware $title', () => {
+    beforeAll(() => startServer(undefined, undefined, useHttps))
+    afterAll(() => killApp(server))
+
+    it('should read the expected url protocol in middleware', async () => {
+      const path = '/middleware-augmented'
+      const response = await fetchViaHTTP(nextUrl, path, undefined, { agent })
+      expect(response.headers.get('x-original-url')).toBe(
+        `${useHttps ? 'https' : 'http'}://localhost:${appPort}${path}`
+      )
+    })
   })
 })

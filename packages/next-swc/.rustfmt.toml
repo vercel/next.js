@@ -1,0 +1,3 @@
+format_strings = true
+use_field_init_shorthand = true
+wrap_comments = true

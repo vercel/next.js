@@ -1,0 +1,4 @@
+{
+  "transpileTemplateLiterals": false,
+  "ssr": true
+}

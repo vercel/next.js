@@ -3,6 +3,9 @@
 // Extend the NodeJS namespace with Next.js-defined properties
 declare namespace NodeJS {
   interface Process {
+    /**
+     * @deprecated Use `typeof window` instead
+     */
     readonly browser: boolean
   }
 
@@ -24,4 +27,8 @@ declare module '*.module.sass' {
 declare module '*.module.scss' {
   const classes: { readonly [key: string]: string }
   export default classes
+}
+
+interface Window {
+  MSInputMethodContext?: unknown
 }

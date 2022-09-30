@@ -1,15 +1,18 @@
 {
-  "name": "image-component",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "next": "canary",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
-  "license": "MIT"
+  "devDependencies": {
+    "@types/node": "18.7.14",
+    "@types/react": "16.9.17",
+    "typescript": "4.8.2"
+  }
 }

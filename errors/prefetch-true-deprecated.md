@@ -18,4 +18,4 @@ These requests have low-priority and yield to fetch() or XHR requests. Next.js w
 
 The prefetch attribute is no longer needed, when set to true, example: `prefetch={true}`, remove the property.
 
-Prefetching can be disabled with `prefetch={false}`.
+Prefetching can be turned off with `prefetch={false}`.

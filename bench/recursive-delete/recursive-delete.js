@@ -1,5 +1,5 @@
-const { join } = require('path')
-const { recursiveDelete } = require('next/dist/lib/recursive-delete')
+import { join } from 'path'
+import { recursiveDelete } from 'next/dist/lib/recursive-delete'
 const resolveDataDir = join(__dirname, `fixtures-${process.argv[2]}`)
 
 async function test() {

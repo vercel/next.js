@@ -10,7 +10,6 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
 const appDir = join(__dirname, '..')
 let app
 let appPort
@@ -39,7 +38,7 @@ const runTests = () => {
   it('should load 404 page correctly', async () => {
     const browser = await webdriver(appPort, '/non-existent')
     expect(await browser.elementByCss('h2').text()).toBe(
-      'An unexpected error has occurred.'
+      'Application error: a client-side exception has occurred (see the browser console for more information).'
     )
     expect(await browser.eval('window.uncaughtErrors')).toEqual([])
   })
@@ -72,9 +71,9 @@ const runTests = () => {
 
     await browser.elementByCss('#to-404').click()
     await browser.waitForElementByCss('h2')
-    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.beforeNav')).toBeFalsy()
     expect(await browser.elementByCss('h2').text()).toBe(
-      'An unexpected error has occurred.'
+      'Application error: a client-side exception has occurred (see the browser console for more information).'
     )
     expect(await browser.eval('window.uncaughtErrors')).toEqual([])
   })

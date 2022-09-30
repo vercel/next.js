@@ -1,19 +1,19 @@
 # No Sync Scripts
 
+> Prevent synchronous scripts.
+
 ### Why This Error Occurred
 
-A synchronous script was used which can impact your webpage's performance.
+A synchronous script was used which can impact your webpage performance.
 
 ### Possible Ways to Fix It
 
-#### Script component (experimental)
-
-Use the Script component with the right loading strategy to defer loading of the script until necessary.
+#### Script component (recommended)
 
 ```jsx
-import Script from 'next/experimental-script'
+import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
     <div class="container">
       <Script src="https://third-party-script.js"></Script>
@@ -25,7 +25,12 @@ const Home = () => {
 export default Home
 ```
 
-Note: This is still an experimental feature and needs to be enabled via the `experimental.scriptLoader` flag in `next.config.js`.
+#### Use `async` or `defer`
+
+```html
+<script src="https://third-party-script.js" async />
+<script src="https://third-party-script.js" defer />
+```
 
 ### Useful Links
 

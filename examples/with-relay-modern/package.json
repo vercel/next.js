@@ -1,7 +1,5 @@
 {
-  "name": "with-relay-modern",
-  "version": "1.0.0",
-  "description": "Example of Next.js with Relay Modern",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,12 +7,11 @@
     "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude '**/schema/**' --schema ./schema/schema.graphql",
     "schema": "graphql get-schema -e dev"
   },
-  "license": "MIT",
   "dependencies": {
     "graphql": "^14.6.0",
     "next": "latest",
-    "react": "^16.13.0",
-    "react-dom": "^16.13.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-relay": "^9.0.0"
   },
   "devDependencies": {

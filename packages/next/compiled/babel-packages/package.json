@@ -1,0 +1,1 @@
+{"name":"babel-packages","main":"./packages-bundle.js"}

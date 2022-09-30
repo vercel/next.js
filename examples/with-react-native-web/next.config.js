@@ -1,3 +1,4 @@
+/** @type {import('next').NextConfig} */
 module.exports = {
   webpack: (config) => {
     config.resolve.alias = {
@@ -7,6 +8,7 @@ module.exports = {
     }
     config.resolve.extensions = [
       '.web.js',
+      '.web.jsx',
       '.web.ts',
       '.web.tsx',
       ...config.resolve.extensions,

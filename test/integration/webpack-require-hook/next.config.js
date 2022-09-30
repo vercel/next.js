@@ -1,8 +1,8 @@
 module.exports = {
-  future: {
-    webpack5: true,
+  eslint: {
+    ignoreDuringBuilds: true,
   },
-  webpack(config, options) {
+  webpack(config) {
     console.log('Initialized config')
     if (
       require('webpack/lib/node/NodeTargetPlugin') !==

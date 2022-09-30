@@ -1,4 +1,8 @@
-const fastify = require('fastify')({ logger: { level: 'error' } })
+/**  @type {import('fastify').FastifyInstance} */
+const fastify = require('fastify')({
+  logger: { level: 'error' },
+  pluginTimeout: 0,
+})
 const Next = require('next')
 
 const port = parseInt(process.env.PORT, 10) || 3000
@@ -12,33 +16,33 @@ fastify.register((fastify, opts, next) => {
     .then(() => {
       if (dev) {
         fastify.get('/_next/*', (req, reply) => {
-          return handle(req.req, reply.res).then(() => {
-            reply.sent = true
+          return handle(req.raw, reply.raw).then(() => {
+            reply.hijack()
           })
         })
       }
 
       fastify.get('/a', (req, reply) => {
-        return app.render(req.req, reply.res, '/a', req.query).then(() => {
-          reply.sent = true
+        return app.render(req.raw, reply.raw, '/a', req.query).then(() => {
+          reply.hijack()
         })
       })
 
       fastify.get('/b', (req, reply) => {
-        return app.render(req.req, reply.res, '/b', req.query).then(() => {
-          reply.sent = true
+        return app.render(req.raw, reply.raw, '/b', req.query).then(() => {
+          reply.hijack()
         })
       })
 
       fastify.all('/*', (req, reply) => {
-        return handle(req.req, reply.res).then(() => {
-          reply.sent = true
+        return handle(req.raw, reply.raw).then(() => {
+          reply.hijack()
         })
       })
 
       fastify.setNotFoundHandler((request, reply) => {
-        return app.render404(request.req, reply.res).then(() => {
-          reply.sent = true
+        return app.render404(request.raw, reply.raw).then(() => {
+          reply.hijack()
         })
       })
 
@@ -47,7 +51,7 @@ fastify.register((fastify, opts, next) => {
     .catch((err) => next(err))
 })
 
-fastify.listen(port, (err) => {
+fastify.listen({ port }, (err) => {
   if (err) throw err
   console.log(`> Ready on http://localhost:${port}`)
 })

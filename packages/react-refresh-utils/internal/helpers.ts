@@ -73,6 +73,25 @@ function registerExportsForReactRefresh(
   }
 }
 
+function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
+  var signature = []
+  signature.push(RefreshRuntime.getFamilyByType(moduleExports))
+  if (moduleExports == null || typeof moduleExports !== 'object') {
+    // Exit if we can't iterate over exports.
+    // (This is important for legacy environments.)
+    return signature
+  }
+  for (var key in moduleExports) {
+    if (isSafeExport(key)) {
+      continue
+    }
+    var exportValue = moduleExports[key]
+    signature.push(key)
+    signature.push(RefreshRuntime.getFamilyByType(exportValue))
+  }
+  return signature
+}
+
 function isReactRefreshBoundary(moduleExports: unknown): boolean {
   if (RefreshRuntime.isLikelyComponentType(moduleExports)) {
     return true
@@ -111,25 +130,6 @@ function shouldInvalidateReactRefreshBoundary(
     }
   }
   return false
-}
-
-function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
-  var signature = []
-  signature.push(RefreshRuntime.getFamilyByType(moduleExports))
-  if (moduleExports == null || typeof moduleExports !== 'object') {
-    // Exit if we can't iterate over exports.
-    // (This is important for legacy environments.)
-    return signature
-  }
-  for (var key in moduleExports) {
-    if (isSafeExport(key)) {
-      continue
-    }
-    var exportValue = moduleExports[key]
-    signature.push(key)
-    signature.push(RefreshRuntime.getFamilyByType(exportValue))
-  }
-  return signature
 }
 
 var isUpdateScheduled: boolean = false

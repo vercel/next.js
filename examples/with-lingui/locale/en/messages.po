@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: pages/two.js:9
+msgid "Back home"
+msgstr "Back home"
+
 #: components/LangSwitcher.js:6
 msgid "English"
 msgstr "English"
@@ -21,18 +25,14 @@ msgstr "English"
 msgid "Go to page 2"
 msgstr "Go to page 2"
 
-#: pages/index.js:8
+#: pages/index.js:6
 msgid "Hello World."
 msgstr "Hello World. "
 
-#: pages/two.js:8
+#: pages/two.js:6
 msgid "Page two."
 msgstr "Page two."
 
 #: components/LangSwitcher.js:7
 msgid "Swedish"
 msgstr "Swedish"
-
-#: components/LangSwitcher.js:26
-msgid "Switch language"
-msgstr "Switch language"

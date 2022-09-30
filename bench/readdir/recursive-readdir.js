@@ -1,5 +1,5 @@
-const { join } = require('path')
-const { recursiveReadDir } = require('next/dist/lib/recursive-readdir')
+import { join } from 'path'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 const resolveDataDir = join(__dirname, 'fixtures')
 
 async function test() {

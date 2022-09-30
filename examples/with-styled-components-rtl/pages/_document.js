@@ -6,12 +6,13 @@ export default class MyDocument extends Document {
   static getInitialProps({ renderPage }) {
     const sheet = new ServerStyleSheet()
 
-    const page = renderPage((App) => (props) =>
-      sheet.collectStyles(
-        <StyleSheetManager stylisPlugins={[stylisRTLPlugin]}>
-          <App {...props} />
-        </StyleSheetManager>
-      )
+    const page = renderPage(
+      (App) => (props) =>
+        sheet.collectStyles(
+          <StyleSheetManager stylisPlugins={[stylisRTLPlugin]}>
+            <App {...props} />
+          </StyleSheetManager>
+        )
     )
 
     const styleTags = sheet.getStyleElement()

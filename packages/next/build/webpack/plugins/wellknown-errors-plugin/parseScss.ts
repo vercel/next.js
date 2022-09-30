@@ -1,9 +1,9 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
-import Chalk from 'chalk'
+import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 const chalk = new Chalk.constructor({ enabled: true })
-const regexScssError = /SassError: (.+)\n\s+on line (\d+) [\s\S]*?>> (.+)\n\s*(-+)\^$/m
+const regexScssError =
+  /SassError: (.+)\n\s+on line (\d+) [\s\S]*?>> (.+)\n\s*(-+)\^$/m
 
 export function getScssError(
   fileName: string,
@@ -23,6 +23,9 @@ export function getScssError(
     let frame: string | undefined
     if (fileContent) {
       try {
+        const {
+          codeFrameColumns,
+        } = require('next/dist/compiled/babel/code-frame')
         frame = codeFrameColumns(
           fileContent,
           { start: { line: lineNumber, column } },

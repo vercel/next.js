@@ -23,10 +23,14 @@ description: Next.js has the preview mode for statically generated pages. You ca
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-storyblok">Storyblok Example</a> (<a href="https://next-blog-storyblok.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms">GraphCMS Example</a> (<a href="https://next-blog-graphcms.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-kontent">Kontent Example</a> (<a href="https://next-blog-kontent.vercel.app//">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-umbraco-heartcore">Umbraco Heartcore Example</a> (<a href="https://next-blog-umbraco-heartcore.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-plasmic">Plasmic Example</a> (<a href="https://nextjs-plasmic-example.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-enterspeed">Enterspeed Example</a> (<a href="https://next-blog-demo.enterspeed.com/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-makeswift">Makeswift Example</a> (<a href="https://nextjs-makeswift-example.vercel.app/">Demo</a>)</li>
   </ul>
 </details>
 
-In the [Pages documentation](/docs/basic-features/pages.md) and the [Data Fetching documentation](/docs/basic-features/data-fetching.md), we talked about how to pre-render a page at build time (**Static Generation**) using `getStaticProps` and `getStaticPaths`.
+In the [Pages documentation](/docs/basic-features/pages.md) and the [Data Fetching documentation](/docs/basic-features/data-fetching/overview.md), we talked about how to pre-render a page at build time (**Static Generation**) using `getStaticProps` and `getStaticPaths`.
 
 Static Generation is useful when your pages fetch data from a headless CMS. However, it’s not ideal when you’re writing a draft on your headless CMS and want to **preview** the draft immediately on your page. You’d want Next.js to render these pages at **request time** instead of build time and fetch the draft content instead of the published content. You’d want Next.js to bypass Static Generation only for this specific case.
 
@@ -170,30 +174,35 @@ https://<your-site>/api/preview?secret=<token>&slug=<path>
 
 ## More Details
 
-### Clear the preview mode cookies
+> **Note**: during rendering `next/router` exposes an `isPreview` flag, see the [router object docs](/docs/api-reference/next/router.md#router-object) for more info.
 
-By default, no expiration date is set for the preview mode cookies, so the preview mode ends when the browser is closed.
+### Clear the Preview Mode cookies
 
-To clear the preview cookies manually, you can create an API route which calls `clearPreviewData` and then access this API route.
+By default, no expiration date is set for Preview Mode cookies, so the preview session ends when the browser is closed.
+
+To clear the Preview Mode cookies manually, create an API route that calls `clearPreviewData()`:
 
 ```js
+// pages/api/clear-preview-mode-cookies.js
+
 export default function handler(req, res) {
-  // Clears the preview mode cookies.
-  // This function accepts no arguments.
   res.clearPreviewData()
-  // ...
 }
 ```
 
-### Specify the preview mode duration
+Then, send a request to `/api/clear-preview-mode-cookies` to invoke the API Route. If calling this route using [`next/link`](/docs/api-reference/next/link.md), you must pass `prefetch={false}` to prevent calling `clearPreviewData` during link prefetching.
+
+### Specify the Preview Mode duration
 
 `setPreviewData` takes an optional second parameter which should be an options object. It accepts the following keys:
 
 - `maxAge`: Specifies the number (in seconds) for the preview session to last for.
+- `path`: Specifies the path the cookie should be applied under. Defaults to `/` enabling preview mode for all paths.
 
 ```js
 setPreviewData(data, {
   maxAge: 60 * 60, // The preview mode cookies expire in 1 hour
+  path: '/about', // The preview mode cookies apply to paths with /about
 })
 ```
 
@@ -229,7 +238,7 @@ This ensures that the bypass cookie can’t be guessed.
 The following pages might also be useful.
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>

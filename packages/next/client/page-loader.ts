@@ -1,26 +1,22 @@
-import { ComponentType } from 'react'
-import { ClientSsgManifest } from '../build'
-import {
-  addBasePath,
-  addLocale,
-  interpolateAs,
-} from '../next-server/lib/router/router'
-import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
-import { removePathTrailingSlash } from './normalize-trailing-slash'
-import createRouteLoader, {
-  getClientBuildManifest,
-  RouteLoader,
-} from './route-loader'
+import type { ComponentType } from 'react'
+import type { RouteLoader } from './route-loader'
+import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import { addBasePath } from './add-base-path'
+import { interpolateAs } from '../shared/lib/router/router'
+import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
+import { addLocale } from './add-locale'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { createRouteLoader, getClientBuildManifest } from './route-loader'
 
-function normalizeRoute(route: string): string {
-  if (route[0] !== '/') {
-    throw new Error(`Route name should start with a "/", got "${route}"`)
+declare global {
+  interface Window {
+    __DEV_MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
+    __DEV_PAGES_MANIFEST?: { pages: string[] }
+    __SSG_MANIFEST_CB?: () => void
+    __SSG_MANIFEST?: Set<string>
   }
-
-  if (route === '/') return route
-  return route.replace(/\/$/, '')
 }
 
 export type StyleSheetTuple = { href: string; text: string }
@@ -33,9 +29,10 @@ export type GoodPageCache = {
 export default class PageLoader {
   private buildId: string
   private assetPrefix: string
+  private promisedSsgManifest: Promise<Set<string>>
+  private promisedDevPagesManifest?: Promise<string[]>
+  private promisedMiddlewareMatchers?: Promise<MiddlewareMatcher[]>
 
-  private promisedSsgManifest?: Promise<ClientSsgManifest>
-  private promisedDevPagesManifest?: Promise<any>
   public routeLoader: RouteLoader
 
   constructor(buildId: string, assetPrefix: string) {
@@ -44,13 +41,12 @@ export default class PageLoader {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
-    /** @type {Promise<Set<string>>} */
     this.promisedSsgManifest = new Promise((resolve) => {
-      if ((window as any).__SSG_MANIFEST) {
-        resolve((window as any).__SSG_MANIFEST)
+      if (window.__SSG_MANIFEST) {
+        resolve(window.__SSG_MANIFEST)
       } else {
-        ;(window as any).__SSG_MANIFEST_CB = () => {
-          resolve((window as any).__SSG_MANIFEST)
+        window.__SSG_MANIFEST_CB = () => {
+          resolve(window.__SSG_MANIFEST!)
         }
       }
     })
@@ -60,69 +56,100 @@ export default class PageLoader {
     if (process.env.NODE_ENV === 'production') {
       return getClientBuildManifest().then((manifest) => manifest.sortedPages)
     } else {
-      if ((window as any).__DEV_PAGES_MANIFEST) {
-        return (window as any).__DEV_PAGES_MANIFEST.pages
+      if (window.__DEV_PAGES_MANIFEST) {
+        return window.__DEV_PAGES_MANIFEST.pages
       } else {
-        if (!this.promisedDevPagesManifest) {
-          this.promisedDevPagesManifest = fetch(
-            `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
-          )
-            .then((res) => res.json())
-            .then((manifest) => {
-              ;(window as any).__DEV_PAGES_MANIFEST = manifest
-              return manifest.pages
-            })
-            .catch((err) => {
-              console.log(`Failed to fetch devPagesManifest`, err)
-            })
-        }
+        this.promisedDevPagesManifest ||= fetch(
+          `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
+        )
+          .then((res) => res.json())
+          .then((manifest: { pages: string[] }) => {
+            window.__DEV_PAGES_MANIFEST = manifest
+            return manifest.pages
+          })
+          .catch((err) => {
+            console.log(`Failed to fetch devPagesManifest:`, err)
+            throw new Error(
+              `Failed to fetch _devPagesManifest.json. Is something blocking that network request?\n` +
+                'Read more: https://nextjs.org/docs/messages/failed-to-fetch-devpagesmanifest'
+            )
+          })
         return this.promisedDevPagesManifest
       }
     }
   }
 
-  /**
-   * @param {string} href the route href (file-system path)
-   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
-   * @returns {string}
-   */
-  getDataHref(
-    href: string,
-    asPath: string,
-    ssg: boolean,
+  getMiddleware() {
+    if (process.env.NODE_ENV === 'production') {
+      const middlewareMatchers = process.env.__NEXT_MIDDLEWARE_MATCHERS
+      window.__MIDDLEWARE_MATCHERS = middlewareMatchers
+        ? (middlewareMatchers as any as MiddlewareMatcher[])
+        : undefined
+      return window.__MIDDLEWARE_MATCHERS
+    } else {
+      if (window.__DEV_MIDDLEWARE_MATCHERS) {
+        return window.__DEV_MIDDLEWARE_MATCHERS
+      } else {
+        if (!this.promisedMiddlewareMatchers) {
+          // TODO: Decide what should happen when fetching fails instead of asserting
+          // @ts-ignore
+          this.promisedMiddlewareMatchers = fetch(
+            `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
+          )
+            .then((res) => res.json())
+            .then((matchers: MiddlewareMatcher[]) => {
+              window.__DEV_MIDDLEWARE_MATCHERS = matchers
+              return matchers
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch _devMiddlewareManifest`, err)
+            })
+        }
+        // TODO Remove this assertion as this could be undefined
+        return this.promisedMiddlewareMatchers!
+      }
+    }
+  }
+
+  getDataHref(params: {
+    asPath: string
+    href: string
     locale?: string | false
-  ): string {
+    skipInterpolation?: boolean
+  }): string {
+    const { asPath, href, locale } = params
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
-    const route = normalizeRoute(hrefPathname)
+    const route = removeTrailingSlash(hrefPathname)
+    if (route[0] !== '/') {
+      throw new Error(`Route name should start with a "/", got "${route}"`)
+    }
 
     const getHrefForSlug = (path: string) => {
       const dataRoute = getAssetPathFromRoute(
-        removePathTrailingSlash(addLocale(path, locale)),
+        removeTrailingSlash(addLocale(path, locale)),
         '.json'
       )
       return addBasePath(
-        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
+        `/_next/data/${this.buildId}${dataRoute}${search}`,
+        true
       )
     }
 
-    const isDynamic: boolean = isDynamicRoute(route)
-    const interpolatedRoute = isDynamic
-      ? interpolateAs(hrefPathname, asPathname, query).result
-      : ''
-
-    return isDynamic
-      ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
-      : getHrefForSlug(route)
+    return getHrefForSlug(
+      params.skipInterpolation
+        ? asPathname
+        : isDynamicRoute(route)
+        ? interpolateAs(hrefPathname, asPathname, query).result
+        : route
+    )
   }
 
   /**
    * @param {string} route - the route (file-system path)
    */
   _isSsg(route: string): Promise<boolean> {
-    return this.promisedSsgManifest!.then((s: ClientSsgManifest) =>
-      s.has(route)
-    )
+    return this.promisedSsgManifest.then((manifest) => manifest.has(route))
   }
 
   loadPage(route: string): Promise<GoodPageCache> {

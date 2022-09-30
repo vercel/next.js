@@ -1,7 +1,7 @@
-const escape = require('shell-quote').quote
-const { CLIEngine } = require('eslint')
+const { quote } = require('shell-quote')
+const { ESLint } = require('eslint')
 
-const cli = new CLIEngine({})
+const eslint = new ESLint()
 const isWin = process.platform === 'win32'
 
 module.exports = {
@@ -12,9 +12,10 @@ module.exports = {
     return [
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,
       `eslint --no-ignore --max-warnings=0 --fix ${filenames
-        .filter((file) => !cli.isPathIgnored(file))
+        .filter((file) => !eslint.isPathIgnored(file))
         .map((f) => `"${f}"`)
         .join(' ')}`,
+      `git add ${escapedFileNames}`,
     ]
   },
   '**/*.{json,md,mdx,css,html,yml,yaml,scss}': (filenames) => {
@@ -23,6 +24,12 @@ module.exports = {
       .join(' ')
     return [
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,
+      `git add ${escapedFileNames}`,
     ]
   },
+}
+
+function escape(str) {
+  const escaped = quote(str)
+  return escaped.replace(/\\@/g, '@')
 }

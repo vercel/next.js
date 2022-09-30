@@ -1,6 +1,15 @@
+const fs = require('fs')
+const path = require('path')
+// this page is conditionally added when not testing
+// in webpack 4 mode since it's not supported for webpack 4
+const imagePageData = fs.readFileSync(
+  path.join(__dirname, './image.js'),
+  'utf8'
+)
+
 const clientGlobs = [
   {
-    name: 'Client Bundles (main, webpack, commons)',
+    name: 'Client Bundles (main, webpack)',
     globs: [
       '.next/static/runtime/+(main|webpack)-*',
       '.next/static/chunks/!(polyfills*)',
@@ -12,33 +21,47 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/*/pages/**/*', '.next/static/css/**/*'],
+    globs: ['.next/static/BUILD_ID/pages/**/*.js', '.next/static/css/**/*'],
   },
   {
     name: 'Client Build Manifests',
-    globs: ['.next/static/*/_buildManifest*'],
+    globs: ['.next/static/BUILD_ID/_buildManifest*'],
   },
   {
     name: 'Rendered Page Sizes',
     globs: ['fetched-pages/**/*.html'],
   },
+  {
+    name: 'Edge SSR bundle Size',
+    globs: [
+      '.next/server/pages/edge-ssr.js',
+      '.next/server/app/app-edge-ssr/page.js',
+    ],
+  },
+  {
+    name: 'Middleware size',
+    globs: [
+      '.next/server/middleware*.js',
+      '.next/server/edge-runtime-webpack.js',
+    ],
+  },
 ]
 
 const renames = [
   {
-    srcGlob: '.next/static/*/pages',
+    srcGlob: '.next/static/chunks/pages',
     dest: '.next/static/BUILD_ID/pages',
   },
   {
-    srcGlob: '.next/static/*/pages/**/*',
+    srcGlob: '.next/static/BUILD_ID/pages/**/*.js',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/*',
+    srcGlob: '.next/static/runtime/*.js',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/chunks/*',
+    srcGlob: '.next/static/chunks/*.js',
     removeHash: true,
   },
   {
@@ -52,22 +75,29 @@ module.exports = {
   commentReleaseHeading: 'Stats from current release',
   appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next build',
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
+  appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next --port $PORT',
   mainRepo: 'vercel/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,
   configs: [
     {
-      title: 'Default Server Mode',
+      title: 'Default Build',
       diff: 'onOutputChange',
       diffConfigFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: true
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true,
               },
+              generateBuildId: () => 'BUILD_ID',
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -81,9 +111,18 @@ module.exports = {
       renames,
       configFiles: [
         {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
+        {
           path: 'next.config.js',
           content: `
-            module.exports = {
+          module.exports = {
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true,
+              },
               generateBuildId: () => 'BUILD_ID'
             }
           `,
@@ -107,40 +146,24 @@ module.exports = {
       },
     },
     {
-      title: 'Serverless Mode',
-      diff: false,
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              target: 'serverless'
-            }
-          `,
-        },
-      ],
-      filesToTrack: [
-        ...clientGlobs,
-        {
-          name: 'Serverless bundles',
-          globs: ['.next/serverless/pages/**/*'],
-        },
-      ],
-    },
-    {
-      title: 'Webpack 4 Mode',
+      title: 'Default Build with SWC',
       diff: 'onOutputChange',
       diffConfigFiles: [
         {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
+        {
           path: 'next.config.js',
           content: `
             module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: false
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true
               },
+              generateBuildId: () => 'BUILD_ID',
+              swcMinify: true,
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -150,16 +173,24 @@ module.exports = {
           `,
         },
       ],
+      // renames to apply to make file names deterministic
       renames,
       configFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: false
-              }
+              experimental: {
+                appDir: true,
+                // remove after next stable relase (current v12.3.1)
+                serverComponents: true
+              },
+              swcMinify: true,
+              generateBuildId: () => 'BUILD_ID'
             }
           `,
         },

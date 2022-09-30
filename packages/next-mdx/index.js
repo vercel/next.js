@@ -1,24 +1,29 @@
-module.exports = (pluginOptions = {}) => (nextConfig = {}) => {
-  const extension = pluginOptions.extension || /\.mdx$/
+module.exports =
+  (pluginOptions = {}) =>
+  (nextConfig = {}) => {
+    const extension = pluginOptions.extension || /\.mdx$/
 
-  return Object.assign({}, nextConfig, {
-    webpack(config, options) {
-      config.module.rules.push({
-        test: extension,
-        use: [
-          options.defaultLoaders.babel,
-          {
-            loader: require.resolve('@mdx-js/loader'),
-            options: pluginOptions.options,
-          },
-        ],
-      })
+    return Object.assign({}, nextConfig, {
+      webpack(config, options) {
+        config.module.rules.push({
+          test: extension,
+          use: [
+            options.defaultLoaders.babel,
+            {
+              loader: require.resolve('@mdx-js/loader'),
+              options: {
+                providerImportSource: '@mdx-js/react',
+                ...pluginOptions.options,
+              },
+            },
+          ],
+        })
 
-      if (typeof nextConfig.webpack === 'function') {
-        return nextConfig.webpack(config, options)
-      }
+        if (typeof nextConfig.webpack === 'function') {
+          return nextConfig.webpack(config, options)
+        }
 
-      return config
-    },
-  })
-}
+        return config
+      },
+    })
+  }

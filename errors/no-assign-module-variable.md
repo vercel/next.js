@@ -1,0 +1,15 @@
+# No assign module variable
+
+> Prevent assignment to the `module` variable.
+
+#### Why This Error Occurred
+
+A value is being assigned to the `module` variable. The `module` variable is already used and it is highly likely that assigning to this variable will cause errors.
+
+#### Possible Ways to Fix It
+
+Use a different variable name:
+
+```js
+let myModule = {...}
+```

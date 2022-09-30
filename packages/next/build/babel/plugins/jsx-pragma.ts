@@ -64,9 +64,8 @@ export default function ({
                 t.isIdentifier(existingBinding.path.node.init.callee) &&
                 existingBinding.path.node.init.callee.name === 'require'
               ) {
-                ;[newPath] = existingBinding.path.parentPath.insertAfter(
-                  mapping
-                )
+                ;[newPath] =
+                  existingBinding.path.parentPath.insertAfter(mapping)
               } else {
                 ;[newPath] = path.unshiftContainer('body', mapping)
               }

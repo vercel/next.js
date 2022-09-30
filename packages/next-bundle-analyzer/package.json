@@ -1,7 +1,8 @@
 {
   "name": "@next/bundle-analyzer",
-  "version": "10.2.2",
+  "version": "12.3.2-canary.15",
   "main": "index.js",
+  "types": "index.d.ts",
   "license": "MIT",
   "repository": {
     "url": "vercel/next.js",

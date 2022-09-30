@@ -1,0 +1,37 @@
+# Deprecated Middleware API Signature
+
+#### Why This Error Occurred
+
+Your application is using a Middleware function that is using parameters from the deprecated API.
+
+```typescript
+// middleware.js
+import { NextResponse } from 'next/server'
+
+export function middleware(event) {
+  if (event.request.nextUrl.pathname === '/blocked') {
+    event.respondWith(
+      new NextResponse(null, {
+        status: 403,
+      })
+    )
+  }
+}
+```
+
+#### Possible Ways to Fix It
+
+Update to use the new API for Middleware:
+
+```typescript
+// middleware.js
+import { NextResponse } from 'next/server'
+
+export function middleware(request) {
+  if (request.nextUrl.pathname === '/blocked') {
+    return new NextResponse(null, {
+      status: 403,
+    })
+  }
+}
+```

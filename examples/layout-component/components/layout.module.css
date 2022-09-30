@@ -1,0 +1,9 @@
+.main {
+  display: flex;
+  height: calc(100vh - 64px);
+  background-color: white;
+}
+
+.main > section {
+  padding: 32px;
+}

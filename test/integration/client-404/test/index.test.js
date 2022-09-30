@@ -17,7 +17,6 @@ import clientNavigation from './client-navigation'
 
 const context = {}
 const appDir = join(__dirname, '../')
-jest.setTimeout(1000 * 60 * 5)
 
 const runTests = (isProd = false) => {
   clientNavigation(context, isProd)

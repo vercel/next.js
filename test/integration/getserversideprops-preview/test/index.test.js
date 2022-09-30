@@ -18,7 +18,6 @@ import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 
@@ -240,7 +239,7 @@ describe('ServerSide Props Preview Mode', () => {
       expect(cookies.length).toBe(2)
     })
 
-    /** @type import('next-webdriver').Chain */
+    /** @type {import('next-webdriver').Chain} */
     let browser
     it('should start the client-side browser', async () => {
       browser = await webdriver(

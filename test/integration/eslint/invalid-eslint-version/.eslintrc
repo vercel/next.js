@@ -1,0 +1,4 @@
+{
+  "extends": "next",
+  "root": true
+}

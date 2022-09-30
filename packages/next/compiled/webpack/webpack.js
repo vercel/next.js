@@ -1,27 +1,26 @@
 exports.__esModule = true
 
-exports.isWebpack5 = false
-
 exports.default = undefined
 
-let initializedWebpack5 = false
-let initializedWebpack4 = false
-let initFns = []
-exports.init = function (useWebpack5) {
-  if (useWebpack5) {
-    Object.assign(exports, require('./bundle5')())
-    exports.isWebpack5 = true
-    if (!initializedWebpack5) for (const cb of initFns) cb()
-    initializedWebpack5 = true
+exports.init = function () {
+  if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+    Object.assign(exports, {
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      BasicEvaluatedExpression: require('webpack/lib/javascript/BasicEvaluatedExpression'),
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      ModuleFilenameHelpers: require('webpack/lib/ModuleFilenameHelpers'),
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      NodeTargetPlugin: require('webpack/lib/node/NodeTargetPlugin'),
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      StringXor: require('webpack/lib/util/StringXor'),
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      NormalModule: require('webpack/lib/NormalModule'),
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      sources: require('webpack').sources,
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      webpack: require('webpack'),
+    })
   } else {
-    Object.assign(exports, require('./bundle4')())
-    exports.isWebpack5 = false
-    if (!initializedWebpack4) for (const cb of initFns) cb()
-    initializedWebpack4 = true
+    Object.assign(exports, require('./bundle5')())
   }
-}
-
-exports.onWebpackInit = function (cb) {
-  if (initializedWebpack5 || initializedWebpack4) cb()
-  else initFns.push(cb)
 }

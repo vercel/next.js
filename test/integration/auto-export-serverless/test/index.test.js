@@ -4,7 +4,6 @@ import webdriver from 'next-webdriver'
 import path from 'path'
 import { nextBuild, nextStart, findPort, killApp } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
 const appDir = path.join(__dirname, '..')
 let appPort
 let app
