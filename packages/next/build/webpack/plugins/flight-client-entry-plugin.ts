@@ -1,5 +1,6 @@
 import { stringify } from 'querystring'
 import path from 'path'
+import { relative } from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   getInvalidator,
@@ -11,7 +12,7 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
 import {
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
@@ -30,6 +31,9 @@ interface Options {
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export const injectedClientEntries = new Map()
+
+export const serverModuleIds = new Map<string, string | number>()
+export const edgeServerModuleIds = new Map<string, string | number>()
 
 // TODO-APP: ensure .scss / .sass also works.
 const regexCSS = /\.css$/
@@ -76,6 +80,60 @@ export class FlightClientEntryPlugin {
             ASYNC_CLIENT_MODULES.add(mod.resource)
           }
         }
+      })
+
+      const recordModule = (id: number | string, mod: any) => {
+        const modResource = mod.resourceResolveData?.path || mod.resource
+
+        if (
+          mod.resourceResolveData?.context?.issuerLayer ===
+          WEBPACK_LAYERS.server
+        ) {
+          return
+        }
+
+        if (typeof id !== 'undefined' && modResource) {
+          // Note that this isn't that reliable as webpack is still possible to assign
+          // additional queries to make sure there's no conflict even using the `named`
+          // module ID strategy.
+          let ssrNamedModuleId = relative(compiler.context, modResource)
+          if (!ssrNamedModuleId.startsWith('.')) {
+            // TODO use getModuleId instead
+            ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
+          }
+
+          if (this.isEdgeServer) {
+            edgeServerModuleIds.set(
+              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/'),
+              id
+            )
+          } else {
+            serverModuleIds.set(ssrNamedModuleId, id)
+          }
+        }
+      }
+
+      compilation.chunkGroups.forEach((chunkGroup) => {
+        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+            chunk
+          ) as Iterable<webpack.NormalModule>
+
+          for (const mod of chunkModules) {
+            const modId = compilation.chunkGraph.getModuleId(mod)
+
+            recordModule(modId, mod)
+
+            // If this is a concatenation, register each child to the parent ID.
+            // TODO: remove any
+            const anyModule = mod as any
+            if (anyModule.modules) {
+              anyModule.modules.forEach((concatenatedMod: any) => {
+                recordModule(modId, concatenatedMod)
+              })
+            }
+          }
+        })
       })
     })
   }
@@ -323,6 +381,7 @@ export class FlightClientEntryPlugin {
       // Check if request is for css file.
       if ((!inClientComponentBoundary && isClientComponent) || isCSS) {
         clientComponentImports.push(modRequest)
+
         return
       }
 

@@ -1278,12 +1278,7 @@ export default async function getBaseWebpackConfig(
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
-      ...(hasServerComponents
-        ? {
-            // We have to use the names here instead of hashes to ensure the consistency between compilers.
-            moduleIds: isClient ? 'deterministic' : 'named',
-          }
-        : {}),
+      ...(hasServerComponents ? { moduleIds: 'deterministic' } : {}),
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
