@@ -1,6 +1,7 @@
+import { defineRule } from '../utils/define-rule'
 const url = 'https://nextjs.org/docs/messages/no-assign-module-variable'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent assignment to the `module` variable.',
@@ -11,13 +12,16 @@ module.exports = {
     schema: [],
   },
 
-  create: function (context) {
+  create(context) {
     return {
       VariableDeclaration(node) {
         // Checks node.declarations array for variable with id.name of `module`
-        const moduleVariableFound = node.declarations.some(
-          (declaration) => declaration.id.name === 'module'
-        )
+        const moduleVariableFound = node.declarations.some((declaration) => {
+          if ('name' in declaration.id) {
+            return declaration.id.name === 'module'
+          }
+          return false
+        })
 
         // Return early if no `module` variable is found
         if (!moduleVariableFound) {
@@ -31,4 +35,4 @@ module.exports = {
       },
     }
   },
-}
+})

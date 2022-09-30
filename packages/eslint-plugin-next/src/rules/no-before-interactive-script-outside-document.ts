@@ -1,9 +1,10 @@
-const path = require('path')
+import { defineRule } from '../utils/define-rule'
+import * as path from 'path'
 
 const url =
   'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description:
@@ -14,7 +15,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     let scriptImportName = null
 
     return {
@@ -56,4 +57,4 @@ module.exports = {
       },
     }
   },
-}
+})

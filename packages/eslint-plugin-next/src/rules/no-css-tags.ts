@@ -1,6 +1,7 @@
+import { defineRule } from '../utils/define-rule'
 const url = 'https://nextjs.org/docs/messages/no-css-tags'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent manual stylesheet tags.',
@@ -10,7 +11,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'link') {
@@ -43,4 +44,4 @@ module.exports = {
       },
     }
   },
-}
+})

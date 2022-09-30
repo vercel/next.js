@@ -16,8 +16,8 @@ const processRootDir = (rootDir: string): string[] => {
 export const getRootDirs = (context: Rule.RuleContext) => {
   let rootDirs = [context.getCwd()]
 
-  /** @type {{rootDir?:string|string[]}|undefined} */
-  const nextSettings = context.settings.next || {}
+  const nextSettings: { rootDir?: string | string[] } =
+    context.settings.next || {}
   let rootDir = nextSettings.rootDir
 
   if (typeof rootDir === 'string') {

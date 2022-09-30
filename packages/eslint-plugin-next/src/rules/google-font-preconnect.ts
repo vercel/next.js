@@ -1,8 +1,9 @@
-const NodeAttributes = require('../utils/node-attributes.js')
+import { defineRule } from '../utils/define-rule'
+import NodeAttributes from '../utils/node-attributes'
 
 const url = 'https://nextjs.org/docs/messages/google-font-preconnect'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Ensure `preconnect` is used with Google Fonts.',
@@ -12,7 +13,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'link') {
@@ -43,4 +44,4 @@ module.exports = {
       },
     }
   },
-}
+})
