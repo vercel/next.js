@@ -222,6 +222,9 @@ const configSchema = {
         adjustFontFallbacks: {
           type: 'boolean',
         },
+        adjustFontFallbacksWithSizeAdjust: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
