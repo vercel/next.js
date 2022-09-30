@@ -320,7 +320,7 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
-        optoutServerComponentsBundle: {
+        serverComponentsExternalPackages: {
           items: {
             type: 'string',
           },
