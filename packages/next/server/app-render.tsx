@@ -610,6 +610,8 @@ function getRootLayoutPath(
   rootLayoutPath += `${segment}/`
   const isLayout = typeof layout !== 'undefined'
   if (isLayout) return rootLayoutPath
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
   const child = Object.values(parallelRoutes)[0]
   if (!child) return
   return getRootLayoutPath(child, rootLayoutPath)
@@ -626,6 +628,8 @@ function findRootLayoutInFlightRouterState(
   } else if (segments.length > rootLayoutSegments.length) {
     return false
   }
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
   const child = Object.values(parallelRoutes)[0]
   if (!child) return false
   return findRootLayoutInFlightRouterState(child, rootLayoutSegments, segments)
