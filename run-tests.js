@@ -37,7 +37,10 @@ const cleanUpAndExit = async (code) => {
     await fs.remove(process.env.NEXT_TEST_STARTER)
   }
   console.log(`exiting with code ${code}`)
-  process.exit(code)
+
+  setTimeout(() => {
+    process.exit(code)
+  }, 1)
 }
 
 async function getTestTimings() {
@@ -210,7 +213,10 @@ async function main() {
     )
   })
 
-  if ((testType && testType !== 'unit') || hasIsolatedTests) {
+  if (
+    process.env.NEXT_TEST_MODE !== 'deploy' &&
+    ((testType && testType !== 'unit') || hasIsolatedTests)
+  ) {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
@@ -224,20 +230,27 @@ async function main() {
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
-  const jestPath = path.join(
-    path.dirname(require.resolve('jest-cli/package.json')),
-    'bin/jest.js'
-  )
   const children = new Set()
+  const jestPath = path.join(
+    __dirname,
+    'node_modules',
+    '.bin',
+    `jest${process.platform === 'win32' ? '.CMD' : ''}`
+  )
 
-  const runTest = (test = '', isFinalRun) =>
+  const runTest = (test = '', isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
+
+      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
+
       const child = spawn(
-        'node',
+        jestPath,
         [
-          jestPath,
+          ...(shouldRecordTestWithReplay
+            ? [`--config=jest.replay.config.js`]
+            : []),
           '--runInBand',
           '--forceExit',
           '--verbose',
@@ -250,6 +263,7 @@ async function main() {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env,
+            RECORD_REPLAY: shouldRecordTestWithReplay,
             // run tests in headless mode by default
             HEADLESS: 'true',
             TRACE_PLAYWRIGHT: 'true',
@@ -265,40 +279,31 @@ async function main() {
           },
         }
       )
-      const handleOutput = (chunk) => {
-        if (hideOutput) {
-          outputChunks.push(chunk)
+      const handleOutput = (type) => (chunk) => {
+        if (hideOutput && !isFinalRun) {
+          outputChunks.push({ type, chunk })
         } else {
           process.stderr.write(chunk)
         }
       }
-      child.stdout.on('data', handleOutput)
-      child.stderr.on('data', handleOutput)
+      child.stdout.on('data', handleOutput('stdout'))
+      child.stderr.on('data', handleOutput('stderr'))
 
       children.add(child)
 
       child.on('exit', async (code, signal) => {
         children.delete(child)
         if (code !== 0 || signal !== null) {
-          if (isFinalRun && hideOutput) {
+          if (hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            let trimmedOutputSize = 0
-            const trimmedOutputLimit = 64 * 1024
-            const trimmedOutput = []
-
-            for (let i = outputChunks.length; i >= 0; i--) {
-              const chunk = outputChunks[i]
-              if (!chunk) continue
-
-              trimmedOutputSize += chunk.byteLength || chunk.length
-              trimmedOutput.unshift(chunk)
-
-              if (trimmedOutputSize > trimmedOutputLimit) {
-                break
+            outputChunks.forEach(({ type, chunk }) => {
+              if (type === 'stdout') {
+                process.stdout.write(chunk)
+              } else {
+                process.stderr.write(chunk)
               }
-            }
-            trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
+            })
           }
           return reject(
             new Error(
@@ -338,7 +343,7 @@ async function main() {
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i === numRetries)
+          const time = await runTest(test, i === numRetries, i > 0)
           timings.push({
             file: test,
             time,

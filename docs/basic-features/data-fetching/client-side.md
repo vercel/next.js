@@ -15,13 +15,15 @@ It's important to note that using client-side data fetching can affect the perfo
 The following example shows how you can fetch data on the client side using the useEffect hook.
 
 ```jsx
+import { useState, useEffect } from 'react'
+
 function Profile() {
   const [data, setData] = useState(null)
   const [isLoading, setLoading] = useState(false)
 
   useEffect(() => {
     setLoading(true)
-    fetch('api/profile-data')
+    fetch('/api/profile-data')
       .then((res) => res.json())
       .then((data) => {
         setData(data)

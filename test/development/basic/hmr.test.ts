@@ -26,6 +26,18 @@ describe('basic HMR', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should show hydration error correctly', async () => {
+    const browser = await webdriver(next.url, '/hydration-error')
+    await check(async () => {
+      const logs = await browser.log()
+      return logs.some((log) =>
+        log.message.includes('messages/react-hydration-error')
+      )
+        ? 'success'
+        : JSON.stringify(logs, null, 2)
+    }, 'success')
+  })
+
   it('should have correct router.isReady for auto-export page', async () => {
     let browser = await webdriver(next.url, '/auto-export-is-ready')
 
@@ -697,9 +709,9 @@ describe('basic HMR', () => {
 
         await check(async () => {
           await browser.refresh()
-          const text = await browser.elementByCss('body').text()
+          await waitFor(2000)
+          const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
           return getRedboxSource(browser)
@@ -745,15 +757,12 @@ describe('basic HMR', () => {
 
         await check(async () => {
           await browser.refresh()
+          await waitFor(2000)
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
-
-          await waitFor(2000)
-          const source = await getRedboxSource(browser)
-          return source
+          return getRedboxSource(browser)
         }, /an-expected-error-in-gip/)
       } catch (err) {
         await next.patchFile(erroredPage, errorContent)
@@ -767,10 +776,138 @@ describe('basic HMR', () => {
     })
   })
 
+  describe('Full reload', () => {
+    it('should warn about full reload in cli output - anonymous page function', async () => {
+      const start = next.cliOutput.length
+      const browser = await webdriver(
+        next.appPort,
+        `/hmr/anonymous-page-function`
+      )
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+      expect(next.cliOutput.slice(start)).not.toContain(
+        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+      )
+
+      const currentFileContent = await next.readFile(
+        './pages/hmr/anonymous-page-function.js'
+      )
+      const newFileContent = currentFileContent.replace(
+        '<p>hello world</p>',
+        '<p id="updated">hello world!!!</p>'
+      )
+      await next.patchFile(
+        './pages/hmr/anonymous-page-function.js',
+        newFileContent
+      )
+
+      expect(await browser.waitForElementByCss('#updated').text()).toBe(
+        'hello world!!!'
+      )
+
+      // CLI warning and stacktrace
+      expect(next.cliOutput.slice(start)).toContain(
+        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+      )
+      expect(next.cliOutput.slice(start)).toContain(
+        'Error: Aborted because ./pages/hmr/anonymous-page-function.js is not accepted'
+      )
+
+      // Browser warning
+      const browserLogs = await browser.log()
+      expect(
+        browserLogs.some(({ message }) =>
+          message.includes(
+            "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree."
+          )
+        )
+      ).toBeTruthy()
+    })
+
+    it('should warn about full reload in cli output - runtime-error', async () => {
+      const start = next.cliOutput.length
+      const browser = await webdriver(next.appPort, `/hmr/runtime-error`)
+      await check(
+        () => getRedboxHeader(browser),
+        /ReferenceError: whoops is not defined/
+      )
+      expect(next.cliOutput.slice(start)).not.toContain(
+        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+      )
+
+      const currentFileContent = await next.readFile(
+        './pages/hmr/runtime-error.js'
+      )
+      const newFileContent = currentFileContent.replace(
+        'whoops',
+        '<p id="updated">whoops</p>'
+      )
+      await next.patchFile('./pages/hmr/runtime-error.js', newFileContent)
+
+      expect(await browser.waitForElementByCss('#updated').text()).toBe(
+        'whoops'
+      )
+
+      // CLI warning and stacktrace
+      expect(next.cliOutput.slice(start)).toContain(
+        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+      )
+      expect(next.cliOutput.slice(start)).not.toContain(
+        'Error: Aborted because ./pages/runtime-error.js is not accepted'
+      )
+
+      // Browser warning
+      const browserLogs = await browser.log()
+      expect(
+        browserLogs.some(({ message }) =>
+          message.includes(
+            '[Fast Refresh] performing full reload because your application had an unrecoverable error'
+          )
+        )
+      ).toBeTruthy()
+    })
+  })
+
   it('should have client HMR events in trace file', async () => {
     const traceData = await next.readFile('.next/trace')
     expect(traceData).toContain('client-hmr-latency')
     expect(traceData).toContain('client-error')
     expect(traceData).toContain('client-success')
+    expect(traceData).toContain('client-full-reload')
+  })
+
+  it('should have correct compile timing after fixing error', async () => {
+    const pageName = 'pages/auto-export-is-ready.js'
+    const originalContent = await next.readFile(pageName)
+
+    try {
+      const browser = await webdriver(next.url, '/auto-export-is-ready')
+      const outputLength = next.cliOutput.length
+      await next.patchFile(
+        pageName,
+        `import hello from 'non-existent'\n` + originalContent
+      )
+      expect(await hasRedbox(browser, true)).toBe(true)
+      await waitFor(3000)
+      await next.patchFile(pageName, originalContent)
+      await check(
+        () => next.cliOutput.substring(outputLength),
+        /compiled.*?successfully/i
+      )
+      const compileTime = next.cliOutput
+        .substring(outputLength)
+        .match(/compiled.*?successfully in ([\d.]{1,})\s?(?:s|ms)/i)
+
+      let compileTimeMs = parseFloat(compileTime[1])
+      if (
+        next.cliOutput
+          .substring(outputLength)
+          .match(/compiled.*?successfully in ([\d.]{1,})\s?s/)
+      ) {
+        compileTimeMs = compileTimeMs * 1000
+      }
+      expect(compileTimeMs).toBeLessThan(3000)
+    } finally {
+      await next.patchFile(pageName, originalContent)
+    }
   })
 })

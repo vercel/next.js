@@ -1,24 +1,30 @@
+const url = 'https://nextjs.org/docs/messages/no-head-element'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Prohibit usage of HTML <head> element',
+      description: 'Prevent usage of `<head>` element.',
       category: 'HTML',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-head-element',
+      url,
     },
-    fixable: 'code',
+    type: 'problem',
+    schema: [],
   },
-
   create: function (context) {
     return {
       JSXOpeningElement(node) {
-        if (node.name.name !== 'head') {
+        const paths = context.getFilename()
+
+        const isInAppDir = paths.includes('app/') && !paths.includes('pages/')
+        // Only lint the <head> element in pages directory
+        if (node.name.name !== 'head' || isInAppDir) {
           return
         }
 
         context.report({
           node,
-          message: `Do not use <head>. Use Head from 'next/head' instead. See: https://nextjs.org/docs/messages/no-head-element`,
+          message: `Do not use \`<head>\` element. Use \`<Head />\` from \`next/head\` instead. See: ${url}`,
         })
       },
     }

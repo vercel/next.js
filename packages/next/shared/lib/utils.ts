@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
+import { COMPILER_NAMES } from './constants'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -26,10 +27,10 @@ export type DocumentType = NextComponentType<
   DocumentProps
 >
 
-export type AppType = NextComponentType<
+export type AppType<P = {}> = NextComponentType<
   AppContextType,
-  AppInitialProps,
-  AppPropsType
+  P,
+  AppPropsType<any, P>
 >
 
 export type AppTreeType = ComponentType<
@@ -47,7 +48,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB'
+      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB' | 'INP'
     }
   | {
       label: 'custom'
@@ -92,7 +93,10 @@ export type NEXT_DATA = {
   autoExport?: boolean
   isFallback?: boolean
   dynamicIds?: (string | number)[]
-  err?: Error & { statusCode?: number }
+  err?: Error & {
+    statusCode?: number
+    source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+  }
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
@@ -105,7 +109,6 @@ export type NEXT_DATA = {
   scriptLoader?: any[]
   isPreview?: boolean
   notFoundSrcPage?: string
-  rsc?: boolean
 }
 
 /**
@@ -161,19 +164,18 @@ export type AppContextType<R extends NextRouter = NextRouter> = {
   router: R
 }
 
-export type AppInitialProps = {
-  pageProps: any
+export type AppInitialProps<P = any> = {
+  pageProps: P
 }
 
 export type AppPropsType<
   R extends NextRouter = NextRouter,
   P = {}
-> = AppInitialProps & {
-  Component: NextComponentType<NextPageContext, any, P>
+> = AppInitialProps<P> & {
+  Component: NextComponentType<NextPageContext, any, any>
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
-  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
@@ -185,7 +187,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: React.ReactElement[] | React.ReactFragment | JSX.Element
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
@@ -197,15 +199,15 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
-  query: {
+  query: Partial<{
     [key: string]: string | string[]
-  }
+  }>
   /**
    * Object of `cookies` from header
    */
-  cookies: {
+  cookies: Partial<{
     [key: string]: string
-  }
+  }>
 
   body: any
 
@@ -252,11 +254,25 @@ export type NextApiResponse<T = any> = ServerResponse & {
        * when the client shuts down (browser is closed).
        */
       maxAge?: number
+      /**
+       * Specifies the path for the preview session to work under. By default,
+       * the path is considered the "default path", i.e., any pages under "/".
+       */
+      path?: string
     }
   ) => NextApiResponse<T>
-  clearPreviewData: () => NextApiResponse<T>
 
-  unstable_revalidate: (
+  /**
+   * Clear preview data for Next.js' prerender mode
+   */
+  clearPreviewData: (options?: { path?: string }) => NextApiResponse<T>
+
+  /**
+   * @deprecated `unstable_revalidate` has been renamed to `revalidate`
+   */
+  unstable_revalidate: () => void
+
+  revalidate: (
     urlPath: string,
     opts?: {
       unstable_onlyGenerated?: boolean
@@ -289,6 +305,11 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
     return result
   }) as T
 }
+
+// Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
+// Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
+export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
 
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location
@@ -393,10 +414,37 @@ export { warnOnce }
 export const SP = typeof performance !== 'undefined'
 export const ST =
   SP &&
-  typeof performance.mark === 'function' &&
-  typeof performance.measure === 'function'
+  (['mark', 'measure', 'getEntriesByName'] as const).every(
+    (method) => typeof performance[method] === 'function'
+  )
 
 export class DecodeError extends Error {}
+export class NormalizeError extends Error {}
+export class PageNotFoundError extends Error {
+  code: string
+
+  constructor(page: string) {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find module for page: ${page}`
+  }
+}
+
+export class MissingStaticPage extends Error {
+  constructor(page: string, message: string) {
+    super()
+    this.message = `Failed to load static file for page: ${page} ${message}`
+  }
+}
+
+export class MiddlewareNotFoundError extends Error {
+  code: string
+  constructor() {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find the middleware module`
+  }
+}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>

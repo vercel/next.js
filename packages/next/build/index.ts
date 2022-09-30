@@ -1,9 +1,10 @@
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { isMatch } from 'next/dist/compiled/micromatch'
+import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
+import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -15,25 +16,24 @@ import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-me
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
-  getRedirectStatus,
-  modifyRouteRegex,
   normalizeRouteRegex,
   Redirect,
   Rewrite,
   RouteType,
 } from '../lib/load-custom-routes'
+import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
@@ -45,7 +45,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -53,17 +53,20 @@ import {
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
   MIDDLEWARE_MANIFEST,
+  APP_PATHS_MANIFEST,
+  APP_PATH_ROUTES_MANIFEST,
+  COMPILER_NAMES,
+  APP_BUILD_MANIFEST,
+  FLIGHT_SERVER_CSS_MANIFEST,
+  RSC_MODULE_TYPES,
+  FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
-import {
-  getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
-} from '../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
-import { normalizePagePath } from '../server/normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
@@ -78,12 +81,9 @@ import {
   eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { CompilerResult, runCompiler } from './compiler'
-import {
-  createEntrypoints,
-  createPagesMapping,
-  getPageRuntime,
-} from './entries'
+import { runCompiler } from './compiler'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -96,11 +96,9 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
-  isCustomErrorPage,
-  isFlightPage,
+  AppConfig,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -112,7 +110,18 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { lockfilePatchPromise } from './swc'
+import {
+  lockfilePatchPromise,
+  teardownTraceSubscriber,
+  teardownCrashReporter,
+} from './swc'
+import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { flatReaddir } from '../lib/flat-readdir'
+import { RemotePattern } from '../shared/lib/image-config'
+import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -133,6 +142,107 @@ export type PrerenderManifest = {
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
+}
+
+type CompilerResult = {
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: (webpack.Stats | undefined)[]
+}
+
+type SingleCompilerResult = {
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: webpack.Stats | undefined
+}
+
+/**
+ * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
+ * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
+ *
+ * Since it is impossible to pass a function from main thread to a worker,
+ * instead of running "next/lib/typescript/runTypeCheck" in a worker,
+ * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
+ */
+function verifyTypeScriptSetup(
+  dir: string,
+  intentDirs: string[],
+  typeCheckPreflight: boolean,
+  tsconfigPath: string,
+  disableStaticImages: boolean,
+  cacheDir: string | undefined,
+  numWorkers: number | undefined,
+  enableWorkerThreads: boolean | undefined
+) {
+  const typeCheckWorker = new JestWorker(
+    require.resolve('../lib/verifyTypeScriptSetup'),
+    {
+      numWorkers,
+      enableWorkerThreads,
+      maxRetries: 0,
+    }
+  ) as JestWorker & {
+    verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
+  }
+
+  typeCheckWorker.getStdout().pipe(process.stdout)
+  typeCheckWorker.getStderr().pipe(process.stderr)
+
+  return typeCheckWorker
+    .verifyTypeScriptSetup({
+      dir,
+      intentDirs,
+      typeCheckPreflight,
+      tsconfigPath,
+      disableStaticImages,
+      cacheDir,
+    })
+    .then((result) => {
+      typeCheckWorker.end()
+      return result
+    })
+}
+
+function generateClientSsgManifest(
+  prerenderManifest: PrerenderManifest,
+  {
+    buildId,
+    distDir,
+    locales,
+  }: { buildId: string; distDir: string; locales: string[] }
+) {
+  const ssgPages = new Set<string>(
+    [
+      ...Object.entries(prerenderManifest.routes)
+        // Filter out dynamic routes
+        .filter(([, { srcRoute }]) => srcRoute == null)
+        .map(([route]) => normalizeLocalePath(route, locales).pathname),
+      ...Object.keys(prerenderManifest.dynamicRoutes),
+    ].sort()
+  )
+
+  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
+    ssgPages
+  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+
+  writeFileSync(
+    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    clientSsgManifestContent
+  )
+}
+
+function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
+  return plugin instanceof TelemetryPlugin
+}
+
+function pageToRoute(page: string) {
+  const routeRegex = getNamedRouteRegex(page)
+  return {
+    page,
+    regex: normalizeRouteRegex(routeRegex.re.source),
+    routeKeys: routeRegex.routeKeys,
+    namedRegex: routeRegex.namedRegex,
+  }
 }
 
 export default async function build(
@@ -161,12 +271,7 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
-      // We enable concurrent features (Fizz-related rendering architecture) when
-      // using React 18 or experimental.
       const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-      const hasConcurrentFeatures = hasReactRoot
-      const hasServerComponents =
-        hasReactRoot && !!config.experimental.serverComponents
 
       const { target } = config
       const buildId: string = await nextBuildSpan
@@ -196,14 +301,20 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const pagesDir = findPagesDir(dir)
+      const { pages: pagesDir, appDir } = findPagesDir(
+        dir,
+        config.experimental.appDir
+      )
+
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
-          isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+          isSrcDir:
+            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
+            (!!appDir && path.relative(dir, appDir).startsWith('src')),
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
         })
@@ -213,65 +324,104 @@ export default async function build(
         telemetry.record(events)
       )
 
+      eventSwcPlugins(path.resolve(dir), config).then((events) =>
+        telemetry.record(events)
+      )
+
       const ignoreTypeScriptErrors = Boolean(
         config.typescript.ignoreBuildErrors
       )
-      const typeCheckStart = process.hrtime()
-      const typeCheckingSpinner = createSpinner({
-        prefixText: `${Log.prefixes.info} ${
-          ignoreTypeScriptErrors
-            ? 'Skipping validation of types'
-            : 'Checking validity of types'
-        }`,
-      })
-
-      const verifyResult = await nextBuildSpan
-        .traceChild('verify-typescript-setup')
-        .traceAsyncFn(() =>
-          verifyTypeScriptSetup(
-            dir,
-            pagesDir,
-            !ignoreTypeScriptErrors,
-            config,
-            cacheDir
-          )
-        )
-
-      const typeCheckEnd = process.hrtime(typeCheckStart)
-
-      if (!ignoreTypeScriptErrors) {
-        telemetry.record(
-          eventTypeCheckCompleted({
-            durationInSeconds: typeCheckEnd[0],
-            typescriptVersion: verifyResult.version,
-            inputFilesCount: verifyResult.result?.inputFilesCount,
-            totalFilesCount: verifyResult.result?.totalFilesCount,
-            incremental: verifyResult.result?.incremental,
-          })
-        )
-      }
-
-      if (typeCheckingSpinner) {
-        typeCheckingSpinner.stopAndPersist()
-      }
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const eslintCacheDir = path.join(cacheDir, 'eslint/')
       const shouldLint = !ignoreESLint && runLint
-      if (shouldLint) {
-        await nextBuildSpan
-          .traceChild('verify-and-lint')
-          .traceAsyncFn(async () => {
-            await verifyAndLint(
-              dir,
-              eslintCacheDir,
-              config.eslint?.dirs,
-              config.experimental.cpus,
-              config.experimental.workerThreads,
-              telemetry
-            )
-          })
+
+      if (ignoreTypeScriptErrors) {
+        Log.info('Skipping validation of types')
       }
+      if (runLint && ignoreESLint) {
+        // only print log when build requre lint while ignoreESLint is enabled
+        Log.info('Skipping linting')
+      }
+
+      let typeCheckingAndLintingSpinnerPrefixText: string | undefined
+      let typeCheckingAndLintingSpinner:
+        | ReturnType<typeof createSpinner>
+        | undefined
+
+      if (!ignoreTypeScriptErrors && shouldLint) {
+        typeCheckingAndLintingSpinnerPrefixText =
+          'Linting and checking validity of types'
+      } else if (!ignoreTypeScriptErrors) {
+        typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
+      } else if (shouldLint) {
+        typeCheckingAndLintingSpinnerPrefixText = 'Linting'
+      }
+
+      // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
+      // enabled, but we will still verifying project's tsconfig and dependencies.
+      if (typeCheckingAndLintingSpinnerPrefixText) {
+        typeCheckingAndLintingSpinner = createSpinner({
+          prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
+        })
+      }
+
+      const typeCheckStart = process.hrtime()
+
+      try {
+        const [[verifyResult, typeCheckEnd]] = await Promise.all([
+          nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
+            verifyTypeScriptSetup(
+              dir,
+              [pagesDir, appDir].filter(Boolean) as string[],
+              !ignoreTypeScriptErrors,
+              config.typescript.tsconfigPath,
+              config.images.disableStaticImages,
+              cacheDir,
+              config.experimental.cpus,
+              config.experimental.workerThreads
+            ).then((resolved) => {
+              const checkEnd = process.hrtime(typeCheckStart)
+              return [resolved, checkEnd] as const
+            })
+          ),
+          shouldLint &&
+            nextBuildSpan
+              .traceChild('verify-and-lint')
+              .traceAsyncFn(async () => {
+                await verifyAndLint(
+                  dir,
+                  eslintCacheDir,
+                  config.eslint?.dirs,
+                  config.experimental.cpus,
+                  config.experimental.workerThreads,
+                  telemetry,
+                  !!config.experimental.appDir
+                )
+              }),
+        ])
+        typeCheckingAndLintingSpinner?.stopAndPersist()
+
+        if (!ignoreTypeScriptErrors && verifyResult) {
+          telemetry.record(
+            eventTypeCheckCompleted({
+              durationInSeconds: typeCheckEnd[0],
+              typescriptVersion: verifyResult.version,
+              inputFilesCount: verifyResult.result?.inputFilesCount,
+              totalFilesCount: verifyResult.result?.totalFilesCount,
+              incremental: verifyResult.result?.incremental,
+            })
+          )
+        }
+      } catch (err) {
+        // prevent showing jest-worker internal error as it
+        // isn't helpful for users and clutters output
+        if (isError(err) && err.message === 'Call retries were exceeded') {
+          process.exit(1)
+        }
+        throw err
+      }
+
       const buildLintEvent: EventBuildFeatureUsage = {
         featureName: 'build-lint',
         invocationCount: shouldLint ? 1 : 0,
@@ -287,14 +437,40 @@ export default async function build(
 
       const isLikeServerless = isTargetLikeServerless(target)
 
-      const pagePaths = await nextBuildSpan
-        .traceChild('collect-pages')
-        .traceAsyncFn(() =>
-          recursiveReadDir(
-            pagesDir,
-            new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+      const pagesPaths = pagesDir
+        ? await nextBuildSpan
+            .traceChild('collect-pages')
+            .traceAsyncFn(() =>
+              recursiveReadDir(
+                pagesDir,
+                new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+              )
+            )
+        : []
+
+      let appPaths: string[] | undefined
+
+      if (appDir) {
+        appPaths = await nextBuildSpan
+          .traceChild('collect-app-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              appDir,
+              new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
+            )
           )
-        )
+      }
+
+      const middlewareDetectionRegExp = new RegExp(
+        `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+      )
+
+      const rootPaths = pagesDir
+        ? (
+            await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
+          ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+        : []
+
       // needed for static exporting since we want to replace with HTML
       // files
 
@@ -311,12 +487,40 @@ export default async function build(
         .traceChild('create-pages-mapping')
         .traceFn(() =>
           createPagesMapping({
-            hasServerComponents,
             isDev: false,
             pageExtensions: config.pageExtensions,
-            pagePaths,
+            pagesType: 'pages',
+            pagePaths: pagesPaths,
+            pagesDir,
           })
         )
+
+      let mappedAppPages: { [page: string]: string } | undefined
+
+      if (appPaths && appDir) {
+        mappedAppPages = nextBuildSpan
+          .traceChild('create-app-mapping')
+          .traceFn(() =>
+            createPagesMapping({
+              pagePaths: appPaths!,
+              isDev: false,
+              pagesType: 'app',
+              pageExtensions: config.pageExtensions,
+              pagesDir: pagesDir,
+            })
+          )
+      }
+
+      let mappedRootPaths: { [page: string]: string } = {}
+      if (rootPaths.length > 0) {
+        mappedRootPaths = createPagesMapping({
+          isDev: false,
+          pageExtensions: config.pageExtensions,
+          pagePaths: rootPaths,
+          pagesType: 'root',
+          pagesDir: pagesDir,
+        })
+      }
 
       const entrypoints = await nextBuildSpan
         .traceChild('create-entrypoints')
@@ -330,20 +534,27 @@ export default async function build(
             pagesDir,
             previewMode: previewProps,
             target,
+            rootDir: dir,
+            rootPaths: mappedRootPaths,
+            appDir,
+            appPaths: mappedAppPages,
+            pageExtensions: config.pageExtensions,
           })
         )
 
-      const pageKeys = Object.keys(mappedPages)
+      const pageKeys = {
+        pages: Object.keys(mappedPages),
+        app: mappedAppPages
+          ? Object.keys(mappedAppPages).map(
+              (key) => normalizeAppPath(key) || '/'
+            )
+          : undefined,
+      }
+
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
-
-      if (pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))) {
-        Log.warn(
-          `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-        )
-      }
 
       if (hasPublicDir) {
         const hasPublicUnderScoreNextDir = await fileExists(
@@ -382,7 +593,7 @@ export default async function build(
           }
         })
 
-      const nestedReservedPages = pageKeys.filter((page) => {
+      const nestedReservedPages = pageKeys.pages.filter((page) => {
         return (
           page.match(/\/(_app|_document|_error)$/) && path.dirname(page) !== '/'
         )
@@ -481,28 +692,34 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
-      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => ({
-        version: 3,
-        pages404: true,
-        basePath: config.basePath,
-        redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-        headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
-        dynamicRoutes: getSortedRoutes(pageKeys)
-          .filter(
-            (page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE)
-          )
-          .map(pageToRoute),
-        staticRoutes: getSortedRoutes(pageKeys)
-          .filter(
-            (page) =>
-              !isDynamicRoute(page) &&
-              !page.match(MIDDLEWARE_ROUTE) &&
-              !isReservedPage(page)
-          )
-          .map(pageToRoute),
-        dataRoutes: [],
-        i18n: config.i18n || undefined,
-      }))
+      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
+        const sortedRoutes = getSortedRoutes([
+          ...pageKeys.pages,
+          ...(pageKeys.app ?? []),
+        ])
+        const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
+        const staticRoutes: typeof dynamicRoutes = []
+
+        for (const route of sortedRoutes) {
+          if (isDynamicRoute(route)) {
+            dynamicRoutes.push(pageToRoute(route))
+          } else if (!isReservedPage(route)) {
+            staticRoutes.push(pageToRoute(route))
+          }
+        }
+
+        return {
+          version: 3,
+          pages404: true,
+          basePath: config.basePath,
+          redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
+          headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+          dynamicRoutes,
+          staticRoutes,
+          dataRoutes: [],
+          i18n: config.i18n || undefined,
+        }
+      })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
         routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
@@ -594,28 +811,41 @@ export default async function build(
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-            ...(hasServerComponents
+            ...(appDir
               ? [
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                   path.join(
                     SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.js'
+                    FLIGHT_SERVER_CSS_MANIFEST + '.js'
                   ),
                   path.join(
                     SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+                    FLIGHT_SERVER_CSS_MANIFEST + '.json'
                   ),
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
             config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
             BUILD_ID_FILE,
+            appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
+            ...(config.experimental.fontLoaders
+              ? [
+                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+                ]
+              : []),
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),
           ignore: [] as string[],
         }))
 
-      let result: CompilerResult = { warnings: [], errors: [] }
+      let result: CompilerResult = {
+        warnings: [],
+        errors: [],
+        stats: [],
+      }
       let webpackBuildStart
       let telemetryPlugin
       await (async () => {
@@ -631,6 +861,8 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
+          appDir,
+          middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
         const configs = await runWebpackSpan
@@ -639,17 +871,17 @@ export default async function build(
             Promise.all([
               getBaseWebpackConfig(dir, {
                 ...commonWebpackOptions,
-                compilerType: 'client',
+                compilerType: COMPILER_NAMES.client,
                 entrypoints: entrypoints.client,
               }),
               getBaseWebpackConfig(dir, {
                 ...commonWebpackOptions,
-                compilerType: 'server',
+                compilerType: COMPILER_NAMES.server,
                 entrypoints: entrypoints.server,
               }),
               getBaseWebpackConfig(dir, {
                 ...commonWebpackOptions,
-                compilerType: 'edge-server',
+                compilerType: COMPILER_NAMES.edgeServer,
                 entrypoints: entrypoints.edgeServer,
               }),
             ])
@@ -672,35 +904,82 @@ export default async function build(
 
         // We run client and server compilation separately to optimize for memory usage
         await runWebpackSpan.traceAsyncFn(async () => {
-          const clientResult = await runCompiler(clientConfig, {
-            runWebpackSpan,
-          })
-          // Fail build if clientResult contains errors
-          if (clientResult.errors.length > 0) {
-            result = {
-              warnings: [...clientResult.warnings],
-              errors: [...clientResult.errors],
+          // If we are under the serverless build, we will have to run the client
+          // compiler first because the server compiler depends on the manifest
+          // files that are created by the client compiler.
+          // Otherwise, we run the server compilers first and then the client
+          // compiler to track the boundary of server/client components.
+
+          let clientResult: SingleCompilerResult | null = null
+          let serverResult: SingleCompilerResult | null = null
+          let edgeServerResult: SingleCompilerResult | null = null
+
+          if (isLikeServerless) {
+            if (appDir) {
+              throw new Error('`appDir` is not supported in serverless mode.')
             }
-          } else {
-            const serverResult = await runCompiler(configs[1], {
+
+            // Build client first
+            clientResult = await runCompiler(clientConfig, {
               runWebpackSpan,
             })
-            const edgeServerResult = configs[2]
+
+            // Only continue if there were no errors
+            if (!clientResult.errors.length) {
+              serverResult = await runCompiler(configs[1], {
+                runWebpackSpan,
+              })
+              edgeServerResult = configs[2]
+                ? await runCompiler(configs[2], { runWebpackSpan })
+                : null
+            }
+          } else {
+            // During the server compilations, entries of client components will be
+            // injected to this set and then will be consumed by the client compiler.
+            injectedClientEntries.clear()
+
+            serverResult = await runCompiler(configs[1], {
+              runWebpackSpan,
+            })
+            edgeServerResult = configs[2]
               ? await runCompiler(configs[2], { runWebpackSpan })
               : null
 
-            result = {
-              warnings: [
-                ...clientResult.warnings,
-                ...serverResult.warnings,
-                ...(edgeServerResult?.warnings || []),
-              ],
-              errors: [
-                ...clientResult.errors,
-                ...serverResult.errors,
-                ...(edgeServerResult?.errors || []),
-              ],
+            // Only continue if there were no errors
+            if (
+              !serverResult.errors.length &&
+              !edgeServerResult?.errors.length
+            ) {
+              injectedClientEntries.forEach((value, key) => {
+                ;(clientConfig.entry as webpack.EntryObject)[key] = value
+              })
+
+              clientResult = await runCompiler(clientConfig, {
+                runWebpackSpan,
+              })
             }
+          }
+
+          result = {
+            warnings: ([] as any[])
+              .concat(
+                clientResult?.warnings,
+                serverResult?.warnings,
+                edgeServerResult?.warnings
+              )
+              .filter(nonNullable),
+            errors: ([] as any[])
+              .concat(
+                clientResult?.errors,
+                serverResult?.errors,
+                edgeServerResult?.errors
+              )
+              .filter(nonNullable),
+            stats: [
+              clientResult?.stats,
+              serverResult?.stats,
+              edgeServerResult?.stats,
+            ],
           }
         })
         result = nextBuildSpan
@@ -722,7 +1001,7 @@ export default async function build(
         if (result.errors.length > 5) {
           result.errors.length = 5
         }
-        let error = result.errors.join('\n\n')
+        let error = result.errors.filter(Boolean).join('\n\n')
 
         console.error(chalk.red('Failed to compile.\n'))
 
@@ -741,16 +1020,6 @@ export default async function build(
         console.error(error)
         console.error()
 
-        // When using the web runtime, common Node.js native APIs are not available.
-        const moduleName = getUnresolvedModuleFromError(error)
-        if (hasConcurrentFeatures && moduleName) {
-          const err = new Error(
-            `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
-          ) as NextError
-          err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
-          throw err
-        }
-
         if (
           error.indexOf('private-next-pages') > -1 ||
           error.indexOf('__next_polyfill__') > -1
@@ -768,14 +1037,14 @@ export default async function build(
         throw err
       } else {
         telemetry.record(
-          eventBuildCompleted(pagePaths, {
+          eventBuildCompleted(pagesPaths, {
             durationInSeconds: webpackBuildEnd[0],
           })
         )
 
         if (result.warnings.length > 0) {
           Log.warn('Compiled with warnings\n')
-          console.warn(result.warnings.join('\n\n'))
+          console.warn(result.warnings.filter(Boolean).join('\n\n'))
           console.warn()
         } else {
           Log.info('Compiled successfully')
@@ -787,6 +1056,7 @@ export default async function build(
       })
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
+      const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
 
       const ssgPages = new Set<string>()
       const ssgStaticFallbackPages = new Set<string>()
@@ -797,6 +1067,11 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalSsgPaths = new Map<string, Array<string>>()
       const additionalSsgPathsEncoded = new Map<string, Array<string>>()
+      const appStaticPaths = new Map<string, Array<string>>()
+      const appStaticPathsEncoded = new Map<string, Array<string>>()
+      const appNormalizedPaths = new Map<string, string>()
+      const appDynamicParamPaths = new Set<string>()
+      const appDefaultConfigs = new Map<string, AppConfig>()
       const pageTraceIncludes = new Map<string, Array<string>>()
       const pageTraceExcludes = new Map<string, Array<string>>()
       const pageInfos = new Map<string, PageInfo>()
@@ -806,6 +1081,11 @@ export default async function build(
       const buildManifest = JSON.parse(
         await promises.readFile(buildManifestPath, 'utf8')
       ) as BuildManifest
+      const appBuildManifest = appDir
+        ? (JSON.parse(
+            await promises.readFile(appBuildManifestPath, 'utf8')
+          ) as AppBuildManifest)
+        : undefined
 
       const timeout = config.staticPageGenerationTimeout || 0
       const sharedPool = config.experimental.sharedPool || false
@@ -813,6 +1093,26 @@ export default async function build(
         ? require.resolve('./worker')
         : require.resolve('./utils')
       let infoPrinted = false
+
+      let appPathsManifest: Record<string, string> = {}
+      const appPathRoutes: Record<string, string> = {}
+
+      if (appDir) {
+        appPathsManifest = JSON.parse(
+          await promises.readFile(
+            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
+            'utf8'
+          )
+        )
+
+        Object.keys(appPathsManifest).forEach((entry) => {
+          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+        })
+        await promises.writeFile(
+          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
+          JSON.stringify(appPathRoutes, null, 2)
+        )
+      }
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -898,16 +1198,18 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            staticWorkers.isPageStatic(
-              '/_error',
+            staticWorkers.isPageStatic({
+              page: '/_error',
               distDir,
-              isLikeServerless,
+              serverless: isLikeServerless,
               configFileName,
               runtimeEnvConfig,
-              config.httpAgentOptions,
-              config.i18n?.locales,
-              config.i18n?.defaultLocale
-            )
+              httpAgentOptions: config.httpAgentOptions,
+              enableUndici: config.experimental.enableUndici,
+              locales: config.i18n?.locales,
+              defaultLocale: config.i18n?.defaultLocale,
+              pageRuntime: config.experimental.runtime,
+            })
         )
 
         // we don't output _app in serverless mode so use _app export
@@ -936,187 +1238,302 @@ export default async function build(
         let hasSsrAmpPages = false
 
         const computedManifestData = await computeFromManifest(
-          buildManifest,
+          { build: buildManifest, app: appBuildManifest },
           distDir,
           config.experimental.gzipSize
         )
 
         await Promise.all(
-          pageKeys.map(async (page) => {
-            const checkPageSpan = staticCheckSpan.traceChild('check-page', {
-              page,
-            })
-            return checkPageSpan.traceAsyncFn(async () => {
-              const actualPage = normalizePagePath(page)
-              const [selfSize, allSize] = await getJsPageSizeInKb(
-                actualPage,
-                distDir,
-                buildManifest,
-                config.experimental.gzipSize,
-                computedManifestData
-              )
-
-              let isSsg = false
-              let isStatic = false
-              let isServerComponent = false
-              let isHybridAmp = false
-              let ssgPageRoutes: string[] | null = null
-              let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
-
-              const pagePath = pagePaths.find(
-                (p) =>
-                  p.startsWith(actualPage + '.') ||
-                  p.startsWith(actualPage + '/index.')
-              )
-              const pageRuntime = pagePath
-                ? await getPageRuntime(join(pagesDir, pagePath), config)
-                : undefined
-
-              if (hasServerComponents && pagePath) {
-                if (isFlightPage(config, pagePath)) {
-                  isServerComponent = true
+          Object.entries(pageKeys)
+            .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
+              (acc, [key, files]) => {
+                if (!files) {
+                  return acc
                 }
-              }
 
-              if (
-                !isMiddlewareRoute &&
-                !isReservedPage(page) &&
-                // We currently don't support static optimization in the Edge runtime.
-                pageRuntime !== 'edge'
-              ) {
-                try {
-                  let isPageStaticSpan =
-                    checkPageSpan.traceChild('is-page-static')
-                  let workerResult = await isPageStaticSpan.traceAsyncFn(() => {
-                    return staticWorkers.isPageStatic(
-                      page,
-                      distDir,
-                      isLikeServerless,
-                      configFileName,
-                      runtimeEnvConfig,
-                      config.httpAgentOptions,
-                      config.i18n?.locales,
-                      config.i18n?.defaultLocale,
-                      isPageStaticSpan.id
-                    )
-                  })
+                const pageType = key as keyof typeof pageKeys
 
-                  if (config.outputFileTracing) {
-                    pageTraceIncludes.set(
-                      page,
-                      workerResult.traceIncludes || []
-                    )
-                    pageTraceExcludes.set(
-                      page,
-                      workerResult.traceExcludes || []
-                    )
-                  }
+                for (const page of files) {
+                  acc.push({ pageType, page })
+                }
 
-                  if (
-                    workerResult.isStatic === false &&
-                    (workerResult.isHybridAmp || workerResult.isAmpOnly)
-                  ) {
-                    hasSsrAmpPages = true
-                  }
+                return acc
+              },
+              []
+            )
+            .map(({ pageType, page }) => {
+              const checkPageSpan = staticCheckSpan.traceChild('check-page', {
+                page,
+              })
+              return checkPageSpan.traceAsyncFn(async () => {
+                const actualPage = normalizePagePath(page)
+                const [selfSize, allSize] = await getJsPageSizeInKb(
+                  pageType,
+                  actualPage,
+                  distDir,
+                  buildManifest,
+                  appBuildManifest,
+                  config.experimental.gzipSize,
+                  computedManifestData
+                )
 
-                  if (workerResult.isHybridAmp) {
-                    isHybridAmp = true
-                    hybridAmpPages.add(page)
-                  }
+                let isSsg = false
+                let isStatic = false
+                let isServerComponent = false
+                let isHybridAmp = false
+                let ssgPageRoutes: string[] | null = null
 
-                  if (workerResult.isNextImageImported) {
-                    isNextImageImported = true
-                  }
+                let pagePath = ''
 
-                  if (workerResult.hasStaticProps) {
-                    ssgPages.add(page)
-                    isSsg = true
+                if (pageType === 'pages') {
+                  pagePath =
+                    pagesPaths.find(
+                      (p) =>
+                        p.startsWith(actualPage + '.') ||
+                        p.startsWith(actualPage + '/index.')
+                    ) || ''
+                }
+                let originalAppPath: string | undefined
 
-                    if (
-                      workerResult.prerenderRoutes &&
-                      workerResult.encodedPrerenderRoutes
-                    ) {
-                      additionalSsgPaths.set(page, workerResult.prerenderRoutes)
-                      additionalSsgPathsEncoded.set(
-                        page,
-                        workerResult.encodedPrerenderRoutes
+                if (pageType === 'app' && mappedAppPages) {
+                  for (const [originalPath, normalizedPath] of Object.entries(
+                    appPathRoutes
+                  )) {
+                    if (normalizedPath === page) {
+                      pagePath = mappedAppPages[originalPath].replace(
+                        /^private-next-app-dir/,
+                        ''
                       )
-                      ssgPageRoutes = workerResult.prerenderRoutes
+                      originalAppPath = originalPath
+                      break
                     }
-
-                    if (workerResult.prerenderFallback === 'blocking') {
-                      ssgBlockingFallbackPages.add(page)
-                    } else if (workerResult.prerenderFallback === true) {
-                      ssgStaticFallbackPages.add(page)
-                    }
-                  } else if (workerResult.hasServerProps) {
-                    serverPropsPages.add(page)
-                  } else if (
-                    workerResult.isStatic &&
-                    !isServerComponent &&
-                    (await customAppGetInitialPropsPromise) === false
-                  ) {
-                    staticPages.add(page)
-                    isStatic = true
-                  } else if (isServerComponent) {
-                    // This is a static server component page that doesn't have
-                    // gSP or gSSP. We still treat it as a SSG page.
-                    ssgPages.add(page)
-                    isSsg = true
                   }
+                }
 
-                  if (hasPages404 && page === '/404') {
+                const staticInfo = pagePath
+                  ? await getPageStaticInfo({
+                      pageFilePath: join(
+                        (pageType === 'pages' ? pagesDir : appDir) || '',
+                        pagePath
+                      ),
+                      nextConfig: config,
+                    })
+                  : undefined
+
+                const pageRuntime = staticInfo?.runtime
+                isServerComponent =
+                  pageType === 'app' &&
+                  staticInfo?.rsc !== RSC_MODULE_TYPES.client
+
+                if (!isReservedPage(page)) {
+                  try {
+                    let edgeInfo: any
+
+                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      const manifest = require(join(
+                        distDir,
+                        serverDir,
+                        MIDDLEWARE_MANIFEST
+                      ))
+                      const manifestKey =
+                        pageType === 'pages' ? page : join(page, 'page')
+
+                      edgeInfo = manifest.functions[manifestKey]
+                    }
+
+                    let isPageStaticSpan =
+                      checkPageSpan.traceChild('is-page-static')
+                    let workerResult = await isPageStaticSpan.traceAsyncFn(
+                      () => {
+                        return staticWorkers.isPageStatic({
+                          page,
+                          originalAppPath,
+                          distDir,
+                          serverless: isLikeServerless,
+                          configFileName,
+                          runtimeEnvConfig,
+                          httpAgentOptions: config.httpAgentOptions,
+                          enableUndici: config.experimental.enableUndici,
+                          locales: config.i18n?.locales,
+                          defaultLocale: config.i18n?.defaultLocale,
+                          parentId: isPageStaticSpan.id,
+                          pageRuntime,
+                          edgeInfo,
+                          pageType,
+                          hasServerComponents: !!appDir,
+                        })
+                      }
+                    )
+
+                    if (pageType === 'app' && originalAppPath) {
+                      appNormalizedPaths.set(originalAppPath, page)
+
+                      // TODO-APP: handle prerendering with edge
+                      // runtime
+                      if (pageRuntime === 'experimental-edge') {
+                        return
+                      }
+
+                      if (
+                        workerResult.encodedPrerenderRoutes &&
+                        workerResult.prerenderRoutes
+                      ) {
+                        appStaticPaths.set(
+                          originalAppPath,
+                          workerResult.prerenderRoutes
+                        )
+                        appStaticPathsEncoded.set(
+                          originalAppPath,
+                          workerResult.encodedPrerenderRoutes
+                        )
+                      }
+                      if (!isDynamicRoute(page)) {
+                        appStaticPaths.set(originalAppPath, [page])
+                        appStaticPathsEncoded.set(originalAppPath, [page])
+                      }
+                      if (workerResult.prerenderFallback) {
+                        // whether or not to allow requests for paths not
+                        // returned from generateStaticParams
+                        appDynamicParamPaths.add(originalAppPath)
+                      }
+                      appDefaultConfigs.set(
+                        originalAppPath,
+                        workerResult.appConfig || {}
+                      )
+                      return
+                    }
+
+                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (workerResult.hasStaticProps) {
+                        console.warn(
+                          `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
+                        )
+                      }
+                      // TODO: add handling for statically rendering edge
+                      // pages and allow edge with Prerender outputs
+                      workerResult.isStatic = false
+                      workerResult.hasStaticProps = false
+                    }
+
+                    if (config.outputFileTracing) {
+                      pageTraceIncludes.set(
+                        page,
+                        workerResult.traceIncludes || []
+                      )
+                      pageTraceExcludes.set(
+                        page,
+                        workerResult.traceExcludes || []
+                      )
+                    }
+
                     if (
+                      workerResult.isStatic === false &&
+                      (workerResult.isHybridAmp || workerResult.isAmpOnly)
+                    ) {
+                      hasSsrAmpPages = true
+                    }
+
+                    if (workerResult.isHybridAmp) {
+                      isHybridAmp = true
+                      hybridAmpPages.add(page)
+                    }
+
+                    if (workerResult.isNextImageImported) {
+                      isNextImageImported = true
+                    }
+
+                    if (workerResult.hasStaticProps) {
+                      ssgPages.add(page)
+                      isSsg = true
+
+                      if (
+                        workerResult.prerenderRoutes &&
+                        workerResult.encodedPrerenderRoutes
+                      ) {
+                        additionalSsgPaths.set(
+                          page,
+                          workerResult.prerenderRoutes
+                        )
+                        additionalSsgPathsEncoded.set(
+                          page,
+                          workerResult.encodedPrerenderRoutes
+                        )
+                        ssgPageRoutes = workerResult.prerenderRoutes
+                      }
+
+                      if (workerResult.prerenderFallback === 'blocking') {
+                        ssgBlockingFallbackPages.add(page)
+                      } else if (workerResult.prerenderFallback === true) {
+                        ssgStaticFallbackPages.add(page)
+                      }
+                    } else if (workerResult.hasServerProps) {
+                      serverPropsPages.add(page)
+                    } else if (
+                      workerResult.isStatic &&
+                      !isServerComponent &&
+                      (await customAppGetInitialPropsPromise) === false
+                    ) {
+                      staticPages.add(page)
+                      isStatic = true
+                    } else if (isServerComponent) {
+                      // This is a static server component page that doesn't have
+                      // gSP or gSSP. We still treat it as a SSG page.
+                      ssgPages.add(page)
+                      isSsg = true
+                    }
+
+                    if (hasPages404 && page === '/404') {
+                      if (
+                        !workerResult.isStatic &&
+                        !workerResult.hasStaticProps
+                      ) {
+                        throw new Error(
+                          `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                        )
+                      }
+                      // we need to ensure the 404 lambda is present since we use
+                      // it when _app has getInitialProps
+                      if (
+                        (await customAppGetInitialPropsPromise) &&
+                        !workerResult.hasStaticProps
+                      ) {
+                        staticPages.delete(page)
+                      }
+                    }
+
+                    if (
+                      STATIC_STATUS_PAGES.includes(page) &&
                       !workerResult.isStatic &&
                       !workerResult.hasStaticProps
                     ) {
                       throw new Error(
-                        `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                        `\`pages${page}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
                       )
                     }
-                    // we need to ensure the 404 lambda is present since we use
-                    // it when _app has getInitialProps
+                  } catch (err) {
                     if (
-                      (await customAppGetInitialPropsPromise) &&
-                      !workerResult.hasStaticProps
-                    ) {
-                      staticPages.delete(page)
-                    }
-                  }
-
-                  if (
-                    STATIC_STATUS_PAGES.includes(page) &&
-                    !workerResult.isStatic &&
-                    !workerResult.hasStaticProps
-                  ) {
-                    throw new Error(
-                      `\`pages${page}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                      !isError(err) ||
+                      err.message !== 'INVALID_DEFAULT_EXPORT'
                     )
+                      throw err
+                    invalidPages.add(page)
                   }
-                } catch (err) {
-                  if (!isError(err) || err.message !== 'INVALID_DEFAULT_EXPORT')
-                    throw err
-                  invalidPages.add(page)
                 }
-              }
 
-              pageInfos.set(page, {
-                size: selfSize,
-                totalSize: allSize,
-                static: isStatic,
-                isSsg,
-                isHybridAmp,
-                ssgPageRoutes,
-                initialRevalidateSeconds: false,
-                runtime:
-                  !isReservedPage(page) && !isCustomErrorPage(page)
-                    ? pageRuntime
-                    : undefined,
-                pageDuration: undefined,
-                ssgPageDurations: undefined,
+                pageInfos.set(page, {
+                  size: selfSize,
+                  totalSize: allSize,
+                  static: isStatic,
+                  isSsg,
+                  isHybridAmp,
+                  ssgPageRoutes,
+                  initialRevalidateSeconds: false,
+                  runtime: pageRuntime,
+                  pageDuration: undefined,
+                  ssgPageDurations: undefined,
+                })
               })
             })
-          })
         )
 
         const errorPageResult = await errorPageStaticResult
@@ -1186,7 +1603,7 @@ export default async function build(
             })
           }
 
-          for (let page of pageKeys) {
+          for (let page of pageKeys.pages) {
             await includeExcludeSpan
               .traceChild('include-exclude', { page })
               .traceAsyncFn(async () => {
@@ -1299,33 +1716,38 @@ export default async function build(
               } catch (_) {}
             }
 
-            const root = path.parse(dir).root
-            const serverResult = await nodeFileTrace(
-              [require.resolve('next/dist/server/next-server')],
-              {
-                base: root,
-                processCwd: dir,
-                ignore: [
-                  '**/next/dist/pages/**/*',
-                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                  '**/node_modules/webpack5/**/*',
-                  '**/next/dist/server/lib/squoosh/**/*.wasm',
-                  ...(ciEnvironment.hasNextSupport
-                    ? [
-                        // only ignore image-optimizer code when
-                        // this is being handled outside of next-server
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/node_modules/sharp/**/*',
-                      ]
-                    : []),
-                  ...(!hasSsrAmpPages
-                    ? [
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                      ]
-                    : []),
-                ],
-              }
-            )
+            const root = config.experimental.outputFileTracingRoot || dir
+            const toTrace = [require.resolve('next/dist/server/next-server')]
+
+            // ensure we trace any dependencies needed for custom
+            // incremental cache handler
+            if (config.experimental.incrementalCacheHandlerPath) {
+              toTrace.push(
+                require.resolve(config.experimental.incrementalCacheHandlerPath)
+              )
+            }
+
+            const serverResult = await nodeFileTrace(toTrace, {
+              base: root,
+              processCwd: dir,
+              ignore: [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
+              ],
+            })
 
             const tracedFiles = new Set()
 
@@ -1374,7 +1796,9 @@ export default async function build(
           let routeKeys: { [named: string]: string } | undefined
 
           if (isDynamicRoute(page)) {
-            const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
+            const routeRegex = getNamedRouteRegex(
+              dataRoute.replace(/\.json$/, '')
+            )
 
             dataRouteRegex = normalizeRouteRegex(
               routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
@@ -1462,6 +1886,10 @@ export default async function build(
           invocationCount: config.experimental.optimizeCss ? 1 : 0,
         },
         {
+          featureName: 'experimental/nextScriptWorkers',
+          invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
+        },
+        {
           featureName: 'optimizeFonts',
           invocationCount: config.optimizeFonts ? 1 : 0,
         },
@@ -1491,14 +1919,14 @@ export default async function build(
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
-      if (config.experimental.outputStandalone) {
+      if (config.output === 'standalone') {
         await nextBuildSpan
           .traceChild('copy-traced-files')
           .traceAsyncFn(async () => {
             await copyTracedFiles(
               dir,
               distDir,
-              pageKeys,
+              pageKeys.pages,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest
@@ -1507,6 +1935,7 @@ export default async function build(
       }
 
       const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
+      const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
       const tbdPrerenderRoutes: string[] = []
       let ssgNotFoundPaths: string[] = []
 
@@ -1531,14 +1960,23 @@ export default async function build(
 
       const combinedPages = [...staticPages, ...ssgPages]
 
-      if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
+      // we need to trigger automatic exporting when we have
+      // - static 404/500
+      // - getStaticProps paths
+      // - experimental app is enabled
+      if (
+        combinedPages.length > 0 ||
+        useStatic404 ||
+        useDefaultStatic500 ||
+        config.experimental.appDir
+      ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
         await staticGenerationSpan.traceAsyncFn(async () => {
           detectConflictingPaths(
             [
               ...combinedPages,
-              ...pageKeys.filter((page) => !combinedPages.includes(page)),
+              ...pageKeys.pages.filter((page) => !combinedPages.includes(page)),
             ],
             ssgPages,
             additionalSsgPaths
@@ -1560,6 +1998,7 @@ export default async function build(
                   await staticWorkers.end()
                 }
               : undefined,
+            appPaths,
           }
           const exportConfig: any = {
             ...config,
@@ -1627,6 +2066,20 @@ export default async function build(
                 }
               }
 
+              // TODO: output manifest specific to app paths and their
+              // revalidate periods and dynamicParams settings
+              appStaticPaths.forEach((routes, originalAppPath) => {
+                const encodedRoutes = appStaticPathsEncoded.get(originalAppPath)
+
+                routes.forEach((route, routeIdx) => {
+                  defaultMap[route] = {
+                    page: originalAppPath,
+                    query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
+                    _isAppDir: true,
+                  }
+                })
+              })
+
               if (i18n) {
                 for (const page of [
                   ...staticPages,
@@ -1674,6 +2127,58 @@ export default async function build(
           for (const page of staticPages) {
             const serverBundle = getPagePath(page, distDir, isLikeServerless)
             await promises.unlink(serverBundle)
+          }
+
+          for (const [originalAppPath, routes] of appStaticPaths) {
+            const page = appNormalizedPaths.get(originalAppPath) || ''
+            const appConfig = appDefaultConfigs.get(originalAppPath) || {}
+            let hasDynamicData = appConfig.revalidate === 0
+
+            routes.forEach((route) => {
+              let revalidate = exportConfig.initialPageRevalidationMap[route]
+
+              if (typeof revalidate === 'undefined') {
+                revalidate =
+                  typeof appConfig.revalidate !== 'undefined'
+                    ? appConfig.revalidate
+                    : false
+              }
+              if (revalidate !== 0) {
+                const normalizedRoute = normalizePagePath(route)
+                const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+                finalPrerenderRoutes[route] = {
+                  initialRevalidateSeconds: revalidate,
+                  srcRoute: page,
+                  dataRoute,
+                }
+              } else {
+                hasDynamicData = true
+              }
+            })
+
+            if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
+              const normalizedRoute = normalizePagePath(page)
+              const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+
+              // TODO: create a separate manifest to allow enforcing
+              // dynamicParams for non-static paths?
+              finalDynamicRoutes[page] = {
+                routeRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(page).re.source
+                ),
+                dataRoute,
+                // if dynamicParams are enabled treat as fallback:
+                // 'blocking' if not it's fallback: false
+                fallback: appDynamicParamPaths.has(originalAppPath)
+                  ? null
+                  : false,
+                dataRouteRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(
+                    dataRoute.replace(/\.rsc$/, '')
+                  ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                ),
+              }
+            }
           }
 
           const moveExportedPage = async (
@@ -1960,13 +2465,13 @@ export default async function build(
 
       const analysisEnd = process.hrtime(analysisBegin)
       telemetry.record(
-        eventBuildOptimize(pagePaths, {
+        eventBuildOptimize(pagesPaths, {
           durationInSeconds: analysisEnd[0],
           staticPageCount: staticPages.size,
           staticPropsPageCount: ssgPages.size,
           serverPropsPageCount: serverPropsPages.size,
           ssrPageCount:
-            pagePaths.length -
+            pagesPaths.length -
             (staticPages.size + ssgPages.size + serverPropsPages.size),
           hasStatic404: useStatic404,
           hasReportWebVitals:
@@ -1978,9 +2483,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: pageKeys.filter((page) =>
-            MIDDLEWARE_ROUTE.test(page)
-          ).length,
+          middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
         })
       )
 
@@ -1990,8 +2493,7 @@ export default async function build(
         telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
       }
 
-      if (ssgPages.size > 0) {
-        const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
+      if (ssgPages.size > 0 || appDir) {
         tbdPrerenderRoutes.forEach((tbdRoute) => {
           const normalizedRoute = normalizePagePath(tbdRoute)
           const dataRoute = path.posix.join(
@@ -2001,7 +2503,9 @@ export default async function build(
           )
 
           finalDynamicRoutes[tbdRoute] = {
-            routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
+            routeRegex: normalizeRouteRegex(
+              getNamedRouteRegex(tbdRoute).re.source
+            ),
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
@@ -2009,10 +2513,9 @@ export default async function build(
               ? `${normalizedRoute}.html`
               : false,
             dataRouteRegex: normalizeRouteRegex(
-              getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
-                /\(\?:\\\/\)\?\$$/,
-                '\\.json$'
-              )
+              getNamedRouteRegex(
+                dataRoute.replace(/\.json$/, '')
+              ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
             ),
           }
         })
@@ -2049,21 +2552,18 @@ export default async function build(
         )
       }
 
-      await promises.writeFile(
-        path.join(
-          distDir,
-          CLIENT_STATIC_FILES_PATH,
-          buildId,
-          '_middlewareManifest.js'
-        ),
-        `self.__MIDDLEWARE_MANIFEST=${devalue(
-          middlewareManifest.clientInfo
-        )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
-      )
-
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+      ;(images as any).remotePatterns = (
+        config?.images?.remotePatterns || []
+      ).map((p: RemotePattern) => ({
+        // Should be the same as matchRemotePattern()
+        protocol: p.protocol,
+        hostname: makeRe(p.hostname).source,
+        port: p.port,
+        pathname: makeRe(p.pathname ?? '**').source,
+      }))
 
       await promises.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
@@ -2090,7 +2590,7 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      if (config.experimental.outputStandalone) {
+      if (config.output === 'standalone') {
         for (const file of [
           ...requiredServerFiles.files,
           path.join(config.distDir, SERVER_FILES_MANIFEST),
@@ -2131,20 +2631,17 @@ export default async function build(
       })
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
-        printTreeView(
-          Object.keys(mappedPages),
-          allPageInfos,
-          isLikeServerless,
-          {
-            distPath: distDir,
-            buildId: buildId,
-            pagesDir,
-            useStatic404,
-            pageExtensions: config.pageExtensions,
-            buildManifest,
-            gzipSize: config.experimental.gzipSize,
-          }
-        )
+        printTreeView(pageKeys, allPageInfos, isLikeServerless, {
+          distPath: distDir,
+          buildId: buildId,
+          pagesDir,
+          useStatic404,
+          pageExtensions: config.pageExtensions,
+          appBuildManifest,
+          buildManifest,
+          middlewareManifest,
+          gzipSize: config.experimental.gzipSize,
+        })
       )
 
       if (debugOutput) {
@@ -2184,45 +2681,7 @@ export default async function build(
 
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
-  }
-}
-
-function generateClientSsgManifest(
-  prerenderManifest: PrerenderManifest,
-  {
-    buildId,
-    distDir,
-    locales,
-  }: { buildId: string; distDir: string; locales: string[] }
-) {
-  const ssgPages = new Set<string>([
-    ...Object.entries(prerenderManifest.routes)
-      // Filter out dynamic routes
-      .filter(([, { srcRoute }]) => srcRoute == null)
-      .map(([route]) => normalizeLocalePath(route, locales).pathname),
-    ...Object.keys(prerenderManifest.dynamicRoutes),
-  ])
-
-  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
-    ssgPages
-  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-
-  writeFileSync(
-    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
-    clientSsgManifestContent
-  )
-}
-
-function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
-  return plugin instanceof TelemetryPlugin
-}
-
-function pageToRoute(page: string) {
-  const routeRegex = getRouteRegex(page)
-  return {
-    page,
-    regex: normalizeRouteRegex(routeRegex.re.source),
-    routeKeys: routeRegex.routeKeys,
-    namedRegex: routeRegex.namedRegex,
+    teardownTraceSubscriber()
+    teardownCrashReporter()
   }
 }

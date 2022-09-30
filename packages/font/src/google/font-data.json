@@ -1,0 +1,10208 @@
+{
+  "ABeeZee": {
+    "variants": ["400", "400-italic"]
+  },
+  "Abel": {
+    "variants": ["400"]
+  },
+  "Abhaya Libre": {
+    "variants": ["400", "500", "600", "700", "800"]
+  },
+  "Aboreto": {
+    "variants": ["400"]
+  },
+  "Abril Fatface": {
+    "variants": ["400"]
+  },
+  "Aclonica": {
+    "variants": ["400"]
+  },
+  "Acme": {
+    "variants": ["400"]
+  },
+  "Actor": {
+    "variants": ["400"]
+  },
+  "Adamina": {
+    "variants": ["400"]
+  },
+  "Advent Pro": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700"]
+  },
+  "Aguafina Script": {
+    "variants": ["400"]
+  },
+  "Akaya Kanadaka": {
+    "variants": ["400"]
+  },
+  "Akaya Telivigala": {
+    "variants": ["400"]
+  },
+  "Akronim": {
+    "variants": ["400"]
+  },
+  "Akshar": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Aladin": {
+    "variants": ["400"]
+  },
+  "Alata": {
+    "variants": ["400"]
+  },
+  "Alatsi": {
+    "variants": ["400"]
+  },
+  "Albert Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Aldrich": {
+    "variants": ["400"]
+  },
+  "Alef": {
+    "variants": ["400", "700"]
+  },
+  "Alegreya": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Alegreya SC": {
+    "variants": [
+      "400",
+      "500",
+      "700",
+      "800",
+      "900",
+      "400-italic",
+      "500-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Alegreya Sans": {
+    "variants": [
+      "100",
+      "300",
+      "400",
+      "500",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Alegreya Sans SC": {
+    "variants": [
+      "100",
+      "300",
+      "400",
+      "500",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Aleo": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Alex Brush": {
+    "variants": ["400"]
+  },
+  "Alfa Slab One": {
+    "variants": ["400"]
+  },
+  "Alice": {
+    "variants": ["400"]
+  },
+  "Alike": {
+    "variants": ["400"]
+  },
+  "Alike Angular": {
+    "variants": ["400"]
+  },
+  "Allan": {
+    "variants": ["400", "700"]
+  },
+  "Allerta": {
+    "variants": ["400"]
+  },
+  "Allerta Stencil": {
+    "variants": ["400"]
+  },
+  "Allison": {
+    "variants": ["400"]
+  },
+  "Allura": {
+    "variants": ["400"]
+  },
+  "Almarai": {
+    "variants": ["300", "400", "700", "800"]
+  },
+  "Almendra": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Almendra Display": {
+    "variants": ["400"]
+  },
+  "Almendra SC": {
+    "variants": ["400"]
+  },
+  "Alumni Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Alumni Sans Collegiate One": {
+    "variants": ["400", "400-italic"]
+  },
+  "Alumni Sans Inline One": {
+    "variants": ["400", "400-italic"]
+  },
+  "Alumni Sans Pinstripe": {
+    "variants": ["400", "400-italic"]
+  },
+  "Amarante": {
+    "variants": ["400"]
+  },
+  "Amaranth": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Amatic SC": {
+    "variants": ["400", "700"]
+  },
+  "Amethysta": {
+    "variants": ["400"]
+  },
+  "Amiko": {
+    "variants": ["400", "600", "700"]
+  },
+  "Amiri": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Amiri Quran": {
+    "variants": ["400"]
+  },
+  "Amita": {
+    "variants": ["400", "700"]
+  },
+  "Anaheim": {
+    "variants": ["400"]
+  },
+  "Andada Pro": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 840,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Andika": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Anek Bangla": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Devanagari": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Gujarati": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Gurmukhi": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Kannada": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Latin": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Malayalam": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Odia": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Tamil": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anek Telugu": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Angkor": {
+    "variants": ["400"]
+  },
+  "Annie Use Your Telescope": {
+    "variants": ["400"]
+  },
+  "Anonymous Pro": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Antic": {
+    "variants": ["400"]
+  },
+  "Antic Didone": {
+    "variants": ["400"]
+  },
+  "Antic Slab": {
+    "variants": ["400"]
+  },
+  "Anton": {
+    "variants": ["400"]
+  },
+  "Antonio": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Anybody": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 150,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Arapey": {
+    "variants": ["400", "400-italic"]
+  },
+  "Arbutus": {
+    "variants": ["400"]
+  },
+  "Arbutus Slab": {
+    "variants": ["400"]
+  },
+  "Architects Daughter": {
+    "variants": ["400"]
+  },
+  "Archivo": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Archivo Black": {
+    "variants": ["400"]
+  },
+  "Archivo Narrow": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Are You Serious": {
+    "variants": ["400"]
+  },
+  "Aref Ruqaa": {
+    "variants": ["400", "700"]
+  },
+  "Aref Ruqaa Ink": {
+    "variants": ["400", "700"]
+  },
+  "Arima": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Arima Madurai": {
+    "variants": ["100", "200", "300", "400", "500", "700", "800", "900"]
+  },
+  "Arimo": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Arizonia": {
+    "variants": ["400"]
+  },
+  "Armata": {
+    "variants": ["400"]
+  },
+  "Arsenal": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Artifika": {
+    "variants": ["400"]
+  },
+  "Arvo": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Arya": {
+    "variants": ["400", "700"]
+  },
+  "Asap": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Asap Condensed": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Asar": {
+    "variants": ["400"]
+  },
+  "Asset": {
+    "variants": ["400"]
+  },
+  "Assistant": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Astloch": {
+    "variants": ["400", "700"]
+  },
+  "Asul": {
+    "variants": ["400", "700"]
+  },
+  "Athiti": {
+    "variants": ["200", "300", "400", "500", "600", "700"]
+  },
+  "Atkinson Hyperlegible": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Atma": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Atomic Age": {
+    "variants": ["400"]
+  },
+  "Aubrey": {
+    "variants": ["400"]
+  },
+  "Audiowide": {
+    "variants": ["400"]
+  },
+  "Autour One": {
+    "variants": ["400"]
+  },
+  "Average": {
+    "variants": ["400"]
+  },
+  "Average Sans": {
+    "variants": ["400"]
+  },
+  "Averia Gruesa Libre": {
+    "variants": ["400"]
+  },
+  "Averia Libre": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Averia Sans Libre": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Averia Serif Libre": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Azeret Mono": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "B612": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "B612 Mono": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "BIZ UDGothic": {
+    "variants": ["400", "700"]
+  },
+  "BIZ UDMincho": {
+    "variants": ["400"]
+  },
+  "BIZ UDPGothic": {
+    "variants": ["400", "700"]
+  },
+  "BIZ UDPMincho": {
+    "variants": ["400"]
+  },
+  "Babylonica": {
+    "variants": ["400"]
+  },
+  "Bad Script": {
+    "variants": ["400"]
+  },
+  "Bahiana": {
+    "variants": ["400"]
+  },
+  "Bahianita": {
+    "variants": ["400"]
+  },
+  "Bai Jamjuree": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Bakbak One": {
+    "variants": ["400"]
+  },
+  "Ballet": {
+    "variants": ["400", "variable"],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 16,
+        "max": 72,
+        "defaultValue": 16
+      }
+    ]
+  },
+  "Baloo 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Bhai 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Bhaijaan 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Bhaina 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Chettan 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Da 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Paaji 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Tamma 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Tammudu 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Baloo Thambi 2": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Balsamiq Sans": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Balthazar": {
+    "variants": ["400"]
+  },
+  "Bangers": {
+    "variants": ["400"]
+  },
+  "Barlow": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Barlow Condensed": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Barlow Semi Condensed": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Barriecito": {
+    "variants": ["400"]
+  },
+  "Barrio": {
+    "variants": ["400"]
+  },
+  "Basic": {
+    "variants": ["400"]
+  },
+  "Baskervville": {
+    "variants": ["400", "400-italic"]
+  },
+  "Battambang": {
+    "variants": ["100", "300", "400", "700", "900"]
+  },
+  "Baumans": {
+    "variants": ["400"]
+  },
+  "Bayon": {
+    "variants": ["400"]
+  },
+  "Be Vietnam Pro": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Beau Rivage": {
+    "variants": ["400"]
+  },
+  "Bebas Neue": {
+    "variants": ["400"]
+  },
+  "Belgrano": {
+    "variants": ["400"]
+  },
+  "Bellefair": {
+    "variants": ["400"]
+  },
+  "Belleza": {
+    "variants": ["400"]
+  },
+  "Bellota": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Bellota Text": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "BenchNine": {
+    "variants": ["300", "400", "700"]
+  },
+  "Benne": {
+    "variants": ["400"]
+  },
+  "Bentham": {
+    "variants": ["400"]
+  },
+  "Berkshire Swash": {
+    "variants": ["400"]
+  },
+  "Besley": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Beth Ellen": {
+    "variants": ["400"]
+  },
+  "Bevan": {
+    "variants": ["400", "400-italic"]
+  },
+  "BhuTuka Expanded One": {
+    "variants": ["400"]
+  },
+  "Big Shoulders Display": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Big Shoulders Inline Display": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Big Shoulders Inline Text": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Big Shoulders Stencil Display": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Big Shoulders Stencil Text": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Big Shoulders Text": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Bigelow Rules": {
+    "variants": ["400"]
+  },
+  "Bigshot One": {
+    "variants": ["400"]
+  },
+  "Bilbo": {
+    "variants": ["400"]
+  },
+  "Bilbo Swash Caps": {
+    "variants": ["400"]
+  },
+  "BioRhyme": {
+    "variants": ["200", "300", "400", "700", "800"]
+  },
+  "BioRhyme Expanded": {
+    "variants": ["200", "300", "400", "700", "800"]
+  },
+  "Birthstone": {
+    "variants": ["400"]
+  },
+  "Birthstone Bounce": {
+    "variants": ["400", "500"]
+  },
+  "Biryani": {
+    "variants": ["200", "300", "400", "600", "700", "800", "900"]
+  },
+  "Bitter": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Black And White Picture": {
+    "variants": ["400"]
+  },
+  "Black Han Sans": {
+    "variants": ["400"]
+  },
+  "Black Ops One": {
+    "variants": ["400"]
+  },
+  "Blaka": {
+    "variants": ["400"]
+  },
+  "Blaka Hollow": {
+    "variants": ["400"]
+  },
+  "Blaka Ink": {
+    "variants": ["400"]
+  },
+  "Blinker": {
+    "variants": ["100", "200", "300", "400", "600", "700", "800", "900"]
+  },
+  "Bodoni Moda": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 6,
+        "max": 96,
+        "defaultValue": 11
+      },
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Bokor": {
+    "variants": ["400"]
+  },
+  "Bona Nova": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Bonbon": {
+    "variants": ["400"]
+  },
+  "Bonheur Royale": {
+    "variants": ["400"]
+  },
+  "Boogaloo": {
+    "variants": ["400"]
+  },
+  "Bowlby One": {
+    "variants": ["400"]
+  },
+  "Bowlby One SC": {
+    "variants": ["400"]
+  },
+  "Brawler": {
+    "variants": ["400", "700"]
+  },
+  "Bree Serif": {
+    "variants": ["400"]
+  },
+  "Brygada 1918": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Bubblegum Sans": {
+    "variants": ["400"]
+  },
+  "Bubbler One": {
+    "variants": ["400"]
+  },
+  "Buda": {
+    "variants": ["300"]
+  },
+  "Buenard": {
+    "variants": ["400", "700"]
+  },
+  "Bungee": {
+    "variants": ["400"]
+  },
+  "Bungee Hairline": {
+    "variants": ["400"]
+  },
+  "Bungee Inline": {
+    "variants": ["400"]
+  },
+  "Bungee Outline": {
+    "variants": ["400"]
+  },
+  "Bungee Shade": {
+    "variants": ["400"]
+  },
+  "Bungee Spice": {
+    "variants": ["400"]
+  },
+  "Butcherman": {
+    "variants": ["400"]
+  },
+  "Butterfly Kids": {
+    "variants": ["400"]
+  },
+  "Cabin": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Cabin Condensed": {
+    "variants": ["400", "500", "600", "700"]
+  },
+  "Cabin Sketch": {
+    "variants": ["400", "700"]
+  },
+  "Caesar Dressing": {
+    "variants": ["400"]
+  },
+  "Cagliostro": {
+    "variants": ["400"]
+  },
+  "Cairo": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 1000,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Cairo Play": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "slnt",
+        "min": -11,
+        "max": 11,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 1000,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Caladea": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Calistoga": {
+    "variants": ["400"]
+  },
+  "Calligraffitti": {
+    "variants": ["400"]
+  },
+  "Cambay": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Cambo": {
+    "variants": ["400"]
+  },
+  "Candal": {
+    "variants": ["400"]
+  },
+  "Cantarell": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Cantata One": {
+    "variants": ["400"]
+  },
+  "Cantora One": {
+    "variants": ["400"]
+  },
+  "Capriola": {
+    "variants": ["400"]
+  },
+  "Caramel": {
+    "variants": ["400"]
+  },
+  "Carattere": {
+    "variants": ["400"]
+  },
+  "Cardo": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Carme": {
+    "variants": ["400"]
+  },
+  "Carrois Gothic": {
+    "variants": ["400"]
+  },
+  "Carrois Gothic SC": {
+    "variants": ["400"]
+  },
+  "Carter One": {
+    "variants": ["400"]
+  },
+  "Castoro": {
+    "variants": ["400", "400-italic"]
+  },
+  "Catamaran": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Caudex": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Caveat": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Caveat Brush": {
+    "variants": ["400"]
+  },
+  "Cedarville Cursive": {
+    "variants": ["400"]
+  },
+  "Ceviche One": {
+    "variants": ["400"]
+  },
+  "Chakra Petch": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Changa": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Changa One": {
+    "variants": ["400", "400-italic"]
+  },
+  "Chango": {
+    "variants": ["400"]
+  },
+  "Charis SIL": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Charm": {
+    "variants": ["400", "700"]
+  },
+  "Charmonman": {
+    "variants": ["400", "700"]
+  },
+  "Chathura": {
+    "variants": ["100", "300", "400", "700", "800"]
+  },
+  "Chau Philomene One": {
+    "variants": ["400", "400-italic"]
+  },
+  "Chela One": {
+    "variants": ["400"]
+  },
+  "Chelsea Market": {
+    "variants": ["400"]
+  },
+  "Chenla": {
+    "variants": ["400"]
+  },
+  "Cherish": {
+    "variants": ["400"]
+  },
+  "Cherry Cream Soda": {
+    "variants": ["400"]
+  },
+  "Cherry Swash": {
+    "variants": ["400", "700"]
+  },
+  "Chewy": {
+    "variants": ["400"]
+  },
+  "Chicle": {
+    "variants": ["400"]
+  },
+  "Chilanka": {
+    "variants": ["400"]
+  },
+  "Chivo": {
+    "variants": [
+      "300",
+      "400",
+      "700",
+      "900",
+      "300-italic",
+      "400-italic",
+      "700-italic",
+      "900-italic"
+    ]
+  },
+  "Chonburi": {
+    "variants": ["400"]
+  },
+  "Cinzel": {
+    "variants": ["400", "500", "600", "700", "800", "900", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Cinzel Decorative": {
+    "variants": ["400", "700", "900"]
+  },
+  "Clicker Script": {
+    "variants": ["400"]
+  },
+  "Coda": {
+    "variants": ["400", "800"]
+  },
+  "Coda Caption": {
+    "variants": ["800"]
+  },
+  "Codystar": {
+    "variants": ["300", "400"]
+  },
+  "Coiny": {
+    "variants": ["400"]
+  },
+  "Combo": {
+    "variants": ["400"]
+  },
+  "Comfortaa": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Comforter": {
+    "variants": ["400"]
+  },
+  "Comforter Brush": {
+    "variants": ["400"]
+  },
+  "Comic Neue": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Coming Soon": {
+    "variants": ["400"]
+  },
+  "Commissioner": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Concert One": {
+    "variants": ["400"]
+  },
+  "Condiment": {
+    "variants": ["400"]
+  },
+  "Content": {
+    "variants": ["400", "700"]
+  },
+  "Contrail One": {
+    "variants": ["400"]
+  },
+  "Convergence": {
+    "variants": ["400"]
+  },
+  "Cookie": {
+    "variants": ["400"]
+  },
+  "Copse": {
+    "variants": ["400"]
+  },
+  "Corben": {
+    "variants": ["400", "700"]
+  },
+  "Corinthia": {
+    "variants": ["400", "700"]
+  },
+  "Cormorant": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Cormorant Garamond": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Cormorant Infant": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Cormorant SC": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Cormorant Unicase": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Cormorant Upright": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Courgette": {
+    "variants": ["400"]
+  },
+  "Courier Prime": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Cousine": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Coustard": {
+    "variants": ["400", "900"]
+  },
+  "Covered By Your Grace": {
+    "variants": ["400"]
+  },
+  "Crafty Girls": {
+    "variants": ["400"]
+  },
+  "Creepster": {
+    "variants": ["400"]
+  },
+  "Crete Round": {
+    "variants": ["400", "400-italic"]
+  },
+  "Crimson Pro": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Crimson Text": {
+    "variants": ["400", "600", "700", "400-italic", "600-italic", "700-italic"]
+  },
+  "Croissant One": {
+    "variants": ["400"]
+  },
+  "Crushed": {
+    "variants": ["400"]
+  },
+  "Cuprum": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Cute Font": {
+    "variants": ["400"]
+  },
+  "Cutive": {
+    "variants": ["400"]
+  },
+  "Cutive Mono": {
+    "variants": ["400"]
+  },
+  "DM Mono": {
+    "variants": ["300", "400", "500", "300-italic", "400-italic", "500-italic"]
+  },
+  "DM Sans": {
+    "variants": ["400", "500", "700", "400-italic", "500-italic", "700-italic"]
+  },
+  "DM Serif Display": {
+    "variants": ["400", "400-italic"]
+  },
+  "DM Serif Text": {
+    "variants": ["400", "400-italic"]
+  },
+  "Damion": {
+    "variants": ["400"]
+  },
+  "Dancing Script": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Dangrek": {
+    "variants": ["400"]
+  },
+  "Darker Grotesque": {
+    "variants": ["300", "400", "500", "600", "700", "800", "900"]
+  },
+  "David Libre": {
+    "variants": ["400", "500", "700"]
+  },
+  "Dawning of a New Day": {
+    "variants": ["400"]
+  },
+  "Days One": {
+    "variants": ["400"]
+  },
+  "Dekko": {
+    "variants": ["400"]
+  },
+  "Dela Gothic One": {
+    "variants": ["400"]
+  },
+  "Delius": {
+    "variants": ["400"]
+  },
+  "Delius Swash Caps": {
+    "variants": ["400"]
+  },
+  "Delius Unicase": {
+    "variants": ["400", "700"]
+  },
+  "Della Respira": {
+    "variants": ["400"]
+  },
+  "Denk One": {
+    "variants": ["400"]
+  },
+  "Devonshire": {
+    "variants": ["400"]
+  },
+  "Dhurjati": {
+    "variants": ["400"]
+  },
+  "Didact Gothic": {
+    "variants": ["400"]
+  },
+  "Diplomata": {
+    "variants": ["400"]
+  },
+  "Diplomata SC": {
+    "variants": ["400"]
+  },
+  "Do Hyeon": {
+    "variants": ["400"]
+  },
+  "Dokdo": {
+    "variants": ["400"]
+  },
+  "Domine": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Donegal One": {
+    "variants": ["400"]
+  },
+  "Dongle": {
+    "variants": ["300", "400", "700"]
+  },
+  "Doppio One": {
+    "variants": ["400"]
+  },
+  "Dorsa": {
+    "variants": ["400"]
+  },
+  "Dosis": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "DotGothic16": {
+    "variants": ["400"]
+  },
+  "Dr Sugiyama": {
+    "variants": ["400"]
+  },
+  "Duru Sans": {
+    "variants": ["400"]
+  },
+  "DynaPuff": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Dynalight": {
+    "variants": ["400"]
+  },
+  "EB Garamond": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Eagle Lake": {
+    "variants": ["400"]
+  },
+  "East Sea Dokdo": {
+    "variants": ["400"]
+  },
+  "Eater": {
+    "variants": ["400"]
+  },
+  "Economica": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Eczar": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Edu NSW ACT Foundation": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Edu QLD Beginner": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Edu SA Beginner": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Edu TAS Beginner": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Edu VIC WA NT Beginner": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "El Messiri": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Electrolize": {
+    "variants": ["400"]
+  },
+  "Elsie": {
+    "variants": ["400", "900"]
+  },
+  "Elsie Swash Caps": {
+    "variants": ["400", "900"]
+  },
+  "Emblema One": {
+    "variants": ["400"]
+  },
+  "Emilys Candy": {
+    "variants": ["400"]
+  },
+  "Encode Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Encode Sans Condensed": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Encode Sans Expanded": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Encode Sans SC": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Encode Sans Semi Condensed": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Encode Sans Semi Expanded": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Engagement": {
+    "variants": ["400"]
+  },
+  "Englebert": {
+    "variants": ["400"]
+  },
+  "Enriqueta": {
+    "variants": ["400", "500", "600", "700"]
+  },
+  "Ephesis": {
+    "variants": ["400"]
+  },
+  "Epilogue": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Erica One": {
+    "variants": ["400"]
+  },
+  "Esteban": {
+    "variants": ["400"]
+  },
+  "Estonia": {
+    "variants": ["400"]
+  },
+  "Euphoria Script": {
+    "variants": ["400"]
+  },
+  "Ewert": {
+    "variants": ["400"]
+  },
+  "Exo": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Exo 2": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Expletus Sans": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Explora": {
+    "variants": ["400"]
+  },
+  "Fahkwang": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Familjen Grotesk": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Fanwood Text": {
+    "variants": ["400", "400-italic"]
+  },
+  "Farro": {
+    "variants": ["300", "400", "500", "700"]
+  },
+  "Farsan": {
+    "variants": ["400"]
+  },
+  "Fascinate": {
+    "variants": ["400"]
+  },
+  "Fascinate Inline": {
+    "variants": ["400"]
+  },
+  "Faster One": {
+    "variants": ["400"]
+  },
+  "Fasthand": {
+    "variants": ["400"]
+  },
+  "Fauna One": {
+    "variants": ["400"]
+  },
+  "Faustina": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Federant": {
+    "variants": ["400"]
+  },
+  "Federo": {
+    "variants": ["400"]
+  },
+  "Felipa": {
+    "variants": ["400"]
+  },
+  "Fenix": {
+    "variants": ["400"]
+  },
+  "Festive": {
+    "variants": ["400"]
+  },
+  "Figtree": {
+    "variants": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Finger Paint": {
+    "variants": ["400"]
+  },
+  "Finlandica": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Fira Code": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Fira Mono": {
+    "variants": ["400", "500", "700"]
+  },
+  "Fira Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Fira Sans Condensed": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Fira Sans Extra Condensed": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Fjalla One": {
+    "variants": ["400"]
+  },
+  "Fjord One": {
+    "variants": ["400"]
+  },
+  "Flamenco": {
+    "variants": ["300", "400"]
+  },
+  "Flavors": {
+    "variants": ["400"]
+  },
+  "Fleur De Leah": {
+    "variants": ["400"]
+  },
+  "Flow Block": {
+    "variants": ["400"]
+  },
+  "Flow Circular": {
+    "variants": ["400"]
+  },
+  "Flow Rounded": {
+    "variants": ["400"]
+  },
+  "Fondamento": {
+    "variants": ["400", "400-italic"]
+  },
+  "Fontdiner Swanky": {
+    "variants": ["400"]
+  },
+  "Forum": {
+    "variants": ["400"]
+  },
+  "Francois One": {
+    "variants": ["400"]
+  },
+  "Frank Ruhl Libre": {
+    "variants": ["300", "400", "500", "700", "900"]
+  },
+  "Fraunces": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "SOFT",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "WONK",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 0
+      },
+      {
+        "tag": "opsz",
+        "min": 9,
+        "max": 144,
+        "defaultValue": 14
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Freckle Face": {
+    "variants": ["400"]
+  },
+  "Fredericka the Great": {
+    "variants": ["400"]
+  },
+  "Fredoka": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Fredoka One": {
+    "variants": ["400"]
+  },
+  "Freehand": {
+    "variants": ["400"]
+  },
+  "Fresca": {
+    "variants": ["400"]
+  },
+  "Frijole": {
+    "variants": ["400"]
+  },
+  "Fruktur": {
+    "variants": ["400", "400-italic"]
+  },
+  "Fugaz One": {
+    "variants": ["400"]
+  },
+  "Fuggles": {
+    "variants": ["400"]
+  },
+  "Fuzzy Bubbles": {
+    "variants": ["400", "700"]
+  },
+  "GFS Didot": {
+    "variants": ["400"]
+  },
+  "GFS Neohellenic": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Gabriela": {
+    "variants": ["400"]
+  },
+  "Gaegu": {
+    "variants": ["300", "400", "700"]
+  },
+  "Gafata": {
+    "variants": ["400"]
+  },
+  "Galada": {
+    "variants": ["400"]
+  },
+  "Galdeano": {
+    "variants": ["400"]
+  },
+  "Galindo": {
+    "variants": ["400"]
+  },
+  "Gamja Flower": {
+    "variants": ["400"]
+  },
+  "Gantari": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Gayathri": {
+    "variants": ["100", "400", "700"]
+  },
+  "Gelasio": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Gemunu Libre": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Genos": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Gentium Book Basic": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Gentium Book Plus": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Gentium Plus": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Geo": {
+    "variants": ["400", "400-italic"]
+  },
+  "Georama": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 150,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Geostar": {
+    "variants": ["400"]
+  },
+  "Geostar Fill": {
+    "variants": ["400"]
+  },
+  "Germania One": {
+    "variants": ["400"]
+  },
+  "Gideon Roman": {
+    "variants": ["400"]
+  },
+  "Gidugu": {
+    "variants": ["400"]
+  },
+  "Gilda Display": {
+    "variants": ["400"]
+  },
+  "Girassol": {
+    "variants": ["400"]
+  },
+  "Give You Glory": {
+    "variants": ["400"]
+  },
+  "Glass Antiqua": {
+    "variants": ["400"]
+  },
+  "Glegoo": {
+    "variants": ["400", "700"]
+  },
+  "Gloria Hallelujah": {
+    "variants": ["400"]
+  },
+  "Glory": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Gluten": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "slnt",
+        "min": -13,
+        "max": 13,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Goblin One": {
+    "variants": ["400"]
+  },
+  "Gochi Hand": {
+    "variants": ["400"]
+  },
+  "Goldman": {
+    "variants": ["400", "700"]
+  },
+  "Gorditas": {
+    "variants": ["400", "700"]
+  },
+  "Gothic A1": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Gotu": {
+    "variants": ["400"]
+  },
+  "Goudy Bookletter 1911": {
+    "variants": ["400"]
+  },
+  "Gowun Batang": {
+    "variants": ["400", "700"]
+  },
+  "Gowun Dodum": {
+    "variants": ["400"]
+  },
+  "Graduate": {
+    "variants": ["400"]
+  },
+  "Grand Hotel": {
+    "variants": ["400"]
+  },
+  "Grandstander": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Grape Nuts": {
+    "variants": ["400"]
+  },
+  "Gravitas One": {
+    "variants": ["400"]
+  },
+  "Great Vibes": {
+    "variants": ["400"]
+  },
+  "Grechen Fuemen": {
+    "variants": ["400"]
+  },
+  "Grenze": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Grenze Gotisch": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Grey Qo": {
+    "variants": ["400"]
+  },
+  "Griffy": {
+    "variants": ["400"]
+  },
+  "Gruppo": {
+    "variants": ["400"]
+  },
+  "Gudea": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Gugi": {
+    "variants": ["400"]
+  },
+  "Gulzar": {
+    "variants": ["400"]
+  },
+  "Gupter": {
+    "variants": ["400", "500", "700"]
+  },
+  "Gurajada": {
+    "variants": ["400"]
+  },
+  "Gwendolyn": {
+    "variants": ["400", "700"]
+  },
+  "Habibi": {
+    "variants": ["400"]
+  },
+  "Hachi Maru Pop": {
+    "variants": ["400"]
+  },
+  "Hahmlet": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Halant": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Hammersmith One": {
+    "variants": ["400"]
+  },
+  "Hanalei": {
+    "variants": ["400"]
+  },
+  "Hanalei Fill": {
+    "variants": ["400"]
+  },
+  "Handlee": {
+    "variants": ["400"]
+  },
+  "Hanuman": {
+    "variants": ["100", "300", "400", "700", "900"]
+  },
+  "Happy Monkey": {
+    "variants": ["400"]
+  },
+  "Harmattan": {
+    "variants": ["400", "700"]
+  },
+  "Headland One": {
+    "variants": ["400"]
+  },
+  "Heebo": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Henny Penny": {
+    "variants": ["400"]
+  },
+  "Hepta Slab": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 1,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Herr Von Muellerhoff": {
+    "variants": ["400"]
+  },
+  "Hi Melody": {
+    "variants": ["400"]
+  },
+  "Hina Mincho": {
+    "variants": ["400"]
+  },
+  "Hind": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Hind Guntur": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Hind Madurai": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Hind Siliguri": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Hind Vadodara": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Holtwood One SC": {
+    "variants": ["400"]
+  },
+  "Homemade Apple": {
+    "variants": ["400"]
+  },
+  "Homenaje": {
+    "variants": ["400"]
+  },
+  "Hubballi": {
+    "variants": ["400"]
+  },
+  "Hurricane": {
+    "variants": ["400"]
+  },
+  "IBM Plex Mono": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "IBM Plex Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "IBM Plex Sans Arabic": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700"]
+  },
+  "IBM Plex Sans Condensed": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "IBM Plex Sans Devanagari": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700"]
+  },
+  "IBM Plex Sans Hebrew": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700"]
+  },
+  "IBM Plex Sans KR": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700"]
+  },
+  "IBM Plex Sans Thai": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700"]
+  },
+  "IBM Plex Sans Thai Looped": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700"]
+  },
+  "IBM Plex Serif": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "IM Fell DW Pica": {
+    "variants": ["400", "400-italic"]
+  },
+  "IM Fell DW Pica SC": {
+    "variants": ["400"]
+  },
+  "IM Fell Double Pica": {
+    "variants": ["400", "400-italic"]
+  },
+  "IM Fell Double Pica SC": {
+    "variants": ["400"]
+  },
+  "IM Fell English": {
+    "variants": ["400", "400-italic"]
+  },
+  "IM Fell English SC": {
+    "variants": ["400"]
+  },
+  "IM Fell French Canon": {
+    "variants": ["400", "400-italic"]
+  },
+  "IM Fell French Canon SC": {
+    "variants": ["400"]
+  },
+  "IM Fell Great Primer": {
+    "variants": ["400", "400-italic"]
+  },
+  "IM Fell Great Primer SC": {
+    "variants": ["400"]
+  },
+  "Ibarra Real Nova": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Iceberg": {
+    "variants": ["400"]
+  },
+  "Iceland": {
+    "variants": ["400"]
+  },
+  "Imbue": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 10,
+        "max": 100,
+        "defaultValue": 10
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Imperial Script": {
+    "variants": ["400"]
+  },
+  "Imprima": {
+    "variants": ["400"]
+  },
+  "Inconsolata": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Inder": {
+    "variants": ["400"]
+  },
+  "Indie Flower": {
+    "variants": ["400"]
+  },
+  "Ingrid Darling": {
+    "variants": ["400"]
+  },
+  "Inika": {
+    "variants": ["400", "700"]
+  },
+  "Inknut Antiqua": {
+    "variants": ["300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Inria Sans": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Inria Serif": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Inspiration": {
+    "variants": ["400"]
+  },
+  "Inter": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "slnt",
+        "min": -10,
+        "max": 0,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Irish Grover": {
+    "variants": ["400"]
+  },
+  "Island Moments": {
+    "variants": ["400"]
+  },
+  "Istok Web": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Italiana": {
+    "variants": ["400"]
+  },
+  "Italianno": {
+    "variants": ["400"]
+  },
+  "Itim": {
+    "variants": ["400"]
+  },
+  "Jacques Francois": {
+    "variants": ["400"]
+  },
+  "Jacques Francois Shadow": {
+    "variants": ["400"]
+  },
+  "Jaldi": {
+    "variants": ["400", "700"]
+  },
+  "JetBrains Mono": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Jim Nightshade": {
+    "variants": ["400"]
+  },
+  "Joan": {
+    "variants": ["400"]
+  },
+  "Jockey One": {
+    "variants": ["400"]
+  },
+  "Jolly Lodger": {
+    "variants": ["400"]
+  },
+  "Jomhuria": {
+    "variants": ["400"]
+  },
+  "Jomolhari": {
+    "variants": ["400"]
+  },
+  "Josefin Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Josefin Slab": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Jost": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Joti One": {
+    "variants": ["400"]
+  },
+  "Jua": {
+    "variants": ["400"]
+  },
+  "Judson": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Julee": {
+    "variants": ["400"]
+  },
+  "Julius Sans One": {
+    "variants": ["400"]
+  },
+  "Junge": {
+    "variants": ["400"]
+  },
+  "Jura": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Just Another Hand": {
+    "variants": ["400"]
+  },
+  "Just Me Again Down Here": {
+    "variants": ["400"]
+  },
+  "K2D": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic"
+    ]
+  },
+  "Kadwa": {
+    "variants": ["400", "700"]
+  },
+  "Kaisei Decol": {
+    "variants": ["400", "500", "700"]
+  },
+  "Kaisei HarunoUmi": {
+    "variants": ["400", "500", "700"]
+  },
+  "Kaisei Opti": {
+    "variants": ["400", "500", "700"]
+  },
+  "Kaisei Tokumin": {
+    "variants": ["400", "500", "700", "800"]
+  },
+  "Kalam": {
+    "variants": ["300", "400", "700"]
+  },
+  "Kameron": {
+    "variants": ["400", "700"]
+  },
+  "Kanit": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Kantumruy": {
+    "variants": ["300", "400", "700"]
+  },
+  "Kantumruy Pro": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Karantina": {
+    "variants": ["300", "400", "700"]
+  },
+  "Karla": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Karma": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Katibeh": {
+    "variants": ["400"]
+  },
+  "Kaushan Script": {
+    "variants": ["400"]
+  },
+  "Kavivanar": {
+    "variants": ["400"]
+  },
+  "Kavoon": {
+    "variants": ["400"]
+  },
+  "Kdam Thmor Pro": {
+    "variants": ["400"]
+  },
+  "Keania One": {
+    "variants": ["400"]
+  },
+  "Kelly Slab": {
+    "variants": ["400"]
+  },
+  "Kenia": {
+    "variants": ["400"]
+  },
+  "Khand": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Khmer": {
+    "variants": ["400"]
+  },
+  "Khula": {
+    "variants": ["300", "400", "600", "700", "800"]
+  },
+  "Kings": {
+    "variants": ["400"]
+  },
+  "Kirang Haerang": {
+    "variants": ["400"]
+  },
+  "Kite One": {
+    "variants": ["400"]
+  },
+  "Kiwi Maru": {
+    "variants": ["300", "400", "500"]
+  },
+  "Klee One": {
+    "variants": ["400", "600"]
+  },
+  "Knewave": {
+    "variants": ["400"]
+  },
+  "KoHo": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Kodchasan": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Koh Santepheap": {
+    "variants": ["100", "300", "400", "700", "900"]
+  },
+  "Kolker Brush": {
+    "variants": ["400"]
+  },
+  "Kosugi": {
+    "variants": ["400"]
+  },
+  "Kosugi Maru": {
+    "variants": ["400"]
+  },
+  "Kotta One": {
+    "variants": ["400"]
+  },
+  "Koulen": {
+    "variants": ["400"]
+  },
+  "Kranky": {
+    "variants": ["400"]
+  },
+  "Kreon": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Kristi": {
+    "variants": ["400"]
+  },
+  "Krona One": {
+    "variants": ["400"]
+  },
+  "Krub": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Kufam": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Kulim Park": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "600",
+      "700",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Kumar One": {
+    "variants": ["400"]
+  },
+  "Kumar One Outline": {
+    "variants": ["400"]
+  },
+  "Kumbh Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Kurale": {
+    "variants": ["400"]
+  },
+  "La Belle Aurore": {
+    "variants": ["400"]
+  },
+  "Lacquer": {
+    "variants": ["400"]
+  },
+  "Laila": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Lakki Reddy": {
+    "variants": ["400"]
+  },
+  "Lalezar": {
+    "variants": ["400"]
+  },
+  "Lancelot": {
+    "variants": ["400"]
+  },
+  "Langar": {
+    "variants": ["400"]
+  },
+  "Lateef": {
+    "variants": ["400"]
+  },
+  "Lato": {
+    "variants": [
+      "100",
+      "300",
+      "400",
+      "700",
+      "900",
+      "100-italic",
+      "300-italic",
+      "400-italic",
+      "700-italic",
+      "900-italic"
+    ]
+  },
+  "Lavishly Yours": {
+    "variants": ["400"]
+  },
+  "League Gothic": {
+    "variants": ["400", "variable"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 100,
+        "defaultValue": 100
+      }
+    ]
+  },
+  "League Script": {
+    "variants": ["400"]
+  },
+  "League Spartan": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Leckerli One": {
+    "variants": ["400"]
+  },
+  "Ledger": {
+    "variants": ["400"]
+  },
+  "Lekton": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Lemon": {
+    "variants": ["400"]
+  },
+  "Lemonada": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Lexend": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Lexend Deca": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Lexend Exa": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Lexend Giga": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Lexend Mega": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Lexend Peta": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Lexend Tera": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Lexend Zetta": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Libre Barcode 128": {
+    "variants": ["400"]
+  },
+  "Libre Barcode 128 Text": {
+    "variants": ["400"]
+  },
+  "Libre Barcode 39": {
+    "variants": ["400"]
+  },
+  "Libre Barcode 39 Extended": {
+    "variants": ["400"]
+  },
+  "Libre Barcode 39 Extended Text": {
+    "variants": ["400"]
+  },
+  "Libre Barcode 39 Text": {
+    "variants": ["400"]
+  },
+  "Libre Barcode EAN13 Text": {
+    "variants": ["400"]
+  },
+  "Libre Baskerville": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Libre Bodoni": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Libre Caslon Display": {
+    "variants": ["400"]
+  },
+  "Libre Caslon Text": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Libre Franklin": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Licorice": {
+    "variants": ["400"]
+  },
+  "Life Savers": {
+    "variants": ["400", "700", "800"]
+  },
+  "Lilita One": {
+    "variants": ["400"]
+  },
+  "Lily Script One": {
+    "variants": ["400"]
+  },
+  "Limelight": {
+    "variants": ["400"]
+  },
+  "Linden Hill": {
+    "variants": ["400", "400-italic"]
+  },
+  "Literata": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 7,
+        "max": 72,
+        "defaultValue": 14
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Liu Jian Mao Cao": {
+    "variants": ["400"]
+  },
+  "Livvic": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "900-italic"
+    ]
+  },
+  "Lobster": {
+    "variants": ["400"]
+  },
+  "Lobster Two": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Londrina Outline": {
+    "variants": ["400"]
+  },
+  "Londrina Shadow": {
+    "variants": ["400"]
+  },
+  "Londrina Sketch": {
+    "variants": ["400"]
+  },
+  "Londrina Solid": {
+    "variants": ["100", "300", "400", "900"]
+  },
+  "Long Cang": {
+    "variants": ["400"]
+  },
+  "Lora": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Love Light": {
+    "variants": ["400"]
+  },
+  "Love Ya Like A Sister": {
+    "variants": ["400"]
+  },
+  "Loved by the King": {
+    "variants": ["400"]
+  },
+  "Lovers Quarrel": {
+    "variants": ["400"]
+  },
+  "Luckiest Guy": {
+    "variants": ["400"]
+  },
+  "Lusitana": {
+    "variants": ["400", "700"]
+  },
+  "Lustria": {
+    "variants": ["400"]
+  },
+  "Luxurious Roman": {
+    "variants": ["400"]
+  },
+  "Luxurious Script": {
+    "variants": ["400"]
+  },
+  "M PLUS 1": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "M PLUS 1 Code": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "M PLUS 1p": {
+    "variants": ["100", "300", "400", "500", "700", "800", "900"]
+  },
+  "M PLUS 2": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "M PLUS Code Latin": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 100,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "M PLUS Rounded 1c": {
+    "variants": ["100", "300", "400", "500", "700", "800", "900"]
+  },
+  "Ma Shan Zheng": {
+    "variants": ["400"]
+  },
+  "Macondo": {
+    "variants": ["400"]
+  },
+  "Macondo Swash Caps": {
+    "variants": ["400"]
+  },
+  "Mada": {
+    "variants": ["200", "300", "400", "500", "600", "700", "900"]
+  },
+  "Magra": {
+    "variants": ["400", "700"]
+  },
+  "Maiden Orange": {
+    "variants": ["400"]
+  },
+  "Maitree": {
+    "variants": ["200", "300", "400", "500", "600", "700"]
+  },
+  "Major Mono Display": {
+    "variants": ["400"]
+  },
+  "Mako": {
+    "variants": ["400"]
+  },
+  "Mali": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Mallanna": {
+    "variants": ["400"]
+  },
+  "Mandali": {
+    "variants": ["400"]
+  },
+  "Manjari": {
+    "variants": ["100", "400", "700"]
+  },
+  "Manrope": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Mansalva": {
+    "variants": ["400"]
+  },
+  "Manuale": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Marcellus": {
+    "variants": ["400"]
+  },
+  "Marcellus SC": {
+    "variants": ["400"]
+  },
+  "Marck Script": {
+    "variants": ["400"]
+  },
+  "Margarine": {
+    "variants": ["400"]
+  },
+  "Markazi Text": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Marko One": {
+    "variants": ["400"]
+  },
+  "Marmelad": {
+    "variants": ["400"]
+  },
+  "Martel": {
+    "variants": ["200", "300", "400", "600", "700", "800", "900"]
+  },
+  "Martel Sans": {
+    "variants": ["200", "300", "400", "600", "700", "800", "900"]
+  },
+  "Marvel": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Mate": {
+    "variants": ["400", "400-italic"]
+  },
+  "Mate SC": {
+    "variants": ["400"]
+  },
+  "Maven Pro": {
+    "variants": ["400", "500", "600", "700", "800", "900", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "McLaren": {
+    "variants": ["400"]
+  },
+  "Mea Culpa": {
+    "variants": ["400"]
+  },
+  "Meddon": {
+    "variants": ["400"]
+  },
+  "MedievalSharp": {
+    "variants": ["400"]
+  },
+  "Medula One": {
+    "variants": ["400"]
+  },
+  "Meera Inimai": {
+    "variants": ["400"]
+  },
+  "Megrim": {
+    "variants": ["400"]
+  },
+  "Meie Script": {
+    "variants": ["400"]
+  },
+  "Meow Script": {
+    "variants": ["400"]
+  },
+  "Merienda": {
+    "variants": ["400", "700"]
+  },
+  "Merienda One": {
+    "variants": ["400"]
+  },
+  "Merriweather": {
+    "variants": [
+      "300",
+      "400",
+      "700",
+      "900",
+      "300-italic",
+      "400-italic",
+      "700-italic",
+      "900-italic"
+    ]
+  },
+  "Merriweather Sans": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Metal": {
+    "variants": ["400"]
+  },
+  "Metal Mania": {
+    "variants": ["400"]
+  },
+  "Metamorphous": {
+    "variants": ["400"]
+  },
+  "Metrophobic": {
+    "variants": ["400"]
+  },
+  "Michroma": {
+    "variants": ["400"]
+  },
+  "Milonga": {
+    "variants": ["400"]
+  },
+  "Miltonian": {
+    "variants": ["400"]
+  },
+  "Miltonian Tattoo": {
+    "variants": ["400"]
+  },
+  "Mina": {
+    "variants": ["400", "700"]
+  },
+  "Mingzat": {
+    "variants": ["400"]
+  },
+  "Miniver": {
+    "variants": ["400"]
+  },
+  "Miriam Libre": {
+    "variants": ["400", "700"]
+  },
+  "Mirza": {
+    "variants": ["400", "500", "600", "700"]
+  },
+  "Miss Fajardose": {
+    "variants": ["400"]
+  },
+  "Mitr": {
+    "variants": ["200", "300", "400", "500", "600", "700"]
+  },
+  "Mochiy Pop One": {
+    "variants": ["400"]
+  },
+  "Mochiy Pop P One": {
+    "variants": ["400"]
+  },
+  "Modak": {
+    "variants": ["400"]
+  },
+  "Modern Antiqua": {
+    "variants": ["400"]
+  },
+  "Mogra": {
+    "variants": ["400"]
+  },
+  "Mohave": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Molengo": {
+    "variants": ["400"]
+  },
+  "Molle": {
+    "variants": ["400-italic"]
+  },
+  "Monda": {
+    "variants": ["400", "700"]
+  },
+  "Monofett": {
+    "variants": ["400"]
+  },
+  "Monoton": {
+    "variants": ["400"]
+  },
+  "Monsieur La Doulaise": {
+    "variants": ["400"]
+  },
+  "Montaga": {
+    "variants": ["400"]
+  },
+  "Montagu Slab": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 16,
+        "max": 144,
+        "defaultValue": 144
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "MonteCarlo": {
+    "variants": ["400"]
+  },
+  "Montez": {
+    "variants": ["400"]
+  },
+  "Montserrat": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Montserrat Alternates": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Montserrat Subrayada": {
+    "variants": ["400", "700"]
+  },
+  "Moo Lah Lah": {
+    "variants": ["400"]
+  },
+  "Moon Dance": {
+    "variants": ["400"]
+  },
+  "Moul": {
+    "variants": ["400"]
+  },
+  "Moulpali": {
+    "variants": ["400"]
+  },
+  "Mountains of Christmas": {
+    "variants": ["400", "700"]
+  },
+  "Mouse Memoirs": {
+    "variants": ["400"]
+  },
+  "Mr Bedfort": {
+    "variants": ["400"]
+  },
+  "Mr Dafoe": {
+    "variants": ["400"]
+  },
+  "Mr De Haviland": {
+    "variants": ["400"]
+  },
+  "Mrs Saint Delafield": {
+    "variants": ["400"]
+  },
+  "Mrs Sheppards": {
+    "variants": ["400"]
+  },
+  "Ms Madi": {
+    "variants": ["400"]
+  },
+  "Mukta": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800"]
+  },
+  "Mukta Mahee": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800"]
+  },
+  "Mukta Malar": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800"]
+  },
+  "Mukta Vaani": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800"]
+  },
+  "Mulish": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 1000,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Murecho": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "MuseoModerno": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "My Soul": {
+    "variants": ["400"]
+  },
+  "Mystery Quest": {
+    "variants": ["400"]
+  },
+  "NTR": {
+    "variants": ["400"]
+  },
+  "Nabla": {
+    "variants": ["400", "variable"],
+    "axes": [
+      {
+        "tag": "EDPT",
+        "min": 0,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "EHLT",
+        "min": 0,
+        "max": 24,
+        "defaultValue": 12
+      }
+    ]
+  },
+  "Nanum Brush Script": {
+    "variants": ["400"]
+  },
+  "Nanum Gothic": {
+    "variants": ["400", "700", "800"]
+  },
+  "Nanum Gothic Coding": {
+    "variants": ["400", "700"]
+  },
+  "Nanum Myeongjo": {
+    "variants": ["400", "700", "800"]
+  },
+  "Nanum Pen Script": {
+    "variants": ["400"]
+  },
+  "Neonderthaw": {
+    "variants": ["400"]
+  },
+  "Nerko One": {
+    "variants": ["400"]
+  },
+  "Neucha": {
+    "variants": ["400"]
+  },
+  "Neuton": {
+    "variants": ["200", "300", "400", "700", "800", "400-italic"]
+  },
+  "New Rocker": {
+    "variants": ["400"]
+  },
+  "New Tegomin": {
+    "variants": ["400"]
+  },
+  "News Cycle": {
+    "variants": ["400", "700"]
+  },
+  "Newsreader": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 6,
+        "max": 72,
+        "defaultValue": 16
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Niconne": {
+    "variants": ["400"]
+  },
+  "Niramit": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Nixie One": {
+    "variants": ["400"]
+  },
+  "Nobile": {
+    "variants": ["400", "500", "700", "400-italic", "500-italic", "700-italic"]
+  },
+  "Nokora": {
+    "variants": ["100", "300", "400", "700", "900"]
+  },
+  "Norican": {
+    "variants": ["400"]
+  },
+  "Nosifer": {
+    "variants": ["400"]
+  },
+  "Notable": {
+    "variants": ["400"]
+  },
+  "Nothing You Could Do": {
+    "variants": ["400"]
+  },
+  "Noticia Text": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Noto Color Emoji": {
+    "variants": ["400"]
+  },
+  "Noto Emoji": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Kufi Arabic": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Music": {
+    "variants": ["400"]
+  },
+  "Noto Naskh Arabic": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Nastaliq Urdu": {
+    "variants": ["400", "700"]
+  },
+  "Noto Rashi Hebrew": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Noto Sans Adlam": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Adlam Unjoined": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Anatolian Hieroglyphs": {
+    "variants": ["400"]
+  },
+  "Noto Sans Arabic": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Armenian": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Avestan": {
+    "variants": ["400"]
+  },
+  "Noto Sans Balinese": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Bamum": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Bassa Vah": {
+    "variants": ["400"]
+  },
+  "Noto Sans Batak": {
+    "variants": ["400"]
+  },
+  "Noto Sans Bengali": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Bhaiksuki": {
+    "variants": ["400"]
+  },
+  "Noto Sans Brahmi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Buginese": {
+    "variants": ["400"]
+  },
+  "Noto Sans Buhid": {
+    "variants": ["400"]
+  },
+  "Noto Sans Canadian Aboriginal": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Carian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Caucasian Albanian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Chakma": {
+    "variants": ["400"]
+  },
+  "Noto Sans Cham": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Cherokee": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Coptic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Cuneiform": {
+    "variants": ["400"]
+  },
+  "Noto Sans Cypriot": {
+    "variants": ["400"]
+  },
+  "Noto Sans Deseret": {
+    "variants": ["400"]
+  },
+  "Noto Sans Devanagari": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Display": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Duployan": {
+    "variants": ["400"]
+  },
+  "Noto Sans Egyptian Hieroglyphs": {
+    "variants": ["400"]
+  },
+  "Noto Sans Elbasan": {
+    "variants": ["400"]
+  },
+  "Noto Sans Elymaic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Georgian": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Glagolitic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Gothic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Grantha": {
+    "variants": ["400"]
+  },
+  "Noto Sans Gujarati": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Gunjala Gondi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Gurmukhi": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans HK": {
+    "variants": ["100", "300", "400", "500", "700", "900"]
+  },
+  "Noto Sans Hanifi Rohingya": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Hanunoo": {
+    "variants": ["400"]
+  },
+  "Noto Sans Hatran": {
+    "variants": ["400"]
+  },
+  "Noto Sans Hebrew": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Imperial Aramaic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Indic Siyaq Numbers": {
+    "variants": ["400"]
+  },
+  "Noto Sans Inscriptional Pahlavi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Inscriptional Parthian": {
+    "variants": ["400"]
+  },
+  "Noto Sans JP": {
+    "variants": ["100", "300", "400", "500", "700", "900"]
+  },
+  "Noto Sans Javanese": {
+    "variants": ["400", "700"]
+  },
+  "Noto Sans KR": {
+    "variants": ["100", "300", "400", "500", "700", "900"]
+  },
+  "Noto Sans Kaithi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Kannada": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Kayah Li": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Kharoshthi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Khmer": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Khojki": {
+    "variants": ["400"]
+  },
+  "Noto Sans Khudawadi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Lao": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Lepcha": {
+    "variants": ["400"]
+  },
+  "Noto Sans Limbu": {
+    "variants": ["400"]
+  },
+  "Noto Sans Linear A": {
+    "variants": ["400"]
+  },
+  "Noto Sans Linear B": {
+    "variants": ["400"]
+  },
+  "Noto Sans Lisu": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Lycian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Lydian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Mahajani": {
+    "variants": ["400"]
+  },
+  "Noto Sans Malayalam": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Mandaic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Manichaean": {
+    "variants": ["400"]
+  },
+  "Noto Sans Marchen": {
+    "variants": ["400"]
+  },
+  "Noto Sans Masaram Gondi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Math": {
+    "variants": ["400"]
+  },
+  "Noto Sans Mayan Numerals": {
+    "variants": ["400"]
+  },
+  "Noto Sans Medefaidrin": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Meetei Mayek": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Meroitic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Miao": {
+    "variants": ["400"]
+  },
+  "Noto Sans Modi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Mongolian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Mono": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Mro": {
+    "variants": ["400"]
+  },
+  "Noto Sans Multani": {
+    "variants": ["400"]
+  },
+  "Noto Sans Myanmar": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Noto Sans N Ko": {
+    "variants": ["400"]
+  },
+  "Noto Sans Nabataean": {
+    "variants": ["400"]
+  },
+  "Noto Sans New Tai Lue": {
+    "variants": ["400"]
+  },
+  "Noto Sans Newa": {
+    "variants": ["400"]
+  },
+  "Noto Sans Nushu": {
+    "variants": ["400"]
+  },
+  "Noto Sans Ogham": {
+    "variants": ["400"]
+  },
+  "Noto Sans Ol Chiki": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Old Hungarian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Old Italic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Old North Arabian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Old Permic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Old Persian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Old Sogdian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Old South Arabian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Old Turkic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Oriya": {
+    "variants": ["100", "400", "700", "900"]
+  },
+  "Noto Sans Osage": {
+    "variants": ["400"]
+  },
+  "Noto Sans Osmanya": {
+    "variants": ["400"]
+  },
+  "Noto Sans Pahawh Hmong": {
+    "variants": ["400"]
+  },
+  "Noto Sans Palmyrene": {
+    "variants": ["400"]
+  },
+  "Noto Sans Pau Cin Hau": {
+    "variants": ["400"]
+  },
+  "Noto Sans Phags Pa": {
+    "variants": ["400"]
+  },
+  "Noto Sans Phoenician": {
+    "variants": ["400"]
+  },
+  "Noto Sans Psalter Pahlavi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Rejang": {
+    "variants": ["400"]
+  },
+  "Noto Sans Runic": {
+    "variants": ["400"]
+  },
+  "Noto Sans SC": {
+    "variants": ["100", "300", "400", "500", "700", "900"]
+  },
+  "Noto Sans Samaritan": {
+    "variants": ["400"]
+  },
+  "Noto Sans Saurashtra": {
+    "variants": ["400"]
+  },
+  "Noto Sans Sharada": {
+    "variants": ["400"]
+  },
+  "Noto Sans Shavian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Siddham": {
+    "variants": ["400"]
+  },
+  "Noto Sans Sinhala": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Sogdian": {
+    "variants": ["400"]
+  },
+  "Noto Sans Sora Sompeng": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Soyombo": {
+    "variants": ["400"]
+  },
+  "Noto Sans Sundanese": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Syloti Nagri": {
+    "variants": ["400"]
+  },
+  "Noto Sans Symbols": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Symbols 2": {
+    "variants": ["400"]
+  },
+  "Noto Sans Syriac": {
+    "variants": ["100", "400", "900"]
+  },
+  "Noto Sans TC": {
+    "variants": ["100", "300", "400", "500", "700", "900"]
+  },
+  "Noto Sans Tagalog": {
+    "variants": ["400"]
+  },
+  "Noto Sans Tagbanwa": {
+    "variants": ["400"]
+  },
+  "Noto Sans Tai Le": {
+    "variants": ["400"]
+  },
+  "Noto Sans Tai Tham": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Tai Viet": {
+    "variants": ["400"]
+  },
+  "Noto Sans Takri": {
+    "variants": ["400"]
+  },
+  "Noto Sans Tamil": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Tamil Supplement": {
+    "variants": ["400"]
+  },
+  "Noto Sans Telugu": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Thaana": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Thai": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Sans Thai Looped": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Noto Sans Tifinagh": {
+    "variants": ["400"]
+  },
+  "Noto Sans Tirhuta": {
+    "variants": ["400"]
+  },
+  "Noto Sans Ugaritic": {
+    "variants": ["400"]
+  },
+  "Noto Sans Vai": {
+    "variants": ["400"]
+  },
+  "Noto Sans Wancho": {
+    "variants": ["400"]
+  },
+  "Noto Sans Warang Citi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Yi": {
+    "variants": ["400"]
+  },
+  "Noto Sans Zanabazar Square": {
+    "variants": ["400"]
+  },
+  "Noto Serif": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Noto Serif Ahom": {
+    "variants": ["400"]
+  },
+  "Noto Serif Armenian": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Balinese": {
+    "variants": ["400"]
+  },
+  "Noto Serif Bengali": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Devanagari": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Display": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Dogra": {
+    "variants": ["400"]
+  },
+  "Noto Serif Ethiopic": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Georgian": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Grantha": {
+    "variants": ["400"]
+  },
+  "Noto Serif Gujarati": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Gurmukhi": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif HK": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Hebrew": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif JP": {
+    "variants": ["200", "300", "400", "500", "600", "700", "900"]
+  },
+  "Noto Serif KR": {
+    "variants": ["200", "300", "400", "500", "600", "700", "900"]
+  },
+  "Noto Serif Kannada": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Khmer": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Lao": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Malayalam": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Myanmar": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Noto Serif Nyiakeng Puachue Hmong": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif SC": {
+    "variants": ["200", "300", "400", "500", "600", "700", "900"]
+  },
+  "Noto Serif Sinhala": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif TC": {
+    "variants": ["200", "300", "400", "500", "600", "700", "900"]
+  },
+  "Noto Serif Tamil": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Tangut": {
+    "variants": ["400"]
+  },
+  "Noto Serif Telugu": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Thai": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Tibetan": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Yezidi": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Traditional Nushu": {
+    "variants": ["400"]
+  },
+  "Nova Cut": {
+    "variants": ["400"]
+  },
+  "Nova Flat": {
+    "variants": ["400"]
+  },
+  "Nova Mono": {
+    "variants": ["400"]
+  },
+  "Nova Oval": {
+    "variants": ["400"]
+  },
+  "Nova Round": {
+    "variants": ["400"]
+  },
+  "Nova Script": {
+    "variants": ["400"]
+  },
+  "Nova Slim": {
+    "variants": ["400"]
+  },
+  "Nova Square": {
+    "variants": ["400"]
+  },
+  "Numans": {
+    "variants": ["400"]
+  },
+  "Nunito": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 1000,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Nunito Sans": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "600",
+      "700",
+      "800",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Nuosu SIL": {
+    "variants": ["400"]
+  },
+  "Odibee Sans": {
+    "variants": ["400"]
+  },
+  "Odor Mean Chey": {
+    "variants": ["400"]
+  },
+  "Offside": {
+    "variants": ["400"]
+  },
+  "Oi": {
+    "variants": ["400"]
+  },
+  "Old Standard TT": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Oldenburg": {
+    "variants": ["400"]
+  },
+  "Ole": {
+    "variants": ["400"]
+  },
+  "Oleo Script": {
+    "variants": ["400", "700"]
+  },
+  "Oleo Script Swash Caps": {
+    "variants": ["400", "700"]
+  },
+  "Oooh Baby": {
+    "variants": ["400"]
+  },
+  "Open Sans": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Oranienbaum": {
+    "variants": ["400"]
+  },
+  "Orbitron": {
+    "variants": ["400", "500", "600", "700", "800", "900", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Oregano": {
+    "variants": ["400", "400-italic"]
+  },
+  "Orelega One": {
+    "variants": ["400"]
+  },
+  "Orienta": {
+    "variants": ["400"]
+  },
+  "Original Surfer": {
+    "variants": ["400"]
+  },
+  "Oswald": {
+    "variants": ["200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Outfit": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Over the Rainbow": {
+    "variants": ["400"]
+  },
+  "Overlock": {
+    "variants": ["400", "700", "900", "400-italic", "700-italic", "900-italic"]
+  },
+  "Overlock SC": {
+    "variants": ["400"]
+  },
+  "Overpass": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Overpass Mono": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Ovo": {
+    "variants": ["400"]
+  },
+  "Oxanium": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Oxygen": {
+    "variants": ["300", "400", "700"]
+  },
+  "Oxygen Mono": {
+    "variants": ["400"]
+  },
+  "PT Mono": {
+    "variants": ["400"]
+  },
+  "PT Sans": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "PT Sans Caption": {
+    "variants": ["400", "700"]
+  },
+  "PT Sans Narrow": {
+    "variants": ["400", "700"]
+  },
+  "PT Serif": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "PT Serif Caption": {
+    "variants": ["400", "400-italic"]
+  },
+  "Pacifico": {
+    "variants": ["400"]
+  },
+  "Padauk": {
+    "variants": ["400", "700"]
+  },
+  "Palanquin": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700"]
+  },
+  "Palanquin Dark": {
+    "variants": ["400", "500", "600", "700"]
+  },
+  "Pangolin": {
+    "variants": ["400"]
+  },
+  "Paprika": {
+    "variants": ["400"]
+  },
+  "Parisienne": {
+    "variants": ["400"]
+  },
+  "Passero One": {
+    "variants": ["400"]
+  },
+  "Passion One": {
+    "variants": ["400", "700", "900"]
+  },
+  "Passions Conflict": {
+    "variants": ["400"]
+  },
+  "Pathway Gothic One": {
+    "variants": ["400"]
+  },
+  "Patrick Hand": {
+    "variants": ["400"]
+  },
+  "Patrick Hand SC": {
+    "variants": ["400"]
+  },
+  "Pattaya": {
+    "variants": ["400"]
+  },
+  "Patua One": {
+    "variants": ["400"]
+  },
+  "Pavanam": {
+    "variants": ["400"]
+  },
+  "Paytone One": {
+    "variants": ["400"]
+  },
+  "Peddana": {
+    "variants": ["400"]
+  },
+  "Peralta": {
+    "variants": ["400"]
+  },
+  "Permanent Marker": {
+    "variants": ["400"]
+  },
+  "Petemoss": {
+    "variants": ["400"]
+  },
+  "Petit Formal Script": {
+    "variants": ["400"]
+  },
+  "Petrona": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Philosopher": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Piazzolla": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 8,
+        "max": 30,
+        "defaultValue": 14
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Piedra": {
+    "variants": ["400"]
+  },
+  "Pinyon Script": {
+    "variants": ["400"]
+  },
+  "Pirata One": {
+    "variants": ["400"]
+  },
+  "Plaster": {
+    "variants": ["400"]
+  },
+  "Play": {
+    "variants": ["400", "700"]
+  },
+  "Playball": {
+    "variants": ["400"]
+  },
+  "Playfair Display": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Playfair Display SC": {
+    "variants": ["400", "700", "900", "400-italic", "700-italic", "900-italic"]
+  },
+  "Plus Jakarta Sans": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Podkova": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Poiret One": {
+    "variants": ["400"]
+  },
+  "Poller One": {
+    "variants": ["400"]
+  },
+  "Poly": {
+    "variants": ["400", "400-italic"]
+  },
+  "Pompiere": {
+    "variants": ["400"]
+  },
+  "Pontano Sans": {
+    "variants": ["400"]
+  },
+  "Poor Story": {
+    "variants": ["400"]
+  },
+  "Poppins": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Port Lligat Sans": {
+    "variants": ["400"]
+  },
+  "Port Lligat Slab": {
+    "variants": ["400"]
+  },
+  "Potta One": {
+    "variants": ["400"]
+  },
+  "Pragati Narrow": {
+    "variants": ["400", "700"]
+  },
+  "Praise": {
+    "variants": ["400"]
+  },
+  "Prata": {
+    "variants": ["400"]
+  },
+  "Preahvihear": {
+    "variants": ["400"]
+  },
+  "Press Start 2P": {
+    "variants": ["400"]
+  },
+  "Pridi": {
+    "variants": ["200", "300", "400", "500", "600", "700"]
+  },
+  "Princess Sofia": {
+    "variants": ["400"]
+  },
+  "Prociono": {
+    "variants": ["400"]
+  },
+  "Prompt": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Prosto One": {
+    "variants": ["400"]
+  },
+  "Proza Libre": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic"
+    ]
+  },
+  "Public Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Puppies Play": {
+    "variants": ["400"]
+  },
+  "Puritan": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Purple Purse": {
+    "variants": ["400"]
+  },
+  "Qahiri": {
+    "variants": ["400"]
+  },
+  "Quando": {
+    "variants": ["400"]
+  },
+  "Quantico": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Quattrocento": {
+    "variants": ["400", "700"]
+  },
+  "Quattrocento Sans": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Questrial": {
+    "variants": ["400"]
+  },
+  "Quicksand": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Quintessential": {
+    "variants": ["400"]
+  },
+  "Qwigley": {
+    "variants": ["400"]
+  },
+  "Qwitcher Grypen": {
+    "variants": ["400", "700"]
+  },
+  "Racing Sans One": {
+    "variants": ["400"]
+  },
+  "Radio Canada": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Radley": {
+    "variants": ["400", "400-italic"]
+  },
+  "Rajdhani": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Rakkas": {
+    "variants": ["400"]
+  },
+  "Raleway": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Raleway Dots": {
+    "variants": ["400"]
+  },
+  "Ramabhadra": {
+    "variants": ["400"]
+  },
+  "Ramaraja": {
+    "variants": ["400"]
+  },
+  "Rambla": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Rammetto One": {
+    "variants": ["400"]
+  },
+  "Rampart One": {
+    "variants": ["400"]
+  },
+  "Ranchers": {
+    "variants": ["400"]
+  },
+  "Rancho": {
+    "variants": ["400"]
+  },
+  "Ranga": {
+    "variants": ["400", "700"]
+  },
+  "Rasa": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Rationale": {
+    "variants": ["400"]
+  },
+  "Ravi Prakash": {
+    "variants": ["400"]
+  },
+  "Readex Pro": {
+    "variants": ["200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 160,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Recursive": {
+    "variants": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "axes": [
+      {
+        "tag": "CASL",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 0
+      },
+      {
+        "tag": "CRSV",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 0.5
+      },
+      {
+        "tag": "MONO",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 0
+      },
+      {
+        "tag": "slnt",
+        "min": -15,
+        "max": 0,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 1000,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Red Hat Display": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Red Hat Mono": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Red Hat Text": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Red Rose": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Redacted": {
+    "variants": ["400"]
+  },
+  "Redacted Script": {
+    "variants": ["300", "400", "700"]
+  },
+  "Redressed": {
+    "variants": ["400"]
+  },
+  "Reem Kufi": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Reem Kufi Fun": {
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Reem Kufi Ink": {
+    "variants": ["400"]
+  },
+  "Reenie Beanie": {
+    "variants": ["400"]
+  },
+  "Reggae One": {
+    "variants": ["400"]
+  },
+  "Revalia": {
+    "variants": ["400"]
+  },
+  "Rhodium Libre": {
+    "variants": ["400"]
+  },
+  "Ribeye": {
+    "variants": ["400"]
+  },
+  "Ribeye Marrow": {
+    "variants": ["400"]
+  },
+  "Righteous": {
+    "variants": ["400"]
+  },
+  "Risque": {
+    "variants": ["400"]
+  },
+  "Road Rage": {
+    "variants": ["400"]
+  },
+  "Roboto": {
+    "variants": [
+      "100",
+      "300",
+      "400",
+      "500",
+      "700",
+      "900",
+      "100-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "700-italic",
+      "900-italic"
+    ]
+  },
+  "Roboto Condensed": {
+    "variants": ["300", "400", "700", "300-italic", "400-italic", "700-italic"]
+  },
+  "Roboto Flex": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "1000",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "GRAD",
+        "min": -200,
+        "max": 150,
+        "defaultValue": 0
+      },
+      {
+        "tag": "XTRA",
+        "min": 323,
+        "max": 603,
+        "defaultValue": 468
+      },
+      {
+        "tag": "YOPQ",
+        "min": 25,
+        "max": 135,
+        "defaultValue": 79
+      },
+      {
+        "tag": "YTAS",
+        "min": 649,
+        "max": 854,
+        "defaultValue": 750
+      },
+      {
+        "tag": "YTDE",
+        "min": -305,
+        "max": -98,
+        "defaultValue": -203
+      },
+      {
+        "tag": "YTFI",
+        "min": 560,
+        "max": 788,
+        "defaultValue": 738
+      },
+      {
+        "tag": "YTLC",
+        "min": 416,
+        "max": 570,
+        "defaultValue": 514
+      },
+      {
+        "tag": "YTUC",
+        "min": 528,
+        "max": 760,
+        "defaultValue": 712
+      },
+      {
+        "tag": "opsz",
+        "min": 8,
+        "max": 144,
+        "defaultValue": 14
+      },
+      {
+        "tag": "slnt",
+        "min": -10,
+        "max": 0,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wdth",
+        "min": 25,
+        "max": 151,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 1000,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Roboto Mono": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Roboto Serif": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "GRAD",
+        "min": -50,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "opsz",
+        "min": 8,
+        "max": 144,
+        "defaultValue": 14
+      },
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 150,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Roboto Slab": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Rochester": {
+    "variants": ["400"]
+  },
+  "Rock Salt": {
+    "variants": ["400"]
+  },
+  "RocknRoll One": {
+    "variants": ["400"]
+  },
+  "Rokkitt": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Romanesco": {
+    "variants": ["400"]
+  },
+  "Ropa Sans": {
+    "variants": ["400", "400-italic"]
+  },
+  "Rosario": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Rosarivo": {
+    "variants": ["400", "400-italic"]
+  },
+  "Rouge Script": {
+    "variants": ["400"]
+  },
+  "Rowdies": {
+    "variants": ["300", "400", "700"]
+  },
+  "Rozha One": {
+    "variants": ["400"]
+  },
+  "Rubik": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Rubik Beastly": {
+    "variants": ["400"]
+  },
+  "Rubik Bubbles": {
+    "variants": ["400"]
+  },
+  "Rubik Burned": {
+    "variants": ["400"]
+  },
+  "Rubik Dirt": {
+    "variants": ["400"]
+  },
+  "Rubik Distressed": {
+    "variants": ["400"]
+  },
+  "Rubik Glitch": {
+    "variants": ["400"]
+  },
+  "Rubik Iso": {
+    "variants": ["400"]
+  },
+  "Rubik Marker Hatch": {
+    "variants": ["400"]
+  },
+  "Rubik Maze": {
+    "variants": ["400"]
+  },
+  "Rubik Microbe": {
+    "variants": ["400"]
+  },
+  "Rubik Mono One": {
+    "variants": ["400"]
+  },
+  "Rubik Moonrocks": {
+    "variants": ["400"]
+  },
+  "Rubik Puddles": {
+    "variants": ["400"]
+  },
+  "Rubik Wet Paint": {
+    "variants": ["400"]
+  },
+  "Ruda": {
+    "variants": ["400", "500", "600", "700", "800", "900", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Rufina": {
+    "variants": ["400", "700"]
+  },
+  "Ruge Boogie": {
+    "variants": ["400"]
+  },
+  "Ruluko": {
+    "variants": ["400"]
+  },
+  "Rum Raisin": {
+    "variants": ["400"]
+  },
+  "Ruslan Display": {
+    "variants": ["400"]
+  },
+  "Russo One": {
+    "variants": ["400"]
+  },
+  "Ruthie": {
+    "variants": ["400"]
+  },
+  "Rye": {
+    "variants": ["400"]
+  },
+  "STIX Two Text": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Sacramento": {
+    "variants": ["400"]
+  },
+  "Sahitya": {
+    "variants": ["400", "700"]
+  },
+  "Sail": {
+    "variants": ["400"]
+  },
+  "Saira": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Saira Condensed": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Saira Extra Condensed": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Saira Semi Condensed": {
+    "variants": ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+  },
+  "Saira Stencil One": {
+    "variants": ["400"]
+  },
+  "Salsa": {
+    "variants": ["400"]
+  },
+  "Sanchez": {
+    "variants": ["400", "400-italic"]
+  },
+  "Sancreek": {
+    "variants": ["400"]
+  },
+  "Sansita": {
+    "variants": [
+      "400",
+      "700",
+      "800",
+      "900",
+      "400-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Sansita Swashed": {
+    "variants": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Sarabun": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic"
+    ]
+  },
+  "Sarala": {
+    "variants": ["400", "700"]
+  },
+  "Sarina": {
+    "variants": ["400"]
+  },
+  "Sarpanch": {
+    "variants": ["400", "500", "600", "700", "800", "900"]
+  },
+  "Sassy Frass": {
+    "variants": ["400"]
+  },
+  "Satisfy": {
+    "variants": ["400"]
+  },
+  "Sawarabi Gothic": {
+    "variants": ["400"]
+  },
+  "Sawarabi Mincho": {
+    "variants": ["400"]
+  },
+  "Scada": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Scheherazade New": {
+    "variants": ["400", "700"]
+  },
+  "Schoolbell": {
+    "variants": ["400"]
+  },
+  "Scope One": {
+    "variants": ["400"]
+  },
+  "Seaweed Script": {
+    "variants": ["400"]
+  },
+  "Secular One": {
+    "variants": ["400"]
+  },
+  "Sedgwick Ave": {
+    "variants": ["400"]
+  },
+  "Sedgwick Ave Display": {
+    "variants": ["400"]
+  },
+  "Sen": {
+    "variants": ["400", "700", "800"]
+  },
+  "Send Flowers": {
+    "variants": ["400"]
+  },
+  "Sevillana": {
+    "variants": ["400"]
+  },
+  "Seymour One": {
+    "variants": ["400"]
+  },
+  "Shadows Into Light": {
+    "variants": ["400"]
+  },
+  "Shadows Into Light Two": {
+    "variants": ["400"]
+  },
+  "Shalimar": {
+    "variants": ["400"]
+  },
+  "Shanti": {
+    "variants": ["400"]
+  },
+  "Share": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Share Tech": {
+    "variants": ["400"]
+  },
+  "Share Tech Mono": {
+    "variants": ["400"]
+  },
+  "Shippori Antique": {
+    "variants": ["400"]
+  },
+  "Shippori Antique B1": {
+    "variants": ["400"]
+  },
+  "Shippori Mincho": {
+    "variants": ["400", "500", "600", "700", "800"]
+  },
+  "Shippori Mincho B1": {
+    "variants": ["400", "500", "600", "700", "800"]
+  },
+  "Shojumaru": {
+    "variants": ["400"]
+  },
+  "Short Stack": {
+    "variants": ["400"]
+  },
+  "Shrikhand": {
+    "variants": ["400"]
+  },
+  "Siemreap": {
+    "variants": ["400"]
+  },
+  "Sigmar One": {
+    "variants": ["400"]
+  },
+  "Signika": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Signika Negative": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Silkscreen": {
+    "variants": ["400", "700"]
+  },
+  "Simonetta": {
+    "variants": ["400", "900", "400-italic", "900-italic"]
+  },
+  "Single Day": {
+    "variants": ["400"]
+  },
+  "Sintony": {
+    "variants": ["400", "700"]
+  },
+  "Sirin Stencil": {
+    "variants": ["400"]
+  },
+  "Six Caps": {
+    "variants": ["400"]
+  },
+  "Skranji": {
+    "variants": ["400", "700"]
+  },
+  "Slabo 13px": {
+    "variants": ["400"]
+  },
+  "Slabo 27px": {
+    "variants": ["400"]
+  },
+  "Slackey": {
+    "variants": ["400"]
+  },
+  "Smokum": {
+    "variants": ["400"]
+  },
+  "Smooch": {
+    "variants": ["400"]
+  },
+  "Smooch Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Smythe": {
+    "variants": ["400"]
+  },
+  "Sniglet": {
+    "variants": ["400", "800"]
+  },
+  "Snippet": {
+    "variants": ["400"]
+  },
+  "Snowburst One": {
+    "variants": ["400"]
+  },
+  "Sofadi One": {
+    "variants": ["400"]
+  },
+  "Sofia": {
+    "variants": ["400"]
+  },
+  "Solway": {
+    "variants": ["300", "400", "500", "700", "800"]
+  },
+  "Song Myung": {
+    "variants": ["400"]
+  },
+  "Sonsie One": {
+    "variants": ["400"]
+  },
+  "Sora": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Sorts Mill Goudy": {
+    "variants": ["400", "400-italic"]
+  },
+  "Source Code Pro": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Source Sans 3": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Source Sans Pro": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "600",
+      "700",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "600-italic",
+      "700-italic",
+      "900-italic"
+    ]
+  },
+  "Source Serif 4": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 8,
+        "max": 60,
+        "defaultValue": 14
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Source Serif Pro": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "600",
+      "700",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "600-italic",
+      "700-italic",
+      "900-italic"
+    ]
+  },
+  "Space Grotesk": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Space Mono": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Special Elite": {
+    "variants": ["400"]
+  },
+  "Spectral": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic"
+    ]
+  },
+  "Spectral SC": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic"
+    ]
+  },
+  "Spicy Rice": {
+    "variants": ["400"]
+  },
+  "Spinnaker": {
+    "variants": ["400"]
+  },
+  "Spirax": {
+    "variants": ["400"]
+  },
+  "Splash": {
+    "variants": ["400"]
+  },
+  "Spline Sans": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Spline Sans Mono": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Squada One": {
+    "variants": ["400"]
+  },
+  "Square Peg": {
+    "variants": ["400"]
+  },
+  "Sree Krushnadevaraya": {
+    "variants": ["400"]
+  },
+  "Sriracha": {
+    "variants": ["400"]
+  },
+  "Srisakdi": {
+    "variants": ["400", "700"]
+  },
+  "Staatliches": {
+    "variants": ["400"]
+  },
+  "Stalemate": {
+    "variants": ["400"]
+  },
+  "Stalinist One": {
+    "variants": ["400"]
+  },
+  "Stardos Stencil": {
+    "variants": ["400", "700"]
+  },
+  "Stick": {
+    "variants": ["400"]
+  },
+  "Stick No Bills": {
+    "variants": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Stint Ultra Condensed": {
+    "variants": ["400"]
+  },
+  "Stint Ultra Expanded": {
+    "variants": ["400"]
+  },
+  "Stoke": {
+    "variants": ["300", "400"]
+  },
+  "Strait": {
+    "variants": ["400"]
+  },
+  "Style Script": {
+    "variants": ["400"]
+  },
+  "Stylish": {
+    "variants": ["400"]
+  },
+  "Sue Ellen Francisco": {
+    "variants": ["400"]
+  },
+  "Suez One": {
+    "variants": ["400"]
+  },
+  "Sulphur Point": {
+    "variants": ["300", "400", "700"]
+  },
+  "Sumana": {
+    "variants": ["400", "700"]
+  },
+  "Sunflower": {
+    "variants": ["300", "500", "700"]
+  },
+  "Sunshiney": {
+    "variants": ["400"]
+  },
+  "Supermercado One": {
+    "variants": ["400"]
+  },
+  "Sura": {
+    "variants": ["400", "700"]
+  },
+  "Suranna": {
+    "variants": ["400"]
+  },
+  "Suravaram": {
+    "variants": ["400"]
+  },
+  "Suwannaphum": {
+    "variants": ["100", "300", "400", "700", "900"]
+  },
+  "Swanky and Moo Moo": {
+    "variants": ["400"]
+  },
+  "Syncopate": {
+    "variants": ["400", "700"]
+  },
+  "Syne": {
+    "variants": ["400", "500", "600", "700", "800", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Syne Mono": {
+    "variants": ["400"]
+  },
+  "Syne Tactile": {
+    "variants": ["400"]
+  },
+  "Tai Heritage Pro": {
+    "variants": ["400", "700"]
+  },
+  "Tajawal": {
+    "variants": ["200", "300", "400", "500", "700", "800", "900"]
+  },
+  "Tangerine": {
+    "variants": ["400", "700"]
+  },
+  "Tapestry": {
+    "variants": ["400"]
+  },
+  "Taprom": {
+    "variants": ["400"]
+  },
+  "Tauri": {
+    "variants": ["400"]
+  },
+  "Taviraj": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Teko": {
+    "variants": ["300", "400", "500", "600", "700"]
+  },
+  "Telex": {
+    "variants": ["400"]
+  },
+  "Tenali Ramakrishna": {
+    "variants": ["400"]
+  },
+  "Tenor Sans": {
+    "variants": ["400"]
+  },
+  "Text Me One": {
+    "variants": ["400"]
+  },
+  "Texturina": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 12,
+        "max": 72,
+        "defaultValue": 12
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Thasadith": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "The Girl Next Door": {
+    "variants": ["400"]
+  },
+  "The Nautigal": {
+    "variants": ["400", "700"]
+  },
+  "Tienne": {
+    "variants": ["400", "700", "900"]
+  },
+  "Tillana": {
+    "variants": ["400", "500", "600", "700", "800"]
+  },
+  "Timmana": {
+    "variants": ["400"]
+  },
+  "Tinos": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Tiro Bangla": {
+    "variants": ["400", "400-italic"]
+  },
+  "Tiro Devanagari Hindi": {
+    "variants": ["400", "400-italic"]
+  },
+  "Tiro Devanagari Marathi": {
+    "variants": ["400", "400-italic"]
+  },
+  "Tiro Devanagari Sanskrit": {
+    "variants": ["400", "400-italic"]
+  },
+  "Tiro Gurmukhi": {
+    "variants": ["400", "400-italic"]
+  },
+  "Tiro Kannada": {
+    "variants": ["400", "400-italic"]
+  },
+  "Tiro Tamil": {
+    "variants": ["400", "400-italic"]
+  },
+  "Tiro Telugu": {
+    "variants": ["400", "400-italic"]
+  },
+  "Titan One": {
+    "variants": ["400"]
+  },
+  "Titillium Web": {
+    "variants": [
+      "200",
+      "300",
+      "400",
+      "600",
+      "700",
+      "900",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Tomorrow": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Tourney": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Trade Winds": {
+    "variants": ["400"]
+  },
+  "Train One": {
+    "variants": ["400"]
+  },
+  "Trirong": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic"
+    ]
+  },
+  "Trispace": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Trocchi": {
+    "variants": ["400"]
+  },
+  "Trochut": {
+    "variants": ["400", "700", "400-italic"]
+  },
+  "Truculenta": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 12,
+        "max": 72,
+        "defaultValue": 14
+      },
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Trykker": {
+    "variants": ["400"]
+  },
+  "Tulpen One": {
+    "variants": ["400"]
+  },
+  "Turret Road": {
+    "variants": ["200", "300", "400", "500", "700", "800"]
+  },
+  "Twinkle Star": {
+    "variants": ["400"]
+  },
+  "Ubuntu": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "700-italic"
+    ]
+  },
+  "Ubuntu Condensed": {
+    "variants": ["400"]
+  },
+  "Ubuntu Mono": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Uchen": {
+    "variants": ["400"]
+  },
+  "Ultra": {
+    "variants": ["400"]
+  },
+  "Uncial Antiqua": {
+    "variants": ["400"]
+  },
+  "Underdog": {
+    "variants": ["400"]
+  },
+  "Unica One": {
+    "variants": ["400"]
+  },
+  "UnifrakturCook": {
+    "variants": ["700"]
+  },
+  "UnifrakturMaguntia": {
+    "variants": ["400"]
+  },
+  "Unkempt": {
+    "variants": ["400", "700"]
+  },
+  "Unlock": {
+    "variants": ["400"]
+  },
+  "Unna": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Updock": {
+    "variants": ["400"]
+  },
+  "Urbanist": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "VT323": {
+    "variants": ["400"]
+  },
+  "Vampiro One": {
+    "variants": ["400"]
+  },
+  "Varela": {
+    "variants": ["400"]
+  },
+  "Varela Round": {
+    "variants": ["400"]
+  },
+  "Varta": {
+    "variants": ["300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Vast Shadow": {
+    "variants": ["400"]
+  },
+  "Vazirmatn": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Vesper Libre": {
+    "variants": ["400", "500", "700", "900"]
+  },
+  "Viaoda Libre": {
+    "variants": ["400"]
+  },
+  "Vibes": {
+    "variants": ["400"]
+  },
+  "Vibur": {
+    "variants": ["400"]
+  },
+  "Vidaloka": {
+    "variants": ["400"]
+  },
+  "Viga": {
+    "variants": ["400"]
+  },
+  "Voces": {
+    "variants": ["400"]
+  },
+  "Volkhov": {
+    "variants": ["400", "700", "400-italic", "700-italic"]
+  },
+  "Vollkorn": {
+    "variants": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Vollkorn SC": {
+    "variants": ["400", "600", "700", "900"]
+  },
+  "Voltaire": {
+    "variants": ["400"]
+  },
+  "Vujahday Script": {
+    "variants": ["400"]
+  },
+  "Waiting for the Sunrise": {
+    "variants": ["400"]
+  },
+  "Wallpoet": {
+    "variants": ["400"]
+  },
+  "Walter Turncoat": {
+    "variants": ["400"]
+  },
+  "Warnes": {
+    "variants": ["400"]
+  },
+  "Water Brush": {
+    "variants": ["400"]
+  },
+  "Waterfall": {
+    "variants": ["400"]
+  },
+  "Wellfleet": {
+    "variants": ["400"]
+  },
+  "Wendy One": {
+    "variants": ["400"]
+  },
+  "Whisper": {
+    "variants": ["400"]
+  },
+  "WindSong": {
+    "variants": ["400", "500"]
+  },
+  "Wire One": {
+    "variants": ["400"]
+  },
+  "Work Sans": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Xanh Mono": {
+    "variants": ["400", "400-italic"]
+  },
+  "Yaldevi": {
+    "variants": ["200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Yanone Kaffeesatz": {
+    "variants": ["200", "300", "400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Yantramanav": {
+    "variants": ["100", "300", "400", "500", "700", "900"]
+  },
+  "Yatra One": {
+    "variants": ["400"]
+  },
+  "Yellowtail": {
+    "variants": ["400"]
+  },
+  "Yeon Sung": {
+    "variants": ["400"]
+  },
+  "Yeseva One": {
+    "variants": ["400"]
+  },
+  "Yesteryear": {
+    "variants": ["400"]
+  },
+  "Yomogi": {
+    "variants": ["400"]
+  },
+  "Yrsa": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Yuji Boku": {
+    "variants": ["400"]
+  },
+  "Yuji Mai": {
+    "variants": ["400"]
+  },
+  "Yuji Syuku": {
+    "variants": ["400"]
+  },
+  "Yusei Magic": {
+    "variants": ["400"]
+  },
+  "ZCOOL KuaiLe": {
+    "variants": ["400"]
+  },
+  "ZCOOL QingKe HuangYou": {
+    "variants": ["400"]
+  },
+  "ZCOOL XiaoWei": {
+    "variants": ["400"]
+  },
+  "Zen Antique": {
+    "variants": ["400"]
+  },
+  "Zen Antique Soft": {
+    "variants": ["400"]
+  },
+  "Zen Dots": {
+    "variants": ["400"]
+  },
+  "Zen Kaku Gothic Antique": {
+    "variants": ["300", "400", "500", "700", "900"]
+  },
+  "Zen Kaku Gothic New": {
+    "variants": ["300", "400", "500", "700", "900"]
+  },
+  "Zen Kurenaido": {
+    "variants": ["400"]
+  },
+  "Zen Loop": {
+    "variants": ["400", "400-italic"]
+  },
+  "Zen Maru Gothic": {
+    "variants": ["300", "400", "500", "700", "900"]
+  },
+  "Zen Old Mincho": {
+    "variants": ["400", "700", "900"]
+  },
+  "Zen Tokyo Zoo": {
+    "variants": ["400"]
+  },
+  "Zeyada": {
+    "variants": ["400"]
+  },
+  "Zhi Mang Xing": {
+    "variants": ["400"]
+  },
+  "Zilla Slab": {
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic"
+    ]
+  },
+  "Zilla Slab Highlight": {
+    "variants": ["400", "700"]
+  }
+}

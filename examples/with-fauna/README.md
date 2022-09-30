@@ -14,14 +14,14 @@ By importing a `.gql` or `.graphql` schema into Fauna ([see our sample schema fi
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```
 npx create-next-app --example with-fauna with-fauna-app
 # or
 yarn create next-app --example with-fauna with-fauna-app
 # or
-pnpm create next-app -- --example with-fauna with-fauna-app
+pnpm create next-app --example with-fauna with-fauna-app
 ```
 
 You can start with this template [using `create-next-app`](#using-create-next-app) or by [downloading the repository manually](#download-manually).

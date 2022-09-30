@@ -34,15 +34,17 @@ function isLikelyASyntaxError(message) {
   return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
 }
 
+let hadMissingSassError = false
+
 // Cleans up webpack error messages.
-function formatMessage(message, verbose) {
+function formatMessage(message, verbose, importTraceNote) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
     const filteredModuleTrace =
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace) =>
-          !/next-(middleware|client-pages|flight-(client|server))-loader\.js/.test(
+          !/next-(middleware|client-pages|edge-function)-loader\.js/.test(
             trace.originName
           )
       )
@@ -59,8 +61,8 @@ function formatMessage(message, verbose) {
       body +
       (message.details && verbose ? '\n' + message.details : '') +
       (filteredModuleTrace && filteredModuleTrace.length && verbose
-        ? '\n\nImport trace for requested module:' +
-          filteredModuleTrace.map((trace) => `\n${trace.originName}`).join('')
+        ? (importTraceNote || '\n\nImport trace for requested module:') +
+          filteredModuleTrace.map((trace) => `\n${trace.moduleName}`).join('')
         : '') +
       (message.stack && verbose ? '\n' + message.stack : '')
   }
@@ -121,14 +123,25 @@ function formatMessage(message, verbose) {
   }
 
   // Add helpful message for users trying to use Sass for the first time
-  if (lines[1] && lines[1].match(/Cannot find module.+node-sass/)) {
+  if (lines[1] && lines[1].match(/Cannot find module.+sass/)) {
     // ./file.module.scss (<<loader info>>) => ./file.module.scss
-    lines[0] = lines[0].replace(/(.+) \(.+?(?=\?\?).+?\)/, '$1')
+    const firstLine = lines[0].split('!')
+    lines[0] = firstLine[firstLine.length - 1]
 
     lines[1] =
       "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
     lines[1] += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
     lines[1] += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+
+    // dispose of unhelpful stack trace
+    lines = lines.slice(0, 2)
+    hadMissingSassError = true
+  } else if (
+    hadMissingSassError &&
+    message.match(/(sass-loader|resolve-url-loader: CSS error)/)
+  ) {
+    // dispose of unhelpful stack trace following missing sass module
+    lines = []
   }
 
   if (!verbose) {
@@ -158,12 +171,63 @@ function formatMessage(message, verbose) {
 
 function formatWebpackMessages(json, verbose) {
   const formattedErrors = json.errors.map(function (message) {
-    return formatMessage(message, verbose)
+    let importTraceNote
+
+    if (
+      message &&
+      message.message &&
+      /Font loader error:/.test(message.message)
+    ) {
+      return message.message.slice(
+        message.message.indexOf('Font loader error:')
+      )
+    }
+
+    // TODO: Shall we use invisible characters in the original error
+    // message as meta information?
+    if (message && message.message && /NEXT_RSC_ERR_/.test(message.message)) {
+      // Comes from the "React Server Components" transform in SWC, always
+      // attach the module trace.
+      const NEXT_RSC_ERR_REACT_API = /.+NEXT_RSC_ERR_REACT_API: (.*?)\n/s
+      const NEXT_RSC_ERR_SERVER_IMPORT =
+        /.+NEXT_RSC_ERR_SERVER_IMPORT: (.*?)\n/s
+      const NEXT_RSC_ERR_CLIENT_IMPORT =
+        /.+NEXT_RSC_ERR_CLIENT_IMPORT: (.*?)\n/s
+
+      if (NEXT_RSC_ERR_REACT_API.test(message.message)) {
+        message.message = message.message.replace(
+          NEXT_RSC_ERR_REACT_API,
+          `\n\nYou're importing a component that needs $1. It only works in a Client Component but none of its parents are marked with "client", so they're Server Components by default.\n\n`
+        )
+        importTraceNote =
+          '\n\nMaybe one of these should be marked as a "client" entry:\n'
+      } else if (NEXT_RSC_ERR_SERVER_IMPORT.test(message.message)) {
+        message.message = message.message.replace(
+          NEXT_RSC_ERR_SERVER_IMPORT,
+          `\n\nYou're importing a component that imports $1. It only works in a Client Component but none of its parents are marked with "client", so they're Server Components by default.\n\n`
+        )
+        importTraceNote =
+          '\n\nMaybe one of these should be marked as a "client" entry:\n'
+      } else if (NEXT_RSC_ERR_CLIENT_IMPORT.test(message.message)) {
+        message.message = message.message.replace(
+          NEXT_RSC_ERR_CLIENT_IMPORT,
+          `\n\nYou're importing a component that needs $1. That only works in a Server Component but one of its parents is marked with "client", so it's a Client Component.\n\n`
+        )
+        importTraceNote = '\n\nOne of these is marked as a "client" entry:\n'
+      }
+
+      verbose = true
+    }
+    return formatMessage(message, verbose, importTraceNote)
   })
   const formattedWarnings = json.warnings.map(function (message) {
     return formatMessage(message, verbose)
   })
-  const result = { errors: formattedErrors, warnings: formattedWarnings }
+  const result = {
+    ...json,
+    errors: formattedErrors,
+    warnings: formattedWarnings,
+  }
   if (!verbose && result.errors.some(isLikelyASyntaxError)) {
     // If there are any syntax errors, show just them.
     result.errors = result.errors.filter(isLikelyASyntaxError)

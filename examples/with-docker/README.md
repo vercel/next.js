@@ -4,14 +4,14 @@ This examples shows how to use Docker with Next.js based on the [deployment docu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-docker nextjs-docker
 # or
 yarn create next-app --example with-docker nextjs-docker
 # or
-pnpm create next-app -- --example with-docker nextjs-docker
+pnpm create next-app --example with-docker nextjs-docker
 ```
 
 ## Using Docker
@@ -30,9 +30,7 @@ To add support for Docker to an existing project, just copy the `Dockerfile` int
 // next.config.js
 module.exports = {
   // ... rest of the configuration.
-  experimental: {
-    outputStandalone: true,
-  },
+  output: 'standalone',
 }
 ```
 

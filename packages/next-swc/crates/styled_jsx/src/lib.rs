@@ -1,21 +1,21 @@
+#![feature(box_patterns)]
+
 use easy_error::{bail, Error};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::Arc;
-use swc_common::{collections::AHashSet, FileName, SourceMap, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::minifier::{
-    eval::{EvalResult, Evaluator},
-    marks::Marks,
+
+use swc_core::{
+    common::{collections::AHashSet, errors::HANDLER, FileName, SourceMap, Span, DUMMY_SP},
+    ecma::ast::*,
+    ecma::minifier::{
+        eval::{EvalResult, Evaluator},
+        marks::Marks,
+    },
+    ecma::utils::{collect_decls, drop_span, prepend_stmt, private_ident},
+    ecma::visit::{Fold, FoldWith},
 };
-use swc_ecmascript::utils::{
-    collect_decls,
-    ident::{Id, IdentLike},
-    prepend, HANDLER,
-};
-use swc_ecmascript::utils::{drop_span, private_ident};
-use swc_ecmascript::visit::{Fold, FoldWith};
 
 //use external::external_styles;
 use transform_css::transform_css;
@@ -51,6 +51,7 @@ pub fn styled_jsx(cm: Arc<SourceMap>, file_name: FileName) -> impl Fold {
         add_default_decl: Default::default(),
         in_function_params: Default::default(),
         evaluator: Default::default(),
+        visiting_styled_jsx_descendants: Default::default(),
     }
 }
 
@@ -73,6 +74,7 @@ struct StyledJSXTransformer {
     add_default_decl: Option<(Id, Expr)>,
     in_function_params: bool,
     evaluator: Option<Evaluator>,
+    visiting_styled_jsx_descendants: bool,
 }
 
 pub struct LocalStyle {
@@ -104,6 +106,18 @@ enum StyleExpr<'a> {
 impl Fold for StyledJSXTransformer {
     fn fold_jsx_element(&mut self, el: JSXElement) -> JSXElement {
         if is_styled_jsx(&el) {
+            if self.visiting_styled_jsx_descendants {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            el.span,
+                            "Detected nested styled-jsx tag.\nRead more: https://nextjs.org/docs/messages/nested-styled-jsx-tags",
+                        )
+                        .emit()
+                });
+                return el;
+            }
+
             let parent_has_styled_jsx = self.has_styled_jsx;
             if !parent_has_styled_jsx && self.check_for_jsx_styles(Some(&el), &el.children).is_err()
             {
@@ -120,7 +134,10 @@ impl Fold for StyledJSXTransformer {
         }
 
         if self.has_styled_jsx {
-            return el.fold_children_with(self);
+            self.visiting_styled_jsx_descendants = true;
+            let el = el.fold_children_with(self);
+            self.visiting_styled_jsx_descendants = false;
+            return el;
         }
 
         if self.check_for_jsx_styles(None, &el.children).is_err() {
@@ -134,7 +151,10 @@ impl Fold for StyledJSXTransformer {
 
     fn fold_jsx_fragment(&mut self, fragment: JSXFragment) -> JSXFragment {
         if self.has_styled_jsx {
-            return fragment.fold_children_with(self);
+            self.visiting_styled_jsx_descendants = true;
+            let fragment = fragment.fold_children_with(self);
+            self.visiting_styled_jsx_descendants = false;
+            return fragment;
         }
 
         if self.check_for_jsx_styles(None, &fragment.children).is_err() {
@@ -156,7 +176,7 @@ impl Fold for StyledJSXTransformer {
         if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
             if sym != "style"
                 && sym != self.style_import_name.as_ref().unwrap()
-                && (!is_capitalized(&*sym)
+                && (!is_capitalized(sym)
                     || self
                         .nearest_scope_bindings
                         .contains(&(sym.clone(), span.ctxt)))
@@ -302,7 +322,7 @@ impl Fold for StyledJSXTransformer {
         for item in items {
             let new_item = item.fold_children_with(self);
             if let Some((default_ident, default_expr)) = &self.add_default_decl {
-                new_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                new_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                     kind: VarDeclKind::Const,
                     declare: false,
                     decls: vec![VarDeclarator {
@@ -319,7 +339,7 @@ impl Fold for StyledJSXTransformer {
                         span: DUMMY_SP,
                     }],
                     span: DUMMY_SP,
-                }))));
+                })))));
                 self.add_default_decl = None;
                 if let Some(add_hash) = self.add_hash.take() {
                     new_items.push(ModuleItem::Stmt(add_hash_statement(add_hash)));
@@ -334,7 +354,7 @@ impl Fold for StyledJSXTransformer {
         }
 
         if self.file_has_styled_jsx || self.file_has_css_resolve {
-            prepend(
+            prepend_stmt(
                 &mut new_items,
                 styled_jsx_import_decl(self.style_import_name.as_ref().unwrap()),
             );
@@ -518,13 +538,13 @@ impl StyledJSXTransformer {
             }
         }
 
-        return JSXStyle::Local(LocalStyle {
+        JSXStyle::Local(LocalStyle {
             hash: format!("{:x}", hasher.finish()),
             css,
             css_span,
             is_dynamic,
             expressions,
-        });
+        })
     }
 
     fn replace_jsx_style(&mut self, el: &JSXElement) -> Result<JSXElement, Error> {
@@ -730,7 +750,7 @@ fn get_style_expr(el: &JSXElement) -> Result<StyleExpr, Error> {
     {
         return Ok(match &**expr {
             Expr::Lit(Lit::Str(str)) => StyleExpr::Str(str),
-            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, &**expr),
+            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, expr),
             Expr::Ident(ident) => StyleExpr::Ident(ident),
             _ => {
                 HANDLER.with(|handler| {
@@ -903,7 +923,7 @@ fn add_hash_statement((id, hash): (Id, String)) -> Stmt {
 
 fn is_styled_css_import(item: &ModuleItem) -> bool {
     if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        src: Str { value, .. },
+        src: box Str { value, .. },
         ..
     })) = item
     {

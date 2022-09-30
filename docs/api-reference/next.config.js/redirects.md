@@ -276,6 +276,13 @@ module.exports = {
         locale: false,
         permanent: false,
       },
+      // it's possible to match all locales even when locale: false is set
+      {
+        source: '/:locale/page',
+        destination: '/en/newpage',
+        permanent: false,
+        locale: false,
+      }
       {
         // this gets converted to /(en|fr|de)/(.*) so will not match the top-level
         // `/` or `/fr` routes like /:path* would
@@ -293,4 +300,4 @@ In some rare cases, you might need to assign a custom status code for older HTTP
 ## Other Redirects
 
 - Inside [API Routes](/docs/api-routes/response-helpers.md), you can use `res.redirect()`.
-- Inside [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md), you can redirect specific pages at request-time.
+- Inside [`getStaticProps`](/docs/api-reference/data-fetching/get-static-props.md) and [`getServerSideProps`](/docs/api-reference/data-fetching/get-server-side-props.md), you can redirect specific pages at request-time.
