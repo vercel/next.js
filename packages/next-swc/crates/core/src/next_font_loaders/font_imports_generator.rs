@@ -36,21 +36,26 @@ impl<'a> FontImportsGenerator<'a> {
                         .collect();
 
                     if let Ok(json) = json {
-                        let mut json_values: Vec<String> =
-                            json.iter().map(|value| value.to_string()).collect();
                         let function_name = match &font_function.function_name {
                             Some(function) => String::from(&**function),
                             None => String::new(),
                         };
-                        let mut values = vec![self.relative_path.to_string(), function_name];
-                        values.append(&mut json_values);
+                        let mut query_json_values = serde_json::Map::new();
+                        query_json_values.insert(
+                            String::from("path"),
+                            Value::String(self.relative_path.to_string()),
+                        );
+                        query_json_values
+                            .insert(String::from("import"), Value::String(function_name));
+                        query_json_values.insert(String::from("arguments"), Value::Array(json));
+
+                        let query_json = Value::Object(query_json_values);
 
                         return Some(ImportDecl {
                             src: Box::new(Str {
                                 value: JsWord::from(format!(
                                     "{}/target.css?{}",
-                                    font_function.loader,
-                                    values.join(";")
+                                    font_function.loader, query_json
                                 )),
                                 raw: None,
                                 span: DUMMY_SP,
