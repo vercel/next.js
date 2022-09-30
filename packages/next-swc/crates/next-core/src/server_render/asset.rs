@@ -1,23 +1,16 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
-
-use anyhow::{anyhow, Result};
-use futures::{stream::FuturesUnordered, TryStreamExt};
-use mime::TEXT_HTML_UTF_8;
-use serde_json::Value as JsonValue;
+use anyhow::Result;
 use turbo_tasks::{
-    primitives::StringVc, spawn_blocking, CompletionVc, CompletionsVc, Value, ValueToString,
-    ValueToStringVc,
+    primitives::{JsonValueVc, StringVc},
+    Value, ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{embed_file, DiskFileSystemVc, File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{embed_file, FileSystemPathVc};
 use turbopack::ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetVc, ModuleAssetType,
 };
 use turbopack_core::{
+    self,
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{dev::DevChunkingContextVc, ChunkGroupVc},
+    chunk::dev::DevChunkingContextVc,
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
@@ -25,11 +18,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
-use super::{
-    nodejs_bootstrap::NodeJsBootstrapAsset,
-    nodejs_pool::{NodeJsPool, NodeJsPoolVc},
-};
-use crate::server_render::issue::RenderingIssue;
+use crate::nodejs::{external_asset_entrypoints, render_static};
 
 /// This is an asset which content is determined by running
 /// `React.renderToString` on the default export of [entry_asset] in a Node.js
@@ -48,7 +37,7 @@ pub struct ServerRenderedAsset {
     chunking_context: DevChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     intermediate_output_path: FileSystemPathVc,
-    request_data: String,
+    request_data: JsonValueVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -61,7 +50,7 @@ impl ServerRenderedAssetVc {
         runtime_entries: EcmascriptChunkPlaceablesVc,
         chunking_context: DevChunkingContextVc,
         intermediate_output_path: FileSystemPathVc,
-        request_data: String,
+        request_data: JsonValueVc,
     ) -> Self {
         ServerRenderedAsset {
             path,
@@ -85,37 +74,26 @@ impl Asset for ServerRenderedAsset {
 
     #[turbo_tasks::function]
     fn content(&self) -> AssetContentVc {
-        render(
+        render_static(
             self.path,
-            get_renderer_pool(
-                get_intermediate_asset(
-                    self.context,
-                    self.entry_asset,
-                    self.runtime_entries,
-                    self.chunking_context,
-                    self.intermediate_output_path,
-                ),
-                self.intermediate_output_path,
-            ),
-            &self.request_data,
+            get_intermediate_module(self.context, self.entry_asset),
+            self.runtime_entries,
+            self.chunking_context,
+            self.intermediate_output_path,
+            self.request_data,
         )
     }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
         Ok(AssetReferencesVc::cell(
-            separate_assets(
-                get_intermediate_asset(
-                    self.context,
-                    self.entry_asset,
-                    self.runtime_entries,
-                    self.chunking_context,
-                    self.intermediate_output_path,
-                ),
+            external_asset_entrypoints(
+                get_intermediate_module(self.context, self.entry_asset),
+                self.runtime_entries,
+                self.chunking_context,
                 self.intermediate_output_path,
             )
             .await?
-            .external_asset_entrypoints
             .iter()
             .map(|a| {
                 ServerRenderedClientAssetReference { asset: *a }
@@ -152,202 +130,20 @@ impl ValueToString for ServerRenderedClientAssetReference {
 }
 
 #[turbo_tasks::function]
-async fn get_intermediate_asset(
+fn get_intermediate_module(
     context: AssetContextVc,
     entry_asset: AssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
-    chunking_context: DevChunkingContextVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<AssetVc> {
-    let server_renderer = embed_file!("server_renderer.js").into();
-
-    let module = EcmascriptModuleAssetVc::new(
-        WrapperAssetVc::new(entry_asset, "server-renderer.js", server_renderer).into(),
+) -> EcmascriptModuleAssetVc {
+    EcmascriptModuleAssetVc::new(
+        WrapperAssetVc::new(
+            entry_asset,
+            "server-renderer.js",
+            embed_file!("server_renderer.js").into(),
+        )
+        .into(),
         context.with_context_path(entry_asset.path()),
         Value::new(ModuleAssetType::Ecmascript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React { refresh: false }]),
         context.environment(),
-    );
-
-    let chunk = module.as_evaluated_chunk(chunking_context.into(), Some(runtime_entries));
-
-    let chunk_group = ChunkGroupVc::from_chunk(chunk);
-    Ok(NodeJsBootstrapAsset {
-        path: intermediate_output_path.join("index.js"),
-        chunk_group,
-    }
-    .cell()
-    .into())
-}
-
-#[turbo_tasks::function]
-async fn emit(
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<CompletionVc> {
-    Ok(CompletionsVc::cell(
-        separate_assets(intermediate_asset, intermediate_output_path)
-            .await?
-            .internal_assets
-            .iter()
-            .map(|a| a.content().write(a.path()))
-            .collect(),
     )
-    .all())
-}
-
-#[turbo_tasks::value]
-struct SeparatedAssets {
-    internal_assets: HashSet<AssetVc>,
-    external_asset_entrypoints: HashSet<AssetVc>,
-}
-
-#[turbo_tasks::function]
-async fn separate_assets(
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<SeparatedAssetsVc> {
-    enum Type {
-        Internal(AssetVc, Vec<AssetVc>),
-        External(AssetVc),
-    }
-    let intermediate_output_path = intermediate_output_path.await?;
-    let mut queue = FuturesUnordered::new();
-    let process_asset = |asset: AssetVc| {
-        let intermediate_output_path = &intermediate_output_path;
-        async move {
-            if asset.path().await?.is_inside(intermediate_output_path) {
-                let mut assets = Vec::new();
-                for reference in asset.references().await?.iter() {
-                    for asset in reference.resolve_reference().primary_assets().await?.iter() {
-                        assets.push(*asset);
-                    }
-                }
-                Ok::<_, anyhow::Error>(Type::Internal(asset, assets))
-            } else {
-                Ok(Type::External(asset))
-            }
-        }
-    };
-    queue.push(process_asset(intermediate_asset));
-    let mut processed = HashSet::new();
-    let mut internal_assets = HashSet::new();
-    let mut external_asset_entrypoints = HashSet::new();
-    while let Some(item) = queue.try_next().await? {
-        match item {
-            Type::Internal(asset, assets) => {
-                internal_assets.insert(asset);
-                for asset in assets {
-                    if processed.insert(asset) {
-                        queue.push(process_asset(asset));
-                    }
-                }
-            }
-            Type::External(asset) => {
-                // external
-                external_asset_entrypoints.insert(asset);
-            }
-        }
-    }
-    Ok(SeparatedAssets {
-        internal_assets,
-        external_asset_entrypoints,
-    }
-    .cell())
-}
-
-#[turbo_tasks::function]
-async fn get_renderer_pool(
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<NodeJsPoolVc> {
-    emit(intermediate_asset, intermediate_output_path).await?;
-    let output = intermediate_output_path.await?;
-    if let Some(disk) = DiskFileSystemVc::resolve_from(output.fs).await? {
-        let dir = PathBuf::from(&disk.await?.root).join(&output.path);
-        let entrypoint = dir.join("index.js");
-        let pool = NodeJsPool::new(dir, entrypoint, HashMap::new(), 4);
-        Ok(pool.cell())
-    } else {
-        Err(anyhow!("can only render from a disk filesystem"))
-    }
-}
-
-#[turbo_tasks::function]
-async fn render(
-    path: FileSystemPathVc,
-    renderer_pool: NodeJsPoolVc,
-    request_data: &str,
-) -> Result<AssetContentVc> {
-    fn into_result(content: String) -> Result<AssetContentVc> {
-        Ok(
-            FileContent::Content(File::from_source(content).with_content_type(TEXT_HTML_UTF_8))
-                .into(),
-        )
-    }
-    let pool = renderer_pool.await?;
-    let mut op = pool.run(request_data.as_bytes()).await?;
-    let lines = spawn_blocking(move || {
-        let lines = op.read_lines()?;
-        drop(op);
-        Ok::<_, anyhow::Error>(lines)
-    })
-    .await?;
-    let issue = if let Some(last_line) = lines.last() {
-        if let Some(data) = last_line.strip_prefix("RESULT=") {
-            let data: JsonValue = serde_json::from_str(data)?;
-            if let Some(s) = data.as_str() {
-                return into_result(s.to_string());
-            } else {
-                RenderingIssue {
-                    context: path,
-                    message: StringVc::cell(
-                        "Result provided by Node.js rendering process was not a string".to_string(),
-                    ),
-                    logging: StringVc::cell(lines.join("\n")),
-                }
-            }
-        } else if let Some(data) = last_line.strip_prefix("ERROR=") {
-            let data: JsonValue = serde_json::from_str(data)?;
-            if let Some(s) = data.as_str() {
-                RenderingIssue {
-                    context: path,
-                    message: StringVc::cell(s.to_string()),
-                    logging: StringVc::cell(lines[..lines.len() - 1].join("\n")),
-                }
-            } else {
-                RenderingIssue {
-                    context: path,
-                    message: StringVc::cell(data.to_string()),
-                    logging: StringVc::cell(lines[..lines.len() - 1].join("\n")),
-                }
-            }
-        } else {
-            RenderingIssue {
-                context: path,
-                message: StringVc::cell("No result provided by Node.js process".to_string()),
-                logging: StringVc::cell(lines.join("\n")),
-            }
-        }
-    } else {
-        RenderingIssue {
-            context: path,
-            message: StringVc::cell("No content received from Node.js process.".to_string()),
-            logging: StringVc::cell("".to_string()),
-        }
-    };
-
-    // Show error page
-    // TODO This need to include HMR handler to allow auto refresh
-    let result = into_result(format!(
-        "<h1>Error during \
-         rendering</h1>\n<h2>Message</h2>\n<pre>{}</pre>\n<h2>Logs</h2>\n<pre>{}</pre>",
-        issue.message.await?,
-        issue.logging.await?
-    ));
-
-    // Emit an issue for error reporting
-    issue.cell().as_issue().emit();
-
-    result
 }

@@ -136,6 +136,7 @@ impl NodeJsPool {
         let static_input: &'static [u8] = unsafe { transmute(input) };
         let child = spawn_blocking(move || {
             child.write(static_input)?;
+            child.write(b"\n")?;
             Ok::<_, anyhow::Error>(child)
         })
         .await?;
