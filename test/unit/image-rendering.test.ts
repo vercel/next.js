@@ -79,4 +79,19 @@ describe('Image rendering', () => {
     expect($2('noscript').length).toBe(1)
     expect($3('noscript').length).toBe(1)
   })
+
+  it('should render the correct sizes passed when a noscript element is rendered', async () => {
+    const element = React.createElement(Image, {
+      src: '/test.png',
+      width: 100,
+      height: 100,
+      sizes: '50vw',
+    })
+    const $ = cheerio.load(ReactDOM.renderToString(element))
+    const noscriptImg = $('noscript img')
+    expect(noscriptImg.attr('sizes')).toBe('50vw')
+    expect(noscriptImg.attr('srcset')).toContain(
+      '/_next/image?url=%2Ftest.png&w=384&q=75 384w'
+    )
+  })
 })

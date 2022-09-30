@@ -6,8 +6,27 @@ import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 import fetch from 'next/dist/compiled/node-fetch'
 import { printAndExit } from '../server/lib/utils'
-import { cliCommand } from '../bin/next'
+import { cliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
+
+function getPackageVersion(packageName: string) {
+  try {
+    return require(`${packageName}/package.json`).version
+  } catch {
+    return 'N/A'
+  }
+}
+
+function getBinaryVersion(binaryName: string) {
+  try {
+    return childProcess
+      .execFileSync(binaryName, ['--version'])
+      .toString()
+      .trim()
+  } catch {
+    return 'N/A'
+  }
+}
 
 const nextInfo: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -56,6 +75,7 @@ const nextInfo: cliCommand = async (argv) => {
       pnpm: ${getBinaryVersion('pnpm')}
     Relevant packages:
       next: ${installedRelease}
+      eslint-config-next: ${getPackageVersion('eslint-config-next')}
       react: ${getPackageVersion('react')}
       react-dom: ${getPackageVersion('react-dom')}
 `)
@@ -76,31 +96,18 @@ const nextInfo: cliCommand = async (argv) => {
         Read more - https://nextjs.org/docs/messages/opening-an-issue`
       )
     }
-  } catch {
+  } catch (e) {
     console.warn(
       `${chalk.yellow(
         chalk.bold('warn')
-      )}  - Failed to fetch latest canary version. Visit https://github.com/vercel/next.js/releases. Detected "${installedRelease}".
-      Make sure to try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
+      )}  - Failed to fetch latest canary version. (Reason: ${
+        (e as Error).message
+      }.)
+      Detected "${installedRelease}". Visit https://github.com/vercel/next.js/releases.
+      Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
       Read more - https://nextjs.org/docs/messages/opening-an-issue`
     )
   }
 }
 
 export { nextInfo }
-
-function getPackageVersion(packageName: string) {
-  try {
-    return require(`${packageName}/package.json`).version
-  } catch {
-    return 'N/A'
-  }
-}
-
-function getBinaryVersion(binaryName: string) {
-  try {
-    return childProcess.execSync(`${binaryName} --version`).toString().trim()
-  } catch {
-    return 'N/A'
-  }
-}

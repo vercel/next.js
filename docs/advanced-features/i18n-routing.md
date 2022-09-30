@@ -27,6 +27,9 @@ Generally a Locale Identifier is made up of a language, region, and script separ
 - `nl-NL` - Dutch as spoken in the Netherlands
 - `nl` - Dutch, no specific region
 
+If user locale is `nl-BE` and it is not listed in your configuration, they will be redirected to `nl` if available, or to the default locale otherwise.
+If you don't plan to support all regions of a country, it is therefore a good practice to include country locales that will act as fallbacks.
+
 ```js
 // next.config.js
 module.exports = {
@@ -164,30 +167,28 @@ module.exports = {
 Next, we can use [Middleware](/docs/middleware.md) to add custom routing rules:
 
 ```js
-// pages/_middleware.ts
+// middleware.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_FILE = /\.(.*)$/
 
-const stripDefaultLocale = (str: string): string => {
-  const stripped = str.replace('/default', '')
-  return stripped
-}
+export async function middleware(req: NextRequest) {
+  if (
+    req.nextUrl.pathname.startsWith('/_next') ||
+    req.nextUrl.pathname.includes('/api/') ||
+    PUBLIC_FILE.test(req.nextUrl.pathname)
+  ) {
+    return
+  }
 
-export function middleware(request: NextRequest) {
-  const shouldHandleLocale =
-    !PUBLIC_FILE.test(request.nextUrl.pathname) &&
-    !request.nextUrl.pathname.includes('/api/') &&
-    request.nextUrl.locale === 'default'
+  if (req.nextUrl.locale === 'default') {
+    const locale = req.cookies.get('NEXT_LOCALE') || 'en'
 
-  return shouldHandleLocale
-    ? NextResponse.redirect(
-        `/en${stripDefaultLocale(request.nextUrl.pathname)}${
-          request.nextUrl.search
-        }`
-      )
-    : undefined
+    return NextResponse.redirect(
+      new URL(`/${locale}${req.nextUrl.pathname}${req.nextUrl.search}`, req.url)
+    )
+  }
 }
 ```
 

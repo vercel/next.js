@@ -17,7 +17,7 @@ export function getParserOptions({ filename, jsConfig, ...rest }) {
     dynamicImport: true,
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-    [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    [isTypeScript ? 'tsx' : 'jsx']: !isTSFile,
     importAssertions: true,
   }
 }
@@ -31,6 +31,9 @@ function getBaseSWCOptions({
   nextConfig,
   resolvedBaseUrl,
   jsConfig,
+  swcCacheDir,
+  isServerLayer,
+  relativeFilePathFromRoot,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -40,6 +43,13 @@ function getBaseSWCOptions({
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
+  const useDefineForClassFields = Boolean(
+    jsConfig?.compilerOptions?.useDefineForClassFields
+  )
+  const plugins = (nextConfig?.experimental?.swcPlugins ?? [])
+    .filter(Array.isArray)
+    .map(([name, options]) => [require.resolve(name), options])
+
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -48,9 +58,12 @@ function getBaseSWCOptions({
             paths,
           }
         : {}),
+      externalHelpers: !process.versions.pnp && !jest,
       parser: parserConfig,
       experimental: {
         keepImportAssertions: true,
+        plugins,
+        cacheRoot: swcCacheDir,
       },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
@@ -63,8 +76,11 @@ function getBaseSWCOptions({
           : {}),
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
+        useDefineForClassFields: useDefineForClassFields,
         react: {
-          importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
+          importSource:
+            jsConfig?.compilerOptions?.jsxImportSource ??
+            (nextConfig?.compiler?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -93,14 +109,67 @@ function getBaseSWCOptions({
       },
     },
     sourceMaps: jest ? 'inline' : undefined,
-    styledComponents: nextConfig?.compiler?.styledComponents
-      ? {
-          displayName: Boolean(development),
-        }
-      : null,
+    styledComponents: getStyledComponentsOptions(nextConfig, development),
     removeConsole: nextConfig?.compiler?.removeConsole,
-    reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    // disable "reactRemoveProperties" when "jest" is true
+    // otherwise the setting from next.config.js will be used
+    reactRemoveProperties: jest
+      ? false
+      : nextConfig?.compiler?.reactRemoveProperties,
+    modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
+    emotion: getEmotionOptions(nextConfig, development),
+    serverComponents: nextConfig?.experimental?.appDir
+      ? {
+          isServer: !!isServerLayer,
+        }
+      : false,
+    fontLoaders:
+      nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot
+        ? {
+            fontLoaders: Object.keys(nextConfig.experimental.fontLoaders),
+            relativeFilePathFromRoot,
+          }
+        : null,
+  }
+}
+
+function getStyledComponentsOptions(nextConfig, development) {
+  let styledComponentsOptions = nextConfig?.compiler?.styledComponents
+  if (!styledComponentsOptions) {
+    return null
+  }
+
+  return {
+    ...styledComponentsOptions,
+    displayName: styledComponentsOptions.displayName ?? Boolean(development),
+  }
+}
+
+function getEmotionOptions(nextConfig, development) {
+  if (!nextConfig?.compiler?.emotion) {
+    return null
+  }
+  let autoLabel = false
+  switch (nextConfig?.compiler?.emotion?.autoLabel) {
+    case 'never':
+      autoLabel = false
+      break
+    case 'always':
+      autoLabel = true
+      break
+    case 'dev-only':
+    default:
+      autoLabel = !!development
+      break
+  }
+  return {
+    enabled: true,
+    autoLabel,
+    labelFormat: nextConfig?.compiler?.emotion?.labelFormat,
+    sourcemap: development
+      ? nextConfig?.compiler?.emotion?.sourceMap ?? true
+      : false,
   }
 }
 
@@ -110,6 +179,7 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  pagesDir,
   // This is not passed yet as "paths" resolving needs a test first
   // resolvedBaseUrl,
 }) {
@@ -133,19 +203,13 @@ export function getJestSWCOptions({
         // Targets the current version of Node.js
         node: process.versions.node,
       },
-      // we always transpile optional chaining and nullish coalescing
-      // since it can cause issues with webpack even if the node target
-      // supports them
-      include: [
-        'proposal-optional-chaining',
-        'proposal-nullish-coalescing-operator',
-      ],
     },
     module: {
       type: esm && !isNextDist ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
     disablePageConfig: true,
+    pagesDir,
   }
 }
 
@@ -153,11 +217,15 @@ export function getLoaderSWCOptions({
   filename,
   development,
   isServer,
+  isServerLayer,
   pagesDir,
   isPageFile,
   hasReactRefresh,
   nextConfig,
   jsConfig,
+  supportedBrowsers,
+  swcCacheDir,
+  relativeFilePathFromRoot,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -169,6 +237,9 @@ export function getLoaderSWCOptions({
     nextConfig,
     jsConfig,
     // resolvedBaseUrl,
+    swcCacheDir,
+    isServerLayer,
+    relativeFilePathFromRoot,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -188,13 +259,6 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
-        // we always transpile optional chaining and nullish coalescing
-        // since it can cause issues with webpack even if the node target
-        // supports them
-        include: [
-          'proposal-optional-chaining',
-          'proposal-nullish-coalescing-operator',
-        ],
       },
     }
   } else {
@@ -215,6 +279,13 @@ export function getLoaderSWCOptions({
       isServer,
       pagesDir,
       isPageFile,
+      ...(supportedBrowsers && supportedBrowsers.length > 0
+        ? {
+            env: {
+              targets: supportedBrowsers,
+            },
+          }
+        : {}),
     }
   }
 }

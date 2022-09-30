@@ -4,12 +4,18 @@ The goal of this example is to illustrate how you can use [Algolia React Instant
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
-# or
+```
+
+```bash
 yarn create next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
+```
+
+```bash
+pnpm create next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
 ```
 
 To set up Algolia:

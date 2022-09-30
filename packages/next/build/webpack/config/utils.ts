@@ -1,10 +1,10 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { NextConfigComplete } from '../../../server/config-shared'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfigComplete } from '../../../server/config-shared'
 
 export type ConfigurationContext = {
   supportedBrowsers: string[] | undefined
   rootDirectory: string
-  customAppFile: RegExp
+  customAppFile: RegExp | undefined
 
   isDevelopment: boolean
   isProduction: boolean

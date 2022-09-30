@@ -26,7 +26,7 @@ if (isBrowserStack) {
   }
 }
 
-let browserQuit
+let browserQuit: () => Promise<void>
 
 if (typeof afterAll === 'function') {
   afterAll(async () => {
@@ -36,9 +36,15 @@ if (typeof afterAll === 'function') {
   })
 }
 
+export const USE_SELENIUM = Boolean(
+  process.env.LEGACY_SAFARI ||
+    process.env.BROWSER_NAME === 'internet explorer' ||
+    process.env.SKIP_LOCAL_SELENIUM_SERVER
+)
+
 /**
  *
- * @param appPort can either be the port or the full URL
+ * @param appPortOrUrl can either be the port or the full URL
  * @param url the path/query to append when using appPort
  * @param options.waitHydration whether to wait for react hydration to finish
  * @param options.retryWaitHydration allow retrying hydration wait if reload occurs
@@ -54,6 +60,7 @@ export default async function webdriver(
     retryWaitHydration?: boolean
     disableCache?: boolean
     beforePageLoad?: (page: any) => void
+    locale?: string
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
@@ -64,27 +71,32 @@ export default async function webdriver(
     disableCache: false,
   }
   options = Object.assign(defaultOptions, options)
-  const { waitHydration, retryWaitHydration, disableCache, beforePageLoad } =
-    options
+  const {
+    waitHydration,
+    retryWaitHydration,
+    disableCache,
+    beforePageLoad,
+    locale,
+  } = options
 
   // we import only the needed interface
-  if (
-    process.env.LEGACY_SAFARI ||
-    process.env.BROWSER_NAME === 'internet explorer' ||
-    process.env.SKIP_LOCAL_SELENIUM_SERVER
-  ) {
-    const browserMod = require('./browsers/selenium')
-    CurrentInterface = browserMod.default
-    browserQuit = browserMod.quit
+  if (USE_SELENIUM) {
+    const { Selenium, quit } = await import('./browsers/selenium')
+    CurrentInterface = Selenium
+    browserQuit = quit
+  } else if (process.env.RECORD_REPLAY === 'true') {
+    const { Replay, quit } = await require('./browsers/replay')
+    CurrentInterface = Replay
+    browserQuit = quit
   } else {
-    const browserMod = require('./browsers/playwright')
-    CurrentInterface = browserMod.default
-    browserQuit = browserMod.quit
+    const { Playwright, quit } = await import('./browsers/playwright')
+    CurrentInterface = Playwright
+    browserQuit = quit
   }
 
   const browser = new CurrentInterface()
   const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(browserName)
+  await browser.setup(browserName, locale)
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(
@@ -108,7 +120,10 @@ export default async function webdriver(
 
         // if it's not a Next.js app return
         if (
-          document.documentElement.innerHTML.indexOf('__NEXT_DATA__') === -1
+          document.documentElement.innerHTML.indexOf('__NEXT_DATA__') === -1 &&
+          // @ts-ignore next exists on window if it's a Next.js page.
+          typeof ((window as any).next && (window as any).next.version) ===
+            'undefined'
         ) {
           console.log('Not a next.js page, resolving hydrate check')
           callback()

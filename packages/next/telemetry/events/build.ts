@@ -1,4 +1,5 @@
 import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
+import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin'
 
 const REGEXP_DIRECTORY_DUNDER =
   /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
@@ -131,9 +132,11 @@ export type EventBuildFeatureUsage = {
   // *before* you make changes here.
   featureName:
     | 'next/image'
+    | 'next/future/image'
     | 'next/script'
     | 'next/dynamic'
     | 'experimental/optimizeCss'
+    | 'experimental/nextScriptWorkers'
     | 'optimizeFonts'
     | 'swcLoader'
     | 'swcMinify'
@@ -143,6 +146,8 @@ export type EventBuildFeatureUsage = {
     | 'swcExperimentalDecorators'
     | 'swcRemoveConsole'
     | 'swcImportSource'
+    | 'swcEmotion'
+    | `swc/target/${SWC_TARGET_TRIPLE}`
     | 'build-lint'
   invocationCount: number
 }
@@ -154,6 +159,24 @@ export function eventBuildFeatureUsage(
     payload: {
       featureName,
       invocationCount,
+    },
+  }))
+}
+
+export const EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS =
+  'NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS'
+
+export type EventPackageUsedInGetServerSideProps = {
+  package: string
+}
+
+export function eventPackageUsedInGetServerSideProps(
+  telemetryPlugin: TelemetryPlugin
+): Array<{ eventName: string; payload: EventPackageUsedInGetServerSideProps }> {
+  return telemetryPlugin.packagesUsedInServerSideProps().map((packageName) => ({
+    eventName: EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS,
+    payload: {
+      package: packageName,
     },
   }))
 }

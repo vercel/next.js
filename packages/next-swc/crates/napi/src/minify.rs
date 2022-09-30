@@ -33,13 +33,15 @@ use fxhash::FxHashMap;
 use napi::{CallContext, JsObject, Task};
 use serde::Deserialize;
 use std::sync::Arc;
-use swc::{try_with_handler, TransformOutput};
-use swc_common::{sync::Lrc, FileName, SourceFile, SourceMap};
+use swc_core::{
+    base::{config::JsMinifyOptions, try_with_handler, TransformOutput},
+    common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
+};
 
 struct MinifyTask {
-    c: Arc<swc::Compiler>,
+    c: Arc<swc_core::base::Compiler>,
     code: MinifyTarget,
-    opts: swc::config::JsMinifyOptions,
+    opts: swc_core::base::config::JsMinifyOptions,
 }
 
 #[derive(Deserialize)]
@@ -76,16 +78,31 @@ impl Task for MinifyTask {
     type JsValue = JsObject;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        try_with_handler(self.c.cm.clone(), true, |handler| {
-            let fm = self.code.to_file(self.c.cm.clone());
+        try_with_handler(
+            self.c.cm.clone(),
+            swc_core::base::HandlerOpts {
+                color: ColorConfig::Never,
+                skip_filename: true,
+            },
+            |handler| {
+                GLOBALS.set(&Default::default(), || {
+                    let fm = self.code.to_file(self.c.cm.clone());
 
-            self.c.minify(fm, handler, &self.opts)
-        })
+                    self.c.minify(
+                        fm,
+                        handler,
+                        &JsMinifyOptions {
+                            ..self.opts.clone()
+                        },
+                    )
+                })
+            },
+        )
         .convert_err()
     }
 
     fn resolve(self, env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
-        complete_output(&env, output)
+        complete_output(&env, output, Default::default())
     }
 }
 
@@ -110,8 +127,15 @@ pub fn minify_sync(cx: CallContext) -> napi::Result<JsObject> {
 
     let fm = code.to_file(c.cm.clone());
 
-    let output = try_with_handler(c.cm.clone(), true, |handler| c.minify(fm, handler, &opts))
-        .convert_err()?;
+    let output = try_with_handler(
+        c.cm.clone(),
+        swc_core::base::HandlerOpts {
+            color: ColorConfig::Never,
+            skip_filename: true,
+        },
+        |handler| GLOBALS.set(&Default::default(), || c.minify(fm, handler, &opts)),
+    )
+    .convert_err()?;
 
-    complete_output(cx.env, output)
+    complete_output(cx.env, output, Default::default())
 }

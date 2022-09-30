@@ -4,20 +4,26 @@ This example shows the most basic example using Next.js' new custom routes featu
 
 This approach is very helpful when you are trying to incrementally migrate your application to Next.js but still need to fallback to an existing application. You can add pages to your Next.js application one-by-one and then for non-migrated pages Next.js can proxy to the existing application until they are able to be migrated.
 
-## Preview
+## Deploy your own
 
-Preview the example live on [StackBlitz](http://stackblitz.com/):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/custom-routes-proxying)
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/custom-routes-proxying)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/custom-routes-proxying)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example custom-routes-proxying custom-routes-proxying-app
-# or
+```
+
+```bash
 yarn create next-app --example custom-routes-proxying custom-routes-proxying-app
+```
+
+```bash
+pnpm create next-app --example custom-routes-proxying custom-routes-proxying-app
 ```
 
 ### Step 4. Run Next.js in development mode
@@ -25,9 +31,7 @@ yarn create next-app --example custom-routes-proxying custom-routes-proxying-app
 ```bash
 npm install
 npm run dev
-
 # or
-
 yarn install
 yarn dev
 ```

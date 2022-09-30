@@ -28,41 +28,46 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
+#![feature(box_patterns)]
 
 use auto_cjs::contains_cjs;
 use either::Either;
+use fxhash::FxHashSet;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
-use swc::config::ModuleConfig;
-use swc_common::{self, chain, pass::Optional};
-use swc_common::{SourceFile, SourceMap};
-use swc_ecmascript::ast::EsVersion;
-use swc_ecmascript::parser::parse_file_as_module;
-use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::visit::Fold;
+
+use swc_core::{
+    base::config::ModuleConfig,
+    common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
+    ecma::ast::EsVersion,
+    ecma::parser::parse_file_as_module,
+    ecma::transforms::base::pass::noop,
+    ecma::visit::Fold,
+};
 
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
 pub mod hook_optimizer;
 pub mod next_dynamic;
+pub mod next_font_loaders;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
+pub mod react_server_components;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod relay;
 pub mod remove_console;
 pub mod shake_exports;
-pub mod styled_jsx;
 mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
-    pub swc: swc::config::Options,
+    pub swc: swc_core::base::config::Options,
 
     #[serde(default)]
     pub disable_next_ssg: bool,
@@ -83,6 +88,9 @@ pub struct TransformOptions {
     pub is_server: bool,
 
     #[serde(default)]
+    pub server_components: Option<react_server_components::Config>,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -95,15 +103,35 @@ pub struct TransformOptions {
     #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
 
+    #[allow(unused)]
+    #[serde(default)]
+    #[cfg(target_arch = "wasm32")]
+    /// Accept any value
+    pub relay: Option<serde_json::Value>,
+
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
+
+    #[serde(default)]
+    pub emotion: Option<swc_emotion::EmotionOptions>,
+
+    #[serde(default)]
+    pub modularize_imports: Option<modularize_imports::Config>,
+
+    #[serde(default)]
+    pub font_loaders: Option<next_font_loaders::Config>,
 }
 
-pub fn custom_before_pass(
+pub fn custom_before_pass<'a, C: Comments + 'a>(
     cm: Arc<SourceMap>,
     file: Arc<SourceFile>,
-    opts: &TransformOptions,
-) -> impl Fold + '_ {
+    opts: &'a TransformOptions,
+    comments: C,
+    eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+) -> impl Fold + 'a
+where
+    C: Clone,
+{
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
 
@@ -122,23 +150,29 @@ pub fn custom_before_pass(
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(cm, file.name.clone()),
+        match &opts.server_components {
+            Some(config) if config.truthy() =>
+                Either::Left(react_server_components::server_components(
+                    file.name.clone(),
+                    config.clone(),
+                    comments.clone(),
+                )),
+            _ => Either::Right(noop()),
+        },
+        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
-            Some(config) => {
-                let config = Rc::new(config.clone());
-                let state: Rc<RefCell<styled_components::State>> = Default::default();
-
-                Either::Left(chain!(
-                    styled_components::analyzer(config.clone(), state.clone()),
-                    styled_components::display_name_and_id(file.clone(), config, state)
-                ))
-            }
-            None => {
-                Either::Right(noop())
-            }
+            Some(config) => Either::Left(styled_components::styled_components(
+                file.name.clone(),
+                file.src_hash,
+                config.clone(),
+            )),
+            None => Either::Right(noop()),
         },
-        Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
+        Optional::new(
+            next_ssg::next_ssg(eliminated_packages),
+            !opts.disable_next_ssg
+        ),
         amp_attributes::amp_attributes(),
         next_dynamic::next_dynamic(
             opts.is_development,
@@ -164,7 +198,35 @@ pub fn custom_before_pass(
         match &opts.shake_exports {
             Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
+        opts.emotion
+            .as_ref()
+            .and_then(|config| {
+                if !config.enabled.unwrap_or(false) {
+                    return None;
+                }
+                if let FileName::Real(path) = &file.name {
+                    path.to_str().map(|_| {
+                        Either::Left(swc_emotion::EmotionTransformer::new(
+                            config.clone(),
+                            path,
+                            cm,
+                            comments,
+                        ))
+                    })
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| Either::Right(noop())),
+        match &opts.modularize_imports {
+            Some(config) => Either::Left(modularize_imports::modularize_imports(config.clone())),
+            None => Either::Right(noop()),
+        },
+        match &opts.font_loaders {
+            Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
+            None => Either::Right(noop()),
+        },
     )
 }
 
@@ -172,8 +234,9 @@ impl TransformOptions {
     pub fn patch(mut self, fm: &SourceFile) -> Self {
         self.swc.swcrc = false;
 
-        let should_enable_commonjs =
-            self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
+        let should_enable_commonjs = self.swc.config.module.is_none()
+            && (fm.src.contains("module.exports") || fm.src.contains("__esModule"))
+            && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
                 let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
 

@@ -2,12 +2,14 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use swc_atoms::JsWord;
-use swc_common::errors::HANDLER;
-use swc_common::FileName;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::{quote_ident, ExprFactory};
-use swc_ecmascript::visit::{Fold, FoldWith};
+
+use swc_core::{
+    common::{errors::HANDLER, FileName},
+    ecma::ast::*,
+    ecma::atoms::JsWord,
+    ecma::utils::{quote_ident, ExprFactory},
+    ecma::visit::{Fold, FoldWith},
+};
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -43,7 +45,7 @@ fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
         static OPERATION_REGEX: Lazy<Regex> =
             Lazy::new(|| Regex::new(r"(fragment|mutation|query|subscription) (\w+)").unwrap());
 
-        let capture_group = OPERATION_REGEX.captures_iter(&quasis.raw.value).next();
+        let capture_group = OPERATION_REGEX.captures_iter(&quasis.raw).next();
 
         capture_group.map(|capture_group| capture_group[2].to_string())
     })
@@ -56,8 +58,7 @@ fn build_require_expr_from_path(path: &str) -> Expr {
         args: vec![Lit::Str(Str {
             span: Default::default(),
             value: JsWord::from(path),
-            has_escape: false,
-            kind: Default::default(),
+            raw: None,
         })
         .as_arg()],
         type_args: None,
@@ -172,11 +173,7 @@ impl<'a> Relay<'a> {
     }
 }
 
-pub fn relay<'a>(
-    config: &'a Config,
-    file_name: FileName,
-    pages_dir: Option<PathBuf>,
-) -> impl Fold + '_ {
+pub fn relay(config: &Config, file_name: FileName, pages_dir: Option<PathBuf>) -> impl Fold + '_ {
     Relay {
         root_dir: std::env::current_dir().unwrap(),
         file_name,

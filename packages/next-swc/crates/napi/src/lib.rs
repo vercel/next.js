@@ -32,13 +32,16 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 /// Explicit extern crate to use allocator.
-extern crate swc_node_base;
+extern crate swc_core;
 
 use backtrace::Backtrace;
+use fxhash::FxHashSet;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use std::{env, panic::set_hook, sync::Arc};
-use swc::{Compiler, TransformOutput};
-use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
+use swc_core::{
+    base::{Compiler, TransformOutput},
+    common::{sync::Lazy, FilePathMapping, SourceMap},
+};
 
 mod bundle;
 mod minify;
@@ -71,6 +74,16 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
     exports.create_named_method("parse", parse::parse)?;
 
+    exports.create_named_method("getTargetTriple", util::get_target_triple)?;
+    exports.create_named_method(
+        "initCustomTraceSubscriber",
+        util::init_custom_trace_subscriber,
+    )?;
+    exports.create_named_method("teardownTraceSubscriber", util::teardown_trace_subscriber)?;
+
+    exports.create_named_method("initCrashReporter", util::init_crash_reporter)?;
+    exports.create_named_method("teardownCrashReporter", util::teardown_crash_reporter)?;
+
     Ok(())
 }
 
@@ -84,8 +97,25 @@ fn construct_compiler(ctx: CallContext) -> napi::Result<JsUndefined> {
     ctx.env.get_undefined()
 }
 
-pub fn complete_output(env: &Env, output: TransformOutput) -> napi::Result<JsObject> {
-    env.to_js_value(&output)?.coerce_to_object()
+pub fn complete_output(
+    env: &Env,
+    output: TransformOutput,
+    eliminated_packages: FxHashSet<String>,
+) -> napi::Result<JsObject> {
+    let mut js_output = env.create_object()?;
+    js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
+    if let Some(map) = output.map {
+        js_output.set_named_property("map", env.create_string_from_std(map)?)?;
+    }
+    if !eliminated_packages.is_empty() {
+        js_output.set_named_property(
+            "eliminatedPackages",
+            env.create_string_from_std(serde_json::to_string(
+                &eliminated_packages.into_iter().collect::<Vec<String>>(),
+            )?)?,
+        )?;
+    }
+    Ok(js_output)
 }
 
 pub type ArcCompiler = Arc<Compiler>;

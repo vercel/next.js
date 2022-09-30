@@ -35,7 +35,6 @@ export class CopyFilePlugin {
       hook.tapPromise(
         {
           name: PLUGIN_NAME,
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         async () => {
@@ -69,7 +68,6 @@ export class CopyFilePlugin {
             })
           }
 
-          // @ts-ignore
           compilation.emitAsset(file, source, {
             ...this.info,
           })

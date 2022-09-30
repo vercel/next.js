@@ -1,5 +1,6 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { ConfigurationContext } from '../../../utils'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { ConfigurationContext } from '../../../utils'
+
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 
@@ -15,6 +16,7 @@ export function getGlobalCssLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
+        isAppDir: !!ctx.experimental.appDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })

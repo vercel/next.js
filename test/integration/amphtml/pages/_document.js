@@ -15,7 +15,7 @@ class MyDocument extends Document {
   render() {
     return (
       <Html>
-        <Head />
+        <Head nonce="test-nonce" />
         <body>
           <Main />
           <AmpTst />

@@ -2,9 +2,10 @@ import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
 
 import { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
+import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
-export type NextApiRequestCookies = { [key: string]: string }
-export type NextApiRequestQuery = { [key: string]: string | string[] }
+export type NextApiRequestCookies = Partial<{ [key: string]: string }>
+export type NextApiRequestQuery = Partial<{ [key: string]: string | string[] }>
 
 export type __ApiPreviewProps = {
   previewModeId: string
@@ -71,12 +72,22 @@ export function redirect(
 }
 
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
+export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
+  'x-prerender-revalidate-if-generated'
 
 export function checkIsManualRevalidate(
   req: IncomingMessage | BaseNextRequest,
   previewProps: __ApiPreviewProps
-): boolean {
-  return req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId
+): {
+  isManualRevalidate: boolean
+  revalidateOnlyGenerated: boolean
+} {
+  return {
+    isManualRevalidate:
+      req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId,
+    revalidateOnlyGenerated:
+      !!req.headers[PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER],
+  }
 }
 
 export const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
@@ -88,7 +99,10 @@ export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
 export const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
 
 export function clearPreviewData<T>(
-  res: NextApiResponse<T>
+  res: NextApiResponse<T>,
+  options: {
+    path?: string
+  } = {}
 ): NextApiResponse<T> {
   if (SYMBOL_CLEARED_COOKIES in res) {
     return res
@@ -112,6 +126,9 @@ export function clearPreviewData<T>(
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, '', {
       // To delete a cookie, set `expires` to a date in the past:
@@ -122,6 +139,9 @@ export function clearPreviewData<T>(
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
     }),
   ])
 

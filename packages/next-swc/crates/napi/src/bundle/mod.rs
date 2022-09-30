@@ -7,18 +7,22 @@ use napi::{CallContext, JsObject, Task};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
-use swc::{config::SourceMapsConfig, try_with_handler, TransformOutput};
-use swc_atoms::JsWord;
-use swc_bundler::{Bundler, ModuleData, ModuleRecord};
-use swc_common::{collections::AHashMap, errors::Handler, BytePos, FileName, SourceMap, Span};
-use swc_ecma_loader::{
-    resolvers::{lru::CachingResolver, node::NodeModulesResolver},
-    TargetEnv, NODE_BUILTINS,
-};
-use swc_ecmascript::{
-    ast::*,
-    parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax},
-    visit::{noop_visit_type, Visit, VisitWith},
+use swc_core::{
+    base::{config::SourceMapsConfig, try_with_handler, TransformOutput},
+    bundler::{Bundler, ModuleData, ModuleRecord},
+    common::{
+        collections::AHashMap,
+        errors::{ColorConfig, Handler},
+        BytePos, FileName, Globals, SourceMap, Span, GLOBALS,
+    },
+    ecma::ast::*,
+    ecma::atoms::JsWord,
+    ecma::loader::{
+        resolvers::{lru::CachingResolver, node::NodeModulesResolver},
+        TargetEnv, NODE_BUILTINS,
+    },
+    ecma::parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax},
+    ecma::visit::{noop_visit_type, Visit, VisitWith},
 };
 
 #[js_function(1)]
@@ -40,7 +44,7 @@ struct BundleOption {
 }
 
 struct BundleTask {
-    c: Arc<swc::Compiler>,
+    c: Arc<swc_core::base::Compiler>,
     config: String,
 }
 
@@ -52,76 +56,86 @@ impl Task for BundleTask {
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let option: BundleOption = crate::util::deserialize_json(&self.config).convert_err()?;
 
-        try_with_handler(self.c.cm.clone(), true, |handler| {
-            let builtins = NODE_BUILTINS
-                .to_vec()
-                .into_iter()
-                .map(JsWord::from)
-                .collect::<Vec<_>>();
+        try_with_handler(
+            self.c.cm.clone(),
+            swc_core::base::HandlerOpts {
+                color: ColorConfig::Never,
+                skip_filename: true,
+            },
+            |handler| {
+                let builtins = NODE_BUILTINS
+                    .iter()
+                    .copied()
+                    .map(JsWord::from)
+                    .collect::<Vec<_>>();
 
-            let comments = self.c.comments().clone();
-            //
-            let mut bundler = Bundler::new(
-                self.c.globals(),
-                self.c.cm.clone(),
-                CustomLoader {
-                    cm: self.c.cm.clone(),
-                    handler,
-                },
-                make_resolver(),
-                swc_bundler::Config {
-                    require: true,
-                    disable_inliner: false,
-                    external_modules: builtins,
-                    module: swc_bundler::ModuleType::Es,
-                    ..Default::default()
-                },
-                Box::new(CustomHook),
-            );
+                let globals = Globals::default();
+                let comments = self.c.comments().clone();
+                //
+                let mut bundler = Bundler::new(
+                    &globals,
+                    self.c.cm.clone(),
+                    CustomLoader {
+                        cm: self.c.cm.clone(),
+                        handler,
+                    },
+                    make_resolver(),
+                    swc_core::bundler::Config {
+                        require: true,
+                        disable_inliner: false,
+                        external_modules: builtins,
+                        module: swc_core::bundler::ModuleType::Es,
+                        ..Default::default()
+                    },
+                    Box::new(CustomHook),
+                );
+                GLOBALS.set(&globals, || {
+                    let mut entries = HashMap::default();
+                    let path: PathBuf = option.entry;
+                    let path = path
+                        .canonicalize()
+                        .context("failed to canonicalize entry file")?;
+                    entries.insert("main".to_string(), FileName::Real(path));
+                    let outputs = bundler.bundle(entries)?;
 
-            let mut entries = HashMap::default();
-            let path: PathBuf = option.entry;
-            let path = path
-                .canonicalize()
-                .context("failed to canonicalize entry file")?;
-            entries.insert("main".to_string(), FileName::Real(path));
-            let outputs = bundler.bundle(entries)?;
+                    let output = outputs.into_iter().next().ok_or_else(|| {
+                        anyhow!("swc_bundler::Bundle::bundle returned empty result")
+                    })?;
 
-            let output = outputs
-                .into_iter()
-                .next()
-                .ok_or_else(|| anyhow!("swc_bundler::Bundle::bundle returned empty result"))?;
+                    let source_map_names = {
+                        let mut v = SourceMapIdentCollector {
+                            names: Default::default(),
+                        };
 
-            let source_map_names = {
-                let mut v = SourceMapIdentCollector {
-                    names: Default::default(),
-                };
+                        output.module.visit_with(&mut v);
 
-                output.module.visit_with(&mut v);
+                        v.names
+                    };
 
-                v.names
-            };
+                    let code = self.c.print(
+                        &output.module,
+                        None,
+                        None,
+                        true,
+                        EsVersion::Es5,
+                        SourceMapsConfig::Bool(true),
+                        &source_map_names,
+                        None,
+                        false,
+                        Some(&comments),
+                        true,
+                        false,
+                    )?;
 
-            let code = self.c.print(
-                &output.module,
-                None,
-                None,
-                true,
-                EsVersion::Es5,
-                SourceMapsConfig::Bool(true),
-                &source_map_names,
-                None,
-                false,
-                Some(&comments),
-            )?;
-
-            Ok(code)
-        })
+                    Ok(code)
+                })
+            },
+        )
         .convert_err()
     }
 
     fn resolve(self, env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
-        complete_output(&env, output)
+        complete_output(&env, output, Default::default())
     }
 }
 
@@ -143,7 +157,7 @@ struct CustomLoader<'a> {
     cm: Arc<SourceMap>,
 }
 
-impl swc_bundler::Load for CustomLoader<'_> {
+impl swc_core::bundler::Load for CustomLoader<'_> {
     fn load(&self, f: &FileName) -> Result<ModuleData, Error> {
         let fm = match f {
             FileName::Real(path) => self.cm.load_file(path)?,
@@ -175,7 +189,7 @@ impl swc_bundler::Load for CustomLoader<'_> {
 
 struct CustomHook;
 
-impl swc_bundler::Hook for CustomHook {
+impl swc_core::bundler::Hook for CustomHook {
     fn get_import_meta_props(
         &self,
         _span: Span,

@@ -48,12 +48,13 @@ async function tryApplyUpdates() {
     ).some((mod) => {
       return (
         mod.indexOf(
-          `pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`
+          `pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`
         ) !== -1 ||
         mod.indexOf(
-          `pages${
-            curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`
-          }`.replace(/\//g, '\\')
+          `pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`.replace(
+            /\//g,
+            '\\'
+          )
         ) !== -1
       )
     })

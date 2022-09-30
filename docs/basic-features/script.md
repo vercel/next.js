@@ -19,13 +19,15 @@ description: Next.js helps you optimize loading third-party scripts with the bui
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                   |
-| --------- | ------------------------- |
-| `v11.0.0` | `next/script` introduced. |
+| Version   | Changes                                                                   |
+| --------- | ------------------------------------------------------------------------- |
+| `v12.2.4` | `onReady` prop added.                                                     |
+| `v12.2.2` | Allow `next/script` with `beforeInteractive` to be placed in `_document`. |
+| `v11.0.0` | `next/script` introduced.                                                 |
 
 </details>
 
-The Next.js Script component, [`next/script`](/docs/api-reference/next/script.md), is an extension of the HTML `<script>` element. It enables developers to set the loading priority of third-party scripts anywhere in their application without needing to append directly to `next/head`, saving developer time while improving loading performance.
+The Next.js Script component, [`next/script`](/docs/api-reference/next/script.md), is an extension of the HTML `<script>` element. It enables developers to set the loading priority of third-party scripts anywhere in their application, outside `next/head`, saving developer time while improving loading performance.
 
 ```jsx
 import Script from 'next/script'
@@ -64,7 +66,7 @@ With `next/script`, you decide when to load your third-party script by using the
 <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
 ```
 
-There are three different loading strategies that can be used:
+There are four different loading strategies that can be used:
 
 - `beforeInteractive`: Load before the page is interactive
 - `afterInteractive`: (**default**) Load immediately after the page becomes interactive
@@ -73,14 +75,33 @@ There are three different loading strategies that can be used:
 
 #### beforeInteractive
 
-Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. This strategy should be used for any critical scripts that need to be fetched and executed before the page is interactive.
+Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. This strategy should be used for any critical scripts that need to be fetched and executed before any page becomes interactive. This strategy only works inside **\_document.js** and is designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
+
+The reason `beforeInteractive` was designed to work only inside `\_document.js` is to support streaming and Suspense functionality. Outside of the `_document`, it's not possible to guarantee the timing or ordering of `beforeInteractive` scripts.
 
 ```jsx
-<Script
-  src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"
-  strategy="beforeInteractive"
-/>
+// In _document.js
+import { Html, Head, Main, NextScript } from 'next/document'
+import Script from 'next/script'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+        <Script
+          src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+          strategy="beforeInteractive"
+        ></Script>
+      </body>
+    </Html>
+  )
+}
 ```
+
+> **Note**: Scripts with `beforeInteractive` will always be injected inside the `head` of the HTML document regardless of where it's placed in `_document.js`.
 
 Examples of scripts that should be loaded as soon as possible with this strategy include:
 
@@ -93,6 +114,7 @@ Scripts that use the `afterInteractive` strategy are injected client-side and wi
 
 ```jsx
 <Script
+  id="google-analytics"
   strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: `
@@ -154,7 +176,7 @@ npm run dev
 # ...
 ```
 
-Once setup is complete, defining `strategy="worker` will automatically instantiate Partytown in your application and off-load the script to a web worker.
+Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and off-load the script to a web worker.
 
 ```jsx
 <Script src="https://example.com/analytics.js" strategy="worker" />
@@ -166,7 +188,7 @@ There are a number of trade-offs that need to be considered when loading a third
 
 Although the `worker` strategy does not require any additional configuration to work, Partytown supports the use of a config object to modify some of its settings, including enabling `debug` mode and forwarding events and triggers.
 
-If you would like to add additonal configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/advanced-features/custom-document.md):
+If you would like to add additional configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/advanced-features/custom-document.md):
 
 ```jsx
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -220,20 +242,20 @@ Or by using the `dangerouslySetInnerHTML` property:
 ```jsx
 <Script
   id="show-banner"
+  strategy="lazyOnload"
   dangerouslySetInnerHTML={{
     __html: `document.getElementById('banner').classList.remove('hidden')`,
   }}
 />
 ```
 
-There are two limitations to be aware of when using the Script component for inline scripts:
-
-- Only the `afterInteractive` and `lazyOnload` strategies can be used. The `beforeInteractive` loading strategy injects the contents of an external script into the initial HTML response. Inline scripts already do this, which is why **the `beforeInteractive` strategy cannot be used with inline scripts.**
-- An `id` attribute must be defined in order for Next.js to track and optimize the script
+The `id` property is required for **inline scripts** in order for Next.js to track and optimize the script.
 
 ### Executing Code After Loading (`onLoad`)
 
-Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `beforeInteractive` or `afterInteractive` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
+> **Note: `onLoad` cannot be used with the `beforeInteractive` loading strategy. Consider using `onReady` instead.**
+
+Some third-party scripts require users to run JavaScript code once after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `afterInteractive` or `lazyOnload` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
 
 ```jsx
 import { useState } from 'react'
@@ -255,6 +277,38 @@ export default function Home() {
   )
 }
 ```
+
+### Executing Code After Mounting (`onReady`)
+
+Some third-party scripts require users to run JavaScript code after the script has finished loading and every time the component is mounted (after a route navigation for example). You can execute code after the script's `load` event when it first loads and then after every subsequent component re-mount using the `onReady` property:
+
+```jsx
+import { useRef } from 'react'
+import Script from 'next/script'
+
+export default function Home() {
+  const mapRef = useRef()
+  return (
+    <>
+      <div ref={mapRef}></div>
+      <Script
+        id="google-maps"
+        src="https://maps.googleapis.com/maps/api/js"
+        onReady={() => {
+          new google.maps.Map(mapRef.current, {
+            center: { lat: -34.397, lng: 150.644 },
+            zoom: 8,
+          })
+        }}
+      />
+    </>
+  )
+}
+```
+
+### Handling errors (`onError`)
+
+> **Note: `onError` cannot be used with the `beforeInteractive` loading strategy.**
 
 Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the `onError` property:
 

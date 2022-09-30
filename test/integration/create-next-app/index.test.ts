@@ -87,7 +87,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       // check we copied default `.gitignore`
       expect(
@@ -96,6 +96,24 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
       ).toBe(true)
+    })
+  })
+
+  it('valid example without package.json', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'valid-example-without-package-json'
+      const res = await run([projectName, '--example', 'with-docker-compose'], {
+        cwd,
+      })
+      expect(res.exitCode).toBe(0)
+
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.dockerignore'))
+      ).toBeTruthy()
+      // check we copied default `.gitignore`
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
     })
   })
 
@@ -157,7 +175,37 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
+    })
+  })
+
+  it('should allow example with GitHub URL with trailing slash', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'github-app'
+      const res = await run(
+        [
+          projectName,
+          '--example',
+          'https://github.com/vercel/nextjs-portfolio-starter/',
+        ],
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.mdx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -183,7 +231,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -215,7 +263,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -305,7 +353,30 @@ describe('create next app', () => {
 
   it('should create a project in the current directory', async () => {
     await usingTempDir(async (cwd) => {
-      const res = await run(['.'], { cwd })
+      const env = { ...process.env }
+      const tmpBin = path.join(__dirname, 'bin')
+      const tmpYarn = path.join(tmpBin, 'yarn')
+
+      if (process.platform !== 'win32') {
+        // ensure install succeeds with invalid yarn binary
+        // which simulates no yarn binary being available as
+        // an alternative to removing the binary and reinstalling
+        await fs.remove(tmpBin)
+        await fs.mkdir(tmpBin)
+        await fs.writeFile(tmpYarn, '#!/bin/sh\nexit 1')
+        await fs.chmod(tmpYarn, '755')
+        env.PATH = `${tmpBin}:${env.PATH}`
+        delete env.npm_config_user_agent
+      }
+
+      const res = await run(['.'], {
+        cwd,
+        env,
+        extendEnv: false,
+        stdio: 'inherit',
+      })
+      await fs.remove(tmpBin)
+
       expect(res.exitCode).toBe(0)
 
       const files = [
@@ -376,7 +447,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'pages/index.tsx',
         '.gitignore',
         'package-lock.json',
         'node_modules/next',
@@ -408,6 +479,13 @@ describe('create next app', () => {
   })
 
   it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
+    try {
+      await execa('pnpm', ['--version'])
+    } catch (_) {
+      // install pnpm if not available
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
+
     await usingTempDir(async (cwd) => {
       const projectName = 'use-pnpm'
       const res = await run(
@@ -423,7 +501,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'pages/index.tsx',
         '.gitignore',
         'pnpm-lock.yaml',
         'node_modules/next',

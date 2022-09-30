@@ -18,7 +18,7 @@ export class BrowserInterface {
     return this
   }
 
-  async setup(browserName: string): Promise<void> {}
+  async setup(browserName: string, locale?: string): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
@@ -29,6 +29,9 @@ export class BrowserInterface {
     return this
   }
   elementById(selector: string): BrowserInterface {
+    return this
+  }
+  touchStart(): BrowserInterface {
     return this
   }
   click(opts?: { modifierKey?: boolean }): BrowserInterface {
@@ -44,6 +47,9 @@ export class BrowserInterface {
     return this
   }
   type(text: string): BrowserInterface {
+    return this
+  }
+  moveTo(): BrowserInterface {
     return this
   }
   waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
@@ -91,7 +97,9 @@ export class BrowserInterface {
   async hasElementByCssSelector(selector: string): Promise<boolean> {
     return false
   }
-  async log(): Promise<any[]> {
+  async log(): Promise<
+    { source: 'error' | 'info' | 'log'; message: string }[]
+  > {
     return []
   }
   async websocketFrames(): Promise<any[]> {

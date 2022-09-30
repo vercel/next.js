@@ -31,6 +31,10 @@ module.exports = {
     dangerouslyAllowSVG: false,
     // set the Content-Security-Policy header
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // limit of 50 objects
+    remotePatterns: [],
+    // when true, every image will be unoptimized
+    unoptimized: false,
   },
 }
 ```

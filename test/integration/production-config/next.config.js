@@ -15,6 +15,11 @@ module.exports = {
           SOME__ENV__VAR: '123',
         }
       : {}),
+    ...(process.env.ENABLE_ENV_NEXT_PRESERVED
+      ? {
+          NEXT_RUNTIME: 'nodejs',
+        }
+      : {}),
   },
   onDemandEntries: {
     // Make sure entries are not getting disposed.
