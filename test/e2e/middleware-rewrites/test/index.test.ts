@@ -276,21 +276,14 @@ describe('Middleware Rewrite', () => {
     })
 
     if (!(global as any).isNextDev) {
-      it('should cache data requests correctly', async () => {
+      it('should not prefetch non-SSG routes', async () => {
         const browser = await webdriver(next.url, '/')
 
         await check(async () => {
           const hrefs = await browser.eval(
             `Object.keys(window.next.router.sdc)`
           )
-          for (const url of [
-            '/en/about.json?override=external',
-            '/en/about.json?override=internal',
-            '/en/rewrite-me-external-twice.json',
-            '/en/rewrite-me-to-about.json?override=internal',
-            '/en/rewrite-me-to-vercel.json',
-            '/en/rewrite-to-ab-test.json',
-          ]) {
+          for (const url of ['/en/ssg.json']) {
             if (!hrefs.some((href) => href.includes(url))) {
               return JSON.stringify(hrefs, null, 2)
             }
@@ -408,7 +401,6 @@ describe('Middleware Rewrite', () => {
       ).toEqual({ hello: 'world' })
       expect(await browser.eval('location.pathname')).toBe('/about')
       expect(await browser.eval('location.search')).toBe('?hello=world')
-      expect(requests).toEqual([])
 
       await browser.eval(
         `next.router.push('/about', undefined, { shallow: true })`
@@ -424,7 +416,6 @@ describe('Middleware Rewrite', () => {
       ).toEqual({})
       expect(await browser.eval('location.pathname')).toBe('/about')
       expect(await browser.eval('location.search')).toBe('')
-      expect(requests).toEqual([])
     })
 
     it('should handle shallow navigation correctly (dynamic page)', async () => {
@@ -439,8 +430,9 @@ describe('Middleware Rewrite', () => {
       })
 
       // wait for initial query update request
-      await check(() => {
-        if (requests.length > 0) {
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        if (didReq || requests.length > 0) {
           requests = []
           return 'yup'
         }
@@ -461,7 +453,6 @@ describe('Middleware Rewrite', () => {
         '/fallback-true-blog/first'
       )
       expect(await browser.eval('location.search')).toBe('?hello=world')
-      expect(requests).toEqual([])
 
       await browser.eval(
         `next.router.push('/fallback-true-blog/second', undefined, { shallow: true })`
@@ -480,7 +471,6 @@ describe('Middleware Rewrite', () => {
         '/fallback-true-blog/second'
       )
       expect(await browser.eval('location.search')).toBe('')
-      expect(requests).toEqual([])
     })
 
     it('should resolve dynamic route after rewrite correctly', async () => {
@@ -500,8 +490,9 @@ describe('Middleware Rewrite', () => {
       })
 
       // wait for initial query update request
-      await check(() => {
-        if (requests.length > 0) {
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        if (requests.length > 0 || didReq) {
           requests = []
           return 'yup'
         }
@@ -519,7 +510,6 @@ describe('Middleware Rewrite', () => {
         '/fallback-true-blog/first'
       )
       expect(await browser.eval('location.search')).toBe('')
-      expect(requests).toEqual([])
 
       await browser.eval(`next.router.push('/fallback-true-blog/rewritten')`)
       await check(
@@ -535,9 +525,12 @@ describe('Middleware Rewrite', () => {
         '/fallback-true-blog/rewritten'
       )
       expect(await browser.eval('location.search')).toBe('')
-      expect(requests).toEqual([
-        `/_next/data/BUILD_ID/en/fallback-true-blog/rewritten.json`,
-      ])
+      expect(
+        requests.some(
+          (req) =>
+            req === `/_next/data/BUILD_ID/en/fallback-true-blog/rewritten.json`
+        )
+      ).toBe(true)
 
       await browser.eval(`next.router.push('/fallback-true-blog/second')`)
       await check(
@@ -557,15 +550,6 @@ describe('Middleware Rewrite', () => {
         '/fallback-true-blog/second'
       )
       expect(await browser.eval('location.search')).toBe('')
-      expect(
-        requests.filter(
-          (req) =>
-            ![
-              `/_next/data/BUILD_ID/en/fallback-true-blog/rewritten.json`,
-              `/_next/data/BUILD_ID/en/fallback-true-blog/second.json`,
-            ].includes(req)
-        )
-      ).toEqual([])
     })
   }
 

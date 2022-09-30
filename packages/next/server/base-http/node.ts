@@ -1,5 +1,6 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import type { Writable, Readable } from 'stream'
+import type { SizeLimit } from 'next/types'
 
 import { NextApiRequestCookies, SYMBOL_CLEARED_COOKIES } from '../api-utils'
 import { parseBody } from '../api-utils/node'
@@ -15,7 +16,7 @@ type Req = IncomingMessage & {
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this._req.headers;
 
-  [NEXT_REQUEST_META]: RequestMeta
+  [NEXT_REQUEST_META]: RequestMeta = {}
 
   get originalRequest() {
     // Need to mimic these changes to the original req object for places where we use it:
@@ -34,7 +35,7 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
     super(_req.method!.toUpperCase(), _req.url!, _req)
   }
 
-  async parseBody(limit: string | number): Promise<any> {
+  async parseBody(limit: SizeLimit): Promise<any> {
     return parseBody(this._req, limit)
   }
 }

@@ -144,36 +144,7 @@ export function getNamedRouteRegex(normalizedRoute: string) {
 }
 
 /**
- * From a middleware normalized route this function generates a regular
- * expression for it. Temporarly we are using this to generate Edge Function
- * routes too. In such cases the route should not include a trailing catch-all.
- * For these cases the option `catchAll` should be set to false.
- */
-export function getMiddlewareRegex(
-  normalizedRoute: string,
-  options?: {
-    catchAll?: boolean
-  }
-): RouteRegex {
-  const { parameterizedRoute, groups } = getParametrizedRoute(normalizedRoute)
-  const { catchAll = true } = options ?? {}
-  if (parameterizedRoute === '/') {
-    let catchAllRegex = catchAll ? '.*' : ''
-    return {
-      groups: {},
-      re: new RegExp(`^/${catchAllRegex}$`),
-    }
-  }
-
-  let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
-  return {
-    groups: groups,
-    re: new RegExp(`^${parameterizedRoute}${catchAllGroupedRegex}$`),
-  }
-}
-
-/**
- * A server version for getMiddlewareRegex that generates a named regexp.
+ * Generates a named regexp.
  * This is intended to be using for build time only.
  */
 export function getNamedMiddlewareRegex(

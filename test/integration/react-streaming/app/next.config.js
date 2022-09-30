@@ -5,7 +5,6 @@ module.exports = {
   // },
   // pageExtensions: ['js', 'ts', 'jsx'], // .tsx won't be treat as page,
   experimental: {
-    // serverComponents: true,
     runtime: 'nodejs',
   },
 }
