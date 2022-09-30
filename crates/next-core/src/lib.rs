@@ -3,6 +3,7 @@
 
 pub mod env;
 pub mod next_client;
+mod nodejs;
 pub mod react_refresh;
 mod server_render;
 mod server_rendered_source;

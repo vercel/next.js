@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
+use serde_json::json;
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringVc},
+    Value,
+};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack::{
     module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
@@ -37,7 +41,7 @@ use crate::{
 };
 
 /// Create a content source serving the `pages` or `src/pages` directory as
-/// Node.js pages folder.
+/// Next.js pages folder.
 #[turbo_tasks::function]
 pub async fn create_server_rendered_source(
     root_path: FileSystemPathVc,
@@ -200,7 +204,7 @@ async fn create_server_rendered_source_for_file(
         runtime_entries,
         chunking_context,
         intermediate_output_path,
-        "{\"props\":{}}\n".to_string(),
+        JsonValueVc::cell(json!({ "props": {} })),
     );
     Ok(AssetGraphContentSourceVc::new_lazy(
         target_root,
