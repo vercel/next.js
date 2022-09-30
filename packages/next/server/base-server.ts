@@ -440,7 +440,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
-      const urlParts = (req.url || '').split('?')
+      const urlParts = req.url.split('?')
       const urlNoQuery = urlParts[0]
 
       // this normalizes repeated slashes in the path e.g. hello//world ->
@@ -448,7 +448,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // handle trailing slash as that is handled the same as a next.config.js
       // redirect
       if (urlNoQuery?.match(/(\\|\/\/)/)) {
-        const cleanUrl = normalizeRepeatedSlashes(req.url!)
+        const cleanUrl = normalizeRepeatedSlashes(req.url)
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
       }
