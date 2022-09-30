@@ -14,7 +14,7 @@ use turbopack_core::{
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
-    wrapper_asset::WrapperAssetVc,
+    virtual_asset::VirtualAssetVc,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
@@ -135,9 +135,8 @@ fn get_intermediate_module(
     entry_asset: AssetVc,
 ) -> EcmascriptModuleAssetVc {
     EcmascriptModuleAssetVc::new(
-        WrapperAssetVc::new(
-            entry_asset,
-            "server-renderer.js",
+        VirtualAssetVc::new(
+            entry_asset.path().join("server-renderer.js"),
             embed_file!("server_renderer.js").into(),
         )
         .into(),
