@@ -1,6 +1,7 @@
+import { defineRule } from '../utils/define-rule'
 const url = 'https://nextjs.org/docs/messages/no-script-component-in-head'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `next/script` in `next/head` component.',
@@ -10,7 +11,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     let isNextHead = null
 
     return {
@@ -52,4 +53,4 @@ module.exports = {
       },
     }
   },
-}
+})

@@ -1,4 +1,5 @@
-const path = require('path')
+import { defineRule } from '../utils/define-rule'
+import * as path from 'path'
 
 const NEXT_EXPORT_FUNCTIONS = [
   'getStaticProps',
@@ -40,7 +41,7 @@ function minDistance(a, b) {
 }
 
 /* eslint-disable eslint-plugin/require-meta-docs-url */
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent common typos in Next.js data fetching functions.',
@@ -50,7 +51,7 @@ module.exports = {
     schema: [],
   },
 
-  create: function (context) {
+  create(context) {
     function checkTypos(node, name) {
       if (NEXT_EXPORT_FUNCTIONS.includes(name)) {
         return
@@ -105,4 +106,4 @@ module.exports = {
       },
     }
   },
-}
+})

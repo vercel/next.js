@@ -1,3 +1,5 @@
+import { defineRule } from '../utils/define-rule'
+
 // Keep in sync with next.js polyfills file : https://github.com/vercel/next.js/blob/master/packages/next-polyfill-nomodule/src/index.js
 const NEXT_POLYFILLED_FEATURES = [
   'Array.prototype.@@iterator',
@@ -69,7 +71,7 @@ const url = 'https://nextjs.org/docs/messages/no-unwanted-polyfillio'
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent duplicate polyfills from Polyfill.io.',
@@ -81,7 +83,7 @@ module.exports = {
     schema: [],
   },
 
-  create: function (context) {
+  create(context) {
     let scriptImport = null
 
     return {
@@ -132,4 +134,4 @@ module.exports = {
       },
     }
   },
-}
+})

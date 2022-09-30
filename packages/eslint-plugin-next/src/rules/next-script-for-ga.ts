@@ -1,4 +1,5 @@
-const NodeAttributes = require('../utils/node-attributes.js')
+import { defineRule } from '../utils/define-rule'
+import NodeAttributes from '../utils/node-attributes'
 
 const SUPPORTED_SRCS = [
   'www.google-analytics.com/analytics.js',
@@ -18,7 +19,7 @@ const containsStr = (str, strList) => {
   return strList.some((s) => str.includes(s))
 }
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description,
@@ -28,7 +29,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'script') {
@@ -76,4 +77,4 @@ module.exports = {
       },
     }
   },
-}
+})

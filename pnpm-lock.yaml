@@ -419,11 +419,13 @@ importers:
 
   packages/eslint-plugin-next:
     specifiers:
+      '@types/glob': 7.1.1
       eslint: 7.24.0
       glob: 7.1.7
     dependencies:
       glob: 7.1.7
     devDependencies:
+      '@types/glob': 7.1.1
       eslint: 7.24.0
 
   packages/font:
@@ -594,8 +596,8 @@ importers:
       source-map: 0.6.1
       stream-browserify: 3.0.0
       stream-http: 3.1.1
-      string_decoder: 1.3.0
       string-hash: 1.1.3
+      string_decoder: 1.3.0
       strip-ansi: 6.0.0
       styled-jsx: 5.0.7
       tar: 6.1.11
@@ -784,8 +786,8 @@ importers:
       source-map: 0.6.1
       stream-browserify: 3.0.0
       stream-http: 3.1.1
-      string_decoder: 1.3.0
       string-hash: 1.1.3
+      string_decoder: 1.3.0
       strip-ansi: 6.0.0
       tar: 6.1.11
       taskr: 1.1.0
@@ -11618,8 +11620,8 @@ packages:
     engines: { node: '>=10' }
     hasBin: true
     dependencies:
-      is-text-path: 1.0.1
       JSONStream: 1.3.5
+      is-text-path: 1.0.1
       lodash: 4.17.21
       meow: 8.1.2
       split2: 2.2.0

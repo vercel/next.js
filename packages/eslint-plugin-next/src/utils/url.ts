@@ -1,5 +1,5 @@
-const fs = require('fs')
-const path = require('path')
+import * as path from 'path'
+import * as fs from 'fs'
 
 // Cache for fs.lstatSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
@@ -11,41 +11,16 @@ const fsLstatSync = (source) => {
 
 /**
  * Checks if the source is a directory.
- * @param {string} source
  */
-function isDirectory(source) {
+function isDirectory(source: string) {
   return fsLstatSync(source).isDirectory()
 }
 
 /**
  * Checks if the source is a directory.
- * @param {string} source
  */
-function isSymlink(source) {
+function isSymlink(source: string) {
   return fsLstatSync(source).isSymbolicLink()
-}
-
-/**
- * Gets the possible URLs from a directory.
- * @param {string} urlprefix
- * @param {string[]} directories
- */
-function getUrlFromPagesDirectories(urlPrefix, directories) {
-  return Array.from(
-    // De-duplicate similar pages across multiple directories.
-    new Set(
-      directories
-        .map((directory) => parseUrlForPages(urlPrefix, directory))
-        .flat()
-        .map(
-          // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-          (url) => `^${normalizeURL(url)}$`
-        )
-    )
-  ).map((urlReg) => {
-    urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
-    return new RegExp(urlReg)
-  })
 }
 
 // Cache for fs.readdirSync lookup.
@@ -54,10 +29,8 @@ const fsReadDirSyncCache = {}
 
 /**
  * Recursively parse directory for page URLs.
- * @param {string} urlprefix
- * @param {string} directory
  */
-function parseUrlForPages(urlprefix, directory) {
+function parseUrlForPages(urlprefix: string, directory: string) {
   fsReadDirSyncCache[directory] =
     fsReadDirSyncCache[directory] || fs.readdirSync(directory)
   const res = []
@@ -84,9 +57,8 @@ function parseUrlForPages(urlprefix, directory) {
  *  - Replaces `index.html` with `/`
  *  - Makes sure all URLs are have a trailing `/`
  *  - Removes query string
- * @param {string} url
  */
-function normalizeURL(url) {
+export function normalizeURL(url: string) {
   if (!url) {
     return
   }
@@ -101,21 +73,41 @@ function normalizeURL(url) {
   return url
 }
 
-function execOnce(fn) {
-  let used = false
-  let result
+/**
+ * Gets the possible URLs from a directory.
+ */
+export function getUrlFromPagesDirectories(
+  urlPrefix: string,
+  directories: string[]
+) {
+  return Array.from(
+    // De-duplicate similar pages across multiple directories.
+    new Set(
+      directories
+        .map((directory) => parseUrlForPages(urlPrefix, directory))
+        .flat()
+        .map(
+          // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
+          (url) => `^${normalizeURL(url)}$`
+        )
+    )
+  ).map((urlReg) => {
+    urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
+    return new RegExp(urlReg)
+  })
+}
 
-  return (...args) => {
+export function execOnce<TArgs extends any[], TResult extends unknown>(
+  fn: (...args: TArgs) => TResult
+): (...args: TArgs) => TResult {
+  let used = false
+  let result: TResult
+
+  return (...args: TArgs) => {
     if (!used) {
       used = true
       result = fn(...args)
     }
     return result
   }
-}
-
-module.exports = {
-  getUrlFromPagesDirectories,
-  normalizeURL,
-  execOnce,
 }

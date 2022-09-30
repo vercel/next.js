@@ -1,9 +1,15 @@
-const NodeAttributes = require('../utils/node-attributes.js')
-const { sep, posix } = require('path')
+import { defineRule } from '../utils/define-rule'
+import NodeAttributes from '../utils/node-attributes'
+import { sep, posix } from 'path'
+import type { AST } from 'eslint'
 
 const url = 'https://nextjs.org/docs/messages/no-page-custom-font'
 
-module.exports = {
+function isIdentifierMatch(id1, id2) {
+  return (id1 === null && id2 === null) || (id1 && id2 && id1.name === id2.name)
+}
+
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent page-only custom fonts.',
@@ -13,7 +19,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     const paths = context.getFilename().split('pages')
     const page = paths[paths.length - 1]
 
@@ -53,6 +59,7 @@ module.exports = {
         if (
           node.declaration.type === 'ClassDeclaration' &&
           node.declaration.superClass &&
+          'name' in node.declaration.superClass &&
           node.declaration.superClass.name === documentImportName
         ) {
           localDefaultExportId = node.declaration.id
@@ -73,7 +80,7 @@ module.exports = {
           // find the top level of the module
           const program = ancestors.find(
             (ancestor) => ancestor.type === 'Program'
-          )
+          ) as AST.Program
 
           // go over each token to find the combination of `export default <name>`
           for (let i = 0; i <= program.tokens.length - 1; i++) {
@@ -106,22 +113,28 @@ module.exports = {
           if (exportDeclarationType === 'ClassDeclaration') {
             return (
               ancestor.type === exportDeclarationType &&
+              'superClass' in ancestor &&
               ancestor.superClass &&
+              'name' in ancestor.superClass &&
               ancestor.superClass.name === documentImportName
             )
           }
 
-          // export default function ...
-          if (exportDeclarationType === 'FunctionDeclaration') {
-            return (
-              ancestor.type === exportDeclarationType &&
-              isIdentifierMatch(ancestor.id, localDefaultExportId)
-            )
+          if ('id' in ancestor) {
+            // export default function ...
+            if (exportDeclarationType === 'FunctionDeclaration') {
+              return (
+                ancestor.type === exportDeclarationType &&
+                isIdentifierMatch(ancestor.id, localDefaultExportId)
+              )
+            }
+
+            // function ...() {} export default ...
+            // class ... extends ...; export default ...
+            return isIdentifierMatch(ancestor.id, localDefaultExportId)
           }
 
-          // function ...() {} export default ...
-          // class ... extends ...; export default ...
-          return isIdentifierMatch(ancestor.id, localDefaultExportId)
+          return false
         })
 
         // file starts with _document and this <link /> is within the default export
@@ -154,8 +167,4 @@ module.exports = {
       },
     }
   },
-}
-
-function isIdentifierMatch(id1, id2) {
-  return (id1 === null && id2 === null) || (id1 && id2 && id1.name === id2.name)
-}
+})

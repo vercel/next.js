@@ -1,6 +1,8 @@
+import { defineRule } from '../utils/define-rule'
+
 const url = 'https://nextjs.org/docs/messages/inline-script-id'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description:
@@ -11,7 +13,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     let nextScriptImportName = null
 
     return {
@@ -70,4 +72,4 @@ module.exports = {
       },
     }
   },
-}
+})

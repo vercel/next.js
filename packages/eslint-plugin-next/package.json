@@ -15,6 +15,7 @@
     "glob": "7.1.7"
   },
   "devDependencies": {
+    "@types/glob": "7.1.1",
     "eslint": "7.24.0"
   },
   "scripts": {
