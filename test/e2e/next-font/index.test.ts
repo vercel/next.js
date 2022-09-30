@@ -65,7 +65,6 @@ describe('@next/font/google', () => {
       // CompWithFonts.js
       expect(JSON.parse($('#comp-with-fonts-inter').text())).toEqual({
         className: expect.stringMatching(/^__className_.{6}$/),
-        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(
             /^'__Inter_.{6}', '__Inter_Fallback_.{6}'$/
@@ -75,7 +74,6 @@ describe('@next/font/google', () => {
       })
       expect(JSON.parse($('#comp-with-fonts-roboto').text())).toEqual({
         className: expect.stringMatching(/^__className_.{6}$/),
-        variable: expect.stringMatching(/^__variable_.{6}$/),
         style: {
           fontFamily: expect.stringMatching(
             /^'__Roboto_.{6}', '__Roboto_Fallback_.{6}'$/
@@ -219,32 +217,6 @@ describe('@next/font/google', () => {
           'getComputedStyle(document.querySelector("#without-variables-fira-code")).fontFamily'
         )
       ).not.toMatch(firaCodeRegex)
-
-      // Albert Sant Variable Italic
-      const albertSansItalicRegex = /^__Albert_Sans_.{6}$/
-      expect(
-        await browser.eval(
-          'getComputedStyle(document.querySelector("#variables-albert-sans-italic")).fontFamily'
-        )
-      ).toMatch(albertSansItalicRegex)
-      expect(
-        await browser.eval(
-          'getComputedStyle(document.querySelector("#without-variables-albert-sans-italic")).fontFamily'
-        )
-      ).not.toMatch(albertSansItalicRegex)
-
-      // Inter 900
-      const inter900Regex = /^__Inter_.{6}, __Inter_Fallback_.{6}$/
-      expect(
-        await browser.eval(
-          'getComputedStyle(document.querySelector("#variables-inter-900")).fontFamily'
-        )
-      ).toMatch(inter900Regex)
-      expect(
-        await browser.eval(
-          'getComputedStyle(document.querySelector("#without-variables-inter-900")).fontFamily'
-        )
-      ).not.toMatch(inter900Regex)
 
       // Roboto 100 Italic
       const roboto100ItalicRegex = /^__Roboto_.{6}, __Roboto_Fallback_.{6}$/
