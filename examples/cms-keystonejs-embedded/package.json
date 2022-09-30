@@ -1,6 +1,4 @@
 {
-  "name": "test-embedded-keystone",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "postinstall": "keystone-next postinstall",
