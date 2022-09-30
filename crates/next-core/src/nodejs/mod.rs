@@ -174,7 +174,7 @@ async fn get_intermediate_asset(
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<AssetVc> {
-    let chunk = entry_module.as_evaluated_chunk(chunking_context.into(), Some(runtime_entries));
+    let chunk = entry_module.as_evaluated_chunk(chunking_context, Some(runtime_entries));
     let chunk_group = ChunkGroupVc::from_chunk(chunk);
     Ok(NodeJsBootstrapAsset {
         path: intermediate_output_path.join("index.js"),

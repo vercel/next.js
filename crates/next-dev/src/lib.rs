@@ -183,20 +183,21 @@ async fn source(
     let env = load_env(project_path);
 
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
+    let dev_server_root = FileSystemPathVc::new(dev_server_fs, "");
     let web_source = create_web_entry_source(
         project_path,
         entry_requests
             .iter()
             .map(|a| RequestVc::relative(Value::new(a.to_string().into()), false))
             .collect(),
-        dev_server_fs,
+        dev_server_root,
         env,
         eager_compile,
     );
     let rendered_source = create_server_rendered_source(
         project_path,
         FileSystemPathVc::new(output_fs, ""),
-        FileSystemPathVc::new(dev_server_fs, ""),
+        dev_server_root,
         env,
     );
     let viz = turbo_tasks_viz::TurboTasksSource {
