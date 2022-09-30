@@ -3,9 +3,7 @@
     "scripts": {
         "dev": "next",
         "build": "next build",
-        "start": "next start",
-        "typecheck": "tsc",
-        "lint-fix": "pnpm prettier --write . && eslint . --ext js,jsx,ts,tsx --fix --max-warnings=0 --config .eslintrc.json --no-eslintrc"
+        "start": "next start"
     },
     "dependencies": {
         "classnames": "^2.3.1",
