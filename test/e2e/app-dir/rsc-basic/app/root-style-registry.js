@@ -35,6 +35,4 @@ export default function RootStyleRegistry({ children }) {
       <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
     </StyleSheetManager>
   )
-
-  return children
 }
