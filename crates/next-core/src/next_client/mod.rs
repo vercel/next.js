@@ -18,7 +18,7 @@ use turbopack_core::{
     environment::EnvironmentVc,
     reference::{AssetReferenceVc, AssetReferencesVc},
     resolve::parse::RequestVc,
-    wrapper_asset::WrapperAssetVc,
+    virtual_asset::VirtualAssetVc,
 };
 
 use self::runtime_reference::RuntimeAssetReferenceVc;
@@ -50,7 +50,7 @@ impl Transition for NextClientTransition {
     fn process_source(&self, asset: AssetVc) -> AssetVc {
         let next_hydrate = embed_file!("next_hydrate.js").into();
 
-        WrapperAssetVc::new(asset, "next-hydrate.js", next_hydrate).into()
+        VirtualAssetVc::new(asset.path().join("next-hydrate.js"), next_hydrate).into()
     }
 
     #[turbo_tasks::function]

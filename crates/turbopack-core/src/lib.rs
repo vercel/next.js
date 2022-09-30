@@ -16,7 +16,7 @@ mod source_pos;
 pub mod target;
 mod utils;
 pub mod version;
-pub mod wrapper_asset;
+pub mod virtual_asset;
 
 pub fn register() {
     turbo_tasks::register();
