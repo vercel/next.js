@@ -794,7 +794,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      isEdgeServer ? 'next/dist/esm/pages/_app.js' : 'next/dist/pages/_app.js',
+      'next/dist/pages/_app.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -803,9 +803,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      isEdgeServer
-        ? 'next/dist/esm/pages/_error.js'
-        : 'next/dist/pages/_error.js',
+      'next/dist/pages/_error.js',
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -814,9 +812,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      isEdgeServer
-        ? `next/dist/esm/pages/_document.js`
-        : `next/dist/pages/_document.js`,
+      'next/dist/pages/_document.js',
     ]
   }
 
@@ -836,6 +832,16 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
+      // Alias next/dist imports to next/dist/esm assets,
+      // let this alias hit before `next` alias.
+      ...(isEdgeServer
+        ? {
+            'next/dist/client': 'next/dist/esm/client',
+            'next/dist/shared': 'next/dist/esm/shared',
+            'next/dist/pages': 'next/dist/esm/pages',
+          }
+        : undefined),
+
       next: NEXT_PROJECT_ROOT,
 
       react: reactDir,
@@ -1892,6 +1898,8 @@ export default async function getBaseWebpackConfig(
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
             adjustFontFallbacks: config.experimental.adjustFontFallbacks,
+            adjustFontFallbacksWithSizeAdjust:
+              config.experimental.adjustFontFallbacksWithSizeAdjust,
           })
         })(),
       new WellKnownErrorsPlugin(),
