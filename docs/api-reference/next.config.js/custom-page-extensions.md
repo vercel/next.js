@@ -14,9 +14,9 @@ module.exports = {
 
 Changing these values affects _all_ Next.js pages, including the following:
 
-- `_document.js`
-- `_app.js`
 - `middleware.js`
+- `pages/_document.js`
+- `pages/_app.js`
 - `pages/api/`
 
 For example, if you reconfigure `.ts` page extensions to `.page.ts`, you would need to rename pages like `_app.page.ts`.
