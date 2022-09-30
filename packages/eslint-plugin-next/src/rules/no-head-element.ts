@@ -1,6 +1,8 @@
+import { defineRule } from '../utils/define-rule'
+
 const url = 'https://nextjs.org/docs/messages/no-head-element'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `<head>` element.',
@@ -11,7 +13,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     return {
       JSXOpeningElement(node) {
         const paths = context.getFilename()
@@ -29,4 +31,4 @@ module.exports = {
       },
     }
   },
-}
+})

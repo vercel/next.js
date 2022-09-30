@@ -1,8 +1,9 @@
-const path = require('path')
+import { defineRule } from '../utils/define-rule'
+import * as path from 'path'
 
 const url = 'https://nextjs.org/docs/messages/no-head-import-in-document'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `next/head` in `pages/_document.js`.',
@@ -12,7 +13,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     return {
       ImportDeclaration(node) {
         if (node.source.value !== 'next/head') {
@@ -38,4 +39,4 @@ module.exports = {
       },
     }
   },
-}
+})
