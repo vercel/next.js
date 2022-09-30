@@ -177,11 +177,11 @@ export default async function handler(req: NextRequest) {
 
 ### Summary of changes
 
-| Added                   | Removed       |
-| ----------------------- | ------------- |
-| `cookie.set`            | `cookie`      |
-| `cookie.delete`         | `clearCookie` |
-| `cookie.getWithOptions` | `cookies`     |
+| Added                    | Removed       |
+| ------------------------ | ------------- |
+| `cookies.set`            | `cookie`      |
+| `cookies.delete`         | `clearCookie` |
+| `cookies.getWithOptions` | `cookies`     |
 
 ### Explanation
 
@@ -191,9 +191,9 @@ Based on beta feedback, we are changing the Cookies API in `NextRequest` and `Ne
 
 `NextResponse` now has a `cookies` instance with:
 
-- `cookie.delete`
-- `cookie.set`
-- `cookie.getWithOptions`
+- `cookies.delete`
+- `cookies.set`
+- `cookies.getWithOptions`
 
 As well as other extended methods from `Map`.
 

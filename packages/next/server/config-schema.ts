@@ -219,6 +219,12 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        adjustFontFallbacks: {
+          type: 'boolean',
+        },
+        adjustFontFallbacksWithSizeAdjust: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -253,7 +259,14 @@ const configSchema = {
           type: 'boolean',
         },
         esmExternals: {
-          type: 'boolean',
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              const: 'loose',
+            },
+          ] as any,
         },
         externalDir: {
           type: 'boolean',
@@ -310,6 +323,12 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
+        optoutServerComponentsBundle: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -332,11 +351,17 @@ const configSchema = {
         scrollRestoration: {
           type: 'boolean',
         },
-        serverComponents: {
-          type: 'boolean',
-        },
         sharedPool: {
           type: 'boolean',
+        },
+        sri: {
+          properties: {
+            algorithm: {
+              enum: ['sha256', 'sha384', 'sha512'] as any,
+              type: 'string',
+            },
+          },
+          type: 'object',
         },
         swcFileReading: {
           type: 'boolean',
@@ -368,8 +393,14 @@ const configSchema = {
           },
           type: 'array',
         },
+        enableUndici: {
+          type: 'boolean',
+        },
         workerThreads: {
           type: 'boolean',
+        },
+        fontLoaders: {
+          type: 'object',
         },
       },
       type: 'object',

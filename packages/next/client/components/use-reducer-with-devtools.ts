@@ -104,7 +104,20 @@ function devToolReducer(
   }
 }
 
-export function useReducerWithReduxDevtools(
+function useReducerWithReduxDevtoolsNoop(
+  fn: typeof reducer,
+  initialState: ReturnType<typeof reducer>
+): [
+  ReturnType<typeof reducer>,
+  Dispatch<ReducerAction<typeof reducer>>,
+  () => void
+] {
+  const [state, dispatch] = useReducer(fn, initialState)
+
+  return [state, dispatch, () => {}]
+}
+
+function useReducerWithReduxDevtoolsImpl(
   fn: typeof reducer,
   initialState: ReturnType<typeof reducer>
 ): [
@@ -158,3 +171,8 @@ export function useReducerWithReduxDevtools(
   }, [state])
   return [state, dispatch, sync]
 }
+
+export const useReducerWithReduxDevtools =
+  typeof window !== 'undefined'
+    ? useReducerWithReduxDevtoolsImpl
+    : useReducerWithReduxDevtoolsNoop

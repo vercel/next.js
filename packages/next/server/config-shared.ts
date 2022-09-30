@@ -7,6 +7,7 @@ import {
   imageConfigDefault,
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
+import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -113,7 +114,6 @@ export interface ExperimentalConfig {
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
   runtime?: Exclude<ServerRuntime, undefined>
-  serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -146,6 +146,17 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
+  enableUndici?: boolean
+  sri?: {
+    algorithm?: SubresourceIntegrityAlgorithm
+  }
+  adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
+
+  // A list of packages that should be treated as external in the RSC server build
+  optoutServerComponentsBundle?: string[]
+
+  fontLoaders?: { [fontLoader: string]: any }
 }
 
 export type ExportPathMap = {
@@ -565,7 +576,6 @@ export const defaultConfig: NextConfig = {
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
-    serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     swcTraceProfiling: false,
@@ -577,6 +587,9 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     modularizeImports: undefined,
+    enableUndici: false,
+    adjustFontFallbacks: false,
+    adjustFontFallbacksWithSizeAdjust: false,
   },
 }
 

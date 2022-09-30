@@ -12,9 +12,13 @@ import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
 import { ServerRuntime } from 'next/types'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
+import { matcher } from 'next/dist/compiled/micromatch'
+import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
+  unstable_allowDynamicGlobs: string[]
+  regions: string[] | string
 }
 
 export interface MiddlewareMatcher {
@@ -27,7 +31,16 @@ export interface PageStaticInfo {
   runtime?: ServerRuntime
   ssg?: boolean
   ssr?: boolean
+  rsc?: RSCModuleType
   middleware?: Partial<MiddlewareConfig>
+}
+
+const CLIENT_MODULE_LABEL = `/* __next_internal_client_entry_do_not_use__ */`
+export type RSCModuleType = 'server' | 'client'
+export function getRSCModuleType(source: string): RSCModuleType {
+  return source.includes(CLIENT_MODULE_LABEL)
+    ? RSC_MODULE_TYPES.client
+    : RSC_MODULE_TYPES.server
 }
 
 /**
@@ -162,6 +175,7 @@ function getMiddlewareMatchers(
 }
 
 function getMiddlewareConfig(
+  pageFilePath: string,
   config: any,
   nextConfig: NextConfig
 ): Partial<MiddlewareConfig> {
@@ -169,6 +183,33 @@ function getMiddlewareConfig(
 
   if (config.matcher) {
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
+  }
+
+  if (typeof config.regions === 'string' || Array.isArray(config.regions)) {
+    result.regions = config.regions
+  } else if (typeof config.regions !== 'undefined') {
+    Log.warn(
+      `The \`regions\` config was ignored: config must be empty, a string or an array of strings. (${pageFilePath})`
+    )
+  }
+
+  if (config.unstable_allowDynamic) {
+    result.unstable_allowDynamicGlobs = Array.isArray(
+      config.unstable_allowDynamic
+    )
+      ? config.unstable_allowDynamic
+      : [config.unstable_allowDynamic]
+    for (const glob of result.unstable_allowDynamicGlobs ?? []) {
+      try {
+        matcher(glob)
+      } catch (err) {
+        throw new Error(
+          `${pageFilePath} exported 'config.unstable_allowDynamic' contains invalid pattern '${glob}': ${
+            (err as Error).message
+          }`
+        )
+      }
+    }
   }
 
   return result
@@ -223,9 +264,14 @@ export async function getPageStaticInfo(params: {
   const { isDev, pageFilePath, nextConfig, page } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
+  if (
+    /runtime|getStaticProps|getServerSideProps|export const config/.test(
+      fileContent
+    )
+  ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
+    const rsc = getRSCModuleType(fileContent)
 
     // default / failsafe value for config
     let config: any = {}
@@ -268,15 +314,25 @@ export async function getPageStaticInfo(params: {
       warnAboutExperimentalEdgeApiFunctions()
     }
 
-    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
+    const middlewareConfig = getMiddlewareConfig(
+      page ?? 'middleware/edge API route',
+      config,
+      nextConfig
+    )
 
     return {
       ssr,
       ssg,
+      rsc,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(runtime && { runtime }),
     }
   }
 
-  return { ssr: false, ssg: false, runtime: nextConfig.experimental?.runtime }
+  return {
+    ssr: false,
+    ssg: false,
+    rsc: RSC_MODULE_TYPES.server,
+    runtime: nextConfig.experimental?.runtime,
+  }
 }

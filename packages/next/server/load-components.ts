@@ -30,6 +30,7 @@ export type LoadComponentsReturnType = {
   Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
+  subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest?: any
   Document: DocumentType
@@ -39,6 +40,7 @@ export type LoadComponentsReturnType = {
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
   isAppPath?: boolean
+  pathname: string
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
@@ -56,16 +58,23 @@ export async function loadDefaultErrorComponents(distDir: string) {
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
     reactLoadableManifest: {},
     ComponentMod,
+    pathname: '/_error',
   }
 }
 
-export async function loadComponents(
-  distDir: string,
-  pathname: string,
-  serverless: boolean,
-  hasServerComponents: boolean,
+export async function loadComponents({
+  distDir,
+  pathname,
+  serverless,
+  hasServerComponents,
+  isAppPath,
+}: {
+  distDir: string
+  pathname: string
+  serverless: boolean
+  hasServerComponents: boolean
   isAppPath: boolean
-): Promise<LoadComponentsReturnType> {
+}): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
     if (typeof ComponentMod === 'string') {
@@ -143,5 +152,6 @@ export async function loadComponents(
     getStaticPaths,
     serverComponentManifest,
     isAppPath,
+    pathname,
   }
 }

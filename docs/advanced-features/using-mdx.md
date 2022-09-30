@@ -33,7 +33,7 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
 1. Install the required packages:
 
    ```bash
-     npm install @next/mdx @mdx-js/loader
+     npm install @next/mdx @mdx-js/loader @mdx-js/react
    ```
 
 2. Require the package and configure to support top level `.mdx` pages. The following adds the `options` object key allowing you to pass in any plugins:
