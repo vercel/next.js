@@ -457,11 +457,11 @@ importers:
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
       '@next/env': 12.3.2-canary.15
-      '@next/polyfill-module': 12.3.2-canary.15
-      '@next/polyfill-nomodule': 12.3.2-canary.15
-      '@next/react-dev-overlay': 12.3.2-canary.15
-      '@next/react-refresh-utils': 12.3.2-canary.15
-      '@next/swc': 12.3.2-canary.15
+      '@next/polyfill-module': workspace:*
+      '@next/polyfill-nomodule': workspace:*
+      '@next/react-dev-overlay': workspace:*
+      '@next/react-refresh-utils': workspace:*
+      '@next/swc': workspace:*
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.11
       '@taskr/clear': 1.1.0
@@ -594,8 +594,8 @@ importers:
       source-map: 0.6.1
       stream-browserify: 3.0.0
       stream-http: 3.1.1
-      string-hash: 1.1.3
       string_decoder: 1.3.0
+      string-hash: 1.1.3
       strip-ansi: 6.0.0
       styled-jsx: 5.0.7
       tar: 6.1.11
@@ -784,8 +784,8 @@ importers:
       source-map: 0.6.1
       stream-browserify: 3.0.0
       stream-http: 3.1.1
-      string-hash: 1.1.3
       string_decoder: 1.3.0
+      string-hash: 1.1.3
       strip-ansi: 6.0.0
       tar: 6.1.11
       taskr: 1.1.0
@@ -11618,8 +11618,8 @@ packages:
     engines: { node: '>=10' }
     hasBin: true
     dependencies:
-      JSONStream: 1.3.5
       is-text-path: 1.0.1
+      JSONStream: 1.3.5
       lodash: 4.17.21
       meow: 8.1.2
       split2: 2.2.0
@@ -27102,7 +27102,6 @@ packages:
       {
         integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==,
       }
-    dev: true
 
   /simple-swizzle/0.2.2:
     resolution:
