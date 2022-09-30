@@ -10,7 +10,7 @@ use turbopack::ecmascript::{
 use turbopack_core::{
     self,
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::dev::DevChunkingContextVc,
+    chunk::ChunkingContextVc,
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
@@ -34,7 +34,7 @@ pub struct ServerRenderedAsset {
     path: FileSystemPathVc,
     context: AssetContextVc,
     entry_asset: AssetVc,
-    chunking_context: DevChunkingContextVc,
+    chunking_context: ChunkingContextVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     intermediate_output_path: FileSystemPathVc,
     request_data: JsonValueVc,
@@ -48,7 +48,7 @@ impl ServerRenderedAssetVc {
         context: AssetContextVc,
         entry_asset: AssetVc,
         runtime_entries: EcmascriptChunkPlaceablesVc,
-        chunking_context: DevChunkingContextVc,
+        chunking_context: ChunkingContextVc,
         intermediate_output_path: FileSystemPathVc,
         request_data: JsonValueVc,
     ) -> Self {

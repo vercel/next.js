@@ -195,6 +195,7 @@ async fn create_server_rendered_source_for_file(
         asset_root_path: target_root.join("_next/static/assets"),
         enable_hot_module_replacement: false,
     }
+    .cell()
     .into();
 
     let asset = ServerRenderedAssetVc::new(

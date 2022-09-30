@@ -15,7 +15,7 @@ use turbo_tasks_fs::{DiskFileSystemVc, File, FileContent, FileSystemPathVc};
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
     asset::{AssetContentVc, AssetVc, AssetsSetVc},
-    chunk::{dev::DevChunkingContextVc, ChunkGroupVc},
+    chunk::{ChunkGroupVc, ChunkingContextVc},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
@@ -73,7 +73,7 @@ async fn internal_assets(
 pub async fn external_asset_entrypoints(
     module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    chunking_context: DevChunkingContextVc,
+    chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<AssetsSetVc> {
     Ok(separate_assets(
@@ -171,7 +171,7 @@ pub async fn get_renderer_pool(
 async fn get_intermediate_asset(
     entry_module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    chunking_context: DevChunkingContextVc,
+    chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<AssetVc> {
     let chunk = entry_module.as_evaluated_chunk(chunking_context.into(), Some(runtime_entries));
@@ -190,7 +190,7 @@ pub async fn render_static(
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    chunking_context: DevChunkingContextVc,
+    chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
     data: JsonValueVc,
 ) -> Result<AssetContentVc> {

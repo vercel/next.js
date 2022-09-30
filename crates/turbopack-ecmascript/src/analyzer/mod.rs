@@ -885,7 +885,7 @@ impl JsValue {
                         "Object.assign".to_string(),
                         "Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign",
                     ),
-                      WellKnownFunctionKind::PathJoin => (
+                    WellKnownFunctionKind::PathJoin => (
                         "path.join".to_string(),
                         "The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths",
                     ),
@@ -1824,6 +1824,7 @@ impl Hash for SimilarJsValue {
     }
 }
 
+// TODO get rid of that and only use `JsWord` in `FreeVar(...)`
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FreeVarKind {
     // Object
