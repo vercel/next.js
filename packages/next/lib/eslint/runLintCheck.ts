@@ -154,7 +154,6 @@ async function lint(
 
     let nextEslintPluginIsEnabled = false
     const nextRulesEnabled = new Map<string, Severity>()
-    const pagesDirRules = ['@next/next/no-html-link-for-pages']
 
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
@@ -187,6 +186,7 @@ async function lint(
     }
 
     const pagesDir = findPagesDir(baseDir, hasAppDir).pages
+    const pagesDirRules = pagesDir ? ['@next/next/no-html-link-for-pages'] : []
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false
