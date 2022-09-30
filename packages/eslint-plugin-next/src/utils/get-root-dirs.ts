@@ -1,25 +1,19 @@
-// @ts-check
-const glob = require('glob')
+import * as glob from 'glob'
+import type { Rule } from 'eslint'
 
 /**
  * Process a Next.js root directory glob.
- *
- * @param {string} rootDir - A Next.js root directory glob.
- * @returns {string[]} - An array of Root directories.
  */
-const processRootDir = (rootDir) => {
+const processRootDir = (rootDir: string): string[] => {
   // Ensures we only match folders.
   if (!rootDir.endsWith('/')) rootDir += '/'
   return glob.sync(rootDir)
 }
 
 /**
- * Gets one or more Root
- *
- * @param {import('eslint').Rule.RuleContext} context - ESLint rule context
- * @returns An array of root directories.
+ * Gets one or more Root, returns an array of root directories.
  */
-const getRootDirs = (context) => {
+export const getRootDirs = (context: Rule.RuleContext) => {
   let rootDirs = [context.getCwd()]
 
   /** @type {{rootDir?:string|string[]}|undefined} */
@@ -36,5 +30,3 @@ const getRootDirs = (context) => {
 
   return rootDirs
 }
-
-module.exports = getRootDirs
