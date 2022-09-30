@@ -32,11 +32,12 @@ export default async function nextFontLoader(this: any) {
       return outputPath
     }
 
-    // next-swc next_font_loaders turns each function call argument into JSON seperated by semicolons
-    let [relativeFilePathFromRoot, functionName, ...data] = this.resourceQuery
-      .slice(1)
-      .split(';')
-    data = data.map((value: string) => JSON.parse(value))
+    // next-swc next_font_loaders turns each font loader call into JSON
+    const {
+      path: relativeFilePathFromRoot,
+      import: functionName,
+      arguments: data,
+    } = JSON.parse(this.resourceQuery.slice(1))
 
     try {
       const fontLoader: FontLoader = require(path.join(

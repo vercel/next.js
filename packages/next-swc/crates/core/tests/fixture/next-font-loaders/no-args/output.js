@@ -1,1 +1,1 @@
-import fira from "@next/font/google/target.css?pages/test.tsx;Fira_Code";
+import fira from '@next/font/google/target.css?{"arguments":[],"import":"Fira_Code","path":"pages/test.tsx"}';
