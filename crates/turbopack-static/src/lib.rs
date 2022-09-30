@@ -23,8 +23,8 @@ use turbopack_css::embed::{CssEmbed, CssEmbedVc, CssEmbeddable, CssEmbeddableVc}
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-        EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-        EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
     utils::stringify_str,
 };
@@ -197,10 +197,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 "__turbopack_export_value__({path});",
                 path = stringify_str(&format!("/{}", &*self.static_asset.path().await?))
             ),
-            source_map: None,
-            options: EcmascriptChunkItemOptions {
-                ..Default::default()
-            },
+            ..Default::default()
         }
         .into())
     }

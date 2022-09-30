@@ -755,10 +755,12 @@ impl EcmascriptChunkPlaceablesVc {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Default)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: String,
     pub source_map: Option<ParseResultSourceMapVc>,
     pub options: EcmascriptChunkItemOptions,
+    pub placeholder_for_future_extensions: (),
 }
 
 #[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]

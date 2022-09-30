@@ -284,6 +284,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                     exports: true,
                     ..Default::default()
                 },
+                ..Default::default()
             }
             .into())
         } else {
@@ -292,10 +293,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                     "/* unparseable {} */",
                     self.module.path().to_string().await?
                 ),
-                source_map: None,
-                options: EcmascriptChunkItemOptions {
-                    ..Default::default()
-                },
+                ..Default::default()
             }
             .into())
         }

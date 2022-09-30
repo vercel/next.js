@@ -15,8 +15,8 @@ use turbopack_core::{
 use crate::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-        EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-        EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
     utils::{stringify_module_id, stringify_str},
 };
@@ -126,10 +126,7 @@ __turbopack_export_value__((__turbopack_import__) => {{
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
-            source_map: None,
-            options: EcmascriptChunkItemOptions {
-                ..Default::default()
-            },
+            ..Default::default()
         }
         .into())
     }
@@ -281,10 +278,7 @@ __turbopack_export_value__(Promise.all(loads));"
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
-            source_map: None,
-            options: EcmascriptChunkItemOptions {
-                ..Default::default()
-            },
+            ..Default::default()
         }
         .into())
     }

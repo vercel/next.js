@@ -11,8 +11,8 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-        EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-        EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
     utils::stringify_str,
 };
@@ -131,10 +131,7 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
-            source_map: None,
-            options: EcmascriptChunkItemOptions {
-                ..Default::default()
-            },
+            ..Default::default()
         }
         .cell())
     }

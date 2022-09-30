@@ -8,8 +8,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-    EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-    EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+    EcmascriptExports, EcmascriptExportsVc,
 };
 
 use crate::fs::DevServerFileSystemVc;
@@ -115,10 +115,7 @@ impl EcmascriptChunkItem for HtmlRuntimeChunkItem {
                     inner_code: String::from_utf8(content.content().to_vec())?,
                     // TODO: We generate a minimal map for runtime code so that the filename is
                     // displayed in dev tools.
-                    source_map: None,
-                    options: EcmascriptChunkItemOptions {
-                        ..Default::default()
-                    },
+                    ..Default::default()
                 }
                 .cell());
             }

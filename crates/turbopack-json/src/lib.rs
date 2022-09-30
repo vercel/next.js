@@ -20,8 +20,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-    EcmascriptChunkItemOptions, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-    EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
 };
 
 #[turbo_tasks::value]
@@ -136,10 +135,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
         };
         Ok(EcmascriptChunkItemContent {
             inner_code,
-            source_map: None,
-            options: EcmascriptChunkItemOptions {
-                ..Default::default()
-            },
+            ..Default::default()
         }
         .into())
     }

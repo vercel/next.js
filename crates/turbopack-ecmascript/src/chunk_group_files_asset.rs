@@ -156,8 +156,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
         }
         Ok(EcmascriptChunkItemContent {
             inner_code: format!("__turbopack_export_value__({:#});\n", Value::Array(data)),
-            source_map: None,
-            options: Default::default(),
+            ..Default::default()
         }
         .cell())
     }
