@@ -1,4 +1,4 @@
-import React, { Component, ReactElement, ReactNode, useContext } from 'react'
+import React, { ReactElement, ReactNode, useContext } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -10,10 +10,11 @@ import type {
   DocumentType,
   NEXT_DATA,
 } from '../shared/lib/utils'
+import type { ScriptProps } from '../client/script'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
-import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script, { ScriptProps } from '../client/script'
 import isError from '../lib/is-error'
 
 import { HtmlContext } from '../shared/lib/html-context'
@@ -353,7 +354,61 @@ function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
-export class Head extends Component<HeadProps> {
+function getFontLoaderLinks(
+  fontLoaderManifest: FontLoaderManifest | undefined,
+  dangerousAsPath: string,
+  assetPrefix: string = ''
+) {
+  if (!fontLoaderManifest) {
+    return {
+      preconnect: null,
+      preload: null,
+    }
+  }
+
+  const appFontsEntry = fontLoaderManifest.pages['/_app']
+  const pageFontsEntry = fontLoaderManifest.pages[dangerousAsPath]
+
+  const preloadedFontFiles = [
+    ...(appFontsEntry ?? []),
+    ...(pageFontsEntry ?? []),
+  ]
+
+  // If no font files should preload but there's an entry for the path, add a preconnect tag.
+  const preconnectToSelf = !!(
+    preloadedFontFiles.length === 0 &&
+    (appFontsEntry || pageFontsEntry)
+  )
+
+  return {
+    preconnect: preconnectToSelf ? (
+      <link rel="preconnect" href="/" crossOrigin="anonymous" />
+    ) : null,
+    preload: preloadedFontFiles
+      ? preloadedFontFiles.map((fontFile) => {
+          const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+          return (
+            <link
+              key={fontFile}
+              rel="preload"
+              href={`${assetPrefix}/_next/${encodeURI(fontFile)}`}
+              as="font"
+              type={`font/${ext}`}
+              crossOrigin="anonymous"
+            />
+          )
+        })
+      : null,
+  }
+}
+
+// Use `React.Component` to avoid errors from the RSC checks because
+// it can't be imported directly in Server Components:
+//
+//   import { Component } from 'react'
+//
+// More info: https://github.com/vercel/next.js/pull/40686
+export class Head extends React.Component<HeadProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -602,6 +657,8 @@ export class Head extends Component<HeadProps> {
       disableOptimizedLoading,
       optimizeCss,
       optimizeFonts,
+      assetPrefix,
+      fontLoaderManifest,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -716,6 +773,12 @@ export class Head extends Component<HeadProps> {
       process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
     )
 
+    const fontLoaderLinks = getFontLoaderLinks(
+      fontLoaderManifest,
+      dangerousAsPath,
+      assetPrefix
+    )
+
     return (
       <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
@@ -756,6 +819,9 @@ export class Head extends Component<HeadProps> {
         {children}
         {optimizeFonts && <meta name="next-font-preconnect" />}
 
+        {fontLoaderLinks.preconnect}
+        {fontLoaderLinks.preload}
+
         {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>
             <meta
@@ -765,7 +831,10 @@ export class Head extends Component<HeadProps> {
             {!hasCanonicalRel && (
               <link
                 rel="canonical"
-                href={canonicalBase + cleanAmpPath(dangerousAsPath)}
+                href={
+                  canonicalBase +
+                  require('../server/utils').cleanAmpPath(dangerousAsPath)
+                }
               />
             )}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
@@ -871,7 +940,8 @@ function handleDocumentScriptLoaderItems(
   React.Children.forEach(combinedChildren, (child: any) => {
     if (!child) return
 
-    if (child.type === Script) {
+    // When using the `next/script` component, register it in script loader.
+    if (child.type?.__nextScript) {
       if (child.props.strategy === 'beforeInteractive') {
         scriptLoader.beforeInteractive = (
           scriptLoader.beforeInteractive || []
@@ -895,7 +965,7 @@ function handleDocumentScriptLoaderItems(
   __NEXT_DATA__.scriptLoader = scriptLoaderItems
 }
 
-export class NextScript extends Component<OriginProps> {
+export class NextScript extends React.Component<OriginProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -1100,7 +1170,9 @@ export function Main() {
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
-export default class Document<P = {}> extends Component<DocumentProps & P> {
+export default class Document<P = {}> extends React.Component<
+  DocumentProps & P
+> {
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers

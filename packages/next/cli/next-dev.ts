@@ -2,7 +2,7 @@
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync, watchFile } from 'fs'
 import { startServer } from '../server/lib/start-server'
-import { printAndExit } from '../server/lib/utils'
+import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../lib/commands'
@@ -75,16 +75,11 @@ const nextDev: cliCommand = (argv) => {
       )
     }
   }
-  const allowRetry = !args['--port']
-  let port: number =
-    args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
 
-  // we allow the server to use a random port while testing
-  // instead of attempting to find a random port and then hope
-  // it doesn't become occupied before we leverage it
-  if (process.env.__NEXT_FORCED_PORT) {
-    port = parseInt(process.env.__NEXT_FORCED_PORT, 10) || 0
-  }
+  const port = getPort(args)
+  // If neither --port nor PORT were specified, it's okay to retry new ports.
+  const allowRetry =
+    args['--port'] === undefined && process.env.PORT === undefined
 
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces

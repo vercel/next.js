@@ -18,6 +18,7 @@ module.exports = function (task) {
         stripExtension,
         keepImportAssertions = false,
         interopClientDefaultExport = false,
+        esm = false,
       } = {}
     ) {
       // Don't compile .d.ts
@@ -28,7 +29,7 @@ module.exports = function (task) {
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
         module: {
-          type: 'commonjs',
+          type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
         },
         jsc: {
@@ -59,7 +60,7 @@ module.exports = function (task) {
       /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
         module: {
-          type: 'commonjs',
+          type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
         },
         env: {
@@ -108,8 +109,15 @@ module.exports = function (task) {
         ...swcOptions,
       }
 
-      const output = yield transform(file.data.toString('utf-8'), options)
+      const source = file.data.toString('utf-8')
+      const output = yield transform(source, options)
       const ext = path.extname(file.base)
+
+      // Make sure the output content keeps the `"client"` directive.
+      // TODO: Remove this once SWC fixes the issue.
+      if (/^['"]client['"]/.test(source)) {
+        output.code = '"client";\n' + output.code
+      }
 
       // Replace `.ts|.tsx` with `.js` in files with an extension
       if (ext) {
@@ -119,7 +127,7 @@ module.exports = function (task) {
       }
 
       if (output.map) {
-        if (interopClientDefaultExport) {
+        if (interopClientDefaultExport && !esm) {
           output.code += `
 if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
   Object.defineProperty(exports.default, '__esModule', { value: true });

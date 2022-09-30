@@ -111,11 +111,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 topLevelImportPaths: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                    minLength: 1,
-                  },
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 ssr: {
                   type: 'boolean',
@@ -124,7 +129,16 @@ const configSchema = {
                   type: 'boolean',
                 },
                 meaninglessFileNames: {
-                  type: 'boolean',
+                  oneOf: [
+                    { type: 'boolean' },
+                    {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        minLength: 1,
+                      },
+                    },
+                  ],
                 },
                 minify: {
                   type: 'boolean',
@@ -205,6 +219,12 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        adjustFontFallbacks: {
+          type: 'boolean',
+        },
+        adjustFontFallbacksWithSizeAdjust: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -239,9 +259,19 @@ const configSchema = {
           type: 'boolean',
         },
         esmExternals: {
-          type: 'boolean',
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              const: 'loose',
+            },
+          ] as any,
         },
         externalDir: {
+          type: 'boolean',
+        },
+        fallbackNodePolyfills: {
           type: 'boolean',
         },
         forceSwcTransforms: {
@@ -252,44 +282,6 @@ const configSchema = {
         },
         gzipSize: {
           type: 'boolean',
-        },
-        images: {
-          additionalProperties: false,
-          properties: {
-            allowFutureImage: {
-              type: 'boolean',
-            },
-            remotePatterns: {
-              items: {
-                additionalProperties: false,
-                properties: {
-                  hostname: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  pathname: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  port: {
-                    minLength: 1,
-                    type: 'string',
-                  },
-                  protocol: {
-                    // automatic typing doesn't like enum
-                    enum: ['http', 'https'] as any,
-                    type: 'string',
-                  },
-                },
-                type: 'object',
-              },
-              type: 'array',
-            },
-            unoptimized: {
-              type: 'boolean',
-            },
-          },
-          type: 'object',
         },
         incrementalCacheHandlerPath: {
           type: 'string',
@@ -331,6 +323,12 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
+        optoutServerComponentsBundle: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -341,6 +339,10 @@ const configSchema = {
         profiling: {
           type: 'boolean',
         },
+        proxyTimeout: {
+          minimum: 0,
+          type: 'number',
+        },
         runtime: {
           // automatic typing doesn't like enum
           enum: ['experimental-edge', 'nodejs'] as any,
@@ -349,11 +351,17 @@ const configSchema = {
         scrollRestoration: {
           type: 'boolean',
         },
-        serverComponents: {
-          type: 'boolean',
-        },
         sharedPool: {
           type: 'boolean',
+        },
+        sri: {
+          properties: {
+            algorithm: {
+              enum: ['sha256', 'sha384', 'sha512'] as any,
+              type: 'string',
+            },
+          },
+          type: 'object',
         },
         swcFileReading: {
           type: 'boolean',
@@ -385,8 +393,14 @@ const configSchema = {
           },
           type: 'array',
         },
+        enableUndici: {
+          type: 'boolean',
+        },
         workerThreads: {
           type: 'boolean',
+        },
+        fontLoaders: {
+          type: 'object',
         },
       },
       type: 'object',
@@ -470,6 +484,35 @@ const configSchema = {
     images: {
       additionalProperties: false,
       properties: {
+        remotePatterns: {
+          items: {
+            additionalProperties: false,
+            properties: {
+              hostname: {
+                minLength: 1,
+                type: 'string',
+              },
+              pathname: {
+                minLength: 1,
+                type: 'string',
+              },
+              port: {
+                minLength: 1,
+                type: 'string',
+              },
+              protocol: {
+                // automatic typing doesn't like enum
+                enum: ['http', 'https'] as any,
+                type: 'string',
+              },
+            },
+            type: 'object',
+          },
+          type: 'array',
+        },
+        unoptimized: {
+          type: 'boolean',
+        },
         contentSecurityPolicy: {
           minLength: 1,
           type: 'string',

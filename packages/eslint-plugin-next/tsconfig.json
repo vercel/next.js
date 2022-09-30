@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2019"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}

@@ -3,7 +3,7 @@ export default class {
     render() {
         return <div className={_JSXStyle.dynamic([
             [
-                "3f66f111bff09281",
+                "23692842dc904882",
                 [
                     a ? '100%' : '200px',
                     b ? '0' : '8px 20px'
@@ -13,7 +13,7 @@ export default class {
 
           <p className={_JSXStyle.dynamic([
             [
-                "3f66f111bff09281",
+                "23692842dc904882",
                 [
                     a ? '100%' : '200px',
                     b ? '0' : '8px 20px'
@@ -21,11 +21,11 @@ export default class {
             ]
         ])}>test</p>
 
-          <_JSXStyle id={"3f66f111bff09281"} dynamic={[
+          <_JSXStyle id={"23692842dc904882"} dynamic={[
             a ? '100%' : '200px',
             b ? '0' : '8px 20px'
         ]}>{`.item.__jsx-style-dynamic-selector{max-width:${a ? '100%' : '200px'};padding:${b ? '0' : '8px 20px'}}`}</_JSXStyle>
 
         </div>;
     }
-};
+}

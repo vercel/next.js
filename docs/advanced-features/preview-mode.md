@@ -25,6 +25,7 @@ description: Next.js has the preview mode for statically generated pages. You ca
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-kontent">Kontent Example</a> (<a href="https://next-blog-kontent.vercel.app//">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-umbraco-heartcore">Umbraco Heartcore Example</a> (<a href="https://next-blog-umbraco-heartcore.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-plasmic">Plasmic Example</a> (<a href="https://nextjs-plasmic-example.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-enterspeed">Enterspeed Example</a> (<a href="https://next-blog-demo.enterspeed.com/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-makeswift">Makeswift Example</a> (<a href="https://nextjs-makeswift-example.vercel.app/">Demo</a>)</li>
   </ul>
 </details>
@@ -172,6 +173,8 @@ https://<your-site>/api/preview?secret=<token>&slug=<path>
 ```
 
 ## More Details
+
+> **Note**: during rendering `next/router` exposes an `isPreview` flag, see the [router object docs](/docs/api-reference/next/router.md#router-object) for more info.
 
 ### Clear the Preview Mode cookies
 

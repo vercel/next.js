@@ -24,7 +24,11 @@ export type CacheNode = {
   parallelRoutes: Map<string, ChildSegmentMap>
 }
 
-export type AppRouterInstance = {
+interface NavigateOptions {
+  forceOptimisticNavigation?: boolean
+}
+
+export interface AppRouterInstance {
   /**
    * Reload the current page. Fetches new data from the server.
    */
@@ -33,26 +37,16 @@ export type AppRouterInstance = {
    * Hard navigate to the provided href. Fetches new data from the server.
    * Pushes a new history entry.
    */
-  push(href: string): void
-  /**
-   * Soft navigate to the provided href. Does not fetch data from the server if it was already fetched.
-   * Pushes a new history entry.
-   */
-  softPush(href: string): void
+  push(href: string, options?: NavigateOptions): void
   /**
    * Hard navigate to the provided href. Does not fetch data from the server if it was already fetched.
    * Replaces the current history entry.
    */
-  replace(href: string): void
-  /**
-   * Soft navigate to the provided href. Does not fetch data from the server if it was already fetched.
-   * Replaces the current history entry.
-   */
-  softReplace(href: string): void
+  replace(href: string, options?: NavigateOptions): void
   /**
    * Soft prefetch the provided href. Does not fetch data from the server if it was already fetched.
    */
-  prefetch(href: string): Promise<void>
+  prefetch(href: string): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance>(
@@ -67,13 +61,17 @@ export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
   changeByServerResponse: (
     previousTree: FlightRouterState,
-    flightData: FlightData
+    flightData: FlightData,
+    overrideCanonicalUrl: URL | undefined
   ) => void
   focusAndScrollRef: FocusAndScrollRef
 }>(null as any)
+
+export const TemplateContext = React.createContext<React.ReactNode>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
   LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
+  TemplateContext.displayName = 'TemplateContext'
 }

@@ -32,6 +32,8 @@ function getBaseSWCOptions({
   resolvedBaseUrl,
   jsConfig,
   swcCacheDir,
+  isServerLayer,
+  relativeFilePathFromRoot,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -117,6 +119,18 @@ function getBaseSWCOptions({
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
     emotion: getEmotionOptions(nextConfig, development),
+    serverComponents: nextConfig?.experimental?.appDir
+      ? {
+          isServer: !!isServerLayer,
+        }
+      : false,
+    fontLoaders:
+      nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot
+        ? {
+            fontLoaders: Object.keys(nextConfig.experimental.fontLoaders),
+            relativeFilePathFromRoot,
+          }
+        : null,
   }
 }
 
@@ -203,6 +217,7 @@ export function getLoaderSWCOptions({
   filename,
   development,
   isServer,
+  isServerLayer,
   pagesDir,
   isPageFile,
   hasReactRefresh,
@@ -210,6 +225,7 @@ export function getLoaderSWCOptions({
   jsConfig,
   supportedBrowsers,
   swcCacheDir,
+  relativeFilePathFromRoot,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -222,6 +238,8 @@ export function getLoaderSWCOptions({
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
+    isServerLayer,
+    relativeFilePathFromRoot,
   })
 
   const isNextDist = nextDistPath.test(filename)

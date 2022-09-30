@@ -8,9 +8,10 @@ import type { LoadComponentsReturnType } from './load-components'
 import { NoFallbackError, Options } from './base-server'
 import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { NextConfig } from './config-shared'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { UrlWithParsedQuery } from 'url'
 
 import BaseServer from './base-server'
-import { renderToHTML } from './render'
 import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
@@ -29,6 +30,8 @@ interface WebServerOptions extends Options {
     ) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
+    pagesRenderToHTML?: typeof import('./render').renderToHTML
+    appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
   }
 }
 
@@ -58,8 +61,15 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       redirects: [],
     }
   }
-  protected async hasPage() {
-    return false
+  protected async run(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<void> {
+    super.run(req, res, parsedUrl)
+  }
+  protected async hasPage(page: string) {
+    return page === this.serverOptions.webServerConfig.page
   }
   protected getPublicDir() {
     // Public files are not handled by the web server.
@@ -114,12 +124,16 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
   }
   protected getServerComponentManifest() {
-    // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
-    return undefined
+    return this.serverOptions.webServerConfig.extendRenderOpts
+      .serverComponentManifest
   }
   protected getServerCSSManifest() {
-    // TODO-APP: Support web server.
-    return undefined
+    return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
+  }
+
+  protected getFontLoaderManifest() {
+    return this.serverOptions.webServerConfig.extendRenderOpts
+      .fontLoaderManifest
   }
 
   protected generateRoutes(): {
@@ -319,21 +333,29 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
-    return renderToHTML(
-      {
-        url: req.url,
-        cookies: req.cookies,
-        headers: req.headers,
-      } as any,
-      {} as any,
-      pathname,
-      query,
-      {
-        ...renderOpts,
-        disableOptimizedLoading: true,
-        runtime: 'experimental-edge',
-      }
-    )
+    const { pagesRenderToHTML, appRenderToHTML } =
+      this.serverOptions.webServerConfig
+    const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
+
+    if (curRenderToHTML) {
+      return await curRenderToHTML(
+        {
+          url: req.url,
+          cookies: req.cookies,
+          headers: req.headers,
+        } as any,
+        {} as any,
+        pathname,
+        query,
+        Object.assign(renderOpts, {
+          disableOptimizedLoading: true,
+          runtime: 'experimental-edge',
+        }),
+        !!pagesRenderToHTML
+      )
+    } else {
+      throw new Error(`Invariant: curRenderToHTML is missing`)
+    }
   }
   protected async sendRenderResult(
     _req: WebNextRequest,
@@ -353,10 +375,14 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     if (options.poweredByHeader && options.type === 'html') {
       res.setHeader('X-Powered-By', 'Next.js')
     }
+    const resultContentType = options.result.contentType()
+
     if (!res.getHeader('Content-Type')) {
       res.setHeader(
         'Content-Type',
-        options.type === 'json'
+        resultContentType
+          ? resultContentType
+          : options.type === 'json'
           ? 'application/json'
           : 'text/html; charset=utf-8'
       )
@@ -387,11 +413,17 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // @TODO
     return true
   }
-  protected async findPageComponents(
-    pathname: string,
-    query?: NextParsedUrlQuery,
-    params?: Params | null
-  ) {
+
+  protected async findPageComponents({
+    pathname,
+    query,
+    params,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
+    isAppPath: boolean
+  }) {
     const result = await this.serverOptions.webServerConfig.loadComponent(
       pathname
     )

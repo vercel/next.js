@@ -1,3 +1,7 @@
+import type {
+  MiddlewareMatcher,
+  RSCModuleType,
+} from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 /**
@@ -15,7 +19,14 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
     importLocByPath?: Map<string, any>
+    rootDir?: string
+    rsc?: RSCMeta
   }
+}
+
+export interface RSCMeta {
+  type?: RSCModuleType
+  requests?: string[] // client requests in flight client entry
 }
 
 export interface RouteMeta {
@@ -25,11 +36,12 @@ export interface RouteMeta {
 
 export interface EdgeMiddlewareMeta {
   page: string
-  matcherRegexp?: string
+  matchers?: MiddlewareMatcher[]
 }
 
 export interface EdgeSSRMeta {
   isServerComponent: boolean
+  isAppDir?: boolean
   page: string
 }
 
