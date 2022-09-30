@@ -407,7 +407,6 @@ export default async function exportPage({
               page,
               query,
               curRenderOpts as any,
-              false,
               true
             )
             const html = result?.toUnchunkedString()

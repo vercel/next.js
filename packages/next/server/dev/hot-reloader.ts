@@ -626,7 +626,6 @@ export default class HotReloader {
                         ),
                         appDir: this.appDir!,
                         pageExtensions: this.config.pageExtensions,
-                        nextRuntime: 'edge',
                       }).import
                     : undefined
 
@@ -706,7 +705,6 @@ export default class HotReloader {
                           ),
                           appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
-                          nextRuntime: 'nodejs',
                         })
                       : relativeRequest,
                   appDir: this.config.experimental.appDir,
