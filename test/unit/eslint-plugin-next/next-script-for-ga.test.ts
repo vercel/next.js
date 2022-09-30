@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/next-script-for-ga'
+import rule from '@next/eslint-plugin-next/dist/rules/next-script-for-ga'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
