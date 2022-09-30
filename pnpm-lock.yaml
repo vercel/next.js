@@ -419,12 +419,12 @@ importers:
 
   packages/eslint-plugin-next:
     specifiers:
-      '@types/eslint': 7.28.0
+      eslint: 7.24.0
       glob: 7.1.7
     dependencies:
       glob: 7.1.7
     devDependencies:
-      '@types/eslint': 7.28.0
+      eslint: 7.24.0
 
   packages/font:
     specifiers: {}
