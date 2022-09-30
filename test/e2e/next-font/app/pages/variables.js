@@ -1,4 +1,4 @@
-import { Fira_Code, Albert_Sans, Inter, Roboto } from '@next/font/google'
+import { Fira_Code, Roboto } from '@next/font/google'
 import localFont from '@next/font/local'
 
 const firaCode = Fira_Code({ variable: '--fira-code' })
