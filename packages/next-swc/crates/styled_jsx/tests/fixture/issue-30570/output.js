@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default function IndexPage() {
     return <div className={"jsx-bbdada4ef17d18ef"}>
 
@@ -6,7 +6,7 @@ export default function IndexPage() {
 
 
 
-        <_JSXStyle id={"bbdada4ef17d18ef"}>{"@supports(display:flex){h1{color:hotpink}}"}</_JSXStyle>
+        <_JSXStyle id={"bbdada4ef17d18ef"}>{"@supports((display:flex)or (display:-webkit-box)or (display:-webkit-flex)or (display:-moz-box)or (display:-ms-flexbox)){h1{color:hotpink}}"}</_JSXStyle>
 
       </div>;
-};
+}

@@ -16,12 +16,17 @@ import type {
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
-import type { FontManifest } from './font-utils'
+import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
-import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
+import type {
+  GetServerSideProps,
+  GetStaticProps,
+  PreviewData,
+  ServerRuntime,
+} from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
-import type { ServerRuntime } from './config-shared'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -36,6 +41,7 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../lib/constants'
 import {
+  COMPILER_NAMES,
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
@@ -60,10 +66,7 @@ import { HtmlContext } from '../shared/lib/html-context'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
-import {
-  allowedStatusCodes,
-  getRedirectStatus,
-} from '../lib/load-custom-routes'
+import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
@@ -77,7 +80,8 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { shouldUseReactRoot, stripInternalQueries } from './utils'
+import { shouldUseReactRoot } from './utils'
+import { stripInternalQueries } from './internal-utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -102,6 +106,18 @@ function noRouter() {
   const message =
     'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
   throw new Error(message)
+}
+
+async function renderToString(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
+}
+
+async function renderToStaticMarkup(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToStaticMarkup(element)
+  return renderToString(element)
 }
 
 class ServerRouter implements NextRouter {
@@ -220,7 +236,7 @@ export type RenderOptsPartial = {
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  optimizeFonts: boolean
+  optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
   nextScriptWorkers: any
@@ -228,6 +244,8 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   serverComponentManifest?: any
+  serverCSSManifest?: any
+  fontLoaderManifest?: FontLoaderManifest
   distDir?: string
   locale?: string
   locales?: string[]
@@ -307,6 +325,43 @@ function checkRedirectValues(
   }
 }
 
+function errorToJSON(err: Error) {
+  let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
+    'server'
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
+  }
+
+  return {
+    name: err.name,
+    source,
+    message: stripAnsi(err.message),
+    stack: err.stack,
+  }
+}
+
+function serializeError(
+  dev: boolean | undefined,
+  err: Error
+): Error & {
+  statusCode?: number
+  source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+} {
+  if (dev) {
+    return errorToJSON(err)
+  }
+
+  return {
+    name: 'Internal Server Error.',
+    message: '500 - Internal Server Error.',
+    statusCode: 500,
+  }
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -335,7 +390,6 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    serverComponentManifest,
     isDataReq,
     params,
     previewProps,
@@ -344,17 +398,10 @@ export async function renderToHTML(
     supportsDynamicHTML,
     images,
     runtime: globalRuntime,
-    ComponentMod,
     App,
   } = renderOpts
 
   let Document = renderOpts.Document
-
-  // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
-  const isServerComponent =
-    !!process.env.__NEXT_REACT_ROOT &&
-    !!serverComponentManifest &&
-    !!ComponentMod.__next_rsc__?.server
 
   // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
@@ -371,12 +418,6 @@ export async function renderToHTML(
 
   // next internal queries should be stripped out
   stripInternalQueries(query)
-
-  if (isServerComponent) {
-    throw new Error(
-      'Server Components are not supported from the pages/ directory.'
-    )
-  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -572,40 +613,9 @@ export async function renderToHTML(
     isPreview,
     getRequestMeta(req, '__nextIsLocaleDomain')
   )
+
+  let scriptLoader: any = {}
   const jsxStyleRegistry = createStyleRegistry()
-  const ctx = {
-    err,
-    req: isAutoExport ? undefined : req,
-    res: isAutoExport ? undefined : res,
-    pathname,
-    query,
-    asPath,
-    locale: renderOpts.locale,
-    locales: renderOpts.locales,
-    defaultLocale: renderOpts.defaultLocale,
-    AppTree: (props: any) => {
-      return (
-        <AppContainerWithIsomorphicFiberStructure>
-          {renderPageTree(App, OriginComponent, { ...props, router })}
-        </AppContainerWithIsomorphicFiberStructure>
-      )
-    },
-    defaultGetInitialProps: async (
-      docCtx: DocumentContext,
-      options: { nonce?: string } = {}
-    ): Promise<DocumentInitialProps> => {
-      const enhanceApp = (AppComp: any) => {
-        return (props: any) => <AppComp {...props} />
-      }
-
-      const { html, head } = await docCtx.renderPage({ enhanceApp })
-      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
-      jsxStyleRegistry.flush()
-      return { html, head, styles }
-    },
-  }
-  let props: any
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -614,10 +624,8 @@ export async function renderToHTML(
 
   // Disable AMP under the web environment
   const inAmpMode = process.env.NEXT_RUNTIME !== 'edge' && isInAmpMode(ampState)
-
-  const reactLoadableModules: string[] = []
-
   let head: JSX.Element[] = defaultHead(inAmpMode)
+  const reactLoadableModules: string[] = []
 
   let initialScripts: any = {}
   if (hasPageScripts) {
@@ -625,16 +633,6 @@ export async function renderToHTML(
       .concat(hasPageScripts())
       .filter((script: any) => script.props.strategy === 'beforeInteractive')
       .map((script: any) => script.props)
-  }
-
-  let scriptLoader: any = {}
-  const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
-
-  const styledJsxFlushEffect = () => {
-    const styles = jsxStyleRegistry.styles()
-    jsxStyleRegistry.flush()
-    return <>{styles}</>
   }
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
@@ -697,6 +695,50 @@ export async function renderToHTML(
         </AppContainer>
       </>
     )
+  }
+
+  const ctx = {
+    err,
+    req: isAutoExport ? undefined : req,
+    res: isAutoExport ? undefined : res,
+    pathname,
+    query,
+    asPath,
+    locale: renderOpts.locale,
+    locales: renderOpts.locales,
+    defaultLocale: renderOpts.defaultLocale,
+    AppTree: (props: any) => {
+      return (
+        <AppContainerWithIsomorphicFiberStructure>
+          {renderPageTree(App, OriginComponent, { ...props, router })}
+        </AppContainerWithIsomorphicFiberStructure>
+      )
+    },
+    defaultGetInitialProps: async (
+      docCtx: DocumentContext,
+      options: { nonce?: string } = {}
+    ): Promise<DocumentInitialProps> => {
+      const enhanceApp = (AppComp: any) => {
+        return (props: any) => <AppComp {...props} />
+      }
+
+      const { html, head: renderPageHead } = await docCtx.renderPage({
+        enhanceApp,
+      })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      jsxStyleRegistry.flush()
+      return { html, head: renderPageHead, styles }
+    },
+  }
+  let props: any
+
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+
+  const styledJsxFlushEffect = () => {
+    const styles = jsxStyleRegistry.styles()
+    jsxStyleRegistry.flush()
+    return <>{styles}</>
   }
 
   props = await loadGetInitialProps(App, {
@@ -1118,16 +1160,16 @@ export async function renderToHTML(
         _Component: NextComponentType
       ) => Promise<ReactReadableStream>
     ) {
-      const renderPage: RenderPage = (
+      const renderPage: RenderPage = async (
         options: ComponentsEnhancer = {}
-      ): RenderPageResult | Promise<RenderPageResult> => {
+      ): Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
           // Always start rendering the shell even if there's an error.
           if (renderShell) {
             renderShell(App, Component)
           }
 
-          const html = ReactDOMServer.renderToString(
+          const html = await renderToString(
             <Body>
               <ErrorDebug error={ctx.err} />
             </Body>
@@ -1154,7 +1196,7 @@ export async function renderToHTML(
           )
         }
 
-        const html = ReactDOMServer.renderToString(
+        const html = await renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
               {renderPageTree(EnhancedApp, EnhancedComponent, {
@@ -1226,7 +1268,7 @@ export async function renderToHTML(
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head
-        const result = ReactDOMServer.renderToString(content)
+        const result = await renderToString(content)
         const bodyResult = (suffix: string) => streamFromArray([result, suffix])
 
         const styles = jsxStyleRegistry.styles()
@@ -1259,9 +1301,8 @@ export async function renderToHTML(
       ) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when `wrapApp` is called
-        const flushEffectHandler = (): string => {
-          const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
-          return flushed
+        const flushEffectHandler = async (): Promise<string> => {
+          return renderToString(styledJsxFlushEffect())
         }
 
         return continueFromInitialStream(initialStream, {
@@ -1269,6 +1310,7 @@ export async function renderToHTML(
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
           flushEffectHandler,
+          flushEffectsToHead: false,
         })
       }
 
@@ -1297,7 +1339,7 @@ export async function renderToHTML(
       }
 
       const { docProps } = (documentInitialPropsRes as any) || {}
-      const documentElement = () => {
+      const documentElement = (htmlProps: any) => {
         if (process.env.NEXT_RUNTIME === 'edge') {
           return (Document as any)()
         } else {
@@ -1375,7 +1417,6 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
-      rsc: isServerComponent ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
@@ -1418,6 +1459,7 @@ export async function renderToHTML(
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
+    fontLoaderManifest: renderOpts.fontLoaderManifest,
   }
 
   const document = (
@@ -1428,7 +1470,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  const documentHTML = ReactDOMServer.renderToStaticMarkup(document)
+  const documentHTML = await renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []
@@ -1485,37 +1527,4 @@ export async function renderToHTML(
       createBufferedTransformStream(postOptimize)
     )
   )
-}
-
-function errorToJSON(err: Error) {
-  let source: 'server' | 'edge-server' = 'server'
-
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    source =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
-        err
-      ) || 'server'
-  }
-
-  return {
-    name: err.name,
-    source,
-    message: stripAnsi(err.message),
-    stack: err.stack,
-  }
-}
-
-function serializeError(
-  dev: boolean | undefined,
-  err: Error
-): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
-  if (dev) {
-    return errorToJSON(err)
-  }
-
-  return {
-    name: 'Internal Server Error.',
-    message: '500 - Internal Server Error.',
-    statusCode: 500,
-  }
 }

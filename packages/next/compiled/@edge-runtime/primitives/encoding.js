@@ -1,3 +1,4 @@
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -23,7 +24,10 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target, mod));
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // <define:process>
@@ -145,7 +149,10 @@ var require_encoding = __commonJS({
             s += String.fromCharCode(cp);
           } else {
             cp -= 65536;
-            s += String.fromCharCode((cp >> 10) + 55296, (cp & 1023) + 56320);
+            s += String.fromCharCode(
+              (cp >> 10) + 55296,
+              (cp & 1023) + 56320
+            );
           }
         }
         return s;
@@ -821,7 +828,11 @@ var require_encoding = __commonJS({
         if (typeof input === "object" && input instanceof ArrayBuffer) {
           bytes = new Uint8Array(input);
         } else if (typeof input === "object" && "buffer" in input && input.buffer instanceof ArrayBuffer) {
-          bytes = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+          bytes = new Uint8Array(
+            input.buffer,
+            input.byteOffset,
+            input.byteLength
+          );
         } else {
           bytes = new Uint8Array(0);
         }
@@ -1109,7 +1120,9 @@ var require_encoding = __commonJS({
           if (gb18030_third !== 0) {
             code_point = null;
             if (inRange(bite, 48, 57)) {
-              code_point = indexGB18030RangesCodePointFor((((gb18030_first - 129) * 10 + gb18030_second - 48) * 126 + gb18030_third - 129) * 10 + bite - 48);
+              code_point = indexGB18030RangesCodePointFor(
+                (((gb18030_first - 129) * 10 + gb18030_second - 48) * 126 + gb18030_third - 129) * 10 + bite - 48
+              );
             }
             var buffer = [gb18030_second, gb18030_third, bite];
             gb18030_first = 0;
@@ -1296,7 +1309,10 @@ var require_encoding = __commonJS({
             eucjp_lead = 0;
             var code_point = null;
             if (inRange(lead, 161, 254) && inRange(bite, 161, 254)) {
-              code_point = indexCodePointFor((lead - 161) * 94 + (bite - 161), index(!eucjp_jis0212_flag ? "jis0208" : "jis0212"));
+              code_point = indexCodePointFor(
+                (lead - 161) * 94 + (bite - 161),
+                index(!eucjp_jis0212_flag ? "jis0208" : "jis0212")
+              );
             }
             eucjp_jis0212_flag = false;
             if (!inRange(bite, 161, 254))
@@ -1724,8 +1740,14 @@ var require_encoding = __commonJS({
             return finished;
           if (inRange(code_point, 0, 65535))
             return convertCodeUnitToBytes(code_point, utf16_be);
-          var lead = convertCodeUnitToBytes((code_point - 65536 >> 10) + 55296, utf16_be);
-          var trail = convertCodeUnitToBytes((code_point - 65536 & 1023) + 56320, utf16_be);
+          var lead = convertCodeUnitToBytes(
+            (code_point - 65536 >> 10) + 55296,
+            utf16_be
+          );
+          var trail = convertCodeUnitToBytes(
+            (code_point - 65536 & 1023) + 56320,
+            utf16_be
+          );
           return lead.concat(trail);
         };
       }

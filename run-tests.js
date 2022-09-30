@@ -37,7 +37,10 @@ const cleanUpAndExit = async (code) => {
     await fs.remove(process.env.NEXT_TEST_STARTER)
   }
   console.log(`exiting with code ${code}`)
-  process.exit(code)
+
+  setTimeout(() => {
+    process.exit(code)
+  }, 1)
 }
 
 async function getTestTimings() {
@@ -235,13 +238,19 @@ async function main() {
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
 
-  const runTest = (test = '', isFinalRun) =>
+  const runTest = (test = '', isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
+
+      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
+
       const child = spawn(
         jestPath,
         [
+          ...(shouldRecordTestWithReplay
+            ? [`--config=jest.replay.config.js`]
+            : []),
           '--runInBand',
           '--forceExit',
           '--verbose',
@@ -254,6 +263,7 @@ async function main() {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env,
+            RECORD_REPLAY: shouldRecordTestWithReplay,
             // run tests in headless mode by default
             HEADLESS: 'true',
             TRACE_PLAYWRIGHT: 'true',
@@ -270,7 +280,7 @@ async function main() {
         }
       )
       const handleOutput = (type) => (chunk) => {
-        if (hideOutput) {
+        if (hideOutput && !isFinalRun) {
           outputChunks.push({ type, chunk })
         } else {
           process.stderr.write(chunk)
@@ -284,7 +294,7 @@ async function main() {
       child.on('exit', async (code, signal) => {
         children.delete(child)
         if (code !== 0 || signal !== null) {
-          if (isFinalRun && hideOutput) {
+          if (hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
             outputChunks.forEach(({ type, chunk }) => {
@@ -333,7 +343,7 @@ async function main() {
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i === numRetries)
+          const time = await runTest(test, i === numRetries, i > 0)
           timings.push({
             file: test,
             time,

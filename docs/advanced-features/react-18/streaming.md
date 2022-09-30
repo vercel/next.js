@@ -4,7 +4,7 @@ React 18 includes architectural improvements to React server-side rendering (SSR
 
 ## Using Streaming Server-Rendering
 
-When you use Suspense in a server-rendered page, there is no extra configuration required to use streaming SSR. When deployed, streaming can be utilized through infrastructure like [Edge Functions](https://vercel.com/edge) on Vercel (with the Edge Runtime) or with a Node.js server (with the Node.js runtime). AWS Lambda Functions do not currently support streaming responses.
+When you use Suspense in a server-rendered page, there is no extra configuration required to use streaming SSR. When deployed, streaming can be utilized through infrastructure like [Edge Functions](https://vercel.com/features/edge-functions?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) on Vercel (with the Edge Runtime) or with a Node.js server (with the Node.js runtime). AWS Lambda Functions do not currently support streaming responses.
 
 All SSR pages have the ability to render components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. When any suspended components resolve down the line, they are rendered on the server and streamed to the client. This means applications can start emitting HTML even _before_ all the data is ready, improving your app's loading performance.
 
@@ -16,7 +16,7 @@ For non-SSR pages, all Suspense boundaries will still be [statically optimized](
 
 ### next/dynamic
 
-Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libaries are only imported and included in the JavaScript bundle when they're used.
+Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libraries are only imported and included in the JavaScript bundle when they're used.
 
 Read more about how to use [`next/dynamic`](/docs/advanced-features/dynamic-import.md).
 

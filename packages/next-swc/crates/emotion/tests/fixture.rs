@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use swc_common::{chain, comments::SingleThreadedComments, Mark};
-use swc_ecma_transforms_testing::test_fixture;
-use swc_ecmascript::{
-    parser::{Syntax, TsConfig},
-    transforms::react::{jsx, Runtime},
+use swc_core::{
+    common::{chain, comments::SingleThreadedComments, Mark},
+    ecma::parser::{Syntax, TsConfig},
+    ecma::transforms::react::{jsx, Runtime},
+    ecma::transforms::testing::test_fixture,
 };
 use swc_emotion::EmotionOptions;
 use testing::fixture;
@@ -26,7 +26,7 @@ fn next_emotion_fixture(input: PathBuf) {
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 Some(tr.comments.as_ref().clone()),
-                swc_ecmascript::transforms::react::Options {
+                swc_core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: Some(Runtime::Automatic),
                     throw_if_namespace: false.into(),

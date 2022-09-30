@@ -62,6 +62,15 @@ export class NextServer {
     }
   }
 
+  getUpgradeHandler() {
+    return async (req: IncomingMessage, socket: any, head: any) => {
+      const server = await this.getServer()
+      // @ts-expect-error we mark this as protected so it
+      // causes an error here
+      return server.handleUpgrade.apply(server, [req, socket, head])
+    }
+  }
+
   setAssetPrefix(assetPrefix: string) {
     if (this.server) {
       this.server.setAssetPrefix(assetPrefix)

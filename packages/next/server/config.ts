@@ -13,6 +13,7 @@ import {
   ExperimentalConfig,
   NextConfigComplete,
   validateConfig,
+  NextConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import {
@@ -22,6 +23,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
+import { gte as semverGte } from 'next/dist/compiled/semver'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -44,6 +46,34 @@ const experimentalWarning = execOnce(
     console.warn()
   }
 )
+
+export function setHttpClientAndAgentOptions(options: NextConfig) {
+  if (semverGte(process.version, '16.8.0')) {
+    if (semverGte(process.version, '18.0.0')) {
+      Log.warn(
+        '`enableUndici` option is unnecessary in Node.js v18.0.0 or greater.'
+      )
+    }
+    ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
+  } else if (options.experimental?.enableUndici) {
+    Log.warn(
+      '`enableUndici` option requires Node.js v16.8.0 or greater. Falling back to `node-fetch`'
+    )
+  }
+  if ((global as any).__NEXT_HTTP_AGENT) {
+    // We only need to assign once because we want
+    // to reuse the same agent for all requests.
+    return
+  }
+
+  if (!options) {
+    throw new Error('Expected config.httpAgentOptions to be an object')
+  }
+
+  ;(global as any).__NEXT_HTTP_AGENT_OPTIONS = options.httpAgentOptions
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options.httpAgentOptions)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options.httpAgentOptions)
+}
 
 function assignDefaults(userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
@@ -239,7 +269,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
-    const remotePatterns = result.experimental?.images?.remotePatterns
+    const remotePatterns = result?.images?.remotePatterns
     if (remotePatterns) {
       if (!Array.isArray(remotePatterns)) {
         throw new Error(
@@ -420,7 +450,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    const unoptimized = result.experimental?.images?.unoptimized
+    const unoptimized = result?.images?.unoptimized
     if (
       typeof unoptimized !== 'undefined' &&
       typeof unoptimized !== 'boolean'
@@ -494,10 +524,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.compiler.removeConsole = (result.experimental as any).removeConsole
   }
 
-  if (result.swcMinify) {
-    Log.info('SWC minify release candidate enabled. https://nextjs.link/swcmin')
-  }
-
   if (result.experimental?.swcMinifyDebugOptions) {
     Log.warn(
       'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
@@ -532,9 +558,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   // TODO: Change defaultConfig type to NextConfigComplete
   // so we don't need "!" here.
-  setHttpAgentOptions(
-    result.httpAgentOptions || defaultConfig.httpAgentOptions!
-  )
+  setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
     const { i18n } = result
@@ -689,16 +713,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
-  if (result.experimental?.serverComponents) {
-    const pageExtensions: string[] = []
-    ;(result.pageExtensions || []).forEach((ext) => {
-      pageExtensions.push(ext)
-      pageExtensions.push(`server.${ext}`)
-      pageExtensions.push(`client.${ext}`)
-    })
-    result.pageExtensions = pageExtensions
-  }
-
   if (result.devIndicators?.buildActivityPosition) {
     const { buildActivityPosition } = result.devIndicators
     const allowedValues = [
@@ -726,7 +740,7 @@ export default async function loadConfig(
   customConfig?: object | null
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook()
+  loadWebpackHook()
 
   let configFileName = 'next.config.js'
 
@@ -772,8 +786,18 @@ export default async function loadConfig(
 
     if (validateResult.errors) {
       Log.warn(`Invalid next.config.js options detected: `)
+
+      // Only load @segment/ajv-human-errors when invalid config is detected
+      const { AggregateAjvError } =
+        require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
+      const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
+        fieldLabels: 'js',
+      })
+      for (const error of aggregatedAjvErrors) {
+        console.error(`  - ${error.message}`)
+      }
+
       console.error(
-        JSON.stringify(validateResult.errors, null, 2),
         '\nSee more info here: https://nextjs.org/docs/messages/invalid-next-config'
       )
     }
@@ -842,23 +866,6 @@ export default async function loadConfig(
   // reactRoot can be updated correctly even with no next.config.js
   const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
   completeConfig.configFileName = configFileName
-  setHttpAgentOptions(completeConfig.httpAgentOptions)
+  setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
-}
-
-export function setHttpAgentOptions(
-  options: NextConfigComplete['httpAgentOptions']
-) {
-  if ((global as any).__NEXT_HTTP_AGENT) {
-    // We only need to assign once because we want
-    // to resuse the same agent for all requests.
-    return
-  }
-
-  if (!options) {
-    throw new Error('Expected config.httpAgentOptions to be an object')
-  }
-
-  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
-  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
 }

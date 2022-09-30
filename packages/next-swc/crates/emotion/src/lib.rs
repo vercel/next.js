@@ -8,23 +8,21 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sourcemap::{RawToken, SourceMap as RawSourcemap};
-use swc_atoms::JsWord;
-use swc_common::comments::Comments;
-use swc_common::util::take::Take;
-use swc_common::{BytePos, SourceMapperDyn, DUMMY_SP};
-use swc_ecmascript::ast::{
-    ArrayLit, CallExpr, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName,
-    JSXExpr, JSXExprContainer, JSXObject, ModuleExportName, SourceMapperExt,
-};
-use swc_ecmascript::utils::ExprFactory;
-use swc_ecmascript::{
-    ast::{
-        Callee, Expr, ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, JSXElement,
-        KeyValueProp, MemberProp, ObjectLit, Pat, Prop, PropName, PropOrSpread, Tpl, VarDeclarator,
+use swc_core::{
+    common::{comments::Comments, util::take::Take, BytePos, SourceMapperDyn, DUMMY_SP},
+    ecma::utils::ExprFactory,
+    ecma::visit::{Fold, FoldWith},
+    ecma::{
+        ast::{
+            ArrayLit, CallExpr, Callee, Expr, ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier,
+            JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement, JSXElementName,
+            JSXExpr, JSXExprContainer, JSXObject, KeyValueProp, MemberProp, ModuleExportName,
+            ObjectLit, Pat, Prop, PropName, PropOrSpread, SourceMapperExt, Tpl, VarDeclarator,
+        },
+        atoms::JsWord,
     },
-    visit::{Fold, FoldWith},
+    trace_macro::swc_trace,
 };
-use swc_trace_macro::swc_trace;
 
 mod hash;
 mod import_map;
@@ -82,7 +80,7 @@ static EMOTION_OFFICIAL_LIBRARIES: Lazy<Vec<EmotionModuleConfig>> = Lazy::new(||
 });
 
 static SPACE_AROUND_COLON: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\s*(?P<s>[:|;|,|\{,\}])\s*").unwrap());
+    Lazy::new(|| Regex::new(r"\s*(?P<s>[:;,\{,\}])\s*").unwrap());
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -480,13 +478,28 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                     if let Some(cm) = self.create_sourcemap(expr.span.lo()) {
                                         expr.args.push(cm.as_arg());
                                     }
-                                    c.args.push(
-                                        Expr::Object(ObjectLit {
-                                            span: DUMMY_SP,
-                                            props: args_props,
-                                        })
-                                        .as_arg(),
-                                    );
+                                    if let Some(ExprOrSpread { expr, .. }) = c.args.get_mut(1) {
+                                        if let Expr::Object(ObjectLit { props, .. }) = expr.as_mut()
+                                        {
+                                            props.extend(args_props);
+                                        } else {
+                                            c.args.push(
+                                                Expr::Object(ObjectLit {
+                                                    span: DUMMY_SP,
+                                                    props: args_props,
+                                                })
+                                                .as_arg(),
+                                            );
+                                        }
+                                    } else {
+                                        c.args.push(
+                                            Expr::Object(ObjectLit {
+                                                span: DUMMY_SP,
+                                                props: args_props,
+                                            })
+                                            .as_arg(),
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -592,14 +605,27 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                         }),
                                     )));
                                 }
-
-                                callee.args.push(
-                                    Expr::Object(ObjectLit {
-                                        span: DUMMY_SP,
-                                        props: object_props,
-                                    })
-                                    .as_arg(),
-                                );
+                                if let Some(ExprOrSpread { expr, .. }) = callee.args.get_mut(1) {
+                                    if let Expr::Object(ObjectLit { props, .. }) = expr.as_mut() {
+                                        props.extend(object_props);
+                                    } else {
+                                        callee.args.push(
+                                            Expr::Object(ObjectLit {
+                                                span: DUMMY_SP,
+                                                props: object_props,
+                                            })
+                                            .as_arg(),
+                                        );
+                                    }
+                                } else {
+                                    callee.args.push(
+                                        Expr::Object(ObjectLit {
+                                            span: DUMMY_SP,
+                                            props: object_props,
+                                        })
+                                        .as_arg(),
+                                    );
+                                }
                                 return Expr::Call(CallExpr {
                                     span: DUMMY_SP,
                                     callee: callee.as_callee(),

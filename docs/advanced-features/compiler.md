@@ -9,6 +9,7 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 
 | Version   | Changes                                                                                                                            |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                      |
 | `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
 | `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
 | `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
@@ -238,8 +239,6 @@ module.exports = {
 
 Only `importMap` in `@emotion/babel-plugin` is not supported for now.
 
-## Experimental Features
-
 ### Minification
 
 You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
@@ -253,6 +252,8 @@ module.exports = {
 ```
 
 If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+
+## Experimental Features
 
 ### Minifier debug options
 
@@ -358,7 +359,7 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 
 1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 2. `member`: Has type `string`. The name of the member import.
-3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
+3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
 
 ### SWC Trace profiling
 
