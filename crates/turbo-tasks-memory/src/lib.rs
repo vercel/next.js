@@ -1,6 +1,5 @@
 #![feature(hash_drain_filter)]
 #![deny(unsafe_op_in_unsafe_fn)]
-#![feature(generic_associated_types)]
 
 mod cell;
 mod count_hash_set;

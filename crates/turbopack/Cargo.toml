@@ -34,7 +34,7 @@ url = "2.2.2"
 # turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed
 # turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 
-swc_core = { version = "0.23.20", features = [
+swc_core = { workspace = true, features = [
   "common",
   "common_concurrent",
   "ecma_parser",

@@ -18,7 +18,7 @@ turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-core = { path = "../turbopack-core" }
 
-swc_core = { version = "0.23.20", features = [
+swc_core = { workspace = true, features = [
   "ecma_ast",
   "css_ast",
   "css_codegen",

@@ -14,7 +14,7 @@ bench = false
 anyhow = "1.0.47"
 clap = { version = "3.2.15", features = ["derive"] }
 regex = "1.6.0"
-swc_core = { version = "0.23.20", features = [
+swc_core = { workspace = true, features = [
   "base",
   "common",
   "ecma_ast",

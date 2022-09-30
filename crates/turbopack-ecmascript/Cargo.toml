@@ -27,7 +27,7 @@ turbopack-core = { path = "../turbopack-core" }
 turbopack-hash = { path = "../turbopack-hash" }
 url = "2.2.2"
 
-swc_core = { version = "0.23.20", features = [
+swc_core = { workspace = true, features = [
   "ecma_ast",
   "common",
   "common_concurrent",
