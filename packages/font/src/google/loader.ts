@@ -121,7 +121,7 @@ const downloadGoogleFonts: FontLoader = async ({
   return {
     css: updatedCssResponse,
     fallbackFonts: fallback,
-    weight: weight === 'variable' ? undefined : weight,
+    weight: weight === 'variable' ? undefined : Number(weight),
     style,
     variable: `--next-font-${fontFamily.toLowerCase().replace(/ /g, '-')}${
       weight !== 'variable' ? `-${weight}` : ''
