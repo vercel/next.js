@@ -1,17 +1,17 @@
 # A statically generated blog example using Next.js and Sitefinity CMS
 
-This is the existing [blog-starter](https://github.com/vercel/next.js/tree/canary/examples/blog-starter) plus TypeScript.
+This is the existing [cms-sitefinity](https://github.com/vercel/next.js/tree/canary/examples/cms-sitefinity) plus TypeScript.
 This example showcases [Next.js's Static Generation feature](https://nextjs.org/docs/basic-features/pages) using Sitefinity CMS as the data source.
 
 ## Demo
 
-[https://next-blog-starter.vercel.app/](https://next-blog-starter.vercel.app/)
+[https://next-cms-sitefinity.vercel.app/](https://next-cms-sitefinity.vercel.app/)
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/blog-starter)
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/cms-sitefinity)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/blog-starter&project-name=blog-starter&repository-name=blog-starter)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-sitefinity&project-name=cms-sitefinity&repository-name=cms-sitefinity)
 
 ### Related examples
 
