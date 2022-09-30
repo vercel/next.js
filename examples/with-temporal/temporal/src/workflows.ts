@@ -1,11 +1,13 @@
-import { Order } from '../interfaces/workflows'
-import {
-  checkAndDecrementInventory,
-  incrementInventory,
-} from '@activities/inventory'
-import { chargeUser, ChargeResult } from '@activities/payment'
+import { proxyActivities } from '@temporalio/workflow'
+// Only import the activity types
+import type * as activities from './activities.js'
 
-async function main(
+const { chargeUser, checkAndDecrementInventory, incrementInventory } =
+  proxyActivities<typeof activities>({
+    startToCloseTimeout: '1 minute',
+  })
+
+export async function order(
   userId: string,
   itemId: string,
   quantity: number
@@ -15,8 +17,12 @@ async function main(
     quantity
   )
   if (haveEnoughInventory) {
-    const result: ChargeResult = await chargeUser(userId, itemId, quantity)
-    if (result.success) {
+    const result: activities.ChargeResult = await chargeUser(
+      userId,
+      itemId,
+      quantity
+    )
+    if (result.status === 'success') {
       return `Order successful!`
     } else {
       await incrementInventory(itemId, quantity)
@@ -26,5 +32,3 @@ async function main(
     return `Sorry, we don't have enough items in stock to fulfill your order.`
   }
 }
-
-export const workflow: Order = { main }
