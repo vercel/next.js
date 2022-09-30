@@ -1,12 +1,13 @@
-// @ts-check
-const path = require('path')
-const fs = require('fs')
-const getRootDir = require('../utils/get-root-dirs')
-const {
+import { defineRule } from '../utils/define-rule'
+import * as path from 'path'
+import * as fs from 'fs'
+import { getRootDirs } from '../utils/get-root-dirs'
+
+import {
   getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
-} = require('../utils/url')
+} from '../utils/url'
 
 const pagesDirWarning = execOnce((pagesDirs) => {
   console.warn(
@@ -21,7 +22,7 @@ const fsExistsSyncCache = {}
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description:
@@ -51,16 +52,12 @@ module.exports = {
 
   /**
    * Creates an ESLint rule listener.
-   *
-   * @param {import('eslint').Rule.RuleContext} context - ESLint rule context
-   * @returns {import('eslint').Rule.RuleListener} An ESLint rule listener
    */
-  create: function (context) {
-    /** @type {(string|string[])[]} */
-    const ruleOptions = context.options
+  create(context) {
+    const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
 
-    const rootDirs = getRootDir(context)
+    const rootDirs = getRootDirs(context)
 
     const pagesDirs = (
       customPagesDirectory
@@ -135,4 +132,4 @@ module.exports = {
       },
     }
   },
-}
+})

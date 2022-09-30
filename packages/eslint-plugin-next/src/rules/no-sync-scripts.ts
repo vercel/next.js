@@ -1,6 +1,8 @@
+import { defineRule } from '../utils/define-rule'
+
 const url = 'https://nextjs.org/docs/messages/no-sync-scripts'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description: 'Prevent synchronous scripts.',
@@ -10,7 +12,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'script') {
@@ -35,4 +37,4 @@ module.exports = {
       },
     }
   },
-}
+})

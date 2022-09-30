@@ -1,6 +1,7 @@
+import { defineRule } from '../utils/define-rule'
 const url = 'https://nextjs.org/docs/messages/no-duplicate-head'
 
-module.exports = {
+export = defineRule({
   meta: {
     docs: {
       description:
@@ -11,7 +12,7 @@ module.exports = {
     type: 'problem',
     schema: [],
   },
-  create: function (context) {
+  create(context) {
     let documentImportName
     return {
       ImportDeclaration(node) {
@@ -30,6 +31,7 @@ module.exports = {
           (ancestorNode) =>
             ancestorNode.type === 'ClassDeclaration' &&
             ancestorNode.superClass &&
+            'name' in ancestorNode.superClass &&
             ancestorNode.superClass.name === documentImportName
         )
 
@@ -37,7 +39,13 @@ module.exports = {
           return
         }
 
-        if (node.argument && node.argument.children) {
+        // @ts-expect-error - `node.argument` could be a `JSXElement` which has property `children`
+        if (
+          node.argument &&
+          'children' in node.argument &&
+          node.argument.children
+        ) {
+          // @ts-expect-error - `node.argument` could be a `JSXElement` which has property `children`
           const headComponents = node.argument.children.filter(
             (childrenNode) =>
               childrenNode.openingElement &&
@@ -57,4 +65,4 @@ module.exports = {
       },
     }
   },
-}
+})

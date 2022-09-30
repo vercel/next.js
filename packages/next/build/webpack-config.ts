@@ -124,6 +124,12 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   }
 }
 
+function isResourceInPackages(resource: string, packageNames?: string[]) {
+  return packageNames?.some((p: string) =>
+    new RegExp('[/\\\\]node_modules[/\\\\]' + p + '[/\\\\]').test(resource)
+  )
+}
+
 export function getDefineEnv({
   dev,
   config,
@@ -1137,8 +1143,9 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         if (
-          config.experimental.optoutServerComponentsBundle?.some((p: string) =>
-            new RegExp('node_modules[/\\\\]' + p + '[/\\\\]').test(res)
+          isResourceInPackages(
+            res,
+            config.experimental.serverComponentsExternalPackages
           )
         ) {
           return `${externalType} ${request}`
@@ -1514,16 +1521,18 @@ export default async function getBaseWebpackConfig(
               {
                 issuerLayer: WEBPACK_LAYERS.server,
                 test: (req: string) => {
+                  // If it's not a source code file, or has been opted out of
+                  // bundling, don't resolve it.
                   if (
                     !codeCondition.test.test(req) ||
-                    config.experimental.optoutServerComponentsBundle?.some(
-                      (mod) => {
-                        return req.includes('/node_modules/' + mod + '/')
-                      }
+                    isResourceInPackages(
+                      req,
+                      config.experimental.serverComponentsExternalPackages
                     )
                   ) {
                     return false
                   }
+
                   return true
                 },
                 resolve: process.env.__NEXT_REACT_CHANNEL
