@@ -22,7 +22,7 @@ type FontOptions = {
     unicodeRange?: string
   }>
   display: string
-  weight?: string
+  weight?: number
   style?: string
   fallback?: string[]
   preload: boolean

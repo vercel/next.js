@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type { AdjustFontFallback, FontModule } from 'next/font'
 type Display = 'auto' | 'block' | 'swap' | 'fallback' | 'optional'
+type CssVariable = `--${string}`
 type LocalFont = {
   src: string | Array<{ file: string; unicodeRange: string }>
   display?: Display
-  weight?: string
+  weight?: number
   style?: string
   fallback?: string[]
   preload?: boolean
-  variable?: string
+  variable?: CssVariable
 
   fontStretch?: string
   fontVariant?: string
