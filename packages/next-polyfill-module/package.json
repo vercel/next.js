@@ -10,7 +10,6 @@
   },
   "scripts": {
     "build": "microbundle -i src/index.js -o dist/polyfill-module.js -f iife --no-sourcemap --external none --no-pkg-main",
-    "dev": "pnpm build",
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
