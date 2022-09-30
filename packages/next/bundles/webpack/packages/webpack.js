@@ -3,7 +3,7 @@ exports.__esModule = true
 exports.default = undefined
 
 exports.init = function () {
-  if (process.env.NEXT_PRIVATE_LOCAL_webpack) {
+  if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
     Object.assign(exports, {
       // eslint-disable-next-line import/no-extraneous-dependencies
       BasicEvaluatedExpression: require('webpack/lib/javascript/BasicEvaluatedExpression'),

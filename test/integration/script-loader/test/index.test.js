@@ -94,120 +94,130 @@ const runTests = (isDev = false) => {
     }
   })
 
-  if (!isDev) {
-    it('priority beforeInteractive', async () => {
-      const html = await renderViaHTTP(appPort, '/page1')
-      const $ = cheerio.load(html)
+  it('priority beforeInteractive', async () => {
+    const html = await renderViaHTTP(appPort, '/page1')
+    const $ = cheerio.load(html)
 
-      function test(id) {
-        const script = $(`#${id}`)
+    function test(id) {
+      const script = $(`#${id}`)
 
-        // Renders script tag
-        expect(script.length).toBe(1)
-        expect(script.attr('data-nscript')).toBeDefined()
-
-        // Script is inserted before NextScripts
-        expect(
-          $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
-        ).toBeGreaterThan(0)
-      }
-
-      test('scriptBeforeInteractive')
-    })
-
-    // Warning - Will be removed in the next major release
-    it('priority beforeInteractive - older version', async () => {
-      const html = await renderViaHTTP(appPort, '/page6')
-      const $ = cheerio.load(html)
-
-      function test(id) {
-        const script = $(`#${id}`)
-
-        // Renders script tag
-        expect(script.length).toBe(1)
-        expect(script.attr('data-nscript')).toBeDefined()
-
-        // Script is inserted before NextScripts
-        expect(
-          $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
-        ).toBeGreaterThan(0)
-      }
-
-      test('scriptBeforePageRenderOld')
-    })
-
-    it('priority beforeInteractive on navigate', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/')
-
-        // beforeInteractive scripts should load once
-        let documentBIScripts = await browser.elementsByCss(
-          '[src$="scriptBeforeInteractive"]'
-        )
-        expect(documentBIScripts.length).toBe(2)
-
-        await browser.waitForElementByCss('[href="/page1"]')
-        await browser.click('[href="/page1"]')
-
-        await browser.waitForElementByCss('.container')
-
-        // Ensure beforeInteractive script isn't duplicated on navigation
-        documentBIScripts = await browser.elementsByCss(
-          '[src$="scriptBeforeInteractive"]'
-        )
-        expect(documentBIScripts.length).toBe(2)
-      } finally {
-        if (browser) await browser.close()
-      }
-    })
-  }
-
-  if (!isDev) {
-    it('onload fires correctly', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/page4')
-        await waitFor(3000)
-
-        const text = await browser.elementById('text').text()
-
-        expect(text).toBe('aaabbbccc')
-      } finally {
-        if (browser) await browser.close()
-      }
-    })
-
-    it('priority beforeInteractive with inline script', async () => {
-      const html = await renderViaHTTP(appPort, '/page5')
-      const $ = cheerio.load(html)
-
-      const script = $('#inline-before')
+      // Renders script tag
       expect(script.length).toBe(1)
+      expect(script.attr('data-nscript')).toBeDefined()
 
+      // Script is inserted before NextScripts
+      expect(
+        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
+      ).toBeGreaterThan(0)
+    }
+
+    test('scriptBeforeInteractive')
+  })
+
+  // Warning - Will be removed in the next major release
+  it('priority beforeInteractive - older version', async () => {
+    const html = await renderViaHTTP(appPort, '/page6')
+    const $ = cheerio.load(html)
+
+    function test(id) {
+      const script = $(`#${id}`)
+
+      // Renders script tag
+      expect(script.length).toBe(1)
+      expect(script.attr('data-nscript')).toBeDefined()
+
+      // Script is inserted before NextScripts
+      expect(
+        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
+      ).toBeGreaterThan(0)
+    }
+
+    test('scriptBeforePageRenderOld')
+  })
+
+  it('priority beforeInteractive on navigate', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+
+      // beforeInteractive scripts should load once
+      let documentBIScripts = await browser.elementsByCss(
+        '[src$="scriptBeforeInteractive"]'
+      )
+      expect(documentBIScripts.length).toBe(2)
+
+      await browser.waitForElementByCss('[href="/page1"]')
+      await browser.click('[href="/page1"]')
+
+      await browser.waitForElementByCss('.container')
+
+      // Ensure beforeInteractive script isn't duplicated on navigation
+      documentBIScripts = await browser.elementsByCss(
+        '[src$="scriptBeforeInteractive"]'
+      )
+      expect(documentBIScripts.length).toBe(2)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('onload fires correctly', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page4')
+      await waitFor(3000)
+
+      const text = await browser.elementById('onload-div-1').text()
+      expect(text).toBe('aaabbbccc')
+
+      // Navigate to different page and back
+      await browser.waitForElementByCss('[href="/page9"]')
+      await browser.click('[href="/page9"]')
+      await browser.waitForElementByCss('[href="/page4"]')
+      await browser.click('[href="/page4"]')
+
+      await browser.waitForElementByCss('#onload-div-1')
+      const sameText = await browser.elementById('onload-div-1').text()
+      // onload should only be fired once, not on sequential re-mount
+      expect(sameText).toBe('')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('priority beforeInteractive with inline script', async () => {
+    const html = await renderViaHTTP(appPort, '/page5')
+    const $ = cheerio.load(html)
+
+    const script = $('#inline-before')
+    expect(script.length).toBe(1)
+
+    // css bundle is only generated in production, so only perform inline script position check in production
+    if (!isDev) {
       // Script is inserted before CSS
       expect(
         $(`#inline-before ~ link[href^="/_next/static/css"]`).length
       ).toBeGreaterThan(0)
-    })
+    }
+  })
 
-    it('priority beforeInteractive with inline script should execute', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/page7')
-        await waitFor(1000)
+  it('priority beforeInteractive with inline script should execute', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page7')
+      await waitFor(1000)
 
-        const logs = await browser.log()
-        expect(
-          logs.some((log) =>
-            log.message.includes('beforeInteractive inline script run')
-          )
-        ).toBe(true)
-      } finally {
-        if (browser) await browser.close()
-      }
-    })
-  }
+      const logs = await browser.log()
+      // not only should inline script run, but also should only run once
+      expect(
+        logs.filter((log) =>
+          log.message.includes('beforeInteractive inline script run')
+        ).length
+      ).toBe(1)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
 
   it('Does not duplicate inline scripts', async () => {
     let browser
