@@ -22,6 +22,10 @@ use crate::{chunk::EcmascriptChunkItemVc, utils::module_id_to_lit};
 pub(crate) enum PatternMapping {
     /// Invalid request.
     Invalid,
+    /// Unresolveable request.
+    Unresolveable,
+    /// Ignored request.
+    Ignored,
     /// Constant request that always maps to the same module.
     ///
     /// ### Example
@@ -52,7 +56,11 @@ pub(crate) enum ResolveType {
 impl PatternMapping {
     pub fn is_internal_import(&self) -> bool {
         match self {
-            PatternMapping::Invalid | PatternMapping::Single(_) | PatternMapping::Map(_) => true,
+            PatternMapping::Invalid
+            | PatternMapping::Unresolveable
+            | PatternMapping::Ignored
+            | PatternMapping::Single(_)
+            | PatternMapping::Map(_) => true,
             PatternMapping::OriginalReferenceExternal
             | PatternMapping::OriginalReferenceTypeExternal(_) => false,
         }
@@ -63,6 +71,13 @@ impl PatternMapping {
             PatternMapping::Invalid => {
                 // TODO improve error message
                 quote!("(() => {throw new Error(\"Invalid\")})()" as Expr)
+            }
+            PatternMapping::Unresolveable => {
+                // TODO improve error message
+                quote!("(() => {throw new Error(\"Unresolveable\")})()" as Expr)
+            }
+            PatternMapping::Ignored => {
+                quote!("undefined" as Expr)
             }
             PatternMapping::Single(module_id) => module_id_to_lit(module_id),
             PatternMapping::Map(_) => {
@@ -114,6 +129,10 @@ impl PatternMappingVc {
             ResolveResult::Special(SpecialType::OriginalReferenceTypeExternal(s), _) => {
                 return Ok(PatternMapping::OriginalReferenceTypeExternal(s.clone()).cell())
             }
+            ResolveResult::Special(SpecialType::Ignore, _) => {
+                return Ok(PatternMapping::Ignored.cell())
+            }
+            ResolveResult::Unresolveable(_) => return Ok(PatternMapping::Unresolveable.cell()),
             _ => {
                 // TODO implement mapping
                 CodeGenerationIssue {

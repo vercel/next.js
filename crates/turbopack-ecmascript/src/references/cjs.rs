@@ -235,9 +235,10 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
                         Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
                         _ => pm.create(),
                     };
-                } else {
-                    unreachable!("`CjsRequireResolveAssetReference` is only created from `CallExpr`");
                 }
+                // CjsRequireResolveAssetReference will only be used for Expr::Call.
+                // Due to eventual consistency the path might match something else,
+                // but we can ignore that as it will be recomputed anyway.
             }));
         }
 
