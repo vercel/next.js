@@ -6,7 +6,7 @@ import type { ServerRuntime } from '../types'
 // @ts-ignore
 import React, { experimental_use as use } from 'react'
 
-import { ParsedUrlQuery } from 'querystring'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
@@ -610,8 +610,7 @@ function getRootLayoutPath(
   rootLayoutPath += `${segment}/`
   const isLayout = typeof layout !== 'undefined'
   if (isLayout) return rootLayoutPath
-  // Will never be anything else than `children`, parallel routes layout will have already been found
-  const child = parallelRoutes.children
+  const child = Object.values(parallelRoutes)[0]
   if (!child) return
   return getRootLayoutPath(child, rootLayoutPath)
 }
@@ -627,7 +626,7 @@ function findRootLayoutInFlightRouterState(
   } else if (segments.length > rootLayoutSegments.length) {
     return false
   }
-  const child = parallelRoutes.children
+  const child = Object.values(parallelRoutes)[0]
   if (!child) return false
   return findRootLayoutInFlightRouterState(child, rootLayoutSegments, segments)
 }
