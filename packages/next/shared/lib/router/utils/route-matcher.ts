@@ -1,8 +1,15 @@
+import type { RouteRegex } from './route-regex'
 import { DecodeError } from '../../utils'
-import { getRouteRegex } from './route-regex'
 
-export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
-  const { re, groups } = routeRegex
+export interface RouteMatch {
+  (pathname: string | null | undefined): false | Params
+}
+
+export interface Params {
+  [param: string]: any
+}
+
+export function getRouteMatcher({ re, groups }: RouteRegex): RouteMatch {
   return (pathname: string | null | undefined) => {
     const routeMatch = re.exec(pathname!)
     if (!routeMatch) {

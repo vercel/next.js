@@ -18,6 +18,7 @@ packages/react-refresh-utils/**/*.js
 packages/react-dev-overlay/lib/**
 **/__tmp__/**
 .github/actions/next-stats-action/.work
+.github/actions/issue-validator/index.mjs
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 packages/next-codemod/**/*.js
@@ -25,8 +26,11 @@ packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
 packages/create-next-app/templates/**
 test/integration/eslint/**
+test/integration/script-loader/**/*
 test/development/basic/legacy-decorators/**/*
+test/production/emit-decorator-metadata/**/*.js
 test-timings.json
 packages/next-swc/crates/**
 bench/nested-deps/pages/**
 bench/nested-deps/components/**
+packages/next-bundle-analyzer/index.d.ts

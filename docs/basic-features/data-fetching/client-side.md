@@ -15,13 +15,15 @@ It's important to note that using client-side data fetching can affect the perfo
 The following example shows how you can fetch data on the client side using the useEffect hook.
 
 ```jsx
+import { useState, useEffect } from 'react'
+
 function Profile() {
   const [data, setData] = useState(null)
   const [isLoading, setLoading] = useState(false)
 
   useEffect(() => {
     setLoading(true)
-    fetch('api/profile-data')
+    fetch('/api/profile-data')
       .then((res) => res.json())
       .then((data) => {
         setData(data)
@@ -30,7 +32,7 @@ function Profile() {
   }, [])
 
   if (isLoading) return <p>Loading...</p>
-  if (!profileData) return <p>No profile data</p>
+  if (!data) return <p>No profile data</p>
 
   return (
     <div>
@@ -68,3 +70,14 @@ function Profile() {
   )
 }
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/routing/introduction.md">
+    <b>Routing:</b>
+    <small>Learn more about routing in Next.js.</small>
+  </a>
+</div>

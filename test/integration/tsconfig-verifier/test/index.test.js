@@ -65,7 +65,11 @@ describe('tsconfig.json verifier', () => {
     await new Promise((resolve) => setTimeout(resolve, 500))
     expect(await readFile(tsConfig, 'utf8')).toBe('')
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
@@ -264,6 +268,56 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
+  it('allows you to set node16 moduleResolution mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node16" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"moduleResolution\\": \\"node16\\",
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
   it('allows you to extend another configuration file', async () => {
     expect(await exists(tsConfig)).toBe(false)
     expect(await exists(tsConfigBase)).toBe(false)
@@ -308,7 +362,11 @@ describe('tsconfig.json verifier', () => {
     await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
@@ -359,7 +417,11 @@ describe('tsconfig.json verifier', () => {
     await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`

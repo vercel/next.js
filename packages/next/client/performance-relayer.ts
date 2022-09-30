@@ -1,17 +1,18 @@
 /* global location */
 import {
-  getCLS,
-  getFCP,
-  getFID,
-  getLCP,
-  getTTFB,
+  onCLS,
+  onFCP,
+  onFID,
+  onINP,
+  onLCP,
+  onTTFB,
   Metric,
-  ReportHandler,
+  ReportCallback,
 } from 'next/dist/compiled/web-vitals'
 
 const initialHref = location.href
 let isRegistered = false
-let userReportHandler: ReportHandler | undefined
+let userReportHandler: ReportCallback | undefined
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
@@ -31,7 +32,7 @@ function onReport(metric: Metric): void {
     const body: Record<string, string> = {
       dsn: process.env.__NEXT_ANALYTICS_ID,
       id: metric.id,
-      page: window.__NEXT_DATA__.page,
+      page: window.__NEXT_DATA__?.page,
       href: initialHref,
       event_name: metric.name,
       value: metric.value.toString(),
@@ -71,7 +72,7 @@ function onReport(metric: Metric): void {
   }
 }
 
-export default (onPerfEntry?: ReportHandler): void => {
+export default (onPerfEntry?: ReportCallback): void => {
   // Update function if it changes:
   userReportHandler = onPerfEntry
 
@@ -81,9 +82,10 @@ export default (onPerfEntry?: ReportHandler): void => {
   }
   isRegistered = true
 
-  getCLS(onReport)
-  getFID(onReport)
-  getFCP(onReport)
-  getLCP(onReport)
-  getTTFB(onReport)
+  onCLS(onReport)
+  onFID(onReport)
+  onFCP(onReport)
+  onLCP(onReport)
+  onTTFB(onReport)
+  onINP(onReport)
 }

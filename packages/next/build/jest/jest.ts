@@ -1,9 +1,12 @@
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
+import { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
+import { findPagesDir } from '../../lib/find-pages-dir'
+import { loadBindings, lockfilePatchPromise } from '../swc'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -25,9 +28,15 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
   }
 }
 
-console.warn(
-  '"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer'
-)
+/** Loads dotenv files and sets environment variables based on next config. */
+function setUpEnv(dir: string, nextConfig: NextConfigComplete) {
+  const dev = false
+  loadEnvConfig(dir, dev, Log)
+
+  if (nextConfig.experimental.newNextLinkBehavior) {
+    process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
+  }
+}
 
 /*
 // Usage in jest.config.js
@@ -46,7 +55,7 @@ module.exports = createJestConfig(customJestConfig)
 */
 export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
-  return (customJestConfig: any) => {
+  return (customJestConfig?: any) => {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
     return async () => {
@@ -54,13 +63,16 @@ export default function nextJest(options: { dir?: string } = {}) {
       let jsConfig
       let resolvedBaseUrl
       let isEsmProject = false
+      let pagesDir: string | undefined
+
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
+        pagesDir = findPagesDir(resolvedDir).pages
         const packageConfig = loadClosestPackageJson(resolvedDir)
         isEsmProject = packageConfig.type === 'module'
 
         nextConfig = await getConfig(resolvedDir)
-        loadEnvConfig(resolvedDir, false, Log)
+        setUpEnv(resolvedDir, nextConfig)
         // TODO: revisit when bug in SWC is fixed that strips `.css`
         const result = await loadJsConfig(resolvedDir, nextConfig)
         jsConfig = result.jsConfig
@@ -68,9 +80,16 @@ export default function nextJest(options: { dir?: string } = {}) {
       }
       // Ensure provided async config is supported
       const resolvedJestConfig =
-        typeof customJestConfig === 'function'
+        (typeof customJestConfig === 'function'
           ? await customJestConfig()
-          : customJestConfig
+          : customJestConfig) ?? {}
+
+      // eagerly load swc bindings instead of waiting for transform calls
+      await loadBindings()
+
+      if (lockfilePatchPromise.cur) {
+        await lockfilePatchPromise.cur
+      }
 
       return {
         ...resolvedJestConfig,
@@ -85,11 +104,16 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
 
           // Handle image imports
-          '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': require.resolve(
+          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(
             `./__mocks__/fileMock.js`
           ),
 
-          // Custom config will be able to override the default mappings
+          // Keep .svg to it's own rule to make overriding easy
+          '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
+
+          // custom config comes last to ensure the above rules are matched,
+          // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
+          // CSS/image mocks
           ...(resolvedJestConfig.moduleNameMapper || {}),
         },
         testPathIgnorePatterns: [
@@ -104,13 +128,14 @@ export default function nextJest(options: { dir?: string } = {}) {
 
         transform: {
           // Use SWC to compile tests
-          '^.+\\.(js|jsx|ts|tsx)$': [
+          '^.+\\.(js|jsx|ts|tsx|mjs)$': [
             require.resolve('../swc/jest-transformer'),
             {
               nextConfig,
               jsConfig,
               resolvedBaseUrl,
               isEsmProject,
+              pagesDir,
             },
           ],
           // Allow for appending/overriding the default transforms

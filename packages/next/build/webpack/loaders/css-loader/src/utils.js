@@ -43,6 +43,10 @@ function normalizePath(file) {
   return path.sep === '\\' ? file.replace(/\\/g, '/') : file
 }
 
+function fixedEncodeURIComponent(str) {
+  return str.replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)
+}
+
 function normalizeUrl(url, isStringValue) {
   let normalizedUrl = url
 
@@ -51,10 +55,28 @@ function normalizeUrl(url, isStringValue) {
   }
 
   if (matchNativeWin32Path.test(url)) {
-    return decodeURIComponent(normalizedUrl)
+    try {
+      normalizedUrl = decodeURIComponent(normalizedUrl)
+    } catch (error) {
+      // Ignores invalid and broken URLs and try to resolve them as is
+    }
+
+    return normalizedUrl
   }
 
-  return decodeURIComponent(unescape(normalizedUrl))
+  normalizedUrl = unescape(normalizedUrl)
+
+  if (isDataUrl(url)) {
+    return fixedEncodeURIComponent(normalizedUrl)
+  }
+
+  try {
+    normalizedUrl = decodeURI(normalizedUrl)
+  } catch (error) {
+    // Ignores invalid and broken URLs and try to resolve them as is
+  }
+
+  return normalizedUrl
 }
 
 function requestify(url, rootContext) {
@@ -113,7 +135,7 @@ function shouldUseIcssPlugin(options) {
   return options.icss === true || Boolean(options.modules)
 }
 
-function getModulesPlugins(options, loaderContext) {
+function getModulesPlugins(options, loaderContext, meta) {
   const {
     mode,
     getLocalIdent,
@@ -132,11 +154,17 @@ function getModulesPlugins(options, loaderContext) {
       extractImports(),
       modulesScope({
         generateScopedName(exportName) {
-          return getLocalIdent(loaderContext, localIdentName, exportName, {
-            context: localIdentContext,
-            hashPrefix: localIdentHashPrefix,
-            regExp: localIdentRegExp,
-          })
+          return getLocalIdent(
+            loaderContext,
+            localIdentName,
+            exportName,
+            {
+              context: localIdentContext,
+              hashPrefix: localIdentHashPrefix,
+              regExp: localIdentRegExp,
+            },
+            meta
+          )
         },
         exportGlobals: options.modules.exportGlobals,
       }),

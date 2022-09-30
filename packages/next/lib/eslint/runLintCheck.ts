@@ -9,25 +9,38 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import { LintResult, formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { hasEslintConfiguration } from './hasEslintConfiguration'
+import { writeOutputFile } from './writeOutputFile'
 
 import { ESLINT_PROMPT_VALUES } from '../constants'
 import { existsSync, findPagesDir } from '../find-pages-dir'
 import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
-import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
 import isError, { getProperError } from '../is-error'
+import { getPkgManager } from '../helpers/get-pkg-manager'
 
 type Config = {
   plugins: string[]
   rules: { [key: string]: Array<number | string> }
 }
 
+// 0 is off, 1 is warn, 2 is error. See https://eslint.org/docs/user-guide/configuring/rules#configuring-rules
+const VALID_SEVERITY = ['off', 'warn', 'error'] as const
+type Severity = typeof VALID_SEVERITY[number]
+
+function isValidSeverity(severity: string): severity is Severity {
+  return VALID_SEVERITY.includes(severity as Severity)
+}
+
 const requiredPackages = [
-  { file: 'eslint', pkg: 'eslint' },
-  { file: 'eslint-config-next', pkg: 'eslint-config-next' },
+  { file: 'eslint', pkg: 'eslint', exportsRestrict: false },
+  {
+    file: 'eslint-config-next',
+    pkg: 'eslint-config-next',
+    exportsRestrict: false,
+  },
 ]
 
 async function cliPrompt() {
@@ -70,11 +83,22 @@ async function lint(
   lintDirs: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
-  lintDuringBuild: boolean = false,
-  eslintOptions: any = null,
-  reportErrorsOnly: boolean = false,
-  maxWarnings: number = -1,
-  formatter: string | null = null
+  hasAppDir: boolean,
+  {
+    lintDuringBuild = false,
+    eslintOptions = null,
+    reportErrorsOnly = false,
+    maxWarnings = -1,
+    formatter = null,
+    outputFile = null,
+  }: {
+    lintDuringBuild: boolean
+    eslintOptions: any
+    reportErrorsOnly: boolean
+    maxWarnings: number
+    formatter: string | null
+    outputFile: string | null
+  }
 ): Promise<
   | string
   | null
@@ -87,15 +111,18 @@ async function lint(
   try {
     // Load ESLint after we're sure it exists:
     const deps = await hasNecessaryDependencies(baseDir, requiredPackages)
+    const packageManager = getPkgManager(baseDir)
 
     if (deps.missing.some((dep) => dep.pkg === 'eslint')) {
       Log.error(
         `ESLint must be installed${
           lintDuringBuild ? ' in order to run during builds:' : ':'
         } ${chalk.bold.cyan(
-          (await isYarn(baseDir))
-            ? 'yarn add --dev eslint'
-            : 'npm install --save-dev eslint'
+          (packageManager === 'yarn'
+            ? 'yarn add --dev'
+            : packageManager === 'pnpm'
+            ? 'pnpm install --save-dev'
+            : 'npm install --save-dev') + ' eslint'
         )}`
       )
       return null
@@ -126,6 +153,7 @@ async function lint(
     let eslint = new ESLint(options)
 
     let nextEslintPluginIsEnabled = false
+    const nextRulesEnabled = new Map<string, Severity>()
     const pagesDirRules = ['@next/next/no-html-link-for-pages']
 
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
@@ -137,11 +165,28 @@ async function lint(
 
       if (completeConfig.plugins?.includes('@next/next')) {
         nextEslintPluginIsEnabled = true
+        for (const [name, [severity]] of Object.entries(completeConfig.rules)) {
+          if (!name.startsWith('@next/next/')) {
+            continue
+          }
+          if (
+            typeof severity === 'number' &&
+            severity >= 0 &&
+            severity < VALID_SEVERITY.length
+          ) {
+            nextRulesEnabled.set(name, VALID_SEVERITY[severity])
+          } else if (
+            typeof severity === 'string' &&
+            isValidSeverity(severity)
+          ) {
+            nextRulesEnabled.set(name, severity)
+          }
+        }
         break
       }
     }
 
-    const pagesDir = findPagesDir(baseDir)
+    const pagesDir = findPagesDir(baseDir, hasAppDir).pages
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false
@@ -190,8 +235,10 @@ async function lint(
       0
     )
 
+    if (outputFile) await writeOutputFile(outputFile, formattedResult.output)
+
     return {
-      output: formattedResult.output,
+      output: formattedResult.outputWithMessages,
       isError:
         ESLint.getErrorResults(results)?.length > 0 ||
         (maxWarnings >= 0 && totalWarnings > maxWarnings),
@@ -210,6 +257,7 @@ async function lint(
         nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
         nextEslintPluginWarningsCount:
           formattedResult.totalNextPluginWarningCount,
+        nextRulesEnabled: Object.fromEntries(nextRulesEnabled),
       },
     }
   } catch (err) {
@@ -229,19 +277,35 @@ async function lint(
 export async function runLintCheck(
   baseDir: string,
   lintDirs: string[],
-  lintDuringBuild: boolean = false,
-  eslintOptions: any = null,
-  reportErrorsOnly: boolean = false,
-  maxWarnings: number = -1,
-  formatter: string | null = null,
-  strict: boolean = false
+  opts: {
+    lintDuringBuild?: boolean
+    eslintOptions?: any
+    reportErrorsOnly?: boolean
+    maxWarnings?: number
+    formatter?: string | null
+    outputFile?: string | null
+    strict?: boolean
+    hasAppDir: boolean
+  }
 ): ReturnType<typeof lint> {
+  const {
+    lintDuringBuild = false,
+    eslintOptions = null,
+    reportErrorsOnly = false,
+    maxWarnings = -1,
+    formatter = null,
+    outputFile = null,
+    strict = false,
+    hasAppDir,
+  } = opts
   try {
     // Find user's .eslintrc file
+    // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
     const eslintrcFile =
       (await findUp(
         [
           '.eslintrc.js',
+          '.eslintrc.cjs',
           '.eslintrc.yaml',
           '.eslintrc.yml',
           '.eslintrc.json',
@@ -271,20 +335,28 @@ export async function runLintCheck(
         lintDirs,
         eslintrcFile,
         pkgJsonPath,
-        lintDuringBuild,
-        eslintOptions,
-        reportErrorsOnly,
-        maxWarnings,
-        formatter
+        hasAppDir,
+        {
+          lintDuringBuild,
+          eslintOptions,
+          reportErrorsOnly,
+          maxWarnings,
+          formatter,
+          outputFile,
+        }
       )
     } else {
-      // Display warning if no ESLint configuration is present during "next build"
+      // Display warning if no ESLint configuration is present inside
+      // config file during "next build", no warning is shown when
+      // no eslintrc file is present
       if (lintDuringBuild) {
-        Log.warn(
-          `No ESLint configuration detected. Run ${chalk.bold.cyan(
-            'next lint'
-          )} to begin setup`
-        )
+        if (config.emptyPkgJsonConfig || config.emptyEslintrc) {
+          Log.warn(
+            `No ESLint configuration detected. Run ${chalk.bold.cyan(
+              'next lint'
+            )} to begin setup`
+          )
+        }
         return null
       } else {
         // Ask user what config they would like to start with for first time "next lint" setup

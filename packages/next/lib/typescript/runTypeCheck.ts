@@ -7,6 +7,7 @@ import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 import { getRequiredConfiguration } from './writeConfigurationDefaults'
 
 import { CompileError } from '../compile-error'
+import { warn } from '../../build/output/log'
 
 export interface TypeCheckResult {
   hasWarnings: boolean
@@ -40,6 +41,8 @@ export async function runTypeCheck(
   const options = {
     ...effectiveConfiguration.options,
     ...requiredConfig,
+    declarationMap: false,
+    emitDeclarationOnly: false,
     noEmit: true,
   }
 
@@ -47,12 +50,18 @@ export async function runTypeCheck(
     | import('typescript').Program
     | import('typescript').BuilderProgram
   let incremental = false
-  if (options.incremental && cacheDir) {
+  if ((options.incremental || options.composite) && cacheDir) {
+    if (options.composite) {
+      warn(
+        'TypeScript project references are not fully supported. Attempting to build in incremental mode.'
+      )
+    }
     incremental = true
     program = ts.createIncrementalProgram({
       rootNames: effectiveConfiguration.fileNames,
       options: {
         ...options,
+        composite: false,
         incremental: true,
         tsBuildInfoFile: path.join(cacheDir, '.tsbuildinfo'),
       },

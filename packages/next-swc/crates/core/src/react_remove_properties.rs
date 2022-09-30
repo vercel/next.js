@@ -1,7 +1,10 @@
 use regex::Regex;
 use serde::Deserialize;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{noop_fold_type, Fold, FoldWith};
+
+use swc_core::{
+    ecma::ast::*,
+    ecma::visit::{noop_fold_type, Fold, FoldWith},
+};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -39,12 +42,11 @@ impl Fold for RemoveProperties {
     noop_fold_type!();
 
     fn fold_jsx_opening_element(&mut self, mut el: JSXOpeningElement) -> JSXOpeningElement {
-        el.attrs.retain(|attr| match attr {
-            JSXAttrOrSpread::JSXAttr(JSXAttr {
-                name: JSXAttrName::Ident(ident),
-                ..
-            }) if self.should_remove_property(ident.sym.as_ref()) => false,
-            _ => true,
+        el.attrs.retain(|attr| {
+            !matches!(attr, JSXAttrOrSpread::JSXAttr(JSXAttr {
+              name: JSXAttrName::Ident(ident),
+              ..
+            }) if self.should_remove_property(ident.sym.as_ref()))
         });
         el.fold_children_with(self)
     }
@@ -67,6 +69,5 @@ pub fn remove_properties(config: Config) -> impl Fold {
         // Keep the default regex identical to `babel-plugin-react-remove-properties`.
         properties.push(Regex::new(r"^data-test").unwrap());
     }
-    let remover = RemoveProperties { properties };
-    remover
+    RemoveProperties { properties }
 }

@@ -15,7 +15,18 @@ module.exports = function (plop) {
         type: 'list',
         name: 'type',
         message: 'Test type',
-        choices: ['e2e', 'unit', 'production', 'development'],
+        choices: [
+          {
+            name: 'e2e - Test "next dev" and "next build && next start"',
+            value: 'e2e',
+          },
+          {
+            name: 'production - Test "next build && next start"',
+            value: 'production',
+          },
+          { name: 'development - Test "next dev"', value: 'development' },
+          { name: 'unit - Test individual files', value: 'unit' },
+        ],
       },
     ],
     actions: function (data) {
@@ -40,13 +51,28 @@ module.exports = function (plop) {
     description: 'Create a new error document',
     prompts: [
       {
+        name: 'urlPath',
+        type: 'input',
+        message: 'Url path with dashes. E.g. circular-structure',
+      },
+      {
         name: 'title',
         type: 'input',
-        message: 'Title for the error',
+        message: 'Title for the error. E.g. Circular Structure',
+      },
+      {
+        name: 'why',
+        type: 'input',
+        message: 'What caused the error to happen?',
+      },
+      {
+        name: 'fix',
+        type: 'input',
+        message: 'What are the possible ways to fix it?',
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.title)
+      const fileName = getFileName(data.urlPath)
       return [
         {
           type: 'add',
@@ -65,6 +91,7 @@ module.exports = function (plop) {
             return JSON.stringify(manifestData, null, 2)
           },
         },
+        `Url for the error: https://nextjs.org/docs/messages/${fileName}`,
       ]
     },
   })

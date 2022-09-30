@@ -1,3 +1,4 @@
+import type { Rewrite, CustomRoutes } from '../../../lib/load-custom-routes'
 import devalue from 'next/dist/compiled/devalue'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -5,6 +6,7 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -12,10 +14,8 @@ import {
 import { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
-import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { spans } from './profiling-plugin'
-import { CustomRoutes } from '../../../lib/load-custom-routes'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -28,7 +28,7 @@ function generateClientManifest(
   compilation: any,
   assetMap: BuildManifest,
   rewrites: CustomRoutes['rewrites']
-): string {
+): string | undefined {
   const compilationSpan = spans.get(compilation) || spans.get(compiler)
   const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'
@@ -65,7 +65,7 @@ function generateClientManifest(
   })
 }
 
-function getEntrypointFiles(entrypoint: any): string[] {
+export function getEntrypointFiles(entrypoint: any): string[] {
   return (
     entrypoint
       ?.getFiles()
@@ -95,12 +95,14 @@ export default class BuildManifestPlugin {
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
   private exportRuntime: boolean
+  private appDirEnabled: boolean
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     exportRuntime?: boolean
+    appDirEnabled: boolean
   }) {
     this.buildId = options.buildId
     this.isDevFallback = !!options.isDevFallback
@@ -109,6 +111,7 @@ export default class BuildManifestPlugin {
       afterFiles: [],
       fallback: [],
     }
+    this.appDirEnabled = options.appDirEnabled
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
@@ -127,6 +130,7 @@ export default class BuildManifestPlugin {
         devFiles: [],
         ampDevFiles: [],
         lowPriorityFiles: [],
+        rootMainFiles: [],
         pages: { '/_app': [] },
         ampFirstPages: [],
       }
@@ -146,6 +150,16 @@ export default class BuildManifestPlugin {
       const mainFiles = new Set(
         getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
+
+      if (this.appDirEnabled) {
+        assetMap.rootMainFiles = [
+          ...new Set(
+            getEntrypointFiles(
+              entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
+            )
+          ),
+        ]
+      }
 
       const compilationAssets: {
         name: string
@@ -178,6 +192,7 @@ export default class BuildManifestPlugin {
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
+        ...(this.appDirEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] : []),
       ])
 
       for (const entrypoint of compilation.entrypoints.values()) {
@@ -208,13 +223,6 @@ export default class BuildManifestPlugin {
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
         assetMap.lowPriorityFiles.push(ssgManifestPath)
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
-
-        const srcEmptyMiddlewareManifest = `self.__MIDDLEWARE_MANIFEST=[];self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
-        const middlewareManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_middlewareManifest.js`
-        assetMap.lowPriorityFiles.push(middlewareManifestPath)
-        assets[middlewareManifestPath] = new sources.RawSource(
-          srcEmptyMiddlewareManifest
-        )
       }
 
       assetMap.pages = Object.keys(assetMap.pages)
@@ -258,11 +266,9 @@ export default class BuildManifestPlugin {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsBuildManifest',
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {

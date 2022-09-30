@@ -11,25 +11,39 @@ module.exports = function (task) {
   task.plugin(
     'swc',
     {},
-    function* (file, serverOrClient, { stripExtension, dev } = {}) {
+    function* (
+      file,
+      serverOrClient,
+      {
+        stripExtension,
+        keepImportAssertions = false,
+        interopClientDefaultExport = false,
+        esm = false,
+      } = {}
+    ) {
       // Don't compile .d.ts
       if (file.base.endsWith('.d.ts')) return
 
       const isClient = serverOrClient === 'client'
 
+      /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
         module: {
-          type: 'commonjs',
+          type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
         },
         jsc: {
           loose: true,
-
+          externalHelpers: true,
           target: 'es2016',
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
+            importAssertions: true,
             tsx: file.base.endsWith('.tsx'),
+          },
+          experimental: {
+            keepImportAssertions,
           },
           transform: {
             react: {
@@ -43,9 +57,10 @@ module.exports = function (task) {
         },
       }
 
+      /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
         module: {
-          type: 'commonjs',
+          type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
         },
         env: {
@@ -55,11 +70,17 @@ module.exports = function (task) {
         },
         jsc: {
           loose: true,
-
+          // Do not enable external helpers on server-side files build
+          // _is_native_funtion helper is not compatible with edge runtime (need investigate)
+          externalHelpers: false,
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
+            importAssertions: true,
             tsx: file.base.endsWith('.tsx'),
+          },
+          experimental: {
+            keepImportAssertions,
           },
           transform: {
             react: {
@@ -82,13 +103,21 @@ module.exports = function (task) {
       const options = {
         filename: path.join(file.dir, file.base),
         sourceMaps: true,
+        inlineSourcesContent: false,
         sourceFileName: path.relative(distFilePath, fullFilePath),
 
         ...swcOptions,
       }
 
-      const output = yield transform(file.data.toString('utf-8'), options)
+      const source = file.data.toString('utf-8')
+      const output = yield transform(source, options)
       const ext = path.extname(file.base)
+
+      // Make sure the output content keeps the `"client"` directive.
+      // TODO: Remove this once SWC fixes the issue.
+      if (/^['"]client['"]/.test(source)) {
+        output.code = '"client";\n' + output.code
+      }
 
       // Replace `.ts|.tsx` with `.js` in files with an extension
       if (ext) {
@@ -98,6 +127,16 @@ module.exports = function (task) {
       }
 
       if (output.map) {
+        if (interopClientDefaultExport && !esm) {
+          output.code += `
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
+`
+        }
+
         const map = `${file.base}.map`
 
         output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)

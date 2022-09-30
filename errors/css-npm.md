@@ -24,4 +24,4 @@ know the correct behavior:
 - Should the file be consumed as Global CSS or CSS Modules?
 - If Global, in what order does the file need to be injected?
 - If Modules, what are the emitted class names? As-is, camel-case, snake case?
-- Etc...
+- Etc.

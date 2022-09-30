@@ -1,5 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { COMPILER_NAMES } from '../../../../shared/lib/constants'
 import { ConfigurationContext } from '../utils'
 
 export const base = curry(function base(
@@ -8,15 +9,15 @@ export const base = curry(function base(
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer
-    ? ctx.webServerRuntime
-      ? 'server-web'
-      : 'server'
-    : 'client'
+    ? ctx.isEdgeRuntime
+      ? COMPILER_NAMES.edgeServer
+      : COMPILER_NAMES.server
+    : COMPILER_NAMES.client
 
   // @ts-ignore TODO webpack 5 typings
   config.target = !ctx.targetWeb
     ? 'node12.22'
-    : ctx.webServerRuntime
+    : ctx.isEdgeRuntime
     ? ['web', 'es6']
     : ['web', 'es5']
 
@@ -25,17 +26,18 @@ export const base = curry(function base(
     if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
       config.devtool = false
     } else {
-      if (!ctx.webServerRuntime) {
-        // `eval-source-map` provides full-fidelity source maps for the
-        // original source, including columns and original variable names.
-        // This is desirable so the in-browser debugger can correctly pause
-        // and show scoped variables with their original names.
-        config.devtool = 'eval-source-map'
-      }
+      // `eval-source-map` provides full-fidelity source maps for the
+      // original source, including columns and original variable names.
+      // This is desirable so the in-browser debugger can correctly pause
+      // and show scoped variables with their original names.
+      config.devtool = 'eval-source-map'
     }
   } else {
-    // Enable browser sourcemaps:
-    if (ctx.productionBrowserSourceMaps && ctx.isClient) {
+    if (
+      ctx.isEdgeRuntime ||
+      // Enable browser sourcemaps:
+      (ctx.productionBrowserSourceMaps && ctx.isClient)
+    ) {
       config.devtool = 'source-map'
     } else {
       config.devtool = false

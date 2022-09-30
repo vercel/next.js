@@ -1,9 +1,12 @@
 import { parse as parseUrl } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
-import { apiResolver } from '../../../../server/api-utils'
+import { apiResolver } from '../../../../server/api-utils/node'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 import { DecodeError } from '../../../../shared/lib/utils'
-import { NodeNextResponse, NodeNextRequest } from '../../../../server/base-http'
+import {
+  NodeNextResponse,
+  NodeNextRequest,
+} from '../../../../server/base-http/node'
 
 export function getApiHandler(ctx: ServerlessHandlerCtx) {
   const { pageModule, encodedPreviewProps, pageIsDynamic } = ctx
@@ -27,7 +30,8 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
       // We need to trust the dynamic route params from the proxy
       // to ensure we are using the correct values
       const trustQuery = req.headers[vercelHeader]
-      const parsedUrl = handleRewrites(req, parseUrl(req.url!, true))
+      const parsedUrl = parseUrl(req.url!, true)
+      handleRewrites(req, parsedUrl)
 
       if (parsedUrl.query.nextInternalLocale) {
         delete parsedUrl.query.nextInternalLocale

@@ -1,10 +1,12 @@
-use swc_atoms::JsWord;
-use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::{
-    ArrayPat, Callee, Decl, Expr, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
-    ObjectPat, ObjectPatProp, Pat, PropName, VarDecl, VarDeclarator,
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{
+        ArrayPat, Callee, Decl, Expr, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
+        ObjectPat, ObjectPatProp, Pat, PropName, VarDecl, VarDeclarator,
+    },
+    ecma::atoms::JsWord,
+    ecma::visit::{Fold, FoldWith},
 };
-use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn hook_optimizer() -> impl Fold {
     HookOptimizer::default()
@@ -39,7 +41,7 @@ impl Fold for HookOptimizer {
     fn fold_decl(&mut self, node: Decl) -> Decl {
         let node = node.fold_children_with(self);
         match node {
-            Decl::Var(VarDecl {
+            Decl::Var(box VarDecl {
                 decls,
                 span,
                 kind,
@@ -50,12 +52,12 @@ impl Fold for HookOptimizer {
                     new_decls.push(self.get_decl(decl));
                 }
 
-                Decl::Var(VarDecl {
+                Decl::Var(Box::new(VarDecl {
                     decls: new_decls,
                     span,
                     kind,
                     declare,
-                })
+                }))
             }
             _ => node,
         }
@@ -72,11 +74,11 @@ impl HookOptimizer {
         } = &decl;
         let init_clone = init.clone();
         if let Pat::Array(a) = name {
-            if let Expr::Call(c) = &*init.as_deref().unwrap() {
+            if let Expr::Call(c) = init.as_deref().unwrap() {
                 if let Callee::Expr(i) = &c.callee {
                     if let Expr::Ident(Ident { sym, .. }) = &**i {
-                        if self.hooks.contains(&sym) {
-                            let name = get_object_pattern(&a);
+                        if self.hooks.contains(sym) {
+                            let name = get_object_pattern(a);
                             return VarDeclarator {
                                 name,
                                 init: init_clone,
@@ -89,7 +91,7 @@ impl HookOptimizer {
             }
         }
 
-        return decl;
+        decl
     }
 }
 
@@ -98,15 +100,17 @@ fn get_object_pattern(array_pattern: &ArrayPat) -> Pat {
         .elems
         .iter()
         .enumerate()
-        .filter_map(|(i, elem)| match elem {
-            Some(elem) => Some(ObjectPatProp::KeyValue(KeyValuePatProp {
-                key: PropName::Num(Number {
-                    value: i as f64,
-                    span: DUMMY_SP,
-                }),
-                value: Box::new(elem.clone()),
-            })),
-            None => None,
+        .filter_map(|(i, elem)| {
+            elem.as_ref().map(|elem| {
+                ObjectPatProp::KeyValue(KeyValuePatProp {
+                    key: PropName::Num(Number {
+                        value: i as f64,
+                        span: DUMMY_SP,
+                        raw: None,
+                    }),
+                    value: Box::new(elem.clone()),
+                })
+            })
         })
         .collect();
 

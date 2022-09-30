@@ -37,17 +37,52 @@ function MyComponent() {
 }
 ```
 
+Another example:
+
+Invalid HTML may cause hydration mismatch such as div inside p.
+
+```jsx
+export const IncorrectComponent = () => {
+  return (
+    <p>
+      <div>
+        This is not correct and should never be done because the p tag has been
+        abused
+      </div>
+      <Image src="/vercel.svg" alt="" width="30" height="30" />
+    </p>
+  )
+}
+```
+
+How to fix it:
+
+```jsx
+export const CorrectComponent = () => {
+  return (
+    <div>
+      <div>
+        This is correct and should work because a div is really good for this
+        task.
+      </div>
+      <Image src="/vercel.svg" alt="" width="30" height="30" />
+    </div>
+  )
+}
+```
+
 Common causes with css-in-js libraries:
 
 - When using Styled Components / Emotion
   - When css-in-js libraries are not set up for pre-rendering (SSR/SSG) it will often lead to a hydration mismatch. In general this means the application has to follow the Next.js example for the library. For example if `pages/_document` is missing and the Babel plugin is not added.
-    - Possible fix for Styled Components: https://github.com/vercel/next.js/tree/canary/examples/with-styled-components
-      - If you want to leverage Styled Components with the new Next.js Compiler in Next.js 12 there is an [experimental flag available](https://github.com/vercel/next.js/discussions/30174#discussion-3643870)
+    - Possible fix for Styled Components:
+      - If you want to leverage Styled Components with SWC in Next.js 12.1+ you need to [add it to your Next.js config under compiler options](https://nextjs.org/docs/advanced-features/compiler#styled-components): https://github.com/vercel/next.js/tree/canary/examples/with-styled-components
+      - If you want to use Styled Components with Babel, you need `pages/_document` and the Babel plugin: https://github.com/vercel/next.js/tree/canary/examples/with-styled-components-babel
     - Possible fix for Emotion: https://github.com/vercel/next.js/tree/canary/examples/with-emotion
 - When using other css-in-js libraries
   - Similar to Styled Components / Emotion css-in-js libraries generally need configuration specified in their examples in the [examples directory](https://github.com/vercel/next.js/tree/canary/examples)
 
 ### Useful Links
 
-- [React Hydration Documentation](https://reactjs.org/docs/react-dom.html#hydrate)
+- [React Hydration Documentation](https://reactjs.org/docs/react-dom-client.html#hydrateroot)
 - [Josh Comeau's article on React Hydration](https://www.joshwcomeau.com/react/the-perils-of-rehydration/)

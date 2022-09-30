@@ -4,21 +4,27 @@ This example shows how you can use `@auth0/nextjs-auth` to easily add authentica
 
 - Signing in
 - Signing out
-- Loading the user on the server side and adding it as part of SSR ([`pages/advanced/ssr-profile.js`](pages/advanced/ssr-profile.js))
-- Loading the user on the client side and using fast/cached SSR pages ([`pages/index.js`](pages/index.js))
-- API Routes which can load the current user ([`pages/api/me.js`](pages/api/me.js))
-- Using hooks to make the user available throughout the application ([`lib/user.js`](lib/user.js))
+- Loading the user on the server side and adding it as part of SSR ([`pages/advanced/ssr-profile.tsx`](pages/advanced/ssr-profile.tsx))
+- Loading the user on the client side and using fast/cached SSR pages ([`pages/index.tsx`](pages/index.tsx))
+- API Routes which can load the current user ([`pages/api/me.ts`](pages/api/me.ts))
+- Using hooks to make the user available throughout the application ([`lib/user.ts`](lib/user.ts))
 
 Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example auth0 auth0-app
-# or
+```
+
+```bash
 yarn create next-app --example auth0 auth0-app
+```
+
+```bash
+pnpm create next-app --example auth0 auth0-app
 ```
 
 ## Configuring Auth0

@@ -1,8 +1,10 @@
 use chrono::Utc;
-use swc_common::{Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::HANDLER;
-use swc_ecmascript::visit::{Fold, FoldWith};
+
+use swc_core::{
+    common::{errors::HANDLER, Span, DUMMY_SP},
+    ecma::ast::*,
+    ecma::visit::{Fold, FoldWith},
+};
 
 pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {
     PageConfig {
@@ -41,7 +43,7 @@ impl Fold for PageConfig {
                     true => String::from("mock_timestamp"),
                     false => Utc::now().timestamp().to_string(),
                 };
-                return vec![ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                return vec![ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                     decls: vec![VarDeclarator {
                         name: Pat::Ident(BindingIdent {
                             id: Ident {
@@ -54,8 +56,7 @@ impl Fold for PageConfig {
                         init: Some(Box::new(Expr::Lit(Lit::Str(Str {
                             value: format!("{} {}", STRING_LITERAL_DROP_BUNDLE, timestamp).into(),
                             span: DUMMY_SP,
-                            kind: StrKind::Synthesized {},
-                            has_escape: false,
+                            raw: None,
                         })))),
                         span: DUMMY_SP,
                         definite: false,
@@ -63,7 +64,7 @@ impl Fold for PageConfig {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Const,
                     declare: false,
-                })))];
+                }))))];
             }
         }
 
@@ -71,76 +72,73 @@ impl Fold for PageConfig {
     }
 
     fn fold_export_decl(&mut self, export: ExportDecl) -> ExportDecl {
-        match &export.decl {
-            Decl::Var(var_decl) => {
-                for decl in &var_decl.decls {
-                    let mut is_config = false;
-                    if let Pat::Ident(ident) = &decl.name {
-                        if &ident.id.sym == CONFIG_KEY {
-                            is_config = true;
-                        }
+        if let Decl::Var(var_decl) = &export.decl {
+            for decl in &var_decl.decls {
+                let mut is_config = false;
+                if let Pat::Ident(ident) = &decl.name {
+                    if &ident.id.sym == CONFIG_KEY {
+                        is_config = true;
                     }
+                }
 
-                    if is_config {
-                        if let Some(expr) = &decl.init {
-                            if let Expr::Object(obj) = &**expr {
-                                for prop in &obj.props {
-                                    if let PropOrSpread::Prop(prop) = prop {
-                                        if let Prop::KeyValue(kv) = &**prop {
-                                            match &kv.key {
-                                                PropName::Ident(ident) => {
-                                                    if &ident.sym == "amp" {
-                                                        if let Expr::Lit(Lit::Bool(Bool {
-                                                            value,
-                                                            ..
-                                                        })) = &*kv.value
-                                                        {
-                                                            if *value && self.is_page_file {
-                                                                self.drop_bundle = true;
-                                                            }
-                                                        } else if let Expr::Lit(Lit::Str(_)) =
-                                                            &*kv.value
-                                                        {
-                                                            // Do not replace
-                                                            // bundle
-                                                        } else {
-                                                            self.handle_error(
-                                                                "Invalid value found.",
-                                                                export.span,
-                                                            );
+                if is_config {
+                    if let Some(expr) = &decl.init {
+                        if let Expr::Object(obj) = &**expr {
+                            for prop in &obj.props {
+                                if let PropOrSpread::Prop(prop) = prop {
+                                    if let Prop::KeyValue(kv) = &**prop {
+                                        match &kv.key {
+                                            PropName::Ident(ident) => {
+                                                if &ident.sym == "amp" {
+                                                    if let Expr::Lit(Lit::Bool(Bool {
+                                                        value,
+                                                        ..
+                                                    })) = &*kv.value
+                                                    {
+                                                        if *value && self.is_page_file {
+                                                            self.drop_bundle = true;
                                                         }
+                                                    } else if let Expr::Lit(Lit::Str(_)) =
+                                                        &*kv.value
+                                                    {
+                                                        // Do not replace
+                                                        // bundle
+                                                    } else {
+                                                        self.handle_error(
+                                                            "Invalid value found.",
+                                                            export.span,
+                                                        );
                                                     }
                                                 }
-                                                _ => {
-                                                    self.handle_error(
-                                                        "Invalid property found.",
-                                                        export.span,
-                                                    );
-                                                }
                                             }
-                                        } else {
-                                            self.handle_error(
-                                                "Invalid property or value.",
-                                                export.span,
-                                            );
+                                            _ => {
+                                                self.handle_error(
+                                                    "Invalid property found.",
+                                                    export.span,
+                                                );
+                                            }
                                         }
                                     } else {
                                         self.handle_error(
-                                            "Property spread is not allowed.",
+                                            "Invalid property or value.",
                                             export.span,
                                         );
                                     }
+                                } else {
+                                    self.handle_error(
+                                        "Property spread is not allowed.",
+                                        export.span,
+                                    );
                                 }
-                            } else {
-                                self.handle_error("Expected config to be an object.", export.span);
                             }
                         } else {
                             self.handle_error("Expected config to be an object.", export.span);
                         }
+                    } else {
+                        self.handle_error("Expected config to be an object.", export.span);
                     }
                 }
             }
-            _ => {}
         }
         export
     }

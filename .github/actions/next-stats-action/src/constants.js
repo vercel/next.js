@@ -1,7 +1,8 @@
 const path = require('path')
+const os = require('os')
 
 const benchTitle = 'Page Load Tests'
-const workDir = path.join(__dirname, '../.work')
+const workDir = path.join(os.tmpdir(), 'next-stats')
 const mainRepoName = 'main-repo'
 const diffRepoName = 'diff-repo'
 const mainRepoDir = path.join(workDir, mainRepoName)

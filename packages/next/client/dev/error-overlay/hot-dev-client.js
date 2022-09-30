@@ -31,10 +31,9 @@ import {
   onBuildError,
   onBuildOk,
   onRefresh,
-  onFullRefreshNeeded,
-} from 'next/dist/compiled/@next/react-dev-overlay/client'
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { addMessageListener } from './websocket'
+import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
 
 // This alternative WebpackDevServer combines the functionality of:
@@ -45,6 +44,8 @@ import formatWebpackMessages from './format-webpack-messages'
 // It makes some opinionated choices on top, like adding a syntax error overlay
 // that looks similar to our console output. The error overlay is inspired by:
 // https://github.com/glenjamin/webpack-hot-middleware
+
+window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let hadRuntimeError = false
 let customHmrEventHandler
@@ -188,8 +189,17 @@ function onFastRefresh(hasUpdates) {
   }
 
   if (startLatency) {
-    const latency = Date.now() - startLatency
+    const endLatency = Date.now()
+    const latency = endLatency - startLatency
     console.log(`[Fast Refresh] done in ${latency}ms`)
+    sendMessage(
+      JSON.stringify({
+        event: 'client-hmr-latency',
+        id: window.__nextDevClientId,
+        startTime: startLatency,
+        endTime: endLatency,
+      })
+    )
     if (self.__NEXT_HMR_LATENCY_CB) {
       self.__NEXT_HMR_LATENCY_CB(latency)
     }
@@ -220,14 +230,34 @@ function processMessage(e) {
       const { errors, warnings } = obj
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
+        sendMessage(
+          JSON.stringify({
+            event: 'client-error',
+            errorCount: errors.length,
+            clientId: window.__nextDevClientId,
+          })
+        )
         return handleErrors(errors)
       }
 
       const hasWarnings = Boolean(warnings && warnings.length)
       if (hasWarnings) {
+        sendMessage(
+          JSON.stringify({
+            event: 'client-warning',
+            warningCount: warnings.length,
+            clientId: window.__nextDevClientId,
+          })
+        )
         return handleWarnings(warnings)
       }
 
+      sendMessage(
+        JSON.stringify({
+          event: 'client-success',
+          clientId: window.__nextDevClientId,
+        })
+      )
       return handleSuccess()
     }
     default: {
@@ -283,14 +313,22 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   function handleApplyUpdates(err, updatedModules) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
-        performFullRefresh(err)
+        console.warn(
+          '[Fast Refresh] performing full reload\n\n' +
+            "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.\n" +
+            'You might have a file which exports a React component but also exports a value that is imported by a non-React component file.\n' +
+            'Consider migrating the non-React component export to a separate file and importing it into both files.\n\n' +
+            'It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.\n' +
+            'Fast Refresh requires at least one parent function component in your React tree.'
+        )
       } else if (hadRuntimeError) {
-        performFullRefresh()
+        console.warn(
+          '[Fast Refresh] performing full reload because your application had an unrecoverable error'
+        )
       }
+      performFullReload(err)
       return
     }
-
-    clearFullRefreshStorage()
 
     const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
@@ -325,30 +363,19 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   )
 }
 
-const FULL_REFRESH_STORAGE_KEY = '_has_warned_about_full_refresh'
+function performFullReload(err) {
+  const stackTrace =
+    err &&
+    ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
+      err.message ||
+      err + '')
 
-function performFullRefresh(err) {
-  if (shouldWarnAboutFullRefresh()) {
-    sessionStorage.setItem(FULL_REFRESH_STORAGE_KEY, 'true')
-    const reason =
-      err &&
-      ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
-        err.message ||
-        err + '')
-    onFullRefreshNeeded(reason)
-  } else {
-    window.location.reload()
-  }
-}
+  sendMessage(
+    JSON.stringify({
+      event: 'client-full-reload',
+      stackTrace,
+    })
+  )
 
-function shouldWarnAboutFullRefresh() {
-  return !process.env.__NEXT_TEST_MODE && !hasAlreadyWarnedAboutFullRefresh()
-}
-
-function hasAlreadyWarnedAboutFullRefresh() {
-  return sessionStorage.getItem(FULL_REFRESH_STORAGE_KEY) !== null
-}
-
-function clearFullRefreshStorage() {
-  sessionStorage.removeItem(FULL_REFRESH_STORAGE_KEY)
+  window.location.reload()
 }
