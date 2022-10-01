@@ -525,8 +525,7 @@ export default class NextNodeServer extends BaseServer {
             params.path[0] === 'media' ||
             params.path[0] === this.buildId ||
             params.path[0] === 'pages' ||
-            params.path[1] === 'pages' ||
-            params.path[0] === 'fonts'
+            params.path[1] === 'pages'
           ) {
             this.setImmutableAssetCacheControl(res)
           }
