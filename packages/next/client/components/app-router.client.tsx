@@ -208,34 +208,32 @@ export default function AppRouter({
 
     const routerInstance: AppRouterInstance = {
       // TODO-APP: implement prefetching of flight
-      prefetch: async (href) => {
+      prefetch: async (_href) => {
         // If prefetch has already been triggered, don't trigger it again.
-        if (prefetched.has(href)) {
-          return
-        }
-
-        prefetched.add(href)
-        const url = new URL(href, location.origin)
-
-        try {
-          // TODO-APP: handle case where history.state is not the new router history entry
-          const serverResponse = await fetchServerResponse(
-            url,
-            // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-            window.history.state?.tree || initialTree,
-            true
-          )
-          // @ts-ignore startTransition exists
-          React.startTransition(() => {
-            dispatch({
-              type: ACTION_PREFETCH,
-              url,
-              serverResponse,
-            })
-          })
-        } catch (err) {
-          console.error('PREFETCH ERROR', err)
-        }
+        // if (prefetched.has(href)) {
+        //   return
+        // }
+        // prefetched.add(href)
+        // const url = new URL(href, location.origin)
+        // try {
+        //   // TODO-APP: handle case where history.state is not the new router history entry
+        //   const serverResponse = await fetchServerResponse(
+        //     url,
+        //     // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
+        //     window.history.state?.tree || initialTree,
+        //     true
+        //   )
+        //   // @ts-ignore startTransition exists
+        //   React.startTransition(() => {
+        //     dispatch({
+        //       type: ACTION_PREFETCH,
+        //       url,
+        //       serverResponse,
+        //     })
+        //   })
+        // } catch (err) {
+        //   console.error('PREFETCH ERROR', err)
+        // }
       },
       replace: (href, options = {}) => {
         // @ts-ignore startTransition exists
