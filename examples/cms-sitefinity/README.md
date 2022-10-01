@@ -15,22 +15,22 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ### Related examples
 
--   [WordPress](/examples/cms-wordpress)
--   [DatoCMS](/examples/cms-datocms)
--   [Sanity](/examples/cms-sanity)
--   [TakeShape](/examples/cms-takeshape)
--   [Prismic](/examples/cms-prismic)
--   [Contentful](/examples/cms-contentful)
--   [Strapi](/examples/cms-strapi)
--   [Agility CMS](/examples/cms-agilitycms)
--   [Cosmic](/examples/cms-cosmic)
--   [ButterCMS](/examples/cms-buttercms)
--   [Storyblok](/examples/cms-storyblok)
--   [GraphCMS](/examples/cms-graphcms)
--   [Kontent](/examples/cms-kontent)
--   [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
--   [Builder.io](/examples/cms-builder-io)
--   [TinaCMS](/examples/cms-tina/)
+- [WordPress](/examples/cms-wordpress)
+- [DatoCMS](/examples/cms-datocms)
+- [Sanity](/examples/cms-sanity)
+- [TakeShape](/examples/cms-takeshape)
+- [Prismic](/examples/cms-prismic)
+- [Contentful](/examples/cms-contentful)
+- [Strapi](/examples/cms-strapi)
+- [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
+- [ButterCMS](/examples/cms-buttercms)
+- [Storyblok](/examples/cms-storyblok)
+- [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
+- [Builder.io](/examples/cms-builder-io)
+- [TinaCMS](/examples/cms-tina/)
 
 ## How to use
 
@@ -85,8 +85,8 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`
 
--   `SF_API_URL` - This is the url of the 'Default' web service that we configured earlier. E.g. http://locahost/api/default/
--   `SF_URL` - This is the URL of the CMS itself. E.g. http://localhost/
+- `SF_API_URL` - This is the url of the 'Default' web service that we configured earlier. E.g. http://locahost/api/default/
+- `SF_URL` - This is the URL of the CMS itself. E.g. http://localhost/
 
 ### Step 6. Run Next.js in development mode
 
