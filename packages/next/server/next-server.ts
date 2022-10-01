@@ -45,6 +45,7 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
@@ -287,6 +288,7 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       serverDistDir: this.serverDistDir,
+      appDir: this.nextConfig.experimental.appDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -821,19 +823,15 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
     renderOpts.serverCSSManifest = this.serverCSSManifest
+    renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
-    if (
-      this.nextConfig.experimental.appDir &&
-      (renderOpts.isAppPath || query.__flight__)
-    ) {
-      const isPagesDir = !renderOpts.isAppPath
+    if (this.nextConfig.experimental.appDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
         pathname,
         query,
-        renderOpts,
-        isPagesDir
+        renderOpts
       )
     }
 
@@ -980,7 +978,6 @@ export default class NextNodeServer extends BaseServer {
                   __nextDataReq: query.__nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
-                  __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
@@ -1003,17 +1000,22 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.serverComponents) return undefined
+    if (!this.nextConfig.experimental.appDir) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getServerCSSManifest() {
-    if (!this.nextConfig.experimental.serverComponents) return undefined
+    if (!this.nextConfig.experimental.appDir) return undefined
     return require(join(
       this.distDir,
       'server',
       FLIGHT_SERVER_CSS_MANIFEST + '.json'
     ))
+  }
+
+  protected getFontLoaderManifest() {
+    if (!this.nextConfig.experimental.fontLoaders) return undefined
+    return require(join(this.distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
   }
 
   protected getFallback(page: string): Promise<string> {

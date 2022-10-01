@@ -37,6 +37,12 @@ describe('Switchable runtime', () => {
   let next: NextInstance
   let context
 
+  if ((global as any).isNextDeploy) {
+    // TODO-APP: re-enable after Prerenders are handled on deploy
+    it('should skip for deploy temporarily', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -113,10 +119,11 @@ describe('Switchable runtime', () => {
         const browser = await webdriver(context.appPort, '/node', {
           beforePageLoad(page) {
             page.on('request', (request) => {
-              const url = request.url()
-              if (/\?__flight__=1/.test(url)) {
-                flightRequest = url
-              }
+              return request.allHeaders().then((headers) => {
+                if (headers.__rsc__ === '1') {
+                  flightRequest = request.url()
+                }
+              })
             })
           },
         })
@@ -130,7 +137,7 @@ describe('Switchable runtime', () => {
           () => browser.eval('document.documentElement.innerHTML'),
           /This is a SSR RSC page/
         )
-        expect(flightRequest).toContain('/node-rsc-ssr?__flight__=1')
+        expect(flightRequest).toContain('/node-rsc-ssr')
       })
 
       it.skip('should support client side navigation to ssg rsc pages', async () => {
@@ -159,6 +166,14 @@ describe('Switchable runtime', () => {
           () => browser.eval('document.documentElement.innerHTML'),
           /This is a static RSC page/
         )
+      })
+
+      it('should not consume server.js file extension', async () => {
+        const { status } = await fetchViaHTTP(
+          context.appPort,
+          '/legacy-extension'
+        )
+        expect(status).toBe(404)
       })
 
       it('should build /api/hello and /api/edge as an api route with edge runtime', async () => {
@@ -216,7 +231,7 @@ describe('Switchable runtime', () => {
           export const config = {
             runtime: 'experimental-edge',
           }
-  
+
           export default () => new Response('edge response')
           `
         )
@@ -246,7 +261,7 @@ describe('Switchable runtime', () => {
           export const config = {
             runtime: 'experimental-edge',
           }
-  
+
           export default () => new Response('edge response again')
           `
         )
@@ -327,7 +342,7 @@ describe('Switchable runtime', () => {
           export const config = {
             runtime: 'experimental-edge',
           }
-  
+
           export default () => new Response('edge response')
           `
         )
@@ -360,7 +375,7 @@ describe('Switchable runtime', () => {
         export const config = {
           runtime: 'experimental-edge',
         }
-    
+
         export default  => new Response('edge response')
         `
         )
@@ -378,7 +393,7 @@ describe('Switchable runtime', () => {
           export const config = {
             runtime: 'experimental-edge',
           }
-          
+
         `
         )
         await check(
@@ -400,7 +415,7 @@ describe('Switchable runtime', () => {
           export default function Page() {
             return <p>Hello from page with invalid type</p>
           }
-          
+
           export const config = {
             runtime: 10,
           }
@@ -421,7 +436,7 @@ describe('Switchable runtime', () => {
             export default function Page() {
               return <p>Hello from page with invalid runtime</p>
             }
-            
+
             export const config = {
               runtime: "asd"
             }
@@ -442,11 +457,11 @@ describe('Switchable runtime', () => {
         export default function Page() {
           return <p>Hello from page without errors</p>
         }
-        
+
         export const config = {
           runtime: 'experimental-edge',
         }
-  
+
         `
         )
         await check(
@@ -664,10 +679,11 @@ describe('Switchable runtime', () => {
         const browser = await webdriver(context.appPort, '/node', {
           beforePageLoad(page) {
             page.on('request', (request) => {
-              const url = request.url()
-              if (/\?__flight__=1/.test(url)) {
-                flightRequest = url
-              }
+              request.allHeaders().then((headers) => {
+                if (headers.__rsc__ === '1') {
+                  flightRequest = request.url()
+                }
+              })
             })
           },
         })
@@ -677,7 +693,7 @@ describe('Switchable runtime', () => {
         expect(await browser.elementByCss('body').text()).toContain(
           'This is a SSR RSC page.'
         )
-        expect(flightRequest).toContain('/node-rsc-ssr?__flight__=1')
+        expect(flightRequest).toContain('/node-rsc-ssr')
       })
 
       it.skip('should support client side navigation to ssg rsc pages', async () => {

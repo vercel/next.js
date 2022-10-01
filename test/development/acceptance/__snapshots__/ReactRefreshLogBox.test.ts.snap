@@ -72,7 +72,6 @@ Error:
   x Unexpected eof
    ,----
  1 | export default () => <div/
-   :                           ^
    \`----
 
 Caused by:

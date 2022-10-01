@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
+#![feature(box_patterns)]
 
 use auto_cjs::contains_cjs;
 use either::Either;
@@ -51,6 +52,7 @@ mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
 pub mod hook_optimizer;
 pub mod next_dynamic;
+pub mod next_font_loaders;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
@@ -101,6 +103,12 @@ pub struct TransformOptions {
     #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
 
+    #[allow(unused)]
+    #[serde(default)]
+    #[cfg(target_arch = "wasm32")]
+    /// Accept any value
+    pub relay: Option<serde_json::Value>,
+
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
 
@@ -109,6 +117,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub modularize_imports: Option<modularize_imports::Config>,
+
+    #[serde(default)]
+    pub font_loaders: Option<next_font_loaders::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -211,7 +222,11 @@ where
         match &opts.modularize_imports {
             Some(config) => Either::Left(modularize_imports::modularize_imports(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
+        match &opts.font_loaders {
+            Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
+            None => Either::Right(noop()),
+        },
     )
 }
 

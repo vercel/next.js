@@ -4,7 +4,9 @@ use napi::{CallContext, Either, Env, JsObject, JsString, JsUndefined, Task};
 use std::sync::Arc;
 use swc_core::{
     base::{config::ParseOptions, try_with_handler},
-    common::{comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap},
+    common::{
+        comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap, GLOBALS,
+    },
 };
 
 pub struct ParseTask {
@@ -22,41 +24,44 @@ impl Task for ParseTask {
     type JsValue = JsString;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        let c = swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
+        GLOBALS.set(&Default::default(), || {
+            let c =
+                swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
 
-        let options: ParseOptions = deserialize_json(&self.options).convert_err()?;
-        let comments = c.comments().clone();
-        let comments: Option<&dyn Comments> = if options.comments {
-            Some(&comments)
-        } else {
-            None
-        };
-        let fm =
-            c.cm.new_source_file(self.filename.clone(), self.src.clone());
-        let program = try_with_handler(
-            c.cm.clone(),
-            swc_core::base::HandlerOpts {
-                color: ColorConfig::Never,
-                skip_filename: false,
-            },
-            |handler| {
-                c.parse_js(
-                    fm,
-                    handler,
-                    options.target,
-                    options.syntax,
-                    options.is_module,
-                    comments,
-                )
-            },
-        )
-        .convert_err()?;
-
-        let ast_json = serde_json::to_string(&program)
-            .context("failed to serialize Program")
+            let options: ParseOptions = deserialize_json(&self.options).convert_err()?;
+            let comments = c.comments().clone();
+            let comments: Option<&dyn Comments> = if options.comments {
+                Some(&comments)
+            } else {
+                None
+            };
+            let fm =
+                c.cm.new_source_file(self.filename.clone(), self.src.clone());
+            let program = try_with_handler(
+                c.cm.clone(),
+                swc_core::base::HandlerOpts {
+                    color: ColorConfig::Never,
+                    skip_filename: false,
+                },
+                |handler| {
+                    c.parse_js(
+                        fm,
+                        handler,
+                        options.target,
+                        options.syntax,
+                        options.is_module,
+                        comments,
+                    )
+                },
+            )
             .convert_err()?;
 
-        Ok(ast_json)
+            let ast_json = serde_json::to_string(&program)
+                .context("failed to serialize Program")
+                .convert_err()?;
+
+            Ok(ast_json)
+        })
     }
 
     fn resolve(self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {

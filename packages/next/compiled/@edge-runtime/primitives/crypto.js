@@ -499,9 +499,9 @@ var require_tslib = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/rng.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/rng.js
 var require_rng = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/rng.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/rng.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -526,9 +526,9 @@ var require_rng = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/regex.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/regex.js
 var require_regex = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/regex.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/regex.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -540,9 +540,9 @@ var require_regex = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/validate.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/validate.js
 var require_validate = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/validate.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/validate.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -563,15 +563,16 @@ var require_validate = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/stringify.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/stringify.js
 var require_stringify = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/stringify.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/stringify.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
       value: true
     });
     exports.default = void 0;
+    exports.unsafeStringify = unsafeStringify;
     var _validate = _interopRequireDefault(require_validate());
     function _interopRequireDefault(obj) {
       return obj && obj.__esModule ? obj : { default: obj };
@@ -579,10 +580,14 @@ var require_stringify = __commonJS({
     __name(_interopRequireDefault, "_interopRequireDefault");
     var byteToHex = [];
     for (let i = 0; i < 256; ++i) {
-      byteToHex.push((i + 256).toString(16).substr(1));
+      byteToHex.push((i + 256).toString(16).slice(1));
     }
+    function unsafeStringify(arr, offset = 0) {
+      return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+    }
+    __name(unsafeStringify, "unsafeStringify");
     function stringify2(arr, offset = 0) {
-      const uuid2 = (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+      const uuid2 = unsafeStringify(arr, offset);
       if (!(0, _validate.default)(uuid2)) {
         throw TypeError("Stringified UUID is invalid");
       }
@@ -594,9 +599,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v1.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v1.js
 var require_v1 = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v1.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v1.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -604,7 +609,7 @@ var require_v1 = __commonJS({
     });
     exports.default = void 0;
     var _rng = _interopRequireDefault(require_rng());
-    var _stringify = _interopRequireDefault(require_stringify());
+    var _stringify = require_stringify();
     function _interopRequireDefault(obj) {
       return obj && obj.__esModule ? obj : { default: obj };
     }
@@ -659,7 +664,7 @@ var require_v1 = __commonJS({
       for (let n = 0; n < 6; ++n) {
         b[i + n] = node[n];
       }
-      return buf || (0, _stringify.default)(b);
+      return buf || (0, _stringify.unsafeStringify)(b);
     }
     __name(v12, "v1");
     var _default = v12;
@@ -667,9 +672,9 @@ var require_v1 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/parse.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/parse.js
 var require_parse = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/parse.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/parse.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -711,17 +716,17 @@ var require_parse = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v35.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v35.js
 var require_v35 = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v35.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v35.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
       value: true
     });
-    exports.default = _default;
     exports.URL = exports.DNS = void 0;
-    var _stringify = _interopRequireDefault(require_stringify());
+    exports.default = v35;
+    var _stringify = require_stringify();
     var _parse = _interopRequireDefault(require_parse());
     function _interopRequireDefault(obj) {
       return obj && obj.__esModule ? obj : { default: obj };
@@ -740,15 +745,16 @@ var require_v35 = __commonJS({
     exports.DNS = DNS;
     var URL = "6ba7b811-9dad-11d1-80b4-00c04fd430c8";
     exports.URL = URL;
-    function _default(name, version3, hashfunc) {
+    function v35(name, version3, hashfunc) {
       function generateUUID(value, namespace, buf, offset) {
+        var _namespace;
         if (typeof value === "string") {
           value = stringToBytes(value);
         }
         if (typeof namespace === "string") {
           namespace = (0, _parse.default)(namespace);
         }
-        if (namespace.length !== 16) {
+        if (((_namespace = namespace) === null || _namespace === void 0 ? void 0 : _namespace.length) !== 16) {
           throw TypeError("Namespace must be array-like (16 iterable integer values, 0-255)");
         }
         let bytes = new Uint8Array(16 + value.length);
@@ -764,7 +770,7 @@ var require_v35 = __commonJS({
           }
           return buf;
         }
-        return (0, _stringify.default)(bytes);
+        return (0, _stringify.unsafeStringify)(bytes);
       }
       __name(generateUUID, "generateUUID");
       try {
@@ -775,13 +781,13 @@ var require_v35 = __commonJS({
       generateUUID.URL = URL;
       return generateUUID;
     }
-    __name(_default, "_default");
+    __name(v35, "v35");
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/md5.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/md5.js
 var require_md5 = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/md5.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/md5.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -807,9 +813,9 @@ var require_md5 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v3.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v3.js
 var require_v3 = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v3.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v3.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -828,22 +834,47 @@ var require_v3 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v4.js
-var require_v4 = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v4.js"(exports) {
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/native.js
+var require_native = __commonJS({
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/native.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
       value: true
     });
     exports.default = void 0;
+    var _crypto = _interopRequireDefault(require("crypto"));
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { default: obj };
+    }
+    __name(_interopRequireDefault, "_interopRequireDefault");
+    var _default = {
+      randomUUID: _crypto.default.randomUUID
+    };
+    exports.default = _default;
+  }
+});
+
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v4.js
+var require_v4 = __commonJS({
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v4.js"(exports) {
+    "use strict";
+    init_define_process();
+    Object.defineProperty(exports, "__esModule", {
+      value: true
+    });
+    exports.default = void 0;
+    var _native = _interopRequireDefault(require_native());
     var _rng = _interopRequireDefault(require_rng());
-    var _stringify = _interopRequireDefault(require_stringify());
+    var _stringify = require_stringify();
     function _interopRequireDefault(obj) {
       return obj && obj.__esModule ? obj : { default: obj };
     }
     __name(_interopRequireDefault, "_interopRequireDefault");
     function v42(options, buf, offset) {
+      if (_native.default.randomUUID && !buf && !options) {
+        return _native.default.randomUUID();
+      }
       options = options || {};
       const rnds = options.random || (options.rng || _rng.default)();
       rnds[6] = rnds[6] & 15 | 64;
@@ -855,7 +886,7 @@ var require_v4 = __commonJS({
         }
         return buf;
       }
-      return (0, _stringify.default)(rnds);
+      return (0, _stringify.unsafeStringify)(rnds);
     }
     __name(v42, "v4");
     var _default = v42;
@@ -863,9 +894,9 @@ var require_v4 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/sha1.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/sha1.js
 var require_sha1 = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/sha1.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/sha1.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -891,9 +922,9 @@ var require_sha1 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v5.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v5.js
 var require_v5 = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/v5.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/v5.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -912,9 +943,9 @@ var require_v5 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/nil.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/nil.js
 var require_nil = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/nil.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/nil.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -926,9 +957,9 @@ var require_nil = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/version.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/version.js
 var require_version = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/version.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/version.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
@@ -944,7 +975,7 @@ var require_version = __commonJS({
       if (!(0, _validate.default)(uuid2)) {
         throw TypeError("Invalid UUID");
       }
-      return parseInt(uuid2.substr(14, 1), 16);
+      return parseInt(uuid2.slice(14, 15), 16);
     }
     __name(version3, "version");
     var _default = version3;
@@ -952,13 +983,31 @@ var require_version = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/index.js
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/index.js
 var require_dist = __commonJS({
-  "../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/dist/index.js"(exports) {
+  "../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/dist/index.js"(exports) {
     "use strict";
     init_define_process();
     Object.defineProperty(exports, "__esModule", {
       value: true
+    });
+    Object.defineProperty(exports, "NIL", {
+      enumerable: true,
+      get: function() {
+        return _nil.default;
+      }
+    });
+    Object.defineProperty(exports, "parse", {
+      enumerable: true,
+      get: function() {
+        return _parse.default;
+      }
+    });
+    Object.defineProperty(exports, "stringify", {
+      enumerable: true,
+      get: function() {
+        return _stringify.default;
+      }
     });
     Object.defineProperty(exports, "v1", {
       enumerable: true,
@@ -984,34 +1033,16 @@ var require_dist = __commonJS({
         return _v4.default;
       }
     });
-    Object.defineProperty(exports, "NIL", {
-      enumerable: true,
-      get: function() {
-        return _nil.default;
-      }
-    });
-    Object.defineProperty(exports, "version", {
-      enumerable: true,
-      get: function() {
-        return _version.default;
-      }
-    });
     Object.defineProperty(exports, "validate", {
       enumerable: true,
       get: function() {
         return _validate.default;
       }
     });
-    Object.defineProperty(exports, "stringify", {
+    Object.defineProperty(exports, "version", {
       enumerable: true,
       get: function() {
-        return _stringify.default;
-      }
-    });
-    Object.defineProperty(exports, "parse", {
-      enumerable: true,
-      get: function() {
-        return _parse.default;
+        return _version.default;
       }
     });
     var _v = _interopRequireDefault(require_v1());
@@ -9530,7 +9561,7 @@ var Crypto2 = class extends Crypto {
 };
 __name(Crypto2, "Crypto");
 
-// ../../node_modules/.pnpm/uuid@8.3.2/node_modules/uuid/wrapper.mjs
+// ../../node_modules/.pnpm/uuid@9.0.0/node_modules/uuid/wrapper.mjs
 init_define_process();
 var import_dist = __toESM(require_dist(), 1);
 var v1 = import_dist.default.v1;

@@ -1,7 +1,9 @@
 import type { NextConfig } from '../../../../server/config-shared'
+
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
+import type { FontLoaderManifest } from '../../plugins/font-loader-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -17,6 +19,7 @@ export function getRender({
   pageMod,
   errorMod,
   error500Mod,
+  pagesType,
   Document,
   buildManifest,
   reactLoadableManifest,
@@ -27,7 +30,9 @@ export function getRender({
   serverCSSManifest,
   config,
   buildId,
+  fontLoaderManifest,
 }: {
+  pagesType?: 'app' | 'pages' | 'root'
   dev: boolean
   page: string
   appMod: any
@@ -45,14 +50,17 @@ export function getRender({
   appServerMod: any
   config: NextConfig
   buildId: string
+  fontLoaderManifest: FontLoaderManifest
 }) {
+  const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
     dev,
     buildManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
+    fontLoaderManifest,
     Document,
-    App: appMod.default as AppType,
+    App: appMod?.default as AppType,
   }
 
   const server = new WebServer({
@@ -72,6 +80,7 @@ export function getRender({
       appRenderToHTML,
       pagesRenderToHTML,
       loadComponent: async (pathname) => {
+        if (isAppPath) return null
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
@@ -81,6 +90,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
+            pathname,
           }
         }
 
@@ -94,6 +104,7 @@ export function getRender({
             getServerSideProps: error500Mod.getServerSideProps,
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
+            pathname,
           }
         }
 
@@ -106,6 +117,7 @@ export function getRender({
             getServerSideProps: errorMod.getServerSideProps,
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
+            pathname,
           }
         }
 

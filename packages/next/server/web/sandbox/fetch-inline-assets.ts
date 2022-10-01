@@ -34,7 +34,7 @@ export async function fetchInlineAsset(options: {
   if (fileIsReadable) {
     const readStream = createReadStream(filePath)
     return new options.context.Response(
-      requestToBodyStream(options.context, readStream)
+      requestToBodyStream(options.context, Uint8Array, readStream)
     )
   }
 }

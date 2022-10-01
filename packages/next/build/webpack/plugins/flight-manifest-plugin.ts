@@ -7,8 +7,13 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
+import { isClientComponentModule } from '../loaders/utils'
+
+import {
+  edgeServerModuleIds,
+  serverModuleIds,
+} from './flight-client-entry-plugin'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -19,8 +24,7 @@ import { relative } from 'path'
 
 interface Options {
   dev: boolean
-  appDir: boolean
-  pageExtensions: string[]
+  fontLoaderTargets?: string[]
 }
 
 /**
@@ -45,11 +49,19 @@ interface ManifestNode {
      * Chunks for the module. JS and CSS.
      */
     chunks: ManifestChunks
+
+    /**
+     * If chunk contains async module
+     */
+    async?: boolean
   }
 }
 
 export type FlightManifest = {
   __ssr_module_mapping__: {
+    [moduleId: string]: ManifestNode
+  }
+  __edge_ssr_module_mapping__: {
     [moduleId: string]: ManifestNode
   }
 } & {
@@ -62,15 +74,44 @@ export type FlightCSSManifest = {
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
+// Collect modules from server/edge compiler in client layer,
+// and detect if it's been used, and mark it as `async: true` for react.
+// So that react could unwrap the async module from promise and render module itself.
+export const ASYNC_CLIENT_MODULES = new Set<string>()
+
+export function traverseModules(
+  compilation: webpack.Compilation,
+  callback: (
+    mod: any,
+    chunk: webpack.Chunk,
+    chunkGroup: typeof compilation.chunkGroups[0]
+  ) => any
+) {
+  compilation.chunkGroups.forEach((chunkGroup) => {
+    chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+      const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+        chunk
+        // TODO: Update type so that it doesn't have to be cast.
+      ) as Iterable<webpack.NormalModule>
+      for (const mod of chunkModules) {
+        callback(mod, chunk, chunkGroup)
+        const anyModule = mod as any
+        if (anyModule.modules) {
+          for (const subMod of anyModule.modules)
+            callback(subMod, chunk, chunkGroup)
+        }
+      }
+    })
+  })
+}
+
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
-  pageExtensions: Options['pageExtensions']
-  appDir: Options['appDir'] = false
+  fontLoaderTargets?: Options['fontLoaderTargets']
 
   constructor(options: Options) {
     this.dev = options.dev
-    this.appDir = options.appDir
-    this.pageExtensions = options.pageExtensions
+    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -108,9 +149,24 @@ export class FlightManifestPlugin {
   ) {
     const manifest: FlightManifest = {
       __ssr_module_mapping__: {},
+      __edge_ssr_module_mapping__: {},
     }
-    const appDir = this.appDir
     const dev = this.dev
+    const fontLoaderTargets = this.fontLoaderTargets
+
+    const clientRequestsSet = new Set()
+
+    // Collect client requests
+    function collectClientRequest(mod: webpack.NormalModule) {
+      if (mod.resource === '' && mod.buildInfo.rsc) {
+        const { requests = [] } = mod.buildInfo.rsc
+        requests.forEach((r: string) => {
+          clientRequestsSet.add(r)
+        })
+      }
+    }
+
+    traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
       const cssResourcesInChunkGroup = new Set<string>()
@@ -121,9 +177,14 @@ export class FlightManifestPlugin {
         id: ModuleId,
         mod: webpack.NormalModule
       ) {
+        const isFontLoader = fontLoaderTargets?.some((fontLoaderTarget) =>
+          mod.resource?.startsWith(`${fontLoaderTarget}?`)
+        )
         const isCSSModule =
+          isFontLoader ||
+          mod.resource?.endsWith('.css') ||
           mod.type === 'css/mini-extract' ||
-          (mod.loaders &&
+          (!!mod.loaders &&
             (dev
               ? mod.loaders.some((item) =>
                   item.loader.includes('next-style-loader/index.js')
@@ -138,10 +199,13 @@ export class FlightManifestPlugin {
               mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
             : mod.resource
 
-        if (!resource) return
+        if (!resource) {
+          return
+        }
 
         const moduleExports = manifest[resource] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
+        const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
@@ -173,18 +237,19 @@ export class FlightManifestPlugin {
           return
         }
 
-        // TODO: Hook into deps instead of the target module.
-        // That way we know by the type of dep whether to include.
-        // It also resolves conflicts when the same module is in multiple chunks.
-        if (!clientComponentRegex.test(resource)) {
+        // Only apply following logic to client module requests from client entry,
+        // or if the module is marked as client module.
+        if (!clientRequestsSet.has(resource) && !isClientComponentModule(mod)) {
           return
         }
 
-        if (/\/(page|layout)\.client\.(ts|js)x?$/.test(resource)) {
+        if (/[\\/](page|layout)\.(ts|js)x?$/.test(resource)) {
           entryFilepath = resource
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
+        const isAsyncModule = ASYNC_CLIENT_MODULES.has(mod.resource)
+
         const cjsExports = [
           ...new Set([
             ...mod.dependencies.map((dep) => {
@@ -207,6 +272,17 @@ export class FlightManifestPlugin {
           ]),
         ]
 
+        function getAppPathRequiredChunks() {
+          return chunkGroup.chunks.map((requiredChunk: webpack.Chunk) => {
+            return (
+              requiredChunk.id +
+              ':' +
+              (requiredChunk.name || requiredChunk.id) +
+              (dev ? '' : '-' + requiredChunk.hash)
+            )
+          })
+        }
+
         const moduleExportedKeys = ['', '*']
           .concat(
             [...exportsInfo.exports]
@@ -217,48 +293,50 @@ export class FlightManifestPlugin {
           .filter((name) => name !== null)
 
         moduleExportedKeys.forEach((name) => {
-          let requiredChunks: ManifestChunks = []
-          if (!moduleExports[name]) {
-            const isRelatedChunk = (c: webpack.Chunk) => {
-              // If current chunk is a page, it should require the related page chunk;
-              // If current chunk is a component, it should filter out the related page chunk;
-              return (
-                chunk.name?.startsWith('pages/') ||
-                !c.name?.startsWith('pages/')
-              )
-            }
-
-            if (appDir) {
-              requiredChunks = chunkGroup.chunks
-                .filter(isRelatedChunk)
-                .map((requiredChunk: webpack.Chunk) => {
-                  return (
-                    requiredChunk.id +
-                    ':' +
-                    (requiredChunk.name || requiredChunk.id) +
-                    (dev ? '' : '-' + requiredChunk.hash)
-                  )
-                })
-            }
+          // If the chunk is from `app/` chunkGroup, use it first.
+          // This make sure not to load the overlapped chunk from `pages/` chunkGroup
+          if (!moduleExports[name] || chunkGroup.name?.startsWith('app/')) {
+            const requiredChunks = getAppPathRequiredChunks()
 
             moduleExports[name] = {
               id,
               name,
               chunks: requiredChunks,
+              // E.g.
+              // page (server) -> local module (client) -> package (esm)
+              // The esm package will bubble up to make the entire chain till the client entry as async module.
+              async: isAsyncModule,
             }
           }
 
-          moduleIdMapping[id] = moduleIdMapping[id] || {}
-          if (!moduleIdMapping[id][name]) {
+          if (serverModuleIds.has(ssrNamedModuleId)) {
+            moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id][name] = {
               ...moduleExports[name],
-              id: ssrNamedModuleId,
+              id: serverModuleIds.get(ssrNamedModuleId)!,
+            }
+          }
+
+          if (edgeServerModuleIds.has(ssrNamedModuleId)) {
+            edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
+            edgeModuleIdMapping[id][name] = {
+              ...moduleExports[name],
+              id: edgeServerModuleIds.get(ssrNamedModuleId)!,
             }
           }
         })
 
         manifest[resource] = moduleExports
+
+        // The client compiler will always use the CJS Next.js build, so here we
+        // also add the mapping for the ESM build (Edge runtime) to consume.
+        if (/\/next\/dist\//.test(resource)) {
+          manifest[resource.replace(/\/next\/dist\//, '/next/dist/esm/')] =
+            moduleExports
+        }
+
         manifest.__ssr_module_mapping__ = moduleIdMapping
+        manifest.__edge_ssr_module_mapping__ = edgeModuleIdMapping
       }
 
       chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
@@ -291,6 +369,8 @@ export class FlightManifestPlugin {
 
     const file = 'server/' + FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
+
+    ASYNC_CLIENT_MODULES.clear()
 
     assets[file + '.js'] = new sources.RawSource(
       'self.__RSC_MANIFEST=' + json

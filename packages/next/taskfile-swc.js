@@ -18,6 +18,7 @@ module.exports = function (task) {
         stripExtension,
         keepImportAssertions = false,
         interopClientDefaultExport = false,
+        esm = false,
       } = {}
     ) {
       // Don't compile .d.ts
@@ -28,7 +29,7 @@ module.exports = function (task) {
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
         module: {
-          type: 'commonjs',
+          type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
         },
         jsc: {
@@ -59,7 +60,7 @@ module.exports = function (task) {
       /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
         module: {
-          type: 'commonjs',
+          type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
         },
         env: {
@@ -114,7 +115,7 @@ module.exports = function (task) {
 
       // Make sure the output content keeps the `"client"` directive.
       // TODO: Remove this once SWC fixes the issue.
-      if (source.startsWith("'client'")) {
+      if (/^['"]client['"]/.test(source)) {
         output.code = '"client";\n' + output.code
       }
 
@@ -126,7 +127,7 @@ module.exports = function (task) {
       }
 
       if (output.map) {
-        if (interopClientDefaultExport) {
+        if (interopClientDefaultExport && !esm) {
           output.code += `
 if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
   Object.defineProperty(exports.default, '__esModule', { value: true });

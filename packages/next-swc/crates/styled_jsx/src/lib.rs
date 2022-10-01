@@ -1,3 +1,5 @@
+#![feature(box_patterns)]
+
 use easy_error::{bail, Error};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -174,7 +176,7 @@ impl Fold for StyledJSXTransformer {
         if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
             if sym != "style"
                 && sym != self.style_import_name.as_ref().unwrap()
-                && (!is_capitalized(&**sym)
+                && (!is_capitalized(sym)
                     || self
                         .nearest_scope_bindings
                         .contains(&(sym.clone(), span.ctxt)))
@@ -320,7 +322,7 @@ impl Fold for StyledJSXTransformer {
         for item in items {
             let new_item = item.fold_children_with(self);
             if let Some((default_ident, default_expr)) = &self.add_default_decl {
-                new_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                new_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                     kind: VarDeclKind::Const,
                     declare: false,
                     decls: vec![VarDeclarator {
@@ -337,7 +339,7 @@ impl Fold for StyledJSXTransformer {
                         span: DUMMY_SP,
                     }],
                     span: DUMMY_SP,
-                }))));
+                })))));
                 self.add_default_decl = None;
                 if let Some(add_hash) = self.add_hash.take() {
                     new_items.push(ModuleItem::Stmt(add_hash_statement(add_hash)));
@@ -748,7 +750,7 @@ fn get_style_expr(el: &JSXElement) -> Result<StyleExpr, Error> {
     {
         return Ok(match &**expr {
             Expr::Lit(Lit::Str(str)) => StyleExpr::Str(str),
-            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, &**expr),
+            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, expr),
             Expr::Ident(ident) => StyleExpr::Ident(ident),
             _ => {
                 HANDLER.with(|handler| {
@@ -921,7 +923,7 @@ fn add_hash_statement((id, hash): (Id, String)) -> Stmt {
 
 fn is_styled_css_import(item: &ModuleItem) -> bool {
     if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        src: Str { value, .. },
+        src: box Str { value, .. },
         ..
     })) = item
     {
