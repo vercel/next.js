@@ -49,12 +49,16 @@ const experimentalWarning = execOnce(
 
 export function setHttpClientAndAgentOptions(options: NextConfig) {
   if (semverGte(process.version, '16.8.0')) {
-    if (semverGte(process.version, '18.0.0')) {
+    if (
+      options.experimental?.enableUndici &&
+      semverGte(process.version, '18.0.0')
+    ) {
       Log.warn(
         '`enableUndici` option is unnecessary in Node.js v18.0.0 or greater.'
       )
+    } else {
+      ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
     }
-    ;(global as any).__NEXT_USE_UNDICI = options.experimental?.enableUndici
   } else if (options.experimental?.enableUndici) {
     Log.warn(
       '`enableUndici` option requires Node.js v16.8.0 or greater. Falling back to `node-fetch`'
