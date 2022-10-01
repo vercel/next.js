@@ -1,3 +1,5 @@
+'client'
+
 import React, {
   useRef,
   useEffect,
@@ -22,8 +24,6 @@ function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
-const { experimentalRemotePatterns = [], experimentalUnoptimized } =
-  (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -137,10 +137,7 @@ function defaultLoader({
       )
     }
 
-    if (
-      !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
-    ) {
+    if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
@@ -154,7 +151,7 @@ function defaultLoader({
       if (process.env.NODE_ENV !== 'test') {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -221,6 +218,8 @@ interface StaticRequire {
 
 type StaticImport = StaticRequire | StaticImageData
 
+type SafeNumber = number | `${number}`
+
 function isStaticRequire(
   src: StaticRequire | StaticImageData
 ): src is StaticRequire {
@@ -246,11 +245,11 @@ export type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
-  width?: number | string
-  height?: number | string
+  width?: SafeNumber
+  height?: SafeNumber
   layout?: LayoutValue
   loader?: ImageLoader
-  quality?: number | string
+  quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
   lazyRoot?: React.RefObject<HTMLElement> | null
@@ -673,7 +672,7 @@ export default function Image({
   if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
     isLazy = false
   }
-  if (experimentalUnoptimized) {
+  if (config.unoptimized) {
     unoptimized = true
   }
 
@@ -981,10 +980,14 @@ export default function Image({
     imageSrcSetPropName = 'imageSrcSet'
     imageSizesPropName = 'imageSizes'
   }
-  const linkProps = {
+  const linkProps: React.DetailedHTMLProps<
+    React.LinkHTMLAttributes<HTMLLinkElement>,
+    HTMLLinkElement
+  > = {
     // Note: imagesrcset and imagesizes are not in the link element type with react 17.
     [imageSrcSetPropName]: imgAttributes.srcSet,
     [imageSizesPropName]: imgAttributes.sizes,
+    crossOrigin: rest.crossOrigin,
   }
 
   const useLayoutEffect =

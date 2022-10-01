@@ -10,6 +10,9 @@ import testSVG from '../public/test.svg'
 import testGIF from '../public/test.gif'
 import testBMP from '../public/test.bmp'
 import testICO from '../public/test.ico'
+import widePNG from '../public/wide.png'
+import tallPNG from '../components/tall.png'
+import superWidePNG from '../public/super-wide.png'
 
 import TallImage from '../components/TallImage'
 
@@ -19,7 +22,14 @@ const Page = () => {
       <h1 id="page-header">Static Image</h1>
       <Image id="basic-static" src={testImg} placeholder="blur" />
       <TallImage />
-      <Image id="defined-size-static" src={testPNG} height="150" width="150" />
+      <Image
+        id="defined-width-and-height"
+        src={testPNG}
+        height="150"
+        width="150"
+      />
+      <Image id="defined-height-only" src={widePNG} height="350" />
+      <Image id="defined-width-only" src={widePNG} width="400" />
       <Image id="require-static" src={require('../public/foo/test-rect.jpg')} />
       <Image
         id="basic-non-static"
@@ -32,6 +42,22 @@ const Page = () => {
       <Image id="blur-jpg" src={testJPG} placeholder="blur" />
       <Image id="blur-webp" src={testWEBP} placeholder="blur" />
       <Image id="blur-avif" src={testAVIF} placeholder="blur" />
+      <Image id="blur-wide" src={widePNG} placeholder="blur" />
+      <Image id="blur-tall" src={tallPNG} placeholder="blur" />
+      <Image
+        id="blur-super-wide"
+        src={superWidePNG}
+        placeholder="blur"
+        width={72}
+        height={16}
+      />
+      <Image
+        id="blur-super-tall"
+        src={superWidePNG}
+        placeholder="blur"
+        width={16}
+        height={72}
+      />
       <br />
       <Image id="static-svg" src={testSVG} />
       <Image id="static-gif" src={testGIF} />
