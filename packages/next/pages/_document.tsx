@@ -858,7 +858,7 @@ export class Head extends React.Component<HeadProps> {
                 }}
               />
             </noscript>
-            <script async src="https://cdn.ampproject.org/v0.js" />
+            <script async defer src="https://cdn.ampproject.org/v0.js" />
           </>
         )}
         {!(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode) && (
