@@ -90,11 +90,11 @@ function hasComponentProps(child: any): child is React.ReactElement {
   return !!child && !!child.props
 }
 
-function AmpStyles({
+const AmpStyles = React.memo(({
   styles,
 }: {
   styles?: React.ReactElement[] | React.ReactFragment
-}) {
+}) => {
   if (!styles) return null
 
   // try to parse styles from fragment for backwards compat
@@ -132,7 +132,7 @@ function AmpStyles({
       }}
     />
   )
-}
+})
 
 function getDynamicChunks(
   context: HtmlProps,
