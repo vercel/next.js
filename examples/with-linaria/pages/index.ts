@@ -1,6 +1,6 @@
 import Head from 'next/head'
-import { styled } from 'linaria/react'
-import { css } from 'linaria'
+import { styled } from '@linaria/react'
+import { css } from '@linaria/core'
 
 const Box = styled.div`
   margin-top: 40px;
