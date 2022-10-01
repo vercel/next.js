@@ -124,6 +124,12 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   }
 }
 
+function isResourceInPackages(resource: string, packageNames?: string[]) {
+  return packageNames?.some((p: string) =>
+    new RegExp('[/\\\\]node_modules[/\\\\]' + p + '[/\\\\]').test(resource)
+  )
+}
+
 export function getDefineEnv({
   dev,
   config,
@@ -580,11 +586,6 @@ export default async function getBaseWebpackConfig(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
       )
     }
-    if (hasServerComponents) {
-      Log.warn(
-        'You have experimental React Server Components enabled. Continue at your own risk.'
-      )
-    }
   }
 
   const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
@@ -793,7 +794,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      isEdgeServer ? 'next/dist/esm/pages/_app.js' : 'next/dist/pages/_app.js',
+      'next/dist/pages/_app.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -802,9 +803,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      isEdgeServer
-        ? 'next/dist/esm/pages/_error.js'
-        : 'next/dist/pages/_error.js',
+      'next/dist/pages/_error.js',
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -813,9 +812,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      isEdgeServer
-        ? `next/dist/esm/pages/_document.js`
-        : `next/dist/pages/_document.js`,
+      'next/dist/pages/_document.js',
     ]
   }
 
@@ -835,6 +832,16 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
+      // Alias next/dist imports to next/dist/esm assets,
+      // let this alias hit before `next` alias.
+      ...(isEdgeServer
+        ? {
+            'next/dist/client': 'next/dist/esm/client',
+            'next/dist/shared': 'next/dist/esm/shared',
+            'next/dist/pages': 'next/dist/esm/pages',
+          }
+        : undefined),
+
       next: NEXT_PROJECT_ROOT,
 
       react: reactDir,
@@ -902,13 +909,28 @@ export default async function getBaseWebpackConfig(
       comparisons: false,
       inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
     },
-    mangle: { safari10: true },
+    mangle: {
+      safari10: true,
+      ...(process.env.__NEXT_MANGLING_DEBUG
+        ? {
+            toplevel: true,
+            module: true,
+            keep_classnames: true,
+            keep_fnames: true,
+          }
+        : {}),
+    },
     output: {
       ecma: 5,
       safari10: true,
       comments: false,
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
+      ...(process.env.__NEXT_MANGLING_DEBUG
+        ? {
+            beautify: true,
+          }
+        : {}),
     },
   }
 
@@ -990,6 +1012,7 @@ export default async function getBaseWebpackConfig(
     if (layer === WEBPACK_LAYERS.server) {
       if (
         request === 'react' ||
+        request === 'react/jsx-runtime' ||
         request ===
           'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
       ) {
@@ -1120,8 +1143,9 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         if (
-          config.experimental.optoutServerComponentsBundle?.some((p: string) =>
-            new RegExp('node_modules[/\\\\]' + p + '[/\\\\]').test(res)
+          isResourceInPackages(
+            res,
+            config.experimental.serverComponentsExternalPackages
           )
         ) {
           return `${externalType} ${request}`
@@ -1152,6 +1176,13 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  const fontLoaderTargets =
+    config.experimental.fontLoaders &&
+    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
+      const resolved = require.resolve(fontLoader)
+      return path.join(resolved, '../target.css')
+    })
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     // @ts-ignore
@@ -1168,6 +1199,10 @@ export default async function getBaseWebpackConfig(
                     '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
                     'next/dist/compiled/chalk': '{}',
+                    './cjs/react-dom-server-legacy.browser.production.min.js':
+                      '{}',
+                    './cjs/react-dom-server-legacy.browser.development.js':
+                      '{}',
                     'react-dom': '{}',
                   },
                   handleWebpackExtenalForEdgeRuntime,
@@ -1243,12 +1278,7 @@ export default async function getBaseWebpackConfig(
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
-      ...(hasServerComponents
-        ? {
-            // We have to use the names here instead of hashes to ensure the consistency between compilers.
-            moduleIds: isClient ? 'deterministic' : 'named',
-          }
-        : {}),
+      ...(hasServerComponents ? { moduleIds: 'deterministic' } : {}),
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1486,16 +1516,18 @@ export default async function getBaseWebpackConfig(
               {
                 issuerLayer: WEBPACK_LAYERS.server,
                 test: (req: string) => {
+                  // If it's not a source code file, or has been opted out of
+                  // bundling, don't resolve it.
                   if (
-                    !/\.m?js/.test(req) ||
-                    config.experimental.optoutServerComponentsBundle?.some(
-                      (mod) => {
-                        return req.includes('/node_modules/' + mod + '/')
-                      }
+                    !codeCondition.test.test(req) ||
+                    isResourceInPackages(
+                      req,
+                      config.experimental.serverComponentsExternalPackages
                     )
                   ) {
                     return false
                   }
+
                   return true
                 },
                 resolve: process.env.__NEXT_REACT_CHANNEL
@@ -1861,6 +1893,8 @@ export default async function getBaseWebpackConfig(
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
             adjustFontFallbacks: config.experimental.adjustFontFallbacks,
+            adjustFontFallbacksWithSizeAdjust:
+              config.experimental.adjustFontFallbacksWithSizeAdjust,
           })
         })(),
       new WellKnownErrorsPlugin(),
@@ -1883,10 +1917,12 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
+              fontLoaderTargets,
             })
           : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
+              fontLoaderTargets,
             })),
       !dev &&
         isClient &&

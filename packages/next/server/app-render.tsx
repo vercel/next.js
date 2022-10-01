@@ -17,6 +17,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
+  streamToString,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot } from './utils'
@@ -317,9 +318,6 @@ function createServerComponentRenderer(
   ComponentMod: {
     renderToReadableStream: any
     __next_app_webpack_require__?: any
-    __next_rsc__?: {
-      __webpack_require__?: any
-    }
   },
   {
     transformStream,
@@ -339,11 +337,9 @@ function createServerComponentRenderer(
 ): () => JSX.Element {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app_webpack_require__ || ComponentMod.__next_rsc__) {
+  if (ComponentMod.__next_app_webpack_require__) {
     // @ts-ignore
-    globalThis.__next_require__ =
-      ComponentMod.__next_app_webpack_require__ ||
-      ComponentMod.__next_rsc__?.__webpack_require__
+    globalThis.__next_require__ = ComponentMod.__next_app_webpack_require__
 
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
@@ -587,9 +583,9 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 }
 
 const FLIGHT_PARAMETERS = [
-  '__flight__',
-  '__flight_router_state_tree__',
-  '__flight_prefetch__',
+  '__rsc__',
+  '__next_router_state_tree__',
+  '__next_router_prefetch__',
 ] as const
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
@@ -600,15 +596,73 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
   return newHeaders
 }
 
+async function renderToString(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
+}
+
+function getRootLayoutPath(
+  [segment, parallelRoutes, { layout }]: LoaderTree,
+  rootLayoutPath = ''
+): string | undefined {
+  rootLayoutPath += `${segment}/`
+  const isLayout = typeof layout !== 'undefined'
+  if (isLayout) return rootLayoutPath
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
+  const child = Object.values(parallelRoutes)[0]
+  if (!child) return
+  return getRootLayoutPath(child, rootLayoutPath)
+}
+
+function findRootLayoutInFlightRouterState(
+  [segment, parallelRoutes]: FlightRouterState,
+  rootLayoutSegments: string,
+  segments = ''
+): boolean {
+  segments += `${segment}/`
+  if (segments === rootLayoutSegments) {
+    return true
+  } else if (segments.length > rootLayoutSegments.length) {
+    return false
+  }
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
+  const child = Object.values(parallelRoutes)[0]
+  if (!child) return false
+  return findRootLayoutInFlightRouterState(child, rootLayoutSegments, segments)
+}
+
+function isNavigatingToNewRootLayout(
+  loaderTree: LoaderTree,
+  flightRouterState: FlightRouterState
+): boolean {
+  const newRootLayout = getRootLayoutPath(loaderTree)
+  // should always have a root layout
+  if (newRootLayout) {
+    const hasSameRootLayout = findRootLayoutInFlightRouterState(
+      flightRouterState,
+      newRootLayout
+    )
+
+    return !hasSameRootLayout
+  }
+
+  return false
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
+  const isFlight = req.headers.__rsc__ !== undefined
+
   const capturedErrors: Error[] = []
 
   const serverComponentsErrorHandler = createErrorHandler(
@@ -639,6 +693,7 @@ export async function renderToHTMLOrFlight(
   const requestAsyncStorage = ComponentMod.requestAsyncStorage
 
   if (
+    staticGenerationAsyncStorage &&
     !('getStore' in staticGenerationAsyncStorage) &&
     staticGenerationAsyncStorage.inUse
   ) {
@@ -657,33 +712,7 @@ export async function renderToHTMLOrFlight(
     // don't modify original query object
     query = Object.assign({}, query)
 
-    const isFlight = req.headers.__flight__ !== undefined
-    const isPrefetch = req.headers.__flight_prefetch__ !== undefined
-
-    // Handle client-side navigation to pages directory
-    if (isFlight && isPagesDir) {
-      stripInternalQueries(query)
-      const search = stringifyQuery(query)
-
-      // For pages dir, there is only the SSR pass and we don't have the bundled
-      // React subset. Here we directly import the flight renderer with the
-      // unbundled React.
-      // TODO-APP: Is it possible to hard code the flight response here instead of
-      // rendering it?
-      const ReactServerDOMWebpack = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server')
-
-      // Empty so that the client-side router will do a full page navigation.
-      const flightData: FlightData = pathname + (search ? `?${search}` : '')
-      return new FlightRenderResult(
-        ReactServerDOMWebpack.renderToReadableStream(
-          flightData,
-          serverComponentManifest,
-          {
-            onError: flightDataRendererErrorHandler,
-          }
-        ).pipeThrough(createBufferedTransformStream())
-      )
-    }
+    const isPrefetch = req.headers.__next_router_prefetch__ !== undefined
 
     // TODO-APP: verify the tree is valid
     // TODO-APP: verify query param is single value (not an array)
@@ -692,10 +721,37 @@ export async function renderToHTMLOrFlight(
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     const providedFlightRouterState: FlightRouterState = isFlight
-      ? req.headers.__flight_router_state_tree__
-        ? JSON.parse(req.headers.__flight_router_state_tree__ as string)
+      ? req.headers.__next_router_state_tree__
+        ? JSON.parse(req.headers.__next_router_state_tree__ as string)
         : {}
       : undefined
+
+    /**
+     * The tree created in next-app-loader that holds component segments and modules
+     */
+    const loaderTree: LoaderTree = ComponentMod.tree
+
+    // If navigating to a new root layout we need to do a full page navigation.
+    if (
+      isFlight &&
+      Array.isArray(providedFlightRouterState) &&
+      isNavigatingToNewRootLayout(loaderTree, providedFlightRouterState)
+    ) {
+      stripInternalQueries(query)
+      const search = stringifyQuery(query)
+
+      // Empty so that the client-side router will do a full page navigation.
+      const flightData: FlightData = req.url! + (search ? `?${search}` : '')
+      return new FlightRenderResult(
+        ComponentMod.renderToReadableStream(
+          flightData,
+          serverComponentManifest,
+          {
+            onError: flightDataRendererErrorHandler,
+          }
+        ).pipeThrough(createBufferedTransformStream())
+      )
+    }
 
     stripInternalQueries(query)
 
@@ -707,10 +763,6 @@ export async function renderToHTMLOrFlight(
       | typeof import('../client/components/hot-reloader.client').default
       | null
 
-    /**
-     * The tree created in next-app-loader that holds component segments and modules
-     */
-    const loaderTree: LoaderTree = ComponentMod.tree
     /**
      * Server Context is specifically only available in Server Components.
      * It has to hold values that can't change while rendering from the common layout down.
@@ -1274,12 +1326,22 @@ export async function renderToHTMLOrFlight(
         </FlushEffects>
       )
 
-      const flushEffectHandler = (): string => {
-        const flushed = ReactDOMServer.renderToString(
+      const flushEffectHandler = (): Promise<string> => {
+        const flushed = renderToString(
           <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
         )
         return flushed
       }
+
+      const polyfills = buildManifest.polyfillFiles
+        .filter(
+          (polyfill) =>
+            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+        )
+        .map((polyfill) => ({
+          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          integrity: subresourceIntegrityManifest?.[polyfill],
+        }))
 
       try {
         const renderStream = await renderToInitialStream({
@@ -1289,14 +1351,16 @@ export async function renderToHTMLOrFlight(
             onError: htmlRendererErrorHandler,
             nonce,
             // Include hydration scripts in the HTML
-            bootstrapScripts: subresourceIntegrityManifest
-              ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
-                  integrity: subresourceIntegrityManifest[src],
-                }))
-              : buildManifest.rootMainFiles.map(
-                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-                ),
+            bootstrapScripts: [
+              ...(subresourceIntegrityManifest
+                ? buildManifest.rootMainFiles.map((src) => ({
+                    src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                    integrity: subresourceIntegrityManifest[src],
+                  }))
+                : buildManifest.rootMainFiles.map(
+                    (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                  )),
+            ],
           },
         })
 
@@ -1305,6 +1369,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           flushEffectHandler,
           flushEffectsToHead: true,
+          polyfills,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1335,6 +1400,7 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           flushEffectHandler,
           flushEffectsToHead: true,
+          polyfills,
         })
       }
     }

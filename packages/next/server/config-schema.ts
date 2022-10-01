@@ -222,6 +222,9 @@ const configSchema = {
         adjustFontFallbacks: {
           type: 'boolean',
         },
+        adjustFontFallbacksWithSizeAdjust: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -239,12 +242,6 @@ const configSchema = {
         },
         appDir: {
           type: 'boolean',
-        },
-        optoutServerComponentsBundle: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
         },
         browsersListForSwc: {
           type: 'boolean',
@@ -326,6 +323,12 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
+        serverComponentsExternalPackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -389,6 +392,9 @@ const configSchema = {
             type: 'string',
           },
           type: 'array',
+        },
+        enableUndici: {
+          type: 'boolean',
         },
         workerThreads: {
           type: 'boolean',

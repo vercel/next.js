@@ -45,7 +45,6 @@ export class AppBuildManifestPlugin {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => this.createAsset(assets, compilation)

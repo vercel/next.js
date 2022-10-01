@@ -42,7 +42,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -56,7 +56,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -97,6 +97,13 @@ describe('app dir', () => {
       // should support `dynamic` in both server and client components
       expect(html).toContain('hello from dynamic on server')
       expect(html).toContain('hello from dynamic on client')
+    })
+
+    it('should serve polyfills for browsers that do not support modules', async () => {
+      const html = await renderViaHTTP(next.url, '/dashboard/index')
+      expect(html).toMatch(
+        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+      )
     })
 
     // TODO-APP: handle css modules fouc in dev
@@ -238,11 +245,32 @@ describe('app dir', () => {
     })
 
     describe('rewrites', () => {
-      // TODO-APP:
+      // TODO-APP: rewrite url is broken
       it.skip('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+      })
+
+      it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
+        const browser = await webdriver(next.url, '/link-to-rewritten-path')
+
+        try {
+          // Click the link.
+          await browser.elementById('link-to-rewritten-path').click()
+          await browser.waitForElementByCss('#from-dashboard')
+
+          // Check to see that we were rewritten and not redirected.
+          // TODO-APP: rewrite url is broken
+          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+          // Check to see that the page we navigated to is in fact the dashboard.
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
+        } finally {
+          await browser.close()
+        }
       })
 
       it('should support rewrites on client-side navigation', async () => {
@@ -496,18 +524,21 @@ describe('app dir', () => {
         }
       })
 
-      // TODO-APP: should enable when implemented
-      it.skip('should allow linking from app page to pages page', async () => {
+      it('should allow linking from app page to pages page', async () => {
         const browser = await webdriver(next.url, '/pages-linking')
 
         try {
           // Click the link.
           await browser.elementById('app-link').click()
-          await browser.waitForElementByCss('#pages-link')
+          expect(await browser.waitForElementByCss('#pages-link').text()).toBe(
+            'To App Page'
+          )
 
           // Click the other link.
           await browser.elementById('pages-link').click()
-          await browser.waitForElementByCss('#app-link')
+          expect(await browser.waitForElementByCss('#app-link').text()).toBe(
+            'To Pages Page'
+          )
         } finally {
           await browser.close()
         }
@@ -1186,6 +1217,17 @@ describe('app dir', () => {
             )
           ).toBe('rgb(0, 0, 255)')
         })
+
+        if (!isDev) {
+          it('should not include unused css modules in the page in prod', async () => {
+            const browser = await webdriver(next.url, '/css/css-page')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
+              )
+            ).toBe(false)
+          })
+        }
       })
 
       describe('client layouts', () => {

@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-head-element'
+import rule from '@next/eslint-plugin-next/dist/rules/no-head-element'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

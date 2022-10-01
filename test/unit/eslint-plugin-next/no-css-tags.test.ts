@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-css-tags'
+import rule from '@next/eslint-plugin-next/dist/rules/no-css-tags'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

@@ -27,6 +27,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [GraphCMS](/examples/cms-graphcms)
 - [Blog Starter](/examples/blog-starter)
 - [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## Getting Started
 

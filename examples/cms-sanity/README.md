@@ -32,6 +32,7 @@ You'll get:
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
 - [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)
 
 # Configuration
 

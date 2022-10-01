@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/google-font-display'
+import rule from '@next/eslint-plugin-next/dist/rules/google-font-display'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
