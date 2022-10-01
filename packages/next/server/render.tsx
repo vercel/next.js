@@ -1473,26 +1473,47 @@ export async function renderToHTML(
   const documentHTML = await renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
-    const nonRenderedComponents = []
-    const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
-
-    for (const comp of expectedDocComponents) {
-      if (!(docComponentsRendered as any)[comp]) {
-        nonRenderedComponents.push(comp)
+    function componentIssue(
+      comps: ('Main' | 'Head' | 'NextScript' | 'Html')[],
+      cond: (value: number | boolean | undefined) => boolean,
+      handler: (failingComponents: string, plural: string) => void
+    ) {
+      const failingComponents = comps.filter((comp) =>
+        cond(docComponentsRendered[comp])
+      )
+      if (failingComponents.length) {
+        const failingComponentList = failingComponents
+          .map((e) => `<${e} />`)
+          .join(', ')
+        const plural = failingComponents.length !== 1 ? 's' : ''
+        handler(failingComponentList, plural)
       }
     }
 
-    if (nonRenderedComponents.length) {
-      const missingComponentList = nonRenderedComponents
-        .map((e) => `<${e} />`)
-        .join(', ')
-      const plural = nonRenderedComponents.length !== 1 ? 's' : ''
-      console.warn(
-        `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
-          `Missing component${plural}: ${missingComponentList}\n` +
-          'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
-      )
-    }
+    // missing components
+    componentIssue(
+      ['Main', 'Head', 'NextScript', 'Html'],
+      (value) => !value,
+      (comps, plural) => {
+        console.warn(
+          `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
+            `Missing component${plural}: ${comps}\n` +
+            'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
+        )
+      }
+    )
+
+    // duplicate components
+    componentIssue(
+      ['Main', 'Head'],
+      (value) => (value && value > 1 ? true : false),
+      (comps, _plural) => {
+        throw new Error(
+          `Your custom Document (pages/_document) rendered more than one of: ${comps}\n` +
+            'Read how to fix here: https://nextjs.org/docs/messages/duplicate-document-components'
+        )
+      }
+    )
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(

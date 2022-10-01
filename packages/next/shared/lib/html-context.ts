@@ -11,8 +11,8 @@ export type HtmlProps = {
   dangerousAsPath: string
   docComponentsRendered: {
     Html?: boolean
-    Main?: boolean
-    Head?: boolean
+    Main?: number
+    Head?: number
     NextScript?: boolean
   }
   buildManifest: BuildManifest

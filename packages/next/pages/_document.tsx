@@ -665,7 +665,8 @@ export class Head extends React.Component<HeadProps> {
     const disableJsPreload =
       unstable_JsPreload === false || !disableOptimizedLoading
 
-    this.context.docComponentsRendered.Head = true
+    const dcr = this.context.docComponentsRendered
+    dcr.Head = dcr.Head ? dcr.Head + 1 : 1
 
     let { head } = this.context
     let cssPreloads: Array<JSX.Element> = []
@@ -1160,8 +1161,8 @@ export function Html(
 }
 
 export function Main() {
-  const { docComponentsRendered } = useContext(HtmlContext)
-  docComponentsRendered.Main = true
+  const { docComponentsRendered: dcr } = useContext(HtmlContext)
+  dcr.Main = dcr.Main ? dcr.Main + 1 : 1
   // @ts-ignore
   return <next-js-internal-body-render-target />
 }
