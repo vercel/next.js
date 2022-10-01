@@ -14,13 +14,13 @@ Within a page or component, import and use `next/head` to define a page title:
 import Head from 'next/head'
 
 export function Home() {
-    return (
-      <div>
-        <Head>
-          <title>My page title</title>
-        </Head>
-      </div>
-    )
+  return (
+    <div>
+      <Head>
+        <title>My page title</title>
+      </Head>
+    </div>
+  )
 }
 ```
 
