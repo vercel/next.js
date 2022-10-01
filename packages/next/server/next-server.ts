@@ -525,8 +525,7 @@ export default class NextNodeServer extends BaseServer {
             params.path[0] === 'media' ||
             params.path[0] === this.buildId ||
             params.path[0] === 'pages' ||
-            params.path[1] === 'pages' ||
-            params.path[0] === 'fonts'
+            params.path[1] === 'pages'
           ) {
             this.setImmutableAssetCacheControl(res)
           }
@@ -826,18 +825,13 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
-    if (
-      this.nextConfig.experimental.appDir &&
-      (renderOpts.isAppPath || req.headers.__rsc__)
-    ) {
-      const isPagesDir = !renderOpts.isAppPath
+    if (this.nextConfig.experimental.appDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
         pathname,
         query,
-        renderOpts,
-        isPagesDir
+        renderOpts
       )
     }
 

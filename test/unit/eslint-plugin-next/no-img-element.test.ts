@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-img-element'
+import * as rule from '@next/eslint-plugin-next/dist/rules/no-img-element'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

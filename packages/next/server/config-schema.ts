@@ -222,6 +222,9 @@ const configSchema = {
         adjustFontFallbacks: {
           type: 'boolean',
         },
+        adjustFontFallbacksWithSizeAdjust: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -320,7 +323,7 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
-        optoutServerComponentsBundle: {
+        serverComponentsExternalPackages: {
           items: {
             type: 'string',
           },

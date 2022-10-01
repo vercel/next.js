@@ -151,9 +151,10 @@ export interface ExperimentalConfig {
     algorithm?: SubresourceIntegrityAlgorithm
   }
   adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
 
   // A list of packages that should be treated as external in the RSC server build
-  optoutServerComponentsBundle?: string[]
+  serverComponentsExternalPackages?: string[]
 
   fontLoaders?: { [fontLoader: string]: any }
 }
@@ -588,6 +589,7 @@ export const defaultConfig: NextConfig = {
     modularizeImports: undefined,
     enableUndici: false,
     adjustFontFallbacks: false,
+    adjustFontFallbacksWithSizeAdjust: false,
   },
 }
 

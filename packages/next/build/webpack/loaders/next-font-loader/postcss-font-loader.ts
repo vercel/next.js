@@ -15,7 +15,7 @@ const postcssFontLoaderPlugn = ({
   fallbackFonts?: string[]
   adjustFontFallback?: AdjustFontFallback
   variable?: string
-  weight?: string
+  weight?: number
   style?: string
 }) => {
   return {
@@ -133,7 +133,7 @@ const postcssFontLoaderPlugn = ({
           ? [
               new postcss.Declaration({
                 prop: 'font-weight',
-                value: weight,
+                value: String(weight),
               }),
             ]
           : []),
