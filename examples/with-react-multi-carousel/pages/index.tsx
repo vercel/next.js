@@ -38,6 +38,7 @@ export default function Page() {
       <Image
         alt="Musgo"
         src="/cameronsmith.jpg"
+        priority
         layout="responsive"
         width={700}
         height={475}
@@ -45,6 +46,7 @@ export default function Page() {
       <Image
         alt="Valley"
         src="/ganapathykumar.jpg"
+        priority
         layout="responsive"
         width={700}
         height={475}
