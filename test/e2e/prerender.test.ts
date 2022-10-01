@@ -2428,6 +2428,11 @@ describe('Prerender', () => {
       expect(next.cliOutput).not.toContain('Failed to update prerender cache')
     })
 
+    it('should not have experimental undici warning', async () => {
+      await waitFor(1000)
+      expect(next.cliOutput).not.toContain('option is unnecessary in Node.js')
+    })
+
     it('should not have attempted sending invalid payload', async () => {
       expect(next.cliOutput).not.toContain('argument entity must be string')
     })
