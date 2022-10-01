@@ -11,17 +11,17 @@
     "i18n:compile": "formatjs compile-folder lang compiled-lang"
   },
   "dependencies": {
-    "next": "11.1.0",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
-    "react-intl": "5.20.9"
+    "next": "latest",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-intl": "6.1.1"
   },
   "devDependencies": {
-    "@formatjs/cli": "4.2.31",
-    "@types/node": "16.6.2",
-    "@types/react": "17.0.19",
-    "babel-plugin-formatjs": "10.3.5",
-    "eslint-plugin-formatjs": "2.17.4",
-    "typescript": "4.3.5"
+    "@formatjs/cli": "5.1.0",
+    "@types/node": "18.7.23",
+    "@types/react": "18.0.21",
+    "babel-plugin-formatjs": "10.3.28",
+    "eslint-plugin-formatjs": "4.3.1",
+    "typescript": "4.8.4"
   }
 }

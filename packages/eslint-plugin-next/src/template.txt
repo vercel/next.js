@@ -1,0 +1,16 @@
+import { defineRule } from '../utils/define-rule'
+
+export = defineRule({
+  meta: {
+    docs: {
+      description: '{{description}}',
+      recommended: true,
+      url: 'https://nextjs.org/docs/messages/{{fileName}}',
+    },
+    type: 'problem',
+    schema: [],
+  },
+  create(context) {
+
+  },
+})

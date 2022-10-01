@@ -1,4 +1,4 @@
-import React, { Component, ReactElement, ReactNode, useContext } from 'react'
+import React, { ReactElement, ReactNode, useContext } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -10,10 +10,11 @@ import type {
   DocumentType,
   NEXT_DATA,
 } from '../shared/lib/utils'
+import type { ScriptProps } from '../client/script'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
-import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script, { ScriptProps } from '../client/script'
 import isError from '../lib/is-error'
 
 import { HtmlContext } from '../shared/lib/html-context'
@@ -46,9 +47,10 @@ function getDocumentFiles(
   inAmpMode: boolean
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(buildManifest, '/_app')
-  const pageFiles: readonly string[] = inAmpMode
-    ? []
-    : getPageFiles(buildManifest, pathname)
+  const pageFiles: readonly string[] =
+    process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+      ? []
+      : getPageFiles(buildManifest, pathname)
 
   return {
     sharedFiles,
@@ -88,57 +90,115 @@ function hasComponentProps(child: any): child is React.ReactElement {
   return !!child && !!child.props
 }
 
-function handleDocumentScriptLoaderItems(
-  scriptLoader: { beforeInteractive?: any[] },
-  __NEXT_DATA__: NEXT_DATA,
-  props: any
-): void {
-  if (!props.children) return
+function AmpStyles({
+  styles,
+}: {
+  styles?: React.ReactElement[] | React.ReactFragment
+}) {
+  if (!styles) return null
 
-  const scriptLoaderItems: ScriptProps[] = []
-
-  const children = Array.isArray(props.children)
-    ? props.children
-    : [props.children]
-
-  const headChildren = children.find(
-    (child: React.ReactElement) => child.type === Head
-  )?.props?.children
-  const bodyChildren = children.find(
-    (child: React.ReactElement) => child.type === 'body'
-  )?.props?.children
-
-  // Scripts with beforeInteractive can be placed inside Head or <body> so children of both needs to be traversed
-  const combinedChildren = [
-    ...(Array.isArray(headChildren) ? headChildren : [headChildren]),
-    ...(Array.isArray(bodyChildren) ? bodyChildren : [bodyChildren]),
-  ]
-
-  React.Children.forEach(combinedChildren, (child: any) => {
-    if (!child) return
-
-    if (child.type === Script) {
-      if (child.props.strategy === 'beforeInteractive') {
-        scriptLoader.beforeInteractive = (
-          scriptLoader.beforeInteractive || []
-        ).concat([
-          {
-            ...child.props,
-          },
-        ])
-        return
-      } else if (
-        ['lazyOnload', 'afterInteractive', 'worker'].includes(
-          child.props.strategy
-        )
-      ) {
-        scriptLoaderItems.push(child.props)
-        return
+  // try to parse styles from fragment for backwards compat
+  const curStyles: React.ReactElement[] = Array.isArray(styles)
+    ? (styles as React.ReactElement[])
+    : []
+  if (
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    styles.props &&
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    Array.isArray(styles.props.children)
+  ) {
+    const hasStyles = (el: React.ReactElement) =>
+      el?.props?.dangerouslySetInnerHTML?.__html
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    styles.props.children.forEach((child: React.ReactElement) => {
+      if (Array.isArray(child)) {
+        child.forEach((el) => hasStyles(el) && curStyles.push(el))
+      } else if (hasStyles(child)) {
+        curStyles.push(child)
       }
-    }
-  })
+    })
+  }
 
-  __NEXT_DATA__.scriptLoader = scriptLoaderItems
+  /* Add custom styles before AMP styles to prevent accidental overrides */
+  return (
+    <style
+      amp-custom=""
+      dangerouslySetInnerHTML={{
+        __html: curStyles
+          .map((style) => style.props.dangerouslySetInnerHTML.__html)
+          .join('')
+          .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+          .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
+      }}
+    />
+  )
+}
+
+function getDynamicChunks(
+  context: HtmlProps,
+  props: OriginProps,
+  files: DocumentFiles
+) {
+  const {
+    dynamicImports,
+    assetPrefix,
+    isDevelopment,
+    devOnlyCacheBusterQueryString,
+    disableOptimizedLoading,
+    crossOrigin,
+  } = context
+
+  return dynamicImports.map((file) => {
+    if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
+
+    return (
+      <script
+        async={!isDevelopment && disableOptimizedLoading}
+        defer={!disableOptimizedLoading}
+        key={file}
+        src={`${assetPrefix}/_next/${encodeURI(
+          file
+        )}${devOnlyCacheBusterQueryString}`}
+        nonce={props.nonce}
+        crossOrigin={props.crossOrigin || crossOrigin}
+      />
+    )
+  })
+}
+
+function getScripts(
+  context: HtmlProps,
+  props: OriginProps,
+  files: DocumentFiles
+) {
+  const {
+    assetPrefix,
+    buildManifest,
+    isDevelopment,
+    devOnlyCacheBusterQueryString,
+    disableOptimizedLoading,
+    crossOrigin,
+  } = context
+
+  const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
+  const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
+    file.endsWith('.js')
+  )
+
+  return [...normalScripts, ...lowPriorityScripts].map((file) => {
+    return (
+      <script
+        key={file}
+        src={`${assetPrefix}/_next/${encodeURI(
+          file
+        )}${devOnlyCacheBusterQueryString}`}
+        nonce={props.nonce}
+        async={!isDevelopment && disableOptimizedLoading}
+        defer={!disableOptimizedLoading}
+        crossOrigin={props.crossOrigin || crossOrigin}
+      />
+    )
+  })
 }
 
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
@@ -279,189 +339,76 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
   )
 }
 
-function getDynamicChunks(
-  context: HtmlProps,
-  props: OriginProps,
-  files: DocumentFiles
-) {
-  const {
-    dynamicImports,
-    assetPrefix,
-    isDevelopment,
-    devOnlyCacheBusterQueryString,
-    disableOptimizedLoading,
-    crossOrigin,
-  } = context
+function getHeadHTMLProps(props: HeadProps) {
+  const { crossOrigin, nonce, ...restProps } = props
 
-  return dynamicImports.map((file) => {
-    if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
+  // This assignment is necessary for additional type checking to avoid unsupported attributes in <head>
+  const headProps: HeadHTMLProps & {
+    [P in Exclude<keyof HeadProps, keyof HeadHTMLProps>]?: never
+  } = restProps
 
-    return (
-      <script
-        async={!isDevelopment && disableOptimizedLoading}
-        defer={!disableOptimizedLoading}
-        key={file}
-        src={`${assetPrefix}/_next/${encodeURI(
-          file
-        )}${devOnlyCacheBusterQueryString}`}
-        nonce={props.nonce}
-        crossOrigin={props.crossOrigin || crossOrigin}
-      />
-    )
-  })
+  return headProps
 }
 
-function getScripts(
-  context: HtmlProps,
-  props: OriginProps,
-  files: DocumentFiles
-) {
-  const {
-    assetPrefix,
-    buildManifest,
-    isDevelopment,
-    devOnlyCacheBusterQueryString,
-    disableOptimizedLoading,
-    crossOrigin,
-  } = context
+function getAmpPath(ampPath: string, asPath: string): string {
+  return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+}
 
-  const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
-  const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
-    file.endsWith('.js')
+function getFontLoaderLinks(
+  fontLoaderManifest: FontLoaderManifest | undefined,
+  dangerousAsPath: string,
+  assetPrefix: string = ''
+) {
+  if (!fontLoaderManifest) {
+    return {
+      preconnect: null,
+      preload: null,
+    }
+  }
+
+  const appFontsEntry = fontLoaderManifest.pages['/_app']
+  const pageFontsEntry = fontLoaderManifest.pages[dangerousAsPath]
+
+  const preloadedFontFiles = [
+    ...(appFontsEntry ?? []),
+    ...(pageFontsEntry ?? []),
+  ]
+
+  // If no font files should preload but there's an entry for the path, add a preconnect tag.
+  const preconnectToSelf = !!(
+    preloadedFontFiles.length === 0 &&
+    (appFontsEntry || pageFontsEntry)
   )
 
-  return [...normalScripts, ...lowPriorityScripts].map((file) => {
-    return (
-      <script
-        key={file}
-        src={`${assetPrefix}/_next/${encodeURI(
-          file
-        )}${devOnlyCacheBusterQueryString}`}
-        nonce={props.nonce}
-        async={!isDevelopment && disableOptimizedLoading}
-        defer={!disableOptimizedLoading}
-        crossOrigin={props.crossOrigin || crossOrigin}
-      />
-    )
-  })
-}
-
-/**
- * `Document` component handles the initial `document` markup and renders only on the server side.
- * Commonly used for implementing server side rendering for `css-in-js` libraries.
- */
-export default class Document<P = {}> extends Component<DocumentProps & P> {
-  /**
-   * `getInitialProps` hook returns the context object with the addition of `renderPage`.
-   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
-   */
-  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
-    return ctx.defaultGetInitialProps(ctx)
-  }
-
-  render() {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </Html>
-    )
+  return {
+    preconnect: preconnectToSelf ? (
+      <link rel="preconnect" href="/" crossOrigin="anonymous" />
+    ) : null,
+    preload: preloadedFontFiles
+      ? preloadedFontFiles.map((fontFile) => {
+          const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+          return (
+            <link
+              key={fontFile}
+              rel="preload"
+              href={`${assetPrefix}/_next/${encodeURI(fontFile)}`}
+              as="font"
+              type={`font/${ext}`}
+              crossOrigin="anonymous"
+            />
+          )
+        })
+      : null,
   }
 }
 
-// Add a special property to the built-in `Document` component so later we can
-// identify if a user customized `Document` is used or not.
-const InternalFunctionDocument: DocumentType =
-  function InternalFunctionDocument() {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </Html>
-    )
-  }
-;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
-
-export function Html(
-  props: React.DetailedHTMLProps<
-    React.HtmlHTMLAttributes<HTMLHtmlElement>,
-    HTMLHtmlElement
-  >
-) {
-  const {
-    inAmpMode,
-    docComponentsRendered,
-    locale,
-    scriptLoader,
-    __NEXT_DATA__,
-  } = useContext(HtmlContext)
-
-  docComponentsRendered.Html = true
-  handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
-
-  return (
-    <html
-      {...props}
-      lang={props.lang || locale || undefined}
-      amp={inAmpMode ? '' : undefined}
-      data-ampdevmode={
-        inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
-      }
-    />
-  )
-}
-
-function AmpStyles({
-  styles,
-}: {
-  styles?: React.ReactElement[] | React.ReactFragment
-}) {
-  if (!styles) return null
-
-  // try to parse styles from fragment for backwards compat
-  const curStyles: React.ReactElement[] = Array.isArray(styles)
-    ? (styles as React.ReactElement[])
-    : []
-  if (
-    // @ts-ignore Property 'props' does not exist on type ReactElement
-    styles.props &&
-    // @ts-ignore Property 'props' does not exist on type ReactElement
-    Array.isArray(styles.props.children)
-  ) {
-    const hasStyles = (el: React.ReactElement) =>
-      el?.props?.dangerouslySetInnerHTML?.__html
-    // @ts-ignore Property 'props' does not exist on type ReactElement
-    styles.props.children.forEach((child: React.ReactElement) => {
-      if (Array.isArray(child)) {
-        child.forEach((el) => hasStyles(el) && curStyles.push(el))
-      } else if (hasStyles(child)) {
-        curStyles.push(child)
-      }
-    })
-  }
-
-  /* Add custom styles before AMP styles to prevent accidental overrides */
-  return (
-    <style
-      amp-custom=""
-      dangerouslySetInnerHTML={{
-        __html: curStyles
-          .map((style) => style.props.dangerouslySetInnerHTML.__html)
-          .join('')
-          .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
-          .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
-      }}
-    />
-  )
-}
-
-export class Head extends Component<HeadProps> {
+// Use `React.Component` to avoid errors from the RSC checks because
+// it can't be imported directly in Server Components:
+//
+//   import { Component } from 'react'
+//
+// More info: https://github.com/vercel/next.js/pull/40686
+export class Head extends React.Component<HeadProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -710,6 +657,8 @@ export class Head extends Component<HeadProps> {
       disableOptimizedLoading,
       optimizeCss,
       optimizeFonts,
+      assetPrefix,
+      fontLoaderManifest,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -763,7 +712,11 @@ export class Head extends Component<HeadProps> {
         )
     }
 
-    if (process.env.NODE_ENV !== 'development' && optimizeFonts && !inAmpMode) {
+    if (
+      process.env.NODE_ENV !== 'development' &&
+      optimizeFonts &&
+      !(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode)
+    ) {
       children = this.makeStylesheetInert(children)
     }
 
@@ -774,7 +727,7 @@ export class Head extends Component<HeadProps> {
     head = React.Children.map(head || [], (child) => {
       if (!child) return child
       const { type, props } = child
-      if (inAmpMode) {
+      if (process.env.NEXT_RUNTIME !== 'edge' && inAmpMode) {
         let badProp: string = ''
 
         if (type === 'meta' && props.name === 'viewport') {
@@ -817,7 +770,13 @@ export class Head extends Component<HeadProps> {
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page,
-      inAmpMode
+      process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+    )
+
+    const fontLoaderLinks = getFontLoaderLinks(
+      fontLoaderManifest,
+      dangerousAsPath,
+      assetPrefix
     )
 
     return (
@@ -826,14 +785,22 @@ export class Head extends Component<HeadProps> {
           <>
             <style
               data-next-hide-fouc
-              data-ampdevmode={inAmpMode ? 'true' : undefined}
+              data-ampdevmode={
+                process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+                  ? 'true'
+                  : undefined
+              }
               dangerouslySetInnerHTML={{
                 __html: `body{display:none}`,
               }}
             />
             <noscript
               data-next-hide-fouc
-              data-ampdevmode={inAmpMode ? 'true' : undefined}
+              data-ampdevmode={
+                process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+                  ? 'true'
+                  : undefined
+              }
             >
               <style
                 dangerouslySetInnerHTML={{
@@ -852,7 +819,10 @@ export class Head extends Component<HeadProps> {
         {children}
         {optimizeFonts && <meta name="next-font-preconnect" />}
 
-        {inAmpMode && (
+        {fontLoaderLinks.preconnect}
+        {fontLoaderLinks.preload}
+
+        {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>
             <meta
               name="viewport"
@@ -861,7 +831,10 @@ export class Head extends Component<HeadProps> {
             {!hasCanonicalRel && (
               <link
                 rel="canonical"
-                href={canonicalBase + cleanAmpPath(dangerousAsPath)}
+                href={
+                  canonicalBase +
+                  require('../server/utils').cleanAmpPath(dangerousAsPath)
+                }
               />
             )}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
@@ -888,7 +861,7 @@ export class Head extends Component<HeadProps> {
             <script async src="https://cdn.ampproject.org/v0.js" />
           </>
         )}
-        {!inAmpMode && (
+        {!(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode) && (
           <>
             {!hasAmphtmlRel && hybridAmp && (
               <link
@@ -938,14 +911,61 @@ export class Head extends Component<HeadProps> {
   }
 }
 
-export function Main() {
-  const { docComponentsRendered } = useContext(HtmlContext)
-  docComponentsRendered.Main = true
-  // @ts-ignore
-  return <next-js-internal-body-render-target />
+function handleDocumentScriptLoaderItems(
+  scriptLoader: { beforeInteractive?: any[] },
+  __NEXT_DATA__: NEXT_DATA,
+  props: any
+): void {
+  if (!props.children) return
+
+  const scriptLoaderItems: ScriptProps[] = []
+
+  const children = Array.isArray(props.children)
+    ? props.children
+    : [props.children]
+
+  const headChildren = children.find(
+    (child: React.ReactElement) => child.type === Head
+  )?.props?.children
+  const bodyChildren = children.find(
+    (child: React.ReactElement) => child.type === 'body'
+  )?.props?.children
+
+  // Scripts with beforeInteractive can be placed inside Head or <body> so children of both needs to be traversed
+  const combinedChildren = [
+    ...(Array.isArray(headChildren) ? headChildren : [headChildren]),
+    ...(Array.isArray(bodyChildren) ? bodyChildren : [bodyChildren]),
+  ]
+
+  React.Children.forEach(combinedChildren, (child: any) => {
+    if (!child) return
+
+    // When using the `next/script` component, register it in script loader.
+    if (child.type?.__nextScript) {
+      if (child.props.strategy === 'beforeInteractive') {
+        scriptLoader.beforeInteractive = (
+          scriptLoader.beforeInteractive || []
+        ).concat([
+          {
+            ...child.props,
+          },
+        ])
+        return
+      } else if (
+        ['lazyOnload', 'afterInteractive', 'worker'].includes(
+          child.props.strategy
+        )
+      ) {
+        scriptLoaderItems.push(child.props)
+        return
+      }
+    }
+  })
+
+  __NEXT_DATA__.scriptLoader = scriptLoaderItems
 }
 
-export class NextScript extends Component<OriginProps> {
+export class NextScript extends React.Component<OriginProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -1016,7 +1036,7 @@ export class NextScript extends Component<OriginProps> {
 
     docComponentsRendered.NextScript = true
 
-    if (inAmpMode) {
+    if (process.env.NEXT_RUNTIME !== 'edge' && inAmpMode) {
       if (process.env.NODE_ENV === 'production') {
         return null
       }
@@ -1063,7 +1083,7 @@ export class NextScript extends Component<OriginProps> {
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page,
-      inAmpMode
+      process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
     )
 
     return (
@@ -1106,17 +1126,86 @@ export class NextScript extends Component<OriginProps> {
   }
 }
 
-function getAmpPath(ampPath: string, asPath: string): string {
-  return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+export function Html(
+  props: React.DetailedHTMLProps<
+    React.HtmlHTMLAttributes<HTMLHtmlElement>,
+    HTMLHtmlElement
+  >
+) {
+  const {
+    inAmpMode,
+    docComponentsRendered,
+    locale,
+    scriptLoader,
+    __NEXT_DATA__,
+  } = useContext(HtmlContext)
+
+  docComponentsRendered.Html = true
+  handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
+
+  return (
+    <html
+      {...props}
+      lang={props.lang || locale || undefined}
+      amp={process.env.NEXT_RUNTIME !== 'edge' && inAmpMode ? '' : undefined}
+      data-ampdevmode={
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        inAmpMode &&
+        process.env.NODE_ENV !== 'production'
+          ? ''
+          : undefined
+      }
+    />
+  )
 }
 
-function getHeadHTMLProps(props: HeadProps) {
-  const { crossOrigin, nonce, ...restProps } = props
-
-  // This assignment is necessary for additional type checking to avoid unsupported attributes in <head>
-  const headProps: HeadHTMLProps & {
-    [P in Exclude<keyof HeadProps, keyof HeadHTMLProps>]?: never
-  } = restProps
-
-  return headProps
+export function Main() {
+  const { docComponentsRendered } = useContext(HtmlContext)
+  docComponentsRendered.Main = true
+  // @ts-ignore
+  return <next-js-internal-body-render-target />
 }
+
+/**
+ * `Document` component handles the initial `document` markup and renders only on the server side.
+ * Commonly used for implementing server side rendering for `css-in-js` libraries.
+ */
+export default class Document<P = {}> extends React.Component<
+  DocumentProps & P
+> {
+  /**
+   * `getInitialProps` hook returns the context object with the addition of `renderPage`.
+   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
+   */
+  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+    return ctx.defaultGetInitialProps(ctx)
+  }
+
+  render() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+}
+
+// Add a special property to the built-in `Document` component so later we can
+// identify if a user customized `Document` is used or not.
+const InternalFunctionDocument: DocumentType =
+  function InternalFunctionDocument() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument

@@ -7,8 +7,8 @@ export default function loadRequireHook(aliases: [string, string][] = []) {
     [
       ...aliases,
       // Use `require.resolve` explicitly to make them statically analyzable
-      ['styled-jsx', require.resolve('next/dist/styled-jsx')],
-      ['styled-jsx/style', require.resolve('next/dist/styled-jsx/style')],
+      ['styled-jsx', require.resolve('styled-jsx')],
+      ['styled-jsx/style', require.resolve('styled-jsx/style')],
     ].map(([request, replacement]) => [request, replacement])
   )
 

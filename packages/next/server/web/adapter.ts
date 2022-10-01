@@ -8,12 +8,47 @@ import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
+import { stripInternalSearchParams } from '../internal-utils'
+
+class NextRequestHint extends NextRequest {
+  sourcePage: string
+
+  constructor(params: {
+    init: RequestInit
+    input: Request | string
+    page: string
+  }) {
+    super(params.input, params.init)
+    this.sourcePage = params.page
+  }
+
+  get request() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+
+  respondWith() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+
+  waitUntil() {
+    throw new PageSignatureError({ page: this.sourcePage })
+  }
+}
+
+const FLIGHT_PARAMETERS = [
+  '__rsc__',
+  '__next_router_state_tree__',
+  '__next_router_prefetch__',
+] as const
 
 export async function adapter(params: {
   handler: NextMiddleware
   page: string
   request: RequestData
 }): Promise<FetchEventResult> {
+  // TODO-APP: use explicit marker for this
+  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
@@ -29,12 +64,16 @@ export async function adapter(params: {
     requestUrl.pathname = '/'
   }
 
-  // clean-up any internal query params
-  for (const key of [...requestUrl.searchParams.keys()]) {
-    if (key.startsWith('__next')) {
-      requestUrl.searchParams.delete(key)
+  const requestHeaders = fromNodeHeaders(params.request.headers)
+  // Parameters should only be stripped for middleware
+  if (!isEdgeRendering) {
+    for (const param of FLIGHT_PARAMETERS) {
+      requestHeaders.delete(param)
     }
   }
+
+  // Strip internal query parameters off the request.
+  stripInternalSearchParams(requestUrl.searchParams, true)
 
   const request = new NextRequestHint({
     page: params.page,
@@ -42,7 +81,7 @@ export async function adapter(params: {
     init: {
       body: params.request.body,
       geo: params.request.geo,
-      headers: fromNodeHeaders(params.request.headers),
+      headers: requestHeaders,
       ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
@@ -162,21 +201,10 @@ export function blockUnallowedResponse(
   })
 }
 
-export function enhanceGlobals() {
-  // The condition is true when the "process" module is provided
-  if (process !== global.process) {
-    // prefer local process but global.process has correct "env"
-    process.env = global.process.env
-    global.process = process
-  }
-
-  // to allow building code that import but does not use node.js modules,
-  // webpack will expect this function to exist in global scope
-  Object.defineProperty(globalThis, '__import_unsupported', {
-    value: __import_unsupported,
-    enumerable: false,
-    configurable: false,
-  })
+function getUnsupportedModuleErrorMessage(module: string) {
+  // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
+  return `The edge runtime does not support Node.js '${module}' module.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
 }
 
 function __import_unsupported(moduleName: string) {
@@ -200,33 +228,19 @@ function __import_unsupported(moduleName: string) {
   return new Proxy({}, { get: () => proxy })
 }
 
-function getUnsupportedModuleErrorMessage(module: string) {
-  // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
-  return `The edge runtime does not support Node.js '${module}' module.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
-}
-
-class NextRequestHint extends NextRequest {
-  sourcePage: string
-
-  constructor(params: {
-    init: RequestInit
-    input: Request | string
-    page: string
-  }) {
-    super(params.input, params.init)
-    this.sourcePage = params.page
+export function enhanceGlobals() {
+  // The condition is true when the "process" module is provided
+  if (process !== global.process) {
+    // prefer local process but global.process has correct "env"
+    process.env = global.process.env
+    global.process = process
   }
 
-  get request() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
-
-  respondWith() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
-
-  waitUntil() {
-    throw new PageSignatureError({ page: this.sourcePage })
-  }
+  // to allow building code that import but does not use node.js modules,
+  // webpack will expect this function to exist in global scope
+  Object.defineProperty(globalThis, '__import_unsupported', {
+    value: __import_unsupported,
+    enumerable: false,
+    configurable: false,
+  })
 }

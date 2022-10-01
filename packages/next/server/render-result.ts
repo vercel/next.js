@@ -1,10 +1,21 @@
 import type { ServerResponse } from 'http'
 
-export default class RenderResult {
-  _result: string | ReadableStream<Uint8Array>
+type ContentTypeOption = string | undefined
 
-  constructor(response: string | ReadableStream<Uint8Array>) {
+export default class RenderResult {
+  private _result: string | ReadableStream<Uint8Array>
+  private _contentType: ContentTypeOption
+
+  constructor(
+    response: string | ReadableStream<Uint8Array>,
+    { contentType }: { contentType?: ContentTypeOption } = {}
+  ) {
     this._result = response
+    this._contentType = contentType
+  }
+
+  contentType(): ContentTypeOption {
+    return this._contentType
   }
 
   toUnchunkedString(): string {

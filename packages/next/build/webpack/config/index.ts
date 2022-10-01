@@ -25,7 +25,7 @@ export async function build(
   }: {
     supportedBrowsers: string[] | undefined
     rootDirectory: string
-    customAppFile: RegExp
+    customAppFile: RegExp | undefined
     isDevelopment: boolean
     isServer: boolean
     isEdgeRuntime: boolean

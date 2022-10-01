@@ -1,13 +1,10 @@
-const path = require('path')
-const fs = require('fs')
 // @ts-check
-
-function slugify(str) {
-  return str.toLowerCase().replace(/ /g, '-')
-}
 
 /** @param {import("plop").NodePlopAPI} plop */
 module.exports = function (plop) {
+  function getFileName(str) {
+    return str.toLowerCase().replace(/ /g, '-')
+  }
   plop.setGenerator('test', {
     description: 'Create a new test',
     prompts: [
@@ -36,7 +33,7 @@ module.exports = function (plop) {
     ],
     actions: function (data) {
       if (!data) return []
-      const fileName = slugify(data.name)
+      const fileName = getFileName(data.name)
       return [
         {
           type: 'add',
@@ -57,14 +54,29 @@ module.exports = function (plop) {
     description: 'Create a new error document',
     prompts: [
       {
+        name: 'urlPath',
+        type: 'input',
+        message: 'Url path with dashes. E.g. circular-structure',
+      },
+      {
         name: 'title',
         type: 'input',
-        message: 'Title for the error',
+        message: 'Title for the error. E.g. Circular Structure',
+      },
+      {
+        name: 'why',
+        type: 'input',
+        message: 'What caused the error to happen?',
+      },
+      {
+        name: 'fix',
+        type: 'input',
+        message: 'What are the possible ways to fix it?',
       },
     ],
     actions: function (data) {
       if (!data) return []
-      const fileName = slugify(data.title)
+      const fileName = getFileName(data.urlPath)
       return [
         {
           type: 'add',
@@ -83,6 +95,7 @@ module.exports = function (plop) {
             return JSON.stringify(manifestData, null, 2)
           },
         },
+        `Url for the error: https://nextjs.org/docs/messages/${fileName}`,
       ]
     },
   })
@@ -110,11 +123,11 @@ module.exports = function (plop) {
     ],
     actions: function (data) {
       if (!data) return []
-      const fileName = slugify(data.title)
+      const fileName = getFileName(data.urlPath)
       return [
         {
           type: 'add',
-          path: `packages/eslint-plugin-next/lib/rules/${fileName}.js`,
+          path: `packages/eslint-plugin-next/lib/rules/${fileName}.ts`,
           templateFile: `packages/eslint-plugin-next/lib/template.txt`,
           data: { fileName },
         },

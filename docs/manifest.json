@@ -143,7 +143,7 @@
               "path": "/docs/api-routes/dynamic-api-routes.md"
             },
             {
-              "title": "API Middlewares",
+              "title": "Request Helpers",
               "path": "/docs/api-routes/request-helpers.md"
             },
             {
@@ -427,7 +427,7 @@
           }
         },
         {
-          "title": "next/future/image (experimental)",
+          "title": "next/future/image",
           "path": "/docs/api-reference/next/future/image.md"
         },
         {
