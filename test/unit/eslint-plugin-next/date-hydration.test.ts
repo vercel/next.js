@@ -1,13 +1,7 @@
-import rule from '@next/eslint-plugin-next/lib/rules/date-hydration'
-import { RuleTester } from 'eslint'
+import rule from '@next/eslint-plugin-next/dist/rules/date-hydration'
+import { ruleTester } from './utils'
 
-new RuleTester({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: { modules: true, jsx: true },
-  },
-}).run('date-hydration', rule, {
+ruleTester.run('date-hydration', rule, {
   valid: [
     `export default function Page() {
     return <p suppressHydrationWarning={true}>{new Date().toLocaleString()}</p>

@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build": "swc -d dist src",
+    "dev": "tsc -w",
     "prepublishOnly": "cd ../../ && turbo run build"
   }
 }
