@@ -2,7 +2,14 @@ import cn from 'classnames'
 import Link from 'next/link'
 import Imgix from 'react-imgix'
 
-export default function CoverImage({ title, url, slug }) {
+type CoverImageProps = {
+  title
+  url
+  slug
+}
+const CoverImage = (props: CoverImageProps) => {
+  const { title, url, slug } = props
+
   const image = (
     <Imgix
       src={url}
@@ -33,3 +40,4 @@ export default function CoverImage({ title, url, slug }) {
     </div>
   )
 }
+export default CoverImage

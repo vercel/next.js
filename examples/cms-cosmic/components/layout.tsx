@@ -3,8 +3,14 @@ import Footer from './footer'
 import Meta from './meta'
 import 'lazysizes'
 import 'lazysizes/plugins/parent-fit/ls.parent-fit'
+import { ReactNode } from 'react'
 
-export default function Layout({ preview, children }) {
+type LayoutProps = {
+  preview: boolean
+  children: ReactNode
+}
+
+const Layout = ({ preview, children }: LayoutProps) => {
   return (
     <>
       <Meta />
@@ -16,3 +22,5 @@ export default function Layout({ preview, children }) {
     </>
   )
 }
+
+export default Layout
