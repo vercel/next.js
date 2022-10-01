@@ -121,6 +121,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes in the fo
 
 - The paths returned from `getStaticPaths` will be rendered to `HTML` at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a [“fallback”](#fallback-pages) version of the page on the first request to such a path. Web crawlers, such as Google, won't be served a fallback and instead the path will behave as in [`fallback: 'blocking'`](#fallback-blocking).
+- When a page with `fallback: true` is navigated to through `next/link` or `next/router` (client-side) Next.js will _not_ serve a fallback and instead the page will behave as [`fallback: 'blocking'`](#fallback-blocking).
 - In the background, Next.js will statically generate the requested path `HTML` and `JSON`. This includes running `getStaticProps`.
 - When complete, the browser receives the `JSON` for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.

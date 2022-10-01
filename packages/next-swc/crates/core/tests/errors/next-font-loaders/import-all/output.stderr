@@ -1,0 +1,6 @@
+
+  x Font loaders can't have namespace imports
+   ,-[input.js:1:1]
+ 1 | import * as googleFonts from '@next/font/google'
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----

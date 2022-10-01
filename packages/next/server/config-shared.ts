@@ -5,9 +5,9 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-  RemotePattern,
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
+import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -91,6 +91,7 @@ export interface ExperimentalConfig {
   cpus?: number
   sharedPool?: boolean
   profiling?: boolean
+  proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
   pageEnv?: boolean
@@ -113,15 +114,9 @@ export interface ExperimentalConfig {
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
   runtime?: Exclude<ServerRuntime, undefined>
-  serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  images?: {
-    remotePatterns?: RemotePattern[]
-    unoptimized?: boolean
-    allowFutureImage?: boolean
-  }
   modularizeImports?: Record<
     string,
     {
@@ -151,6 +146,17 @@ export interface ExperimentalConfig {
    * [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
    */
   fallbackNodePolyfills?: false
+  enableUndici?: boolean
+  sri?: {
+    algorithm?: SubresourceIntegrityAlgorithm
+  }
+  adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
+
+  // A list of packages that should be treated as external in the RSC server build
+  serverComponentsExternalPackages?: string[]
+
+  fontLoaders?: { [fontLoader: string]: any }
 }
 
 export type ExportPathMap = {
@@ -556,6 +562,7 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
+    proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,
     scrollRestoration: false,
@@ -569,12 +576,8 @@ export const defaultConfig: NextConfig = {
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
-    serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    images: {
-      remotePatterns: [],
-    },
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
@@ -584,6 +587,9 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     modularizeImports: undefined,
+    enableUndici: false,
+    adjustFontFallbacks: false,
+    adjustFontFallbacksWithSizeAdjust: false,
   },
 }
 

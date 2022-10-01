@@ -9,6 +9,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import browserslist from 'next/dist/compiled/browserslist'
 import {
   Redirect,
   Rewrite,
@@ -22,6 +23,7 @@ import {
   MIDDLEWARE_FILENAME,
   SERVER_RUNTIME,
 } from '../lib/constants'
+import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -39,7 +41,7 @@ import {
   LoadComponentsReturnType,
 } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
@@ -305,7 +307,7 @@ export async function printTreeView(
   }: {
     distPath: string
     buildId: string
-    pagesDir: string
+    pagesDir?: string
     pageExtensions: string[]
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
@@ -345,7 +347,8 @@ export async function printTreeView(
       .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   // Check if we have a custom app.
-  const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+  const hasCustomApp =
+    pagesDir && (await findPageFile(pagesDir, '/_app', pageExtensions, false))
 
   const filterAndSortList = (list: ReadonlyArray<string>) =>
     list
@@ -812,13 +815,21 @@ export async function getJsPageSizeInKb(
   return [-1, -1]
 }
 
-export async function buildStaticPaths(
-  page: string,
-  getStaticPaths: GetStaticPaths,
-  configFileName: string,
-  locales?: string[],
+export async function buildStaticPaths({
+  page,
+  getStaticPaths,
+  staticPathsResult,
+  configFileName,
+  locales,
+  defaultLocale,
+}: {
+  page: string
+  getStaticPaths?: GetStaticPaths
+  staticPathsResult?: UnwrapPromise<ReturnType<GetStaticPaths>>
+  configFileName: string
+  locales?: string[]
   defaultLocale?: string
-): Promise<
+}): Promise<
   Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
     paths: string[]
     encodedPaths: string[]
@@ -832,7 +843,15 @@ export async function buildStaticPaths(
   // Get the default list of allowed params.
   const _validParamKeys = Object.keys(_routeMatcher(page))
 
-  const staticPathsResult = await getStaticPaths({ locales, defaultLocale })
+  if (!staticPathsResult) {
+    if (getStaticPaths) {
+      staticPathsResult = await getStaticPaths({ locales, defaultLocale })
+    } else {
+      throw new Error(
+        `invariant: attempted to buildStaticPaths without "staticPathsResult" or "getStaticPaths" ${page}`
+      )
+    }
+  }
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
@@ -1012,6 +1031,137 @@ export async function buildStaticPaths(
   }
 }
 
+export type AppConfig = {
+  revalidate?: number | false
+  dynamicParams?: true | false
+  dynamic?: 'auto' | 'error' | 'force-static'
+  fetchCache?: 'force-cache' | 'only-cache'
+  preferredRegion?: string
+}
+type GenerateParams = Array<{
+  config: AppConfig
+  segmentPath: string
+  getStaticPaths?: GetStaticPaths
+  generateStaticParams?: any
+  isLayout?: boolean
+}>
+
+export const collectGenerateParams = (
+  segment: any,
+  parentSegments: string[] = [],
+  generateParams: GenerateParams = []
+): GenerateParams => {
+  if (!Array.isArray(segment)) return generateParams
+  const isLayout = !!segment[2]?.layout
+  const mod = isLayout ? segment[2]?.layout?.() : segment[2]?.page?.()
+
+  const result = {
+    isLayout,
+    segmentPath: `/${parentSegments.join('/')}${
+      segment[0] && parentSegments.length > 0 ? '/' : ''
+    }${segment[0]}`,
+    config: mod?.config,
+    getStaticPaths: mod?.getStaticPaths,
+    generateStaticParams: mod?.generateStaticParams,
+  }
+
+  if (segment[0]) {
+    parentSegments.push(segment[0])
+  }
+
+  if (result.config || result.generateStaticParams || result.getStaticPaths) {
+    generateParams.push(result)
+  }
+  return collectGenerateParams(
+    segment[1]?.children,
+    parentSegments,
+    generateParams
+  )
+}
+
+export async function buildAppStaticPaths({
+  page,
+  configFileName,
+  generateParams,
+}: {
+  page: string
+  configFileName: string
+  generateParams: GenerateParams
+}) {
+  const pageEntry = generateParams[generateParams.length - 1]
+
+  // if the page has legacy getStaticPaths we call it like normal
+  if (typeof pageEntry?.getStaticPaths === 'function') {
+    return buildStaticPaths({
+      page,
+      configFileName,
+      getStaticPaths: pageEntry.getStaticPaths,
+    })
+  } else {
+    // if generateStaticParams is being used we iterate over them
+    // collecting them from each level
+    type Params = Array<Record<string, string | string[]>>
+    let hadGenerateParams = false
+
+    const buildParams = async (
+      paramsItems: Params = [{}],
+      idx = 0
+    ): Promise<Params> => {
+      const curGenerate = generateParams[idx]
+
+      if (idx === generateParams.length) {
+        return paramsItems
+      }
+      if (
+        typeof curGenerate.generateStaticParams !== 'function' &&
+        idx < generateParams.length
+      ) {
+        return buildParams(paramsItems, idx + 1)
+      }
+      hadGenerateParams = true
+
+      const newParams = []
+
+      for (const params of paramsItems) {
+        const result = await curGenerate.generateStaticParams({ params })
+        // TODO: validate the result is valid here or wait for
+        // buildStaticPaths to validate?
+        for (const item of result) {
+          newParams.push({ ...params, ...item })
+        }
+      }
+
+      if (idx < generateParams.length) {
+        return buildParams(newParams, idx + 1)
+      }
+      return newParams
+    }
+    const builtParams = await buildParams()
+    const fallback = !generateParams.some(
+      // TODO: check complementary configs that can impact
+      // dynamicParams behavior
+      (generate) => generate.config?.dynamicParams === false
+    )
+
+    if (!hadGenerateParams) {
+      return {
+        paths: undefined,
+        fallback: undefined,
+        encodedPaths: undefined,
+      }
+    }
+
+    return buildStaticPaths({
+      staticPathsResult: {
+        fallback,
+        paths: builtParams.map((params) => ({ params })),
+      },
+      page,
+      configFileName,
+    })
+  }
+}
+
 export async function isPageStatic({
   page,
   distDir,
@@ -1019,11 +1169,15 @@ export async function isPageStatic({
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
+  enableUndici,
   locales,
   defaultLocale,
   parentId,
   pageRuntime,
   edgeInfo,
+  pageType,
+  hasServerComponents,
+  originalAppPath,
 }: {
   page: string
   distDir: string
@@ -1031,11 +1185,15 @@ export async function isPageStatic({
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
   edgeInfo?: any
+  pageType?: 'pages' | 'app'
   pageRuntime: ServerRuntime
+  hasServerComponents?: boolean
+  originalAppPath?: string
 }): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -1048,14 +1206,22 @@ export async function isPageStatic({
   isNextImageImported?: boolean
   traceIncludes?: string[]
   traceExcludes?: string[]
+  appConfig?: AppConfig
 }> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async () => {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-      setHttpAgentOptions(httpAgentOptions)
+      setHttpClientAndAgentOptions({
+        httpAgentOptions,
+        experimental: { enableUndici },
+      })
 
       let componentsResult: LoadComponentsReturnType
+      let prerenderRoutes: Array<string> | undefined
+      let encodedPrerenderRoutes: Array<string> | undefined
+      let prerenderFallback: boolean | 'blocking' | undefined
+      let appConfig: AppConfig = {}
 
       if (pageRuntime === SERVER_RUNTIME.edge) {
         const runtime = await getRuntimeContext({
@@ -1081,12 +1247,76 @@ export async function isPageStatic({
           getStaticProps: mod.getStaticProps,
         }
       } else {
-        componentsResult = await loadComponents(distDir, page, serverless)
+        componentsResult = await loadComponents({
+          distDir,
+          pathname: originalAppPath || page,
+          serverless,
+          hasServerComponents: !!hasServerComponents,
+          isAppPath: pageType === 'app',
+        })
       }
-      const Comp = componentsResult.Component
+      const Comp = componentsResult.Component || {}
+      let staticPathsResult:
+        | UnwrapPromise<ReturnType<GetStaticPaths>>
+        | undefined
 
-      if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
-        throw new Error('INVALID_DEFAULT_EXPORT')
+      if (pageType === 'app') {
+        const tree = componentsResult.ComponentMod.tree
+        const generateParams = collectGenerateParams(tree)
+
+        appConfig = generateParams.reduce(
+          (builtConfig: AppConfig, curGenParams): AppConfig => {
+            const {
+              dynamic,
+              fetchCache,
+              preferredRegion,
+              revalidate: curRevalidate,
+            } = curGenParams?.config || {}
+
+            // TODO: should conflicting configs here throw an error
+            // e.g. if layout defines one region but page defines another
+            if (typeof builtConfig.preferredRegion === 'undefined') {
+              builtConfig.preferredRegion = preferredRegion
+            }
+            if (typeof builtConfig.dynamic === 'undefined') {
+              builtConfig.dynamic = dynamic
+            }
+            if (typeof builtConfig.fetchCache === 'undefined') {
+              builtConfig.fetchCache = fetchCache
+            }
+
+            // any revalidate number overrides false
+            // shorter revalidate overrides longer (initially)
+            if (typeof builtConfig.revalidate === 'undefined') {
+              builtConfig.revalidate = curRevalidate
+            }
+            if (
+              typeof curRevalidate === 'number' &&
+              (typeof builtConfig.revalidate !== 'number' ||
+                curRevalidate < builtConfig.revalidate)
+            ) {
+              builtConfig.revalidate = curRevalidate
+            }
+            return builtConfig
+          },
+          {}
+        )
+
+        if (isDynamicRoute(page)) {
+          ;({
+            paths: prerenderRoutes,
+            fallback: prerenderFallback,
+            encodedPaths: encodedPrerenderRoutes,
+          } = await buildAppStaticPaths({
+            page,
+            configFileName,
+            generateParams,
+          }))
+        }
+      } else {
+        if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
+          throw new Error('INVALID_DEFAULT_EXPORT')
+        }
       }
 
       const hasGetInitialProps = !!(Comp as any).getInitialProps
@@ -1156,21 +1386,19 @@ export async function isPageStatic({
         )
       }
 
-      let prerenderRoutes: Array<string> | undefined
-      let encodedPrerenderRoutes: Array<string> | undefined
-      let prerenderFallback: boolean | 'blocking' | undefined
-      if (hasStaticProps && hasStaticPaths) {
+      if ((hasStaticProps && hasStaticPaths) || staticPathsResult) {
         ;({
           paths: prerenderRoutes,
           fallback: prerenderFallback,
           encodedPaths: encodedPrerenderRoutes,
-        } = await buildStaticPaths(
+        } = await buildStaticPaths({
           page,
-          componentsResult.getStaticPaths!,
-          configFileName,
           locales,
-          defaultLocale
-        ))
+          defaultLocale,
+          configFileName,
+          staticPathsResult,
+          getStaticPaths: componentsResult.getStaticPaths!,
+        }))
       }
 
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
@@ -1187,6 +1415,7 @@ export async function isPageStatic({
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
+        appConfig,
       }
     })
     .catch((err) => {
@@ -1207,7 +1436,13 @@ export async function hasCustomGetInitialProps(
 ): Promise<boolean> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
-  const components = await loadComponents(distDir, page, isLikeServerless)
+  const components = await loadComponents({
+    distDir,
+    pathname: page,
+    serverless: isLikeServerless,
+    hasServerComponents: false,
+    isAppPath: false,
+  })
   let mod = components.ComponentMod
 
   if (checkingApp) {
@@ -1226,7 +1461,13 @@ export async function getNamedExports(
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-  const components = await loadComponents(distDir, page, isLikeServerless)
+  const components = await loadComponents({
+    distDir,
+    pathname: page,
+    serverless: isLikeServerless,
+    hasServerComponents: false,
+    isAppPath: false,
+  })
   let mod = components.ComponentMod
 
   return Object.keys(mod)
@@ -1308,33 +1549,6 @@ export function detectConflictingPaths(
   }
 }
 
-/**
- * With RSC we automatically add .server and .client to page extensions. This
- * function allows to remove them for cases where we just need to strip out
- * the actual extension keeping the .server and .client.
- */
-export function withoutRSCExtensions(pageExtensions: string[]): string[] {
-  return pageExtensions.filter(
-    (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
-  )
-}
-
-export function isServerComponentPage(
-  nextConfig: NextConfigComplete,
-  filePath: string
-): boolean {
-  if (!nextConfig.experimental.serverComponents) {
-    return false
-  }
-
-  const rawPageExtensions = withoutRSCExtensions(
-    nextConfig.pageExtensions || []
-  )
-  return rawPageExtensions.some((ext) => {
-    return filePath.endsWith(`.server.${ext}`)
-  })
-}
-
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
@@ -1371,7 +1585,13 @@ export async function copyTracedFiles(
           const symlink = await fs.readlink(tracedFilePath).catch(() => null)
 
           if (symlink) {
-            await fs.symlink(symlink, fileOutputPath)
+            try {
+              await fs.symlink(symlink, fileOutputPath)
+            } catch (e: any) {
+              if (e.code !== 'EEXIST') {
+                throw e
+              }
+            }
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
           }
@@ -1511,4 +1731,33 @@ export class NestedMiddlewareError extends Error {
         `Read More - https://nextjs.org/docs/messages/nested-middleware`
     )
   }
+}
+
+export function getSupportedBrowsers(
+  dir: string,
+  isDevelopment: boolean,
+  config: NextConfigComplete
+): string[] | undefined {
+  let browsers: any
+  try {
+    const browsersListConfig = browserslist.loadConfig({
+      path: dir,
+      env: isDevelopment ? 'development' : 'production',
+    })
+    // Running `browserslist` resolves `extends` and other config features into a list of browsers
+    if (browsersListConfig && browsersListConfig.length > 0) {
+      browsers = browserslist(browsersListConfig)
+    }
+  } catch {}
+
+  // When user has browserslist use that target
+  if (browsers && browsers.length > 0) {
+    return browsers
+  }
+
+  // When user does not have browserslist use the default target
+  // When `experimental.legacyBrowsers: false` the modern default is used
+  return config.experimental.legacyBrowsers
+    ? undefined
+    : MODERN_BROWSERSLIST_TARGET
 }

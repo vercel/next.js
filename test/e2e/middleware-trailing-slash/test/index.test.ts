@@ -59,7 +59,7 @@ describe('Middleware Runtime trailing slash', () => {
             name: 'middleware',
             env: [],
             page: '/',
-            regexp: '^/.*$',
+            matchers: [{ regexp: '^/.*$' }],
             wasm: [],
             assets: [],
           },

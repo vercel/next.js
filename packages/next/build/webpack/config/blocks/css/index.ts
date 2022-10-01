@@ -1,13 +1,16 @@
+import path from 'path'
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
+import { getFontLoader } from './loaders/font-loader'
 import {
   getCustomDocumentError,
   getGlobalImportError,
   getGlobalModuleImportError,
   getLocalModuleImportError,
+  getFontLoaderDocumentImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
@@ -177,6 +180,59 @@ export const css = curry(async function css(
   ]
 
   const fns: ConfigurationFn[] = []
+
+  // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
+  let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
+    ? Object.entries(ctx.experimental.fontLoaders).map(
+        ([fontLoader, fontLoaderOptions]: any) => [
+          path.join(require.resolve(fontLoader), '../target.css'),
+          fontLoaderOptions,
+        ]
+      )
+    : undefined
+
+  // Font loaders cannot be imported in _document.
+  fontLoaders?.forEach(([fontLoaderPath, fontLoaderOptions]) => {
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            test: fontLoaderPath,
+            // Use a loose regex so we don't have to crawl the file system to
+            // find the real file name (if present).
+            issuer: /pages[\\/]_document\./,
+            use: {
+              loader: 'error-loader',
+              options: {
+                reason: getFontLoaderDocumentImportError(),
+              },
+            },
+          }),
+        ],
+      })
+    )
+
+    // Matches the resolved font loaders noop files to run next-font-loader
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            sideEffects: false,
+            test: fontLoaderPath,
+            issuer: {
+              and: [
+                {
+                  or: [ctx.rootDirectory, regexClientEntry],
+                },
+              ],
+              not: [/node_modules/],
+            },
+            use: getFontLoader(ctx, lazyPostCSSInitializer, fontLoaderOptions),
+          }),
+        ],
+      })
+    )
+  })
 
   // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.
@@ -501,7 +557,7 @@ export const css = curry(async function css(
                 // If it's inside the app dir, but not importing from a layout file,
                 // throw an error.
                 and: [ctx.rootDirectory],
-                not: [/layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/],
+                not: [/layout\.(js|mjs|jsx|ts|tsx)$/],
               }
             : undefined,
           use: {

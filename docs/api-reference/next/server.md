@@ -10,7 +10,7 @@ description: Learn about the server-only helpers for Middleware and Edge API Rou
 
 The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
 
-- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with cookies from the `Request`. See [Using cookies in Edge Middleware](#using-cookies-in-edge-middleware)
+- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with cookies from the `Request`. See [Using cookies in Middleware](/docs/advanced-features/middleware#using-cookies)
 - `nextUrl`: Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`. Includes the following properties:
   - `basePath` (`string`)
   - `buildId` (`string || undefined`)
