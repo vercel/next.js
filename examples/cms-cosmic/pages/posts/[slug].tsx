@@ -12,8 +12,17 @@ import PostTitle from '@/components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
 import markdownToHtml from '@/lib/markdownToHtml'
+import { PostType } from 'interfaces'
+import { ParsedUrlQueryInput } from 'querystring'
 
-export default function Post({ post, morePosts, preview }) {
+type PostProps = {
+  post: PostType
+  morePosts: PostType[]
+  preview
+}
+
+const Post = (props: PostProps) => {
+  const { post, morePosts, preview } = props
   const router = useRouter()
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
@@ -52,20 +61,30 @@ export default function Post({ post, morePosts, preview }) {
     </Layout>
   )
 }
+export default Post
 
-export async function getStaticProps({ params, preview = null }) {
-  const data = await getPostAndMorePosts(params.slug, preview)
-  const content = await markdownToHtml(data.post?.metadata?.content || '')
+type staticProps = {
+  params: ParsedUrlQueryInput
+  preview: boolean
+}
 
-  return {
-    props: {
-      preview,
-      post: {
-        ...data.post,
-        content,
+export const getStaticProps = async (props: staticProps) => {
+  const { params, preview = null } = props
+  try {
+    const data = await getPostAndMorePosts(params.slug as string, preview)
+    const content = await markdownToHtml(data['post']?.metadata?.content || '')
+    return {
+      props: {
+        preview,
+        post: {
+          ...data['post'],
+          content,
+        },
+        morePosts: data['morePosts'] || [],
       },
-      morePosts: data.morePosts || [],
-    },
+    }
+  } catch (err) {
+    return <ErrorPage statusCode={err.status} />
   }
 }
 

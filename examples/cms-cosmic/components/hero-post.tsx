@@ -2,15 +2,20 @@ import Avatar from './avatar'
 import Date from './date'
 import CoverImage from './cover-image'
 import Link from 'next/link'
+import { AuthorType, ImgixType } from 'interfaces'
 
-export default function HeroPost({
-  title,
-  coverImage,
-  date,
-  excerpt,
-  author,
-  slug,
-}) {
+type HeroPostProps = {
+  title: string
+  coverImage: ImgixType
+  date: string
+  excerpt: string
+  author: AuthorType
+  slug: string
+}
+
+const HeroPost = (props: HeroPostProps) => {
+  const { title, coverImage, date, excerpt, author, slug } = props
+
   return (
     <section>
       <div className="mb-8 md:mb-16">
@@ -38,3 +43,5 @@ export default function HeroPost({
     </section>
   )
 }
+
+export default HeroPost

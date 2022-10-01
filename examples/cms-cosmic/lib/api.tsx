@@ -1,4 +1,5 @@
 import Cosmic from 'cosmicjs'
+import { PostType } from 'interfaces'
 import ErrorPage from 'next/error'
 
 const BUCKET_SLUG = process.env.COSMIC_BUCKET_SLUG
@@ -9,26 +10,26 @@ const bucket = Cosmic().bucket({
   read_key: READ_KEY,
 })
 
-export async function getPreviewPostBySlug(slug) {
+export const getPreviewPostBySlug = async (slug: string) => {
   const params = {
     query: {
       slug,
       type: 'posts',
     },
     props: 'slug',
-    status: 'all',
+    status: 'any',
   }
 
   try {
     const data = await bucket.getObjects(params)
     return data.objects[0]
   } catch (err) {
-    // 404 if slug not found
+    // Don't throw if an slug doesn't exist
     return <ErrorPage statusCode={err.status} />
   }
 }
 
-export async function getAllPostsWithSlug() {
+export const getAllPostsWithSlug = async () => {
   const params = {
     query: {
       type: 'posts',
@@ -39,27 +40,33 @@ export async function getAllPostsWithSlug() {
   return data.objects
 }
 
-export async function getAllPostsForHome(preview) {
+export const getAllPostsForHome = async (preview: boolean): Promise<Post[]> => {
   const params = {
     query: {
       type: 'posts',
     },
     props: 'title,slug,metadata,created_at',
     sort: '-created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   const data = await bucket.getObjects(params)
   return data.objects
 }
 
-export async function getPostAndMorePosts(slug, preview) {
+export const getPostAndMorePosts = async (
+  slug: string,
+  preview: boolean
+): Promise<{
+  post: PostType
+  morePosts: PostType[]
+}> => {
   const singleObjectParams = {
     query: {
       slug,
       type: 'posts',
     },
     props: 'slug,title,metadata,created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   const moreObjectParams = {
     query: {
@@ -67,15 +74,14 @@ export async function getPostAndMorePosts(slug, preview) {
     },
     limit: 3,
     props: 'title,slug,metadata,created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   let object
   try {
     const data = await bucket.getObjects(singleObjectParams)
     object = data.objects[0]
   } catch (err) {
-    // 404 if slug not found
-    return <ErrorPage statusCode={err.status} />
+    throw err
   }
   const moreObjects = await bucket.getObjects(moreObjectParams)
   const morePosts = moreObjects.objects

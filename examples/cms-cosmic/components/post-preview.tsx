@@ -2,15 +2,20 @@ import Avatar from './avatar'
 import Date from './date'
 import CoverImage from './cover-image'
 import Link from 'next/link'
+import { AuthorType, ImgixType } from 'interfaces'
 
-export default function PostPreview({
-  title,
-  coverImage,
-  date,
-  excerpt,
-  author,
-  slug,
-}) {
+type PostPreviewProps = {
+  title: string
+  coverImage: ImgixType
+  date: string
+  excerpt: string
+  author: AuthorType
+  slug: string
+}
+
+const PostPreview = (props: PostPreviewProps) => {
+  const { title, coverImage, date, excerpt, author, slug } = props
+
   return (
     <div>
       <div className="mb-5">
@@ -29,3 +34,5 @@ export default function PostPreview({
     </div>
   )
 }
+
+export default PostPreview
