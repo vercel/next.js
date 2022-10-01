@@ -3,8 +3,7 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.7",
@@ -20,8 +19,6 @@
     "@types/react": "^18.0.21",
     "@types/react-dom": "^18.0.6",
     "autoprefixer": "^10.4.12",
-    "eslint": "^8.23.1",
-    "eslint-config-next": "latest",
     "postcss": "^8.4.16",
     "typescript": "^4.8.3"
   }
