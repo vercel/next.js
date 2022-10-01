@@ -104,7 +104,7 @@ export async function getServerSideProps(context) {
 
 ### getServerSideProps with TypeScript
 
-To specify type of `getServerSideProps` explicitly, you can use `GetServerSideProps` from `next`:
+The type of `getServerSideProps` can be specified using `GetServerSideProps` from `next`:
 
 ```ts
 import { GetServerSideProps } from 'next'

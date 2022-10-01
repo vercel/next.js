@@ -202,7 +202,7 @@ export default Blog
 
 ## getStaticProps with TypeScript
 
-To specify type of `getStaticProps` explicitly, you can use `GetStaticProps` from `next`:
+The type of `getStaticProps` can be specified using `GetStaticProps` from `next`:
 
 ```ts
 import { GetStaticProps } from 'next'
