@@ -13,8 +13,7 @@ Within a page or component, import and use `next/head` to define a page title:
 ```jsx
 import Head from 'next/head'
 
-export class Home {
-  render() {
+export function Home() {
     return (
       <div>
         <Head>
@@ -22,7 +21,6 @@ export class Home {
         </Head>
       </div>
     )
-  }
 }
 ```
 
