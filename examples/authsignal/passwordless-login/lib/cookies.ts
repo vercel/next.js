@@ -1,6 +1,10 @@
 import Iron from '@hapi/iron'
 import { parse, serialize } from 'cookie'
 
+export const COOKIE_NAME = 'session_token'
+
+const TOKEN_SECRET = process.env.SESSION_TOKEN_SECRET!
+
 export async function createCookieForSession(user: User) {
   // Make login session valid for 8 hours
   const maxAge = 60 * 60 * 8
@@ -51,7 +55,3 @@ export interface User {
   userId: string
   email?: string
 }
-
-export const COOKIE_NAME = 'session_token'
-
-const TOKEN_SECRET = process.env.SESSION_TOKEN_SECRET!
