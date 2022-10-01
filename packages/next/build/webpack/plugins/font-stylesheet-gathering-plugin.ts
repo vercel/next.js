@@ -5,6 +5,7 @@ import {
 } from 'next/dist/compiled/webpack/webpack'
 import {
   getFontDefinitionFromNetwork,
+  getFontOverrideCss,
   FontManifest,
 } from '../../../server/font-utils'
 import postcss from 'postcss'
@@ -52,9 +53,21 @@ export class FontStylesheetGatheringPlugin {
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
   isLikeServerless: boolean
+  adjustFontFallbacks?: boolean
+  adjustFontFallbacksWithSizeAdjust?: boolean
 
-  constructor({ isLikeServerless }: { isLikeServerless: boolean }) {
+  constructor({
+    isLikeServerless,
+    adjustFontFallbacks,
+    adjustFontFallbacksWithSizeAdjust,
+  }: {
+    isLikeServerless: boolean
+    adjustFontFallbacks?: boolean
+    adjustFontFallbacksWithSizeAdjust?: boolean
+  }) {
     this.isLikeServerless = isLikeServerless
+    this.adjustFontFallbacks = adjustFontFallbacks
+    this.adjustFontFallbacksWithSizeAdjust = adjustFontFallbacksWithSizeAdjust
   }
 
   private parserHandler = (
@@ -212,7 +225,15 @@ export class FontStylesheetGatheringPlugin {
 
           this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
-            const css = await fontDefinitionPromises[promiseIndex]
+            let css = await fontDefinitionPromises[promiseIndex]
+
+            if (this.adjustFontFallbacks) {
+              css += getFontOverrideCss(
+                fontStylesheets[promiseIndex],
+                css,
+                this.adjustFontFallbacksWithSizeAdjust
+              )
+            }
 
             if (css) {
               try {
@@ -242,11 +263,9 @@ export class FontStylesheetGatheringPlugin {
     })
 
     compiler.hooks.make.tap(this.constructor.name, (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: this.constructor.name,
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {

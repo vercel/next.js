@@ -6,8 +6,72 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../../server/app-render'
+// TODO-APP: change to React.use once it becomes stable
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
+
+/**
+ * Create data fetching record for Promise.
+ */
+// TODO-APP: change `any` to type inference.
+function createRecordFromThenable(thenable: any) {
+  thenable.status = 'pending'
+  thenable.then(
+    (value: any) => {
+      if (thenable.status === 'pending') {
+        thenable.status = 'fulfilled'
+        thenable.value = value
+      }
+    },
+    (err: any) => {
+      if (thenable.status === 'pending') {
+        thenable.status = 'rejected'
+        thenable.value = err
+      }
+    }
+  )
+  return thenable
+}
+
+/**
+ * Read record value or throw Promise if it's not resolved yet.
+ */
+function readRecordValue(thenable: any) {
+  if (thenable.status === 'fulfilled') {
+    return thenable.value
+  } else {
+    throw thenable
+  }
+}
+
+function createHrefFromUrl(url: URL): string {
+  return url.pathname + url.search + url.hash
+}
+
+/**
+ * Invalidate cache one level down from the router state.
+ */
+// TODO-APP: Verify if this needs to be recursive.
+function invalidateCacheByRouterState(
+  newCache: CacheNode,
+  existingCache: CacheNode,
+  routerState: FlightRouterState
+) {
+  // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
+  for (const key in routerState[1]) {
+    const segmentForParallelRoute = routerState[1][key][0]
+    const cacheKey = Array.isArray(segmentForParallelRoute)
+      ? segmentForParallelRoute[1]
+      : segmentForParallelRoute
+    const existingParallelRoutesCacheNode =
+      existingCache.parallelRoutes.get(key)
+    if (existingParallelRoutesCacheNode) {
+      let parallelRouteCacheNode = new Map(existingParallelRoutesCacheNode)
+      parallelRouteCacheNode.delete(cacheKey)
+      newCache.parallelRoutes.set(key, parallelRouteCacheNode)
+    }
+  }
+}
 
 /**
  * Fill cache with subTreeData based on flightDataPath
@@ -56,19 +120,12 @@ function fillCacheWithNewSubTreeData(
           : new Map(),
       }
 
-      // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
-      for (const key in flightDataPath[2][1]) {
-        const segmentForParallelRoute = flightDataPath[2][1][key][0]
-        const cacheKey = Array.isArray(segmentForParallelRoute)
-          ? segmentForParallelRoute[1]
-          : segmentForParallelRoute
-        const existingParallelRoutesCacheNode =
-          existingChildCacheNode?.parallelRoutes.get(key)
-        if (existingParallelRoutesCacheNode) {
-          let parallelRouteCacheNode = new Map(existingParallelRoutesCacheNode)
-          parallelRouteCacheNode.delete(cacheKey)
-          childCacheNode.parallelRoutes.set(key, parallelRouteCacheNode)
-        }
+      if (existingChildCacheNode) {
+        invalidateCacheByRouterState(
+          childCacheNode,
+          existingChildCacheNode,
+          flightDataPath[2]
+        )
       }
 
       childSegmentMap.set(segmentForCache, childCacheNode)
@@ -211,7 +268,7 @@ function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
   segments: string[],
-  fetchResponse: any
+  fetchResponse: () => ReturnType<typeof fetchServerResponse>
 ): { bailOptimistic: boolean } | undefined {
   const isLastEntry = segments.length === 1
 
@@ -457,6 +514,7 @@ interface ReloadAction {
   mutable: {
     previousTree?: FlightRouterState
     patchedTree?: FlightRouterState
+    canonicalUrlOverride?: string
   }
 }
 
@@ -493,6 +551,7 @@ interface NavigateAction {
   mutable: {
     previousTree?: FlightRouterState
     patchedTree?: FlightRouterState
+    canonicalUrlOverride?: string
     useExistingCache?: true
   }
 }
@@ -520,16 +579,18 @@ interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
   flightData: FlightData
   previousTree: FlightRouterState
+  overrideCanonicalUrl: URL | undefined
   cache: CacheNode
   mutable: {
     patchedTree?: FlightRouterState
+    canonicalUrlOverride?: string
   }
 }
 
 interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
-  flightData: FlightData
+  serverResponse: Awaited<ReturnType<typeof fetchServerResponse>>
 }
 
 interface PushRef {
@@ -567,6 +628,7 @@ type AppRouterState = {
     {
       flightSegmentPath: FlightSegmentPath
       treePatch: FlightRouterState
+      canonicalUrlOverride: URL | undefined
     }
   >
   /**
@@ -586,7 +648,7 @@ type AppRouterState = {
 /**
  * Reducer that handles the app-router state updates.
  */
-export function reducer(
+function clientReducer(
   state: Readonly<AppRouterState>,
   action: Readonly<
     | ReloadAction
@@ -600,8 +662,8 @@ export function reducer(
     case ACTION_NAVIGATE: {
       const { url, navigateType, cache, mutable, forceOptimisticNavigation } =
         action
-      const { pathname, search, hash } = url
-      const href = pathname + search + hash
+      const { pathname, search } = url
+      const href = createHrefFromUrl(url)
       const pendingPush = navigateType === 'push'
 
       // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
@@ -611,7 +673,9 @@ export function reducer(
       ) {
         return {
           // Set href.
-          canonicalUrl: href,
+          canonicalUrl: mutable.canonicalUrlOverride
+            ? mutable.canonicalUrlOverride
+            : href,
           // TODO-APP: verify mpaNavigation not being set is correct here.
           pushRef: { pendingPush, mpaNavigation: false },
           // All navigation requires scroll and focus management to trigger.
@@ -627,7 +691,8 @@ export function reducer(
       const prefetchValues = state.prefetchCache.get(href)
       if (prefetchValues) {
         // The one before last item is the router state tree patch
-        const { flightSegmentPath, treePatch } = prefetchValues
+        const { flightSegmentPath, treePatch, canonicalUrlOverride } =
+          prefetchValues
 
         // Create new tree based on the flightSegmentPath and router state patch
         const newTree = applyRouterStatePatchToTree(
@@ -665,9 +730,19 @@ export function reducer(
             mutable.useExistingCache = true
           }
 
+          const canonicalUrlOverrideHref = canonicalUrlOverride
+            ? createHrefFromUrl(canonicalUrlOverride)
+            : undefined
+
+          if (canonicalUrlOverrideHref) {
+            mutable.canonicalUrlOverride = canonicalUrlOverrideHref
+          }
+
           return {
             // Set href.
-            canonicalUrl: href,
+            canonicalUrl: canonicalUrlOverrideHref
+              ? canonicalUrlOverrideHref
+              : href,
             // Set pendingPush.
             pushRef: { pendingPush, mpaNavigation: false },
             // All navigation requires scroll and focus management to trigger.
@@ -712,8 +787,7 @@ export function reducer(
           cache,
           state.cache,
           segments.slice(1),
-          (): { readRoot: () => FlightData } =>
-            fetchServerResponse(url, optimisticTree)
+          () => fetchServerResponse(url, optimisticTree)
         )
 
         // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
@@ -740,11 +814,13 @@ export function reducer(
 
       // If no in-flight fetch at the top, start it.
       if (!cache.data) {
-        cache.data = fetchServerResponse(url, state.tree)
+        cache.data = createRecordFromThenable(
+          fetchServerResponse(url, state.tree)
+        )
       }
 
-      // readRoot to suspend here (in the reducer) until the fetch resolves.
-      const flightData = cache.data.readRoot()
+      // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
+      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -784,6 +860,12 @@ export function reducer(
         throw new Error('SEGMENT MISMATCH')
       }
 
+      const canonicalUrlOverrideHref = canonicalUrlOverride
+        ? createHrefFromUrl(canonicalUrlOverride)
+        : undefined
+      if (canonicalUrlOverrideHref) {
+        mutable.canonicalUrlOverride = canonicalUrlOverrideHref
+      }
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
 
@@ -794,7 +876,9 @@ export function reducer(
 
       return {
         // Set href.
-        canonicalUrl: href,
+        canonicalUrl: canonicalUrlOverrideHref
+          ? canonicalUrlOverrideHref
+          : href,
         // Set pendingPush.
         pushRef: { pendingPush, mpaNavigation: false },
         // All navigation requires scroll and focus management to trigger.
@@ -807,7 +891,9 @@ export function reducer(
       }
     }
     case ACTION_SERVER_PATCH: {
-      const { flightData, previousTree, cache, mutable } = action
+      const { flightData, previousTree, overrideCanonicalUrl, cache, mutable } =
+        action
+
       // When a fetch is slow to resolve it could be that you navigated away while the request was happening or before the reducer runs.
       // In that case opt-out of applying the patch given that the data could be stale.
       if (JSON.stringify(previousTree) !== JSON.stringify(state.tree)) {
@@ -821,7 +907,9 @@ export function reducer(
       if (mutable.patchedTree) {
         return {
           // Keep href as it was set during navigate / restore
-          canonicalUrl: state.canonicalUrl,
+          canonicalUrl: mutable.canonicalUrlOverride
+            ? mutable.canonicalUrlOverride
+            : state.canonicalUrl,
           // Keep pushRef as server-patch only causes cache/tree update.
           pushRef: state.pushRef,
           // Keep focusAndScrollRef as server-patch only causes cache/tree update.
@@ -868,6 +956,14 @@ export function reducer(
         throw new Error('SEGMENT MISMATCH')
       }
 
+      const canonicalUrlOverrideHref = overrideCanonicalUrl
+        ? createHrefFromUrl(overrideCanonicalUrl)
+        : undefined
+
+      if (canonicalUrlOverrideHref) {
+        mutable.canonicalUrlOverride = canonicalUrlOverrideHref
+      }
+
       mutable.patchedTree = newTree
 
       // Copy subTreeData for the root node of the cache.
@@ -876,7 +972,9 @@ export function reducer(
 
       return {
         // Keep href as it was set during navigate / restore
-        canonicalUrl: state.canonicalUrl,
+        canonicalUrl: canonicalUrlOverrideHref
+          ? canonicalUrlOverrideHref
+          : state.canonicalUrl,
         // Keep pushRef as server-patch only causes cache/tree update.
         pushRef: state.pushRef,
         // Keep focusAndScrollRef as server-patch only causes cache/tree update.
@@ -890,7 +988,7 @@ export function reducer(
     }
     case ACTION_RESTORE: {
       const { url, tree } = action
-      const href = url.pathname + url.search + url.hash
+      const href = createHrefFromUrl(url)
 
       return {
         // Set canonical url
@@ -914,7 +1012,9 @@ export function reducer(
       ) {
         return {
           // Set href.
-          canonicalUrl: href,
+          canonicalUrl: mutable.canonicalUrlOverride
+            ? mutable.canonicalUrlOverride
+            : href,
           // set pendingPush (always false in this case).
           pushRef: state.pushRef,
           // Apply focus and scroll.
@@ -928,14 +1028,16 @@ export function reducer(
 
       if (!cache.data) {
         // Fetch data from the root of the tree.
-        cache.data = fetchServerResponse(new URL(href, location.origin), [
-          state.tree[0],
-          state.tree[1],
-          state.tree[2],
-          'refetch',
-        ])
+        cache.data = createRecordFromThenable(
+          fetchServerResponse(new URL(href, location.origin), [
+            state.tree[0],
+            state.tree[1],
+            state.tree[2],
+            'refetch',
+          ])
+        )
       }
-      const flightData = cache.data.readRoot()
+      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -975,6 +1077,14 @@ export function reducer(
         throw new Error('SEGMENT MISMATCH')
       }
 
+      const canonicalUrlOverrideHref = canonicalUrlOverride
+        ? createHrefFromUrl(canonicalUrlOverride)
+        : undefined
+
+      if (canonicalUrlOverride) {
+        mutable.canonicalUrlOverride = canonicalUrlOverrideHref
+      }
+
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
 
@@ -983,7 +1093,9 @@ export function reducer(
 
       return {
         // Set href, this doesn't reuse the state.canonicalUrl as because of concurrent rendering the href might change between dispatching and applying.
-        canonicalUrl: href,
+        canonicalUrl: canonicalUrlOverrideHref
+          ? canonicalUrlOverrideHref
+          : href,
         // set pendingPush (always false in this case).
         pushRef: state.pushRef,
         // TODO-APP: might need to disable this for Fast Refresh.
@@ -996,15 +1108,15 @@ export function reducer(
       }
     }
     case ACTION_PREFETCH: {
-      const { url, flightData } = action
+      const { url, serverResponse } = action
+      const [flightData, canonicalUrlOverride] = serverResponse
 
       // TODO-APP: Implement prefetch for hard navigation
       if (typeof flightData === 'string') {
         return state
       }
 
-      const { pathname, search, hash } = url
-      const href = pathname + search + hash
+      const href = createHrefFromUrl(url)
 
       // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
       const flightDataPath = flightData[0]
@@ -1023,6 +1135,7 @@ export function reducer(
         // Path without the last segment, router state, and the subTreeData
         flightSegmentPath: flightDataPath.slice(0, -2),
         treePatch,
+        canonicalUrlOverride,
       })
 
       return state
@@ -1032,3 +1145,20 @@ export function reducer(
       throw new Error('Unknown action')
   }
 }
+
+function serverReducer(
+  state: Readonly<AppRouterState>,
+  _action: Readonly<
+    | ReloadAction
+    | NavigateAction
+    | RestoreAction
+    | ServerPatchAction
+    | PrefetchAction
+  >
+): AppRouterState {
+  return state
+}
+
+// we don't run the client reducer on the server, so we use a noop function for better tree shaking
+export const reducer =
+  typeof window === 'undefined' ? serverReducer : clientReducer

@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-styled-jsx-in-document'
+import rule from '@next/eslint-plugin-next/dist/rules/no-styled-jsx-in-document'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

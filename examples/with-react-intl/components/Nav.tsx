@@ -30,7 +30,7 @@ export default function Nav() {
 
       <li className={styles.divider}></li>
 
-      {locales.map((availableLocale) => (
+      {locales?.map((availableLocale) => (
         <li key={availableLocale} className={styles.li}>
           <Link
             href={asPath}

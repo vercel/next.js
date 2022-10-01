@@ -56,7 +56,6 @@ describe('Middleware Runtime', () => {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
-          NEXT_RUNTIME: 'edge',
         },
       })
     })
@@ -125,8 +124,20 @@ describe('Middleware Runtime', () => {
             matchers: [{ regexp: '^/.*$' }],
             wasm: [],
             assets: [],
+            regions: 'auto',
           },
         })
+      })
+
+      it('should have the custom config in the manifest', async () => {
+        const manifest = await fs.readJSON(
+          join(next.testDir, '.next/server/middleware-manifest.json')
+        )
+
+        expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
+          'regions',
+          'default'
+        )
       })
 
       it('should have correct files in manifest', async () => {
@@ -188,8 +199,33 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct query values for rewrite to ssg page', async () => {
-      const browser = await webdriver(next.url, '/to-ssg')
+      const browser = await webdriver(next.url, '/to-ssg', {
+        waitHydration: false,
+      })
+      const requests = []
+
+      browser.on('request', (req) => {
+        console.error('request', req.url(), req.method())
+        if (req.method() === 'HEAD') {
+          requests.push(req.url())
+        }
+      })
       await browser.eval('window.beforeNav = 1')
+
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        return didReq ||
+          requests.some((req) =>
+            new URL(req, 'http://n').pathname.endsWith('/to-ssg.json')
+          )
+          ? 'found'
+          : JSON.stringify(requests)
+      }, 'found')
+
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"from":"middleware"/
+      )
 
       await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
 
@@ -440,7 +476,7 @@ describe('Middleware Runtime', () => {
       const payload = readMiddlewareJSON(response)
       expect('error' in payload).toBe(true)
       expect(payload.error.name).toBe('AbortError')
-      expect(payload.error.message).toBe('The operation was aborted')
+      expect(payload.error.message).toContain('The operation was aborted')
     })
 
     it(`should validate & parse request url from any route`, async () => {
