@@ -6,13 +6,22 @@ import Layout from '@/components/layout'
 import { getAllPostsForHome } from '@/lib/api'
 import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
+import { PostType } from 'interfaces'
 
-export default function Index({ allPosts }) {
+type IndexProps = {
+  allPosts: PostType[]
+  preview: boolean
+}
+
+const Index = (props: IndexProps) => {
+  const { allPosts, preview } = props
+
   const heroPost = allPosts[0]
   const morePosts = allPosts.slice(1)
+
   return (
     <>
-      <Layout>
+      <Layout preview={preview}>
         <Head>
           <title>Next.js Blog Example with {CMS_NAME}</title>
         </Head>
@@ -35,9 +44,16 @@ export default function Index({ allPosts }) {
   )
 }
 
-export async function getStaticProps({ preview }) {
+export default Index
+
+type staticProps = {
+  preview: boolean
+}
+
+export const getStaticProps = async (props: staticProps) => {
+  const { preview = null } = props
   const allPosts = (await getAllPostsForHome(preview)) || []
   return {
-    props: { allPosts },
+    props: { allPosts, preview },
   }
 }
