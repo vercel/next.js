@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use modularize_imports::{modularize_imports, PackageConfig};
-use swc_ecma_transforms_testing::test_fixture;
-use swc_ecmascript::parser::{EsConfig, Syntax};
+use swc_core::{
+    ecma::parser::{EsConfig, Syntax},
+    ecma::transforms::testing::test_fixture,
+};
 use testing::fixture;
 
 fn syntax() -> Syntax {
@@ -40,6 +42,14 @@ fn modularize_imports_fixture(input: PathBuf) {
                         "my-library-2".to_string(),
                         PackageConfig {
                             transform: "my-library-2/{{ camelCase member }}".into(),
+                            prevent_full_import: false,
+                            skip_default_conversion: true,
+                        },
+                    ),
+                    (
+                        "my-library-3".to_string(),
+                        PackageConfig {
+                            transform: "my-library-3/{{ kebabCase member }}".into(),
                             prevent_full_import: false,
                             skip_default_conversion: true,
                         },

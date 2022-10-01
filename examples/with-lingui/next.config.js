@@ -1,5 +1,6 @@
 const { locales, sourceLocale } = require('./lingui.config.js')
 
+/** @type {import('next').NextConfig} */
 module.exports = {
   i18n: {
     locales,

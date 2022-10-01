@@ -12,9 +12,13 @@ In your terminal, run the following command:
 
 ```bash
 npx create-next-app --example with-jest-babel with-jest-babel-app
-# or
+```
+
+```bash
 yarn create next-app --example with-jest-babel with-jest-babel-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-jest-babel with-jest-babel-app
 ```
 

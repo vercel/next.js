@@ -72,7 +72,7 @@ function Home() {
 
 ### Remote Images
 
-To use a remote image, the `src` property should be a URL string, which can be [relative](#loaders) or [absolute](/docs/api-reference/next/image.md#domains). Because Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and optional [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually:
+To use a remote image, the `src` property should be a URL string, which can be [relative](#loaders) or [absolute](/docs/api-reference/next/image.md#remote-patterns). Because Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and optional [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually:
 
 ```jsx
 import Image from 'next/image'
@@ -97,17 +97,17 @@ export default function Home() {
 
 ### Domains
 
-Sometimes you may want to access a remote image, but still use the built-in Next.js Image Optimization API. To do this, leave the `loader` at its default setting and enter an absolute URL for the Image `src`.
+Sometimes you may want to optimize a remote image, but still use the built-in Next.js Image Optimization API. To do this, leave the `loader` at its default setting and enter an absolute URL for the Image `src` prop.
 
-To protect your application from malicious users, you must define a list of remote hostnames you intend to allow remote access.
+To protect your application from malicious users, you must define a list of remote hostnames you intend to use with the `next/image` component.
 
-> Learn more about [`domains`](/docs/api-reference/next/image.md#domains) configuration.
+> Learn more about [`remotePatterns`](/docs/api-reference/next/image.md#remote-patterns) configuration.
 
 ### Loaders
 
 Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the `next/image` [loader](/docs/api-reference/next/image.md#loader) architecture.
 
-A loader is a function that generates the URLs for your image. It appends a root domain to your provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
+A loader is a function that generates the URLs for your image. It modifies the provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
 
 The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can use one of the [built-in loaders](/docs/api-reference/next/image.md#built-in-loaders) or write your own with a few lines of JavaScript.
 
@@ -209,7 +209,7 @@ For examples of the Image component used with the various fill modes, see the [I
 
 ## Configuration
 
-The `next/image` component and Next.js Image Optimization API can be configured in the [`next.config.js` file](/docs/api-reference/next.config.js/introduction.md). These configurations allow you to [enable remote images](/docs/api-reference/next/image.md#domains), [define custom image breakpoints](/docs/api-reference/next/image.md#device-sizes), [change caching behavior](/docs/api-reference/next/image.md#caching-behavior) and more.
+The `next/image` component and Next.js Image Optimization API can be configured in the [`next.config.js` file](/docs/api-reference/next.config.js/introduction.md). These configurations allow you to [enable remote images](/docs/api-reference/next/image.md#remote-patterns), [define custom image breakpoints](/docs/api-reference/next/image.md#device-sizes), [change caching behavior](/docs/api-reference/next/image.md#caching-behavior) and more.
 
 [**Read the full image configuration documentation for more information.**](/docs/api-reference/next/image.md#configuration-options)
 

@@ -25,6 +25,7 @@ description: Next.js has the preview mode for statically generated pages. You ca
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-kontent">Kontent Example</a> (<a href="https://next-blog-kontent.vercel.app//">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-umbraco-heartcore">Umbraco Heartcore Example</a> (<a href="https://next-blog-umbraco-heartcore.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-plasmic">Plasmic Example</a> (<a href="https://nextjs-plasmic-example.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-enterspeed">Enterspeed Example</a> (<a href="https://next-blog-demo.enterspeed.com/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-makeswift">Makeswift Example</a> (<a href="https://nextjs-makeswift-example.vercel.app/">Demo</a>)</li>
   </ul>
 </details>
@@ -173,6 +174,8 @@ https://<your-site>/api/preview?secret=<token>&slug=<path>
 
 ## More Details
 
+> **Note**: during rendering `next/router` exposes an `isPreview` flag, see the [router object docs](/docs/api-reference/next/router.md#router-object) for more info.
+
 ### Clear the Preview Mode cookies
 
 By default, no expiration date is set for Preview Mode cookies, so the preview session ends when the browser is closed.
@@ -194,10 +197,12 @@ Then, send a request to `/api/clear-preview-mode-cookies` to invoke the API Rout
 `setPreviewData` takes an optional second parameter which should be an options object. It accepts the following keys:
 
 - `maxAge`: Specifies the number (in seconds) for the preview session to last for.
+- `path`: Specifies the path the cookie should be applied under. Defaults to `/` enabling preview mode for all paths.
 
 ```js
 setPreviewData(data, {
   maxAge: 60 * 60, // The preview mode cookies expire in 1 hour
+  path: '/about', // The preview mode cookies apply to paths with /about
 })
 ```
 

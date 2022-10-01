@@ -24,6 +24,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## Deploy your own
 
@@ -37,9 +38,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example cms-datocms cms-datocms-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-datocms cms-datocms-app
-# or
+```
+
+```bash
 pnpm create next-app --example cms-datocms cms-datocms-app
 ```
 

@@ -2,37 +2,49 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-// @ts-ignore startTransition exists when using React 18
-import React from 'react'
+// TODO-APP: change to React.use once it becomes stable
+import React, { experimental_use as use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+
+import measureWebVitals from './performance-relayer'
 
 /// <reference types="react-dom/experimental" />
 
+// Override chunk URL mapping in the webpack runtime
+// https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
+
+declare global {
+  const __webpack_require__: any
+}
+
+// eslint-disable-next-line no-undef
+const getChunkScriptFilename = __webpack_require__.u
+const chunkFilenameMap: any = {}
+
+// eslint-disable-next-line no-undef
+__webpack_require__.u = (chunkId: any) => {
+  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
+}
+
+// Ignore the module ID transform in client.
+// eslint-disable-next-line no-undef
+// @ts-expect-error TODO: fix type
+self.__next_require__ = __webpack_require__
+
+// eslint-disable-next-line no-undef
+;(self as any).__next_chunk_load__ = (chunk: string) => {
+  if (!chunk) return Promise.resolve()
+  const [chunkId, chunkFileName] = chunk.split(':')
+  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
+
+  // @ts-ignore
+  // eslint-disable-next-line no-undef
+  return __webpack_chunk_load__(chunkId)
+}
+
 export const version = process.env.__NEXT_VERSION
 
-// History replace has to happen on bootup to ensure `state` is always populated in popstate event
-window.history.replaceState(
-  { url: window.location.toString() },
-  '',
-  window.location.toString()
-)
-
 const appElement: HTMLElement | Document | null = document
-
-let reactRoot: any = null
-
-function renderReactElement(
-  domEl: HTMLElement | Document,
-  fn: () => JSX.Element
-): void {
-  const reactEl = fn()
-  if (!reactRoot) {
-    // Unlike with createRoot, you don't need a separate root.render() call here
-    reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
-  } else {
-    reactRoot.render(reactEl)
-  }
-}
 
 const getCacheKey = () => {
   const { pathname, search } = location
@@ -47,7 +59,9 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
-function nextServerDataCallback(seg: [number, string, string]) {
+function nextServerDataCallback(
+  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
   } else {
@@ -55,9 +69,9 @@ function nextServerDataCallback(seg: [number, string, string]) {
       throw new Error('Unexpected server data: missing bootstrap script.')
 
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(encoder.encode(seg[2]))
+      initialServerDataWriter.enqueue(encoder.encode(seg[1]))
     } else {
-      initialServerDataBuffer.push(seg[2])
+      initialServerDataBuffer.push(seg[1])
     }
   }
 }
@@ -111,7 +125,7 @@ function createResponseCache() {
 }
 const rscCache = createResponseCache()
 
-function useInitialServerResponse(cacheKey: string) {
+function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   const response = rscCache.get(cacheKey)
   if (response) return response
 
@@ -120,22 +134,27 @@ function useInitialServerResponse(cacheKey: string) {
       nextServerDataRegisterWriter(controller)
     },
   })
+
   const newResponse = createFromReadableStream(readable)
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
 }
 
-const ServerRoot = ({ cacheKey }: { cacheKey: string }) => {
+function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
   const response = useInitialServerResponse(cacheKey)
-  const root = response.readRoot()
+  const root = use(response)
   return root
 }
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  React.useEffect(() => {
+    measureWebVitals()
+  }, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -150,17 +169,27 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-const RSCComponent = () => {
+function RSCComponent(props: any): JSX.Element {
   const cacheKey = getCacheKey()
-  return <ServerRoot cacheKey={cacheKey} />
+  return <ServerRoot {...props} cacheKey={cacheKey} />
 }
 
 export function hydrate() {
-  renderReactElement(appElement!, () => (
+  const reactEl = (
     <React.StrictMode>
       <Root>
         <RSCComponent />
       </Root>
     </React.StrictMode>
-  ))
+  )
+
+  const isError = document.documentElement.id === '__next_error__'
+  const reactRoot = isError
+    ? (ReactDOMClient as any).createRoot(appElement)
+    : (React as any).startTransition(() =>
+        (ReactDOMClient as any).hydrateRoot(appElement, reactEl)
+      )
+  if (isError) {
+    reactRoot.render(reactEl)
+  }
 }

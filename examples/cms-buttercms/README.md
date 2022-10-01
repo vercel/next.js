@@ -34,6 +34,7 @@ Once you have access to your Butter API token, you can deploy your Butterized pr
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 
@@ -53,9 +54,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example cms-buttercms cms-buttercms-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-buttercms cms-buttercms-app
-# or
+```
+
+```bash
 pnpm create next-app --example cms-buttercms cms-buttercms-app
 ```
 

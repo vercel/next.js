@@ -29,6 +29,7 @@ Once you have [configured the Next.js module for Drupal](https://next-drupal.org
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
 - [Blog Starter](/examples/blog-starter)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 
@@ -36,9 +37,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example cms-drupal cms-drupal-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-drupal cms-drupal-app
-# or
+```
+
+```bash
 pnpm create next-app --example cms-drupal cms-drupal-app
 ```
 

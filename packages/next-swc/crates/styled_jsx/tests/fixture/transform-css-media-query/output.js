@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default (()=><div className={"jsx-1f7963ae04c6466a"}>
 
     <p className={"jsx-1f7963ae04c6466a"}>test</p>
