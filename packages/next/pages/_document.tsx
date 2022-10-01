@@ -413,7 +413,7 @@ export class Head extends React.Component<HeadProps> {
 
   context!: React.ContextType<typeof HtmlContext>
 
-  getCssLinks(files: DocumentFiles): JSX.Element[] | null {
+  getCssLinks(files: DocumentFiles, isStyleSheetPreload: boolean = false): JSX.Element[] | null {
     const {
       assetPrefix,
       devOnlyCacheBusterQueryString,
@@ -444,35 +444,37 @@ export class Head extends React.Component<HeadProps> {
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
 
-      if (!optimizeCss) {
+      if (isStyleSheetPreload) {
+        if (!optimizeCss) {
+          cssLinkElements.push(
+            <link
+              key={`${file}-preload`}
+              nonce={this.props.nonce}
+              rel="preload"
+              href={`${assetPrefix}/_next/${encodeURI(
+                file
+              )}${devOnlyCacheBusterQueryString}`}
+              as="style"
+              crossOrigin={this.props.crossOrigin || crossOrigin}
+            />
+          )
+        }
+      } else {
+        const isUnmanagedFile = unmangedFiles.has(file)
         cssLinkElements.push(
           <link
-            key={`${file}-preload`}
+            key={file}
             nonce={this.props.nonce}
-            rel="preload"
+            rel="stylesheet"
             href={`${assetPrefix}/_next/${encodeURI(
               file
             )}${devOnlyCacheBusterQueryString}`}
-            as="style"
             crossOrigin={this.props.crossOrigin || crossOrigin}
+            data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
+            data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
           />
         )
       }
-
-      const isUnmanagedFile = unmangedFiles.has(file)
-      cssLinkElements.push(
-        <link
-          key={file}
-          nonce={this.props.nonce}
-          rel="stylesheet"
-          href={`${assetPrefix}/_next/${encodeURI(
-            file
-          )}${devOnlyCacheBusterQueryString}`}
-          crossOrigin={this.props.crossOrigin || crossOrigin}
-          data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
-          data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
-        />
-      )
     })
 
     if (process.env.NODE_ENV !== 'development' && optimizeFonts) {
@@ -821,6 +823,8 @@ export class Head extends React.Component<HeadProps> {
 
         {fontLoaderLinks.preconnect}
         {fontLoaderLinks.preload}
+        {!optimizeCss && this.getCssLinks(files, true)}
+        {optimizeCss && this.getCssLinks(files, true)}
 
         {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>
