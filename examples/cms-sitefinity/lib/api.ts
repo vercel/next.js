@@ -21,9 +21,9 @@ export async function getAllPostSlugsFromCms(): Promise<string[]> {
         }
     `
 
-  const blogPosts = await executeGraphQLForBlogPosts(query);
-  const slugs = blogPosts.map((x) => x.itemDefaultUrl);
-  return slugs;
+  const blogPosts = await executeGraphQLForBlogPosts(query)
+  const slugs = blogPosts.map((x) => x.itemDefaultUrl)
+  return slugs
 }
 
 function transformImageUrl(url: string) {
