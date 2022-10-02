@@ -11,7 +11,7 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    chunk::{dev::DevChunkingContext, ChunkingContextVc},
+    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
 };
@@ -96,14 +96,18 @@ pub fn get_client_chunking_context(
     project_root: FileSystemPathVc,
     server_root: FileSystemPathVc,
 ) -> ChunkingContextVc {
-    DevChunkingContext {
-        context_path: project_root,
-        chunk_root_path: server_root.join("/_next/static/chunks"),
-        asset_root_path: server_root.join("/_next/static/assets"),
-        enable_hot_module_replacement: true,
-    }
-    .cell()
+    DevChunkingContextVc::new(
+        project_root,
+        server_root.join("/_next/static/chunks"),
+        get_client_assets_path(server_root),
+        true,
+    )
     .into()
+}
+
+#[turbo_tasks::function]
+pub fn get_client_assets_path(server_root: FileSystemPathVc) -> FileSystemPathVc {
+    server_root.join("/_next/static/assets")
 }
 
 #[turbo_tasks::function]
