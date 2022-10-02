@@ -562,8 +562,7 @@ export default async function build(
         const numConflicting = conflictingAppPagePaths.length
 
         if (numConflicting > 0) {
-          console.error(
-            chalk.red('Error: ') +
+          Log.error(
               `Conflicting app and page file${
                 numConflicting === 1 ? ' was' : 's were'
               } found, please remove the conflicting files to continue. \n${conflictingAppPagePaths.join(
