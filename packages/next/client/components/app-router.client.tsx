@@ -15,7 +15,7 @@ import type {
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
-  ACTION_PREFETCH,
+  // ACTION_PREFETCH,
   ACTION_RELOAD,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
@@ -97,7 +97,7 @@ function ErrorOverlay({ children }: PropsWithChildren<{}>): ReactElement {
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
   typeof window === 'undefined' ? null! : new Map()
 
-const prefetched = new Set<string>()
+// const prefetched = new Set<string>()
 
 /**
  * The global router that wraps the application components.
@@ -266,7 +266,7 @@ export default function AppRouter({
     }
 
     return routerInstance
-  }, [dispatch, initialTree])
+  }, [dispatch /*, initialTree*/])
 
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
