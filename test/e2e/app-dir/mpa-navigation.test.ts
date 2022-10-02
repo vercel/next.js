@@ -24,8 +24,8 @@ describe('app-dir mpa navigation', () => {
         ),
       },
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: '0.0.0-experimental-cb5084d1c-20220924',
+        'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
       },
     })
   })
