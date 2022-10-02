@@ -178,7 +178,7 @@ export default class DevServer extends Server {
       })
     }
     if (fs.existsSync(pathJoin(this.dir, 'static'))) {
-      console.warn(
+      Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
       )
     }
@@ -207,7 +207,7 @@ export default class DevServer extends Server {
     // Makes `next export` exportPathMap work in development mode.
     // So that the user doesn't have to define a custom server reading the exportPathMap
     if (this.nextConfig.exportPathMap) {
-      console.log('Defining routes from exportPathMap')
+      Log.info('Defining routes from exportPathMap')
       const exportPathMap = await this.nextConfig.exportPathMap(
         {},
         {
@@ -231,7 +231,7 @@ export default class DevServer extends Server {
             Object.keys(urlQuery)
               .filter((key) => query[key] === undefined)
               .forEach((key) =>
-                console.warn(
+                Log.warn(
                   `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
                 )
               )
@@ -613,7 +613,7 @@ export default class DevServer extends Server {
             reject(e)
             resolved = true
           } else {
-            console.warn('Failed to reload dynamic routes:', e)
+            Log.warn('Failed to reload dynamic routes:', e)
           }
         }
       })
