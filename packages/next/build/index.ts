@@ -551,6 +551,28 @@ export default async function build(
           : undefined,
       }
 
+      if (pageKeys.app) {
+        const conflictingAppPagePaths = []
+
+        for (const appPath of pageKeys.app) {
+          if (pageKeys.pages.includes(appPath)) {
+            conflictingAppPagePaths.push(`pages${appPath} - app${appPath}`)
+          }
+        }
+        const numConflicting = conflictingAppPagePaths.length
+
+        if (numConflicting > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflicting === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue. \n${conflictingAppPagePaths.join(
+              '\n'
+            )}\n`
+          )
+          process.exit(1)
+        }
+      }
+
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
       const hasCustomErrorPage =
