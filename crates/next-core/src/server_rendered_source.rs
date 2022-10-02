@@ -9,7 +9,7 @@ use turbopack::{
     transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
 use turbopack_core::{
-    chunk::dev::DevChunkingContext,
+    chunk::dev::DevChunkingContextVc,
     context::AssetContextVc,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
@@ -26,8 +26,9 @@ use turbopack_env::{ProcessEnvAssetVc, ProcessEnvVc};
 use crate::{
     next_client::{
         context::{
-            get_client_chunking_context, get_client_environment, get_client_module_options_context,
-            get_client_resolve_options_context, get_client_runtime_entries,
+            get_client_assets_path, get_client_chunking_context, get_client_environment,
+            get_client_module_options_context, get_client_resolve_options_context,
+            get_client_runtime_entries,
         },
         NextClientTransition,
     },
@@ -133,13 +134,12 @@ async fn create_server_rendered_source_for_file(
         .with_context_path(page_file.parent())
         .process(source_asset);
 
-    let chunking_context = DevChunkingContext {
+    let chunking_context = DevChunkingContextVc::new(
         context_path,
-        chunk_root_path: intermediate_output_path.join("chunks"),
-        asset_root_path: server_root.join("_next/static/assets"),
-        enable_hot_module_replacement: false,
-    }
-    .cell()
+        intermediate_output_path.join("chunks"),
+        get_client_assets_path(server_root),
+        false,
+    )
     .into();
 
     let asset = ServerRenderedAssetVc::new(

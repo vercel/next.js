@@ -136,10 +136,10 @@ impl Asset for StaticAsset {
         };
         let content_hash_b16 = turbopack_hash::encode_base16(&content_hash);
         let asset_path = match source_path.await?.extension() {
-            Some(ext) => format!("{hash}.{ext}", hash = content_hash_b16, ext = ext),
-            None => content_hash_b16,
+            Some(ext) => self.context.asset_path(&content_hash_b16, ext),
+            None => self.context.asset_path(&content_hash_b16, "bin"),
         };
-        Ok(self.context.asset_path(&asset_path))
+        Ok(asset_path)
     }
 
     #[turbo_tasks::function]

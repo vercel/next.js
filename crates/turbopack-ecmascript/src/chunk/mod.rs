@@ -711,18 +711,29 @@ struct EcmascriptChunkContentEvaluate {
 }
 
 #[turbo_tasks::value]
-pub struct EcmascriptChunkContext {}
+pub struct EcmascriptChunkContext {
+    context: ChunkingContextVc,
+}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkContextVc {
     #[turbo_tasks::function]
-    pub fn of(_context: ChunkingContextVc) -> EcmascriptChunkContextVc {
-        EcmascriptChunkContextVc::cell(EcmascriptChunkContext {})
+    pub fn of(context: ChunkingContextVc) -> EcmascriptChunkContextVc {
+        EcmascriptChunkContextVc::cell(EcmascriptChunkContext { context })
     }
 
     #[turbo_tasks::function]
     pub async fn chunk_item_id(self, chunk_item: EcmascriptChunkItemVc) -> Result<ModuleIdVc> {
-        let s = chunk_item.to_string().await?.clone_value();
+        let layer = &*self.await?.context.layer().await?;
+        let mut s = chunk_item.to_string().await?.clone_value();
+        if !layer.is_empty() {
+            if s.ends_with(')') {
+                s.pop();
+                write!(s, ", {layer})")?;
+            } else {
+                write!(s, " ({layer})")?;
+            }
+        }
         Ok(ModuleId::String(s).cell())
     }
 }

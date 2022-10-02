@@ -116,13 +116,12 @@ async fn run(resource: &'static str) -> Result<()> {
         let chunk_dir = path.join("output/");
         let static_dir = path.join("static/");
         let chunk_root_path = FileSystemPathVc::new(root_fs.into(), chunk_dir.to_str().unwrap());
-        let chunking_context: DevChunkingContextVc = DevChunkingContext {
-            context_path: fs,
+        let chunking_context = DevChunkingContextVc::new(
+            fs,
             chunk_root_path,
-            asset_root_path: FileSystemPathVc::new(root_fs.into(), static_dir.to_str().unwrap()),
-            enable_hot_module_replacement: true,
-        }
-        .into();
+            FileSystemPathVc::new(root_fs.into(), static_dir.to_str().unwrap()),
+            true,
+        );
 
         let existing_dir = chunk_root_path.read_dir().await?;
         let mut expected_paths = HashMap::new();
