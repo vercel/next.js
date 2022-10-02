@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
+#![feature(box_patterns)]
 
 use auto_cjs::contains_cjs;
 use either::Either;
@@ -101,6 +102,12 @@ pub struct TransformOptions {
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
+
+    #[allow(unused)]
+    #[serde(default)]
+    #[cfg(target_arch = "wasm32")]
+    /// Accept any value
+    pub relay: Option<serde_json::Value>,
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,

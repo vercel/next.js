@@ -26,7 +26,6 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-  MODERN_BROWSERSLIST_TARGET,
   COMPILER_NAMES,
   CompilerNameValues,
 } from '../shared/lib/constants'
@@ -56,16 +55,63 @@ import type {
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import type { MiddlewareMatcher } from './analysis/get-page-static-info'
-import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
+import { getSupportedBrowsers } from './utils'
 
 const NEXT_PROJECT_ROOT = pathJoin(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = pathJoin(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = pathJoin(NEXT_PROJECT_ROOT_DIST, 'client')
+
+const babelIncludeRegexes: RegExp[] = [
+  /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
+  /next[\\/]dist[\\/](esm[\\/])?client/,
+  /next[\\/]dist[\\/](esm[\\/])?pages/,
+  /[\\/](strip-ansi|ansi-regex)[\\/]/,
+  /styled-jsx[\\/]/,
+]
+
+const BABEL_CONFIG_FILES = [
+  '.babelrc',
+  '.babelrc.json',
+  '.babelrc.js',
+  '.babelrc.mjs',
+  '.babelrc.cjs',
+  'babel.config.js',
+  'babel.config.json',
+  'babel.config.mjs',
+  'babel.config.cjs',
+]
+
+const rscSharedRegex =
+  /(node_modules[\\/]react\/|[\\/]shared[\\/]lib[\\/](head-manager-context|router-context|flush-effects)\.js|node_modules[\\/]styled-jsx[\\/])/
+
+// Support for NODE_PATH
+const nodePathList = (process.env.NODE_PATH || '')
+  .split(process.platform === 'win32' ? ';' : ':')
+  .filter((p) => !!p)
+
+const reactDir = dirname(require.resolve('react/package.json'))
+const reactDomDir = dirname(require.resolve('react-dom/package.json'))
+
+const watchOptions = Object.freeze({
+  aggregateTimeout: 5,
+  ignored: ['**/.git/**', '**/.next/**'],
+})
+
+function isModuleCSS(module: { type: string }) {
+  return (
+    // mini-css-extract-plugin
+    module.type === `css/mini-extract` ||
+    // extract-css-chunks-webpack-plugin (old)
+    module.type === `css/extract-chunks` ||
+    // extract-css-chunks-webpack-plugin (new)
+    module.type === `css/extract-css-chunks`
+  )
+}
 
 function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
@@ -78,10 +124,11 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   }
 }
 
-const watchOptions = Object.freeze({
-  aggregateTimeout: 5,
-  ignored: ['**/.git/**', '**/.next/**'],
-})
+function isResourceInPackages(resource: string, packageNames?: string[]) {
+  return packageNames?.some((p: string) =>
+    new RegExp('[/\\\\]node_modules[/\\\\]' + p + '[/\\\\]').test(resource)
+  )
+}
 
 export function getDefineEnv({
   dev,
@@ -139,11 +186,9 @@ export function getDefineEnv({
         }),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
-    ...((isNodeServer || isEdgeServer) && {
-      'process.env.NEXT_RUNTIME': JSON.stringify(
-        isEdgeServer ? 'edge' : 'nodejs'
-      ),
-    }),
+    'process.env.NEXT_RUNTIME': JSON.stringify(
+      isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
+    ),
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
       middlewareMatchers || []
     ),
@@ -233,35 +278,6 @@ export function getDefineEnv({
         }
       : {}),
   }
-}
-
-function getSupportedBrowsers(
-  dir: string,
-  isDevelopment: boolean,
-  config: NextConfigComplete
-): string[] | undefined {
-  let browsers: any
-  try {
-    const browsersListConfig = browserslist.loadConfig({
-      path: dir,
-      env: isDevelopment ? 'development' : 'production',
-    })
-    // Running `browserslist` resolves `extends` and other config features into a list of browsers
-    if (browsersListConfig && browsersListConfig.length > 0) {
-      browsers = browserslist(browsersListConfig)
-    }
-  } catch {}
-
-  // When user has browserslist use that target
-  if (browsers && browsers.length > 0) {
-    return browsers
-  }
-
-  // When user does not have browserslist use the default target
-  // When `experimental.legacyBrowsers: false` the modern default is used
-  return config.experimental.legacyBrowsers
-    ? undefined
-    : MODERN_BROWSERSLIST_TARGET
 }
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -528,8 +544,8 @@ export default async function getBaseWebpackConfig(
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
-  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
 
+  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
   const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
 
   const hasRewrites =
@@ -570,30 +586,18 @@ export default async function getBaseWebpackConfig(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
       )
     }
-    if (hasServerComponents) {
-      Log.warn(
-        'You have experimental React Server Components enabled. Continue at your own risk.'
-      )
-    }
   }
 
-  const babelConfigFile = await [
-    '.babelrc',
-    '.babelrc.json',
-    '.babelrc.js',
-    '.babelrc.mjs',
-    '.babelrc.cjs',
-    'babel.config.js',
-    'babel.config.json',
-    'babel.config.mjs',
-    'babel.config.cjs',
-  ].reduce(async (memo: Promise<string | undefined>, filename) => {
-    const configFilePath = path.join(dir, filename)
-    return (
-      (await memo) ||
-      ((await fileExists(configFilePath)) ? configFilePath : undefined)
-    )
-  }, Promise.resolve(undefined))
+  const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
+    async (memo: Promise<string | undefined>, filename) => {
+      const configFilePath = path.join(dir, filename)
+      return (
+        (await memo) ||
+        ((await fileExists(configFilePath)) ? configFilePath : undefined)
+      )
+    },
+    Promise.resolve(undefined)
+  )
 
   const distDir = path.join(dir, config.distDir)
 
@@ -630,52 +634,59 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  const getBabelOrSwcLoader = () => {
-    if (useSWCLoader && config?.experimental?.swcTraceProfiling) {
+  const getBabelLoader = () => {
+    return {
+      loader: require.resolve('./babel/loader/index'),
+      options: {
+        configFile: babelConfigFile,
+        isServer: isNodeServer || isEdgeServer,
+        distDir,
+        pagesDir,
+        cwd: dir,
+        development: dev,
+        hasReactRefresh: dev && isClient,
+        hasJsxRuntime: true,
+      },
+    }
+  }
+
+  let swcTraceProfilingInitialized = false
+  const getSwcLoader = (extraOptions?: any) => {
+    if (
+      config?.experimental?.swcTraceProfiling &&
+      !swcTraceProfilingInitialized
+    ) {
       // This will init subscribers once only in a single process lifecycle,
       // even though it can be called multiple times.
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
+      swcTraceProfilingInitialized = true
       require('./swc')?.initCustomTraceSubscriber?.(
         path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
       )
     }
 
-    return useSWCLoader
-      ? {
-          loader: 'next-swc-loader',
-          options: {
-            isServer: isNodeServer || isEdgeServer,
-            rootDir: dir,
-            pagesDir,
-            hasReactRefresh: dev && isClient,
-            fileReading: config.experimental.swcFileReading,
-            nextConfig: config,
-            jsConfig,
-            supportedBrowsers: config.experimental.browsersListForSwc
-              ? supportedBrowsers
-              : undefined,
-            swcCacheDir: path.join(
-              dir,
-              config?.distDir ?? '.next',
-              'cache',
-              'swc'
-            ),
-          },
-        }
-      : {
-          loader: require.resolve('./babel/loader/index'),
-          options: {
-            configFile: babelConfigFile,
-            isServer: isNodeServer || isEdgeServer,
-            distDir,
-            pagesDir,
-            cwd: dir,
-            development: dev,
-            hasReactRefresh: dev && isClient,
-            hasJsxRuntime: true,
-          },
-        }
+    return {
+      loader: 'next-swc-loader',
+      options: {
+        isServer: isNodeServer || isEdgeServer,
+        rootDir: dir,
+        pagesDir,
+        hasReactRefresh: dev && isClient,
+        fileReading: config.experimental.swcFileReading,
+        nextConfig: config,
+        jsConfig,
+        supportedBrowsers: config.experimental.browsersListForSwc
+          ? supportedBrowsers
+          : undefined,
+        swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        ...extraOptions,
+      },
+    }
+  }
+
+  const getBabelOrSwcLoader = () => {
+    return useSWCLoader ? getSwcLoader() : getBabelLoader()
   }
 
   const defaultLoaders = {
@@ -683,19 +694,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const pageExtensions = config.pageExtensions
-
-  const babelIncludeRegexes: RegExp[] = [
-    /next[\\/]dist[\\/]shared[\\/]lib/,
-    /next[\\/]dist[\\/]client/,
-    /next[\\/]dist[\\/]pages/,
-    /[\\/](strip-ansi|ansi-regex)[\\/]/,
-    /styled-jsx[\\/]/,
-  ]
-
-  // Support for NODE_PATH
-  const nodePathList = (process.env.NODE_PATH || '')
-    .split(process.platform === 'win32' ? ';' : ':')
-    .filter((p) => !!p)
 
   // Intentionally not using isTargetLikeServerless helper
   const isLikeServerless =
@@ -814,12 +812,9 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `next/dist/pages/_document.js`,
+      'next/dist/pages/_document.js',
     ]
   }
-
-  const reactDir = dirname(require.resolve('react/package.json'))
-  const reactDomDir = dirname(require.resolve('react-dom/package.json'))
 
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
     [COMPILER_NAMES.server]: ['main', 'module'],
@@ -837,6 +832,16 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
+      // Alias next/dist imports to next/dist/esm assets,
+      // let this alias hit before `next` alias.
+      ...(isEdgeServer
+        ? {
+            'next/dist/client': 'next/dist/esm/client',
+            'next/dist/shared': 'next/dist/esm/shared',
+            'next/dist/pages': 'next/dist/esm/pages',
+          }
+        : undefined),
+
       next: NEXT_PROJECT_ROOT,
 
       react: reactDir,
@@ -904,25 +909,29 @@ export default async function getBaseWebpackConfig(
       comparisons: false,
       inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
     },
-    mangle: { safari10: true },
+    mangle: {
+      safari10: true,
+      ...(process.env.__NEXT_MANGLING_DEBUG
+        ? {
+            toplevel: true,
+            module: true,
+            keep_classnames: true,
+            keep_fnames: true,
+          }
+        : {}),
+    },
     output: {
       ecma: 5,
       safari10: true,
       comments: false,
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
+      ...(process.env.__NEXT_MANGLING_DEBUG
+        ? {
+            beautify: true,
+          }
+        : {}),
     },
-  }
-
-  const isModuleCSS = (module: { type: string }): boolean => {
-    return (
-      // mini-css-extract-plugin
-      module.type === `css/mini-extract` ||
-      // extract-css-chunks-webpack-plugin (old)
-      module.type === `css/extract-chunks` ||
-      // extract-css-chunks-webpack-plugin (new)
-      module.type === `css/extract-css-chunks`
-    )
   }
 
   // Packages which will be split into the 'framework' chunk.
@@ -999,40 +1008,13 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
-    const resolveWithReactServerCondition =
-      layer === WEBPACK_LAYERS.server
-        ? getResolve({
-            // If React is aliased to another channel during Next.js' local development,
-            // we need to provide that alias to webpack's resolver.
-            alias: process.env.__NEXT_REACT_CHANNEL
-              ? {
-                  react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react/package.json': `react-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
-                  'react/jsx-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-runtime`,
-                  'react/jsx-dev-runtime': `react-${process.env.__NEXT_REACT_CHANNEL}/jsx-dev-runtime`,
-                  'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
-                  'react-dom/package.json': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/package.json`,
-                  'react-dom/server': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server`,
-                  'react-dom/server.browser': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/server.browser`,
-                  'react-dom/client': `react-dom-${process.env.__NEXT_REACT_CHANNEL}/client`,
-                }
-              : false,
-            conditionNames: ['react-server'],
-          })
-        : null
-
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
-      if (!isLocal && /^react(?:$|\/)/.test(request)) {
-        const [resolved] = await resolveWithReactServerCondition!(
-          context,
-          request
-        )
-        return resolved
-      }
       if (
+        request === 'react' ||
+        request === 'react/jsx-runtime' ||
         request ===
-        'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+          'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
       ) {
         return
       }
@@ -1134,41 +1116,42 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/) ||
-      res.match(/next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/)
+      /next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/.test(res) ||
+      /next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/.test(res)
     ) {
       return `${externalType} ${request}`
     }
 
     // Default pages have to be transpiled
     if (
-      res.match(/[/\\]next[/\\]dist[/\\]/) ||
+      /[/\\]next[/\\]dist[/\\]/.test(res) ||
       // This is the @babel/plugin-transform-runtime "helpers: true" option
-      res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)
+      /node_modules[/\\]@babel[/\\]runtime[/\\]/.test(res)
     ) {
       return
     }
 
     // Webpack itself has to be compiled because it doesn't always use module relative paths
     if (
-      res.match(/node_modules[/\\]webpack/) ||
-      res.match(/node_modules[/\\]css-loader/)
+      /node_modules[/\\]webpack/.test(res) ||
+      /node_modules[/\\]css-loader/.test(res)
     ) {
       return
     }
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (layer === WEBPACK_LAYERS.server) {
-        try {
-          const [resolved] = await resolveWithReactServerCondition!(
-            context,
-            request
+        // All packages should be bundled for the server layer if they're not opted out.
+        if (
+          isResourceInPackages(
+            res,
+            config.experimental.serverComponentsExternalPackages
           )
-          return resolved
-        } catch (err) {
-          // The `react-server` condition is not matched, fallback.
-          return
+        ) {
+          return `${externalType} ${request}`
         }
+
+        return
       }
 
       // Anything else that is standard JavaScript within `node_modules`
@@ -1189,12 +1172,16 @@ export default async function getBaseWebpackConfig(
       if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
         return false
       }
-      return /node_modules/.test(excludePath)
+      return excludePath.includes('node_modules')
     },
   }
 
-  const rscSharedRegex =
-    /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context|flush-effects)\.js|node_modules\/styled-jsx\/)/
+  const fontLoaderTargets =
+    config.experimental.fontLoaders &&
+    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
+      const resolved = require.resolve(fontLoader)
+      return path.join(resolved, '../target.css')
+    })
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1212,6 +1199,10 @@ export default async function getBaseWebpackConfig(
                     '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
                     'next/dist/compiled/chalk': '{}',
+                    './cjs/react-dom-server-legacy.browser.production.min.js':
+                      '{}',
+                    './cjs/react-dom-server-legacy.browser.development.js':
+                      '{}',
                     'react-dom': '{}',
                   },
                   handleWebpackExtenalForEdgeRuntime,
@@ -1287,12 +1278,7 @@ export default async function getBaseWebpackConfig(
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
-      ...(hasServerComponents
-        ? {
-            // We have to use the names here instead of hashes to ensure the consistency between compilers.
-            moduleIds: isClient ? 'deterministic' : 'named',
-          }
-        : {}),
+      ...(hasServerComponents ? { moduleIds: 'deterministic' } : {}),
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1525,6 +1511,47 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(config.experimental.appDir && !isClient && !isEdgeServer
+          ? [
+              {
+                issuerLayer: WEBPACK_LAYERS.server,
+                test: (req: string) => {
+                  // If it's not a source code file, or has been opted out of
+                  // bundling, don't resolve it.
+                  if (
+                    !codeCondition.test.test(req) ||
+                    isResourceInPackages(
+                      req,
+                      config.experimental.serverComponentsExternalPackages
+                    )
+                  ) {
+                    return false
+                  }
+
+                  return true
+                },
+                resolve: process.env.__NEXT_REACT_CHANNEL
+                  ? {
+                      conditionNames: ['react-server', 'node', 'require'],
+                      alias: {
+                        react: `react-${process.env.__NEXT_REACT_CHANNEL}`,
+                        'react-dom': `react-dom-${process.env.__NEXT_REACT_CHANNEL}`,
+                      },
+                    }
+                  : {
+                      conditionNames: ['react-server', 'node', 'require'],
+                      alias: {
+                        // If missing the alias override here, the default alias will be used which aliases
+                        // react to the direct file path, not the package name. In that case the condition
+                        // will be ignored completely.
+                        react: 'react',
+                        'react-dom': 'react-dom',
+                      },
+                    },
+              },
+            ]
+          : []),
+
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1593,13 +1620,16 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
-                    use: {
-                      ...defaultLoaders.babel,
-                      options: {
-                        ...defaultLoaders.babel.options,
-                        isServerLayer: true,
-                      },
-                    },
+                    use: useSWCLoader
+                      ? getSwcLoader({ isServerLayer: true })
+                      : // When using Babel, we will have to add the SWC loader
+                        // as an additional pass to handle RSC correctly.
+                        // This will cause some performance overhead but
+                        // acceptable as Babel will not be recommended.
+                        [
+                          getSwcLoader({ isServerLayer: true }),
+                          getBabelLoader(),
+                        ],
                   },
                 ]
               : []),
@@ -1863,6 +1893,8 @@ export default async function getBaseWebpackConfig(
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
             adjustFontFallbacks: config.experimental.adjustFontFallbacks,
+            adjustFontFallbacksWithSizeAdjust:
+              config.experimental.adjustFontFallbacksWithSizeAdjust,
           })
         })(),
       new WellKnownErrorsPlugin(),
@@ -1885,10 +1917,12 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
+              fontLoaderTargets,
             })
           : new FlightClientEntryPlugin({
               dev,
               isEdgeServer,
+              fontLoaderTargets,
             })),
       !dev &&
         isClient &&
@@ -2405,7 +2439,7 @@ export default async function getBaseWebpackConfig(
       (rule): boolean => {
         if (!rule || typeof rule !== 'object') return true
         if (!(rule.test instanceof RegExp)) return true
-        if ('noop.ts'.match(rule.test) && !'noop.js'.match(rule.test)) {
+        if (rule.test.test('noop.ts') && !rule.test.test('noop.js')) {
           // remove if it matches @zeit/next-typescript
           foundTsRule = rule.use === defaultLoaders.babel
           return !foundTsRule

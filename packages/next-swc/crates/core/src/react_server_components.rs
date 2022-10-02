@@ -161,7 +161,7 @@ impl<C: Comments> ReactServerComponents<C> {
         prepend_stmts(
             &mut module.body,
             vec![
-                ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Const,
                     decls: vec![VarDeclarator {
@@ -185,7 +185,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         definite: false,
                     }],
                     declare: false,
-                }))),
+                })))),
                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
                     expr: Box::new(Expr::Assign(AssignExpr {
