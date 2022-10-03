@@ -87,7 +87,7 @@ export async function getStaticProps() {
 > **Note**: Next.js also supports multiline variables inside of your `.env*` files:
 >
 > ```bash
-> # .env
+> # .env.local
 >
 > # you can write with line breaks
 > PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
