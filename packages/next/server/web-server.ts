@@ -265,7 +265,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
-        console.log('web-server render', req.url)
 
         // interpolate query information into page for dynamic route
         // so that rewritten paths are handled properly
