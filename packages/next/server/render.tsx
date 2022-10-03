@@ -1506,7 +1506,7 @@ export async function renderToHTML(
     // duplicate components
     componentIssue(
       ['Main', 'Head'],
-      (value) => (value && value > 1 ? true : false),
+      (value) => !!value && value > 1,
       (comps, _plural) => {
         throw new Error(
           `Your custom Document (pages/_document) rendered more than one of: ${comps}\n` +
