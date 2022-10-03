@@ -23,4 +23,5 @@ pnpm add sharp
 ### Useful Links
 
 - [Output File Tracing](/docs/advanced-features/output-file-tracing)
-- [Image Optimization](/docs/basic-features/image-optimization)
+- [Image Optimization Documentation](/docs/basic-features/image-optimization)
+- [`next/image` Documentation](/docs/api-reference/next/image)
