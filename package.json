@@ -218,8 +218,7 @@
     "@babel/traverse": "7.18.0"
   },
   "engines": {
-    "node": ">=12.22.0",
-    "pnpm": ">= 7.2.1"
+    "node": ">=12.22.0"
   },
   "packageManager": "pnpm@7.3.0"
 }
