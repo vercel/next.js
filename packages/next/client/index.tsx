@@ -26,9 +26,7 @@ import {
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
-import measureWebVitals, {
-  setPerformanceRelayerConfig,
-} from './performance-relayer'
+import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
@@ -767,16 +765,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
     if (mod && mod.reportWebVitals) {
-      if (process.env.__NEXT_WEB_VITALS_ATTRIBUTION) {
-        try {
-          const attributions = JSON.parse(
-            process.env.__NEXT_WEB_VITALS_ATTRIBUTION
-          )
-          if (Array.isArray(attributions)) {
-            setPerformanceRelayerConfig(attributions)
-          }
-        } catch {}
-      }
       onPerfEntry = ({
         id,
         name,

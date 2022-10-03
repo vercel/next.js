@@ -6,7 +6,6 @@ const initialHref = location.href
 let isRegistered = false
 let userReportHandler: ReportCallback | undefined
 type Attribution = typeof WEB_VITALS[number]
-let attributions: Attribution[] = []
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
@@ -76,20 +75,25 @@ export default async (onPerfEntry?: ReportCallback): Promise<void> => {
   }
   isRegistered = true
 
+  const attributions: Attribution[] | undefined = process.env
+    .__NEXT_WEB_VITALS_ATTRIBUTION as any
+
   for (const webVital of WEB_VITALS) {
     try {
-      const m: any = attributions.includes(webVital)
-        ? // @ts-ignore package.json created by ncc doesn't have types
-          await import('../compiled/web-vitals-attribution')
-        : // @ts-ignore package.json created by ncc doesn't have types
-          await import('../compiled/web-vitals')
-      m[`on${webVital}`](onReport)
-    } catch {
+      let mod: any
+
+      if (process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION) {
+        if (attributions?.includes(webVital)) {
+          mod = await import('next/dist/compiled/web-vitals-attribution')
+        }
+      }
+      if (!mod) {
+        mod = await import('next/dist/compiled/web-vitals')
+      }
+      mod[`on${webVital}`](onReport)
+    } catch (err) {
       // Do nothing if the module fails to load
+      console.warn(`Failed to track ${webVital} web-vital`, err)
     }
   }
-}
-
-export function setPerformanceRelayerConfig(input: Attribution[]): void {
-  attributions = input.filter((v) => WEB_VITALS.includes(v))
 }
