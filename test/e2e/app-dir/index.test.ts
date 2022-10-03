@@ -1,13 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import crypto from 'crypto'
 import { NextInstance } from 'test/lib/next-modes/base'
-import {
-  check,
-  fetchViaHTTP,
-  renderViaHTTP,
-  waitFor,
-  File,
-} from 'next-test-utils'
+import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
