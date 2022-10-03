@@ -29,6 +29,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
+- [DotCMS](/examples/cms-dotcms)
 
 ## How to use
 
