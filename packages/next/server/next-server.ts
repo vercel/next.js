@@ -100,8 +100,6 @@ import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
-import { interpolateDynamicPath } from '../build/webpack/loaders/next-serverless-loader/utils'
-import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 if (shouldUseReactRoot) {
