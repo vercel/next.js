@@ -216,11 +216,12 @@ export default function AppRouter({
         prefetched.add(href)
         const url = new URL(href, location.origin)
         try {
+          const routerTree = window.history.state?.tree || initialTree
           // TODO-APP: handle case where history.state is not the new router history entry
           const serverResponse = await fetchServerResponse(
             url,
             // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-            window.history.state?.tree || initialTree,
+            routerTree,
             true
           )
           // @ts-ignore startTransition exists
@@ -228,6 +229,7 @@ export default function AppRouter({
             dispatch({
               type: ACTION_PREFETCH,
               url,
+              tree: routerTree,
               serverResponse,
             })
           })

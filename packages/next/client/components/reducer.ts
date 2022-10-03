@@ -590,6 +590,7 @@ interface ServerPatchAction {
 interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
+  tree: FlightRouterState
   serverResponse: Awaited<ReturnType<typeof fetchServerResponse>>
 }
 
@@ -688,7 +689,10 @@ function clientReducer(
         }
       }
 
-      const prefetchValues = state.prefetchCache.get(href)
+      const prefetchValues = state.prefetchCache.get(
+        href + JSON.stringify(state.tree)
+      )
+      console.log({ prefetchValues })
       if (prefetchValues) {
         // The one before last item is the router state tree patch
         const { flightSegmentPath, treePatch, canonicalUrlOverride } =
@@ -1108,7 +1112,7 @@ function clientReducer(
       }
     }
     case ACTION_PREFETCH: {
-      const { url, serverResponse } = action
+      const { url, serverResponse, tree } = action
       const [flightData, canonicalUrlOverride] = serverResponse
 
       // TODO-APP: Implement prefetch for hard navigation
@@ -1131,7 +1135,7 @@ function clientReducer(
       }
 
       // Create new tree based on the flightSegmentPath and router state patch
-      state.prefetchCache.set(href, {
+      state.prefetchCache.set(href + JSON.stringify(tree), {
         // Path without the last segment, router state, and the subTreeData
         flightSegmentPath: flightDataPath.slice(0, -2),
         treePatch,
