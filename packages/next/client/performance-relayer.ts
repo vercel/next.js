@@ -1,6 +1,8 @@
 /* global location */
-import { Metric, ReportCallback } from 'next/dist/compiled/web-vitals'
-import { WEB_VITALS } from '../shared/lib/utils'
+import type { Metric, ReportCallback } from 'next/dist/compiled/web-vitals'
+
+// copied to prevent pulling in un-necessary utils
+const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB']
 
 const initialHref = location.href
 let isRegistered = false
@@ -65,7 +67,7 @@ function onReport(metric: Metric): void {
   }
 }
 
-export default async (onPerfEntry?: ReportCallback): Promise<void> => {
+export default (onPerfEntry?: ReportCallback): void => {
   // Update function if it changes:
   userReportHandler = onPerfEntry
 
@@ -84,11 +86,11 @@ export default async (onPerfEntry?: ReportCallback): Promise<void> => {
 
       if (process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION) {
         if (attributions?.includes(webVital)) {
-          mod = await import('next/dist/compiled/web-vitals-attribution')
+          mod = require('next/dist/compiled/web-vitals-attribution')
         }
       }
       if (!mod) {
-        mod = await import('next/dist/compiled/web-vitals')
+        mod = require('next/dist/compiled/web-vitals')
       }
       mod[`on${webVital}`](onReport)
     } catch (err) {
