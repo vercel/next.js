@@ -685,6 +685,7 @@ export async function renderToHTMLOrFlight(
     serverCSSManifest = {},
     supportsDynamicHTML,
     ComponentMod,
+    dev,
   } = renderOpts
 
   patchFetch(ComponentMod)
@@ -1370,6 +1371,7 @@ export async function renderToHTMLOrFlight(
           flushEffectHandler,
           flushEffectsToHead: true,
           polyfills,
+          dev,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1401,6 +1403,7 @@ export async function renderToHTMLOrFlight(
           flushEffectHandler,
           flushEffectsToHead: true,
           polyfills,
+          dev,
         })
       }
     }
