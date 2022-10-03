@@ -9,8 +9,8 @@ name: Build, test, and deploy
 env:
   NAPI_CLI_VERSION: 2.7.0
   TURBO_VERSION: 1.3.2-canary.1
-  RUST_TOOLCHAIN: nightly-2022-02-23
-  PNPM_VERSION: 7.2.1
+  RUST_TOOLCHAIN: nightly-2022-09-23
+  PNPM_VERSION: 7.3.0
 
 jobs:
   check-examples:
@@ -51,7 +51,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Check non-docs only change
-        run: echo ::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')
+        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
@@ -124,7 +124,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo ::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')
+      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
         id: swc-change
 
       - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
@@ -249,6 +249,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -280,9 +281,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: node run-tests.js --type development
+      - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -304,6 +306,10 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       NEXT_TEST_REACT_VERSION: ^17
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -335,9 +341,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: node run-tests.js --type development
+      - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -363,7 +370,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -395,11 +402,30 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testDevE2E / Group ${{ matrix.group }} / Node ${{ matrix.node }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          NEXT_TEST_MODE: dev
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+          # DEBUG: pw:browser*
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
       - name: Upload test trace
         if: always()
@@ -423,7 +449,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -455,9 +481,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -482,6 +509,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -513,9 +541,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: node run-tests.js --type production
+      - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -527,6 +556,10 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       NEXT_TEST_REACT_VERSION: ^17
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -558,9 +591,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: node run-tests.js --type production
+      - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -576,7 +610,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -608,9 +642,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -626,7 +661,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -658,9 +693,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
@@ -675,7 +711,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        group:
+          [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+          ]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -707,9 +765,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - name: Upload test trace
@@ -816,13 +875,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
     env:
-      BROWSERSTACK: true
       BROWSER_NAME: 'safari'
-      NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_MODE: 'start'
-      SKIP_LOCAL_SELENIUM_SERVER: true
-      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
-      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -851,18 +906,19 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      # TODO: use macos runner so that we can use playwright to test against
-      # PRs instead of only running on canary?
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
+      - run: npx playwright install-deps && npx playwright install webkit
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts'
+      - run: node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - run: DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   testSafariOld:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
-    needs: [build, testSafari, build-native-test]
+    needs: [build, build-native-test]
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
@@ -979,7 +1035,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js $GITHUB_REF
-      - run: ./scripts/publish-release.sh
+      - run: ./scripts/publish-release.js
 
   testDeployE2E:
     name: E2E (deploy)
@@ -1014,6 +1070,7 @@ jobs:
         name: Install pnpm
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         name: Install playwright dependencies
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
@@ -1063,7 +1120,7 @@ jobs:
 
   build-native-test:
     name: Build native binary for tests and metrics
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -1073,7 +1130,7 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo ::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')
+      - run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
       - name: Setup node
@@ -1095,14 +1152,14 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
-          key: stable-ubuntu-18.04-cargo-registry
+          key: stable-ubuntu-latest-cargo-registry
 
       - name: Cache cargo index
         uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
-          key: stable-ubuntu-18.04-cargo-index
+          key: stable-ubuntu-latest-cargo-index
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
@@ -1128,9 +1185,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-dev-ubuntu-18.04-${{ hashFiles('**/Cargo.lock') }}
+          key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-dev-ubuntu-18.04
+            next-swc-cargo-cache-dev-ubuntu-latest
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
@@ -1155,14 +1212,14 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 25
 
-      - run: echo ::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')
+      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
         id: swc-change
 
       - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
@@ -1179,7 +1236,7 @@ jobs:
 
   test-wasm:
     name: Test the wasm build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     needs: [build, build-native-test, build-wasm-dev]
 
     steps:
@@ -1214,6 +1271,7 @@ jobs:
           check-latest: true
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: node ./scripts/setup-wasm.mjs
@@ -1225,7 +1283,8 @@ jobs:
       - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: TEST_WASM=true xvfb-run node run-tests.js test/production/react-18-streaming-ssr/index.test.ts
+      # test wasm parsing for runtime in page config
+      - run: TEST_WASM=true xvfb-run node run-tests.js test/e2e/streaming-ssr/index.test.ts
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   # Build binaries for publishing
@@ -1297,7 +1356,7 @@ jobs:
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-18.04
+          - host: ubuntu-latest
             target: 'armv7-unknown-linux-gnueabihf'
             setup: |
               sudo apt-get update
@@ -1309,23 +1368,33 @@ jobs:
           - host: ubuntu-latest
             target: aarch64-linux-android
             build: |
-              export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="/usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
-              export CC="/usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
-              export CXX="/usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
-              export PATH="/usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+              export CLANG_VERSION=`ls ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang | sed 's/ *$//g'`
+              export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+              export CC="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+              export CXX="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
+              export AR="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+              export PATH="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+              touch "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
+              chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
+              echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
-              /usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-strip packages/next-swc/native/next-swc.*.node
+              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: armv7-linux-androideabi
             build: |
-              export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="/usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
-              export CC="/usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
-              export CXX="/usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++"
-              export PATH="/usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+              export CLANG_VERSION=`ls ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang | sed 's/ *$//g'`
+              export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+              export CC="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+              export CXX="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++"
+              export AR="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+              export PATH="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+              touch "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
+              chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
+              echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
-              /usr/local/lib/android/sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/bin/arm-linux-androideabi-strip packages/next-swc/native/next-swc.*.node
+              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -1350,7 +1419,7 @@ jobs:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.settings.host == 'ubuntu-18.04' }}
+        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
         if: ${{ matrix.settings.host == 'ubuntu-latest' }}
@@ -1456,7 +1525,7 @@ jobs:
           rm -rf test
       - name: Build
         id: build
-        uses: vmactions/freebsd-vm@v0.2.0
+        uses: vmactions/freebsd-vm@v0.2.3
         env:
           DEBUG: napi:*
           RUSTUP_HOME: /usr/local/rustup
@@ -1465,13 +1534,13 @@ jobs:
           # Disable LTO, or the lld may crash with OOM
           CARGO_PROFILE_RELEASE_LTO: false
         with:
-          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN
+          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN PNPM_VERSION
           usesh: true
           mem: 6000
           prepare: |
-            pkg install -y curl node14
+            pkg install -y curl node16
             curl -qL https://www.npmjs.com/install.sh | sh
-            npm install -g yarn
+            npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
             export PATH="/usr/local/cargo/bin:$PATH"
@@ -1486,8 +1555,7 @@ jobs:
             whoami
             env
             freebsd-version
-            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-            yarn --cwd=packages/next-swc build-native-no-plugin --release --target x86_64-unknown-freebsd
+            pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
       - name: Upload artifact

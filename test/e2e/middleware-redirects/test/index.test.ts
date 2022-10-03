@@ -20,11 +20,6 @@ describe('Middleware Redirect', () => {
       },
     })
   })
-
-  tests()
-  testsWithLocale()
-  testsWithLocale('/fr')
-
   function tests() {
     it('should redirect correctly with redirect in next.config.js', async () => {
       const browser = await webdriver(next.url, '/')
@@ -163,4 +158,7 @@ describe('Middleware Redirect', () => {
       expect(errors).not.toContain('Failed to lookup route')
     })
   }
+  tests()
+  testsWithLocale()
+  testsWithLocale('/fr')
 })

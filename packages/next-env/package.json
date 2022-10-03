@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "12.2.4-canary.0",
+  "version": "12.3.2-canary.17",
   "keywords": [
     "react",
     "next",
@@ -30,7 +30,7 @@
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
-    "@vercel/ncc": "0.33.4",
+    "@vercel/ncc": "0.34.0",
     "dotenv": "16.0.3",
     "dotenv-expand": "9.0.0",
     "rimraf": "3.0.2"

@@ -63,6 +63,7 @@ type NextQueryMetadata = {
   __nextSsgPath?: string
   _nextBubbleNoFallback?: '1'
   __nextDataReq?: '1'
+  __nextCustomErrorRender?: '1'
 }
 
 export type NextParsedUrlQuery = ParsedUrlQuery &

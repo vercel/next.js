@@ -1,11 +1,10 @@
 {
   "name": "stats-app",
-  "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
   "license": "MIT",
   "dependencies": {
     "next": "latest",
-    "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "react": "0.0.0-experimental-cb5084d1c-20220924",
+    "react-dom": "0.0.0-experimental-cb5084d1c-20220924"
   }
 }

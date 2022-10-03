@@ -3,11 +3,14 @@ import { PassThrough, Readable } from 'stream'
 
 export function requestToBodyStream(
   context: { ReadableStream: typeof ReadableStream },
+  KUint8Array: typeof Uint8Array,
   stream: Readable
 ) {
   return new context.ReadableStream({
     start(controller) {
-      stream.on('data', (chunk) => controller.enqueue(chunk))
+      stream.on('data', (chunk) =>
+        controller.enqueue(new KUint8Array([...new Uint8Array(chunk)]))
+      )
       stream.on('end', () => controller.close())
       stream.on('error', (err) => controller.error(err))
     },
@@ -56,9 +59,13 @@ export function getClonableBody<T extends IncomingMessage>(
 ): ClonableBody {
   let buffered: Readable | null = null
 
-  const endPromise = new Promise((resolve, reject) => {
-    readable.on('end', resolve)
-    readable.on('error', reject)
+  const endPromise = new Promise<void | { error?: unknown }>(
+    (resolve, reject) => {
+      readable.on('end', resolve)
+      readable.on('error', reject)
+    }
+  ).catch((error) => {
+    return { error }
   })
 
   return {
@@ -69,7 +76,11 @@ export function getClonableBody<T extends IncomingMessage>(
      */
     async finalize(): Promise<void> {
       if (buffered) {
-        await endPromise
+        const res = await endPromise
+
+        if (res && typeof res === 'object' && res.error) {
+          throw res.error
+        }
         replaceRequestBody(readable, buffered)
         buffered = readable
       }

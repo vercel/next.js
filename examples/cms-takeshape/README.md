@@ -29,6 +29,8 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
+- [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 
@@ -36,9 +38,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example cms-takeshape cms-takeshape-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-takeshape cms-takeshape-app
-# or
+```
+
+```bash
 pnpm create next-app --example cms-takeshape cms-takeshape-app
 ```
 

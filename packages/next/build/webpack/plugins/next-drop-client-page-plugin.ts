@@ -1,15 +1,13 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
-export const ampFirstEntryNamesMap: WeakMap<
-  webpack.compilation.Compilation,
-  string[]
-> = new WeakMap()
+export const ampFirstEntryNamesMap: WeakMap<webpack.Compilation, string[]> =
+  new WeakMap()
 
 const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
 
 // Prevents outputting client pages when they are not needed
-export class DropClientPage implements webpack.Plugin {
+export class DropClientPage implements webpack.WebpackPluginInstance {
   ampPages = new Set()
 
   apply(compiler: webpack.Compiler) {
@@ -17,10 +15,9 @@ export class DropClientPage implements webpack.Plugin {
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
         // Recursively look up the issuer till it ends up at the root
-        function findEntryModule(mod: any): webpack.compilation.Module | null {
+        function findEntryModule(mod: any): webpack.Module | null {
           const queue = new Set([mod])
           for (const module of queue) {
-            // @ts-ignore TODO: webpack 5 types
             const incomingConnections =
               compilation.moduleGraph.getIncomingConnections(module)
 
@@ -75,11 +72,9 @@ export class DropClientPage implements webpack.Plugin {
         compilation.hooks.seal.tap(PLUGIN_NAME, () => {
           for (const [name, entryData] of compilation.entries) {
             for (const dependency of entryData.dependencies) {
-              // @ts-ignore TODO: webpack 5 types
               const module = compilation.moduleGraph.getModule(dependency)
               if (module?.buildInfo?.NEXT_ampFirst) {
                 ampFirstEntryNamesItem.push(name)
-                // @ts-ignore @types/webpack has outdated types for webpack 5
                 compilation.entries.delete(name)
               }
             }

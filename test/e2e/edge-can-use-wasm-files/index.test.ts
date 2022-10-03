@@ -4,6 +4,10 @@ import { fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
 
+function extractJSON(response) {
+  return JSON.parse(response.headers.get('data') ?? '{}')
+}
+
 function baseNextConfig(): Parameters<typeof createNext>[0] {
   return {
     files: {
@@ -144,7 +148,3 @@ describe('middleware can use wasm files with the experimental modes on', () => {
     })
   })
 })
-
-function extractJSON(response) {
-  return JSON.parse(response.headers.get('data') ?? '{}')
-}

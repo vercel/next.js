@@ -1,6 +1,6 @@
-# A statically generated blog example using Next.js and WordPress
+# An Incremental Static Regeneration Blog Example Using Next.js and WordPress
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [WordPress](https://wordpress.org) as the data source.
+This example showcases Next.js's [Incremental Static Regeneration](https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration) feature using [WordPress](https://wordpress.org) as the data source.
 
 ## Demo
 
@@ -29,6 +29,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
+- [DotCMS](/examples/cms-dotcms)
 
 ## How to use
 
@@ -36,9 +37,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example cms-wordpress cms-wordpress-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-wordpress cms-wordpress-app
-# or
+```
+
+```bash
 pnpm create next-app --example cms-wordpress cms-wordpress-app
 ```
 

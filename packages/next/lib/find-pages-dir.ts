@@ -24,19 +24,25 @@ function findDir(dir: string, name: 'pages' | 'app'): string | null {
 export function findPagesDir(
   dir: string,
   appDirEnabled?: boolean
-): { pages: string; appDir?: string } {
-  const pagesDir = findDir(dir, 'pages')
+): { pages: string | undefined; appDir: string | undefined } {
+  const pagesDir = findDir(dir, 'pages') || undefined
   let appDir: undefined | string
 
   if (appDirEnabled) {
     appDir = findDir(dir, 'app') || undefined
+    if (appDirEnabled == null && pagesDir == null) {
+      throw new Error(
+        "> Couldn't find any `pages` or `app` directory. Please create one under the project root"
+      )
+    }
   }
 
-  // TODO: allow "root" dir without pages dir
-  if (pagesDir === null) {
-    throw new Error(
-      "> Couldn't find a `pages` directory. Please create one under the project root"
-    )
+  if (!appDirEnabled) {
+    if (pagesDir == null) {
+      throw new Error(
+        "> Couldn't find a `pages` directory. Please create one under the project root"
+      )
+    }
   }
 
   return {

@@ -1,3 +1,4 @@
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -23,7 +24,10 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target, mod));
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // <define:process>
@@ -251,7 +255,12 @@ var require_Blob = __commonJS({
                   outByte3 = 64;
                 }
               }
-              output.push(byteToCharMap[outByte1], byteToCharMap[outByte2], byteToCharMap[outByte3], byteToCharMap[outByte4]);
+              output.push(
+                byteToCharMap[outByte1],
+                byteToCharMap[outByte2],
+                byteToCharMap[outByte3],
+                byteToCharMap[outByte4]
+              );
             }
             return output.join("");
           }
@@ -466,11 +475,13 @@ var require_Blob = __commonJS({
             exports2.FileReader = global2.FileReader;
           } catch (e) {
             try {
-              exports2.File = new Function('class File extends Blob {constructor(chunks, name, opts) {opts = opts || {};super(chunks, opts || {});this.name = name.replace(/\\//g, ":");this.lastModifiedDate = opts.lastModified ? new Date(opts.lastModified) : new Date();this.lastModified = +this.lastModifiedDate;}};return new File([], ""), File')();
+              exports2.File = new Function(
+                'class File extends Blob {constructor(chunks, name, opts) {opts = opts || {};super(chunks, opts || {});this.name = name.replace(/\\//g, ":");this.lastModifiedDate = opts.lastModified ? new Date(opts.lastModified) : new Date();this.lastModified = +this.lastModifiedDate;}};return new File([], ""), File'
+              )();
             } catch (e2) {
               exports2.File = function(b, d, c) {
                 var blob2 = new Blob(b, c);
-                var t = c && c.lastModified !== void 0 ? new Date(c.lastModified) : new Date();
+                var t = c && void 0 !== c.lastModified ? new Date(c.lastModified) : new Date();
                 blob2.name = d.replace(/\//g, ":");
                 blob2.lastModifiedDate = t;
                 blob2.lastModified = +t;
@@ -586,7 +597,9 @@ var require_Blob = __commonJS({
           blob.stream = stream;
         }
       });
-    })(typeof self !== "undefined" && self || typeof window !== "undefined" && window || typeof global !== "undefined" && global || exports);
+    })(
+      typeof self !== "undefined" && self || typeof window !== "undefined" && window || typeof global !== "undefined" && global || exports
+    );
   }
 });
 

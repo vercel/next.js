@@ -2,8 +2,8 @@ import React, { Children, useEffect, useLayoutEffect } from 'react'
 
 type State = JSX.Element[] | undefined
 
-type SideEffectProps = {
-  reduceComponentsToState: <T>(
+export type SideEffectProps = {
+  reduceComponentsToState: <T extends {}>(
     components: Array<React.ReactElement<any>>,
     props: T
   ) => State

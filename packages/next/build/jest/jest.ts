@@ -1,6 +1,7 @@
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
+import { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
@@ -24,6 +25,16 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
     return require(join(dir, mainPath + 'package.json'))
   } catch (e) {
     return loadClosestPackageJson(dir, attempts + 1)
+  }
+}
+
+/** Loads dotenv files and sets environment variables based on next config. */
+function setUpEnv(dir: string, nextConfig: NextConfigComplete) {
+  const dev = false
+  loadEnvConfig(dir, dev, Log)
+
+  if (nextConfig.experimental.newNextLinkBehavior) {
+    process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
   }
 }
 
@@ -61,7 +72,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         isEsmProject = packageConfig.type === 'module'
 
         nextConfig = await getConfig(resolvedDir)
-        loadEnvConfig(resolvedDir, false, Log)
+        setUpEnv(resolvedDir, nextConfig)
         // TODO: revisit when bug in SWC is fixed that strips `.css`
         const result = await loadJsConfig(resolvedDir, nextConfig)
         jsConfig = result.jsConfig

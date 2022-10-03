@@ -1,4 +1,5 @@
 import fs from 'fs-extra'
+import cookie from 'cookie'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
 import escapeRegex from 'escape-string-regexp'
@@ -178,6 +179,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: 1,
       srcRoute: null,
     },
+    '/preview': {
+      dataRoute: `/_next/data/${next.buildId}/preview.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: null,
+    },
     '/api-docs/first': {
       dataRoute: `/_next/data/${next.buildId}/api-docs/first.json`,
       initialRevalidateSeconds: false,
@@ -197,6 +203,11 @@ describe('Prerender', () => {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/b.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
+    },
+    '/blocking-fallback/lots-of-data': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/lots-of-data.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: '/blocking-fallback/[slug]',
     },
     '/blocking-fallback/test-errors-1': {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1.json`,
@@ -962,6 +973,11 @@ describe('Prerender', () => {
         () => next.cliOutput,
         /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
       )
+      await renderViaHTTP(next.url, '/blocking-fallback/lots-of-data')
+      await check(
+        () => next.cliOutput,
+        /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      )
     })
 
     if ((global as any).isNextDev) {
@@ -1512,6 +1528,14 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
+                )}\\/preview.json$`
+              ),
+              page: '/preview',
+            },
+            {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(
+                  next.buildId
                 )}\\/something.json$`
               ),
               page: '/something',
@@ -1762,6 +1786,67 @@ describe('Prerender', () => {
         })
       }
 
+      it('should revalidate manual revalidate with preview cookie', async () => {
+        const initialRes = await fetchViaHTTP(next.url, '/preview')
+        expect(initialRes.status).toBe(200)
+
+        const initial$ = cheerio.load(await initialRes.text())
+        const initialProps = JSON.parse(initial$('#props').text())
+
+        expect(initialProps).toEqual({
+          preview: false,
+          previewData: null,
+        })
+
+        const previewRes = await fetchViaHTTP(next.url, '/api/enable')
+        let previewCookie = ''
+
+        expect(previewRes.headers.get('set-cookie')).toMatch(
+          /(__prerender_bypass|__next_preview_data)/
+        )
+
+        previewRes.headers
+          .get('set-cookie')
+          .split(',')
+          .forEach((c) => {
+            c = cookie.parse(c)
+            const isBypass = c.__prerender_bypass
+
+            if (isBypass || c.__next_preview_data) {
+              if (previewCookie) previewCookie += '; '
+
+              previewCookie += `${
+                isBypass ? '__prerender_bypass' : '__next_preview_data'
+              }=${c[isBypass ? '__prerender_bypass' : '__next_preview_data']}`
+            }
+          })
+
+        const apiRes = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          { pathname: '/preview' },
+          {
+            headers: {
+              cookie: previewCookie,
+            },
+          }
+        )
+
+        expect(apiRes.status).toBe(200)
+        expect(await apiRes.json()).toEqual({ revalidated: true })
+
+        const postRevalidateRes = await fetchViaHTTP(next.url, '/preview')
+        expect(initialRes.status).toBe(200)
+
+        const postRevalidate$ = cheerio.load(await postRevalidateRes.text())
+        const postRevalidateProps = JSON.parse(postRevalidate$('#props').text())
+
+        expect(postRevalidateProps).toEqual({
+          preview: false,
+          previewData: null,
+        })
+      })
+
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
         const initialHtml = await renderViaHTTP(next.url, route)
@@ -2002,6 +2087,67 @@ describe('Prerender', () => {
       })
     }
 
+    if (!isDev) {
+      it('should handle manual revalidate for fallback: blocking', async () => {
+        const beforeRevalidate = Date.now()
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-manual-1'
+        )
+
+        if (!isDeploy) {
+          await waitForCacheWrite(
+            '/blocking-fallback/test-manual-1',
+            beforeRevalidate
+          )
+        }
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+        const cacheHeader = isDeploy ? 'x-vercel-cache' : 'x-nextjs-cache'
+
+        expect(res.headers.get(cacheHeader)).toMatch(/MISS/)
+        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
+
+        if (!isDeploy) {
+          const res2 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html2 = await res2.text()
+          const $2 = cheerio.load(html2)
+
+          expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(initialTime).toBe($2('#time').text())
+        }
+
+        const res3 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback/test-manual-1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res3.status).toBe(200)
+        const revalidateData = await res3.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        await check(async () => {
+          const res4 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html4 = await res4.text()
+          const $4 = cheerio.load(html4)
+          expect($4('#time').text()).not.toBe(initialTime)
+          expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          return 'success'
+        }, 'success')
+      })
+    }
+
     if (!isDev && !isDeploy) {
       it('should automatically reset cache TTL when an error occurs and build cache was available', async () => {
         await next.patchFile('error.txt', 'yes')
@@ -2054,56 +2200,6 @@ describe('Prerender', () => {
               : next.cliOutput,
           'success'
         )
-      })
-
-      it('should handle manual revalidate for fallback: blocking', async () => {
-        const beforeRevalidate = Date.now()
-        const res = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        await waitForCacheWrite(
-          '/blocking-fallback/test-manual-1',
-          beforeRevalidate
-        )
-        const html = await res.text()
-        const $ = cheerio.load(html)
-        const initialTime = $('#time').text()
-
-        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
-        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
-
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
-        expect(initialTime).toBe($2('#time').text())
-
-        const res3 = await fetchViaHTTP(
-          next.url,
-          '/api/manual-revalidate',
-          {
-            pathname: '/blocking-fallback/test-manual-1',
-          },
-          { redirect: 'manual' }
-        )
-
-        expect(res3.status).toBe(200)
-        const revalidateData = await res3.json()
-        expect(revalidateData.revalidated).toBe(true)
-
-        const res4 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        const html4 = await res4.text()
-        const $4 = cheerio.load(html4)
-        expect($4('#time').text()).not.toBe(initialTime)
-        expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
       })
 
       it('should not manual revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
@@ -2330,6 +2426,11 @@ describe('Prerender', () => {
     it('should not fail to update incremental cache', async () => {
       await waitFor(1000)
       expect(next.cliOutput).not.toContain('Failed to update prerender cache')
+    })
+
+    it('should not have experimental undici warning', async () => {
+      await waitFor(1000)
+      expect(next.cliOutput).not.toContain('option is unnecessary in Node.js')
     })
 
     it('should not have attempted sending invalid payload', async () => {

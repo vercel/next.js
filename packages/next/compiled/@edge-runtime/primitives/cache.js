@@ -1,3 +1,4 @@
+"use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -20,7 +21,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/primitives/cache.js
 var cache_exports = {};
 __export(cache_exports, {
-  Cache: () => CacheFromStorage,
+  Cache: () => Cache,
   CacheStorage: () => CacheStorage,
   caches: () => caches,
   createCaches: () => createCaches
@@ -34,10 +35,14 @@ function createCaches() {
       return input;
     const request = input instanceof import_fetch.Request ? input : new import_fetch.Request(input);
     if (request.method !== "GET") {
-      throw new TypeError(`Failed to execute '${invokeName}' on 'Cache': Request method '${request.method}' is unsupported`);
+      throw new TypeError(
+        `Failed to execute '${invokeName}' on 'Cache': Request method '${request.method}' is unsupported`
+      );
     }
     if (!request.url.startsWith("http")) {
-      throw new TypeError(`Failed to execute '${invokeName}' on 'Cache': Request scheme '${request.url.split(":")[0]}' is unsupported`);
+      throw new TypeError(
+        `Failed to execute '${invokeName}' on 'Cache': Request scheme '${request.url.split(":")[0]}' is unsupported`
+      );
     }
     Object.defineProperty(request, "__normalized__", {
       enumerable: false,
@@ -55,9 +60,13 @@ function createCaches() {
       });
     }
     async add(request) {
-      const response = await (0, import_fetch.fetch)(normalizeRequest(request, { invokeName: "add" }));
+      const response = await (0, import_fetch.fetch)(
+        normalizeRequest(request, { invokeName: "add" })
+      );
       if (!response.ok) {
-        throw new TypeError("Failed to execute 'add' on 'Cache': Request failed");
+        throw new TypeError(
+          "Failed to execute 'add' on 'Cache': Request failed"
+        );
       }
       return this.put(request, response);
     }
@@ -75,11 +84,15 @@ function createCaches() {
     }
     async put(request, response) {
       if (response.status === 206) {
-        throw new TypeError("Failed to execute 'put' on 'Cache': Partial response (status code 206) is unsupported");
+        throw new TypeError(
+          "Failed to execute 'put' on 'Cache': Partial response (status code 206) is unsupported"
+        );
       }
       const vary = response.headers.get("vary");
       if (vary !== null && vary.includes("*")) {
-        throw new TypeError("Failed to execute 'put' on 'Cache': Vary header contains *");
+        throw new TypeError(
+          "Failed to execute 'put' on 'Cache': Vary header contains *"
+        );
       }
       request = normalizeRequest(request, { invokeName: "put" });
       try {
@@ -92,7 +105,9 @@ function createCaches() {
         });
       } catch (error) {
         if (error.message === "disturbed") {
-          throw new TypeError("Failed to execute 'put' on 'Cache': Response body is already used");
+          throw new TypeError(
+            "Failed to execute 'put' on 'Cache': Response body is already used"
+          );
         }
         throw error;
       }
@@ -130,53 +145,24 @@ function createCaches() {
   return { Cache: Cache2, cacheStorage };
 }
 __name(createCaches, "createCaches");
-function CacheStorage() {
-  if (!(this instanceof CacheStorage))
-    return new CacheStorage();
-  throw TypeError("Illegal constructor");
-}
-__name(CacheStorage, "CacheStorage");
-function CacheStorageToString() {
-  return "function CacheStorage() { [native code] }";
-}
-__name(CacheStorageToString, "CacheStorageToString");
-Object.defineProperty(CacheStorageToString, "name", {
-  configurable: true,
-  enumerable: false,
-  value: "toString() { [native code] }",
-  writable: true
-});
-Object.defineProperty(CacheStorage, "toString", {
-  configurable: true,
-  enumerable: false,
-  value: CacheStorageToString,
-  writable: true
-});
 function Cache() {
   if (!(this instanceof Cache))
     return new Cache();
   throw TypeError("Illegal constructor");
 }
 __name(Cache, "Cache");
-function CacheToString() {
-  return "function Cache() { [native code] }";
+function CacheStorage() {
+  if (!(this instanceof CacheStorage))
+    return new CacheStorage();
+  throw TypeError("Illegal constructor");
 }
-__name(CacheToString, "CacheToString");
-Object.defineProperty(CacheToString, "name", {
-  configurable: true,
-  enumerable: false,
-  value: "toString() { [native code] }",
-  writable: true
-});
-Object.defineProperty(Cache, "toString", {
-  configurable: true,
-  enumerable: false,
-  value: CacheToString,
-  writable: true
-});
-var cachesStorage = createCaches();
-var CacheFromStorage = cachesStorage.Cache;
-var caches = cachesStorage.cacheStorage();
+__name(CacheStorage, "CacheStorage");
+var caches = (() => {
+  const { cacheStorage } = createCaches();
+  const caches2 = cacheStorage();
+  caches2.open("default");
+  return caches2;
+})();
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   Cache,
