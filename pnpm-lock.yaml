@@ -397,7 +397,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.3.2-canary.16
+      '@next/eslint-plugin-next': 12.3.2-canary.17
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -458,12 +458,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.3.2-canary.16
-      '@next/polyfill-module': 12.3.2-canary.16
-      '@next/polyfill-nomodule': 12.3.2-canary.16
-      '@next/react-dev-overlay': 12.3.2-canary.16
-      '@next/react-refresh-utils': 12.3.2-canary.16
-      '@next/swc': 12.3.2-canary.16
+      '@next/env': 12.3.2-canary.17
+      '@next/polyfill-module': 12.3.2-canary.17
+      '@next/polyfill-nomodule': 12.3.2-canary.17
+      '@next/react-dev-overlay': 12.3.2-canary.17
+      '@next/react-refresh-utils': 12.3.2-canary.17
+      '@next/swc': 12.3.2-canary.17
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.11
       '@taskr/clear': 1.1.0
@@ -30834,7 +30834,10 @@ packages:
     dev: true
 
   /yauzl/2.10.0:
-    resolution: { integrity: sha1-x+sXyT4RLLEIb6bY5R+wZnt5pfk= }
+    resolution:
+      {
+        integrity: sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g==,
+      }
     dependencies:
       buffer-crc32: 0.2.13
       fd-slicer: 1.1.0
