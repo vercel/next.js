@@ -419,7 +419,7 @@ describe('app dir', () => {
       })
 
       // TODO-APP: Re-enable this test.
-      it.skip('should soft push', async () => {
+      it('should soft push', async () => {
         const browser = await webdriver(next.url, '/link-soft-push')
 
         try {
