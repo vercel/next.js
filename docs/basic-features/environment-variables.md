@@ -7,9 +7,9 @@ description: Learn to add and access environment variables in your Next.js appli
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                             |
-| --------- | ------------------------------------------------------------------- |
-| `v9.4.0`  | Support `.env` and `NEXT_PUBLIC_` introduced.                       |
+| Version  | Changes                                       |
+| -------- | --------------------------------------------- |
+| `v9.4.0` | Support `.env` and `NEXT_PUBLIC_` introduced. |
 
 </details>
 
