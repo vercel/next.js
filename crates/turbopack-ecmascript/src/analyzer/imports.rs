@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display, mem::take};
 
 use indexmap::IndexSet;
+use once_cell::sync::Lazy;
 use swc_core::{
     common::collections::AHashMap,
     ecma::{
@@ -21,6 +22,12 @@ pub struct ImportAnnotations {
     map: BTreeMap<JsWord, Option<JsWord>>,
 }
 
+/// Enables a specified transtion for the annotated import
+static ANNOTATION_TRANSITION: Lazy<JsWord> = Lazy::new(|| "transition".into());
+
+/// Changes the chunking type for the annotated import
+static ANNOTATION_CHUNKING_TYPE: Lazy<JsWord> = Lazy::new(|| "chunking-type".into());
+
 impl ImportAnnotations {
     fn insert(&mut self, key: JsWord, value: Option<JsWord>) {
         self.map.insert(key, value);
@@ -30,9 +37,17 @@ impl ImportAnnotations {
         self.map.clear();
     }
 
+    /// Returns the content on the transition annotation
     pub fn transition(&self) -> Option<&str> {
         self.map
-            .get(&"transition".into())
+            .get(&ANNOTATION_TRANSITION)
+            .and_then(|w| w.as_ref().map(|w| &**w))
+    }
+
+    /// Returns the content on the chunking-type annotation
+    pub fn chunking_type(&self) -> Option<&str> {
+        self.map
+            .get(&ANNOTATION_CHUNKING_TYPE)
             .and_then(|w| w.as_ref().map(|w| &**w))
     }
 }

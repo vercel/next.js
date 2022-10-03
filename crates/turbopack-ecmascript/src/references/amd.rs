@@ -3,10 +3,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident},
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    TryJoinIterExt, Value, ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
     context::AssetContextVc,
@@ -57,12 +54,7 @@ impl ValueToString for AmdDefineAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for AmdDefineAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
+impl ChunkableAssetReference for AmdDefineAssetReference {}
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]

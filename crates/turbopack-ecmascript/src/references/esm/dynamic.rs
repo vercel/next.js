@@ -3,14 +3,11 @@ use swc_core::{
     ecma::ast::{Callee, ExprOrSpread},
     quote_expr,
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    Value, ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{
-        AsyncLoadableReference, AsyncLoadableReferenceVc, ChunkableAssetReference,
-        ChunkableAssetReferenceVc, ChunkingContextVc,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ChunkingType,
+        ChunkingTypeOptionVc,
     },
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
@@ -67,16 +64,8 @@ impl ValueToString for EsmAsyncAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableAssetReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AsyncLoadableReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn is_loaded_async(&self) -> BoolVc {
-        BoolVc::cell(true)
+    fn chunking_type(&self, _context: ChunkingContextVc) -> ChunkingTypeOptionVc {
+        ChunkingTypeOptionVc::cell(Some(ChunkingType::SeparateAsync))
     }
 }
 

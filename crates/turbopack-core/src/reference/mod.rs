@@ -15,12 +15,10 @@ pub use source_map::SourceMapVc;
 
 /// A reference to one or multiple [Asset]s or other special things.
 /// There are a bunch of optional traits that can influence how these references
-/// are handled. e. g. [ChunkableAssetReference], [AsyncLoadableReference] or
-/// [ParallelChunkReference]
+/// are handled. e. g. [ChunkableAssetReference] or [ParallelChunkReference]
 ///
 /// [Asset]: crate::asset::Asset
 /// [ChunkableAssetReference]: crate::chunk::ChunkableAssetReference
-/// [AsyncLoadableReference]: crate::chunk::AsyncLoadableReference
 /// [ParallelChunkReference]: crate::chunk::ParallelChunkReference
 #[turbo_tasks::value_trait]
 pub trait AssetReference: ValueToString {

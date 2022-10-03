@@ -6,10 +6,7 @@ use swc_core::{
         codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit},
     },
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
     context::AssetContextVc,
@@ -189,9 +186,4 @@ impl ValueToString for ImportAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for ImportAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
+impl ChunkableAssetReference for ImportAssetReference {}

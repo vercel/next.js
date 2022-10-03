@@ -1,17 +1,17 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Script, Stmt},
     quote,
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    Value, ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ModuleId},
+    chunk::{
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ChunkingType,
+        ChunkingTypeOptionVc, ModuleId,
+    },
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{parse::RequestVc, ResolveResultVc},
@@ -108,8 +108,18 @@ impl ValueToString for EsmAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableAssetReference for EsmAssetReference {
     #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
+    fn chunking_type(&self, _context: ChunkingContextVc) -> Result<ChunkingTypeOptionVc> {
+        Ok(
+            if let Some(chunking_type) = self.annotations.chunking_type() {
+                match chunking_type {
+                    "separate" => ChunkingTypeOptionVc::cell(Some(ChunkingType::Separate)),
+                    "parallel" => ChunkingTypeOptionVc::cell(Some(ChunkingType::Parallel)),
+                    _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
+                }
+            } else {
+                ChunkingTypeOptionVc::cell(Some(ChunkingType::default()))
+            },
+        )
     }
 }
 
@@ -122,20 +132,25 @@ impl CodeGenerateable for EsmAssetReference {
     ) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
-        if let ReferencedAsset::Some(asset) = &*self_vc.get_referenced_asset().await? {
-            let ident = get_ident(*asset).await?;
-            let id = asset.as_chunk_item(context).id().await?;
-            visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                let stmt = quote!(
-                    "var $name = __turbopack_import__($id);" as Stmt,
-                    name = Ident::new(ident.clone().into(), DUMMY_SP),
-                    id: Expr = Expr::Lit(match &*id {
-                        ModuleId::String(s) => s.clone().into(),
-                        ModuleId::Number(n) => (*n as f64).into(),
-                    })
-                );
-                insert_hoisted_stmt(program, stmt);
-            }));
+        let chunking_type = self_vc.chunking_type(context).await?;
+
+        // separate chunks can't be imported as the modules are not available
+        if !matches!(*chunking_type, None | Some(ChunkingType::Separate)) {
+            if let ReferencedAsset::Some(asset) = &*self_vc.get_referenced_asset().await? {
+                let ident = get_ident(*asset).await?;
+                let id = asset.as_chunk_item(context).id().await?;
+                visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
+                    let stmt = quote!(
+                        "var $name = __turbopack_import__($id);" as Stmt,
+                        name = Ident::new(ident.clone().into(), DUMMY_SP),
+                        id: Expr = Expr::Lit(match &*id {
+                            ModuleId::String(s) => s.clone().into(),
+                            ModuleId::Number(n) => (*n as f64).into(),
+                        })
+                    );
+                    insert_hoisted_stmt(program, stmt);
+                }));
+            }
         }
 
         Ok(CodeGeneration { visitors }.into())

@@ -5,9 +5,12 @@ use std::{
     fmt::Debug,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{
+    debug::ValueDebugFormat,
     primitives::{BoolVc, StringVc},
+    trace::TraceRawVcs,
     ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::FileSystemPathVc;
@@ -144,6 +147,36 @@ pub trait ParallelChunkReference: AssetReference + ValueToString {
     fn is_loaded_in_parallel(&self) -> BoolVc;
 }
 
+/// Specifies how a chunk interacts with other chunks when building a chunk
+/// group
+#[derive(Copy, Clone, TraceRawVcs, Serialize, Deserialize, Eq, PartialEq, ValueDebugFormat)]
+pub enum ChunkingType {
+    /// Asset is always placed into the referencing chunk and loaded with it.
+    Placed,
+    /// A heuristic determines if the asset is placed into the referencing chunk
+    /// or in a separate chunk that is loaded in parallel.
+    PlacedOrParallel,
+    /// Asset is always placed in a separate chunk that is loaded in parallel.
+    Parallel,
+    /// Asset is placed in a separate chunk group that is referenced from the
+    /// referencing chunk group, but not loaded.
+    /// Note: Separate chunks need to be loaded by something external to current
+    /// reference.
+    Separate,
+    /// A async loader is placed into the referencing chunk and loads the
+    /// separate chunk group in which the asset is placed.
+    SeparateAsync,
+}
+
+impl Default for ChunkingType {
+    fn default() -> Self {
+        ChunkingType::PlacedOrParallel
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkingTypeOption(Option<ChunkingType>);
+
 /// An [AssetReference] implementing this trait and returning true for
 /// [ChunkableAssetReference::is_chunkable] are considered as potentially
 /// chunkable references. When all [Asset]s of such a reference implement
@@ -152,15 +185,9 @@ pub trait ParallelChunkReference: AssetReference + ValueToString {
 /// specific interface is implemented.
 #[turbo_tasks::value_trait]
 pub trait ChunkableAssetReference: AssetReference + ValueToString {
-    fn is_chunkable(&self) -> BoolVc;
-}
-
-/// When this trait is implemented by an [AssetReference] the chunks needed are
-/// potentially loaded async, as a separate chunk group. If it's not implemented
-/// chunks are loaded within the current chunk group
-#[turbo_tasks::value_trait]
-pub trait AsyncLoadableReference: AssetReference + ValueToString {
-    fn is_loaded_async(&self) -> BoolVc;
+    fn chunking_type(&self, _context: ChunkingContextVc) -> ChunkingTypeOptionVc {
+        ChunkingTypeOptionVc::cell(Some(ChunkingType::default()))
+    }
 }
 
 /// A reference to a [Chunk]. Can be loaded in parallel, see [Chunk].
@@ -292,7 +319,11 @@ pub async fn chunk_content<I: FromChunkableAsset>(
 
 enum ChunkContentWorkItem {
     AssetReferences(AssetReferencesVc),
-    Assets(AssetsVc, AssetReferenceVc),
+    Assets {
+        assets: AssetsVc,
+        reference: AssetReferenceVc,
+        chunking_type: ChunkingType,
+    },
 }
 
 async fn chunk_content_internal<I: FromChunkableAsset>(
@@ -331,26 +362,39 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
             ChunkContentWorkItem::AssetReferences(item) => {
                 for r in item.await?.iter() {
                     if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
-                        if *pc.is_chunkable().await? {
-                            queue.push_back(ChunkContentWorkItem::Assets(
-                                r.resolve_reference().primary_assets(),
-                                *r,
-                            ));
+                        if let Some(chunking_type) = *pc.chunking_type(context).await? {
+                            queue.push_back(ChunkContentWorkItem::Assets {
+                                assets: r.resolve_reference().primary_assets(),
+                                reference: *r,
+                                chunking_type,
+                            });
                             continue;
                         }
                     }
                     external_asset_references.push(*r);
                 }
             }
-            ChunkContentWorkItem::Assets(item, r) => {
+            ChunkContentWorkItem::Assets {
+                assets,
+                reference,
+                chunking_type,
+            } => {
                 // It's important to temporary store these results in these variables
                 // so that we can cancel to complete list of assets by that references together
                 // and fallback to an external reference completely
                 // The cancellation is at these "continue 'outer;" lines
+
+                // Chunk items that are placed into the current chunk
                 let mut inner_chunk_items = Vec::new();
+
+                // Chunks that are loaded in parallel to the current chunk
                 let mut inner_chunks = Vec::new();
+
+                // Chunk groups that are referenced from the current chunk, but
+                // not loaded in parallel
                 let mut inner_chunk_groups = Vec::new();
-                for asset in item
+
+                for asset in assets
                     .await?
                     .iter()
                     .filter(|asset| processed_assets.insert(**asset))
@@ -360,44 +404,59 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
                     let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
                         Some(chunkable_asset) => chunkable_asset,
                         _ => {
-                            external_asset_references.push(r);
+                            external_asset_references.push(reference);
                             continue 'outer;
                         }
                     };
 
-                    let is_async =
-                        if let Some(al) = AsyncLoadableReferenceVc::resolve_from(r).await? {
-                            *al.is_loaded_async().await?
-                        } else {
-                            false
-                        };
-                    if is_async {
-                        if let Some((manifest_loader_item, manifest_chunk)) =
-                            I::from_async_asset(context, chunkable_asset).await?
-                        {
-                            inner_chunk_items.push(manifest_loader_item);
-                            inner_chunk_groups
-                                .push(ChunkGroupVc::from_asset(manifest_chunk, context));
+                    match chunking_type {
+                        ChunkingType::Placed => {
+                            if let Some(chunk_item) = I::from_asset(context, *asset).await? {
+                                inner_chunk_items.push(chunk_item);
+                            } else {
+                                return Err(anyhow!(
+                                    "Asset {} was requested to be placed into the same chunk, but \
+                                     this wasn't possible",
+                                    asset.path().to_string().await?
+                                ));
+                            }
+                        }
+                        ChunkingType::Parallel => {
+                            let chunk = chunkable_asset.as_chunk(context);
+                            inner_chunks.push(chunk);
+                        }
+                        ChunkingType::PlacedOrParallel => {
+                            // heuristic for being in the same chunk
+                            if !split && *context.can_be_in_same_chunk(entry, *asset).await? {
+                                // chunk item, chunk or other asset?
+                                if let Some(chunk_item) = I::from_asset(context, *asset).await? {
+                                    inner_chunk_items.push(chunk_item);
+                                    continue;
+                                }
+                            }
+
+                            let chunk = chunkable_asset.as_chunk(context);
+                            inner_chunks.push(chunk);
+                        }
+                        ChunkingType::Separate => {
                             inner_chunk_groups
                                 .push(ChunkGroupVc::from_asset(chunkable_asset, context));
-                            continue;
-                        } else {
-                            external_asset_references.push(r);
-                            continue 'outer;
+                        }
+                        ChunkingType::SeparateAsync => {
+                            if let Some((manifest_loader_item, manifest_chunk)) =
+                                I::from_async_asset(context, chunkable_asset).await?
+                            {
+                                inner_chunk_items.push(manifest_loader_item);
+                                inner_chunk_groups
+                                    .push(ChunkGroupVc::from_asset(manifest_chunk, context));
+                                inner_chunk_groups
+                                    .push(ChunkGroupVc::from_asset(chunkable_asset, context));
+                            } else {
+                                external_asset_references.push(reference);
+                                continue 'outer;
+                            }
                         }
                     }
-
-                    // heuristic for being in the same chunk
-                    if !split && *context.can_be_in_same_chunk(entry, *asset).await? {
-                        // chunk item, chunk or other asset?
-                        if let Some(chunk_item) = I::from_asset(context, *asset).await? {
-                            inner_chunk_items.push(chunk_item);
-                            continue;
-                        }
-                    }
-
-                    let chunk = chunkable_asset.as_chunk(context);
-                    inner_chunks.push(chunk);
                 }
 
                 let prev_chunk_items = chunk_items.len();
@@ -411,6 +470,8 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
                 chunks.extend(inner_chunks);
                 async_chunk_groups.extend(inner_chunk_groups);
 
+                // Make sure the chunk doesn't become too large.
+                // This will hurt performance in many aspects.
                 let chunk_items_count = chunk_items.len();
                 if !split
                     && prev_chunk_items != chunk_items_count

@@ -4,10 +4,7 @@ use swc_core::{
     ecma::ast::{Callee, Expr, ExprOrSpread, Ident, Lit, Str},
     quote,
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    Value, ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
     context::AssetContextVc,
@@ -58,12 +55,7 @@ impl ValueToString for CjsAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for CjsAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
+impl ChunkableAssetReference for CjsAssetReference {}
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
@@ -105,12 +97,7 @@ impl ValueToString for CjsRequireAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for CjsRequireAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
+impl ChunkableAssetReference for CjsRequireAssetReference {}
 
 /// Creates a IIFE that throws an error with the given error message.
 fn throw_expr(message: Str) -> Expr {
@@ -199,12 +186,7 @@ impl ValueToString for CjsRequireResolveAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for CjsRequireResolveAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
+impl ChunkableAssetReference for CjsRequireResolveAssetReference {}
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireResolveAssetReference {
