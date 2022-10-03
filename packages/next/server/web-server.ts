@@ -21,6 +21,12 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { isDynamicRoute } from '../shared/lib/router/utils'
+import {
+  interpolateDynamicPath,
+  normalizeVercelUrl,
+} from '../build/webpack/loaders/next-serverless-loader/utils'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -258,6 +264,24 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         let { pathname, query } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
+        }
+
+        // interpolate query information into page for dynamic route
+        // so that rewritten paths are handled properly
+        if (pathname !== this.serverOptions.webServerConfig.page) {
+          pathname = this.serverOptions.webServerConfig.page
+
+          if (isDynamicRoute(pathname)) {
+            const routeRegex = getNamedRouteRegex(pathname)
+            pathname = interpolateDynamicPath(pathname, query, routeRegex)
+            normalizeVercelUrl(
+              req,
+              true,
+              Object.keys(routeRegex.routeKeys),
+              true,
+              routeRegex
+            )
+          }
         }
 
         // next.js core assumes page path without trailing slash
