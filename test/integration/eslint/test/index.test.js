@@ -34,6 +34,7 @@ const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
+const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -765,6 +766,28 @@ describe('ESLint', () => {
 
       expect(cliOutput).toContain(
         `Cannot write to output file path, it is a directory: ${filePath}`
+      )
+    })
+
+    test('lint files with cjs and mjs file extension', async () => {
+      const { stdout, stderr } = await nextLint(mjsCjsLinting, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+
+      expect(output).toContain('pages/bar.mjs')
+      expect(output).toContain(
+        'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
+      )
+      expect(output).toContain(
+        'Do not use `<img>` element. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element'
+      )
+
+      expect(output).toContain('pages/index.cjs')
+      expect(output).toContain(
+        'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'
       )
     })
   })
