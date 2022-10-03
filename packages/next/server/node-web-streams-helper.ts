@@ -267,15 +267,17 @@ export function createRootLayoutValidatorStream(): TransformStream<
 
   return new TransformStream({
     async transform(chunk, controller) {
-      const content = decodeText(chunk)
-      if (!foundHtml && content.includes('<html')) {
-        foundHtml = true
-      }
-      if (!foundHead && content.includes('<head')) {
-        foundHead = true
-      }
-      if (!foundBody && content.includes('<body')) {
-        foundBody = true
+      if (!foundHtml || !foundHead || !foundBody) {
+        const content = decodeText(chunk)
+        if (!foundHtml && content.includes('<html')) {
+          foundHtml = true
+        }
+        if (!foundHead && content.includes('<head')) {
+          foundHead = true
+        }
+        if (!foundBody && content.includes('<body')) {
+          foundBody = true
+        }
       }
       controller.enqueue(chunk)
     },
