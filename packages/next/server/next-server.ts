@@ -100,8 +100,6 @@ import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
-import { interpolateDynamicPath } from '../build/webpack/loaders/next-serverless-loader/utils'
-import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 if (shouldUseReactRoot) {
@@ -2033,44 +2031,37 @@ export default class NextNodeServer extends BaseServer {
     appPaths: string[] | null
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
-    let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
+    let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
     const { query, page } = params
 
     await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
-    middlewareInfo = this.getEdgeFunctionInfo({
+    edgeInfo = this.getEdgeFunctionInfo({
       page,
       middleware: false,
     })
 
-    if (!middlewareInfo) {
+    if (!edgeInfo) {
       return null
     }
 
-    // For middleware to "fetch" we must always provide an absolute URL
-    const locale = query.__nextLocale
+    // For edge to "fetch" we must always provide an absolute URL
     const isDataReq = !!query.__nextDataReq
-    const queryString = urlQueryToSearchParams(query).toString()
+    const initialUrl = new URL(
+      getRequestMeta(params.req, '__NEXT_INIT_URL') || '/',
+      'http://n'
+    )
+    const queryString = urlQueryToSearchParams({
+      ...Object.fromEntries(initialUrl.searchParams),
+      ...query,
+      ...params.params,
+    }).toString()
 
     if (isDataReq) {
       params.req.headers['x-nextjs-data'] = '1'
     }
-
-    let normalizedPathname = normalizeAppPath(page)
-    if (isDynamicRoute(normalizedPathname)) {
-      const routeRegex = getNamedRouteRegex(normalizedPathname)
-      normalizedPathname = interpolateDynamicPath(
-        normalizedPathname,
-        Object.assign({}, params.params, query),
-        routeRegex
-      )
-    }
-
-    const url = `${getRequestMeta(params.req, '_protocol')}://${
-      this.hostname
-    }:${this.port}${locale ? `/${locale}` : ''}${normalizedPathname}${
-      queryString ? `?${queryString}` : ''
-    }`
+    initialUrl.search = queryString
+    const url = initialUrl.toString()
 
     if (!url.startsWith('http')) {
       throw new Error(
@@ -2080,10 +2071,10 @@ export default class NextNodeServer extends BaseServer {
 
     const result = await run({
       distDir: this.distDir,
-      name: middlewareInfo.name,
-      paths: middlewareInfo.paths,
-      env: middlewareInfo.env,
-      edgeFunctionEntry: middlewareInfo,
+      name: edgeInfo.name,
+      paths: edgeInfo.paths,
+      env: edgeInfo.env,
+      edgeFunctionEntry: edgeInfo,
       request: {
         headers: params.req.headers,
         method: params.req.method,
