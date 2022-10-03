@@ -183,41 +183,6 @@ function formatWebpackMessages(json, verbose) {
       )
     }
 
-    // TODO: Shall we use invisible characters in the original error
-    // message as meta information?
-    if (message && message.message && /NEXT_RSC_ERR_/.test(message.message)) {
-      // Comes from the "React Server Components" transform in SWC, always
-      // attach the module trace.
-      const NEXT_RSC_ERR_REACT_API = /.+NEXT_RSC_ERR_REACT_API: (.*?)\n/s
-      const NEXT_RSC_ERR_SERVER_IMPORT =
-        /.+NEXT_RSC_ERR_SERVER_IMPORT: (.*?)\n/s
-      const NEXT_RSC_ERR_CLIENT_IMPORT =
-        /.+NEXT_RSC_ERR_CLIENT_IMPORT: (.*?)\n/s
-
-      if (NEXT_RSC_ERR_REACT_API.test(message.message)) {
-        message.message = message.message.replace(
-          NEXT_RSC_ERR_REACT_API,
-          `\n\nYou're importing a component that needs $1. It only works in a Client Component but none of its parents are marked with "client", so they're Server Components by default.\n\n`
-        )
-        importTraceNote =
-          '\n\nMaybe one of these should be marked as a "client" entry:\n'
-      } else if (NEXT_RSC_ERR_SERVER_IMPORT.test(message.message)) {
-        message.message = message.message.replace(
-          NEXT_RSC_ERR_SERVER_IMPORT,
-          `\n\nYou're importing a component that imports $1. It only works in a Client Component but none of its parents are marked with "client", so they're Server Components by default.\n\n`
-        )
-        importTraceNote =
-          '\n\nMaybe one of these should be marked as a "client" entry:\n'
-      } else if (NEXT_RSC_ERR_CLIENT_IMPORT.test(message.message)) {
-        message.message = message.message.replace(
-          NEXT_RSC_ERR_CLIENT_IMPORT,
-          `\n\nYou're importing a component that needs $1. That only works in a Server Component but one of its parents is marked with "client", so it's a Client Component.\n\n`
-        )
-        importTraceNote = '\n\nOne of these is marked as a "client" entry:\n'
-      }
-
-      verbose = true
-    }
     return formatMessage(message, verbose, importTraceNote)
   })
   const formattedWarnings = json.warnings.map(function (message) {

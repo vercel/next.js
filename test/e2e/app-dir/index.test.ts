@@ -1,7 +1,13 @@
 import { createNext, FileRef } from 'e2e-utils'
 import crypto from 'crypto'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  renderViaHTTP,
+  waitFor,
+  File,
+} from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -1624,6 +1630,38 @@ describe('app dir', () => {
         })
       })
     })
+
+    if (isDev) {
+      describe.only('error overlay', () => {
+        it('should have error and import path when importing useState in a server component', async () => {
+          const comp = new File(
+            path.resolve(
+              __dirname,
+              './app/app/dashboard/index/dynamic-imports/dynamic-server.js'
+            )
+          )
+
+          comp.replace(
+            `// import { useEffect } from 'react'`,
+            `import { useEffect } from 'react'`
+          )
+
+          const res = await fetchViaHTTP(next.url, '/dashboard/index')
+          expect(res.status).toBe(500)
+          const content = await res.text()
+
+          comp.restore()
+
+          expect(content).toInclude(
+            `You're importing a component that needs useEffect. It only works in a Client Component but none of its parents are marked with \"client\", so they're Server Components by default.`
+          )
+          expect(content).toInclude(
+            `app/dashboard/index/dynamic-imports/dynamic-server.js`
+          )
+          expect(content).toInclude(`app/dashboard/index/page.js`)
+        })
+      })
+    }
   }
 
   runTests()
