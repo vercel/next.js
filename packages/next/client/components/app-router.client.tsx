@@ -266,7 +266,7 @@ export default function AppRouter({
     }
 
     return routerInstance
-  }, [dispatch /*, initialTree*/])
+  }, [dispatch, initialTree])
 
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
