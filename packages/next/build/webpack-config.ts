@@ -1817,8 +1817,8 @@ export default async function getBaseWebpackConfig(
           {
             appDir: dir,
             esmExternals: config.experimental.esmExternals,
-            staticImageImports: !config.images.disableStaticImages,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
+            appDirEnabled: !!config.experimental.appDir,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
