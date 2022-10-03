@@ -35,6 +35,19 @@ describe('app dir', () => {
     })
     afterAll(() => next.destroy())
 
+    if ((global as any).isNextStart) {
+      it('should generate build traces correctly', async () => {
+        const trace = JSON.parse(
+          await next.readFile(
+            '.next/server/app/dashboard/deployments/[id]/page.js.nft.json'
+          )
+        ) as { files: string[] }
+        expect(trace.files.some((file) => file.endsWith('data.json'))).toBe(
+          true
+        )
+      })
+    }
+
     it('should use application/octet-stream for flight', async () => {
       const res = await fetchViaHTTP(
         next.url,
