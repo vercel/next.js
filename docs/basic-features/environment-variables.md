@@ -9,7 +9,6 @@ description: Learn to add and access environment variables in your Next.js appli
 
 | Version   | Changes                                                             |
 | --------- | ------------------------------------------------------------------- |
-| `v12.2.3` | `locale`, `locales`, `defaultLocale`, and `notFound` options added. |
 | `v9.4.0`  | Support `.env` and `NEXT_PUBLIC_` introduced.                       |
 
 </details>
