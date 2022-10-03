@@ -87,7 +87,7 @@ const BABEL_CONFIG_FILES = [
 ]
 
 const rscSharedRegex =
-  /(node_modules[\\/]react\/|[\\/]shared[\\/]lib[\\/](head-manager-context|router-context|flush-effects)\.js|node_modules[\\/]styled-jsx[\\/])/
+  /(node_modules[\\/]react\/|[\\/]shared[\\/]lib[\\/](head-manager-context|router-context|server-inserted-html)\.js|node_modules[\\/]styled-jsx[\\/])/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')

@@ -13,9 +13,9 @@ import {
 } from '../../shared/lib/app-router-context'
 
 export {
-  FlushEffectsContext,
-  useFlushEffects,
-} from '../../shared/lib/flush-effects'
+  ServerInsertedHTMLContext,
+  useServerInsertedHTML,
+} from '../../shared/lib/server-inserted-html'
 
 /**
  * Get the current search params. For example useSearchParams() would return {"foo": "bar"} when ?foo=bar
