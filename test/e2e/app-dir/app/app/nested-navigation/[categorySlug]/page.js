@@ -5,5 +5,5 @@ export default function Page({ params }) {
   const category = use(fetchCategoryBySlug(params.categorySlug))
   if (!category) return null
 
-  return <h1>All {category.name}</h1>
+  return <h1 id={`all-${category.name.toLowerCase()}`}>All {category.name}</h1>
 }

@@ -7,5 +7,5 @@ export default function Page({ params }) {
   )
   if (!category) return null
 
-  return <h1>{category.name}</h1>
+  return <h1 id={category.name.toLowerCase()}>{category.name}</h1>
 }
