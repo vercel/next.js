@@ -123,14 +123,14 @@ export function createBufferedTransformStream(
   })
 }
 
-export function createFlushEffectStream(
-  handleFlushEffect: () => Promise<string>
+export function createInsertedHTMLStream(
+  getServerInsertedHTML: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   return new TransformStream({
     async transform(chunk, controller) {
-      const flushedChunk = encodeText(await handleFlushEffect())
+      const insertedHTMLChunk = encodeText(await getServerInsertedHTML())
 
-      controller.enqueue(flushedChunk)
+      controller.enqueue(insertedHTMLChunk)
       controller.enqueue(chunk)
     },
   })
@@ -263,15 +263,15 @@ export async function continueFromInitialStream(
     suffix,
     dataStream,
     generateStaticHTML,
-    flushEffectHandler,
-    flushEffectsToHead,
+    getServerInsertedHTML,
+    serverInsertedHTMLToHead,
     polyfills,
   }: {
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
-    flushEffectHandler?: () => Promise<string>
-    flushEffectsToHead: boolean
+    getServerInsertedHTML?: () => Promise<string>
+    serverInsertedHTMLToHead: boolean
     polyfills?: { src: string; integrity: string | undefined }[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
@@ -284,8 +284,8 @@ export async function continueFromInitialStream(
 
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
     createBufferedTransformStream(),
-    flushEffectHandler && !flushEffectsToHead
-      ? createFlushEffectStream(flushEffectHandler)
+    getServerInsertedHTML && !serverInsertedHTMLToHead
+      ? createInsertedHTMLStream(getServerInsertedHTML)
       : null,
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
@@ -304,13 +304,13 @@ export async function continueFromInitialStream(
             .join('')
         : ''
 
-      // TODO-APP: Inject flush effects to end of head in app layout rendering, to avoid
+      // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
-      const flushEffectsContent =
-        flushEffectHandler && flushEffectsToHead
-          ? await flushEffectHandler()
+      const serverInsertedHTML =
+        getServerInsertedHTML && serverInsertedHTMLToHead
+          ? await getServerInsertedHTML()
           : ''
-      return polyfillScripts + flushEffectsContent
+      return polyfillScripts + serverInsertedHTML
     }),
   ].filter(nonNullable)
 
