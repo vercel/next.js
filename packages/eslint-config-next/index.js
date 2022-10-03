@@ -107,7 +107,13 @@ module.exports = {
       version: 'detect',
     },
     'import/parsers': {
-      [require.resolve('@typescript-eslint/parser')]: ['.ts', '.tsx', '.d.ts'],
+      [require.resolve('@typescript-eslint/parser')]: [
+        '.ts',
+        '.mts',
+        '.cts',
+        '.tsx',
+        '.d.ts',
+      ],
     },
     'import/resolver': {
       [require.resolve('eslint-import-resolver-node')]: {
