@@ -18,18 +18,31 @@ export = defineRule({
     return {
       JSXExpressionContainer(node) {
         const n = node as JSXExpressionContainer
-        if (n.expression.type !== 'CallExpression') return
-        else if (n.expression.callee.type !== 'MemberExpression') return
-        else if (n.expression.callee.object.type !== 'NewExpression') return
-        else if (n.expression.callee.object.callee.type !== 'Identifier') return
-        else if (n.expression.callee.object.callee.name !== 'Date') return
+        const { type } = n.expression
+
+        if (
+          type !== 'CallExpression' ||
+          n.expression.callee.type !== 'MemberExpression' ||
+          n.expression.callee.object.type !== 'NewExpression' ||
+          n.expression.callee.object.callee.type !== 'Identifier' ||
+          n.expression.callee.object.callee.name !== 'Date'
+        ) {
+          return
+        }
 
         const parent = context
           .getAncestors()
           .reverse()[0] as unknown as JSXElement
 
-        const attributes = new NodeAttributes(parent.openingElement)
-        const suppressed = attributes.has('suppressHydrationWarning')
+        const propertyName = (n.expression.callee.property as any)
+          .name as string
+        if (propertyName.match(/UTC|ISO/)) return
+
+        const attr = new NodeAttributes(parent.openingElement)
+
+        const suppressed =
+          attr.has('suppressHydrationWarning') &&
+          attr.value('suppressHydrationWarning') !== false
 
         if (suppressed) return
 
