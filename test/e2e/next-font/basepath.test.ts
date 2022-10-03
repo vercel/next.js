@@ -46,7 +46,7 @@ describe('@next/font/google basepath', () => {
     expect($('link[as="font"]').get(0).attribs).toEqual({
       as: 'font',
       crossorigin: 'anonymous',
-      href: '/dashboard/_next/static/fonts/0812efcfaefec5ea.p.woff2',
+      href: '/dashboard/_next/static/media/0812efcfaefec5ea.p.woff2',
       rel: 'preload',
       type: 'font/woff2',
     })

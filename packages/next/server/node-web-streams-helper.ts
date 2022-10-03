@@ -123,14 +123,14 @@ export function createBufferedTransformStream(
   })
 }
 
-export function createFlushEffectStream(
-  handleFlushEffect: () => string
+export function createInsertedHTMLStream(
+  getServerInsertedHTML: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   return new TransformStream({
-    transform(chunk, controller) {
-      const flushedChunk = encodeText(handleFlushEffect())
+    async transform(chunk, controller) {
+      const insertedHTMLChunk = encodeText(await getServerInsertedHTML())
 
-      controller.enqueue(flushedChunk)
+      controller.enqueue(insertedHTMLChunk)
       controller.enqueue(chunk)
     },
   })
@@ -149,17 +149,17 @@ export function renderToInitialStream({
 }
 
 export function createHeadInjectionTransformStream(
-  inject: () => string
+  inject: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   let injected = false
   return new TransformStream({
-    transform(chunk, controller) {
+    async transform(chunk, controller) {
       const content = decodeText(chunk)
       let index
       if (!injected && (index = content.indexOf('</head')) !== -1) {
         injected = true
         const injectedContent =
-          content.slice(0, index) + inject() + content.slice(index)
+          content.slice(0, index) + (await inject()) + content.slice(index)
         controller.enqueue(encodeText(injectedContent))
       } else {
         controller.enqueue(chunk)
@@ -263,14 +263,16 @@ export async function continueFromInitialStream(
     suffix,
     dataStream,
     generateStaticHTML,
-    flushEffectHandler,
-    flushEffectsToHead,
+    getServerInsertedHTML,
+    serverInsertedHTMLToHead,
+    polyfills,
   }: {
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
-    flushEffectHandler?: () => string
-    flushEffectsToHead: boolean
+    getServerInsertedHTML?: () => Promise<string>
+    serverInsertedHTMLToHead: boolean
+    polyfills?: { src: string; integrity: string | undefined }[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -282,18 +284,33 @@ export async function continueFromInitialStream(
 
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
     createBufferedTransformStream(),
-    flushEffectHandler && !flushEffectsToHead
-      ? createFlushEffectStream(flushEffectHandler)
+    getServerInsertedHTML && !serverInsertedHTMLToHead
+      ? createInsertedHTMLStream(getServerInsertedHTML)
       : null,
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-    createHeadInjectionTransformStream(() => {
-      // TODO-APP: Inject flush effects to end of head in app layout rendering, to avoid
+    createHeadInjectionTransformStream(async () => {
+      // Inject polyfills for browsers that don't support modules. It has to be
+      // blocking here and can't be `defer` because other scripts have `async`.
+      const polyfillScripts = polyfills
+        ? polyfills
+            .map(
+              ({ src, integrity }) =>
+                `<script src="${src}" nomodule=""${
+                  integrity ? ` integrity="${integrity}"` : ''
+                }></script>`
+            )
+            .join('')
+        : ''
+
+      // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
       // hydration errors. Remove this once it's ready to be handled by react itself.
-      const flushEffectsContent =
-        flushEffectHandler && flushEffectsToHead ? flushEffectHandler() : ''
-      return flushEffectsContent
+      const serverInsertedHTML =
+        getServerInsertedHTML && serverInsertedHTMLToHead
+          ? await getServerInsertedHTML()
+          : ''
+      return polyfillScripts + serverInsertedHTML
     }),
   ].filter(nonNullable)
 

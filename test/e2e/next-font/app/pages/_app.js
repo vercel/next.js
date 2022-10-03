@@ -1,5 +1,5 @@
 import { Open_Sans } from '@next/font/google'
-const openSans = Open_Sans()
+const openSans = Open_Sans({ variable: '--open-sans' })
 
 function MyApp({ Component, pageProps }) {
   return (

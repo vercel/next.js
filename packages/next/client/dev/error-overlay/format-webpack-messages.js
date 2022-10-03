@@ -173,6 +173,16 @@ function formatWebpackMessages(json, verbose) {
   const formattedErrors = json.errors.map(function (message) {
     let importTraceNote
 
+    if (
+      message &&
+      message.message &&
+      /Font loader error:/.test(message.message)
+    ) {
+      return message.message.slice(
+        message.message.indexOf('Font loader error:')
+      )
+    }
+
     // TODO: Shall we use invisible characters in the original error
     // message as meta information?
     if (message && message.message && /NEXT_RSC_ERR_/.test(message.message)) {

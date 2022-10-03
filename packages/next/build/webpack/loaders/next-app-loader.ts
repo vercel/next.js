@@ -8,7 +8,7 @@ export const FILE_TYPES = {
   template: 'template',
   error: 'error',
   loading: 'loading',
-  '404': '404',
+  'not-found': 'not-found',
 } as const
 
 // TODO-APP: check if this can be narrowed.
@@ -92,7 +92,7 @@ async function createTreeCodeFromPath({
                 file === FILE_TYPES.layout
                   ? `layoutOrPagePath: '${filePath}',`
                   : ''
-              }${file}: () => require(${JSON.stringify(filePath)}),`
+              }'${file}': () => require(${JSON.stringify(filePath)}),`
             })
             .join('\n')}
         }

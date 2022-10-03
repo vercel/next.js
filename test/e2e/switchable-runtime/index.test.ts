@@ -52,8 +52,8 @@ describe('Switchable runtime', () => {
         'next.config.js': new FileRef(join(__dirname, './next.config.js')),
       },
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: '0.0.0-experimental-cb5084d1c-20220924',
+        'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
       },
     })
     context = {
@@ -120,7 +120,7 @@ describe('Switchable runtime', () => {
           beforePageLoad(page) {
             page.on('request', (request) => {
               return request.allHeaders().then((headers) => {
-                if (headers.__flight__ === '1') {
+                if (headers.__rsc__ === '1') {
                   flightRequest = request.url()
                 }
               })
@@ -680,7 +680,7 @@ describe('Switchable runtime', () => {
           beforePageLoad(page) {
             page.on('request', (request) => {
               request.allHeaders().then((headers) => {
-                if (headers.__flight__ === '1') {
+                if (headers.__rsc__ === '1') {
                   flightRequest = request.url()
                 }
               })

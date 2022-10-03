@@ -1,5 +1,8 @@
 import { Open_Sans } from '@next/font/google'
-const openSans = Open_Sans({ fallback: ['system-ui', 'Arial'] })
+const openSans = Open_Sans({
+  fallback: ['system-ui', 'Arial'],
+  variable: '--open-sans',
+})
 
 export default function WithFonts() {
   return (
@@ -12,7 +15,7 @@ export default function WithFonts() {
       </div>
       <div
         id="with-fallback-fonts-variable"
-        style={{ fontFamily: 'var(--next-font-open-sans)' }}
+        style={{ fontFamily: 'var(--open-sans)' }}
         className={openSans.variable}
       >
         {JSON.stringify(openSans)}

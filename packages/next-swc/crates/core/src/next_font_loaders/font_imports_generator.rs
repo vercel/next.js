@@ -31,26 +31,31 @@ impl<'a> FontImportsGenerator<'a> {
                                 });
                             }
 
-                            expr_to_json(&*expr_or_spread.expr)
+                            expr_to_json(&expr_or_spread.expr)
                         })
                         .collect();
 
                     if let Ok(json) = json {
-                        let mut json_values: Vec<String> =
-                            json.iter().map(|value| value.to_string()).collect();
                         let function_name = match &font_function.function_name {
                             Some(function) => String::from(&**function),
                             None => String::new(),
                         };
-                        let mut values = vec![self.relative_path.to_string(), function_name];
-                        values.append(&mut json_values);
+                        let mut query_json_values = serde_json::Map::new();
+                        query_json_values.insert(
+                            String::from("path"),
+                            Value::String(self.relative_path.to_string()),
+                        );
+                        query_json_values
+                            .insert(String::from("import"), Value::String(function_name));
+                        query_json_values.insert(String::from("arguments"), Value::Array(json));
+
+                        let query_json = Value::Object(query_json_values);
 
                         return Some(ImportDecl {
                             src: Box::new(Str {
                                 value: JsWord::from(format!(
-                                    "{}?{}",
-                                    font_function.loader,
-                                    values.join(";")
+                                    "{}/target.css?{}",
+                                    font_function.loader, query_json
                                 )),
                                 raw: None,
                                 span: DUMMY_SP,
@@ -182,7 +187,7 @@ fn object_lit_to_json(object_lit: &ObjectLit) -> Value {
                             Err(())
                         }
                     };
-                    let val = expr_to_json(&*key_val.value);
+                    let val = expr_to_json(&key_val.value);
                     if let (Ok(key), Ok(val)) = (key, val) {
                         values.insert(key, val);
                     }
@@ -226,7 +231,7 @@ fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
                                     .emit();
                                 Err(())
                             }),
-                            None => expr_to_json(&*expr.expr),
+                            None => expr_to_json(&expr.expr),
                         }
                     } else {
                         HANDLER.with(|handler| {
