@@ -1,15 +1,12 @@
 /* global location */
 import { Metric, ReportCallback } from 'next/dist/compiled/web-vitals'
+import { WEB_VITALS } from '../shared/lib/utils'
 
-interface PerformanceRelayerConfig {
-  attributions: Array<typeof WEB_VITALS[number]>
-}
-
-const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'] as const
 const initialHref = location.href
 let isRegistered = false
 let userReportHandler: ReportCallback | undefined
-let config: PerformanceRelayerConfig | undefined
+type Attribution = typeof WEB_VITALS[number]
+let attributions: Attribution[] = []
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
@@ -81,10 +78,10 @@ export default async (onPerfEntry?: ReportCallback): Promise<void> => {
 
   for (const webVital of WEB_VITALS) {
     try {
-      const m: any = config?.attributions.includes(webVital)
-        ? // @ts-ignore module available at runtime, see taskfile.js
+      const m: any = attributions.includes(webVital)
+        ? // @ts-ignore package.json created by ncc doesn't have types
           await import('../compiled/web-vitals-attribution')
-        : // @ts-ignore module available at runtime, see taskfile.js
+        : // @ts-ignore package.json created by ncc doesn't have types
           await import('../compiled/web-vitals')
       m[`on${webVital}`](onReport)
     } catch {
@@ -93,13 +90,6 @@ export default async (onPerfEntry?: ReportCallback): Promise<void> => {
   }
 }
 
-export function setPerformanceRelayerConfig(
-  input: PerformanceRelayerConfig
-): void {
-  const attributions = Array.isArray(input.attributions)
-    ? input.attributions
-    : []
-  config = {
-    attributions: attributions.filter((attr) => WEB_VITALS.includes(attr)),
-  }
+export function setPerformanceRelayerConfig(input: Attribution[]): void {
+  attributions = input.filter((v) => WEB_VITALS.includes(v))
 }

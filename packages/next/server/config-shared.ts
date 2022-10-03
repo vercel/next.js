@@ -8,6 +8,7 @@ import {
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import { WEB_VITALS } from '../shared/lib/utils'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -157,6 +158,8 @@ export interface ExperimentalConfig {
   serverComponentsExternalPackages?: string[]
 
   fontLoaders?: { [fontLoader: string]: any }
+
+  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 }
 
 export type ExportPathMap = {

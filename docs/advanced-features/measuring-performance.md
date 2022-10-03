@@ -191,23 +191,13 @@ If the LCP element is an image, knowing the URL of the image resource can help u
 Pinpointing the biggest contributor to the Web Vitals score, aka [attribution](https://github.com/GoogleChrome/web-vitals/blob/4ca38ae64b8d1e899028c692f94d4c56acfc996c/README.md#attribution),
 allows us to obtain more in-depth information like entries for [PerformanceEventTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEventTiming), [PerformanceNavigationTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigationTiming) and [PerformanceResourceTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming).
 
-Attribution is disabled by default in Next.js but can be enabled **per metric** by specifying a `config` for `reportWebVitals()`.
+Attribution is disabled by default in Next.js but can be enabled **per metric** by specifying the following in `next.config.js`.
 
 ```js
-// pages/_app.js
-export function reportWebVitals(metric) {
-  console.log(metric)
+// next.config.js
+experimental: {
+  webVitalsAttribution: ['CLS', 'LCP']
 }
-
-reportWebVitals.config = {
-  attributions: ['CLS', 'LCP'],
-}
-
-function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
-}
-
-export default MyApp
 ```
 
 Valid attribution values are all `web-vitals` metrics specified in the [`NextWebVitalsMetric`](https://github.com/vercel/next.js/blob/442378d21dd56d6e769863eb8c2cb521a463a2e0/packages/next/shared/lib/utils.ts#L43) type.

@@ -21,7 +21,3 @@ export function reportWebVitals(data) {
     ;(window.__metricsWithAttribution ??= []).push(data)
   }
 }
-
-reportWebVitals.config = {
-  attributions: ['LCP'],
-}

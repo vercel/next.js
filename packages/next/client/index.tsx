@@ -767,8 +767,15 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
     if (mod && mod.reportWebVitals) {
-      if (mod.reportWebVitals.config) {
-        setPerformanceRelayerConfig(mod.reportWebVitals.config)
+      if (process.env.__NEXT_WEB_VITALS_ATTRIBUTION) {
+        try {
+          const attributions = JSON.parse(
+            process.env.__NEXT_WEB_VITALS_ATTRIBUTION
+          )
+          if (Array.isArray(attributions)) {
+            setPerformanceRelayerConfig(attributions)
+          }
+        } catch {}
       }
       onPerfEntry = ({
         id,
