@@ -257,9 +257,50 @@ export function createSuffixStream(
   })
 }
 
+export function createRootLayoutValidatorStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
+  let foundHtml = false
+  let foundHead = false
+  let foundBody = false
+
+  return new TransformStream({
+    async transform(chunk, controller) {
+      if (!foundHtml || !foundHead || !foundBody) {
+        const content = decodeText(chunk)
+        if (!foundHtml && content.includes('<html')) {
+          foundHtml = true
+        }
+        if (!foundHead && content.includes('<head')) {
+          foundHead = true
+        }
+        if (!foundBody && content.includes('<body')) {
+          foundBody = true
+        }
+      }
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
+      const missingTags = [
+        foundHtml ? null : 'html',
+        foundHead ? null : 'head',
+        foundBody ? null : 'body',
+      ].filter(nonNullable)
+
+      if (missingTags.length > 0) {
+        controller.error(
+          'Missing required root layout tags: ' + missingTags.join(', ')
+        )
+      }
+    },
+  })
+}
+
 export async function continueFromInitialStream(
   renderStream: ReactReadableStream,
   {
+    dev,
     suffix,
     dataStream,
     generateStaticHTML,
@@ -267,6 +308,7 @@ export async function continueFromInitialStream(
     serverInsertedHTMLToHead,
     polyfills,
   }: {
+    dev?: boolean
     suffix?: string
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
@@ -312,6 +354,7 @@ export async function continueFromInitialStream(
           : ''
       return polyfillScripts + serverInsertedHTML
     }),
+    dev ? createRootLayoutValidatorStream() : null,
   ].filter(nonNullable)
 
   return transforms.reduce(
