@@ -575,11 +575,11 @@ export default async function getBaseWebpackConfig(
           '`experimental.runtime` requires React 18 to be installed.'
         )
       }
-    }
-    if (hasAppDir) {
-      throw new Error(
-        '`experimental.appDir` requires React 18 to be installed.'
-      )
+      if (hasAppDir) {
+        throw new Error(
+          '`experimental.appDir` requires React 18 to be installed.'
+        )
+      }
     }
   }
 
