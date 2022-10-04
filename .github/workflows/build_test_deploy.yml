@@ -888,8 +888,24 @@ jobs:
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
       - name: Upload test trace
         if: always()
