@@ -442,14 +442,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     try {
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
-      const _res = (res as any).originalResponse
+      const _res = (res as any).originalResponse || res
       const origSetHeader = _res.setHeader.bind(_res)
 
       _res.setHeader = (name: string, val: string | string[]) => {
         if (name.toLowerCase() === 'set-cookie') {
           const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
 
-          if (val !== middlewareValue) {
+          if (
+            !middlewareValue ||
+            !Array.isArray(val) ||
+            !val.every((item, idx) => item === middlewareValue[idx])
+          ) {
             val = [
               ...(middlewareValue || []),
               ...(typeof val === 'string'

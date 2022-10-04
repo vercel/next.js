@@ -84,7 +84,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { toNodeHeaders } from './web/utils'
+import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -1801,12 +1801,11 @@ export default class NextNodeServer extends BaseServer {
           addRequestMeta(
             params.request,
             '_nextMiddlewareCookie',
-            Array.isArray(value) ? value : [value]
+            splitCookiesString(value)
           )
         }
       }
     }
-
     return result
   }
 
