@@ -2,8 +2,11 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
+import { check, renderViaHTTP } from 'next-test-utils'
 
-describe('app-dir mpa navigation', () => {
+describe('app-dir root layout', () => {
+  const isDev = (global as any).isNextDev
+
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
@@ -18,9 +21,9 @@ describe('app-dir mpa navigation', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        app: new FileRef(path.join(__dirname, 'mpa-navigation/app')),
+        app: new FileRef(path.join(__dirname, 'root-layout/app')),
         'next.config.js': new FileRef(
-          path.join(__dirname, 'mpa-navigation/next.config.js')
+          path.join(__dirname, 'root-layout/next.config.js')
         ),
       },
       dependencies: {
@@ -30,6 +33,30 @@ describe('app-dir mpa navigation', () => {
     })
   })
   afterAll(() => next.destroy())
+
+  if (isDev) {
+    describe('Missing required tags', () => {
+      it('should error on page load', async () => {
+        const outputIndex = next.cliOutput.length
+        renderViaHTTP(next.url, '/missing-tags').catch(() => {})
+        await check(
+          () => next.cliOutput.slice(outputIndex),
+          /Missing required root layout tags: html, head, body/
+        )
+      })
+
+      it('should error on page navigation', async () => {
+        const outputIndex = next.cliOutput.length
+        const browser = await webdriver(next.url, '/has-tags')
+        await browser.elementByCss('a').click()
+
+        await check(
+          () => next.cliOutput.slice(outputIndex),
+          /Missing required root layout tags: html, head, body/
+        )
+      })
+    })
+  }
 
   describe('Should do a mpa navigation when switching root layout', () => {
     it('should work with basic routes', async () => {

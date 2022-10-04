@@ -773,6 +773,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
         duration,
         entryType,
         entries,
+        attribution,
       }: any): void => {
         // Combines timestamp with random number for unique ID
         const uniqueID: string = `${Date.now()}-${
@@ -793,6 +794,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
             entryType === 'mark' || entryType === 'measure'
               ? 'custom'
               : 'web-vital',
+        }
+        if (attribution) {
+          webVitals.attribution = attribution
         }
         mod.reportWebVitals(webVitals)
       }
