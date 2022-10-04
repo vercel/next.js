@@ -1,10 +1,17 @@
-async function fetchAPI(query, { variables } = {}, preview ) {
-  const url = preview ? process.env.NEXT_PUBLIC_WEBINY_PREVIEW_API_URL : process.env.NEXT_PUBLIC_WEBINY_API_URL
+async function fetchAPI(
+  query: string,
+  { variables } = {} as any,
+  preview: boolean
+) {
+  const url = preview
+    ? `${process.env.NEXT_PUBLIC_WEBINY_PREVIEW_API_URL}`
+    : `${process.env.NEXT_PUBLIC_WEBINY_API_UR}`
+
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.WEBINY_API_SECRET}`
+      Authorization: `Bearer ${process.env.WEBINY_API_SECRET}`,
     },
     body: JSON.stringify({
       query,
@@ -21,23 +28,26 @@ async function fetchAPI(query, { variables } = {}, preview ) {
   return json.data
 }
 
-
 export async function getAllPostsWithSlug() {
-  const data = await fetchAPI(`
-    query PostSlugs {
-      listPosts {
-        data {
-          slug
+  const data = await fetchAPI(
+    `
+      query PostSlugs {
+        listPosts {
+          data {
+            slug
+          }
         }
       }
-    }
-  `)
+    `,
+    {},
+    false
+  )
   return data?.listPosts.data
 }
 
 export async function getAllPostsForHome(preview) {
   const data = await fetchAPI(
-      `
+    `
       query Posts {
         listPosts {
           data {
@@ -63,7 +73,6 @@ export async function getAllPostsForHome(preview) {
 
 export async function getPostBySlug(slug, preview) {
   const data = await fetchAPI(
-
     `
       query PostBySlug( $PostsGetWhereInput: PostsGetWhereInput!) {
         post: getPosts( where: $PostsGetWhereInput ) {
@@ -98,14 +107,14 @@ export async function getPostBySlug(slug, preview) {
         }
       }
     `,
-      {
-        variables: {
-          PostsGetWhereInput:{
-            slug: slug
-          }
-        }
+    {
+      variables: {
+        PostsGetWhereInput: {
+          slug: slug,
+        },
       },
-      preview
+    },
+    preview
   )
   return data
 }

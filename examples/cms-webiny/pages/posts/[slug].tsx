@@ -1,11 +1,12 @@
+import React from 'react'
 import { useRouter } from 'next/router'
 import ErrorPage from 'next/error'
 import Container from '../../components/container'
 import PostBody from '../../components/post-body'
 import Header from '../../components/header'
 import PostHeader from '../../components/post-header'
-import MoreStories from "../../components/more-stories"
-import SectionSeparator from "../../components/section-separator"
+import MoreStories from '../../components/more-stories'
+import SectionSeparator from '../../components/section-separator'
 import Layout from '../../components/layout'
 import { getPostBySlug, getAllPostsWithSlug } from '../../lib/api'
 import PostTitle from '../../components/post-title'
@@ -41,7 +42,9 @@ export default function Post({ post, morePosts, preview }) {
               <PostBody content={post.body} />
             </article>
             <SectionSeparator />
-            {morePosts.data.length > 0 && <MoreStories posts={morePosts.data} />}
+            {morePosts.data.length > 0 && (
+              <MoreStories posts={morePosts.data} />
+            )}
           </>
         )}
       </Container>
@@ -50,16 +53,15 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps(context) {
-  
   const data = await getPostBySlug(context.params.slug, context.preview)
 
   return {
     props: {
-      preview: context.preview ?? null,
+      preview: context.preview ?? false,
       post: {
         ...data.post.data,
       },
-      morePosts: data.morePosts
+      morePosts: data.morePosts,
     },
   }
 }

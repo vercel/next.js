@@ -1,8 +1,23 @@
+import React from 'react'
 import cn from 'classnames'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default function CoverImage({ title, src, slug, height, width }) {
+export type TCoverImage = {
+  title: string
+  src: string
+  slug?: string
+  height: number
+  width: number
+}
+
+const CoverImage: React.FC<TCoverImage> = ({
+  title,
+  src,
+  slug,
+  height,
+  width,
+}) => {
   const image = (
     <Image
       src={src}
@@ -27,3 +42,4 @@ export default function CoverImage({ title, src, slug, height, width }) {
     </div>
   )
 }
+export default CoverImage

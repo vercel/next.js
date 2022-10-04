@@ -1,7 +1,8 @@
+import React from 'react'
 import { parseISO, format } from 'date-fns'
 
 export default function DateFormatter({ dateString }) {
-  if(!dateString) {
+  if (!dateString) {
     return null
   }
   const date = parseISO(dateString)
