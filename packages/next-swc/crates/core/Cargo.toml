@@ -28,7 +28,7 @@ styled_jsx = {path="../styled_jsx"}
 modularize_imports = {path="../modularize_imports"}
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 
-swc_core = { workspace = true, features = [
+swc_core = {  features = [
   "common_concurrent",
   "ecma_ast",
   "ecma_visit",
@@ -48,6 +48,6 @@ swc_core = { workspace = true, features = [
 ], version = "0.28.20" }
 
 [dev-dependencies]
-swc_core = { workspace = true, features = ["testing_transform"], version = "0.28.20" }
+swc_core = {  features = ["testing_transform"], version = "0.28.20" }
 testing = "0.31.4"
 walkdir = "2.3.2"
