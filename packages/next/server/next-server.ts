@@ -84,7 +84,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { toNodeHeaders } from './web/utils'
+import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -1796,9 +1796,16 @@ export default class NextNodeServer extends BaseServer {
     } else {
       for (let [key, value] of allHeaders) {
         result.response.headers.set(key, value)
+
+        if (key.toLowerCase() === 'set-cookie') {
+          addRequestMeta(
+            params.request,
+            '_nextMiddlewareCookie',
+            splitCookiesString(value)
+          )
+        }
       }
     }
-
     return result
   }
 
@@ -2097,8 +2104,13 @@ export default class NextNodeServer extends BaseServer {
     params.res.statusCode = result.response.status
     params.res.statusMessage = result.response.statusText
 
-    result.response.headers.forEach((value, key) => {
-      params.res.appendHeader(key, value)
+    result.response.headers.forEach((value: string, key) => {
+      // the append handling is special cased for `set-cookie`
+      if (key.toLowerCase() === 'set-cookie') {
+        params.res.setHeader(key, value)
+      } else {
+        params.res.appendHeader(key, value)
+      }
     })
 
     if (result.response.body) {

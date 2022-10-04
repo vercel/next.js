@@ -253,6 +253,9 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
+    'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
+      config.experimental.skipMiddlewareUrlNormalize
+    ),
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution &&
         config.experimental.webVitalsAttribution.length > 0
