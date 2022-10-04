@@ -296,7 +296,7 @@ function useFlightResponse(
         writer.close()
       } else {
         const responsePartial = decodeText(value)
-        const scripts = `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+        const scripts = `${startScriptTag}self.__next_s.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
 
@@ -1318,13 +1318,6 @@ export async function renderToHTMLOrFlight(
         <HeadManagerContext.Provider
           value={{
             appDir: true,
-            updateHead: () => {},
-            updateScripts: (scripts) => {
-              console.log(scripts)
-              // scriptLoader = scripts
-            },
-            scripts: [],
-            mountedInstances: new Set(),
           }}
         >
           <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>

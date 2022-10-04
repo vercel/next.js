@@ -1,7 +1,6 @@
 'client'
 
 import React, { useEffect, useContext, useRef } from 'react'
-import ReactDOM from 'react-dom'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
@@ -258,8 +257,40 @@ function Script(props: ScriptProps): JSX.Element | null {
 
   if (appDir) {
     if (strategy === 'beforeInteractive') {
+      if (!src) {
+        // Inlined scripts
+        if (restProps.dangerouslySetInnerHTML) {
+          restProps.children = restProps.dangerouslySetInnerHTML.__html
+          delete restProps.dangerouslySetInnerHTML
+        }
+        return (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(self.__next_scripts=self.__next_scripts||[]).push(${JSON.stringify(
+                [0, { ...restProps }]
+              )})`,
+            }}
+          />
+        )
+      }
+
       // ReactDOM.preinit(src, { as: 'script' })
-      return <link rel="preload" href={src} as="script" />
+      return (
+        <>
+          <link rel="preload" href={src} as="script" />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(self.__next_scripts=self.__next_scripts||[]).push(${JSON.stringify(
+                [src]
+              )})`,
+            }}
+          />
+        </>
+      )
+    } else if (strategy === 'afterInteractive') {
+      if (src) {
+        return <link rel="preload" href={src} as="script" />
+      }
     }
   }
 

@@ -8,6 +8,8 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import measureWebVitals from './performance-relayer'
 
+console.log('app-index')
+
 /// <reference types="react-dom/experimental" />
 
 // Override chunk URL mapping in the webpack runtime
@@ -41,8 +43,6 @@ self.__next_require__ = __webpack_require__
   // eslint-disable-next-line no-undef
   return __webpack_chunk_load__(chunkId)
 }
-
-export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
 

@@ -339,9 +339,9 @@ export async function continueFromInitialStream(
         ? polyfills
             .map(
               ({ src, integrity }) =>
-                `<script src="${src}" nomodule=""${
-                  integrity ? ` integrity="${integrity}"` : ''
-                }></script>`
+                `<script nomodule="">(self.__next_scripts=self.__next_scripts||[]).push(${JSON.stringify(
+                  [src, { integrity }]
+                )})</script>`
             )
             .join('')
         : ''
