@@ -634,6 +634,11 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
+  if (!useSWCLoader && config.experimental.fontLoaders) {
+    Log.error('`experimental.fontLoaders` requires SWC but found Babel config.')
+    process.exit(1)
+  }
+
   const getBabelLoader = () => {
     return {
       loader: require.resolve('./babel/loader/index'),
