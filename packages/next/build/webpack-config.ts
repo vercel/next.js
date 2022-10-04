@@ -87,7 +87,7 @@ const BABEL_CONFIG_FILES = [
 ]
 
 const rscSharedRegex =
-  /(node_modules[\\/]react\/|[\\/]shared[\\/]lib[\\/](head-manager-context|router-context|flush-effects)\.js|node_modules[\\/]styled-jsx[\\/])/
+  /(node_modules[\\/]react\/|[\\/]shared[\\/]lib[\\/](head-manager-context|router-context|server-inserted-html)\.js|node_modules[\\/]styled-jsx[\\/])/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -253,6 +253,13 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
+    'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION': JSON.stringify(
+      config.experimental.webVitalsAttribution &&
+        config.experimental.webVitalsAttribution.length > 0
+    ),
+    'process.env.__NEXT_WEB_VITALS_ATTRIBUTION': JSON.stringify(
+      config.experimental.webVitalsAttribution
+    ),
     ...(isNodeServer || isEdgeServer
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -1817,8 +1824,8 @@ export default async function getBaseWebpackConfig(
           {
             appDir: dir,
             esmExternals: config.experimental.esmExternals,
-            staticImageImports: !config.images.disableStaticImages,
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
+            appDirEnabled: !!config.experimental.appDir,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files

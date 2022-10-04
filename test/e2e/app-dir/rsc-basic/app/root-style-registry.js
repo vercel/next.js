@@ -3,7 +3,7 @@
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { ServerStyleSheet, StyleSheetManager } from 'styled-components'
-import { useFlushEffects } from 'next/dist/client/components/hooks-client'
+import { useServerInsertedHTML } from 'next/dist/client/components/hooks-client'
 import { useState } from 'react'
 
 export default function RootStyleRegistry({ children }) {
@@ -21,23 +21,18 @@ export default function RootStyleRegistry({ children }) {
     return <>{styles}</>
   }
 
-  // Allow multiple useFlushEffects
-  useFlushEffects(() => {
+  // Allow multiple useServerInsertedHTML
+  useServerInsertedHTML(() => {
     return <>{styledJsxFlushEffect()}</>
   })
 
-  useFlushEffects(() => {
+  useServerInsertedHTML(() => {
     return <>{styledComponentsFlushEffect()}</>
   })
 
-  // Only include style registry on server side for SSR
-  if (typeof window === 'undefined') {
-    return (
-      <StyleSheetManager sheet={styledComponentsStyleSheet.instance}>
-        <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
-      </StyleSheetManager>
-    )
-  }
-
-  return children
+  return (
+    <StyleSheetManager sheet={styledComponentsStyleSheet.instance}>
+      <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
+    </StyleSheetManager>
+  )
 }

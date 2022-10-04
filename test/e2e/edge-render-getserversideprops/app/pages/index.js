@@ -11,9 +11,10 @@ export default function Page(props) {
   )
 }
 
-export function getServerSideProps({ params, query }) {
+export function getServerSideProps({ req, params, query }) {
   return {
     props: {
+      url: req.url,
       query,
       now: Date.now(),
       params: params || null,
