@@ -1,4 +1,5 @@
 import { experimental_use as use } from 'react'
+import Script from 'next/script'
 
 import '../styles/global.css'
 import './style.css'
@@ -22,6 +23,7 @@ export default function Root({ children }) {
         <title>{`hello ${world}`}</title>
       </head>
       <body className="this-is-the-document-body">{children}</body>
+      <Script strategy="beforeInteractive" src="/test.js" />
     </html>
   )
 }

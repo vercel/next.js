@@ -33,6 +33,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -1314,9 +1315,22 @@ export async function renderToHTMLOrFlight(
       )
 
       return (
-        <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
-          {children}
-        </ServerInsertedHTMLContext.Provider>
+        <HeadManagerContext.Provider
+          value={{
+            appDir: true,
+            updateHead: () => {},
+            updateScripts: (scripts) => {
+              console.log(scripts)
+              // scriptLoader = scripts
+            },
+            scripts: [],
+            mountedInstances: new Set(),
+          }}
+        >
+          <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
+            {children}
+          </ServerInsertedHTMLContext.Provider>
+        </HeadManagerContext.Provider>
       )
     }
 

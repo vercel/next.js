@@ -1,6 +1,7 @@
 'client'
 
 import React, { useEffect, useContext, useRef } from 'react'
+import ReactDOM from 'react-dom'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
@@ -177,7 +178,8 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  const { updateScripts, scripts, getIsSsr } = useContext(HeadManagerContext)
+  const { updateScripts, scripts, getIsSsr, appDir } =
+    useContext(HeadManagerContext)
 
   /**
    * - First mount:
@@ -251,6 +253,13 @@ function Script(props: ScriptProps): JSX.Element | null {
       LoadCache.add(id || src)
     } else if (getIsSsr && !getIsSsr()) {
       loadScript(props)
+    }
+  }
+
+  if (appDir) {
+    if (strategy === 'beforeInteractive') {
+      // ReactDOM.preinit(src, { as: 'script' })
+      return <link rel="preload" href={src} as="script" />
     }
   }
 

@@ -1,6 +1,7 @@
 import React from 'react'
 
 export const HeadManagerContext: React.Context<{
+  appDir?: boolean
   updateHead?: (state: any) => void
   mountedInstances?: any
   updateScripts?: (state: any) => void
