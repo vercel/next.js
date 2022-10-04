@@ -440,6 +440,33 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
+      // ensure cookies set in middleware are merged and
+      // not overridden by API routes/getServerSideProps
+      const _res = (res as any).originalResponse || res
+      const origSetHeader = _res.setHeader.bind(_res)
+
+      _res.setHeader = (name: string, val: string | string[]) => {
+        if (name.toLowerCase() === 'set-cookie') {
+          const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
+
+          if (
+            !middlewareValue ||
+            !Array.isArray(val) ||
+            !val.every((item, idx) => item === middlewareValue[idx])
+          ) {
+            val = [
+              ...(middlewareValue || []),
+              ...(typeof val === 'string'
+                ? [val]
+                : Array.isArray(val)
+                ? val
+                : []),
+            ]
+          }
+        }
+        return origSetHeader(name, val)
+      }
+
       const urlParts = (req.url || '').split('?')
       const urlNoQuery = urlParts[0]
 
