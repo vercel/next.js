@@ -408,6 +408,13 @@ const configSchema = {
         fontLoaders: {
           type: 'object',
         },
+        webVitalsAttribution: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
+          } as any,
+        },
       },
       type: 'object',
     },
