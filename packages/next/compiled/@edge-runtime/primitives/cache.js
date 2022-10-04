@@ -105,9 +105,7 @@ function createCaches() {
         });
       } catch (error) {
         if (error.message === "disturbed") {
-          throw new TypeError(
-            "Failed to execute 'put' on 'Cache': Response body is already used"
-          );
+          throw new TypeError("The body has already been consumed.");
         }
         throw error;
       }
