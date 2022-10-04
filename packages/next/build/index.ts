@@ -1358,7 +1358,7 @@ export default async function build(
                         MIDDLEWARE_MANIFEST
                       ))
                       const manifestKey =
-                        pageType === 'pages' ? page : join(page, 'page')
+                        pageType === 'pages' ? page : originalAppPath || ''
 
                       edgeInfo = manifest.functions[manifestKey]
                     }
