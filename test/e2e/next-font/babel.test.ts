@@ -7,7 +7,7 @@ describe('@next/font/google babel', () => {
   let next: NextInstance
 
   if (!isNextStart) {
-    it('should only run next start', () => {})
+    it('should only run on next start', () => {})
     return
   }
 
