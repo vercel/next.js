@@ -52,8 +52,8 @@ describe('Switchable runtime', () => {
         'next.config.js': new FileRef(join(__dirname, './next.config.js')),
       },
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: '0.0.0-experimental-cb5084d1c-20220924',
+        'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
       },
     })
     context = {

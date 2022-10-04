@@ -17,6 +17,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
+  streamToString,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { shouldUseReactRoot } from './utils'
@@ -25,7 +26,7 @@ import {
   FlightCSSManifest,
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
-import { FlushEffectsContext } from '../shared/lib/flush-effects'
+import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
@@ -595,13 +596,69 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
   return newHeaders
 }
 
+async function renderToString(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
+}
+
+function getRootLayoutPath(
+  [segment, parallelRoutes, { layout }]: LoaderTree,
+  rootLayoutPath = ''
+): string | undefined {
+  rootLayoutPath += `${segment}/`
+  const isLayout = typeof layout !== 'undefined'
+  if (isLayout) return rootLayoutPath
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
+  const child = Object.values(parallelRoutes)[0]
+  if (!child) return
+  return getRootLayoutPath(child, rootLayoutPath)
+}
+
+function findRootLayoutInFlightRouterState(
+  [segment, parallelRoutes]: FlightRouterState,
+  rootLayoutSegments: string,
+  segments = ''
+): boolean {
+  segments += `${segment}/`
+  if (segments === rootLayoutSegments) {
+    return true
+  } else if (segments.length > rootLayoutSegments.length) {
+    return false
+  }
+  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
+  // But it's not possible to be more than one parallelRoutes before the root layout is found
+  const child = Object.values(parallelRoutes)[0]
+  if (!child) return false
+  return findRootLayoutInFlightRouterState(child, rootLayoutSegments, segments)
+}
+
+function isNavigatingToNewRootLayout(
+  loaderTree: LoaderTree,
+  flightRouterState: FlightRouterState
+): boolean {
+  const newRootLayout = getRootLayoutPath(loaderTree)
+  // should always have a root layout
+  if (newRootLayout) {
+    const hasSameRootLayout = findRootLayoutInFlightRouterState(
+      flightRouterState,
+      newRootLayout
+    )
+
+    return !hasSameRootLayout
+  }
+
+  return false
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  isPagesDir: boolean,
   isStaticGeneration: boolean = false
 ): Promise<RenderResult | null> {
   const isFlight = req.headers.__rsc__ !== undefined
@@ -628,33 +685,8 @@ export async function renderToHTMLOrFlight(
     serverCSSManifest = {},
     supportsDynamicHTML,
     ComponentMod,
+    dev,
   } = renderOpts
-
-  // Handle client-side navigation to pages directory
-  // This is handled before
-  if (isFlight && isPagesDir) {
-    stripInternalQueries(query)
-    const search = stringifyQuery(query)
-
-    // For pages dir, there is only the SSR pass and we don't have the bundled
-    // React subset. Here we directly import the flight renderer with the
-    // unbundled React.
-    // TODO-APP: Is it possible to hard code the flight response here instead of
-    // rendering it?
-    const ReactServerDOMWebpack = require('next/dist/compiled/react-server-dom-webpack/writer.browser.server')
-
-    // Empty so that the client-side router will do a full page navigation.
-    const flightData: FlightData = pathname + (search ? `?${search}` : '')
-    return new FlightRenderResult(
-      ReactServerDOMWebpack.renderToReadableStream(
-        flightData,
-        serverComponentManifest,
-        {
-          onError: flightDataRendererErrorHandler,
-        }
-      ).pipeThrough(createBufferedTransformStream())
-    )
-  }
 
   patchFetch(ComponentMod)
 
@@ -695,6 +727,33 @@ export async function renderToHTMLOrFlight(
         : {}
       : undefined
 
+    /**
+     * The tree created in next-app-loader that holds component segments and modules
+     */
+    const loaderTree: LoaderTree = ComponentMod.tree
+
+    // If navigating to a new root layout we need to do a full page navigation.
+    if (
+      isFlight &&
+      Array.isArray(providedFlightRouterState) &&
+      isNavigatingToNewRootLayout(loaderTree, providedFlightRouterState)
+    ) {
+      stripInternalQueries(query)
+      const search = stringifyQuery(query)
+
+      // Empty so that the client-side router will do a full page navigation.
+      const flightData: FlightData = req.url! + (search ? `?${search}` : '')
+      return new FlightRenderResult(
+        ComponentMod.renderToReadableStream(
+          flightData,
+          serverComponentManifest,
+          {
+            onError: flightDataRendererErrorHandler,
+          }
+        ).pipeThrough(createBufferedTransformStream())
+      )
+    }
+
     stripInternalQueries(query)
 
     const LayoutRouter =
@@ -705,10 +764,6 @@ export async function renderToHTMLOrFlight(
       | typeof import('../client/components/hot-reloader.client').default
       | null
 
-    /**
-     * The tree created in next-app-loader that holds component segments and modules
-     */
-    const loaderTree: LoaderTree = ComponentMod.tree
     /**
      * Server Context is specifically only available in Server Components.
      * It has to hold values that can't change while rendering from the common layout down.
@@ -1247,37 +1302,51 @@ export async function renderToHTMLOrFlight(
       nonce
     )
 
-    const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
-    function FlushEffects({ children }: { children: JSX.Element }) {
-      // Reset flushEffectsHandler on each render
-      flushEffectsCallbacks.clear()
-      const addFlushEffects = React.useCallback(
+    const serverInsertedHTMLCallbacks: Set<() => React.ReactNode> = new Set()
+    function InsertedHTML({ children }: { children: JSX.Element }) {
+      // Reset addInsertedHtmlCallback on each render
+      serverInsertedHTMLCallbacks.clear()
+      const addInsertedHtml = React.useCallback(
         (handler: () => React.ReactNode) => {
-          flushEffectsCallbacks.add(handler)
+          serverInsertedHTMLCallbacks.add(handler)
         },
         []
       )
 
       return (
-        <FlushEffectsContext.Provider value={addFlushEffects}>
+        <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
           {children}
-        </FlushEffectsContext.Provider>
+        </ServerInsertedHTMLContext.Provider>
       )
     }
 
     const bodyResult = async () => {
       const content = (
-        <FlushEffects>
+        <InsertedHTML>
           <ServerComponentsRenderer />
-        </FlushEffects>
+        </InsertedHTML>
       )
 
-      const flushEffectHandler = (): string => {
-        const flushed = ReactDOMServer.renderToString(
-          <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
+      const getServerInsertedHTML = (): Promise<string> => {
+        const flushed = renderToString(
+          <>
+            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+              callback()
+            )}
+          </>
         )
         return flushed
       }
+
+      const polyfills = buildManifest.polyfillFiles
+        .filter(
+          (polyfill) =>
+            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+        )
+        .map((polyfill) => ({
+          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          integrity: subresourceIntegrityManifest?.[polyfill],
+        }))
 
       try {
         const renderStream = await renderToInitialStream({
@@ -1287,22 +1356,26 @@ export async function renderToHTMLOrFlight(
             onError: htmlRendererErrorHandler,
             nonce,
             // Include hydration scripts in the HTML
-            bootstrapScripts: subresourceIntegrityManifest
-              ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${renderOpts.assetPrefix || ''}/_next/` + src,
-                  integrity: subresourceIntegrityManifest[src],
-                }))
-              : buildManifest.rootMainFiles.map(
-                  (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
-                ),
+            bootstrapScripts: [
+              ...(subresourceIntegrityManifest
+                ? buildManifest.rootMainFiles.map((src) => ({
+                    src: `${renderOpts.assetPrefix || ''}/_next/` + src,
+                    integrity: subresourceIntegrityManifest[src],
+                  }))
+                : buildManifest.rootMainFiles.map(
+                    (src) => `${renderOpts.assetPrefix || ''}/_next/` + src
+                  )),
+            ],
           },
         })
 
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: generateStaticHTML,
-          flushEffectHandler,
-          flushEffectsToHead: true,
+          getServerInsertedHTML,
+          serverInsertedHTMLToHead: true,
+          polyfills,
+          dev,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1331,8 +1404,10 @@ export async function renderToHTMLOrFlight(
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: generateStaticHTML,
-          flushEffectHandler,
-          flushEffectsToHead: true,
+          getServerInsertedHTML,
+          serverInsertedHTMLToHead: true,
+          polyfills,
+          dev,
         })
       }
     }

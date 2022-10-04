@@ -612,23 +612,21 @@ export default class HotReloader {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
-                const appDirLoader =
-                  isAppPath && this.appDir
-                    ? getAppEntry({
-                        name: bundlePath,
-                        appPaths: entryData.appPaths,
-                        pagePath: posix.join(
-                          APP_DIR_ALIAS,
-                          relative(
-                            this.appDir!,
-                            entryData.absolutePagePath
-                          ).replace(/\\/g, '/')
-                        ),
-                        appDir: this.appDir!,
-                        pageExtensions: this.config.pageExtensions,
-                        nextRuntime: 'edge',
-                      }).import
-                    : undefined
+                const appDirLoader = isAppPath
+                  ? getAppEntry({
+                      name: bundlePath,
+                      appPaths: entryData.appPaths,
+                      pagePath: posix.join(
+                        APP_DIR_ALIAS,
+                        relative(
+                          this.appDir!,
+                          entryData.absolutePagePath
+                        ).replace(/\\/g, '/')
+                      ),
+                      appDir: this.appDir!,
+                      pageExtensions: this.config.pageExtensions,
+                    }).import
+                  : undefined
 
                 entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
@@ -689,26 +687,24 @@ export default class HotReloader {
                 }
 
                 entrypoints[bundlePath] = finalizeEntrypoint({
-                  compilerType: 'server',
+                  compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,
-                  value:
-                    this.appDir && bundlePath.startsWith('app/')
-                      ? getAppEntry({
-                          name: bundlePath,
-                          appPaths: entryData.appPaths,
-                          pagePath: posix.join(
-                            APP_DIR_ALIAS,
-                            relative(
-                              this.appDir!,
-                              entryData.absolutePagePath
-                            ).replace(/\\/g, '/')
-                          ),
-                          appDir: this.appDir!,
-                          pageExtensions: this.config.pageExtensions,
-                          nextRuntime: 'nodejs',
-                        })
-                      : relativeRequest,
+                  value: isAppPath
+                    ? getAppEntry({
+                        name: bundlePath,
+                        appPaths: entryData.appPaths,
+                        pagePath: posix.join(
+                          APP_DIR_ALIAS,
+                          relative(
+                            this.appDir!,
+                            entryData.absolutePagePath
+                          ).replace(/\\/g, '/')
+                        ),
+                        appDir: this.appDir!,
+                        pageExtensions: this.config.pageExtensions,
+                      })
+                    : relativeRequest,
                   appDir: this.config.experimental.appDir,
                 })
               },
@@ -897,7 +893,12 @@ export default class HotReloader {
         changedServerPages,
         changedClientPages
       )
+      const edgeServerOnlyChanges = difference<string>(
+        changedEdgeServerPages,
+        changedClientPages
+      )
       const serverComponentChanges = serverOnlyChanges
+        .concat(edgeServerOnlyChanges)
         .filter((key) => key.startsWith('app/'))
         .concat(Array.from(changedCSSImportPages))
       const pageChanges = serverOnlyChanges.filter((key) =>
