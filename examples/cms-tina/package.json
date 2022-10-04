@@ -11,7 +11,7 @@
   "dependencies": {
     "@tinacms/cli": "^0.60.16",
     "classnames": "2.3.1",
-    "date-fns": "2.28.0",
+    "date-fns": "2.29.3",
     "gray-matter": "4.0.3",
     "next": "latest",
     "react": "^17.0.2",
