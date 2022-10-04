@@ -208,6 +208,7 @@ jobs:
     name: Test Unit
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -242,6 +243,7 @@ jobs:
     name: Test Development
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -362,6 +364,7 @@ jobs:
     name: Test Development (E2E)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -502,6 +505,7 @@ jobs:
     name: Test Production
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -602,6 +606,7 @@ jobs:
     name: Test Production (E2E)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -704,6 +709,7 @@ jobs:
     name: Test Integration
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -785,6 +791,7 @@ jobs:
     name: Test Electron
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -840,6 +847,7 @@ jobs:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 5
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -874,6 +882,7 @@ jobs:
     name: Test Safari (production)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 10
     env:
       BROWSER_NAME: 'safari'
       NEXT_TEST_MODE: 'start'
@@ -919,6 +928,7 @@ jobs:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 5
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
@@ -965,6 +975,7 @@ jobs:
     name: Test Firefox Node.js 18
     runs-on: ubuntu-latest
     needs: [build, testFirefox, build-native-test]
+    timeout-minutes: 5
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -1237,6 +1248,7 @@ jobs:
   test-wasm:
     name: Test the wasm build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [build, build-native-test, build-wasm-dev]
 
     steps:
