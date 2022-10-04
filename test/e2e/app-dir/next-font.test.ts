@@ -230,4 +230,102 @@ describe('app dir next-font', () => {
       ).toBe('normal')
     })
   })
+
+  describe('preload', () => {
+    it('should preload correctly with server components', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(1)
+      expect($('link[rel="preconnect"]').get(0).attribs).toEqual({
+        crossorigin: 'anonymous',
+        href: '/',
+        rel: 'preconnect',
+      })
+
+      expect($('link[as="font"]').length).toBe(3)
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/b2104791981359ae.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(2).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/b61859a50be14c53.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
+
+    it('should preload correctly with client components', async () => {
+      const html = await renderViaHTTP(next.url, '/client')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(1)
+      expect($('link[rel="preconnect"]').get(0).attribs).toEqual({
+        crossorigin: 'anonymous',
+        href: '/',
+        rel: 'preconnect',
+      })
+
+      expect($('link[as="font"]').length).toBe(3)
+      // From root layout
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/e1053f04babc7571.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(2).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/feab2c68f2a8e9a4.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
+
+    it('should add preconnect when no fonts are preloaded', async () => {
+      const html = await renderViaHTTP(next.url, '/without-preload')
+      const $ = cheerio.load(html)
+
+      expect($('link[rel="preconnect"]').length).toBe(1)
+      expect($('link[rel="preconnect"]').get(0).attribs).toEqual({
+        crossorigin: 'anonymous',
+        href: '/',
+        rel: 'preconnect',
+      })
+
+      expect($('link[as="font"]').length).toBe(0)
+    })
+
+    it("should not add preconnect when there's no fonts", async () => {
+      const html = await renderViaHTTP(next.url, '/without-fonts')
+      const $ = cheerio.load(html)
+
+      expect($('link[rel="preconnect"]').length).toBe(0)
+      expect($('link[as="font"]').length).toBe(0)
+    })
+  })
 })
