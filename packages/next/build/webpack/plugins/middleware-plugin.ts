@@ -868,7 +868,7 @@ export default class MiddlewarePlugin {
   }
 }
 
-export async function handleWebpackExtenalForEdgeRuntime({
+export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
   contextInfo,

@@ -301,10 +301,8 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const { pages: pagesDir, appDir } = findPagesDir(
-        dir,
-        config.experimental.appDir
-      )
+      const hasAppDir = !!config.experimental.appDir
+      const { pagesDir, appDir } = findPagesDir(dir, hasAppDir)
 
       const hasPublicDir = await fileExists(publicDir)
 
@@ -396,7 +394,7 @@ export default async function build(
                   config.experimental.cpus,
                   config.experimental.workerThreads,
                   telemetry,
-                  !!config.experimental.appDir
+                  hasAppDir
                 )
               }),
         ])
@@ -1990,7 +1988,7 @@ export default async function build(
         combinedPages.length > 0 ||
         useStatic404 ||
         useDefaultStatic500 ||
-        config.experimental.appDir
+        hasAppDir
       ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')

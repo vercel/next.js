@@ -240,9 +240,6 @@ const configSchema = {
           },
           type: 'object',
         },
-        appDir: {
-          type: 'boolean',
-        },
         browsersListForSwc: {
           type: 'boolean',
         },
