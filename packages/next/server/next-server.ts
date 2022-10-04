@@ -286,7 +286,7 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       serverDistDir: this.serverDistDir,
-      appDir: this.nextConfig.experimental.appDir,
+      appDir: this.hasAppDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -323,7 +323,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (this.nextConfig.experimental.appDir) {
+    if (this.hasAppDir) {
       const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
       return require(appPathsManifestPath)
     }
@@ -472,6 +472,13 @@ export default class NextNodeServer extends BaseServer {
         },
       },
     ]
+  }
+
+  protected getHasAppDir(): boolean {
+    const appDirectory = join(this.dir, 'app')
+    return (
+      fs.existsSync(appDirectory) && fs.statSync(appDirectory).isDirectory()
+    )
   }
 
   protected generateStaticRoutes(): Route[] {
@@ -823,7 +830,7 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
-    if (this.nextConfig.experimental.appDir && renderOpts.isAppPath) {
+    if (this.hasAppDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
@@ -882,7 +889,7 @@ export default class NextNodeServer extends BaseServer {
       this._isLikeServerless,
       this.renderOpts.dev,
       locales,
-      this.nextConfig.experimental.appDir
+      this.hasAppDir
     )
   }
 
@@ -998,12 +1005,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.appDir) return undefined
+    if (!this.hasAppDir) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getServerCSSManifest() {
-    if (!this.nextConfig.experimental.appDir) return undefined
+    if (!this.hasAppDir) return undefined
     return require(join(
       this.distDir,
       'server',

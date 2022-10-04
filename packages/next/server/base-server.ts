@@ -185,6 +185,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected distDir: string
   protected publicDir: string
   protected hasStaticDir: boolean
+  protected hasAppDir: boolean
   protected pagesManifest?: PagesManifest
   protected appPathsManifest?: PagesManifest
   protected buildId: string
@@ -237,6 +238,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
+  protected abstract getHasAppDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
@@ -353,6 +355,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         : require('path').join(this.dir, this.nextConfig.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
+    this.hasAppDir = this.getHasAppDir()
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -366,7 +369,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    const serverComponents = !!this.nextConfig.experimental.appDir
+    const serverComponents = this.hasAppDir
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
@@ -1588,7 +1591,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // map the route to the actual bundle name
   protected getOriginalAppPaths(route: string) {
-    if (this.nextConfig.experimental.appDir) {
+    if (this.hasAppDir) {
       const originalAppPath = this.appPathRoutes?.[route]
 
       if (!originalAppPath) {
