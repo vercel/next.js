@@ -737,10 +737,6 @@
         {
           "title": "nonce-contained-invalid-characters",
           "path": "/errors/nonce-contained-invalid-characters.md"
-        },
-        {
-          "title": "sharp-missing-in-standalone",
-          "path": "/errors/sharp-missing-in-standalone.md"
         }
       ]
     }
