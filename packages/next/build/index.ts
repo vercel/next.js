@@ -1407,6 +1407,10 @@ export default async function build(
                           workerResult.encodedPrerenderRoutes
                         )
                       }
+                      if (!isDynamicRoute(page)) {
+                        appStaticPaths.set(originalAppPath, [page])
+                        appStaticPathsEncoded.set(originalAppPath, [page])
+                      }
                       if (workerResult.prerenderFallback) {
                         // whether or not to allow requests for paths not
                         // returned from generateStaticParams
