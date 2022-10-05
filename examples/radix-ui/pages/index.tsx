@@ -79,7 +79,7 @@ export default function Home() {
   return (
     <div className="h-screen w-full flex flex-col space-y-4 items-center justify-center bg-gradient-to-r from-cyan-500 to-blue-500">
       <h1 className="text-6xl text-white font-semibold">
-        Radix-UI + Tailwindcss
+        Radix UI + Tailwind CSS
       </h1>
       <h1 className="text-4xl text-white font-semibold">Click me!</h1>
 
