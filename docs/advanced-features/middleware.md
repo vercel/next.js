@@ -68,6 +68,28 @@ There are two ways to define which paths Middleware will run on:
 1. Custom matcher config
 2. Conditional statements
 
+#### Tip
+
+You can skip all requests which are comming from same page, by use this code:
+
+```typescript
+// middleware.ts
+
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  // Skip all requests from same page.
+  const referer: string | null = req.headers.get('referer');
+  
+  if (referer && referer.includes(req.nextUrl.host)) {
+    return NextResponse.next();
+  }
+}
+```
+
+This should only match direct traffic, from external source or when user use URL directly from browser.
+
 ### Matcher
 
 `matcher` allows you to filter Middleware to run on specific paths.
