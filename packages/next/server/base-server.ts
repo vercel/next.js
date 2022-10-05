@@ -238,7 +238,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
-  protected abstract getHasAppDir(): boolean
+  protected abstract getHasAppDir(dev: boolean): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
@@ -355,7 +355,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         : require('path').join(this.dir, this.nextConfig.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
-    this.hasAppDir = this.getHasAppDir()
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -369,6 +368,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
+    this.hasAppDir = this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
@@ -1210,7 +1210,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFlightRequest
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML
         ? null // Preview mode, manual revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
