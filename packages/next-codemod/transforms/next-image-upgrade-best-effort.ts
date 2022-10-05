@@ -60,8 +60,11 @@ export default function transformer(
           let styleExpProps = []
           let sizesAttr: JSXAttribute | null = null
           const attributes = el.node.openingElement.attributes?.filter((a) => {
+            if (a.type !== 'JSXAttribute') {
+              return true
+            }
             // TODO: hanlde case when not Literal
-            if (a.type === 'JSXAttribute' && a.value?.type === 'Literal') {
+            if (a.value?.type === 'Literal') {
               if (a.name.name === 'layout') {
                 layout = String(a.value.value)
                 return false
@@ -75,23 +78,32 @@ export default function transformer(
                 return false
               }
             }
-            if (
-              a.type === 'JSXAttribute' &&
-              a.name.name === 'style' &&
-              a.value?.type === 'JSXExpressionContainer' &&
-              a.value.expression.type === 'ObjectExpression'
-            ) {
-              styleExpProps = a.value.expression.properties
+            if (a.name.name === 'style') {
+              if (
+                a.value?.type === 'JSXExpressionContainer' &&
+                a.value.expression.type === 'ObjectExpression'
+              ) {
+                styleExpProps = a.value.expression.properties
+              } else if (
+                a.value?.type === 'JSXExpressionContainer' &&
+                a.value.expression.type === 'Identifier'
+              ) {
+                styleExpProps = [
+                  j.spreadElement(j.identifier(a.value.expression.name)),
+                ]
+              } else {
+                console.warn('Unknown style attribute value detected', a.value)
+              }
               return false
             }
-            if (a.type === 'JSXAttribute' && a.name.name === 'sizes') {
+            if (a.name.name === 'sizes') {
               sizesAttr = a
               return false
             }
-            if (a.type === 'JSXAttribute' && a.name.name === 'lazyBoundary') {
+            if (a.name.name === 'lazyBoundary') {
               return false
             }
-            if (a.type === 'JSXAttribute' && a.name.name === 'lazyRoot') {
+            if (a.name.name === 'lazyRoot') {
               return false
             }
             return true

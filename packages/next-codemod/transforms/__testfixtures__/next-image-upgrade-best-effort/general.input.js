@@ -4,6 +4,7 @@ import Foo from "foo";
 import img from "../public/img.jpg";
 
 export default function Home() {
+  const myStyle = { color: 'black' };
   return (
     <div>
       <h1>Upgrade</h1>
@@ -24,6 +25,8 @@ export default function Home() {
       <Image src="/test.jpg" width="200" height="300" layout="responsive" style={{color: "green"}} />
       <Image src="/test.jpg" width="200" height="300" layout="responsive" sizes="50vw" style={{color: "#fff"}} />
       <Image src="/test.jpg" width="200" height="300" layout="fixed" lazyBoundary="1500px" lazyRoot={img} />
+      <Image src="/test.lit" width="200" height="300" layout="responsive" style={myStyle} />
+      <Image src="/test.dot" width="200" height="300" layout="responsive" style={{...myStyle}} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import Foo from "foo";
 import img from "../public/img.jpg";
 
 export default function Home() {
+  const myStyle = { color: 'black' };
   return (
     <div>
       <h1>Upgrade</h1>
@@ -59,6 +60,26 @@ export default function Home() {
           height: "auto"
         }} />
       <Image src="/test.jpg" width="200" height="300" />
+      <Image
+        src="/test.lit"
+        width="200"
+        height="300"
+        sizes="100vw"
+        style={{
+          ...myStyle,
+          width: "100%",
+          height: "auto"
+        }} />
+      <Image
+        src="/test.dot"
+        width="200"
+        height="300"
+        sizes="100vw"
+        style={{
+          ...myStyle,
+          width: "100%",
+          height: "auto"
+        }} />
     </div>
   );
 }
