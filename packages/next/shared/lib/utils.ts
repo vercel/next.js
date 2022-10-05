@@ -9,7 +9,7 @@ import type { PreviewData } from 'next/types'
 import { COMPILER_NAMES } from './constants'
 
 type ShapeOf<T> = {
-  [K in keyof T]: any
+  [K in keyof T]: unknown
 }
 
 type Extended<Base, Extension> = {
