@@ -28,7 +28,7 @@ yarn add sharp
 pnpm add sharp
 ```
 
-Then, reboot the server by running `next start` again, or if you have `output: "standalone"` enabled, rebuild your project with `next build` and reboot the server with `node server.js`.
+Then, build your project with `next build`. Finally, restart the server with either `next start` for production mode or `node server.js` for standalone mode.
 
 - If `sharp` is already installed but can't be resolved, set the `NEXT_SHARP_PATH` environment variable such as `NEXT_SHARP_PATH=/tmp/node_modules/sharp next start`
 
