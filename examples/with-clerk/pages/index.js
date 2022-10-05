@@ -40,7 +40,7 @@ const SignupLink = () => (
   </Link>
 )
 
-const apiSample = `import { getAuth } from "@clerk/nextjs/server";
+const apiSample = `import { getAuth } from '@clerk/nextjs/server'
 
 export default function handler(req, res) {
   const { sessionId, userId } = getAuth(req);
