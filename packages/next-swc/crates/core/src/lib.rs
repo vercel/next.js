@@ -91,6 +91,9 @@ pub struct TransformOptions {
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
+    pub styled_jsx: bool,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -102,6 +105,12 @@ pub struct TransformOptions {
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
+
+    #[allow(unused)]
+    #[serde(default)]
+    #[cfg(target_arch = "wasm32")]
+    /// Accept any value
+    pub relay: Option<serde_json::Value>,
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
@@ -153,7 +162,11 @@ where
                 )),
             _ => Either::Right(noop()),
         },
-        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
+        if opts.styled_jsx {
+            Either::Left(styled_jsx::styled_jsx(cm.clone(), file.name.clone()))
+        } else {
+            Either::Right(noop())
+        },
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => Either::Left(styled_components::styled_components(

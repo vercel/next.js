@@ -13,16 +13,14 @@ Within a page or component, import and use `next/head` to define a page title:
 ```jsx
 import Head from 'next/head'
 
-export class Home {
-  render() {
-    return (
-      <div>
-        <Head>
-          <title>My page title</title>
-        </Head>
-      </div>
-    )
-  }
+export function Home() {
+  return (
+    <div>
+      <Head>
+        <title>My page title</title>
+      </Head>
+    </div>
+  )
 }
 ```
 

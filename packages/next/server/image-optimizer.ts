@@ -547,7 +547,7 @@ export async function imageOptimizer(
         // TODO: should we ensure squoosh also works even though we don't
         // recommend it be used in production and this is a production feature
         console.error(
-          `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
         )
         throw new ImageError(500, 'internal server error')
       }

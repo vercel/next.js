@@ -16,11 +16,11 @@ During `next build`, Next.js will use [`@vercel/nft`](https://github.com/vercel/
 
 Next.js' production server is also traced for its needed files and output at `.next/next-server.js.nft.json` which can be leveraged in production.
 
-To leverage the `.nft.json` files emitted to the `.next` output directory, you can read the list of files in each trace which are relative to the `.nft.json` file and then copy them to your deployment location.
+To leverage the `.nft.json` files emitted to the `.next` output directory, you can read the list of files in each trace that are relative to the `.nft.json` file and then copy them to your deployment location.
 
 ## Automatically Copying Traced Files
 
-Next.js can automatically create a `standalone` folder which copies only the necessary files for a production deployment including select files in `node_modules`.
+Next.js can automatically create a `standalone` folder that copies only the necessary files for a production deployment including select files in `node_modules`.
 
 To leverage this automatic copying you can enable it in your `next.config.js`:
 
@@ -30,11 +30,25 @@ module.exports = {
 }
 ```
 
-This will create a folder at `.next/standalone` which can then be deployed on it's own without installing `node_modules`.
+This will create a folder at `.next/standalone` which can then be deployed on its own without installing `node_modules`.
 
 Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `public` or `.next/static` folders by default as these should ideally be handled by a CDN instead, although these folders can be copied to the `standalone/public` and `standalone/.next/static` folders manually, after which `server.js` file will serve these automatically.
 
 Note: `next.config.js` is read during `next build` and serialized into the `server.js` output file. If the legacy [`serverRuntimeConfig` or `publicRuntimeConfig` options](/docs/api-reference/next.config.js/runtime-configuration.md) are being used, the values will be specific to values at build time.
+
+If your project uses [Image Optimization](/docs/basic-features/image-optimization.md) with the default `loader`, you must install `sharp` as a dependency:
+
+```bash
+npm i sharp
+```
+
+```bash
+yarn add sharp
+```
+
+```bash
+pnpm add sharp
+```
 
 ## Caveats
 
@@ -50,5 +64,5 @@ module.exports = {
 }
 ```
 
-- There are some cases that Next.js might fail to include required files, or might incorrectly include unused files. In those cases, you can export page configs props `unstable_includeFiles` and `unstable_excludeFiles` respectively. Each prop accepts an array of [minimatch globs](https://www.npmjs.com/package/minimatch) relative to the project's root to either include or exclude in the trace.
+- There are some cases in which Next.js might fail to include required files, or might incorrectly include unused files. In those cases, you can export page configs props `unstable_includeFiles` and `unstable_excludeFiles` respectively. Each prop accepts an array of [minimatch globs](https://www.npmjs.com/package/minimatch) relative to the project's root to either include or exclude in the trace.
 - Currently, Next.js does not do anything with the emitted `.nft.json` files. The files must be read by your deployment platform, for example [Vercel](https://vercel.com), to create a minimal deployment. In a future release, a new command is planned to utilize these `.nft.json` files.

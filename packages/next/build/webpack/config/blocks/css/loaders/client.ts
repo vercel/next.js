@@ -1,16 +1,16 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export function getClientStyleLoader({
-  isAppDir,
+  hasAppDir,
   isDevelopment,
   assetPrefix,
 }: {
-  isAppDir: boolean
+  hasAppDir: boolean
   isDevelopment: boolean
   assetPrefix: string
 }): webpack.RuleSetUseItem {
   // Keep next-style-loader for development mode in `pages/`
-  if (isDevelopment && !isAppDir) {
+  if (isDevelopment && !hasAppDir) {
     return {
       loader: 'next-style-loader',
       options: {

@@ -44,7 +44,7 @@ import {
   getCookieParser,
   checkIsManualRevalidate,
 } from './api-utils'
-import * as envConfig from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config'
 import Router from './router'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
@@ -67,7 +67,6 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
@@ -186,6 +185,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected distDir: string
   protected publicDir: string
   protected hasStaticDir: boolean
+  protected hasAppDir: boolean
   protected pagesManifest?: PagesManifest
   protected appPathsManifest?: PagesManifest
   protected buildId: string
@@ -238,6 +238,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
+  protected abstract getHasAppDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
@@ -354,6 +355,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         : require('path').join(this.dir, this.nextConfig.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
+    this.hasAppDir = this.getHasAppDir()
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -367,7 +369,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    const serverComponents = !!this.nextConfig.experimental.appDir
+    const serverComponents = this.hasAppDir
     this.serverComponentManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
@@ -415,7 +417,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Initialize next/config with the environment configuration
-    envConfig.setConfig({
+    setConfig({
       serverRuntimeConfig,
       publicRuntimeConfig,
     })
@@ -441,6 +443,33 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
+      // ensure cookies set in middleware are merged and
+      // not overridden by API routes/getServerSideProps
+      const _res = (res as any).originalResponse || res
+      const origSetHeader = _res.setHeader.bind(_res)
+
+      _res.setHeader = (name: string, val: string | string[]) => {
+        if (name.toLowerCase() === 'set-cookie') {
+          const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
+
+          if (
+            !middlewareValue ||
+            !Array.isArray(val) ||
+            !val.every((item, idx) => item === middlewareValue[idx])
+          ) {
+            val = [
+              ...(middlewareValue || []),
+              ...(typeof val === 'string'
+                ? [val]
+                : Array.isArray(val)
+                ? val
+                : []),
+            ]
+          }
+        }
+        return origSetHeader(name, val)
+      }
+
       const urlParts = (req.url || '').split('?')
       const urlNoQuery = urlParts[0]
 
@@ -668,7 +697,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      if (!this.minimalMode && defaultLocale) {
+      if (
+        // Edge runtime always has minimal mode enabled.
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        !this.minimalMode &&
+        defaultLocale
+      ) {
+        const { getLocaleRedirect } =
+          require('../shared/lib/i18n/get-locale-redirect') as typeof import('../shared/lib/i18n/get-locale-redirect')
         const redirect = getLocaleRedirect({
           defaultLocale,
           domainLocale,
@@ -1367,6 +1403,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         //   getStaticPaths, then finish the data request on the client-side.
         //
         if (
+          process.env.NEXT_RUNTIME !== 'edge' &&
           this.minimalMode !== true &&
           fallbackMode !== 'blocking' &&
           ssgCacheKey &&
@@ -1554,7 +1591,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // map the route to the actual bundle name
   protected getOriginalAppPaths(route: string) {
-    if (this.nextConfig.experimental.appDir) {
+    if (this.hasAppDir) {
       const originalAppPath = this.appPathRoutes?.[route]
 
       if (!originalAppPath) {
