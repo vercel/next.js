@@ -4,7 +4,7 @@ const defineTest = require('jscodeshift/dist/testUtils').defineTest
 const { readdirSync } = require('fs')
 const { join } = require('path')
 
-const fixtureDir = 'next-image-upgrade-best-effort'
+const fixtureDir = 'next-image-experimental'
 const fixtureDirPath = join(__dirname, '..', '__testfixtures__', fixtureDir)
 const fixtures = readdirSync(fixtureDirPath)
   .filter(file => file.endsWith('.input.js'))
