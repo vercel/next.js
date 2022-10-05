@@ -22,8 +22,8 @@ describe('app dir next-font', () => {
       files: new FileRef(path.join(__dirname, 'next-font')),
       dependencies: {
         '@next/font': 'canary',
-        react: '0.0.0-experimental-cb5084d1c-20220924',
-        'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
+        react: 'experimental',
+        'react-dom': 'experimental',
       },
       skipStart: true,
     })
