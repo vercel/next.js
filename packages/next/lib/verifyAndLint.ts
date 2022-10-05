@@ -39,13 +39,17 @@ export async function verifyAndLint(
       []
     )
 
-    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, {
+    const lintResults = await lintWorkers.runLintCheck(
+      dir,
+      lintDirs,
       hasAppDir,
-      lintDuringBuild: true,
-      eslintOptions: {
-        cacheLocation,
-      },
-    })
+      {
+        lintDuringBuild: true,
+        eslintOptions: {
+          cacheLocation,
+        },
+      }
+    )
     const lintOutput =
       typeof lintResults === 'string' ? lintResults : lintResults?.output
 

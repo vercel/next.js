@@ -13,7 +13,7 @@ export type EdgeSSRLoaderQuery = {
   page: string
   stringifiedConfig: string
   appDirLoader?: string
-  pagesType?: 'app' | 'pages' | 'root'
+  pagesType: 'app' | 'pages' | 'root'
   sriEnabled: boolean
   hasFontLoaders: boolean
 }

@@ -84,7 +84,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { toNodeHeaders } from './web/utils'
+import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -286,7 +286,7 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       serverDistDir: this.serverDistDir,
-      appDir: this.nextConfig.experimental.appDir,
+      appDir: this.hasAppDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -323,7 +323,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (this.nextConfig.experimental.appDir) {
+    if (this.hasAppDir) {
       const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
       return require(appPathsManifestPath)
     }
@@ -472,6 +472,13 @@ export default class NextNodeServer extends BaseServer {
         },
       },
     ]
+  }
+
+  protected getHasAppDir(): boolean {
+    const appDirectory = join(this.dir, 'app')
+    return (
+      fs.existsSync(appDirectory) && fs.statSync(appDirectory).isDirectory()
+    )
   }
 
   protected generateStaticRoutes(): Route[] {
@@ -823,7 +830,7 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
-    if (this.nextConfig.experimental.appDir && renderOpts.isAppPath) {
+    if (this.hasAppDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
@@ -882,7 +889,7 @@ export default class NextNodeServer extends BaseServer {
       this._isLikeServerless,
       this.renderOpts.dev,
       locales,
-      this.nextConfig.experimental.appDir
+      this.hasAppDir
     )
   }
 
@@ -998,12 +1005,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.appDir) return undefined
+    if (!this.hasAppDir) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getServerCSSManifest() {
-    if (!this.nextConfig.experimental.appDir) return undefined
+    if (!this.hasAppDir) return undefined
     return require(join(
       this.distDir,
       'server',
@@ -1796,9 +1803,16 @@ export default class NextNodeServer extends BaseServer {
     } else {
       for (let [key, value] of allHeaders) {
         result.response.headers.set(key, value)
+
+        if (key.toLowerCase() === 'set-cookie') {
+          addRequestMeta(
+            params.request,
+            '_nextMiddlewareCookie',
+            splitCookiesString(value)
+          )
+        }
       }
     }
-
     return result
   }
 
@@ -2097,8 +2111,13 @@ export default class NextNodeServer extends BaseServer {
     params.res.statusCode = result.response.status
     params.res.statusMessage = result.response.statusText
 
-    result.response.headers.forEach((value, key) => {
-      params.res.appendHeader(key, value)
+    result.response.headers.forEach((value: string, key) => {
+      // the append handling is special cased for `set-cookie`
+      if (key.toLowerCase() === 'set-cookie') {
+        params.res.setHeader(key, value)
+      } else {
+        params.res.appendHeader(key, value)
+      }
     })
 
     if (result.response.body) {
