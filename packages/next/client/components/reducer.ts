@@ -628,7 +628,7 @@ type AppRouterState = {
     string,
     {
       flightSegmentPath: FlightSegmentPath
-      treePatch: FlightRouterState
+      tree: FlightRouterState
       canonicalUrlOverride: URL | undefined
     }
   >
@@ -689,22 +689,14 @@ function clientReducer(
         }
       }
 
-      const prefetchValues = state.prefetchCache.get(
-        href + JSON.stringify(state.tree)
-      )
-      console.log({ prefetchValues })
+      const prefetchValues = state.prefetchCache.get(href)
       if (prefetchValues) {
         // The one before last item is the router state tree patch
-        const { flightSegmentPath, treePatch, canonicalUrlOverride } =
-          prefetchValues
-
-        // Create new tree based on the flightSegmentPath and router state patch
-        const newTree = applyRouterStatePatchToTree(
-          // TODO-APP: remove ''
-          ['', ...flightSegmentPath],
-          state.tree,
-          treePatch
-        )
+        const {
+          flightSegmentPath,
+          tree: newTree,
+          canonicalUrlOverride,
+        } = prefetchValues
 
         if (newTree !== null) {
           mutable.previousTree = state.tree
@@ -1112,7 +1104,7 @@ function clientReducer(
       }
     }
     case ACTION_PREFETCH: {
-      const { url, serverResponse, tree } = action
+      const { url, serverResponse } = action
       const [flightData, canonicalUrlOverride] = serverResponse
 
       // TODO-APP: Implement prefetch for hard navigation
@@ -1134,11 +1126,26 @@ function clientReducer(
         fillCacheWithPrefetchedSubTreeData(state.cache, flightDataPath)
       }
 
+      const flightSegmentPath = flightDataPath.slice(0, -2)
+
+      const newTree = applyRouterStatePatchToTree(
+        // TODO-APP: remove ''
+        ['', ...flightSegmentPath],
+        state.tree,
+        treePatch
+      )
+
+      // Patch did not apply correctly
+      if (newTree === null) {
+        return state
+      }
+
       // Create new tree based on the flightSegmentPath and router state patch
-      state.prefetchCache.set(href + JSON.stringify(tree), {
+      state.prefetchCache.set(href, {
         // Path without the last segment, router state, and the subTreeData
-        flightSegmentPath: flightDataPath.slice(0, -2),
-        treePatch,
+        flightSegmentPath,
+        // Create new tree based on the flightSegmentPath and router state patch
+        tree: newTree,
         canonicalUrlOverride,
       })
 
