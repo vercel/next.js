@@ -126,7 +126,9 @@ export function calculateSizeAdjustValues(font: string, fontMetrics: any) {
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
 
-  let sizeAdjust = xAvgCharWidth / fallbackFont.xAvgCharWidth
+  let sizeAdjust = xAvgCharWidth
+    ? xAvgCharWidth / fallbackFont.xAvgCharWidth
+    : 1
 
   ascent = formatOverrideValue(ascent / (unitsPerEm * sizeAdjust))
   descent = formatOverrideValue(descent / (unitsPerEm * sizeAdjust))
