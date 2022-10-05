@@ -57,8 +57,6 @@ describe('app-dir static/dynamic handling', () => {
         'blog/tim/first-post.html',
         'blog/tim/first-post.rsc',
         'dynamic-no-gen-params-ssr/[slug]/page.js',
-        'dynamic-no-gen-params/[slug].html',
-        'dynamic-no-gen-params/[slug].rsc',
         'dynamic-no-gen-params/[slug]/page.js',
         'ssr-auto/page.js',
         'ssr-forced/page.js',
@@ -131,16 +129,6 @@ describe('app-dir static/dynamic handling', () => {
           dataRouteRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)\\.rsc$'),
           fallback: false,
           routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
-        },
-        '/dynamic-no-gen-params/[slug]': {
-          dataRoute: '/dynamic-no-gen-params/[slug].rsc',
-          dataRouteRegex: normalizeRegEx(
-            '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)\\.rsc$'
-          ),
-          fallback: null,
-          routeRegex: normalizeRegEx(
-            '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)(?:\\/)?$'
-          ),
         },
       })
     })
