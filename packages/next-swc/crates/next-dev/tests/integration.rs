@@ -1,7 +1,11 @@
 #![cfg(test)]
 extern crate test_generator;
 
-use std::{env, net::SocketAddr, path::Path};
+use std::{
+    env,
+    net::SocketAddr,
+    path::{Path, PathBuf},
+};
 
 use chromiumoxide::{
     browser::{Browser, BrowserConfig},
@@ -116,12 +120,15 @@ async fn run_test(resource: &str) -> JestRunResult {
         "Test entry {} must exist.",
         test_entry.to_str().unwrap()
     );
-
+    let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root = package_root.parent().unwrap().parent().unwrap();
+    let project_dir = workspace_root.join("crates/next-dev/tests");
+    let workspace_root = workspace_root.to_string_lossy().to_string();
     let requested_addr = get_free_local_addr().unwrap();
     let server = NextDevServerBuilder::new(
         TurboTasks::new(MemoryBackend::new()),
-        "tests".into(),
-        "tests".into(),
+        project_dir.to_string_lossy().to_string(),
+        workspace_root,
     )
     .entry_request("harness.js".into())
     .entry_request(
