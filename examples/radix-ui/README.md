@@ -1,6 +1,6 @@
-# Radix-ui Example
+# Radix UI Example
 
-This example showcases a few basic Radix-UI components
+This example showcases a few basic Radix UI components
 
 ## Deploy your own
 
