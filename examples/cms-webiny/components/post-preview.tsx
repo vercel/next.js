@@ -1,4 +1,3 @@
-import React from 'react'
 import Avatar from '../components/avatar'
 import DateFormatter from '../components/date-formatter'
 import CoverImage from './cover-image'

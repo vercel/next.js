@@ -1,4 +1,3 @@
-import React from 'react'
 import PostPreview from '../components/post-preview'
 
 export default function MoreStories({ posts }) {

@@ -1,4 +1,3 @@
-import React from 'react'
 import { parseISO, format } from 'date-fns'
 
 export default function DateFormatter({ dateString }) {

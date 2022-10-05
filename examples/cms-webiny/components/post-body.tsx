@@ -1,4 +1,3 @@
-import React from 'react'
 import markdownStyles from './markdown-styles.module.css'
 import { RichTextRenderer } from '../lib/rich-text-renderer'
 
