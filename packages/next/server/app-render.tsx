@@ -33,6 +33,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { Writable } from 'stream'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
@@ -1411,12 +1412,17 @@ export async function renderToHTMLOrFlight(
         })
       }
     }
+    const renderResult = new RenderResult(await bodyResult())
 
     if (generateStaticHTML) {
-      const readable = await bodyResult()
-      let staticHtml = Buffer.from(
-        (await readable.getReader().read()).value || ''
-      ).toString()
+      const renderChunks: Buffer[] = []
+      const writable = new Writable({
+        write(chunk, _encoding, callback) {
+          renderChunks.push(chunk)
+          callback()
+        },
+      })
+      await renderResult.pipe(writable)
 
       // if we encountered any unexpected errors during build
       // we fail the prerendering phase and the build
@@ -1432,10 +1438,10 @@ export async function renderToHTMLOrFlight(
           ? defaultRevalidate
           : staticGenerationStore?.revalidate
 
-      return new RenderResult(staticHtml)
+      return new RenderResult(Buffer.concat(renderChunks).toString())
     }
 
-    return new RenderResult(await bodyResult())
+    return renderResult
   }
 
   const initialStaticGenerationStore = {

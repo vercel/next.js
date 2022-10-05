@@ -1,4 +1,5 @@
 import type { ServerResponse } from 'http'
+import { Writable } from 'stream'
 
 type ContentTypeOption = string | undefined
 
@@ -27,7 +28,7 @@ export default class RenderResult {
     return this._result
   }
 
-  pipe(res: ServerResponse): Promise<void> {
+  pipe(res: ServerResponse | Writable): Promise<void> {
     if (typeof this._result === 'string') {
       throw new Error(
         'invariant: static responses cannot be piped. This is a bug in Next.js'

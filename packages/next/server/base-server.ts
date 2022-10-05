@@ -1040,6 +1040,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (hasFallback || staticPaths?.includes(resolvedUrlPathname)) {
         isSSG = true
+      } else if (!this.renderOpts.dev) {
+        const manifest = this.getPrerenderManifest()
+        isSSG =
+          isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
       }
     }
 

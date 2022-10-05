@@ -56,6 +56,10 @@ describe('app-dir static/dynamic handling', () => {
         'blog/tim.rsc',
         'blog/tim/first-post.html',
         'blog/tim/first-post.rsc',
+        'dynamic-no-gen-params-ssr/[slug]/page.js',
+        'dynamic-no-gen-params/[slug].html',
+        'dynamic-no-gen-params/[slug].rsc',
+        'dynamic-no-gen-params/[slug]/page.js',
         'ssr-auto/page.js',
         'ssr-forced/page.js',
       ])
@@ -128,6 +132,16 @@ describe('app-dir static/dynamic handling', () => {
           fallback: false,
           routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
         },
+        '/dynamic-no-gen-params/[slug]': {
+          dataRoute: '/dynamic-no-gen-params/[slug].rsc',
+          dataRouteRegex: normalizeRegEx(
+            '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)\\.rsc$'
+          ),
+          fallback: null,
+          routeRegex: normalizeRegEx(
+            '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)(?:\\/)?$'
+          ),
+        },
       })
     })
   }
@@ -159,6 +173,32 @@ describe('app-dir static/dynamic handling', () => {
       )
       expect(invalidRes.status).toBe(404)
       expect(await invalidRes.text()).toContain('page could not be found')
+    }
+  })
+
+  it('should work with forced dynamic path', async () => {
+    for (const slug of ['first', 'second']) {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/dynamic-no-gen-params-ssr/${slug}`,
+        undefined,
+        { redirect: 'manual' }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain(`${slug}`)
+    }
+  })
+
+  it('should work with dynamic path no generateStaticParams', async () => {
+    for (const slug of ['first', 'second']) {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/dynamic-no-gen-params/${slug}`,
+        undefined,
+        { redirect: 'manual' }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain(`${slug}`)
     }
   })
 

@@ -1406,8 +1406,7 @@ export default async function build(
                           originalAppPath,
                           workerResult.encodedPrerenderRoutes
                         )
-                      }
-                      if (!isDynamicRoute(page)) {
+                      } else {
                         appStaticPaths.set(originalAppPath, [page])
                         appStaticPathsEncoded.set(originalAppPath, [page])
                       }
@@ -2164,12 +2163,14 @@ export default async function build(
                     : false
               }
               if (revalidate !== 0) {
-                const normalizedRoute = normalizePagePath(route)
-                const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
-                finalPrerenderRoutes[route] = {
-                  initialRevalidateSeconds: revalidate,
-                  srcRoute: page,
-                  dataRoute,
+                if (!isDynamicRoute(route)) {
+                  const normalizedRoute = normalizePagePath(route)
+                  const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+                  finalPrerenderRoutes[route] = {
+                    initialRevalidateSeconds: revalidate,
+                    srcRoute: page,
+                    dataRoute,
+                  }
                 }
               } else {
                 hasDynamicData = true
@@ -2180,6 +2181,9 @@ export default async function build(
               const normalizedRoute = normalizePagePath(page)
               const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
 
+              const noGenerateStaticParams =
+                routes.length === 1 && routes[0] === page
+
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
@@ -2189,9 +2193,11 @@ export default async function build(
                 dataRoute,
                 // if dynamicParams are enabled treat as fallback:
                 // 'blocking' if not it's fallback: false
-                fallback: appDynamicParamPaths.has(originalAppPath)
-                  ? null
-                  : false,
+                fallback:
+                  appDynamicParamPaths.has(originalAppPath) ||
+                  noGenerateStaticParams
+                    ? null
+                    : false,
                 dataRouteRegex: normalizeRouteRegex(
                   getNamedRouteRegex(
                     dataRoute.replace(/\.rsc$/, '')
