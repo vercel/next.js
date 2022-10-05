@@ -36,9 +36,6 @@ function getBaseSWCOptions({
   relativeFilePathFromRoot,
   hasServerComponents,
 }) {
-  if (filename.includes('page.js')) {
-    console.log('isServerLayer', isServerLayer, filename)
-  }
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -121,12 +118,14 @@ function getBaseSWCOptions({
       : nextConfig?.compiler?.reactRemoveProperties,
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
-    ...(!isServerLayer
-      ? {
-          styledComponents: getStyledComponentsOptions(nextConfig, development),
+    // Disable css-in-js transform on server layer for server components
+    ...(isServerLayer
+      ? {}
+      : {
           emotion: getEmotionOptions(nextConfig, development),
-        }
-      : undefined),
+          styledComponents: getStyledComponentsOptions(nextConfig, development),
+          styledJsx: true,
+        }),
     serverComponents: hasServerComponents
       ? {
           isServer: !!isServerLayer,

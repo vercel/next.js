@@ -76,8 +76,6 @@ describe('app dir - react server components', () => {
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('header:test-util')
-    // support esm module on server side
-    expect(homeHTML).toContain('random-module-instance')
 
     const inlineFlightContents = []
     const $ = cheerio.load(homeHTML)
@@ -247,12 +245,17 @@ describe('app dir - react server components', () => {
   })
 
   it('should handle external async module libraries correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/external-imports')
-    expect(html).toContain('module type:esm-export')
-    expect(html).toContain('export named:named')
-    expect(html).toContain('export value:123')
-    expect(html).toContain('export array:4,5,6')
-    expect(html).toContain('export object:{x:1}')
+    const clientHtml = await renderViaHTTP(next.url, '/external-imports/client')
+    const serverHtml = await renderViaHTTP(next.url, '/external-imports/server')
+
+    expect(clientHtml).toContain('module type:esm-export')
+    expect(clientHtml).toContain('export named:named')
+    expect(clientHtml).toContain('export value:123')
+    expect(clientHtml).toContain('export array:4,5,6')
+    expect(clientHtml).toContain('export object:{x:1}')
+
+    // support esm module on server side
+    expect(serverHtml).toContain('random-module-instance')
   })
 
   it('should handle various kinds of exports correctly', async () => {
@@ -314,6 +317,11 @@ describe('app dir - react server components', () => {
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)
+
+    // css-in-js like styled-jsx in server components won't be transformed
+    expect(html).toMatch(
+      /\<style\>\.this-wont-be-transformed\{color:purple;\}<\/style\>/
+    )
   })
 
   it('should stick to the url without trailing /page suffix', async () => {
