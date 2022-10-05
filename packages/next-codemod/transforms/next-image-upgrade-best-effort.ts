@@ -1,4 +1,9 @@
-import type { API, FileInfo, Options } from 'jscodeshift'
+import type {
+  API,
+  FileInfo,
+  ImportDefaultSpecifier,
+  Options,
+} from 'jscodeshift'
 
 export default function transformer(
   file: FileInfo,
@@ -15,10 +20,10 @@ export default function transformer(
       source: { value: 'next/legacy/image' },
     })
     .forEach((imageImport) => {
-      const defaultSpecifier = imageImport.node.specifiers.find(
+      const defaultSpecifier = imageImport.node.specifiers?.find(
         (node) => node.type === 'ImportDefaultSpecifier'
-      )
-      const defaultSpecifierName = defaultSpecifier.local.name
+      ) as ImportDefaultSpecifier | undefined
+      const defaultSpecifierName = defaultSpecifier?.local?.name
 
       j(imageImport).replaceWith(
         j.importDeclaration(
@@ -27,6 +32,12 @@ export default function transformer(
         )
       )
 
+      const layoutToStyle: Record<string, Record<string, string> | null> = {
+        intrinsic: { maxWidth: '100%', height: 'auto' },
+        responsive: { width: '100%', height: 'auto' },
+        fill: null,
+        fixed: null,
+      }
       root
         .find(j.JSXElement)
         .filter(
@@ -36,31 +47,74 @@ export default function transformer(
             el.value.openingElement.name.name === defaultSpecifierName
         )
         .forEach((el) => {
-          const style = {
-            width: '100%',
-            height: 'auto',
-          }
-          const props = Object.entries(style).map(([key, value]) =>
-            j.objectProperty(j.identifier(key), j.stringLiteral(value))
-          )
-          const exp = j.objectExpression(props)
           let layoutValue = 'intrisic'
-          el.node.openingElement.attributes.filter((a, i) => {
-            if (a.type === 'JSXAttribute' && a.name.name === 'layout') {
-              layoutValue = a.name.name
+          let objectFit = null
+          let objectPosition = null
+          const attributes = el.node.openingElement.attributes?.filter((a) => {
+            // TODO: hanlde case when not Literal
+            if (
+              a.type === 'JSXAttribute' &&
+              a.name.name === 'layout' &&
+              a.value?.type === 'Literal'
+            ) {
+              layoutValue = String(a.value.value)
+              return false
+            }
+
+            if (
+              a.type === 'JSXAttribute' &&
+              a.name.name === 'objectFit' &&
+              a.value?.type === 'Literal'
+            ) {
+              objectFit = String(a.value.value)
+              return false
+            }
+            if (
+              a.type === 'JSXAttribute' &&
+              a.name.name === 'objectPosition' &&
+              a.value?.type === 'Literal'
+            ) {
+              objectPosition = String(a.value.value)
               return false
             }
             return true
           })
+
+          if (layoutValue === 'fill') {
+            attributes.push(j.jsxAttribute(j.jsxIdentifier('fill')))
+          }
+
+          let style = layoutToStyle[layoutValue]
+          if (style || objectFit || objectPosition) {
+            if (!style) {
+              style = {}
+            }
+            if (objectFit) {
+              style.objectFit = objectFit
+            }
+            if (objectPosition) {
+              style.objectPosition = objectPosition
+            }
+            const styleAttribute = j.jsxAttribute(
+              j.jsxIdentifier('style'), // TODO: merge with existing "style" prop
+              j.jsxExpressionContainer(
+                j.objectExpression(
+                  Object.entries(style).map(([key, value]) =>
+                    j.objectProperty(j.identifier(key), j.stringLiteral(value))
+                  )
+                )
+              )
+            )
+            attributes.push(styleAttribute)
+          }
+
           j(el).replaceWith(
             j.jsxElement(
-              j.jsxOpeningElement(el.node.openingElement.name, [
-                ...el.node.openingElement.attributes,
-                j.jsxAttribute(
-                  j.jsxIdentifier('style'),
-                  j.jsxExpressionContainer(exp)
-                ),
-              ]),
+              j.jsxOpeningElement(
+                el.node.openingElement.name,
+                attributes,
+                el.node.openingElement.selfClosing
+              ),
               el.node.closingElement,
               el.node.children
             )
