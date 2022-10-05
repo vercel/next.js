@@ -47,7 +47,7 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale?: string) {
+  async setup(browserName: string, locale?: string, args?: Array<string>) {
     if (browser) return
     const headless = !!process.env.HEADLESS
     let device
@@ -62,7 +62,7 @@ export class Playwright extends BrowserInterface {
       }
     }
 
-    browser = await this.launchBrowser(browserName, { headless })
+    browser = await this.launchBrowser(browserName, { headless, args })
     context = await browser.newContext({ locale, ...device })
   }
 

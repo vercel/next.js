@@ -6,9 +6,11 @@ if (!process.env.TEST_FILE_PATH) {
   process.env.TEST_FILE_PATH = module.parent.filename
 }
 
+export const browserName = process.env.BROWSER_NAME || 'chrome'
+
 let deviceIP: string
 const isBrowserStack = !!process.env.BROWSERSTACK
-;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
+;(global as any).browserName = browserName
 
 if (isBrowserStack) {
   const nets = os.networkInterfaces()
@@ -61,6 +63,7 @@ export default async function webdriver(
     disableCache?: boolean
     beforePageLoad?: (page: any) => void
     locale?: string
+    browserArgs?: Array<string>
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
@@ -77,6 +80,7 @@ export default async function webdriver(
     disableCache,
     beforePageLoad,
     locale,
+    browserArgs,
   } = options
 
   // we import only the needed interface
@@ -95,8 +99,7 @@ export default async function webdriver(
   }
 
   const browser = new CurrentInterface()
-  const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(browserName, locale)
+  await browser.setup(browserName, locale, browserArgs)
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(

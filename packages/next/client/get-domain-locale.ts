@@ -19,9 +19,15 @@ export function getDomainLocale(
     const target = locale || normalizeLocalePath(path, locales).detectedLocale
     const domain = detectDomainLocale(domainLocales, undefined, target)
     if (domain) {
+      const thisPath =
+        path === '/'
+          ? Boolean(process.env.__NEXT_TRAILING_SLASH)
+            ? path
+            : ''
+          : path
       const proto = `http${domain.http ? '' : 's'}://`
       const finalLocale = target === domain.defaultLocale ? '' : `/${target}`
-      return `${proto}${domain.domain}${basePath}${finalLocale}${path}`
+      return `${proto}${domain.domain}${basePath}${finalLocale}${thisPath}`
     }
     return false
   } else {
