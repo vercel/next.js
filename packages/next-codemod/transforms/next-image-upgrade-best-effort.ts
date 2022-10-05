@@ -148,16 +148,6 @@ export default function transformer(
             )
           )
         })
-      //   const node = jsxElement.node.name
-      //   if (node.type === 'JSXIdentifier' && node.name === defaultSpecifierName) {
-      //     console.log('found the jsx element: ' + node.name + ' with attributes: ', jsxElement.node.attributes)
-      //     jsxElement.node.attributes.filter(attribute => {
-      //       if (attribute.type === 'JSXAttribute' && attribute.name.type === 'JSXIdentifier' && attribute.name.name === 'layout') {
-
-      //       }
-      //     })
-      //   }
-      // })
     })
   // Before: const Image = await import("next/legacy/image")
   //  After: const Image = await import("next/image")
