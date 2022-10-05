@@ -175,6 +175,6 @@ export default function transformer(
         j.importExpression(j.stringLiteral('next/image'))
       )
     })
-
+  // TODO: do the same transforms for dynamic imports
   return root.toSource(options)
 }
