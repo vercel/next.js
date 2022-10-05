@@ -432,7 +432,7 @@ describe('app dir', () => {
       })
 
       // TODO-APP: Re-enable this test.
-      it.skip('should soft push', async () => {
+      it('should soft push', async () => {
         const browser = await webdriver(next.url, '/link-soft-push')
 
         try {
@@ -1635,6 +1635,43 @@ describe('app dir', () => {
           expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
           expect(await browser.url()).toBe(next.url + '/dashboard')
         })
+      })
+    })
+
+    describe('nested navigation', () => {
+      it('should navigate to nested pages', async () => {
+        const browser = await webdriver(next.url, '/nested-navigation')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+        const pages = [
+          ['Electronics', ['Phones', 'Tablets', 'Laptops']],
+          ['Clothing', ['Tops', 'Shorts', 'Shoes']],
+          ['Books', ['Fiction', 'Biography', 'Education']],
+        ] as const
+
+        for (const [category, subCategories] of pages) {
+          expect(
+            await browser
+              .elementByCss(
+                `a[href="/nested-navigation/${category.toLowerCase()}"]`
+              )
+              .click()
+              .waitForElementByCss(`#all-${category.toLowerCase()}`)
+              .text()
+          ).toBe(`All ${category}`)
+
+          for (const subcategory of subCategories) {
+            expect(
+              await browser
+                .elementByCss(
+                  `a[href="/nested-navigation/${category.toLowerCase()}/${subcategory.toLowerCase()}"]`
+                )
+                .click()
+                .waitForElementByCss(`#${subcategory.toLowerCase()}`)
+                .text()
+            ).toBe(`${subcategory}`)
+          }
+        }
       })
     })
   }
