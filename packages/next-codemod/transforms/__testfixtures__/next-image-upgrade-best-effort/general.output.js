@@ -36,6 +36,15 @@ export default function Home() {
       </div>
       <Named src="/test.png" width="500" height="400" />
       <Foo bar="1" />
+      <Image
+        src="/test.jpg"
+        width="200"
+        height="300"
+        style={{
+          color: "green",
+          width: "100%",
+          height: "auto"
+        }} />
     </div>
   );
 }

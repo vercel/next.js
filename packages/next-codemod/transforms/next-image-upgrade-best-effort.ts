@@ -47,44 +47,43 @@ export default function transformer(
             el.value.openingElement.name.name === defaultSpecifierName
         )
         .forEach((el) => {
-          let layoutValue = 'intrisic'
+          let layout = 'intrisic'
           let objectFit = null
           let objectPosition = null
+          let styleExpProps = []
           const attributes = el.node.openingElement.attributes?.filter((a) => {
             // TODO: hanlde case when not Literal
-            if (
-              a.type === 'JSXAttribute' &&
-              a.name.name === 'layout' &&
-              a.value?.type === 'Literal'
-            ) {
-              layoutValue = String(a.value.value)
-              return false
-            }
-
-            if (
-              a.type === 'JSXAttribute' &&
-              a.name.name === 'objectFit' &&
-              a.value?.type === 'Literal'
-            ) {
-              objectFit = String(a.value.value)
-              return false
+            if (a.type === 'JSXAttribute' && a.value?.type === 'Literal') {
+              if (a.name.name === 'layout') {
+                layout = String(a.value.value)
+                return false
+              }
+              if (a.name.name === 'objectFit') {
+                objectFit = String(a.value.value)
+                return false
+              }
+              if (a.name.name === 'objectPosition') {
+                objectPosition = String(a.value.value)
+                return false
+              }
             }
             if (
               a.type === 'JSXAttribute' &&
-              a.name.name === 'objectPosition' &&
-              a.value?.type === 'Literal'
+              a.name.name === 'style' &&
+              a.value?.type === 'JSXExpressionContainer' &&
+              a.value.expression.type === 'ObjectExpression'
             ) {
-              objectPosition = String(a.value.value)
+              styleExpProps = a.value.expression.properties
               return false
             }
             return true
           })
 
-          if (layoutValue === 'fill') {
+          if (layout === 'fill') {
             attributes.push(j.jsxAttribute(j.jsxIdentifier('fill')))
           }
 
-          let style = layoutToStyle[layoutValue]
+          let style = layoutToStyle[layout]
           if (style || objectFit || objectPosition) {
             if (!style) {
               style = {}
@@ -95,15 +94,14 @@ export default function transformer(
             if (objectPosition) {
               style.objectPosition = objectPosition
             }
+            Object.entries(style).forEach(([key, value]) => {
+              styleExpProps.push(
+                j.objectProperty(j.identifier(key), j.stringLiteral(value))
+              )
+            })
             const styleAttribute = j.jsxAttribute(
               j.jsxIdentifier('style'), // TODO: merge with existing "style" prop
-              j.jsxExpressionContainer(
-                j.objectExpression(
-                  Object.entries(style).map(([key, value]) =>
-                    j.objectProperty(j.identifier(key), j.stringLiteral(value))
-                  )
-                )
-              )
+              j.jsxExpressionContainer(j.objectExpression(styleExpProps))
             )
             attributes.push(styleAttribute)
           }
