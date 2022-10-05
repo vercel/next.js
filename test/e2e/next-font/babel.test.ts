@@ -27,7 +27,7 @@ describe('@next/font/google babel', () => {
       'next build failed with code/signal 1'
     )
     expect(next.cliOutput).toMatch(
-      /`experimental.fontLoaders` requires SWC but found Babel config./
+      /"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present ".babelrc"./
     )
   })
 })
