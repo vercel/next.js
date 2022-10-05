@@ -320,7 +320,7 @@ describe('app dir - react server components', () => {
 
     // css-in-js like styled-jsx in server components won't be transformed
     expect(html).toMatch(
-      /<style>\.this-wont-be-transformed\{color:purple;\}<\/style>/
+      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
     )
   })
 
