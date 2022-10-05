@@ -8,6 +8,14 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import { COMPILER_NAMES } from './constants'
 
+type ShapeOf<T> = {
+  [K in keyof T]: any
+}
+
+type Extended<Base, Extension> = {
+  [K in keyof Omit<Base, keyof Extension>]: Base[K]
+} & Extension
+
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
   IP = {},
@@ -194,24 +202,32 @@ export type DocumentInitialProps = RenderPageResult & {
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
 
-/**
- * Next `API` route request
- */
-export interface NextApiRequest extends IncomingMessage {
-  /**
-   * Object of `query` values from url
-   */
+export type NextApiRequestConfig = {
   query: Partial<{
     [key: string]: string | string[]
   }>
+  cookies: {
+    [key: string]: string
+  }
+  body: any
+}
+
+/**
+ * Next `API` route request
+ */
+export interface NextApiRequest<
+  Extension extends Partial<ShapeOf<NextApiRequestConfig>> = {}
+> extends IncomingMessage {
+  /**
+   * Object of `query` values from url
+   */
+  query: Extended<NextApiRequestConfig, Extension>['query']
   /**
    * Object of `cookies` from header
    */
-  cookies: Partial<{
-    [key: string]: string
-  }>
+  cookies: Extended<NextApiRequestConfig, Extension>['cookies']
 
-  body: any
+  body: Extended<NextApiRequestConfig, Extension>['body']
 
   env: Env
 
