@@ -53,6 +53,16 @@ export default function Home() {
         src="/test.jpg"
         width="200"
         height="300"
+        sizes="100vw"
+        style={{
+          color: myStyle.color,
+          width: "100%",
+          height: "auto"
+        }} />
+      <Image
+        src="/test.jpg"
+        width="200"
+        height="300"
         sizes="50vw"
         style={{
           color: "#fff",
