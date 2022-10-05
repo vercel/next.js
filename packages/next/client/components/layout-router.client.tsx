@@ -29,27 +29,7 @@ import {
 import { fetchServerResponse } from './app-router.client'
 import { createInfinitePromise } from './infinite-promise'
 
-// import { matchSegment } from './match-segments'
-
-/**
- * Check if every segment in array a and b matches
- */
-// function equalSegmentPaths(a: Segment[], b: Segment[]) {
-//   // Comparing length is a fast path.
-//   return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
-// }
-
-/**
- * Check if flightDataPath matches layoutSegmentPath
- */
-// function segmentPathMatches(
-//   flightDataPath: FlightDataPath,
-//   layoutSegmentPath: FlightSegmentPath
-// ): boolean {
-//   // The last three items are the current segment, tree, and subTreeData
-//   const pathToLayout = flightDataPath.slice(0, -3)
-//   return equalSegmentPaths(layoutSegmentPath, pathToLayout)
-// }
+import { matchSegment } from './match-segments'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -63,7 +43,7 @@ function walkAddRefetch(
     const [segment, parallelRouteKey] = segmentPathToWalk
     const isLast = segmentPathToWalk.length === 2
 
-    if (treeToRecreate[0] === segment) {
+    if (matchSegment(treeToRecreate[0], segment)) {
       if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
         if (isLast) {
           const subTree = walkAddRefetch(
