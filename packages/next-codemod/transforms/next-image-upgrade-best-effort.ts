@@ -136,6 +136,9 @@ export default function transformer(
             attributes.push(styleAttribute)
           }
 
+          // TODO: should we add `alt=""` attribute?
+          // We should probably let the use it manually.
+
           j(el).replaceWith(
             j.jsxElement(
               j.jsxOpeningElement(
