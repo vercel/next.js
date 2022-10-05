@@ -53,16 +53,14 @@ const fetchFonts: FontLoader = async ({
       lineGap,
       fallbackFont,
       sizeAdjust: fallbackSizeAdjust,
-    } = calculateSizeAdjustValues('local', {
-      local: {
-        category:
-          adjustFontFallback === 'Times New Roman' ? 'serif' : 'sans-serif',
-        ascent: fontMetadata.ascent,
-        descent: fontMetadata.descent,
-        lineGap: fontMetadata.lineGap,
-        unitsPerEm: fontMetadata.unitsPerEm,
-        xAvgCharWidth: (fontMetadata as any)['OS/2']?.xAvgCharWidth,
-      },
+    } = calculateSizeAdjustValues({
+      category:
+        adjustFontFallback === 'Times New Roman' ? 'serif' : 'sans-serif',
+      ascent: fontMetadata.ascent,
+      descent: fontMetadata.descent,
+      lineGap: fontMetadata.lineGap,
+      unitsPerEm: fontMetadata.unitsPerEm,
+      xAvgCharWidth: (fontMetadata as any)['OS/2']?.xAvgCharWidth,
     })
     adjustFontFallbackMetrics = {
       fallbackFont,
