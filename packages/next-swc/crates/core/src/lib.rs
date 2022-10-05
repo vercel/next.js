@@ -91,7 +91,7 @@ pub struct TransformOptions {
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: Option<bool>,
+    pub styled_jsx: bool,
 
     #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
@@ -163,7 +163,7 @@ where
             _ => Either::Right(noop()),
         },
         match opts.styled_jsx {
-            Some(true) => Either::Left(styled_jsx::styled_jsx(cm.clone(), file.name.clone())),
+            true => Either::Left(styled_jsx::styled_jsx(cm.clone(), file.name.clone())),
             _ => Either::Right(noop()),
         },
         hook_optimizer::hook_optimizer(),
