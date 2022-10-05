@@ -88,6 +88,12 @@ export default function transformer(
               sizesAttr = a
               return false
             }
+            if (a.type === 'JSXAttribute' && a.name.name === 'lazyBoundary') {
+              return false
+            }
+            if (a.type === 'JSXAttribute' && a.name.name === 'lazyRoot') {
+              return false
+            }
             return true
           })
 

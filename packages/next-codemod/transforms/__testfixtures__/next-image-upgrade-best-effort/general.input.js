@@ -23,6 +23,7 @@ export default function Home() {
       <Foo bar="1" />
       <Image src="/test.jpg" width="200" height="300" layout="responsive" style={{color: "green"}} />
       <Image src="/test.jpg" width="200" height="300" layout="responsive" sizes="50vw" style={{color: "#fff"}} />
+      <Image src="/test.jpg" width="200" height="300" layout="fixed" lazyBoundary="1500px" lazyRoot={img} />
     </div>
   );
 }

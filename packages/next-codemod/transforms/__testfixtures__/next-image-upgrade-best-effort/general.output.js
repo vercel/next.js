@@ -58,6 +58,7 @@ export default function Home() {
           width: "100%",
           height: "auto"
         }} />
+      <Image src="/test.jpg" width="200" height="300" />
     </div>
   );
 }
