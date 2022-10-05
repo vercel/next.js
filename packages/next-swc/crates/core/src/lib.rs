@@ -162,9 +162,10 @@ where
                 )),
             _ => Either::Right(noop()),
         },
-        match opts.styled_jsx {
-            true => Either::Left(styled_jsx::styled_jsx(cm.clone(), file.name.clone())),
-            _ => Either::Right(noop()),
+        if opts.styled_jsx {
+            Either::Left(styled_jsx::styled_jsx(cm.clone(), file.name.clone()))
+        } else {
+            Either::Right(noop())
         },
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
