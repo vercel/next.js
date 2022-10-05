@@ -635,7 +635,7 @@ export default async function getBaseWebpackConfig(
   }
 
   if (!useSWCLoader && config.experimental.fontLoaders) {
-    Log.error('`experimental.fontLoaders` requires SWC but found Babel config.')
+    Log.error(`"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present "${path.relative(dir, babelConfigFile)}".\nSee more info here: https://nextjs.org/docs/messages/babel-font-loader-conflict`)
     process.exit(1)
   }
 
