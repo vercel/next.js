@@ -1,5 +1,4 @@
 import loader from '@next/font/local/loader'
-import { calculateSizeAdjustValues } from '@next/font/dist/local/utils'
 
 describe('@next/font/local', () => {
   describe('generated CSS', () => {
