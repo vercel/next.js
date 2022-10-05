@@ -240,9 +240,6 @@ const configSchema = {
           },
           type: 'object',
         },
-        appDir: {
-          type: 'boolean',
-        },
         browsersListForSwc: {
           type: 'boolean',
         },
@@ -352,6 +349,12 @@ const configSchema = {
           type: 'boolean',
         },
         sharedPool: {
+          type: 'boolean',
+        },
+        skipMiddlewareUrlNormalize: {
+          type: 'boolean',
+        },
+        skipTrailingSlashRedirect: {
           type: 'boolean',
         },
         sri: {

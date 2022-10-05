@@ -164,7 +164,7 @@ export function getEdgeServerEntry(opts: {
   page: string
   pages: { [page: string]: string }
   middleware?: Partial<MiddlewareConfig>
-  pagesType?: 'app' | 'pages' | 'root'
+  pagesType: 'app' | 'pages' | 'root'
   appDirLoader?: string
 }) {
   if (isMiddlewareFile(opts.page)) {
@@ -526,13 +526,13 @@ export function finalizeEntrypoint({
   compilerType,
   value,
   isServerComponent,
-  appDir,
+  hasAppDir,
 }: {
   compilerType?: CompilerNameValues
   name: string
   value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
-  appDir?: boolean
+  hasAppDir?: boolean
 }): ObjectValue<webpack.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -575,7 +575,7 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
     // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
-    if (appDir && entry.import.includes('flight')) {
+    if (hasAppDir && entry.import.includes('flight')) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
         ...entry,
