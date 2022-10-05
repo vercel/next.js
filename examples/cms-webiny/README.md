@@ -38,6 +38,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-webiny cms-webiny-app
 # or
 yarn create next-app --example cms-webiny cms-webiny-app
+# or
+ pnpm create next-app --example cms-webiny cms-webiny-app
 ```
 
 ### Step 1. Set up a Webiny project
