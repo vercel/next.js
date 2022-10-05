@@ -7,7 +7,7 @@ description: Learn how to upgrade Next.js.
 ## Upgrading from 12 to 13
 
 The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`.
-A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to automatically rename your imports.
+A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to safely and automatically rename your imports.
 
 ## Upgrading to 12.2
 

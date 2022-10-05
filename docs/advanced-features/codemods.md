@@ -55,6 +55,17 @@ export default function Home() {
 }
 ```
 
+### `next-image-experimental` (experimental)
+
+Dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props.
+
+- Removes `layout` prop and adds `style`
+- Removes `objectFit` prop and adds `style`
+- Removes `objectPosition` prop and adds `style`
+- Removes `lazyBoundary` prop
+- Removes `lazyRoot` prop
+- TODO: handle `loader`
+
 ## Next.js 11
 
 ### `cra-to-next` (experimental)
