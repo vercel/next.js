@@ -1217,7 +1217,6 @@ export default async function getBaseWebpackConfig(
                       '{}',
                     './cjs/react-dom-server-legacy.browser.development.js':
                       '{}',
-                    'react-dom': '{}',
                   },
                   handleWebpackExternalForEdgeRuntime,
                 ]
