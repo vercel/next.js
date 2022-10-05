@@ -22,6 +22,7 @@ export default function Home() {
       <Named src="/test.png" width="500" height="400" layout="fixed" />
       <Foo bar="1" />
       <Image src="/test.jpg" width="200" height="300" layout="responsive" style={{color: "green"}} />
+      <Image src="/test.jpg" width="200" height="300" layout="responsive" sizes="50vw" style={{color: "#fff"}} />
     </div>
   );
 }

@@ -20,6 +20,7 @@ export default function Home() {
         src="/test.jpg"
         width="200"
         height="300"
+        sizes="100vw"
         style={{
           width: "100%",
           height: "auto"
@@ -30,6 +31,7 @@ export default function Home() {
           alt="example alt text"
           src={img}
           fill
+          sizes="100vw"
           style={{
             objectFit: "contain"
           }} />
@@ -40,8 +42,19 @@ export default function Home() {
         src="/test.jpg"
         width="200"
         height="300"
+        sizes="100vw"
         style={{
           color: "green",
+          width: "100%",
+          height: "auto"
+        }} />
+      <Image
+        src="/test.jpg"
+        width="200"
+        height="300"
+        sizes="50vw"
+        style={{
+          color: "#fff",
           width: "100%",
           height: "auto"
         }} />

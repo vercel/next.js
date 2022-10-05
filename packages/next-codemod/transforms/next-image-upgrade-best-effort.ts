@@ -2,6 +2,7 @@ import type {
   API,
   FileInfo,
   ImportDefaultSpecifier,
+  JSXAttribute,
   Options,
 } from 'jscodeshift'
 
@@ -38,6 +39,12 @@ export default function transformer(
         fill: null,
         fixed: null,
       }
+      const layoutToSizes: Record<string, string | null> = {
+        intrinsic: null,
+        responsive: '100vw',
+        fill: '100vw',
+        fixed: null,
+      }
       root
         .find(j.JSXElement)
         .filter(
@@ -51,6 +58,7 @@ export default function transformer(
           let objectFit = null
           let objectPosition = null
           let styleExpProps = []
+          let sizesAttr: JSXAttribute | null = null
           const attributes = el.node.openingElement.attributes?.filter((a) => {
             // TODO: hanlde case when not Literal
             if (a.type === 'JSXAttribute' && a.value?.type === 'Literal') {
@@ -76,11 +84,27 @@ export default function transformer(
               styleExpProps = a.value.expression.properties
               return false
             }
+            if (a.type === 'JSXAttribute' && a.name.name === 'sizes') {
+              sizesAttr = a
+              return false
+            }
             return true
           })
 
           if (layout === 'fill') {
             attributes.push(j.jsxAttribute(j.jsxIdentifier('fill')))
+          }
+
+          const sizes = layoutToSizes[layout]
+          if (sizes && !sizesAttr) {
+            sizesAttr = j.jsxAttribute(
+              j.jsxIdentifier('sizes'),
+              j.literal(sizes)
+            )
+          }
+
+          if (sizesAttr) {
+            attributes.push(sizesAttr)
           }
 
           let style = layoutToStyle[layout]
@@ -100,7 +124,7 @@ export default function transformer(
               )
             })
             const styleAttribute = j.jsxAttribute(
-              j.jsxIdentifier('style'), // TODO: merge with existing "style" prop
+              j.jsxIdentifier('style'),
               j.jsxExpressionContainer(j.objectExpression(styleExpProps))
             )
             attributes.push(styleAttribute)
