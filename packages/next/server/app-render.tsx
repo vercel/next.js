@@ -685,6 +685,7 @@ export async function renderToHTMLOrFlight(
     serverCSSManifest = {},
     supportsDynamicHTML,
     ComponentMod,
+    dev,
   } = renderOpts
 
   patchFetch(ComponentMod)
@@ -1125,12 +1126,21 @@ export async function renderToHTMLOrFlight(
        * Use router state to decide at what common layout to render the page.
        * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
        */
-      const walkTreeWithFlightRouterState = async (
-        loaderTreeToFilter: LoaderTree,
-        parentParams: { [key: string]: string | string[] },
-        flightRouterState?: FlightRouterState,
+      const walkTreeWithFlightRouterState = async ({
+        createSegmentPath,
+        loaderTreeToFilter,
+        parentParams,
+        isFirst,
+        flightRouterState,
+        parentRendered,
+      }: {
+        createSegmentPath: CreateSegmentPath
+        loaderTreeToFilter: LoaderTree
+        parentParams: { [key: string]: string | string[] }
+        isFirst: boolean
+        flightRouterState?: FlightRouterState
         parentRendered?: boolean
-      ): Promise<FlightDataPath> => {
+      }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes] = loaderTreeToFilter
         const parallelRoutesKeys = Object.keys(parallelRoutes)
 
@@ -1175,10 +1185,12 @@ export async function renderToHTMLOrFlight(
                     await createComponentTree(
                       // This ensures flightRouterPath is valid and filters down the tree
                       {
-                        createSegmentPath: (child) => child,
+                        createSegmentPath: (child) => {
+                          return createSegmentPath(child)
+                        },
                         loaderTree: loaderTreeToFilter,
                         parentParams: currentParams,
-                        firstItem: true,
+                        firstItem: isFirst,
                       }
                     )
                   ).Component
@@ -1189,12 +1201,22 @@ export async function renderToHTMLOrFlight(
         // Walk through all parallel routes.
         for (const parallelRouteKey of parallelRoutesKeys) {
           const parallelRoute = parallelRoutes[parallelRouteKey]
-          const path = await walkTreeWithFlightRouterState(
-            parallelRoute,
-            currentParams,
-            flightRouterState && flightRouterState[1][parallelRouteKey],
-            parentRendered || renderComponentsOnThisLevel
-          )
+
+          const currentSegmentPath: FlightSegmentPath = isFirst
+            ? [parallelRouteKey]
+            : [actualSegment, parallelRouteKey]
+
+          const path = await walkTreeWithFlightRouterState({
+            createSegmentPath: (child) => {
+              return createSegmentPath([...currentSegmentPath, ...child])
+            },
+            loaderTreeToFilter: parallelRoute,
+            parentParams: currentParams,
+            flightRouterState:
+              flightRouterState && flightRouterState[1][parallelRouteKey],
+            parentRendered: parentRendered || renderComponentsOnThisLevel,
+            isFirst: false,
+          })
 
           if (typeof path[path.length - 1] !== 'string') {
             return [actualSegment, parallelRouteKey, ...path]
@@ -1209,11 +1231,13 @@ export async function renderToHTMLOrFlight(
       const flightData: FlightData = [
         // TODO-APP: change walk to output without ''
         (
-          await walkTreeWithFlightRouterState(
-            loaderTree,
-            {},
-            providedFlightRouterState
-          )
+          await walkTreeWithFlightRouterState({
+            createSegmentPath: (child) => child,
+            loaderTreeToFilter: loaderTree,
+            parentParams: {},
+            flightRouterState: providedFlightRouterState,
+            isFirst: true,
+          })
         ).slice(1),
       ]
 
@@ -1374,6 +1398,7 @@ export async function renderToHTMLOrFlight(
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           polyfills,
+          dev,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1405,6 +1430,7 @@ export async function renderToHTMLOrFlight(
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           polyfills,
+          dev,
         })
       }
     }

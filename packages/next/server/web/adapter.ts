@@ -117,9 +117,11 @@ export async function adapter(params: {
       nextConfig: params.request.nextConfig,
     })
 
-    if (rewriteUrl.host === request.nextUrl.host) {
-      rewriteUrl.buildId = buildId || rewriteUrl.buildId
-      response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
+      if (rewriteUrl.host === request.nextUrl.host) {
+        rewriteUrl.buildId = buildId || rewriteUrl.buildId
+        response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+      }
     }
 
     /**
@@ -154,9 +156,11 @@ export async function adapter(params: {
      */
     response = new Response(response.body, response)
 
-    if (redirectURL.host === request.nextUrl.host) {
-      redirectURL.buildId = buildId || redirectURL.buildId
-      response.headers.set('Location', String(redirectURL))
+    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
+      if (redirectURL.host === request.nextUrl.host) {
+        redirectURL.buildId = buildId || redirectURL.buildId
+        response.headers.set('Location', String(redirectURL))
+      }
     }
 
     /**
