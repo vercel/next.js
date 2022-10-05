@@ -2,4 +2,4 @@
 
 Copied from https://github.com/vercel/next.js/tree/canary/examples/with-mongodb.
 
-Run `yarn workspace @vercel/nmt-test-app@vercel/nmt-test-app build` to build this application.
+Run `pnpm run --filter @vercel/turbo-tracing-test-app build` to build this application.

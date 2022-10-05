@@ -2,7 +2,9 @@ use std::{collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
+use turbo_tasks_fs::{
+    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc, FileSystemVc,
+};
 use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},
@@ -76,39 +78,14 @@ impl AssetReference for DirAssetReference {
         let fs = context.fs();
         match &*pat {
             Pattern::Constant(p) => {
-                let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-                // ignore error
-                if let Ok(entry_type) = dest_file_path.get_type().await {
-                    match &*entry_type {
-                        FileSystemEntryType::Directory => {
-                            result = read_dir(dest_file_path).await?;
-                        }
-                        FileSystemEntryType::File => {
-                            result.insert(SourceAssetVc::new(dest_file_path).into());
-                        }
-                        _ => {}
-                    }
-                }
+                extend_with_constant_pattern(p, fs, &mut result).await?;
             }
             Pattern::Alternatives(alternatives) => {
                 for alternative_pattern in alternatives {
                     let mut pat = alternative_pattern.clone();
                     pat.normalize();
                     if let Pattern::Constant(p) = pat {
-                        let dest_file_path =
-                            FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-                        // ignore error
-                        if let Ok(entry_type) = dest_file_path.get_type().await {
-                            match &*entry_type {
-                                FileSystemEntryType::Directory => {
-                                    result.extend(read_dir(dest_file_path).await?);
-                                }
-                                FileSystemEntryType::File => {
-                                    result.insert(SourceAssetVc::new(dest_file_path).into());
-                                }
-                                _ => {}
-                            }
-                        }
+                        extend_with_constant_pattern(&p, fs, &mut result).await?;
                     }
                 }
             }
@@ -127,6 +104,40 @@ impl ValueToString for DirAssetReference {
             self.path.to_string().await?,
         )))
     }
+}
+
+async fn extend_with_constant_pattern(
+    pattern: &str,
+    fs: FileSystemVc,
+    result: &mut HashSet<AssetVc>,
+) -> Result<()> {
+    let dest_file_path = FileSystemPathVc::new(fs, pattern.trim_start_matches("/ROOT/"));
+    // ignore error
+    let realpath_with_links = match dest_file_path.realpath_with_links().await {
+        Ok(p) => p,
+        Err(_) => return Ok(()),
+    };
+    let dest_file_path = realpath_with_links.path;
+    result.extend(
+        realpath_with_links
+            .symlinks
+            .iter()
+            .map(|l| SourceAssetVc::new(*l).as_asset()),
+    );
+    let entry_type = match dest_file_path.get_type().await {
+        Ok(e) => e,
+        Err(_) => return Ok(()),
+    };
+    match &*entry_type {
+        FileSystemEntryType::Directory => {
+            result.extend(read_dir(dest_file_path).await?);
+        }
+        FileSystemEntryType::File | FileSystemEntryType::Symlink => {
+            result.insert(SourceAssetVc::new(dest_file_path).into());
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 async fn read_dir(p: FileSystemPathVc) -> Result<HashSet<AssetVc>> {

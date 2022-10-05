@@ -1,12 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
-    env, fs, process,
+    env, fs,
+    path::PathBuf,
+    process,
     str::FromStr,
 };
 
 use owo_colors::OwoColorize;
 use semver::{Prerelease, Version};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::command::Command;
@@ -196,16 +198,10 @@ const VERSION_TYPE: &[&str] = &["patch", "minor", "major", "alpha", "beta", "can
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct WorkspaceProjectMeta {
-    #[serde(deserialize_with = "parse_maybe_null")]
+    #[serde(default = "default_empty_string")]
     name: String,
-    location: String,
-}
-
-fn parse_maybe_null<'de, D>(d: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Deserialize::deserialize(d).map(|x: Option<_>| x.unwrap_or_default())
+    path: String,
+    private: bool,
 }
 
 fn default_empty_string() -> String {
@@ -221,31 +217,32 @@ struct PackageJson {
     #[serde(default)]
     private: bool,
     alias: Option<String>,
+    #[serde(default = "default_empty_string")]
+    path: String,
 }
 
 pub fn run_bump(names: HashSet<String>, dry_run: bool) {
-    let workspaces_list_text = Command::program("yarn")
-        .args(["workspaces", "list", "--json"])
+    let workspaces_list_text = Command::program("pnpm")
+        .args(["ls", "-r", "--depth", "-1", "--json"])
         .error_message("List workspaces failed")
         .output_string();
-    let workspaces = workspaces_list_text
-        .trim()
-        .split('\n')
-        .filter_map(|s| {
-            let workspace: WorkspaceProjectMeta =
-                serde_json::from_str(s).expect("Parse workspaces list failed");
+    let workspaces = serde_json::from_str::<Vec<WorkspaceProjectMeta>>(workspaces_list_text.trim())
+        .expect("Unable to parse workspaces list")
+        .iter()
+        .filter_map(|workspace| {
             let workspace_pkg_json = fs::read_to_string(
                 env::current_dir()
                     .unwrap()
-                    .join(&workspace.location)
+                    .join(&workspace.path)
                     .join("package.json"),
             )
             .expect("Read workspace package.json failed");
-            let pkg_json: PackageJson = serde_json::from_str(&workspace_pkg_json)
+            let mut pkg_json: PackageJson = serde_json::from_str(&workspace_pkg_json)
                 .expect("Parse workspace package.json failed");
             if workspace.name.is_empty() || pkg_json.private {
                 None
             } else {
+                pkg_json.path = workspace.path.clone();
                 Some(pkg_json)
             }
         })
@@ -338,14 +335,14 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
         }
         let semver_version_string = semver_version.to_string();
         let version_command_args = vec![
-            "workspace",
-            p.name.as_str(),
             "version",
             semver_version_string.as_str(),
-            "--deferred",
+            "--no-git-tag-version",
+            "--no-commit-hooks",
         ];
-        Command::program("yarn")
+        Command::program("pnpm")
             .args(version_command_args)
+            .current_dir(PathBuf::from(&p.path))
             .dry_run(dry_run)
             .error_message("Bump version failed")
             .execute();
@@ -355,10 +352,10 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
             semver_version_string
         ));
     });
-    Command::program("yarn")
-        .args(["version", "apply", "--all"])
+    Command::program("pnpm")
+        .args(["install"])
         .dry_run(dry_run)
-        .error_message("Apply version failed")
+        .error_message("Update pnpm-lock.yaml failed")
         .execute();
     Command::program("git")
         .args(["add", "."])
@@ -419,22 +416,28 @@ pub fn publish_workspace(dry_run: bool) {
         let is_canary = semver_version.pre.contains("canary");
         let tag = {
             if is_alpha {
-                "--tag alpha"
+                "alpha"
             } else if is_beta {
-                "--tag beta"
+                "beta"
             } else if is_canary {
-                "--tag canary"
+                "canary"
             } else {
-                ""
+                "latest"
             }
         };
-        let npm_publish = format!(
-            "npm publish {} {}",
+        let mut args = vec![
+            "publish",
+            "--tag",
             tag,
-            if dry_run { "--dry-run" } else { "" }
-        );
-        Command::program("yarn")
-            .args(["workspace", pkg_name.as_str(), "exec", &npm_publish])
+            "--no-git-checks",
+            "--filter",
+            pkg_name.as_str(),
+        ];
+        if dry_run {
+            args.push("--dry-run");
+        }
+        Command::program("pnpm")
+            .args(args)
             .error_message("Publish failed")
             .execute();
     }

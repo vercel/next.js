@@ -34,7 +34,7 @@ impl Asset for SourceAsset {
         match file_type {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
                 LinkContent::Link { target, link_type } => Ok(AssetContent::Redirect {
-                    target: target.to_string(),
+                    target: target.clone(),
                     link_type: *link_type,
                 }
                 .cell()),

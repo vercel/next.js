@@ -4,6 +4,7 @@ const path = require("path");
 
 const app = express();
 
+app.engine("pug", require("pug").__express);
 app.set("view engine", "pug");
 app.set("views", "./fixtures/pug");
 

@@ -1,8 +1,8 @@
 const { join } = require('path')
 
-const { withTurboTracing } = require('../..')
+const { createNodeFileTrace } = require('../..')
 
-module.exports = withTurboTracing({
+module.exports = createNodeFileTrace({
   path: join(__dirname, '..', '..', '..', '..', 'target', 'debug'),
 })({
   reactStrictMode: true,

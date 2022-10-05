@@ -31,10 +31,6 @@ module.exports = withNodeFileTrace({
 >
 > The default options should work fine.
 
-> **Warn**
->
-> The experimental nft does not support pnpm yet.
-
 -   `cwd?: string`, default is `process.cwd()`, you can override it to specify another directory to run experimental nft.
 -   `contextDirectory?: string`, relative to cwd, default is `.`. It must be the directory where the `node_modules` directory is located. If you are in the monorepo, you should set it to the root directory of the monorepo. For yarn2+/npm workspaces, the default value will respect the `PROJECT_CWD` and `npm_config_local_prefix` environment variables injected by yarn/npm client. If the default value doesn't work, you can override it to specify the root directory of the monorepo.
 -   `path?: string`, additional path which will be appended into the `PATH` environment variable.

@@ -61,6 +61,7 @@ pub enum AssetContent {
     File(FileContentVc),
     // for the relative link, the target is raw value read from the link
     // for the absolute link, the target is stripped of the root path while reading
+    // See [LinkContent::Link] for more details.
     Redirect { target: String, link_type: LinkType },
 }
 

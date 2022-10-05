@@ -7,7 +7,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use difference::Changeset;
 use helpers::print_changeset;
 use lazy_static::lazy_static;
@@ -27,10 +27,7 @@ use turbopack::{
 };
 use turbopack_core::{
     asset::{AssetContent, AssetContentVc, AssetVc},
-    chunk::{
-        dev::{DevChunkingContext, DevChunkingContextVc},
-        ChunkableAssetVc,
-    },
+    chunk::{dev::DevChunkingContextVc, ChunkableAssetVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     reference::all_referenced_assets,
@@ -196,7 +193,7 @@ fn remove_file(root: &str, path: &str) -> Result<()> {
     // TODO: It'd be great if the entry exposed it's full path joined with the root
     // of its FS. But defining a new Vc is annoying and I want this to be done.
     let full_path = Path::new(root).join(path);
-    fs::remove_file(full_path)?;
+    fs::remove_file(&full_path).context(format!("remove file {} error", full_path.display()))?;
     Ok(())
 }
 

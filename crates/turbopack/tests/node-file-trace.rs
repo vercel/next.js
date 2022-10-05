@@ -345,11 +345,10 @@ fn node_file_trace<B: Backend + 'static>(
         ));
         let bench_suites = BENCH_SUITES.clone();
         let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let mut tests_root = package_root.clone();
-        tests_root.push("tests");
+        let workspace_root = package_root.parent().unwrap().parent().unwrap();
         let mut tests_output_root = temp_dir();
         tests_output_root.push("tests_output");
-        let tests_root = tests_root.to_string_lossy().to_string();
+        let workspace_root = workspace_root.to_string_lossy().to_string();
         let input = format!("node-file-trace/{input_path}");
         let directory_path = tests_output_root.join(&format!("{mode}_{input}"));
         let directory = directory_path.to_string_lossy().to_string();
@@ -362,11 +361,12 @@ fn node_file_trace<B: Backend + 'static>(
                     Err(err)
                 }
             })
+            .context(format!("Failed to remove directory: {directory}"))
             .unwrap();
 
         for _ in 0..run_count {
             let bench_suites = bench_suites.clone();
-            let tests_root = tests_root.clone();
+            let workspace_root = workspace_root.clone();
             let input_string = input.clone();
             let directory = directory.clone();
             let expected_stderr = expected_stderr.clone();
@@ -375,13 +375,16 @@ fn node_file_trace<B: Backend + 'static>(
                 let bench_suites = bench_suites.clone();
                 #[cfg(feature = "bench_against_node_nft")]
                 let before_start = Instant::now();
-                let input_fs: FileSystemVc =
-                    DiskFileSystemVc::new("tests".to_string(), tests_root.clone()).into();
-                let input = FileSystemPathVc::new(input_fs, &input_string);
-                let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
+                let workspace_fs: FileSystemVc =
+                    DiskFileSystemVc::new("workspace".to_string(), workspace_root.clone()).into();
+                let input = FileSystemPathVc::new(
+                    workspace_fs,
+                    &format!("crates/turbopack/tests/{input_string}"),
+                );
+                let input_dir = FileSystemPathVc::new(workspace_fs, "");
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
-                let original_output = exec_node(tests_root, input);
+                let original_output = exec_node(workspace_root, input);
 
                 let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
                 let output_dir = FileSystemPathVc::new(output_fs.into(), "");

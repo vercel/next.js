@@ -31,19 +31,18 @@ fn cli() -> Command<'static> {
         )
         .subcommand(
             Command::new("workspace")
-                .arg(arg!(--publish "publish npm packages in yarn workspace"))
-                .arg(arg!(--bump "bump new version for npm package in yarn workspace"))
+                .arg(arg!(--publish "publish npm packages in pnpm workspace"))
+                .arg(arg!(--bump "bump new version for npm package in pnpm workspace"))
                 .arg(arg!(--"dry-run" "dry run all operations"))
                 .arg(arg!([NAME] "the package to bump"))
-                .about("Manage packages in yarn workspaces"),
+                .about("Manage packages in pnpm workspaces"),
         )
         .subcommand(
             Command::new("nft-bench-result")
                 .about("Print node-file-trace benchmark result against @vercel/nft"),
         )
         .subcommand(
-            Command::new("upgrade-swc")
-                .about("Upgrade all SWC dependencies to the lastest version"),
+            Command::new("upgrade-swc").about("Upgrade all SWC dependencies to the latest version"),
         )
         .subcommand(
             Command::new("summarize-benchmarks")

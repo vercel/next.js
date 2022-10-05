@@ -3,6 +3,7 @@
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
+#![feature(main_separator_str)]
 
 pub mod embed;
 pub mod glob;
@@ -357,12 +358,11 @@ impl FileSystem for DiskFileSystem {
             Err(_) => return Ok(LinkContent::NotFound.cell()),
         };
         let is_link_absolute = link_path.is_absolute();
+
         let mut file = link_path.clone();
         if !is_link_absolute {
             if let Some(normalized_linked_path) = full_path.parent().and_then(|p| {
-                p.join(&file)
-                    .to_str()
-                    .and_then(|p| normalize_path(&sys_to_unix(p)))
+                normalize_path(&sys_to_unix(p.join(&file).to_string_lossy().as_ref()))
             }) {
                 #[cfg(target_family = "windows")]
                 {
@@ -395,24 +395,40 @@ impl FileSystem for DiskFileSystem {
         #[cfg(not(target_family = "windows"))]
         let result = file.strip_prefix(Path::new(&self.root));
         let relative_to_root_path = match result {
-            Ok(file) => sys_to_unix(&file.to_string_lossy()).to_string(),
+            Ok(file) => PathBuf::from(sys_to_unix(&file.to_string_lossy()).as_ref()),
             Err(_) => return Ok(LinkContent::Invalid.cell()),
         };
 
+        let (target, file_type) = if is_link_absolute {
+            let target_string = relative_to_root_path.to_string_lossy().to_string();
+            (
+                target_string.clone(),
+                FileSystemPathVc::new_normalized(fs_path.fs(), target_string)
+                    .get_type()
+                    .await?,
+            )
+        } else {
+            let link_path_string_cow = link_path.to_string_lossy();
+            let link_path_unix = sys_to_unix(&link_path_string_cow);
+            (
+                link_path_unix.to_string(),
+                fs_path
+                    .parent()
+                    .join(link_path_unix.as_ref())
+                    .get_type()
+                    .await?,
+            )
+        };
+
         Ok(LinkContent::Link {
-            target: if is_link_absolute {
-                relative_to_root_path
-            } else {
-                sys_to_unix(&link_path.to_string_lossy()).to_string()
-            },
+            target,
             link_type: {
                 let mut link_type = LinkType::UNSET;
                 if link_path.is_absolute() {
                     link_type |= LinkType::ABSOLUTE;
                 }
-                #[cfg(target_family = "windows")]
-                if full_path.is_dir() {
-                    link_type |= LinkType::WINDOWS_DIRECTORY;
+                if matches!(&*file_type, FileSystemEntryType::Directory) {
+                    link_type |= LinkType::DIRECTORY;
                 }
                 link_type
             },
@@ -498,8 +514,11 @@ impl FileSystem for DiskFileSystem {
             .await
             .with_context(|| format!("reading old symlink target of {}", full_path.display()))?;
         let target_link = target.await?;
-
-        let create_directory = *old_content == LinkContent::NotFound;
+        if target_link == old_content {
+            return Ok(CompletionVc::new());
+        }
+        let file_type = &*fs_path.get_type().await?;
+        let create_directory = file_type == &FileSystemEntryType::NotFound;
         if create_directory {
             if let Some(parent) = full_path.parent() {
                 retry_future(move || fs::create_dir_all(parent))
@@ -517,20 +536,20 @@ impl FileSystem for DiskFileSystem {
             LinkContent::Link { target, link_type } => {
                 let link_type = *link_type;
                 let target_path = if link_type.contains(LinkType::ABSOLUTE) {
-                    unix_to_sys(&fs_path.root().join(target).await?.path).to_string()
+                    Path::new(&self.root).join(unix_to_sys(target).as_ref())
                 } else {
-                    unix_to_sys(target).to_string()
+                    PathBuf::from(unix_to_sys(target).as_ref())
                 };
                 retry_blocking(&target_path, move |target_path| {
                     // we use the sync std method here because `symlink` is fast
                     // if we put it into a task, it will be slower
-                    #[cfg(target_family = "unix")]
+                    #[cfg(not(target_family = "windows"))]
                     {
                         std::os::unix::fs::symlink(target_path, &full_path)
                     }
                     #[cfg(target_family = "windows")]
                     {
-                        if link_type.contains(LinkType::WINDOWS_DIRECTORY) {
+                        if link_type.contains(LinkType::DIRECTORY) {
                             std::os::windows::fs::symlink_dir(target_path, &full_path)
                         } else {
                             std::os::windows::fs::symlink_file(target_path, &full_path)
@@ -538,7 +557,7 @@ impl FileSystem for DiskFileSystem {
                     }
                 })
                 .await
-                .with_context(|| format!("create symlink to {target}"))?;
+                .with_context(|| format!("create symlink to {}", target))?;
             }
             LinkContent::Invalid => {
                 return Err(anyhow!("invalid symlink target: {}", full_path.display()));
@@ -939,9 +958,14 @@ impl FileSystemPathVc {
         let mut symlinks = Vec::new();
         for segment in segments {
             current = current.join(segment);
-            while let LinkContent::Link { target, .. } = &*current.read_link().await? {
+            while let LinkContent::Link { target, link_type } = &*current.read_link().await? {
                 symlinks.push(current.resolve().await?);
-                current = current.parent().join(target);
+                current = if link_type.contains(LinkType::ABSOLUTE) {
+                    current.root()
+                } else {
+                    current.parent()
+                }
+                .join(target);
             }
         }
         if symlinks.is_empty() {
@@ -1059,7 +1083,7 @@ bitflags! {
   #[derive(Serialize, Deserialize, TraceRawVcs)]
   pub struct LinkType: u8 {
       const UNSET = 0;
-      const WINDOWS_DIRECTORY = 0b00000001;
+      const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;
   }
 }
@@ -1069,6 +1093,10 @@ bitflags! {
 pub enum LinkContent {
     // for the relative link, the target is raw value read from the link
     // for the absolute link, the target is stripped of the root path while reading
+    // We don't use the `FileSystemPathVc` here for now, because the `FileSystemPath` is always
+    // normalized, which means in `fn write_link` we couldn't restore the raw value of the file
+    // link because there is only **dist** path in `fn write_link`, and we need the raw path if
+    // we want to restore the link value in `fn write_link`
     Link { target: String, link_type: LinkType },
     Invalid,
     NotFound,

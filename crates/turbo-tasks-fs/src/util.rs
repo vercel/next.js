@@ -1,6 +1,6 @@
+use std::borrow::Cow;
 #[cfg(target_family = "windows")]
 use std::path::Path;
-use std::{borrow::Cow, path::MAIN_SEPARATOR};
 
 /// Joins two /-separated paths into a normalized path.
 /// Paths are concatenated with /.
@@ -28,20 +28,30 @@ pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
 
 /// Converts System paths into Unix paths. This is a noop on Unix systems, and
 /// replaces backslash directory separators with forward slashes on Windows.
+#[inline]
 pub fn sys_to_unix(path: &str) -> Cow<'_, str> {
-    if MAIN_SEPARATOR != '\\' {
-        return Cow::from(path);
+    #[cfg(not(target_family = "windows"))]
+    {
+        Cow::from(path)
     }
-    Cow::Owned(path.replace(MAIN_SEPARATOR, "/"))
+    #[cfg(target_family = "windows")]
+    {
+        Cow::Owned(path.replace(std::path::MAIN_SEPARATOR_STR, "/"))
+    }
 }
 
 /// Converts Unix paths into System paths. This is a noop on Unix systems, and
 /// replaces forward slash directory separators with backslashes on Windows.
+#[inline]
 pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
-    if MAIN_SEPARATOR != '\\' {
-        return Cow::from(path);
+    #[cfg(not(target_family = "windows"))]
+    {
+        Cow::from(path)
     }
-    Cow::Owned(path.replace('/', &MAIN_SEPARATOR.to_string()))
+    #[cfg(target_family = "windows")]
+    {
+        Cow::Owned(path.replace('/', std::path::MAIN_SEPARATOR_STR))
+    }
 }
 
 /// Normalizes a /-separated path into a form that contains no leading /, no

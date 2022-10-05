@@ -9,7 +9,7 @@
     "@google-cloud/bigquery": "^4.1.4",
     "@google-cloud/firestore": "^4.11.0",
     "@sentry/node": "^5.5.0",
-    "@tensorflow/tfjs-node": "^3.18.0",
+    "@tensorflow/tfjs-node": "^3.20.0",
     "@tpluscode/sparql-builder": "^0.3.12",
     "@types/bindings": "^1.3.0",
     "@types/debug": "^4.1.7",
@@ -24,10 +24,12 @@
     "apollo-server-express": "^2.14.2",
     "argon2": "^0.27.2",
     "auth0": "^2.27.1",
+    "aws-sdk": "^2.1218.0",
     "axios": "^0.21.2",
     "azure-storage": "^2.10.3",
     "bcrypt": "^5.0.1",
     "better-sqlite3": "^7.5.3",
+    "bindings": "^1.5.0",
     "browserify-middleware": "^8.1.1",
     "bull": "^3.10.0",
     "bullmq": "^1.87.1",
@@ -37,10 +39,11 @@
     "codecov": "^3.8.1",
     "consolidate": "^0.15.1",
     "copy": "^0.3.2",
+    "core-js": "2",
     "cowsay": "^1.4.0",
     "debug": "^4.3.4",
     "es-get-iterator": "^1.1.0",
-    "esbuild": "^0.14.12",
+    "esbuild": "^0.15.7",
     "esm": "^3.2.25",
     "express": "^4.17.1",
     "fast-glob": "^3.1.1",
@@ -49,6 +52,7 @@
     "firebase-admin": "^9.7.0",
     "fluent-ffmpeg": "^2.1.2",
     "geo-tz": "^7.0.1",
+    "got": "11",
     "graphql": "^14.4.2",
     "highlights": "^3.1.6",
     "hot-shots": "^9.0.0",
@@ -86,6 +90,8 @@
     "redis": "^3.1.1",
     "remark-parse": "^10.0.0",
     "remark-prism": "^1.3.6",
+    "request": "^2.88.2",
+    "rimraf": "^3.0.2",
     "rxjs": "^6.5.2",
     "saslprep": "^1.0.3",
     "semver": "^7.1.1",
@@ -95,6 +101,7 @@
     "socket.io-client": "^2.2.0",
     "sqlite3": "^5.0.8",
     "stripe": "^7.4.0",
+    "strong-error-handler": "^4.0.0",
     "swig": "^1.4.2",
     "tiny-json-http": "^7.1.2",
     "ts-morph": "^15.1.0",
@@ -113,8 +120,5 @@
   },
   "optionalDependencies": {
     "oracledb": "^4.2.0"
-  },
-  "installConfig": {
-    "hoistingLimits": "workspaces"
   }
 }

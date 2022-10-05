@@ -8,8 +8,7 @@ use turbo_tasks::{
     primitives::StringVc, trace::TraceRawVcs, Value, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{
-    util::sys_to_unix, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
-    LinkContent,
+    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc, LinkContent, LinkType,
 };
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
@@ -674,13 +673,47 @@ pub async fn read_matches(
                                         PatternMatch::Directory(prefix.to_string(), *fs_path),
                                     ),
                                     FileSystemEntryType::Symlink => {
-                                        if let LinkContent::Link { target, .. } =
-                                            &*fs_path.read_link().await?
+                                        let realpath_with_links =
+                                            &*fs_path.realpath_with_links().await?;
                                         {
-                                            results.push(PatternMatch::File(
-                                                prefix.to_string(),
-                                                fs_path.parent().join(&sys_to_unix(target)),
-                                            ));
+                                            for symlink in realpath_with_links.symlinks.iter() {
+                                                if let LinkContent::Link { target, link_type } =
+                                                    &*symlink.read_link().await?
+                                                {
+                                                    let fs_path_real =
+                                                        fs_path.parent().join(target);
+                                                    results.push(
+                                                        if link_type.contains(LinkType::DIRECTORY) {
+                                                            PatternMatch::Directory(
+                                                                prefix.clone(),
+                                                                fs_path_real,
+                                                            )
+                                                        } else {
+                                                            PatternMatch::File(
+                                                                prefix.clone(),
+                                                                fs_path_real,
+                                                            )
+                                                        },
+                                                    );
+                                                }
+                                            }
+                                            let file_type =
+                                                realpath_with_links.path.get_type().await?;
+                                            match &*file_type {
+                                                FileSystemEntryType::File => {
+                                                    results.push(PatternMatch::File(
+                                                        prefix.clone(),
+                                                        realpath_with_links.path,
+                                                    ))
+                                                }
+                                                FileSystemEntryType::Directory => {
+                                                    results.push(PatternMatch::Directory(
+                                                        prefix.clone(),
+                                                        realpath_with_links.path,
+                                                    ))
+                                                }
+                                                _ => {}
+                                            }
                                         }
                                         results
                                             .push(PatternMatch::File(prefix.to_string(), *fs_path));
