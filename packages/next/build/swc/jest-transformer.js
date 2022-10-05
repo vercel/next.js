@@ -48,6 +48,7 @@ module.exports = {
         jsConfig: inputOptions.jsConfig,
         resolvedBaseUrl: inputOptions.resolvedBaseUrl,
         pagesDir: inputOptions.pagesDir,
+        hasServerComponents: inputOptions.hasServerComponents,
         esm:
           isSupportEsm &&
           isEsm(Boolean(inputOptions.isEsmProject), filename, jestConfig),

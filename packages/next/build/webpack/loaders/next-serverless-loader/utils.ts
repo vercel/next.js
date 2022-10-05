@@ -68,6 +68,26 @@ export type ServerlessHandlerCtx = {
   i18n?: NextConfig['i18n']
 }
 
+export function normalizeVercelUrl(
+  req: BaseNextRequest | IncomingMessage,
+  trustQuery: boolean,
+  paramKeys?: string[],
+  pageIsDynamic?: boolean,
+  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined
+) {
+  // make sure to normalize req.url on Vercel to strip dynamic params
+  // from the query which are added during routing
+  if (pageIsDynamic && trustQuery && defaultRouteRegex) {
+    const _parsedUrl = parseUrl(req.url!, true)
+    delete (_parsedUrl as any).search
+
+    for (const param of paramKeys || Object.keys(defaultRouteRegex.groups)) {
+      delete _parsedUrl.query[param]
+    }
+    req.url = formatUrl(_parsedUrl)
+  }
+}
+
 export function interpolateDynamicPath(
   pathname: string,
   params: ParsedUrlQuery,
@@ -336,24 +356,6 @@ export function getUtils({
     )(req.headers['x-now-route-matches'] as string) as ParsedUrlQuery
   }
 
-  function normalizeVercelUrl(
-    req: BaseNextRequest | IncomingMessage,
-    trustQuery: boolean,
-    paramKeys?: string[]
-  ) {
-    // make sure to normalize req.url on Vercel to strip dynamic params
-    // from the query which are added during routing
-    if (pageIsDynamic && trustQuery && defaultRouteRegex) {
-      const _parsedUrl = parseUrl(req.url!, true)
-      delete (_parsedUrl as any).search
-
-      for (const param of paramKeys || Object.keys(defaultRouteRegex.groups)) {
-        delete _parsedUrl.query[param]
-      }
-      req.url = formatUrl(_parsedUrl)
-    }
-  }
-
   function normalizeDynamicRouteParams(
     params: ParsedUrlQuery,
     ignoreOptional?: boolean
@@ -571,11 +573,22 @@ export function getUtils({
     handleRewrites,
     handleBasePath,
     defaultRouteRegex,
-    normalizeVercelUrl,
     dynamicRouteMatcher,
     defaultRouteMatches,
     getParamsFromRouteMatches,
     normalizeDynamicRouteParams,
+    normalizeVercelUrl: (
+      req: BaseNextRequest | IncomingMessage,
+      trustQuery: boolean,
+      paramKeys?: string[]
+    ) =>
+      normalizeVercelUrl(
+        req,
+        trustQuery,
+        paramKeys,
+        pageIsDynamic,
+        defaultRouteRegex
+      ),
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, string | string[]>

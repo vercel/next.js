@@ -465,8 +465,8 @@ export async function renderToHTML(
   ) {
     warn(
       `Detected getInitialProps on page '${pathname}'` +
-        `while running "next export". It's recommended to use getStaticProps` +
-        `which has a more correct behavior for static exporting.` +
+        ` while running "next export". It's recommended to use getStaticProps` +
+        ` which has a more correct behavior for static exporting.` +
         `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
     )
   }
@@ -735,7 +735,7 @@ export async function renderToHTML(
   const nextExport =
     !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
-  const styledJsxFlushEffect = () => {
+  const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()
     jsxStyleRegistry.flush()
     return <>{styles}</>
@@ -1301,16 +1301,16 @@ export async function renderToHTML(
       ) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when `wrapApp` is called
-        const flushEffectHandler = async (): Promise<string> => {
-          return renderToString(styledJsxFlushEffect())
+        const getServerInsertedHTML = async (): Promise<string> => {
+          return renderToString(styledJsxInsertedHTML())
         }
 
         return continueFromInitialStream(initialStream, {
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
-          flushEffectHandler,
-          flushEffectsToHead: false,
+          getServerInsertedHTML,
+          serverInsertedHTMLToHead: false,
         })
       }
 

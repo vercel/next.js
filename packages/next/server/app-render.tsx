@@ -26,7 +26,7 @@ import {
   FlightCSSManifest,
   FlightManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
-import { FlushEffectsContext } from '../shared/lib/flush-effects'
+import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
@@ -685,6 +685,7 @@ export async function renderToHTMLOrFlight(
     serverCSSManifest = {},
     supportsDynamicHTML,
     ComponentMod,
+    dev,
   } = renderOpts
 
   patchFetch(ComponentMod)
@@ -1324,34 +1325,38 @@ export async function renderToHTMLOrFlight(
       nonce
     )
 
-    const flushEffectsCallbacks: Set<() => React.ReactNode> = new Set()
-    function FlushEffects({ children }: { children: JSX.Element }) {
-      // Reset flushEffectsHandler on each render
-      flushEffectsCallbacks.clear()
-      const addFlushEffects = React.useCallback(
+    const serverInsertedHTMLCallbacks: Set<() => React.ReactNode> = new Set()
+    function InsertedHTML({ children }: { children: JSX.Element }) {
+      // Reset addInsertedHtmlCallback on each render
+      serverInsertedHTMLCallbacks.clear()
+      const addInsertedHtml = React.useCallback(
         (handler: () => React.ReactNode) => {
-          flushEffectsCallbacks.add(handler)
+          serverInsertedHTMLCallbacks.add(handler)
         },
         []
       )
 
       return (
-        <FlushEffectsContext.Provider value={addFlushEffects}>
+        <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
           {children}
-        </FlushEffectsContext.Provider>
+        </ServerInsertedHTMLContext.Provider>
       )
     }
 
     const bodyResult = async () => {
       const content = (
-        <FlushEffects>
+        <InsertedHTML>
           <ServerComponentsRenderer />
-        </FlushEffects>
+        </InsertedHTML>
       )
 
-      const flushEffectHandler = (): Promise<string> => {
+      const getServerInsertedHTML = (): Promise<string> => {
         const flushed = renderToString(
-          <>{Array.from(flushEffectsCallbacks).map((callback) => callback())}</>
+          <>
+            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+              callback()
+            )}
+          </>
         )
         return flushed
       }
@@ -1390,9 +1395,10 @@ export async function renderToHTMLOrFlight(
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: generateStaticHTML,
-          flushEffectHandler,
-          flushEffectsToHead: true,
+          getServerInsertedHTML,
+          serverInsertedHTMLToHead: true,
           polyfills,
+          dev,
         })
       } catch (err: any) {
         // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
@@ -1421,9 +1427,10 @@ export async function renderToHTMLOrFlight(
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: generateStaticHTML,
-          flushEffectHandler,
-          flushEffectsToHead: true,
+          getServerInsertedHTML,
+          serverInsertedHTMLToHead: true,
           polyfills,
+          dev,
         })
       }
     }

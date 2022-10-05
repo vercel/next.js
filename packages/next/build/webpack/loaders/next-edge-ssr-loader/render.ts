@@ -32,7 +32,7 @@ export function getRender({
   buildId,
   fontLoaderManifest,
 }: {
-  pagesType?: 'app' | 'pages' | 'root'
+  pagesType: 'app' | 'pages' | 'root'
   dev: boolean
   page: string
   appMod: any
@@ -69,6 +69,7 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       page,
+      pagesType,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.edge,

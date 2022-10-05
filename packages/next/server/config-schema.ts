@@ -240,9 +240,6 @@ const configSchema = {
           },
           type: 'object',
         },
-        appDir: {
-          type: 'boolean',
-        },
         browsersListForSwc: {
           type: 'boolean',
         },
@@ -354,6 +351,12 @@ const configSchema = {
         sharedPool: {
           type: 'boolean',
         },
+        skipMiddlewareUrlNormalize: {
+          type: 'boolean',
+        },
+        skipTrailingSlashRedirect: {
+          type: 'boolean',
+        },
         sri: {
           properties: {
             algorithm: {
@@ -401,6 +404,13 @@ const configSchema = {
         },
         fontLoaders: {
           type: 'object',
+        },
+        webVitalsAttribution: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
+          } as any,
         },
       },
       type: 'object',

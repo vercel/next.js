@@ -16,4 +16,8 @@ export function reportWebVitals(data) {
   )
   const countMap = window.__BEACONS_COUNT
   countMap.set(name, (countMap.get(name) || 0) + 1)
+
+  if (data.attribution) {
+    ;(window.__metricsWithAttribution ??= []).push(data)
+  }
 }
