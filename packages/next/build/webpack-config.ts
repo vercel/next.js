@@ -1594,8 +1594,7 @@ export default async function getBaseWebpackConfig(
                 include: [appDir],
                 resolve: {
                   alias: {
-                    [require.resolve('next/dynamic')]:
-                      'next/dist/client/components/dynamic',
+                    'next/dynamic': 'next/dist/client/components/dynamic',
                   },
                 },
               },
@@ -1607,7 +1606,7 @@ export default async function getBaseWebpackConfig(
               {
                 test: codeCondition.test,
                 include: [
-                  appDir,
+                  dir,
                   // To let the internal client components passing through flight loader
                   /next[\\/]dist/,
                 ],
