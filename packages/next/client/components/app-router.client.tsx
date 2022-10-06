@@ -35,6 +35,9 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
   return urlWithoutFlightParameters
 }
 
+const HotReloader =
+  process.env.NODE_ENV === 'production' ? null : require('./hot-reloader')
+
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
  */
@@ -347,16 +350,13 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              {process.env.NODE_ENV === 'production'
-                ? cache.subTreeData
-                : (() => {
-                    const HotReloader = require('./hot-reloader')
-                    return (
-                      <HotReloader assetPrefix={assetPrefix}>
-                        {cache.subTreeData}
-                      </HotReloader>
-                    )
-                  })()}
+              {HotReloader ? (
+                <HotReloader assetPrefix={assetPrefix}>
+                  {cache.subTreeData}
+                </HotReloader>
+              ) : (
+                cache.subTreeData
+              )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
         </GlobalLayoutRouterContext.Provider>
