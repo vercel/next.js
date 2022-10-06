@@ -1587,7 +1587,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         // Alias `next/dynamic` to React.lazy implementation for RSC
-        ...(hasServerComponents
+        ...(hasServerComponents && appDir
           ? [
               {
                 test: codeCondition.test,
