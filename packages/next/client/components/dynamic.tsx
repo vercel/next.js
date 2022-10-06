@@ -15,7 +15,5 @@ export type LoadableComponent<P = {}> = React.ComponentType<P>
 export default function dynamic<P = {}>(
   loader: Loader<P>
 ): React.ComponentType<P> {
-  const LazyLoadable = React.lazy(loader)
-
-  return LazyLoadable
+  return React.lazy(loader)
 }
