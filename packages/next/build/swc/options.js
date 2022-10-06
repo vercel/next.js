@@ -110,7 +110,6 @@ function getBaseSWCOptions({
       },
     },
     sourceMaps: jest ? 'inline' : undefined,
-    styledComponents: getStyledComponentsOptions(nextConfig, development),
     removeConsole: nextConfig?.compiler?.removeConsole,
     // disable "reactRemoveProperties" when "jest" is true
     // otherwise the setting from next.config.js will be used
@@ -119,7 +118,14 @@ function getBaseSWCOptions({
       : nextConfig?.compiler?.reactRemoveProperties,
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
-    emotion: getEmotionOptions(nextConfig, development),
+    // Disable css-in-js transform on server layer for server components
+    ...(isServerLayer
+      ? {}
+      : {
+          emotion: getEmotionOptions(nextConfig, development),
+          styledComponents: getStyledComponentsOptions(nextConfig, development),
+          styledJsx: true,
+        }),
     serverComponents: hasServerComponents
       ? {
           isServer: !!isServerLayer,

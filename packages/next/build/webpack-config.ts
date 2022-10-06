@@ -646,6 +646,16 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
+  if (babelConfigFile && config.experimental.fontLoaders) {
+    Log.error(
+      `"experimental.fontLoaders" is enabled which requires SWC although Babel is being used due to custom babel config being present "${path.relative(
+        dir,
+        babelConfigFile
+      )}".\nSee more info here: https://nextjs.org/docs/messages/babel-font-loader-conflict`
+    )
+    process.exit(1)
+  }
+
   const getBabelLoader = () => {
     return {
       loader: require.resolve('./babel/loader/index'),
@@ -1217,7 +1227,6 @@ export default async function getBaseWebpackConfig(
                       '{}',
                     './cjs/react-dom-server-legacy.browser.development.js':
                       '{}',
-                    'react-dom': '{}',
                   },
                   handleWebpackExternalForEdgeRuntime,
                 ]
@@ -1626,7 +1635,7 @@ export default async function getBaseWebpackConfig(
             {
               ...codeCondition,
               issuerLayer: WEBPACK_LAYERS.middleware,
-              use: getBabelOrSwcLoader(),
+              use: defaultLoaders.babel,
             },
             ...(hasServerComponents
               ? [
