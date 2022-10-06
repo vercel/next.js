@@ -50,7 +50,6 @@ use swc_core::{
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
-pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_font_loaders;
 pub mod next_ssg;
@@ -167,7 +166,6 @@ where
         } else {
             Either::Right(noop())
         },
-        hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => Either::Left(styled_components::styled_components(
                 file.name.clone(),
