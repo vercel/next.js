@@ -1268,7 +1268,6 @@ export async function renderToHTMLOrFlight(
     }
 
     if (isFlight && !isStaticGeneration) {
-      res.setHeader('x-next-dynamic-rsc', '1')
       return generateFlight()
     }
 

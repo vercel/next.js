@@ -158,7 +158,7 @@ export class WrappedBuildError extends Error {
 }
 
 type ResponsePayload = {
-  type: 'html' | 'json'
+  type: 'html' | 'json' | 'rsc'
   body: RenderResult
   revalidateOptions?: any
 }
@@ -287,7 +287,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json'
+      type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
       options?: PayloadOptions
@@ -1046,13 +1046,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       (isSSG || hasServerProps)
 
     if (isAppPath && req.headers['__rsc__']) {
-      res.setHeader('content-type', 'application/octet-stream')
-
       if (isSSG) {
         isDataReq = true
         // strip header so we generate HTML still
-        delete req.headers['__rsc__']
-        delete req.headers['__next_router_state_tree__']
+        if (
+          opts.runtime !== 'experimental-edge' ||
+          (this.serverOptions as any).webServerConfig
+        ) {
+          delete req.headers['__rsc__']
+          delete req.headers['__next_router_state_tree__']
+        }
       }
     }
     delete query.__nextDataReq
@@ -1578,7 +1581,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       throw new Error('invariant SSG should not return an image cache value')
     } else {
       return {
-        type: isDataReq ? 'json' : 'html',
+        type: isDataReq ? (isAppPath ? 'rsc' : 'json') : 'html',
         body: isDataReq
           ? RenderResult.fromStatic(
               isAppPath
