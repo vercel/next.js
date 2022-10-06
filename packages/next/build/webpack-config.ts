@@ -1594,7 +1594,8 @@ export default async function getBaseWebpackConfig(
                 include: [appDir],
                 resolve: {
                   alias: {
-                    'next/dynamic': 'next/dist/client/components/dynamic',
+                    [require.resolve('next/dynamic')]:
+                      'next/dist/client/components/dynamic',
                   },
                 },
               },
