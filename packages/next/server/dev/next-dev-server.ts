@@ -190,11 +190,8 @@ export default class DevServer extends Server {
     }
 
     this.isCustomServer = !options.isNextDevCommand
-    // TODO: hot-reload root/pages dirs?
-    const { pages: pagesDir, appDir } = findPagesDir(
-      this.dir,
-      this.nextConfig.experimental.appDir
-    )
+
+    const { pagesDir, appDir } = findPagesDir(this.dir, this.hasAppDir)
     this.pagesDir = pagesDir
     this.appDir = appDir
   }
@@ -1355,7 +1352,7 @@ export default class DevServer extends Server {
 
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (this.nextConfig.experimental.appDir) {
+      if (!!this.appDir) {
         this.serverComponentManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }
