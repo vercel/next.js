@@ -1049,7 +1049,7 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      if (/^(?:next$|react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
