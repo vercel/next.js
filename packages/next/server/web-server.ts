@@ -31,6 +31,7 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
+    pagesType: 'app' | 'pages' | 'root'
     loadComponent: (
       pathname: string
     ) => Promise<LoadComponentsReturnType | null>
@@ -87,6 +88,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected loadEnvConfig() {
     // The web server does not need to load the env config. This is done by the
     // runtime already.
+  }
+  protected getHasAppDir() {
+    return this.serverOptions.webServerConfig.pagesType === 'app'
   }
   protected getHasStaticDir() {
     return false

@@ -217,7 +217,7 @@ export default class HotReloader {
 
     this.config = config
     this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-    this.hasServerComponents = this.hasReactRoot && !!config.experimental.appDir
+    this.hasServerComponents = this.hasReactRoot && !!this.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -595,7 +595,8 @@ export default class HotReloader {
               }
             }
 
-            const isAppPath = !!this.appDir && bundlePath.startsWith('app/')
+            const hasAppDir = !!this.appDir
+            const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
               ? await getPageStaticInfo({
                   pageFilePath: entryData.absolutePagePath,
@@ -643,9 +644,9 @@ export default class HotReloader {
                     pages: this.pagesMapping,
                     isServerComponent,
                     appDirLoader,
-                    pagesType: isAppPath ? 'app' : undefined,
+                    pagesType: isAppPath ? 'app' : 'pages',
                   }),
-                  appDir: this.config.experimental.appDir,
+                  hasAppDir,
                 })
               },
               onClient: () => {
@@ -656,7 +657,7 @@ export default class HotReloader {
                     name: bundlePath,
                     compilerType: COMPILER_NAMES.client,
                     value: entryData.request,
-                    appDir: this.config.experimental.appDir,
+                    hasAppDir,
                   })
                 } else {
                   entries[entryKey].status = BUILDING
@@ -667,7 +668,7 @@ export default class HotReloader {
                       absolutePagePath: entryData.absolutePagePath,
                       page,
                     }),
-                    appDir: this.config.experimental.appDir,
+                    hasAppDir,
                   })
                 }
               },
@@ -705,7 +706,7 @@ export default class HotReloader {
                         pageExtensions: this.config.pageExtensions,
                       })
                     : relativeRequest,
-                  appDir: this.config.experimental.appDir,
+                  hasAppDir,
                 })
               },
             })

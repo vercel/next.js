@@ -3372,10 +3372,10 @@ module.exports = __toCommonJS(url_exports);
 init_define_process();
 var import_whatwg_url = __toESM(require_whatwg_url());
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.9/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.1/node_modules/urlpattern-polyfill/index.js
 init_define_process();
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.9/node_modules/urlpattern-polyfill/dist/urlpattern.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.1/node_modules/urlpattern-polyfill/dist/urlpattern.js
 init_define_process();
 var regexIdentifierStart = /[$_\p{ID_Start}]/u;
 var regexIdentifierPart = /[$_\u200C\u200D\p{ID_Continue}]/u;
@@ -3608,7 +3608,7 @@ function escapeString(str) {
 }
 __name(escapeString, "escapeString");
 function flags(options) {
-  return options && options.sensitive ? "u" : "ui";
+  return options && options.ignoreCase ? "ui" : "u";
 }
 __name(flags, "flags");
 function regexpToRegexp(path, keys) {
@@ -4402,30 +4402,37 @@ function tokensToPattern(tokens, options) {
 }
 __name(tokensToPattern, "tokensToPattern");
 var URLPattern = /* @__PURE__ */ __name(class {
-  constructor(init = {}, baseURL) {
+  constructor(init = {}, baseURLOrOptions, options) {
     this.regexp = {};
     this.keys = {};
     this.component_pattern = {};
     try {
+      let baseURL = void 0;
+      if (typeof baseURLOrOptions === "string") {
+        baseURL = baseURLOrOptions;
+      } else {
+        options = baseURLOrOptions;
+      }
       if (typeof init === "string") {
         const parser = new Parser(init);
         parser.parse();
         init = parser.result;
-        if (baseURL) {
-          if (typeof baseURL === "string") {
-            init.baseURL = baseURL;
-          } else {
-            throw new TypeError(`'baseURL' parameter is not of type 'string'.`);
-          }
-        } else if (typeof init.protocol !== "string") {
+        if (baseURL === void 0 && typeof init.protocol !== "string") {
           throw new TypeError(`A base URL must be provided for a relative constructor string.`);
         }
-      } else if (baseURL) {
-        throw new TypeError(`parameter 1 is not of type 'string'.`);
+        init.baseURL = baseURL;
+      } else {
+        if (!init || typeof init !== "object") {
+          throw new TypeError(`parameter 1 is not of type 'string' and cannot convert to dictionary.`);
+        }
+        if (baseURL) {
+          throw new TypeError(`parameter 1 is not of type 'string'.`);
+        }
       }
-      if (!init || typeof init !== "object") {
-        throw new TypeError(`parameter 1 is not of type 'string' and cannot convert to dictionary.`);
+      if (typeof options === "undefined") {
+        options = { ignoreCase: false };
       }
+      const ignoreCaseOptions = { ignoreCase: options.ignoreCase === true };
       const defaults = {
         pathname: DEFAULT_PATTERN,
         protocol: DEFAULT_PATTERN,
@@ -4444,56 +4451,56 @@ var URLPattern = /* @__PURE__ */ __name(class {
       for (component of COMPONENTS) {
         if (!(component in this.pattern))
           continue;
-        const options = {};
+        const options2 = {};
         const pattern = this.pattern[component];
         this.keys[component] = [];
         switch (component) {
           case "protocol":
-            Object.assign(options, DEFAULT_OPTIONS);
-            options.encodePart = protocolEncodeCallback;
+            Object.assign(options2, DEFAULT_OPTIONS);
+            options2.encodePart = protocolEncodeCallback;
             break;
           case "username":
-            Object.assign(options, DEFAULT_OPTIONS);
-            options.encodePart = usernameEncodeCallback;
+            Object.assign(options2, DEFAULT_OPTIONS);
+            options2.encodePart = usernameEncodeCallback;
             break;
           case "password":
-            Object.assign(options, DEFAULT_OPTIONS);
-            options.encodePart = passwordEncodeCallback;
+            Object.assign(options2, DEFAULT_OPTIONS);
+            options2.encodePart = passwordEncodeCallback;
             break;
           case "hostname":
-            Object.assign(options, HOSTNAME_OPTIONS);
+            Object.assign(options2, HOSTNAME_OPTIONS);
             if (treatAsIPv6Hostname(pattern)) {
-              options.encodePart = ipv6HostnameEncodeCallback;
+              options2.encodePart = ipv6HostnameEncodeCallback;
             } else {
-              options.encodePart = hostnameEncodeCallback;
+              options2.encodePart = hostnameEncodeCallback;
             }
             break;
           case "port":
-            Object.assign(options, DEFAULT_OPTIONS);
-            options.encodePart = portEncodeCallback;
+            Object.assign(options2, DEFAULT_OPTIONS);
+            options2.encodePart = portEncodeCallback;
             break;
           case "pathname":
             if (isSpecialScheme(this.regexp.protocol)) {
-              Object.assign(options, PATHNAME_OPTIONS);
-              options.encodePart = standardURLPathnameEncodeCallback;
+              Object.assign(options2, PATHNAME_OPTIONS, ignoreCaseOptions);
+              options2.encodePart = standardURLPathnameEncodeCallback;
             } else {
-              Object.assign(options, DEFAULT_OPTIONS);
-              options.encodePart = pathURLPathnameEncodeCallback;
+              Object.assign(options2, DEFAULT_OPTIONS, ignoreCaseOptions);
+              options2.encodePart = pathURLPathnameEncodeCallback;
             }
             break;
           case "search":
-            Object.assign(options, DEFAULT_OPTIONS);
-            options.encodePart = searchEncodeCallback;
+            Object.assign(options2, DEFAULT_OPTIONS, ignoreCaseOptions);
+            options2.encodePart = searchEncodeCallback;
             break;
           case "hash":
-            Object.assign(options, DEFAULT_OPTIONS);
-            options.encodePart = hashEncodeCallback;
+            Object.assign(options2, DEFAULT_OPTIONS, ignoreCaseOptions);
+            options2.encodePart = hashEncodeCallback;
             break;
         }
         try {
-          const tokens = parse(pattern, options);
-          this.regexp[component] = tokensToRegexp(tokens, this.keys[component], options);
-          this.component_pattern[component] = tokensToPattern(tokens, options);
+          const tokens = parse(pattern, options2);
+          this.regexp[component] = tokensToRegexp(tokens, this.keys[component], options2);
+          this.component_pattern[component] = tokensToPattern(tokens, options2);
         } catch {
           throw new TypeError(`invalid ${component} pattern '${this.pattern[component]}'.`);
         }
@@ -4529,7 +4536,7 @@ var URLPattern = /* @__PURE__ */ __name(class {
       return false;
     }
     let component;
-    for (component in this.pattern) {
+    for (component of COMPONENTS) {
       if (!this.regexp[component].exec(values[component])) {
         return false;
       }
@@ -4569,7 +4576,7 @@ var URLPattern = /* @__PURE__ */ __name(class {
       result.inputs = [input];
     }
     let component;
-    for (component in this.pattern) {
+    for (component of COMPONENTS) {
       let match = this.regexp[component].exec(values[component]);
       if (!match) {
         return null;
@@ -4614,7 +4621,7 @@ var URLPattern = /* @__PURE__ */ __name(class {
   }
 }, "URLPattern");
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@5.0.9/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.1/node_modules/urlpattern-polyfill/index.js
 if (!globalThis.URLPattern) {
   globalThis.URLPattern = URLPattern;
 }
