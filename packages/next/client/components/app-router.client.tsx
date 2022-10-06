@@ -36,7 +36,9 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 const HotReloader =
-  process.env.NODE_ENV === 'production' ? null : require('./hot-reloader')
+  process.env.NODE_ENV === 'production'
+    ? null
+    : require('./hot-reloader').default
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
