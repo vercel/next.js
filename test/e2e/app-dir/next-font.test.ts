@@ -237,12 +237,7 @@ describe('app dir next-font', () => {
       const $ = cheerio.load(html)
 
       // Preconnect
-      // expect($('link[rel="preconnect"]').length).toBe(1)
-      // expect($('link[rel="preconnect"]').get(0).attribs).toEqual({
-      //   crossorigin: '',
-      //   href: '/',
-      //   rel: 'preconnect',
-      // })
+      expect($('link[rel="preconnect"]').length).toBe(0)
 
       expect($('link[as="font"]').length).toBe(3)
       expect($('link[as="font"]').get(0).attribs).toEqual({
@@ -273,12 +268,7 @@ describe('app dir next-font', () => {
       const $ = cheerio.load(html)
 
       // Preconnect
-      // expect($('link[rel="preconnect"]').length).toBe(1)
-      // expect($('link[rel="preconnect"]').get(0).attribs).toEqual({
-      //   crossorigin: '',
-      //   href: '/',
-      //   rel: 'preconnect',
-      // })
+      expect($('link[rel="preconnect"]').length).toBe(0)
 
       expect($('link[as="font"]').length).toBe(3)
       // From root layout
@@ -304,28 +294,6 @@ describe('app dir next-font', () => {
         rel: 'preload',
         type: 'font/woff2',
       })
-    })
-
-    it('should add preconnect when no fonts are preloaded', async () => {
-      const html = await renderViaHTTP(next.url, '/without-preload')
-      const $ = cheerio.load(html)
-
-      // expect($('link[rel="preconnect"]').length).toBe(1)
-      // expect($('link[rel="preconnect"]').get(0).attribs).toEqual({
-      //   crossorigin: '',
-      //   href: '/',
-      //   rel: 'preconnect',
-      // })
-
-      expect($('link[as="font"]').length).toBe(0)
-    })
-
-    it("should not add preconnect when there's no fonts", async () => {
-      const html = await renderViaHTTP(next.url, '/without-fonts')
-      const $ = cheerio.load(html)
-
-      expect($('link[rel="preconnect"]').length).toBe(0)
-      expect($('link[as="font"]').length).toBe(0)
     })
   })
 })

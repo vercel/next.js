@@ -1,5 +1,5 @@
 import Comp from './Comp'
-import font2 from '../../fonts/font2'
+import font2 from '../fonts/font2'
 
 export default function HomePage() {
   return (

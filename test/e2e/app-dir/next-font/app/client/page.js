@@ -1,6 +1,6 @@
 'client'
 import Comp from './Comp'
-import font5 from '../../../fonts/font5'
+import font5 from '../../fonts/font5'
 
 export default function HomePage() {
   return (
