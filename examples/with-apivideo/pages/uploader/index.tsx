@@ -6,13 +6,9 @@ import Card from '../../components/Card'
 import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
 import Status from '../../components/Status'
 import { useRouter } from 'next/router'
-import useSWR from 'swr'
-
-const fetcher = async (url: string): Promise<any> => {
-  return fetch(url).then((res) => res.json())
-}
 
 const Uploader: NextPage = () => {
+  const [uploadToken, setUploadToken] = useState<{ token: string } | undefined>(undefined)
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(
     undefined
   )
@@ -25,15 +21,13 @@ const Uploader: NextPage = () => {
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  const { data: uploadToken } = useSWR<{ token: string }>(
-    '/api/uploadToken',
-    fetcher
-  )
-
+  useEffect(() => {
+    fetch('/api/uploadToken').then((res) => res.json()).then((res) => setUploadToken(res))
+  }, [])
   useEffect(() => {
     if (video) {
       const fetchVideoStatus = async (videoId: string): Promise<void> => {
-        const { status } = await fetcher(`/api/${videoId}`)
+        const { status } = await fetch(`/api/${videoId}`).then((res) => res.json())
         const { encoding, ingest } = status
         setStatus({
           ingested: ingest.status === 'uploaded',
@@ -57,6 +51,7 @@ const Uploader: NextPage = () => {
     e: ChangeEvent<HTMLInputElement>
   ): Promise<void> => {
     e.preventDefault()
+    if (!uploadToken || !uploadToken.token) return
     const clearState = (): void => {
       setReady(false)
       setStatus({ ingested: false, encoded: false })

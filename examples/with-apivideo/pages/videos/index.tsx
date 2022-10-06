@@ -1,19 +1,18 @@
 import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
-import React from 'react'
-import useSWR from 'swr'
+import React, { useEffect, useState } from 'react'
 import VideosListResponse from '@api.video/nodejs-client/lib/model/VideosListResponse'
 
-const fetcher = async (url: string): Promise<any> => {
-  return fetch(url).then((res) => res.json())
-}
-
 const Videos: NextPage = () => {
-  const { data, error } = useSWR<{ videos: VideosListResponse }>(
-    '/api/videos',
-    fetcher
-  )
+  const [videosResponse, setVideosResponse] = useState<VideosListResponse | undefined>(undefined)
+  const [error, setError] = useState<boolean>(false)
+    useEffect(() => {
+        fetch('/api/videos')
+          .then((res) => res.json())
+          .then((res: { videos: VideosListResponse }) => setVideosResponse(res.videos))
+          .catch((_) => setError(true))
+    }, [])
 
   return (
     <div className="global-container">
@@ -49,16 +48,16 @@ const Videos: NextPage = () => {
           </p>
         </div>
 
-        {!data && !error && <div>Loading...</div>}
+        {!videosResponse && !error && <div>Loading...</div>}
         {error && (
           <div className="error">
             An error occured trying to fetch your videos. Be sure to have you
             API key set in your .env file this way: <i>API_KEY=YOUR_API_KEY</i>
           </div>
         )}
-        {data && data.videos?.data?.length > 0 && (
+        {videosResponse && videosResponse.data?.length > 0 && (
           <div className="videos-list">
-            {data.videos.data.map((video) => (
+            {videosResponse.data.map((video) => (
               <a
                 className="video-card"
                 href={`/videos/${video.videoId}`}
@@ -75,7 +74,7 @@ const Videos: NextPage = () => {
             ))}
           </div>
         )}
-        {data && data.videos?.data?.length === 0 && (
+        {videosResponse && videosResponse.data?.length === 0 && (
           <>
             <p>You don't have any video yet 🧐</p>
             <a className="button" href="/uploader">
