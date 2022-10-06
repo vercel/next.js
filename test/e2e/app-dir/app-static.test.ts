@@ -4,7 +4,8 @@ import { promisify } from 'util'
 import path, { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP, normalizeRegEx } from 'next-test-utils'
+import { check, fetchViaHTTP, normalizeRegEx } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
 
@@ -56,6 +57,8 @@ describe('app-dir static/dynamic handling', () => {
         'blog/tim.rsc',
         'blog/tim/first-post.html',
         'blog/tim/first-post.rsc',
+        'dynamic-no-gen-params-ssr/[slug]/page.js',
+        'dynamic-no-gen-params/[slug]/page.js',
         'ssr-auto/page.js',
         'ssr-forced/page.js',
       ])
@@ -162,6 +165,32 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
+  it('should work with forced dynamic path', async () => {
+    for (const slug of ['first', 'second']) {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/dynamic-no-gen-params-ssr/${slug}`,
+        undefined,
+        { redirect: 'manual' }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain(`${slug}`)
+    }
+  })
+
+  it('should work with dynamic path no generateStaticParams', async () => {
+    for (const slug of ['first', 'second']) {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/dynamic-no-gen-params/${slug}`,
+        undefined,
+        { redirect: 'manual' }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain(`${slug}`)
+    }
+  })
+
   it('should handle dynamicParams: true correctly', async () => {
     const paramsToCheck = [
       {
@@ -198,6 +227,41 @@ describe('app-dir static/dynamic handling', () => {
       expect(JSON.parse($('#params').text())).toEqual(params)
       expect($('#page').text()).toBe('/blog/[author]/[slug]')
     }
+  })
+
+  it('should navigate to static path correctly', async () => {
+    const browser = await webdriver(next.url, '/blog/tim')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.eval('document.documentElement.innerHTML')).toContain(
+      '/blog/[author]'
+    )
+    await browser.elementByCss('#author-2').click()
+
+    await check(async () => {
+      const params = JSON.parse(await browser.elementByCss('#params').text())
+      return params.author === 'seb' ? 'found' : params
+    }, 'found')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    await browser.elementByCss('#author-1-post-1').click()
+
+    await check(async () => {
+      const params = JSON.parse(await browser.elementByCss('#params').text())
+      return params.author === 'tim' && params.slug === 'first-post'
+        ? 'found'
+        : params
+    }, 'found')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    await browser.back()
+
+    await check(async () => {
+      const params = JSON.parse(await browser.elementByCss('#params').text())
+      return params.author === 'seb' ? 'found' : params
+    }, 'found')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should ssr dynamically when detected automatically', async () => {
