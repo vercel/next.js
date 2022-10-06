@@ -1,6 +1,6 @@
 'client'
 
-import dynamic from 'next/dist/client/components/shared/dynamic'
+import dynamic from 'next/dynamic'
 
 const Dynamic = dynamic(() => import('../text-dynamic-client'))
 

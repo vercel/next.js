@@ -68,6 +68,7 @@ import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
 import loadRequireHook from '../build/webpack/require-hook'
+import { consumeUint8ArrayReadableStream } from 'next/dist/compiled/edge-runtime'
 
 import BaseServer, {
   Options,
@@ -95,7 +96,7 @@ import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
+import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
@@ -2122,9 +2123,16 @@ export default class NextNodeServer extends BaseServer {
 
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
-      bodyStreamToNodeStream(result.response.body).pipe(
-        (params.res as NodeNextResponse).originalResponse
-      )
+      const nodeResStream = (params.res as NodeNextResponse).originalResponse
+      try {
+        for await (const chunk of consumeUint8ArrayReadableStream(
+          result.response.body
+        )) {
+          nodeResStream.write(chunk)
+        }
+      } finally {
+        nodeResStream.end()
+      }
     } else {
       ;(params.res as NodeNextResponse).originalResponse.end()
     }

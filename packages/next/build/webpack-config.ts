@@ -1049,7 +1049,7 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      if (/^(?:next$|react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -1584,6 +1584,21 @@ export default async function getBaseWebpackConfig(
                   fullySpecified: false,
                 },
               } as any,
+            ]
+          : []),
+        // Alias `next/dynamic` to React.lazy implementation for RSC
+        ...(hasServerComponents && appDir
+          ? [
+              {
+                test: codeCondition.test,
+                include: [appDir],
+                resolve: {
+                  alias: {
+                    [require.resolve('next/dynamic')]:
+                      'next/dist/client/components/dynamic',
+                  },
+                },
+              },
             ]
           : []),
         ...(hasServerComponents && (isNodeServer || isEdgeServer)
