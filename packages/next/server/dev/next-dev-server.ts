@@ -191,7 +191,10 @@ export default class DevServer extends Server {
 
     this.isCustomServer = !options.isNextDevCommand
 
-    const { pagesDir, appDir } = findPagesDir(this.dir, this.hasAppDir)
+    const { pagesDir, appDir } = findPagesDir(
+      this.dir,
+      !!this.nextConfig.experimental.appDir
+    )
     this.pagesDir = pagesDir
     this.appDir = appDir
   }
