@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use serde_json::json;
 use turbo_tasks::{primitives::JsonValueVc, Value};
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack::{
     module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
@@ -21,7 +22,7 @@ use turbopack_dev_server::source::{
     ContentSourceVc, NoContentSourceVc,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
-use turbopack_env::{ProcessEnvAssetVc, ProcessEnvVc};
+use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
     next_client::{

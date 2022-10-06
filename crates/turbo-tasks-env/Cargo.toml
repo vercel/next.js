@@ -1,8 +1,7 @@
 [package]
-name = "turbopack-env"
+name = "turbo-tasks-env"
 version = "0.1.0"
 edition = "2021"
-autobenches = false
 
 [lib]
 bench = false
@@ -14,11 +13,10 @@ anyhow = "1.0.47"
 dotenvy = "0.15.5"
 indexmap = "1.8.0"
 serde = "1.0.136"
+serde_json = "1.0.85"
+tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-env = { path = "../turbo-tasks-env" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack-core = { path = "../turbopack-core" }
-turbopack-ecmascript = { path = "../turbopack-ecmascript" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

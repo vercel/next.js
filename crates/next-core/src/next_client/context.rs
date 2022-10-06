@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use turbo_tasks::Value;
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     module_options::module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
@@ -17,7 +18,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::html_runtime_asset::HtmlRuntimeAssetVc;
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
-use turbopack_env::{ProcessEnvAssetVc, ProcessEnvVc};
+use turbopack_env::ProcessEnvAssetVc;
 
 use crate::{
     env::filter_for_client,

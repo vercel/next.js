@@ -904,7 +904,7 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
-    //It is important that get_type uses read_dir and not stat/metadata.
+    // It is important that get_type uses read_dir and not stat/metadata.
     // - `get_type` is called very very often during resolving and stat would
     // make it 1 syscall per call, whereas read_dir would make it 1 syscall per
     // directory.

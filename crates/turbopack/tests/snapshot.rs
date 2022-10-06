@@ -13,6 +13,7 @@ use helpers::print_changeset;
 use lazy_static::lazy_static;
 use test_generator::test_resources;
 use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks, Value};
+use turbo_tasks_env::DotenvProcessEnvVc;
 use turbo_tasks_fs::{
     util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, File, FileContent,
     FileSystemEntryType, FileSystemPathVc, FileSystemVc,
@@ -33,7 +34,7 @@ use turbopack_core::{
     reference::all_referenced_assets,
     source_asset::SourceAssetVc,
 };
-use turbopack_env::{ProcessEnvAssetVc, ProcessEnvVc};
+use turbopack_env::ProcessEnvAssetVc;
 
 lazy_static! {
     // Allows for interactive manual debugging of a test case in a browser with:
@@ -282,8 +283,8 @@ async fn maybe_load_env(
         return Ok(None);
     }
 
-    let env = ProcessEnvVc::from_dotenv_file(dotenv_path, None);
-    let asset = ProcessEnvAssetVc::new(dotenv_path, env);
+    let env = DotenvProcessEnvVc::new(None, dotenv_path);
+    let asset = ProcessEnvAssetVc::new(dotenv_path, env.into());
     Ok(Some(EcmascriptChunkPlaceablesVc::cell(vec![
         asset.as_ecmascript_chunk_placeable()
     ])))

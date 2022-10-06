@@ -2,6 +2,7 @@ use std::fmt::Write as _;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -16,8 +17,6 @@ use turbopack_ecmascript::{
     },
     utils::stringify_str,
 };
-
-use crate::ProcessEnvVc;
 
 /// The `process.env` asset, responsible for initializing the env (shared by all
 /// chunks) during app startup.
@@ -117,7 +116,7 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let asset = self.inner.await?;
-        let env = asset.env.read().await?;
+        let env = asset.env.read_all().await?;
 
         let mut code = "const env = process.env;\n\n".to_string();
         for (name, val) in &*env {
