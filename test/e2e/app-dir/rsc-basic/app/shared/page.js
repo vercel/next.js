@@ -1,7 +1,7 @@
 import ClientFromDirect from '../../components/client'
 import ClientFromShared from '../../components/shared'
 import SharedFromClient from '../../components/shared-client'
-import Random from '../../components/random-module-instance'
+// import Random from '../../components/random-module-instance'
 import Bar from '../../components/bar'
 
 export default function Page() {
@@ -12,7 +12,7 @@ export default function Page() {
   // It's expected to have hydration mismatch here.
   return (
     <div id="main" suppressHydrationWarning>
-      <Random />
+      {/* <Random /> */}
       <br />
       <ClientFromDirect />
       <br />
