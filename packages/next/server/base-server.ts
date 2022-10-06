@@ -1001,17 +1001,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
-    // Toggle whether or not this is a Data request
-    const isDataReq =
-      !!(
-        query.__nextDataReq ||
-        (req.headers['x-nextjs-data'] &&
-          (this.serverOptions as any).webServerConfig)
-      ) &&
-      (isSSG || hasServerProps)
-
-    delete query.__nextDataReq
-
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
@@ -1046,6 +1035,27 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
       }
     }
+
+    // Toggle whether or not this is a Data request
+    let isDataReq =
+      !!(
+        query.__nextDataReq ||
+        (req.headers['x-nextjs-data'] &&
+          (this.serverOptions as any).webServerConfig)
+      ) &&
+      (isSSG || hasServerProps)
+
+    if (isAppPath && req.headers['__rsc__']) {
+      res.setHeader('content-type', 'application/octet-stream')
+
+      if (isSSG) {
+        isDataReq = true
+        // strip header so we generate HTML still
+        delete req.headers['__rsc__']
+        delete req.headers['__next_router_state_tree__']
+      }
+    }
+    delete query.__nextDataReq
 
     // normalize req.url for SSG paths as it is not exposed
     // to getStaticProps and the asPath should not expose /_next/data
@@ -1570,7 +1580,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return {
         type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
+          ? RenderResult.fromStatic(
+              isAppPath
+                ? (cachedData.pageData as string)
+                : JSON.stringify(cachedData.pageData)
+            )
           : cachedData.html,
         revalidateOptions,
       }

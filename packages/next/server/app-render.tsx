@@ -659,9 +659,22 @@ export async function renderToHTMLOrFlight(
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts,
-  isStaticGeneration: boolean = false
+  renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
+  const isStaticGeneration = renderOpts.supportsDynamicHTML !== true
   const isFlight = req.headers.__rsc__ !== undefined
 
   const capturedErrors: Error[] = []
@@ -684,7 +697,6 @@ export async function renderToHTMLOrFlight(
     subresourceIntegrityManifest,
     serverComponentManifest,
     serverCSSManifest = {},
-    supportsDynamicHTML,
     ComponentMod,
     dev,
   } = renderOpts
@@ -722,11 +734,17 @@ export async function renderToHTMLOrFlight(
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
-    const providedFlightRouterState: FlightRouterState = isFlight
+    let providedFlightRouterState: FlightRouterState = isFlight
       ? req.headers.__next_router_state_tree__
         ? JSON.parse(req.headers.__next_router_state_tree__ as string)
-        : {}
+        : []
       : undefined
+
+    if (isStaticGeneration) {
+      // TODO-APP: filter on the client for static instead?
+      // currently we fail to detect new root layouts
+      providedFlightRouterState = ['', { children: ['', {}] }]
+    }
 
     /**
      * The tree created in next-app-loader that holds component segments and modules
@@ -1105,23 +1123,22 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    /**
-     * Rules of Static & Dynamic HTML:
-     *
-     *    1.) We must generate static HTML unless the caller explicitly opts
-     *        in to dynamic HTML support.
-     *
-     *    2.) If dynamic HTML support is requested, we must honor that request
-     *        or throw an error. It is the sole responsibility of the caller to
-     *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
-     *
-     * These rules help ensure that other existing features like request caching,
-     * coalescing, and ISR continue working as intended.
-     */
-    const generateStaticHTML = supportsDynamicHTML !== true
+    const streamToBufferedResult = async (
+      renderResult: RenderResult
+    ): Promise<string> => {
+      const renderChunks: Buffer[] = []
+      const writable = new Writable({
+        write(chunk, _encoding, callback) {
+          renderChunks.push(chunk)
+          callback()
+        },
+      })
+      await renderResult.pipe(writable)
+      return Buffer.concat(renderChunks).toString()
+    }
 
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
-    if (isFlight) {
+    const generateFlight = async (): Promise<RenderResult> => {
       // TODO-APP: throw on invalid flightRouterState
       /**
        * Use router state to decide at what common layout to render the page.
@@ -1230,13 +1247,12 @@ export async function renderToHTMLOrFlight(
         }
       ).pipeThrough(createBufferedTransformStream())
 
-      if (generateStaticHTML) {
-        let staticHtml = Buffer.from(
-          (await readable.getReader().read()).value || ''
-        ).toString()
-        return new FlightRenderResult(staticHtml)
-      }
       return new FlightRenderResult(readable)
+    }
+
+    if (isFlight && !isStaticGeneration) {
+      res.setHeader('x-next-dynamic-rsc', '1')
+      return generateFlight()
     }
 
     // Below this line is handling for rendering to HTML.
@@ -1372,7 +1388,7 @@ export async function renderToHTMLOrFlight(
 
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: generateStaticHTML,
+          generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           polyfills,
@@ -1404,7 +1420,7 @@ export async function renderToHTMLOrFlight(
 
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: generateStaticHTML,
+          generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           polyfills,
@@ -1414,33 +1430,31 @@ export async function renderToHTMLOrFlight(
     }
     const renderResult = new RenderResult(await bodyResult())
 
-    if (generateStaticHTML) {
-      const renderChunks: Buffer[] = []
-      const writable = new Writable({
-        write(chunk, _encoding, callback) {
-          renderChunks.push(chunk)
-          callback()
-        },
-      })
-      await renderResult.pipe(writable)
-
+    if (isStaticGeneration) {
+      const htmlResult = await streamToBufferedResult(renderResult)
       // if we encountered any unexpected errors during build
       // we fail the prerendering phase and the build
       if (capturedErrors.length > 0) {
         throw capturedErrors[0]
       }
+      // const before = Buffer.concat(
+      //   serverComponentsRenderOpts.rscChunks
+      // ).toString()
 
-      ;(renderOpts as any).pageData = Buffer.concat(
-        serverComponentsRenderOpts.rscChunks
-      ).toString()
+      // TODO-APP: derive this from same pass to prevent additional
+      // render during static generation
+      const filteredFlightData = await streamToBufferedResult(
+        await generateFlight()
+      )
+
+      ;(renderOpts as any).pageData = filteredFlightData
       ;(renderOpts as any).revalidate =
         typeof staticGenerationStore?.revalidate === 'undefined'
           ? defaultRevalidate
           : staticGenerationStore?.revalidate
 
-      return new RenderResult(Buffer.concat(renderChunks).toString())
+      return new RenderResult(htmlResult)
     }
-
     return renderResult
   }
 

@@ -35,6 +35,11 @@ export default function Page({ params }) {
         <a id="author-3-post-1">/blog/styfle/first-post</a>
       </Link>
       <br />
+
+      <Link href="/dynamic-no-gen-params/first">
+        <a id="dynamic-no-params">/dynamic-no-gen-params/first</a>
+      </Link>
+      <br />
     </>
   )
 }

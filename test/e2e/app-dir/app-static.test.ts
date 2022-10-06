@@ -231,6 +231,7 @@ describe('app-dir static/dynamic handling', () => {
 
   it('should navigate to static path correctly', async () => {
     const browser = await webdriver(next.url, '/blog/tim')
+    await browser.eval('window.beforeNav = 1')
 
     expect(await browser.eval('document.documentElement.innerHTML')).toContain(
       '/blog/[author]'
@@ -242,6 +243,7 @@ describe('app-dir static/dynamic handling', () => {
       return params.author === 'seb' ? 'found' : params
     }, 'found')
 
+    expect(await browser.eval('window.beforeNav')).toBe(1)
     await browser.elementByCss('#author-1-post-1').click()
 
     await check(async () => {
@@ -251,12 +253,15 @@ describe('app-dir static/dynamic handling', () => {
         : params
     }, 'found')
 
+    expect(await browser.eval('window.beforeNav')).toBe(1)
     await browser.back()
 
     await check(async () => {
       const params = JSON.parse(await browser.elementByCss('#params').text())
       return params.author === 'seb' ? 'found' : params
     }, 'found')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should ssr dynamically when detected automatically', async () => {
