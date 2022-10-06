@@ -11,7 +11,7 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 dotenvy = "0.15.5"
-indexmap = "1.8.0"
+indexmap = { version = "1.8.0", features = ["serde"] }
 serde = "1.0.136"
 serde_json = "1.0.85"
 tokio = "1.11.0"
