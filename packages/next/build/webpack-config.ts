@@ -563,7 +563,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  const hasAppDir = !!config.experimental.appDir
+  const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasConcurrentFeatures = hasReactRoot
   const hasServerComponents = hasAppDir
 
@@ -1587,7 +1587,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         // Alias `next/dynamic` to React.lazy implementation for RSC
-        ...(hasServerComponents && appDir
+        ...(hasServerComponents
           ? [
               {
                 test: codeCondition.test,
