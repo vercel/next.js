@@ -33,8 +33,6 @@ module.exports = {
 
 To learn more about `basePath`, take a look at our [documentation](/docs/api-reference/next.config.js/basepath.md).
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 ### Rewrites
 
 The second strategy is to create a new Next.js app that points to the root URL of your domain. Then, you can use [`rewrites`](/docs/api-reference/next.config.js/rewrites.md) inside `next.config.js` to have some subpaths to be proxied to your existing app.
@@ -78,7 +76,7 @@ module.exports = {
 
 To learn more about rewrites, take a look at our [documentation](/docs/api-reference/next.config.js/rewrites.md).
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
+> **Note:** If you are incrementally migrating to a dynamic route (e.g. `[slug].js`) and using `fallback: true` or `fallback: 'blocking'` along with a fallback `rewrite`, ensure you consider the case where pages are not found. When Next.js matches the dynamic route it stops checking any further routes. Using `notFound: true` in `getStaticProps` will return the 404 page without applying the fallback `rewrite`. If this is not desired, you can use `getServerSideProps` with `stale-while-revalidate` Cache-Control headers when returning your props. Then, you can _manually_ proxy to your existing backend using something like [http-proxy](https://github.com/vercel/next.js/discussions/38839#discussioncomment-3744442) instead of returning `notFound: true`.
 
 ### Micro-Frontends with Monorepos and Subdomains
 

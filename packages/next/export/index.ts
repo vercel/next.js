@@ -147,6 +147,7 @@ export default async function exportApp(
   configuration?: NextConfigComplete
 ): Promise<void> {
   const nextExportSpan = span.traceChild('next-export')
+  const hasAppDir = !!options.appPaths
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -389,7 +390,7 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-      serverComponents: !!nextConfig.experimental.appDir,
+      serverComponents: hasAppDir,
       fontLoaderManifest: nextConfig.experimental.fontLoaders
         ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
         : undefined,
@@ -422,7 +423,7 @@ export default async function exportApp(
         return exportMap
       })
 
-    if (options.buildExport && nextConfig.experimental.appDir) {
+    if (options.buildExport && hasAppDir) {
       // @ts-expect-error untyped
       renderOpts.serverComponentManifest = require(join(
         distDir,
@@ -617,7 +618,7 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: !!nextConfig.experimental.appDir,
+            serverComponents: hasAppDir,
             appPaths: options.appPaths || [],
             enableUndici: nextConfig.experimental.enableUndici,
           })
