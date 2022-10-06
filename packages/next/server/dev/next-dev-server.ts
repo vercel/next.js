@@ -978,16 +978,18 @@ export default class DevServer extends Server {
     try {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
-      res.statusCode = 500
       const err = getProperError(error)
-      try {
-        this.logErrorWithOriginalStack(err).catch(() => {})
-        return await this.renderError(err, req, res, pathname!, {
-          __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
-        })
-      } catch (internalErr) {
-        console.error(internalErr)
-        res.body('Internal Server Error').send()
+      this.logErrorWithOriginalStack(err).catch(() => {})
+      if (!res.sent) {
+        res.statusCode = 500
+        try {
+          return await this.renderError(err, req, res, pathname!, {
+            __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
+          })
+        } catch (internalErr) {
+          console.error(internalErr)
+          res.body('Internal Server Error').send()
+        }
       }
     }
   }
