@@ -2,6 +2,7 @@ use std::future::IntoFuture;
 
 use anyhow::{anyhow, Result};
 use futures::{prelude::*, stream};
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
@@ -12,7 +13,6 @@ use turbopack_dev_server::{
     html::DevHtmlAsset,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
-use turbopack_env::ProcessEnvVc;
 
 use crate::next_client::context::{
     get_client_asset_context, get_client_chunking_context, get_resolved_client_runtime_entries,

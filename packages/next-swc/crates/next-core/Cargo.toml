@@ -16,6 +16,7 @@ serde = "1.0.136"
 serde_json = "1.0.85"
 tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-env = { path = "../turbo-tasks-env" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack = { path = "../turbopack" }
 turbopack-core = { path = "../turbopack-core" }
