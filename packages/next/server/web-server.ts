@@ -378,8 +378,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         Object.assign(renderOpts, {
           disableOptimizedLoading: true,
           runtime: 'experimental-edge',
-        }),
-        !!pagesRenderToHTML
+        })
       )
     } else {
       throw new Error(`Invariant: curRenderToHTML is missing`)
