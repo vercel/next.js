@@ -34,7 +34,7 @@ pub fn generate_register() {
     let cargo_lock_path = workspace_dir.join("Cargo.lock");
 
     // TODO: use (ask @sokra)
-    let _lock = cargo_lock::Lockfile::load(cargo_lock_path).unwrap();
+    let _lock = cargo_lock::Lockfile::load(cargo_lock_path).ok();
 
     let mut entries = Vec::new();
 

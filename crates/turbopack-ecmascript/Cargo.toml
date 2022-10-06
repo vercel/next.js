@@ -12,7 +12,8 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 async-trait = "0.1.56"
-indexmap = "1.8.0"
+# This version pin is workaround for https://github.com/tkaitchuck/aHash/issues/95
+indexmap = "=1.6.2"
 lazy_static = "1.4.0"
 once_cell = "1.13.0"
 rand = "0.8.5"
