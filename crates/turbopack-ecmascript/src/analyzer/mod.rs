@@ -113,7 +113,7 @@ impl From<Lit> for ConstantValue {
             }
             Lit::Null(_) => ConstantValue::Null,
             Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
-            Lit::BigInt(v) => ConstantValue::BigInt(v.value),
+            Lit::BigInt(v) => ConstantValue::BigInt(*v.value),
             Lit::Regex(v) => ConstantValue::Regex(v.exp, v.flags),
             Lit::JSXText(v) => ConstantValue::StrAtom(v.value),
         }

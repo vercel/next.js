@@ -24,7 +24,7 @@
         "y",
         Variable(
             (
-                Atom('x' type=inline),
+                Atom('x' type=static),
                 #1,
             ),
         ),
@@ -33,7 +33,7 @@
         "z",
         Variable(
             (
-                Atom('x' type=inline),
+                Atom('x' type=static),
                 #1,
             ),
         ),

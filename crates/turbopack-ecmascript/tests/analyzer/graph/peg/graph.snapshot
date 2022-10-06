@@ -43,12 +43,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('name' type=inline),
+                                Atom('name' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('name' type=inline),
+                                Atom('name' type=static),
                                 #48,
                             ),
                         ),
@@ -117,7 +117,7 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('name' type=inline),
+                                Atom('name' type=static),
                             ),
                         ),
                         Call(
@@ -1890,12 +1890,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('name' type=inline),
+                                Atom('name' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('name' type=inline),
+                                Atom('name' type=static),
                                 #40,
                             ),
                         ),
@@ -1949,12 +1949,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('name' type=inline),
+                                Atom('name' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('name' type=inline),
+                                Atom('name' type=static),
                                 #41,
                             ),
                         ),

@@ -1474,7 +1474,8 @@ fn for_each_ident_in_decl(decl: &Decl, f: &mut impl FnMut(String)) {
         Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
             f(ident.sym.to_string());
         }
-        Decl::Var(VarDecl { decls, .. }) => {
+        Decl::Var(var_decl) => {
+            let decls = &*var_decl.decls;
             decls
                 .iter()
                 .for_each(|VarDeclarator { name, .. }| for_each_ident_in_pat(name, f));
@@ -1636,7 +1637,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                     ),
                 );
             }
-            DefaultDecl::TsInterfaceDecl(TsInterfaceDecl { .. }) => {
+            DefaultDecl::TsInterfaceDecl(..) => {
                 // ignore
             }
         }

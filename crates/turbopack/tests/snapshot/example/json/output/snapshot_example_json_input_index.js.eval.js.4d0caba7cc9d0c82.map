@@ -1,6 +1,6 @@
 {
   "version": 3,
   "sections": [
-    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/snapshot/example/json/input/index.js"],"sourcesContent":["import pkg from \"./package.json\";\nconsole.log(pkg.name);\nimport invalid from \"./invalid.json\";\nconsole.log(invalid[\"this-is\"]);\n"],"names":[],"mappings":"AAAA;;;;AACA,OAAO,CAAC,GAAG,CAAC,qHAAI,IAAI,CAAC,CAAC;;AAEtB,OAAO,CAAC,GAAG,CAAC,oHAAO,CAAC,SAAS,CAAC,CAAC,CAAC"}},
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/[project]/snapshot/example/json/input/index.js"],"sourcesContent":["import pkg from \"./package.json\";\nconsole.log(pkg.name);\nimport invalid from \"./invalid.json\";\nconsole.log(invalid[\"this-is\"]);\n"],"names":[],"mappings":"AAAA;;;;AACA,QAAQ,GAAG,CAAC,qHAAI,IAAI;;AAEpB,QAAQ,GAAG,CAAC,oHAAO,CAAC,UAAU"}},
     {"offset": {"line": 9, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
 }

@@ -43,7 +43,7 @@ x#5 = 1
 
 x#6 = 1
 
-x#7 = 1
+x#8 = 1
 
 y#2 = 1
 
@@ -55,7 +55,7 @@ y#5 = 1
 
 y#6 = 1
 
-y#7 = 1
+y#8 = 1
 
 z#2 = (...) => ???*0*
 - *0* FreeVar(undefined)
@@ -67,7 +67,7 @@ z#5 = ???*0*
 z#6 = ???*0*
 - *0* unsupported expression
 
-z#7 = (...) => ???*0*
+z#8 = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 

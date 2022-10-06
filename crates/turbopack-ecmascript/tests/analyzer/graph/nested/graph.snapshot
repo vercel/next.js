@@ -139,7 +139,7 @@
         ),
     ),
     (
-        "x#7",
+        "x#8",
         Constant(
             Num(
                 ConstantNumber(
@@ -152,7 +152,7 @@
         "y#2",
         Variable(
             (
-                Atom('x' type=inline),
+                Atom('x' type=static),
                 #2,
             ),
         ),
@@ -161,7 +161,7 @@
         "y#3",
         Variable(
             (
-                Atom('x' type=inline),
+                Atom('x' type=static),
                 #3,
             ),
         ),
@@ -170,7 +170,7 @@
         "y#4",
         Variable(
             (
-                Atom('x' type=inline),
+                Atom('x' type=static),
                 #4,
             ),
         ),
@@ -179,7 +179,7 @@
         "y#5",
         Variable(
             (
-                Atom('x' type=inline),
+                Atom('x' type=static),
                 #5,
             ),
         ),
@@ -188,17 +188,17 @@
         "y#6",
         Variable(
             (
-                Atom('x' type=inline),
+                Atom('x' type=static),
                 #6,
             ),
         ),
     ),
     (
-        "y#7",
+        "y#8",
         Variable(
             (
-                Atom('x' type=inline),
-                #7,
+                Atom('x' type=static),
+                #8,
             ),
         ),
     ),
@@ -230,7 +230,7 @@
         ),
     ),
     (
-        "z#7",
+        "z#8",
         Variable(
             (
                 Atom('e' type=inline),

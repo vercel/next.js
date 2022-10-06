@@ -151,7 +151,7 @@ impl EvalContext {
             PropName::Str(str) => str.value.clone().into(),
             PropName::Num(num) => num.value.into(),
             PropName::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
-            PropName::BigInt(bigint) => bigint.value.clone().into(),
+            PropName::BigInt(bigint) => (*bigint.value.clone()).into(),
         }
     }
 
@@ -1193,11 +1193,8 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
     match unparen(callee) {
         Expr::Ident(Ident { sym, .. }) => {
             if &**sym == "define" {
-                if let Expr::Fn(FnExpr {
-                    function: Function { params, .. },
-                    ..
-                }) = &*args[0].expr
-                {
+                if let Expr::Fn(FnExpr { function, .. }) = &*args[0].expr {
+                    let params = &*function.params;
                     if params.len() == 1 {
                         if let Pat::Ident(param) = &params[0].pat {
                             if &*param.id.sym == "require" {
@@ -1215,16 +1212,13 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
         //
         // In all module system which has `require`, `require` in the factory function can be
         // treated as a well-known require.
-        Expr::Fn(FnExpr {
-            function: Function { params, .. },
-            ..
-        }) => {
+        Expr::Fn(FnExpr { function, .. }) => {
+            let params = &*function.params;
             if params.len() == 1 {
-                if let Some(FnExpr {
-                    function: Function { params, .. },
-                    ..
-                }) = args.first().and_then(|arg| arg.expr.as_fn_expr())
+                if let Some(FnExpr { function, .. }) =
+                    args.first().and_then(|arg| arg.expr.as_fn_expr())
                 {
+                    let params = &*function.params;
                     if !params.is_empty() {
                         if let Pat::Ident(param) = &params[0].pat {
                             if &*param.id.sym == "require" {

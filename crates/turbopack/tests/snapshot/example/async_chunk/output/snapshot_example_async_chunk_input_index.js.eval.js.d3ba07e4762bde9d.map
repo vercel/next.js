@@ -1,6 +1,6 @@
 {
   "version": 3,
   "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/snapshot/example/async_chunk/input/index.js"],"sourcesContent":["import(\"foo\").then(({ foo }) => {\n  foo(true);\n});\n"],"names":[],"mappings":"AAAA,wIAAa,CAAC,IAAI,CAAC,CAAC,EAAE,GAAG,CAAA,EAAE,GAAK;IAC9B,GAAG,CAAC,IAAI,CAAC,CAAC;AACZ,CAAC,CAAC,CAAC"}},
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/[project]/snapshot/example/async_chunk/input/index.js"],"sourcesContent":["import(\"foo\").then(({ foo }) => {\n  foo(true);\n});\n"],"names":[],"mappings":"AAAA,yIAAc,IAAI,CAAC,CAAC,EAAE,IAAG,EAAE,GAAK;IAC9B,IAAI,IAAI;AACV"}},
     {"offset": {"line": 7, "column": 0}, "map": {"version": 3, "names": [], "sources": [], "mappings": "A"}}]
 }

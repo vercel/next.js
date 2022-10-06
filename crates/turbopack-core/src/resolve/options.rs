@@ -196,7 +196,7 @@ async fn import_mapping_to_result(mapping: ImportMappingVc) -> Result<ImportMapR
 fn import_mapping_to_result_boxed(
     mapping: ImportMappingVc,
 ) -> Pin<Box<dyn Future<Output = Result<ImportMapResult>> + Send>> {
-    Box::pin(async move { Ok(import_mapping_to_result(mapping).await?) })
+    Box::pin(async move { import_mapping_to_result(mapping).await })
 }
 
 #[turbo_tasks::value_impl]

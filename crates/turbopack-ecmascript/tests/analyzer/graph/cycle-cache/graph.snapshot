@@ -1637,7 +1637,7 @@
                 ),
                 Variable(
                     (
-                        Atom('x' type=inline),
+                        Atom('x' type=static),
                         #1,
                     ),
                 ),
