@@ -1361,6 +1361,7 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: >-
               set -e &&
+              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-gnu &&
@@ -1412,6 +1413,7 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: >-
               set -e &&
+              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
