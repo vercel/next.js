@@ -28,7 +28,6 @@ import {
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
-import HotReloader from './hot-reloader.client'
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -348,13 +347,16 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              {process.env.NODE_ENV === 'production' ? (
-                cache.subTreeData
-              ) : (
-                <HotReloader assetPrefix={assetPrefix}>
-                  {cache.subTreeData}
-                </HotReloader>
-              )}
+              {process.env.NODE_ENV === 'production'
+                ? cache.subTreeData
+                : (() => {
+                    const HotReloader = require('./hot-reloader')
+                    return (
+                      <HotReloader assetPrefix={assetPrefix}>
+                        {cache.subTreeData}
+                      </HotReloader>
+                    )
+                  })()}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
         </GlobalLayoutRouterContext.Provider>
