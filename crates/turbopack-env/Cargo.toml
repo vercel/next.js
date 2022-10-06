@@ -12,8 +12,7 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 dotenvy = "0.15.5"
-# This version pin is workaround for https://github.com/tkaitchuck/aHash/issues/95
-indexmap = "=1.6.2"
+indexmap = { workspace = true }
 serde = "1.0.136"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-env = { path = "../turbo-tasks-env" }
