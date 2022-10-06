@@ -83,22 +83,25 @@ async fn raw_resolve_options(
         "zlib",
         "pnpapi",
     ] {
-        direct_mappings.insert(AliasPattern::exact(req), ImportMapping::External(None));
+        direct_mappings.insert(
+            AliasPattern::exact(req),
+            ImportMapping::External(None).into(),
+        );
         direct_mappings.insert(
             AliasPattern::exact(format!("node:{req}")),
-            ImportMapping::External(None),
+            ImportMapping::External(None).into(),
         );
     }
     let glob_mappings = vec![
         (
             context,
             GlobVc::new("**/*/next/dist/server/next.js"),
-            ImportMapping::Ignore,
+            ImportMapping::Ignore.into(),
         ),
         (
             context,
             GlobVc::new("**/*/next/dist/bin/next"),
-            ImportMapping::Ignore,
+            ImportMapping::Ignore.into(),
         ),
     ];
     let import_map = ImportMap {

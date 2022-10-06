@@ -21,7 +21,7 @@ pub enum ExportsValue {
 }
 
 impl AliasTemplate for ExportsValue {
-    type Output = Result<Self>;
+    type Output<'a> = Result<Self> where Self: 'a;
 
     fn replace(&self, capture: &str) -> Result<Self> {
         Ok(match self {

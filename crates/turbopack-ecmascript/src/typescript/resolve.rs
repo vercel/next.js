@@ -160,7 +160,9 @@ pub async fn apply_tsconfig(
             ImportMap::default()
         };
         for (key, value) in all_paths {
-            import_map.direct.insert(AliasPattern::parse(&key), value);
+            import_map
+                .direct
+                .insert(AliasPattern::parse(&key), value.into());
         }
         resolve_options.import_map = Some(import_map.into());
     }

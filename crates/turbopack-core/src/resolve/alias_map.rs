@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     collections::BTreeMap,
     fmt::{Debug, Formatter},
+    future::Future,
 };
 
 use patricia_tree::PatriciaMap;
@@ -315,7 +316,7 @@ where
     /// The request matched an exact alias.
     Exact(&'a T),
     /// The request matched a wildcard alias.
-    Replaced(T::Output),
+    Replaced(T::Output<'a>),
 }
 
 impl<'a, T> AliasMatch<'a, T>
@@ -332,7 +333,7 @@ where
     }
 
     /// Returns the replaced match, if any.
-    pub fn as_replaced(&self) -> Option<&T::Output> {
+    pub fn as_replaced(&self) -> Option<&T::Output<'a>> {
         if let Self::Replaced(v) = self {
             Some(v)
         } else {
@@ -343,7 +344,7 @@ where
     /// Returns the replaced match, if any.
     ///
     /// Consumes the match.
-    pub fn into_replaced(self) -> Option<T::Output> {
+    pub fn into_replaced(self) -> Option<T::Output<'a>> {
         if let Self::Replaced(v) = self {
             Some(v)
         } else {
@@ -354,7 +355,7 @@ where
 
 impl<'a, T> AliasMatch<'a, T>
 where
-    T: AliasTemplate<Output = T>,
+    T: AliasTemplate<Output<'a> = T>,
 {
     /// Returns the wrapped value.
     ///
@@ -369,7 +370,7 @@ where
 
 impl<'a, T, E> AliasMatch<'a, T>
 where
-    T: AliasTemplate<Output = Result<T, E>> + Clone,
+    T: AliasTemplate<Output<'a> = Result<T, E>> + Clone,
 {
     /// Returns the wrapped value.
     ///
@@ -380,6 +381,24 @@ where
         Ok(match self {
             Self::Exact(v) => Cow::Borrowed(v),
             Self::Replaced(v) => Cow::Owned(v?),
+        })
+    }
+}
+
+impl<'a, T, E, F> AliasMatch<'a, T>
+where
+    F: Future<Output = Result<T, E>>,
+    T: AliasTemplate<Output<'a> = F> + Clone,
+{
+    /// Returns the wrapped value.
+    ///
+    /// Consumes the match.
+    ///
+    /// Only implemented when `T::Output` is `impl Future<Result<T, _>>`
+    pub async fn try_join_into_self(self) -> Result<Cow<'a, T>, E> {
+        Ok(match self {
+            Self::Exact(v) => Cow::Borrowed(v),
+            Self::Replaced(v) => Cow::Owned(v.await?),
         })
     }
 }
@@ -413,10 +432,12 @@ impl Ord for AliasKey {
 /// A trait for types that can be used as a template for an alias.
 pub trait AliasTemplate {
     /// The type of the output of the replacement.
-    type Output;
+    type Output<'a>
+    where
+        Self: 'a;
 
     /// Replaces `capture` within `self`.
-    fn replace(&self, capture: &str) -> Self::Output;
+    fn replace<'a>(&'a self, capture: &'a str) -> Self::Output<'a>;
 }
 
 #[cfg(test)]
@@ -457,9 +478,9 @@ mod test {
     }
 
     impl<'a> AliasTemplate for &'a str {
-        type Output = Cow<'a, str>;
+        type Output<'b> = Cow<'a, str> where Self: 'b;
 
-        fn replace(&self, capture: &str) -> Self::Output {
+        fn replace(&self, capture: &str) -> Self::Output<'a> {
             if let Some(index) = self.find('*') {
                 let mut output = String::with_capacity(self.len() - 1 + capture.len());
                 output.push_str(&self[..index]);
