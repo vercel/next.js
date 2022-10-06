@@ -8,7 +8,9 @@ import Status from '../../components/Status'
 import { useRouter } from 'next/router'
 
 const Uploader: NextPage = () => {
-  const [uploadToken, setUploadToken] = useState<{ token: string } | undefined>(undefined)
+  const [uploadToken, setUploadToken] = useState<{ token: string } | undefined>(
+    undefined
+  )
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(
     undefined
   )
@@ -22,12 +24,16 @@ const Uploader: NextPage = () => {
   const router = useRouter()
 
   useEffect(() => {
-    fetch('/api/uploadToken').then((res) => res.json()).then((res) => setUploadToken(res))
+    fetch('/api/uploadToken')
+      .then((res) => res.json())
+      .then((res) => setUploadToken(res))
   }, [])
   useEffect(() => {
     if (video) {
       const fetchVideoStatus = async (videoId: string): Promise<void> => {
-        const { status } = await fetch(`/api/${videoId}`).then((res) => res.json())
+        const { status } = await fetch(`/api/${videoId}`).then((res) =>
+          res.json()
+        )
         const { encoding, ingest } = status
         setStatus({
           ingested: ingest.status === 'uploaded',

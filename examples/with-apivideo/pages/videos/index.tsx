@@ -5,14 +5,18 @@ import React, { useEffect, useState } from 'react'
 import VideosListResponse from '@api.video/nodejs-client/lib/model/VideosListResponse'
 
 const Videos: NextPage = () => {
-  const [videosResponse, setVideosResponse] = useState<VideosListResponse | undefined>(undefined)
+  const [videosResponse, setVideosResponse] = useState<
+    VideosListResponse | undefined
+  >(undefined)
   const [error, setError] = useState<boolean>(false)
-    useEffect(() => {
-        fetch('/api/videos')
-          .then((res) => res.json())
-          .then((res: { videos: VideosListResponse }) => setVideosResponse(res.videos))
-          .catch((_) => setError(true))
-    }, [])
+  useEffect(() => {
+    fetch('/api/videos')
+      .then((res) => res.json())
+      .then((res: { videos: VideosListResponse }) =>
+        setVideosResponse(res.videos)
+      )
+      .catch((_) => setError(true))
+  }, [])
 
   return (
     <div className="global-container">
