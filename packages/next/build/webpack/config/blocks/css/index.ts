@@ -11,6 +11,7 @@ import {
   getGlobalModuleImportError,
   getLocalModuleImportError,
   getFontLoaderDocumentImportError,
+  getFontLoaderImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
@@ -231,7 +232,6 @@ export const css = curry(async function css(
       })
     )
 
-    // Matches the resolved font loaders noop files to run next-font-loader
     fns.push(
       loader({
         oneOf: [
@@ -240,7 +240,7 @@ export const css = curry(async function css(
             use: {
               loader: 'error-loader',
               options: {
-                reason: getFontLoaderDocumentImportError(),
+                reason: getFontLoaderImportError(),
               },
             },
           }),
