@@ -475,11 +475,16 @@ export default class NextNodeServer extends BaseServer {
     ]
   }
 
-  protected getHasAppDir(): boolean {
-    const appDirectory = join(this.dir, 'app')
-    return (
-      fs.existsSync(appDirectory) && fs.statSync(appDirectory).isDirectory()
-    )
+  protected getHasAppDir(dev: boolean): boolean {
+    const appDirectory = dev
+      ? join(this.dir, 'app')
+      : join(this.serverDistDir, 'app')
+
+    try {
+      return fs.statSync(appDirectory).isDirectory()
+    } catch (err) {
+      return false
+    }
   }
 
   protected generateStaticRoutes(): Route[] {
