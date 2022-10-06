@@ -737,7 +737,7 @@ export async function renderToHTMLOrFlight(
     let providedFlightRouterState: FlightRouterState = isFlight
       ? req.headers.__next_router_state_tree__
         ? JSON.parse(req.headers.__next_router_state_tree__ as string)
-        : []
+        : undefined
       : undefined
 
     /**
