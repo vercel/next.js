@@ -25,6 +25,7 @@ export default function Root({ children }) {
       <body className="this-is-the-document-body">{children}</body>
       <Script strategy="afterInteractive" src="/test4.js" />
       <Script strategy="beforeInteractive" src="/test1.js" />
+      <Script strategy="beforeInteractive" src="/test1.js" />
       <Script
         strategy="beforeInteractive"
         id="1.5"

@@ -115,8 +115,8 @@ if (document.readyState === 'loading') {
   DOMContentLoaded()
 }
 
-const nextServerDataLoadingGlobal = ((self as any).__next_s =
-  (self as any).__next_s || [])
+const nextServerDataLoadingGlobal = ((self as any).__next_f =
+  (self as any).__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 

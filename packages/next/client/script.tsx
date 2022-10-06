@@ -1,5 +1,6 @@
 'client'
 
+import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -255,41 +256,55 @@ function Script(props: ScriptProps): JSX.Element | null {
     }
   }
 
+  // For the app directory, we need React Float to preload these scripts.
   if (appDir) {
+    // Before interactive scripts need to be loaded by Next.js' runtime instead
+    // of native <script> tags, becasue they no longer have `defer`.
     if (strategy === 'beforeInteractive') {
       if (!src) {
-        // Inlined scripts
+        // For inlined scripts, we put the content in `children`.
         if (restProps.dangerouslySetInnerHTML) {
           restProps.children = restProps.dangerouslySetInnerHTML.__html
           delete restProps.dangerouslySetInnerHTML
         }
+
         return (
           <script
             dangerouslySetInnerHTML={{
-              __html: `(self.__next_scripts=self.__next_scripts||[]).push(${JSON.stringify(
-                [0, { ...restProps }]
-              )})`,
+              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                0,
+                { ...restProps },
+              ])})`,
             }}
           />
         )
       }
 
-      // ReactDOM.preinit(src, { as: 'script' })
+      // @ts-ignore
+      ReactDOM.preload(
+        src,
+        restProps.integrity
+          ? { as: 'script', integrity: restProps.integrity }
+          : { as: 'script' }
+      )
       return (
-        <>
-          <link rel="preload" href={src} as="script" />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `(self.__next_scripts=self.__next_scripts||[]).push(${JSON.stringify(
-                [src]
-              )})`,
-            }}
-          />
-        </>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+              src,
+            ])})`,
+          }}
+        />
       )
     } else if (strategy === 'afterInteractive') {
       if (src) {
-        return <link rel="preload" href={src} as="script" />
+        // @ts-ignore
+        ReactDOM.preload(
+          src,
+          restProps.integrity
+            ? { as: 'script', integrity: restProps.integrity }
+            : { as: 'script' }
+        )
       }
     }
   }

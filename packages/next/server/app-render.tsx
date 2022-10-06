@@ -285,7 +285,7 @@ function useFlightResponse(
         bootstrapped = true
         writer.write(
           encodeText(
-            `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+            `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
               JSON.stringify([0])
             )})</script>`
           )
@@ -296,7 +296,7 @@ function useFlightResponse(
         writer.close()
       } else {
         const responsePartial = decodeText(value)
-        const scripts = `${startScriptTag}self.__next_s.push(${htmlEscapeJsonString(
+        const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
 
@@ -1351,10 +1351,38 @@ export async function renderToHTMLOrFlight(
     }
 
     const bodyResult = async () => {
+      const polyfills = buildManifest.polyfillFiles
+        .filter(
+          (polyfill) =>
+            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+        )
+        .map((polyfill) => ({
+          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
+          integrity: subresourceIntegrityManifest?.[polyfill],
+        }))
+
       const content = (
-        <InsertedHTML>
-          <ServerComponentsRenderer />
-        </InsertedHTML>
+        <>
+          {polyfills.map((polyfill) => {
+            return (
+              <script
+                noModule={true}
+                dangerouslySetInnerHTML={{
+                  __html: `(self.__next_scripts=self.__next_scripts||[]).push([${JSON.stringify(
+                    polyfill.src
+                  )},${
+                    polyfill.integrity
+                      ? JSON.stringify({ integrity: polyfill.integrity })
+                      : '{}'
+                  }])`,
+                }}
+              />
+            )
+          })}
+          <InsertedHTML>
+            <ServerComponentsRenderer />
+          </InsertedHTML>
+        </>
       )
 
       const getServerInsertedHTML = (): Promise<string> => {
@@ -1367,16 +1395,6 @@ export async function renderToHTMLOrFlight(
         )
         return flushed
       }
-
-      const polyfills = buildManifest.polyfillFiles
-        .filter(
-          (polyfill) =>
-            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
-        )
-        .map((polyfill) => ({
-          src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
-          integrity: subresourceIntegrityManifest?.[polyfill],
-        }))
 
       try {
         const renderStream = await renderToInitialStream({
@@ -1404,7 +1422,6 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          polyfills,
           dev,
         })
       } catch (err: any) {
@@ -1436,7 +1453,6 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: generateStaticHTML,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          polyfills,
           dev,
         })
       }
