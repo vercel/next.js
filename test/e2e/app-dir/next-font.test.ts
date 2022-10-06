@@ -230,4 +230,70 @@ describe('app dir next-font', () => {
       ).toBe('normal')
     })
   })
+
+  describe('preload', () => {
+    it('should preload correctly with server components', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      expect($('link[as="font"]').length).toBe(3)
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/b2104791981359ae.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(2).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/b61859a50be14c53.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
+
+    it('should preload correctly with client components', async () => {
+      const html = await renderViaHTTP(next.url, '/client')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      expect($('link[as="font"]').length).toBe(3)
+      // From root layout
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/e1053f04babc7571.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(2).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/feab2c68f2a8e9a4.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
+  })
 })

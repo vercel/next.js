@@ -1,6 +1,7 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../types'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 // TODO-APP: change to React.use once it becomes stable
 // @ts-ignore
@@ -139,6 +140,7 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
+  fontLoaderManifest?: FontLoaderManifest
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -532,6 +534,40 @@ function getCssInlinedLinkTags(
   return [...chunks]
 }
 
+/**
+ * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and font loader manifest. Only used when rendering to HTML.
+ */
+function getPreloadedFontFilesInlineLinkTags(
+  serverComponentManifest: FlightManifest,
+  serverCSSManifest: FlightCSSManifest,
+  fontLoaderManifest: FontLoaderManifest | undefined,
+  filePath?: string
+): string[] {
+  if (!fontLoaderManifest || !filePath) {
+    return []
+  }
+  const layoutOrPageCss =
+    serverCSSManifest[filePath] ||
+    serverComponentManifest.__client_css_manifest__?.[filePath]
+
+  if (!layoutOrPageCss) {
+    return []
+  }
+
+  const fontFiles = new Set<string>()
+
+  for (const css of layoutOrPageCss) {
+    const preloadedFontFiles = fontLoaderManifest.app[css]
+    if (preloadedFontFiles) {
+      for (const fontFile of preloadedFontFiles) {
+        fontFiles.add(fontFile)
+      }
+    }
+  }
+
+  return [...fontFiles]
+}
+
 function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   const directives = cspHeaderValue
     // Directives are split by ';'.
@@ -686,6 +722,7 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
     ComponentMod,
     dev,
+    fontLoaderManifest,
   } = renderOpts
 
   patchFetch(ComponentMod)
@@ -896,6 +933,12 @@ export async function renderToHTMLOrFlight(
             layoutOrPagePath
           )
         : []
+      const preloadedFontFiles = getPreloadedFontFilesInlineLinkTags(
+        serverComponentManifest,
+        serverCSSManifest!,
+        fontLoaderManifest,
+        layoutOrPagePath
+      )
       const Template = template
         ? await interopDefault(template())
         : React.Fragment
@@ -1074,6 +1117,19 @@ export async function renderToHTMLOrFlight(
 
           return (
             <>
+              {preloadedFontFiles.map((fontFile) => {
+                const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+                return (
+                  <link
+                    key={fontFile}
+                    rel="preload"
+                    href={`/_next/${fontFile}`}
+                    as="font"
+                    type={`font/${ext}`}
+                    crossOrigin="anonymous"
+                  />
+                )
+              })}
               {stylesheets
                 ? stylesheets.map((href) => (
                     <link
