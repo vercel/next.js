@@ -1049,7 +1049,7 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      if (/^(?:next$|react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -1964,8 +1964,11 @@ export default async function getBaseWebpackConfig(
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
-        config.experimental.fontLoaders &&
-        new FontLoaderManifestPlugin(),
+        fontLoaderTargets &&
+        new FontLoaderManifestPlugin({
+          appDirEnabled: !!config.experimental.appDir,
+          fontLoaderTargets,
+        }),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
