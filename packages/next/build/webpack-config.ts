@@ -1586,13 +1586,28 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
+        // Alias `next/dynamic` to React.lazy implementation for RSC
+        ...(hasServerComponents
+          ? [
+              {
+                test: codeCondition.test,
+                include: [appDir],
+                resolve: {
+                  alias: {
+                    [require.resolve('next/dynamic')]:
+                      'next/dist/client/components/dynamic',
+                  },
+                },
+              },
+            ]
+          : []),
         ...(hasServerComponents && (isNodeServer || isEdgeServer)
           ? [
               // RSC server compilation loaders
               {
                 test: codeCondition.test,
                 include: [
-                  dir,
+                  appDir,
                   // To let the internal client components passing through flight loader
                   /next[\\/]dist/,
                 ],
