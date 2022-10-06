@@ -740,12 +740,6 @@ export async function renderToHTMLOrFlight(
         : []
       : undefined
 
-    if (isStaticGeneration) {
-      // TODO-APP: filter on the client for static instead?
-      // currently we fail to detect new root layouts
-      providedFlightRouterState = ['', { children: ['', {}] }]
-    }
-
     /**
      * The tree created in next-app-loader that holds component segments and modules
      */
