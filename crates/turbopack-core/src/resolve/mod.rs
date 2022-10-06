@@ -14,7 +14,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{
     util::{normalize_path, normalize_request},
-    FileJsonContent, FileJsonContentVc, FileSystemEntryType, FileSystemPathVc,
+    FileJsonContent, FileJsonContentVc, FileSystemEntryType, FileSystemPathVc, RealPathResult,
 };
 
 use self::{
@@ -472,8 +472,16 @@ pub async fn resolve_raw(
     path: PatternVc,
     force_in_context: bool,
 ) -> Result<ResolveResultVc> {
-    fn to_result(path: FileSystemPathVc) -> ResolveResultVc {
-        ResolveResult::Single(SourceAssetVc::new(path).into(), Vec::new()).into()
+    async fn to_result(path: FileSystemPathVc) -> Result<ResolveResultVc> {
+        let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
+        Ok(ResolveResult::Single(
+            SourceAssetVc::new(*path).into(),
+            symlinks
+                .iter()
+                .map(|p| AffectingResolvingAssetReferenceVc::new(*p).into())
+                .collect(),
+        )
+        .into())
     }
     let mut results = Vec::new();
     let pat = path.await?;
@@ -491,7 +499,7 @@ pub async fn resolve_raw(
             } else {
                 for m in matches.iter() {
                     if let PatternMatch::File(_, path) = m {
-                        results.push(to_result(*path));
+                        results.push(to_result(*path).await?);
                     }
                 }
             }
@@ -509,7 +517,7 @@ pub async fn resolve_raw(
         }
         for m in matches.iter() {
             if let PatternMatch::File(_, path) = m {
-                results.push(to_result(*path));
+                results.push(to_result(*path).await?);
             }
         }
     }
@@ -803,17 +811,21 @@ async fn resolved(
     resolved_map: Option<ResolvedMapVc>,
     options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
+    let RealPathResult { path, symlinks } = &*fs_path.realpath_with_links().await?;
     if let Some(resolved_map) = resolved_map {
-        let result = resolved_map.lookup(fs_path).await?;
+        let result = resolved_map.lookup(*path).await?;
         if !matches!(&*result, ImportMapResult::NoEntry) {
-            return Ok(resolve_import_map_result(
-                &result,
-                fs_path.parent(),
-                options,
-            ));
+            return Ok(resolve_import_map_result(&result, path.parent(), options));
         }
     }
-    Ok(ResolveResult::Single(SourceAssetVc::new(fs_path).into(), Vec::new()).into())
+    Ok(ResolveResult::Single(
+        SourceAssetVc::new(*path).into(),
+        symlinks
+            .iter()
+            .map(|p| AffectingResolvingAssetReferenceVc::new(*p).into())
+            .collect(),
+    )
+    .into())
 }
 
 fn handle_exports_field(
