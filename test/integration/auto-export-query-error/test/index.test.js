@@ -41,7 +41,7 @@ describe('Auto Export', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await nextBuild(appDir)

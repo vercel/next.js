@@ -51,7 +51,7 @@ describe('Production browser sourcemaps', () => {
     runTests()
   })
 
-  describe('Serverless support', () => {
+  describe.skip('Serverless support', () => {
     beforeAll(async () => {
       nextConfigContent = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(

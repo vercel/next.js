@@ -17,23 +17,6 @@ export function requestToBodyStream(
   })
 }
 
-export function bodyStreamToNodeStream(
-  bodyStream: ReadableStream<Uint8Array>
-): Readable {
-  const reader = bodyStream.getReader()
-  return Readable.from(
-    (async function* () {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          return
-        }
-        yield value
-      }
-    })()
-  )
-}
-
 function replaceRequestBody<T extends IncomingMessage>(
   base: T,
   stream: Readable

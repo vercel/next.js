@@ -505,7 +505,7 @@ describe('Image Component basePath Tests', () => {
     runTests('server')
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     let origConfig
 
     beforeAll(async () => {

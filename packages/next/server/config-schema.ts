@@ -406,8 +406,19 @@ const configSchema = {
           type: 'boolean',
         },
         fontLoaders: {
-          type: 'object',
-        },
+          items: {
+            additionalProperties: false,
+            properties: {
+              loader: {
+                type: 'string',
+              },
+              options: {},
+            },
+            type: 'object',
+            required: ['loader'],
+          },
+          type: 'array',
+        } as any,
         webVitalsAttribution: {
           type: 'array',
           items: {

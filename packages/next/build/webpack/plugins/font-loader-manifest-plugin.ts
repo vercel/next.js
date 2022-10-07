@@ -6,13 +6,41 @@ export type FontLoaderManifest = {
   pages: {
     [path: string]: string[]
   }
+  app: {
+    [moduleRequest: string]: string[]
+  }
 }
 const PLUGIN_NAME = 'FontLoaderManifestPlugin'
 
 // Creates a manifest of all fonts that should be preloaded given a route
 export class FontLoaderManifestPlugin {
+  private appDirEnabled: boolean
+  private fontLoaderTargets: string[]
+
+  constructor(options: {
+    appDirEnabled: boolean
+    fontLoaderTargets: string[]
+  }) {
+    this.appDirEnabled = options.appDirEnabled
+    this.fontLoaderTargets = options.fontLoaderTargets
+  }
+
   apply(compiler: webpack.Compiler) {
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
+      let fontLoaderModules: webpack.Module[]
+
+      // Get all font loader modules
+      if (this.appDirEnabled) {
+        compilation.hooks.finishModules.tap(PLUGIN_NAME, (modules) => {
+          const modulesArr = Array.from(modules)
+          fontLoaderModules = modulesArr.filter((mod: any) =>
+            this.fontLoaderTargets.some((fontLoaderTarget) =>
+              mod.userRequest?.startsWith(`${fontLoaderTarget}?`)
+            )
+          )
+        })
+      }
+
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
@@ -21,6 +49,27 @@ export class FontLoaderManifestPlugin {
         (assets: any) => {
           const fontLoaderManifest: FontLoaderManifest = {
             pages: {},
+            app: {},
+          }
+
+          if (this.appDirEnabled) {
+            for (const mod of fontLoaderModules) {
+              const modAssets = Object.keys(mod.buildInfo.assets)
+              const fontFiles: string[] = modAssets.filter((file: string) =>
+                /\.(woff|woff2|eot|ttf|otf)$/.test(file)
+              )
+
+              // Font files ending with .p.(woff|woff2|eot|ttf|otf) are preloaded
+              const preloadedFontFiles: string[] = fontFiles.filter(
+                (file: string) => /\.p.(woff|woff2|eot|ttf|otf)$/.test(file)
+              )
+
+              // Create an entry for the request even if no files should preload. If that's the case a preconnect tag is added.
+              if (fontFiles.length > 0) {
+                fontLoaderManifest.app[(mod as any).userRequest] =
+                  preloadedFontFiles
+              }
+            }
           }
 
           for (const entrypoint of compilation.entrypoints.values()) {

@@ -52,7 +52,7 @@ describe('Static Page Name', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       await fs.writeFile(
