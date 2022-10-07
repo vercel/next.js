@@ -3,7 +3,7 @@ use turbo_tasks::{
     primitives::{JsonValueVc, StringVc},
     Value, ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{embed_file, FileSystemPathVc};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetVc, ModuleAssetType,
 };
@@ -18,7 +18,10 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
-use crate::nodejs::{external_asset_entrypoints, render_static};
+use crate::{
+    embed_next_file,
+    nodejs::{external_asset_entrypoints, render_static},
+};
 
 /// This is an asset which content is determined by running
 /// `React.renderToString` on the default export of [entry_asset] in a Node.js
@@ -137,7 +140,7 @@ fn get_intermediate_module(
     EcmascriptModuleAssetVc::new(
         VirtualAssetVc::new(
             entry_asset.path().join("server-renderer.js"),
-            embed_file!("server_renderer.js").into(),
+            embed_next_file!("internal/server-renderer.js").into(),
         )
         .into(),
         context,
