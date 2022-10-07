@@ -810,9 +810,6 @@ export async function renderToHTMLOrFlight(
       ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
     const RenderFromTemplateContext =
       ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context.client').default
-    const HotReloader = ComponentMod.HotReloader as
-      | typeof import('../client/components/hot-reloader.client').default
-      | null
 
     /**
      * Server Context is specifically only available in Server Components.
@@ -1373,11 +1370,7 @@ export async function renderToHTMLOrFlight(
 
         return (
           <AppRouter
-            hotReloader={
-              HotReloader && (
-                <HotReloader assetPrefix={renderOpts.assetPrefix || ''} />
-              )
-            }
+            assetPrefix={renderOpts.assetPrefix || ''}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
           >

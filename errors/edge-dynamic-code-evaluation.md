@@ -29,6 +29,18 @@ export default async function middleware() {
 ```
 
 In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by treeshaking.
-You can relax the check to allow specific files with your Middleware or Edge API Route exported [configuration](https://nextjs.org/docs/api-reference/edge-runtime#unsupported-apis).
+You can relax the check to allow specific files with your Middleware or Edge API Route exported [configuration](https://nextjs.org/docs/api-reference/edge-runtime#unsupported-apis):
+
+```typescript
+export const config = {
+  runtime: 'experimental-edge', // for Edge API Routes only
+  unstable_allowDynamic: [
+    '/lib/utilities.js', // allows a single file
+    '/node_modules/function-bind/**', // use a glob to allow anything in the function-bind 3rd party module
+  ],
+}
+```
+
+`unstable_allowDynamic` is a glob, or an array of globs, ignoring dynamic code evaluation for specific files. The globs are relative to your application root folder.
 
 Be warned that if these statements are executed on the Edge, _they will throw and cause a runtime error_.

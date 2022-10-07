@@ -1202,8 +1202,8 @@ export default async function getBaseWebpackConfig(
 
   const fontLoaderTargets =
     config.experimental.fontLoaders &&
-    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
-      const resolved = require.resolve(fontLoader)
+    config.experimental.fontLoaders.map(({ loader }) => {
+      const resolved = require.resolve(loader)
       return path.join(resolved, '../target.css')
     })
 
