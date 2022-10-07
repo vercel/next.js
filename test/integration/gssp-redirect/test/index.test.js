@@ -542,7 +542,7 @@ describe('GS(S)P Redirect Support', () => {
     })
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     let server
 
     beforeAll(async () => {
