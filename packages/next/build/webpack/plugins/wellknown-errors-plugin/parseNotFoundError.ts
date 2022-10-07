@@ -122,7 +122,6 @@ export async function getNotFoundError(
 export async function getImageError(
   compilation: any,
   input: any,
-  fileName: string,
   err: Error
 ): Promise<SimpleWebpackError | false> {
   if (err.name !== 'InvalidImageFormatError') {

@@ -9,7 +9,6 @@ import {
   killApp,
   launchApp,
   nextBuild,
-  nextStart,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
