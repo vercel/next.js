@@ -18,7 +18,16 @@ import { getProjectDir } from '../lib/get-project-dir'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
-  extensions: args['--ext'] ?? ['.js', '.jsx', '.ts', '.tsx'],
+  extensions: args['--ext'] ?? [
+    '.js',
+    '.mjs',
+    '.cjs',
+    '.jsx',
+    '.ts',
+    '.mts',
+    '.cts',
+    '.tsx',
+  ],
   resolvePluginsRelativeTo: args['--resolve-plugins-relative-to'] || null,
   rulePaths: args['--rulesdir'] ?? [],
   fix: args['--fix'] ?? false,
@@ -92,11 +101,11 @@ const nextLint: cliCommand = async (argv) => {
     printAndExit(
       `
       Description
-        Run ESLint on every file in specified directories. 
+        Run ESLint on every file in specified directories.
         If not configured, ESLint will be set up for the first time.
 
       Usage
-        $ next lint <baseDir> [options]      
+        $ next lint <baseDir> [options]
 
       <baseDir> represents the directory of the Next.js application.
       If no directory is provided, the current directory will be used.
@@ -127,7 +136,7 @@ const nextLint: cliCommand = async (argv) => {
         Handling warnings:
           --quiet                        Report errors only - default: false
           --max-warnings Int             Number of warnings to trigger nonzero exit code - default: -1
-        
+
         Output:
           -o, --output-file path::String  Specify file to write report to
           -f, --format String            Use a specific output format - default: Next.js custom formatter
@@ -140,7 +149,7 @@ const nextLint: cliCommand = async (argv) => {
           --no-cache                     Disable caching
           --cache-location path::String  Path to the cache file or directory - default: .eslintcache
           --cache-strategy String        Strategy to use for detecting changed files in the cache, either metadata or content - default: metadata
-        
+
         Miscellaneous:
           --error-on-unmatched-pattern   Show errors when any file patterns are unmatched - default: false
           `,
@@ -178,18 +187,17 @@ const nextLint: cliCommand = async (argv) => {
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
+  const hasAppDir = !!nextConfig.experimental.appDir
 
-  runLintCheck(
-    baseDir,
-    pathsToLint,
-    false,
-    eslintOptions(args, defaultCacheLocation),
-    reportErrorsOnly,
+  runLintCheck(baseDir, pathsToLint, hasAppDir, {
+    lintDuringBuild: false,
+    eslintOptions: eslintOptions(args, defaultCacheLocation),
+    reportErrorsOnly: reportErrorsOnly,
     maxWarnings,
     formatter,
     outputFile,
-    strict
-  )
+    strict,
+  })
     .then(async (lintResults) => {
       const lintOutput =
         typeof lintResults === 'string' ? lintResults : lintResults?.output

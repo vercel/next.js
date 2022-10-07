@@ -5,6 +5,7 @@ import * as Log from './output/log'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import { readFileSync } from 'fs'
 import isError from '../lib/is-error'
+import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 
 let TSCONFIG_WARNED = false
 
@@ -42,7 +43,14 @@ export default async function loadJsConfig(
 ) {
   let typeScriptPath: string | undefined
   try {
-    typeScriptPath = require.resolve('typescript', { paths: [dir] })
+    const deps = await hasNecessaryDependencies(dir, [
+      {
+        pkg: 'typescript',
+        file: 'typescript/lib/typescript.js',
+        exportsRestrict: true,
+      },
+    ])
+    typeScriptPath = deps.resolved.get('typescript')
   } catch (_) {}
   const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
   const useTypeScript = Boolean(

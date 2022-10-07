@@ -11,7 +11,10 @@ module.exports =
             options.defaultLoaders.babel,
             {
               loader: require.resolve('@mdx-js/loader'),
-              options: pluginOptions.options,
+              options: {
+                providerImportSource: '@mdx-js/react',
+                ...pluginOptions.options,
+              },
             },
           ],
         })

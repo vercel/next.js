@@ -27,10 +27,10 @@ export type DocumentType = NextComponentType<
   DocumentProps
 >
 
-export type AppType = NextComponentType<
+export type AppType<P = {}> = NextComponentType<
   AppContextType,
-  AppInitialProps,
-  AppPropsType
+  P,
+  AppPropsType<any, P>
 >
 
 export type AppTreeType = ComponentType<
@@ -41,14 +41,16 @@ export type AppTreeType = ComponentType<
  * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
  * https://nextjs.org/blog/next-9-4#integrated-web-vitals-reporting
  */
+export const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'] as const
 export type NextWebVitalsMetric = {
   id: string
   startTime: number
   value: number
+  attribution?: { [key: string]: unknown }
 } & (
   | {
       label: 'web-vital'
-      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB' | 'INP'
+      name: typeof WEB_VITALS[number]
     }
   | {
       label: 'custom'
@@ -109,7 +111,6 @@ export type NEXT_DATA = {
   scriptLoader?: any[]
   isPreview?: boolean
   notFoundSrcPage?: string
-  rsc?: boolean
 }
 
 /**
@@ -165,19 +166,18 @@ export type AppContextType<R extends NextRouter = NextRouter> = {
   router: R
 }
 
-export type AppInitialProps = {
-  pageProps: any
+export type AppInitialProps<P = any> = {
+  pageProps: P
 }
 
 export type AppPropsType<
   R extends NextRouter = NextRouter,
   P = {}
-> = AppInitialProps & {
-  Component: NextComponentType<NextPageContext, any, P>
+> = AppInitialProps<P> & {
+  Component: NextComponentType<NextPageContext, any, any>
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
-  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
@@ -263,7 +263,11 @@ export type NextApiResponse<T = any> = ServerResponse & {
       path?: string
     }
   ) => NextApiResponse<T>
-  clearPreviewData: () => NextApiResponse<T>
+
+  /**
+   * Clear preview data for Next.js' prerender mode
+   */
+  clearPreviewData: (options?: { path?: string }) => NextApiResponse<T>
 
   /**
    * @deprecated `unstable_revalidate` has been renamed to `revalidate`

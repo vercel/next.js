@@ -1,9 +1,11 @@
 use super::State;
 use crate::Config;
 use std::{cell::RefCell, rc::Rc};
-use swc_ecmascript::{
-    ast::*,
-    visit::{as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitWith},
+use swc_core::{
+    ecma::ast::*,
+    ecma::visit::{
+        as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitWith,
+    },
 };
 
 pub fn analyzer(config: Rc<Config>, state: Rc<RefCell<State>>) -> impl VisitMut + Fold {
@@ -21,7 +23,7 @@ impl VisitMut for AsAnalyzer {
     fn visit_mut_module(&mut self, p: &mut Module) {
         let mut v = Analyzer {
             config: &self.config,
-            state: &mut *self.state.borrow_mut(),
+            state: &mut self.state.borrow_mut(),
         };
 
         p.visit_with(&mut v);
@@ -30,7 +32,7 @@ impl VisitMut for AsAnalyzer {
     fn visit_mut_script(&mut self, p: &mut Script) {
         let mut v = Analyzer {
             config: &self.config,
-            state: &mut *self.state.borrow_mut(),
+            state: &mut self.state.borrow_mut(),
         };
 
         p.visit_with(&mut v);

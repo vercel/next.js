@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   requestIdleCallback,
   cancelIdleCallback,
@@ -100,30 +100,21 @@ export function useIntersection<T extends Element>({
 }: UseIntersection): [(element: T | null) => void, boolean, () => void] {
   const isDisabled: boolean = disabled || !hasIntersectionObserver
 
-  const unobserve = useRef<Function>()
   const [visible, setVisible] = useState(false)
   const [element, setElement] = useState<T | null>(null)
 
   useEffect(() => {
     if (hasIntersectionObserver) {
-      if (unobserve.current) {
-        unobserve.current()
-        unobserve.current = undefined
-      }
-
       if (isDisabled || visible) return
 
       if (element && element.tagName) {
-        unobserve.current = observe(
+        const unobserve = observe(
           element,
           (isVisible) => isVisible && setVisible(isVisible),
           { root: rootRef?.current, rootMargin }
         )
-      }
 
-      return () => {
-        unobserve.current?.()
-        unobserve.current = undefined
+        return unobserve
       }
     } else {
       if (!visible) {

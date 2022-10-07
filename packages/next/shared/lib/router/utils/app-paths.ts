@@ -10,6 +10,10 @@ export function normalizeAppPath(pathname: string) {
       return acc
     }
 
+    if (segment.startsWith('@')) {
+      return acc
+    }
+
     if (segment === 'page' && index === segments.length - 1) {
       return acc
     }

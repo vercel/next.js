@@ -3,8 +3,15 @@ import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/
 import { getModuleContext } from './context'
 import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { requestToBodyStream } from '../../body-streams'
+import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 
 export const ErrorSource = Symbol('SandboxError')
+
+const FORBIDDEN_HEADERS = [
+  'content-length',
+  'content-encoding',
+  'transfer-encoding',
+]
 
 type RunnerFn = (params: {
   name: string
@@ -37,7 +44,15 @@ function withTaggedErrors(fn: RunnerFn): RunnerFn {
       })
 }
 
-export const run = withTaggedErrors(async (params) => {
+export const getRuntimeContext = async (params: {
+  name: string
+  onWarning?: any
+  useCache: boolean
+  env: string[]
+  edgeFunctionEntry: any
+  distDir: string
+  paths: string[]
+}): Promise<EdgeRuntime<any>> => {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
     onWarning: params.onWarning ?? (() => {}),
@@ -50,7 +65,11 @@ export const run = withTaggedErrors(async (params) => {
   for (const paramPath of params.paths) {
     evaluateInContext(paramPath)
   }
+  return runtime
+}
 
+export const run = withTaggedErrors(async (params) => {
+  const runtime = await getRuntimeContext(params)
   const subreq = params.request.headers[`x-middleware-subrequest`]
   const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
   if (subrequests.includes(params.name)) {
@@ -73,13 +92,20 @@ export const run = withTaggedErrors(async (params) => {
     ? params.request.body?.cloneBodyStream()
     : undefined
 
+  const KUint8Array = runtime.evaluate('Uint8Array')
+
   try {
-    return await edgeFunction({
+    const result = await edgeFunction({
       request: {
         ...params.request,
-        body: cloned && requestToBodyStream(runtime.context, cloned),
+        body:
+          cloned && requestToBodyStream(runtime.context, KUint8Array, cloned),
       },
     })
+    for (const headerName of FORBIDDEN_HEADERS) {
+      result.response.headers.delete(headerName)
+    }
+    return result
   } finally {
     await params.request.body?.finalize()
   }

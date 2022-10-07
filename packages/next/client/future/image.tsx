@@ -1,3 +1,5 @@
+'client'
+
 import React, {
   useRef,
   useEffect,
@@ -7,6 +9,7 @@ import React, {
   useState,
 } from 'react'
 import Head from '../../shared/lib/head'
+import { getImageBlurSvg } from '../../shared/lib/image-blur-svg'
 import {
   ImageConfigComplete,
   imageConfigDefault,
@@ -14,11 +17,6 @@ import {
 import { ImageConfigContext } from '../../shared/lib/image-config-context'
 import { warnOnce } from '../../shared/lib/utils'
 
-const {
-  experimentalFuture = false,
-  experimentalRemotePatterns = [],
-  experimentalUnoptimized,
-} = (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const allImgs = new Map<
   string,
@@ -51,10 +49,7 @@ type ImageLoaderPropsWithConfig = ImageLoaderProps & {
 
 type PlaceholderValue = 'blur' | 'empty'
 
-type OnLoadingComplete = (result: {
-  naturalWidth: number
-  naturalHeight: number
-}) => void
+type OnLoadingComplete = (img: HTMLImageElement) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
@@ -67,6 +62,8 @@ export interface StaticImageData {
   height: number
   width: number
   blurDataURL?: string
+  blurWidth?: number
+  blurHeight?: number
 }
 
 interface StaticRequire {
@@ -74,6 +71,8 @@ interface StaticRequire {
 }
 
 type StaticImport = StaticRequire | StaticImageData
+
+type SafeNumber = number | `${number}`
 
 function isStaticRequire(
   src: StaticRequire | StaticImageData
@@ -97,14 +96,15 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
+  'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
-  width?: number | string
-  height?: number | string
+  alt: string
+  width?: SafeNumber
+  height?: SafeNumber
   fill?: boolean
   loader?: ImageLoader
-  quality?: number | string
+  quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
   placeholder?: PlaceholderValue
@@ -113,7 +113,7 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
-type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
+type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   srcString: string
   imgAttributes: GenImgAttrsResult
   heightInt: number | undefined
@@ -131,7 +131,6 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
   setShowAltText: (b: boolean) => void
-  noscriptSizes: string | undefined
 }
 
 function getWidths(
@@ -267,10 +266,7 @@ function handleLoading(
       setBlurComplete(true)
     }
     if (onLoadingCompleteRef?.current) {
-      const { naturalWidth, naturalHeight } = img
-      // Pass back read-only primitive values but not the
-      // underlying DOM element because it could be misused.
-      onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
+      onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
       if (img.getAttribute('data-nimg') === 'future-fill') {
@@ -340,7 +336,6 @@ const ImageElement = ({
   setShowAltText,
   onLoad,
   onError,
-  noscriptSizes,
   ...rest
 }: ImageElementProps) => {
   loading = isLazy ? 'lazy' : loading
@@ -358,13 +353,46 @@ const ImageElement = ({
         loading={loading}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
-          (img: ImgElementWithDataProp) => {
+          (img: ImgElementWithDataProp | null) => {
+            if (!img) {
+              return
+            }
+            if (onError) {
+              // If the image has an error before react hydrates, then the error is lost.
+              // The workaround is to wait until the image is mounted which is after hydration,
+              // then we set the src again to trigger the error handler (if there was an error).
+              // eslint-disable-next-line no-self-assign
+              img.src = img.src
+            }
             if (process.env.NODE_ENV !== 'production') {
-              if (img && !srcString) {
+              if (!srcString) {
                 console.error(`Image is missing required "src" property:`, img)
               }
+              if (
+                img.getAttribute('objectFit') ||
+                img.getAttribute('objectfit')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectFit". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
+              if (
+                img.getAttribute('objectPosition') ||
+                img.getAttribute('objectposition')
+              ) {
+                console.error(
+                  `Image has unknown prop "objectPosition". Did you mean to use the "style" prop instead?`,
+                  img
+                )
+              }
+              if (img.getAttribute('alt') === null) {
+                console.error(
+                  `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
+                )
+              }
             }
-            if (img?.complete) {
+            if (img.complete) {
               handleLoading(
                 img,
                 srcString,
@@ -374,7 +402,13 @@ const ImageElement = ({
               )
             }
           },
-          [srcString, placeholder, onLoadingCompleteRef, setBlurComplete]
+          [
+            srcString,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete,
+            onError,
+          ]
         )}
         onLoad={(event) => {
           const img = event.currentTarget as ImgElementWithDataProp
@@ -401,30 +435,6 @@ const ImageElement = ({
           }
         }}
       />
-      {placeholder === 'blur' && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: srcString,
-              unoptimized,
-              width: widthInt,
-              quality: qualityInt,
-              sizes: noscriptSizes,
-              loader,
-            })}
-            width={widthInt}
-            height={heightInt}
-            decoding="async"
-            data-nimg={`future${fill ? '-fill' : ''}`}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading}
-          />
-        </noscript>
-      )}
     </>
   )
 }
@@ -458,10 +468,7 @@ function defaultLoader({
       )
     }
 
-    if (
-      !src.startsWith('/') &&
-      (config.domains || experimentalRemotePatterns)
-    ) {
+    if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
@@ -475,7 +482,7 @@ function defaultLoader({
       if (process.env.NODE_ENV !== 'test') {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -513,11 +520,6 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  if (!experimentalFuture && process.env.NODE_ENV !== 'test') {
-    throw new Error(
-      `The "next/future/image" component is experimental and may be subject to breaking changes. To enable this experiment, please include \`experimental: { images: { allowFutureImage: true } }\` in your next.config.js file.`
-    )
-  }
   const configContext = useContext(ImageConfigContext)
   const config: ImageConfig = useMemo(() => {
     const c = configEnv || configContext || imageConfigDefault
@@ -544,6 +546,10 @@ export default function Image({
   }
 
   let staticSrc = ''
+  let widthInt = getInt(width)
+  let heightInt = getInt(height)
+  let blurWidth: number | undefined
+  let blurHeight: number | undefined
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
 
@@ -554,17 +560,30 @@ export default function Image({
         )}`
       )
     }
-    blurDataURL = blurDataURL || staticImageData.blurDataURL
-    staticSrc = staticImageData.src
-
-    height = height || staticImageData.height
-    width = width || staticImageData.width
     if (!staticImageData.height || !staticImageData.width) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
           staticImageData
         )}`
       )
+    }
+
+    blurWidth = staticImageData.blurWidth
+    blurHeight = staticImageData.blurHeight
+    blurDataURL = blurDataURL || staticImageData.blurDataURL
+    staticSrc = staticImageData.src
+
+    if (!fill) {
+      if (!widthInt && !heightInt) {
+        widthInt = staticImageData.width
+        heightInt = staticImageData.height
+      } else if (widthInt && !heightInt) {
+        const ratio = widthInt / staticImageData.width
+        heightInt = Math.round(staticImageData.height * ratio)
+      } else if (!widthInt && heightInt) {
+        const ratio = heightInt / staticImageData.height
+        widthInt = Math.round(staticImageData.width * ratio)
+      }
     }
   }
   src = typeof src === 'string' ? src : staticSrc
@@ -576,14 +595,13 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (experimentalUnoptimized) {
+  if (config.unoptimized) {
     unoptimized = true
   }
 
   const [blurComplete, setBlurComplete] = useState(false)
   const [showAltText, setShowAltText] = useState(false)
-  let widthInt = getInt(width)
-  let heightInt = getInt(height)
+
   const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
@@ -653,19 +671,8 @@ export default function Image({
       )
     }
 
-    if ('objectFit' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" property.`
-      )
-    }
-    if ('objectPosition' in rest) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" property.`
-      )
-    }
-
     if (placeholder === 'blur') {
-      if ((widthInt || 0) * (heightInt || 0) < 1600) {
+      if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
@@ -759,25 +766,36 @@ export default function Image({
           bottom: 0,
         }
       : {},
-    showAltText || placeholder === 'blur' ? {} : { color: 'transparent' },
+    showAltText ? {} : { color: 'transparent' },
     style
   )
-  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
+
   const blurStyle =
-    placeholder === 'blur' && !blurComplete
+    placeholder === 'blur' && blurDataURL && !blurComplete
       ? {
           backgroundSize: imgStyle.objectFit || 'cover',
-          backgroundPosition: imgStyle.objectPosition || '0% 0%',
-          ...(blurDataURL?.startsWith('data:image')
-            ? {
-                backgroundImage: svgBlurPlaceholder,
-              }
-            : {
-                filter: 'blur(20px)',
-                backgroundImage: `url("${blurDataURL}")`,
-              }),
+          backgroundPosition: imgStyle.objectPosition || '50% 50%',
+          backgroundRepeat: 'no-repeat',
+          backgroundImage: `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg(
+            {
+              widthInt,
+              heightInt,
+              blurWidth,
+              blurHeight,
+              blurDataURL,
+            }
+          )}")`,
         }
       : {}
+
+  if (process.env.NODE_ENV === 'development') {
+    if (blurStyle.backgroundImage && blurDataURL?.startsWith('/')) {
+      // During `next dev`, we don't want to generate blur placeholders with webpack
+      // because it can delay starting the dev server. Instead, `next-image-loader.js`
+      // will inline a special url to lazily generate the blur placeholder at request time.
+      blurStyle.backgroundImage = `url("${blurDataURL}")`
+    }
+  }
 
   const imgAttributes = generateImgAttrs({
     config,
@@ -809,10 +827,14 @@ export default function Image({
     imageSrcSetPropName = 'imageSrcSet'
     imageSizesPropName = 'imageSizes'
   }
-  const linkProps = {
+  const linkProps: React.DetailedHTMLProps<
+    React.LinkHTMLAttributes<HTMLLinkElement>,
+    HTMLLinkElement
+  > = {
     // Note: imagesrcset and imagesizes are not in the link element type with react 17.
     [imageSrcSetPropName]: imgAttributes.srcSet,
     [imageSizesPropName]: imgAttributes.sizes,
+    crossOrigin: rest.crossOrigin,
   }
 
   const onLoadingCompleteRef = useRef(onLoadingComplete)
@@ -840,7 +862,6 @@ export default function Image({
     onLoadingCompleteRef,
     setBlurComplete,
     setShowAltText,
-    noscriptSizes: sizes,
     ...rest,
   }
   return (

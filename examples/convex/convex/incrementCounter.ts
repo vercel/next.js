@@ -2,8 +2,8 @@ import { mutation } from './_generated/server'
 
 export default mutation(
   async ({ db }, counterName: string, increment: number) => {
-    let counterDoc = await db
-      .table('counter_table')
+    const counterDoc = await db
+      .query('counter_table')
       .filter((q) => q.eq(q.field('name'), counterName))
       .first()
     if (counterDoc === null) {

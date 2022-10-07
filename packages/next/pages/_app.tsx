@@ -1,14 +1,17 @@
 import React from 'react'
-import {
-  loadGetInitialProps,
+
+import type {
   AppContextType,
   AppInitialProps,
   AppPropsType,
   NextWebVitalsMetric,
+  AppType,
 } from '../shared/lib/utils'
 import type { Router } from '../client/router'
 
-export { AppInitialProps }
+import { loadGetInitialProps } from '../shared/lib/utils'
+
+export { AppInitialProps, AppType }
 
 export { NextWebVitalsMetric }
 

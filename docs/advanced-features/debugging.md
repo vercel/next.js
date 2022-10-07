@@ -90,7 +90,7 @@ Debugging server-side code here works much like debugging client-side code with 
 
 ### Debugging on Windows
 
-Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`--dev` with NPM or `-D` for Yarn) and replace the `dev` script with the following.
+Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`-D` with `npm` and `yarn`) and replace the `dev` script with the following.
 
 ```json
 "dev": "cross-env NODE_OPTIONS='--inspect' next dev",

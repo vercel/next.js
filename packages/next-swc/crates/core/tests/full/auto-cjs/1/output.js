@@ -2,9 +2,9 @@
 Object.defineProperty(exports, "__esModule", {
     value: !0
 });
-var a = function(a) {
-    return a && a.__esModule ? a : {
-        default: a
+var e = function(e) {
+    return e && e.__esModule ? e : {
+        default: e
     };
 }(require("esm"));
-console.log(a.default.foo), module.exports = a.default;
+console.log(e.default.foo), module.exports = e.default;

@@ -10,6 +10,7 @@ import testSVG from '../public/test.svg'
 import testGIF from '../public/test.gif'
 import testBMP from '../public/test.bmp'
 import testICO from '../public/test.ico'
+import widePNG from '../public/wide.png'
 
 import TallImage from '../components/TallImage'
 
@@ -19,7 +20,14 @@ const Page = () => {
       <h1 id="page-header">Static Image</h1>
       <Image id="basic-static" src={testImg} placeholder="blur" />
       <TallImage />
-      <Image id="defined-size-static" src={testPNG} height="150" width="150" />
+      <Image
+        id="defined-width-and-height"
+        src={testPNG}
+        height="150"
+        width="150"
+      />
+      <Image id="defined-height-only" src={widePNG} height="350" />
+      <Image id="defined-width-only" src={widePNG} width="400" />
       <Image id="require-static" src={require('../public/foo/test-rect.jpg')} />
       <Image
         id="basic-non-static"

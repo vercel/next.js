@@ -1,3 +1,5 @@
+'client'
+
 import {
   useCallback,
   useContext,

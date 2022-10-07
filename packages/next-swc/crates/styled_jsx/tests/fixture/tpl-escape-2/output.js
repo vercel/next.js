@@ -14,4 +14,4 @@ export default function Home({ fontFamily  }) {
     ]}>{`body{font-family:${fontFamily}}code:before,code:after{content:"\`"}`}</_JSXStyle>
 
     </div>;
-};
+}

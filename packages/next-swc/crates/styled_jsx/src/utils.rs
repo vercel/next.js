@@ -1,7 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
-use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::*;
+use swc_core::{common::DUMMY_SP, ecma::ast::*};
 
 use super::{ExternalStyle, JSXStyle, LocalStyle};
 
@@ -308,11 +307,11 @@ pub fn styled_jsx_import_decl(style_import_name: &str) -> ModuleItem {
             },
             span: DUMMY_SP,
         })],
-        src: Str {
+        src: Box::new(Str {
             span: DUMMY_SP,
             value: "styled-jsx/style".into(),
             raw: None,
-        },
+        }),
     }))
 }
 

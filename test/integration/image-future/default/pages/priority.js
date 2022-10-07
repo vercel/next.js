@@ -13,6 +13,14 @@ const Page = () => {
         height="400"
       ></Image>
       <Image
+        priority
+        id="basic-image-crossorigin"
+        src="/test.jpg"
+        width="400"
+        height="400"
+        crossOrigin="anonymous"
+      ></Image>
+      <Image
         loading="eager"
         id="load-eager"
         src="/test.png"

@@ -8,7 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/issue-validator
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: 'Run issue validator'
+        run: node ./.github/actions/issue-validator/index.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEBUG: 1

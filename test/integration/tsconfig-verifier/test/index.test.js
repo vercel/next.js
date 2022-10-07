@@ -65,7 +65,11 @@ describe('tsconfig.json verifier', () => {
     await new Promise((resolve) => setTimeout(resolve, 500))
     expect(await readFile(tsConfig, 'utf8')).toBe('')
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
@@ -264,22 +268,26 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
-  it('allows you to set node12 moduleResolution mode', async () => {
+  it('allows you to set node16 moduleResolution mode', async () => {
     expect(await exists(tsConfig)).toBe(false)
 
     await writeFile(
       tsConfig,
-      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node12" } }`
+      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node16" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
-          \\"moduleResolution\\": \\"node12\\",
+          \\"moduleResolution\\": \\"node16\\",
           \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
@@ -354,7 +362,11 @@ describe('tsconfig.json verifier', () => {
     await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
@@ -405,7 +417,11 @@ describe('tsconfig.json verifier', () => {
     await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const { code } = await nextBuild(appDir)
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
     expect(code).toBe(0)
 
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`

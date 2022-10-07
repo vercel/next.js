@@ -1,4 +1,4 @@
 export default function handler(req, res) {
   res.setPreviewData({ key: 'value' })
-  res.send(200).end()
+  res.status(200).end()
 }

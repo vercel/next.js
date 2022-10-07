@@ -9,7 +9,12 @@ import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfigComplete } from './config-shared'
-import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
+import {
+  processBuffer,
+  decodeBuffer,
+  Operation,
+  getMetadata,
+} from './lib/squoosh/main'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
@@ -17,6 +22,7 @@ import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
 import { mockRequest } from './lib/mock-request'
 import { hasMatch } from '../shared/lib/match-remote-pattern'
+import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -30,6 +36,7 @@ const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
+const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let sharp:
   | ((
@@ -154,7 +161,7 @@ export class ImageOptimizerCache {
       minimumCacheTTL = 60,
       formats = ['image/webp'],
     } = imageData
-    const remotePatterns = nextConfig.experimental.images?.remotePatterns || []
+    const remotePatterns = nextConfig.images?.remotePatterns || []
     const { url, w, q } = query
     let href: string
 
@@ -215,7 +222,10 @@ export class ImageOptimizerCache {
       sizes.push(BLUR_IMG_SIZE)
     }
 
-    if (!sizes.includes(width)) {
+    const isValidSize =
+      sizes.includes(width) || (isDev && width <= BLUR_IMG_SIZE)
+
+    if (!isValidSize) {
       return {
         errorMessage: `"w" parameter (width) of ${width} is not allowed`,
       }
@@ -385,6 +395,7 @@ export async function imageOptimizer(
   _res: ServerResponse,
   paramsResult: ImageParamsResult,
   nextConfig: NextConfigComplete,
+  isDev: boolean | undefined,
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
@@ -536,7 +547,7 @@ export async function imageOptimizer(
         // TODO: should we ensure squoosh also works even though we don't
         // recommend it be used in production and this is a production feature
         console.error(
-          `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
         )
         throw new ImageError(500, 'internal server error')
       }
@@ -602,6 +613,21 @@ export async function imageOptimizer(
       // End Squoosh transformation logic
     }
     if (optimizedBuffer) {
+      if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+        // During `next dev`, we don't want to generate blur placeholders with webpack
+        // because it can delay starting the dev server. Instead, `next-image-loader.js`
+        // will inline a special url to lazily generate the blur placeholder at request time.
+        const meta = await getMetadata(optimizedBuffer)
+        const opts = {
+          blurWidth: meta.width,
+          blurHeight: meta.height,
+          blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
+            'base64'
+          )}`,
+        }
+        optimizedBuffer = Buffer.from(unescape(getImageBlurSvg(opts)))
+        contentType = 'image/svg+xml'
+      }
       return {
         buffer: optimizedBuffer,
         contentType,
@@ -719,8 +745,8 @@ export function sendResponse(
 
 export async function resizeImage(
   content: Buffer,
-  dimension: 'width' | 'height',
-  size: number,
+  width: number,
+  height: number,
   // Should match VALID_BLUR_EXT
   extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
@@ -748,18 +774,11 @@ export async function resizeImage(
     } else if (extension === 'jpeg') {
       transformer.jpeg({ quality })
     }
-    if (dimension === 'width') {
-      transformer.resize(size)
-    } else {
-      transformer.resize(null, size)
-    }
+    transformer.resize(width, height)
     const buf = await transformer.toBuffer()
     return buf
   } else {
-    const resizeOperationOpts: Operation =
-      dimension === 'width'
-        ? { type: 'resize', width: size }
-        : { type: 'resize', height: size }
+    const resizeOperationOpts: Operation = { type: 'resize', width, height }
     const buf = await processBuffer(
       content,
       [resizeOperationOpts],

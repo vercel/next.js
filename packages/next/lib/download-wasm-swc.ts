@@ -26,7 +26,7 @@ export async function downloadWasmSwc(
 
   // get platform specific cache directory adapted from playwright's handling
   // https://github.com/microsoft/playwright/blob/7d924470d397975a74a19184c136b3573a974e13/packages/playwright-core/src/utils/registry.ts#L141
-  const cacheDirectory = (() => {
+  const cacheDirectory = await (async () => {
     let result
     const envDefined = process.env['NEXT_SWC_PATH']
 
@@ -44,8 +44,23 @@ export async function downloadWasmSwc(
           process.env.LOCALAPPDATA ||
           path.join(os.homedir(), 'AppData', 'Local')
       } else {
-        console.error(new Error('Unsupported platform: ' + process.platform))
-        process.exit(0)
+        /// Attempt to use generic tmp location for these platforms
+        if (process.platform === 'freebsd' || process.platform === 'android') {
+          for (const dir of [
+            path.join(os.homedir(), '.cache'),
+            path.join(os.tmpdir()),
+          ]) {
+            if (await fileExists(dir)) {
+              systemCacheDirectory = dir
+              break
+            }
+          }
+        }
+
+        if (!systemCacheDirectory) {
+          console.error(new Error('Unsupported platform: ' + process.platform))
+          process.exit(0)
+        }
       }
       result = path.join(systemCacheDirectory, 'next-swc')
     }

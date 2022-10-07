@@ -1,35 +1,34 @@
-import React from 'react'
+import { observer } from 'mobx-react-lite'
 import Link from 'next/link'
-import { inject, observer } from 'mobx-react'
+import { useEffect } from 'react'
 import Clock from './Clock'
+import { useStore } from './StoreProvider'
 
-@inject('store')
-@observer
-class Page extends React.Component {
-  componentDidMount() {
-    this.props.store.start()
-  }
+const Page = observer(function Page(props) {
+  // use store from the store context
+  const store = useStore()
 
-  componentWillUnmount() {
-    this.props.store.stop()
-  }
+  //start the clock when the component is mounted
+  useEffect(() => {
+    store.start()
 
-  render() {
-    return (
-      <div>
-        <h1>{this.props.title}</h1>
-        <Clock
-          timeString={this.props.store.timeString}
-          light={this.props.store.light}
-        />
-        <nav>
-          <Link href={this.props.linkTo}>
-            <a>Navigate</a>
-          </Link>
-        </nav>
-      </div>
-    )
-  }
-}
+    // stop the clock when the component unmounts
+    return () => {
+      store.stop()
+    }
+  }, [store])
+
+  return (
+    <div>
+      <h1>{props.title}</h1>
+      <Clock />
+      <nav>
+        <Link href={props.linkTo}>
+          <a>Navigate</a>
+        </Link>
+      </nav>
+    </div>
+  )
+})
 
 export default Page

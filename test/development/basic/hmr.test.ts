@@ -776,11 +776,103 @@ describe('basic HMR', () => {
     })
   })
 
+  describe('Full reload', () => {
+    it('should warn about full reload in cli output - anonymous page function', async () => {
+      const start = next.cliOutput.length
+      const browser = await webdriver(
+        next.appPort,
+        `/hmr/anonymous-page-function`
+      )
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+      expect(next.cliOutput.slice(start)).not.toContain(
+        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+      )
+
+      const currentFileContent = await next.readFile(
+        './pages/hmr/anonymous-page-function.js'
+      )
+      const newFileContent = currentFileContent.replace(
+        '<p>hello world</p>',
+        '<p id="updated">hello world!!!</p>'
+      )
+      await next.patchFile(
+        './pages/hmr/anonymous-page-function.js',
+        newFileContent
+      )
+
+      expect(await browser.waitForElementByCss('#updated').text()).toBe(
+        'hello world!!!'
+      )
+
+      // CLI warning and stacktrace
+      expect(next.cliOutput.slice(start)).toContain(
+        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+      )
+      expect(next.cliOutput.slice(start)).toContain(
+        'Error: Aborted because ./pages/hmr/anonymous-page-function.js is not accepted'
+      )
+
+      // Browser warning
+      const browserLogs = await browser.log()
+      expect(
+        browserLogs.some(({ message }) =>
+          message.includes(
+            "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree."
+          )
+        )
+      ).toBeTruthy()
+    })
+
+    it('should warn about full reload in cli output - runtime-error', async () => {
+      const start = next.cliOutput.length
+      const browser = await webdriver(next.appPort, `/hmr/runtime-error`)
+      await check(
+        () => getRedboxHeader(browser),
+        /ReferenceError: whoops is not defined/
+      )
+      expect(next.cliOutput.slice(start)).not.toContain(
+        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+      )
+
+      const currentFileContent = await next.readFile(
+        './pages/hmr/runtime-error.js'
+      )
+      const newFileContent = currentFileContent.replace(
+        'whoops',
+        '<p id="updated">whoops</p>'
+      )
+      await next.patchFile('./pages/hmr/runtime-error.js', newFileContent)
+
+      expect(await browser.waitForElementByCss('#updated').text()).toBe(
+        'whoops'
+      )
+
+      // CLI warning and stacktrace
+      expect(next.cliOutput.slice(start)).toContain(
+        'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+      )
+      expect(next.cliOutput.slice(start)).not.toContain(
+        'Error: Aborted because ./pages/runtime-error.js is not accepted'
+      )
+
+      // Browser warning
+      const browserLogs = await browser.log()
+      expect(
+        browserLogs.some(({ message }) =>
+          message.includes(
+            '[Fast Refresh] performing full reload because your application had an unrecoverable error'
+          )
+        )
+      ).toBeTruthy()
+    })
+  })
+
   it('should have client HMR events in trace file', async () => {
     const traceData = await next.readFile('.next/trace')
     expect(traceData).toContain('client-hmr-latency')
     expect(traceData).toContain('client-error')
     expect(traceData).toContain('client-success')
+    expect(traceData).toContain('client-full-reload')
   })
 
   it('should have correct compile timing after fixing error', async () => {

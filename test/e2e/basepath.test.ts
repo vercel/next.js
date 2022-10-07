@@ -97,6 +97,36 @@ describe('basePath', () => {
   afterAll(() => next.destroy())
 
   const runTests = (isDev = false, isDeploy = false) => {
+    it('should navigate to /404 correctly client-side', async () => {
+      const browser = await webdriver(next.url, `${basePath}/slug-1`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /slug-1/
+      )
+
+      await browser.eval('next.router.push("/404", "/slug-2")')
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /page could not be found/
+      )
+      expect(await browser.eval('location.pathname')).toBe(`${basePath}/slug-2`)
+    })
+
+    it('should navigate to /_error correctly client-side', async () => {
+      const browser = await webdriver(next.url, `${basePath}/slug-1`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /slug-1/
+      )
+
+      await browser.eval('next.router.push("/_error", "/slug-2")')
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /page could not be found/
+      )
+      expect(await browser.eval('location.pathname')).toBe(`${basePath}/slug-2`)
+    })
+
     it('should navigate to external site and back', async () => {
       const browser = await webdriver(next.url, `${basePath}/external-and-back`)
       const initialText = await browser.elementByCss('p').text()

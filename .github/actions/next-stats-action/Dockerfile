@@ -1,4 +1,4 @@
-FROM node:14-buster
+FROM node:16-bullseye
 
 LABEL com.github.actions.name="Next.js PR Stats"
 LABEL com.github.actions.description="Compares stats of a PR with the main branch"
@@ -7,7 +7,7 @@ LABEL repository="https://github.com/vercel/next-stats-action"
 COPY . /next-stats
 
 # Install node_modules
-RUN npm i -g pnpm@7.2.1
+RUN npm i -g pnpm@7.3.0
 RUN cd /next-stats && pnpm install --production
 
 RUN git config --global user.email 'stats@localhost'

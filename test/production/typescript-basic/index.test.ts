@@ -20,6 +20,12 @@ describe('TypeScript basic', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should not have eslint setup started', async () => {
+    expect(next.cliOutput).not.toContain(
+      'How would you like to configure ESLint'
+    )
+  })
+
   it('have built and started correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello world')

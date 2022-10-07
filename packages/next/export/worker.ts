@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { FontManifest } from '../server/font-utils'
+import type { FontManifest, FontConfig } from '../server/font-utils'
 import type { GetStaticProps } from '../types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
@@ -23,10 +23,14 @@ import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
+import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
+import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -59,13 +63,14 @@ interface ExportPageInput {
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   serverless: boolean
-  optimizeFonts: boolean
+  optimizeFonts: FontConfig
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  appDir?: boolean
+  appPaths: string[]
+  enableUndici: NextConfigComplete['experimental']['enableUndici']
 }
 
 interface ExportPageResults {
@@ -82,7 +87,7 @@ interface RenderOpts {
   ampPath?: string
   ampValidatorPath?: string
   ampSkipValidation?: boolean
-  optimizeFonts?: boolean
+  optimizeFonts?: FontConfig
   disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
@@ -91,7 +96,7 @@ interface RenderOpts {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
-  appDir?: boolean
+  supportsDynamicHTML?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -105,7 +110,6 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
-  appDir,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -117,8 +121,12 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
   serverComponents,
+  enableUndici,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpAgentOptions(httpAgentOptions)
+  setHttpClientAndAgentOptions({
+    httpAgentOptions,
+    experimental: { enableUndici },
+  })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
@@ -130,6 +138,7 @@ export default async function exportPage({
     try {
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
+      const isAppDir = (pathMap as any)._isAppDir
       const filePath = normalizePagePath(path)
       const isDynamic = isDynamicRoute(page)
       const ampPath = `${filePath}.amp`
@@ -137,6 +146,9 @@ export default async function exportPage({
       let query = { ...originalQuery }
       let params: { [key: string]: string | string[] } | undefined
 
+      if (isAppDir) {
+        outDir = join(distDir, 'server/app')
+      }
       let updatedPath = query.__nextSsgPath || path
       let locale = query.__nextLocale || renderOpts.locale
       delete query.__nextLocale
@@ -173,7 +185,11 @@ export default async function exportPage({
       ).pathname
 
       if (isDynamic && page !== nonLocalizedPath) {
-        params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
+        const normalizedPage = isAppDir ? normalizeAppPath(page) : page
+
+        params =
+          getRouteMatcher(getRouteRegex(normalizedPage))(updatedPath) ||
+          undefined
         if (params) {
           // we have to pass these separately for serverless
           if (!serverless) {
@@ -288,13 +304,13 @@ export default async function exportPage({
           getServerSideProps,
           getStaticProps,
           pageConfig,
-        } = await loadComponents(
+        } = await loadComponents({
           distDir,
-          page,
+          pathname: page,
           serverless,
-          serverComponents,
-          appDir
-        )
+          hasServerComponents: !!serverComponents,
+          isAppPath: isAppDir,
+        })
         const ampState = {
           ampFirst: pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -355,12 +371,70 @@ export default async function exportPage({
           throw new Error(`Failed to render serverless page`)
         }
       } else {
-        const components = await loadComponents(
+        const components = await loadComponents({
           distDir,
-          page,
+          pathname: page,
           serverless,
-          serverComponents
-        )
+          hasServerComponents: !!serverComponents,
+          isAppPath: isAppDir,
+        })
+        curRenderOpts = {
+          ...components,
+          ...renderOpts,
+          ampPath: renderAmpPath,
+          params,
+          optimizeFonts,
+          optimizeCss,
+          disableOptimizedLoading,
+          fontManifest: optimizeFonts
+            ? requireFontManifest(distDir, serverless)
+            : null,
+          locale: locale as string,
+          supportsDynamicHTML: false,
+        }
+
+        // during build we attempt rendering app dir paths
+        // and bail when dynamic dependencies are detected
+        // only fully static paths are fully generated here
+        if (isAppDir) {
+          const { renderToHTMLOrFlight } =
+            require('../server/app-render') as typeof import('../server/app-render')
+
+          try {
+            curRenderOpts.params ||= {}
+
+            const result = await renderToHTMLOrFlight(
+              req as any,
+              res as any,
+              page,
+              query,
+              curRenderOpts as any
+            )
+            const html = result?.toUnchunkedString()
+            const flightData = (curRenderOpts as any).pageData
+            const revalidate = (curRenderOpts as any).revalidate
+            results.fromBuildExportRevalidate = revalidate
+
+            if (revalidate !== 0) {
+              await promises.writeFile(htmlFilepath, html, 'utf8')
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.rsc'),
+                flightData
+              )
+            }
+          } catch (err: any) {
+            if (
+              err.digest !== DYNAMIC_ERROR_CODE &&
+              err.digest !== NOT_FOUND_ERROR_CODE &&
+              !err.digest?.startsWith(REDIRECT_ERROR_CODE)
+            ) {
+              throw err
+            }
+          }
+
+          return { ...results, duration: Date.now() - start }
+        }
+
         const ampState = {
           ampFirst: components.pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -399,23 +473,10 @@ export default async function exportPage({
            * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
            */
           if (optimizeFonts) {
-            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(optimizeFonts)
           }
           if (optimizeCss) {
             process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
-          }
-          curRenderOpts = {
-            ...components,
-            ...renderOpts,
-            ampPath: renderAmpPath,
-            params,
-            optimizeFonts,
-            optimizeCss,
-            disableOptimizedLoading,
-            fontManifest: optimizeFonts
-              ? requireFontManifest(distDir, serverless)
-              : null,
-            locale: locale as string,
           }
           renderResult = await renderMethod(
             req,

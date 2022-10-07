@@ -1,3 +1,4 @@
+/** @type {import('next').NextConfig} */
 module.exports = {
   webpack: function (config) {
     config.externals = config.externals || {}

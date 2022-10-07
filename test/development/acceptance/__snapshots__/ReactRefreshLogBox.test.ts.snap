@@ -72,7 +72,6 @@ Error:
   x Unexpected eof
    ,----
  1 | export default () => <div/
-   :                           ^
    \`----
 
 Caused by:
@@ -172,6 +171,12 @@ Caused by:
 exports[`ReactRefreshLogBox unterminated JSX 1`] = `
 "./index.js
 Error: 
+  x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+   ,----
+ 8 | }
+   : ^
+   \`----
+
   x Unexpected eof
    ,----
  9 |  

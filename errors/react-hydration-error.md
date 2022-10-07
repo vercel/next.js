@@ -37,6 +37,40 @@ function MyComponent() {
 }
 ```
 
+Another example:
+
+Invalid HTML may cause hydration mismatch such as div inside p.
+
+```jsx
+export const IncorrectComponent = () => {
+  return (
+    <p>
+      <div>
+        This is not correct and should never be done because the p tag has been
+        abused
+      </div>
+      <Image src="/vercel.svg" alt="" width="30" height="30" />
+    </p>
+  )
+}
+```
+
+How to fix it:
+
+```jsx
+export const CorrectComponent = () => {
+  return (
+    <div>
+      <div>
+        This is correct and should work because a div is really good for this
+        task.
+      </div>
+      <Image src="/vercel.svg" alt="" width="30" height="30" />
+    </div>
+  )
+}
+```
+
 Common causes with css-in-js libraries:
 
 - When using Styled Components / Emotion
@@ -50,5 +84,5 @@ Common causes with css-in-js libraries:
 
 ### Useful Links
 
-- [React Hydration Documentation](https://reactjs.org/docs/react-dom.html#hydrate)
+- [React Hydration Documentation](https://reactjs.org/docs/react-dom-client.html#hydrateroot)
 - [Josh Comeau's article on React Hydration](https://www.joshwcomeau.com/react/the-perils-of-rehydration/)

@@ -178,6 +178,34 @@ describe('CLI Usage', () => {
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
+    test('--port 0', async () => {
+      const output = await runNextCommandDev([dir, '--port', '0'], true)
+      const matches = /on 0.0.0.0:(\d+)/.exec(output)
+      expect(matches).not.toBe(null)
+
+      const port = parseInt(matches[1])
+      // Regression test: port 0 was interpreted as if no port had been
+      // provided, falling back to 3000.
+      expect(port).not.toBe(3000)
+
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+    })
+
+    test('PORT=0', async () => {
+      const output = await runNextCommandDev([dir], true, {
+        env: { PORT: 0 },
+      })
+      const matches = /on 0.0.0.0:(\d+)/.exec(output)
+      expect(matches).not.toBe(null)
+
+      const port = parseInt(matches[1])
+      // Regression test: port 0 was interpreted as if no port had been
+      // provided, falling back to 3000.
+      expect(port).not.toBe(3000)
+
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+    })
+
     test("NODE_OPTIONS='--inspect'", async () => {
       // this test checks that --inspect works by launching a single debugger for the main Next.js process,
       // not for its subprocesses
