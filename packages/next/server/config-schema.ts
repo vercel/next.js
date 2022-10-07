@@ -222,6 +222,9 @@ const configSchema = {
         adjustFontFallbacks: {
           type: 'boolean',
         },
+        adjustFontFallbacksWithSizeAdjust: {
+          type: 'boolean',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -236,9 +239,6 @@ const configSchema = {
             },
           },
           type: 'object',
-        },
-        appDir: {
-          type: 'boolean',
         },
         browsersListForSwc: {
           type: 'boolean',
@@ -264,6 +264,9 @@ const configSchema = {
               const: 'loose',
             },
           ] as any,
+        },
+        appDir: {
+          type: 'boolean',
         },
         externalDir: {
           type: 'boolean',
@@ -320,6 +323,12 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
+        serverComponentsExternalPackages: {
+          items: {
+            type: 'string',
+          },
+          type: 'array',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',
@@ -343,6 +352,12 @@ const configSchema = {
           type: 'boolean',
         },
         sharedPool: {
+          type: 'boolean',
+        },
+        skipMiddlewareUrlNormalize: {
+          type: 'boolean',
+        },
+        skipTrailingSlashRedirect: {
           type: 'boolean',
         },
         sri: {
@@ -384,8 +399,21 @@ const configSchema = {
           },
           type: 'array',
         },
+        enableUndici: {
+          type: 'boolean',
+        },
         workerThreads: {
           type: 'boolean',
+        },
+        fontLoaders: {
+          type: 'object',
+        },
+        webVitalsAttribution: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
+          } as any,
         },
       },
       type: 'object',

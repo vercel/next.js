@@ -1,6 +1,6 @@
 import React from 'react'
-import {
-  loadGetInitialProps,
+
+import type {
   AppContextType,
   AppInitialProps,
   AppPropsType,
@@ -8,6 +8,8 @@ import {
   AppType,
 } from '../shared/lib/utils'
 import type { Router } from '../client/router'
+
+import { loadGetInitialProps } from '../shared/lib/utils'
 
 export { AppInitialProps, AppType }
 

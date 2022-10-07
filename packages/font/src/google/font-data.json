@@ -14,6 +14,9 @@
   "Abril Fatface": {
     "variants": ["400"]
   },
+  "Abyssinica SIL": {
+    "variants": ["400"]
+  },
   "Aclonica": {
     "variants": ["400"]
   },
@@ -191,6 +194,9 @@
     "variants": ["400"]
   },
   "Alike Angular": {
+    "variants": ["400"]
+  },
+  "Alkalami": {
     "variants": ["400"]
   },
   "Allan": {
@@ -1656,6 +1662,7 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "axes": [
@@ -1677,6 +1684,7 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "axes": [
@@ -3473,6 +3481,7 @@
   },
   "Hepta Slab": {
     "variants": [
+      "1",
       "100",
       "200",
       "300",
@@ -3785,6 +3794,38 @@
         "max": 0,
         "defaultValue": 0
       },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Inter Tight": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "100-italic",
+      "200-italic",
+      "300-italic",
+      "400-italic",
+      "500-italic",
+      "600-italic",
+      "700-italic",
+      "800-italic",
+      "900-italic",
+      "variable",
+      "variable-italic"
+    ],
+    "axes": [
       {
         "tag": "wght",
         "min": 100,
@@ -4349,7 +4390,7 @@
     "variants": ["400"]
   },
   "Lateef": {
-    "variants": ["400"]
+    "variants": ["200", "300", "400", "500", "600", "700", "800"]
   },
   "Lato": {
     "variants": [
@@ -5373,6 +5414,8 @@
       "700",
       "800",
       "900",
+      "1000",
+      "100-italic",
       "200-italic",
       "300-italic",
       "400-italic",
@@ -5637,7 +5680,15 @@
     ]
   },
   "Noto Nastaliq Urdu": {
-    "variants": ["400", "700"]
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
   },
   "Noto Rashi Hebrew": {
     "variants": [
@@ -6000,6 +6051,34 @@
   "Noto Sans Elymaic": {
     "variants": ["400"]
   },
+  "Noto Sans Ethiopic": {
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Noto Sans Georgian": {
     "variants": [
       "100",
@@ -6160,7 +6239,15 @@
     "variants": ["100", "300", "400", "500", "700", "900"]
   },
   "Noto Sans Javanese": {
-    "variants": ["400", "700"]
+    "variants": ["400", "500", "600", "700", "variable"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
   },
   "Noto Sans KR": {
     "variants": ["100", "300", "400", "500", "700", "900"]
@@ -6486,7 +6573,32 @@
     "variants": ["400"]
   },
   "Noto Sans Oriya": {
-    "variants": ["100", "400", "700", "900"]
+    "variants": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
   },
   "Noto Sans Osage": {
     "variants": ["400"]
@@ -7392,6 +7504,8 @@
       "700",
       "800",
       "900",
+      "1000",
+      "100-italic",
       "200-italic",
       "300-italic",
       "400-italic",
@@ -8203,7 +8317,17 @@
     ]
   },
   "Recursive": {
-    "variants": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "variants": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "1000",
+      "variable"
+    ],
     "axes": [
       {
         "tag": "CASL",

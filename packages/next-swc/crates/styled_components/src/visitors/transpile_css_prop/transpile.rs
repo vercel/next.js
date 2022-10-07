@@ -251,7 +251,7 @@ impl VisitMut for TranspileCssProp {
                                     if expr.is_fn_expr() || expr.is_arrow() {
                                         acc.push(expr);
                                         return acc;
-                                    } else if let Some(root) = trace_root_value(&mut *expr) {
+                                    } else if let Some(root) = trace_root_value(&mut expr) {
                                         let direct_access = match root {
                                             Expr::Lit(_) => true,
                                             Expr::Ident(id) if self.is_top_level_ident(id) => true,
@@ -314,12 +314,12 @@ impl VisitMut for TranspileCssProp {
                         }),
                         definite: false,
                     };
-                    let stmt = Stmt::Decl(Decl::Var(VarDecl {
+                    let stmt = Stmt::Decl(Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Var,
                         declare: false,
                         decls: vec![var],
-                    }));
+                    })));
                     match inject_after {
                         Some(injector) => {
                             let id = injector.to_id();
@@ -375,11 +375,11 @@ impl VisitMut for TranspileCssProp {
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
                     specifiers: vec![specifier],
-                    src: Str {
+                    src: Box::new(Str {
                         span: DUMMY_SP,
                         value: "styled-components".into(),
                         raw: None,
-                    },
+                    }),
                     type_only: Default::default(),
                     asserts: Default::default(),
                 })),
@@ -643,7 +643,7 @@ fn trace_root_value(e: &mut Expr) -> Option<&mut Expr> {
     match e {
         Expr::Member(e) => trace_root_value(&mut e.obj),
         Expr::Call(e) => match &mut e.callee {
-            Callee::Expr(e) => trace_root_value(&mut **e),
+            Callee::Expr(e) => trace_root_value(e),
             _ => None,
         },
         Expr::Ident(_) => Some(e),

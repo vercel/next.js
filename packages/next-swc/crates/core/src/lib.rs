@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
+#![feature(box_patterns)]
 
 use auto_cjs::contains_cjs;
 use either::Either;
@@ -36,7 +37,6 @@ use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
-use swc_core::ecma::atoms::JsWord;
 
 use swc_core::{
     base::config::ModuleConfig,
@@ -50,7 +50,6 @@ use swc_core::{
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
-pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_font_loaders;
 pub mod next_ssg;
@@ -91,6 +90,9 @@ pub struct TransformOptions {
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
+    pub styled_jsx: bool,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -103,6 +105,12 @@ pub struct TransformOptions {
     #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
 
+    #[allow(unused)]
+    #[serde(default)]
+    #[cfg(target_arch = "wasm32")]
+    /// Accept any value
+    pub relay: Option<serde_json::Value>,
+
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
 
@@ -113,7 +121,7 @@ pub struct TransformOptions {
     pub modularize_imports: Option<modularize_imports::Config>,
 
     #[serde(default)]
-    pub font_loaders: Option<Vec<JsWord>>,
+    pub font_loaders: Option<next_font_loaders::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -153,8 +161,11 @@ where
                 )),
             _ => Either::Right(noop()),
         },
-        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
-        hook_optimizer::hook_optimizer(),
+        if opts.styled_jsx {
+            Either::Left(styled_jsx::styled_jsx(cm.clone(), file.name.clone()))
+        } else {
+            Either::Right(noop())
+        },
         match &opts.styled_components {
             Some(config) => Either::Left(styled_components::styled_components(
                 file.name.clone(),
@@ -218,10 +229,9 @@ where
             None => Either::Right(noop()),
         },
         match &opts.font_loaders {
-            Some(font_loaders) =>
-                Either::Left(next_font_loaders::next_font_loaders(font_loaders.clone())),
+            Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
     )
 }
 

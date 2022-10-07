@@ -35,6 +35,19 @@ describe('app dir', () => {
     })
     afterAll(() => next.destroy())
 
+    if ((global as any).isNextStart) {
+      it('should generate build traces correctly', async () => {
+        const trace = JSON.parse(
+          await next.readFile(
+            '.next/server/app/dashboard/deployments/[id]/page.js.nft.json'
+          )
+        ) as { files: string[] }
+        expect(trace.files.some((file) => file.endsWith('data.json'))).toBe(
+          true
+        )
+      })
+    }
+
     it('should use application/octet-stream for flight', async () => {
       const res = await fetchViaHTTP(
         next.url,
@@ -42,7 +55,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -56,7 +69,7 @@ describe('app dir', () => {
         {},
         {
           headers: {
-            __flight__: '1',
+            __rsc__: '1',
           },
         }
       )
@@ -97,6 +110,13 @@ describe('app dir', () => {
       // should support `dynamic` in both server and client components
       expect(html).toContain('hello from dynamic on server')
       expect(html).toContain('hello from dynamic on client')
+    })
+
+    it('should serve polyfills for browsers that do not support modules', async () => {
+      const html = await renderViaHTTP(next.url, '/dashboard/index')
+      expect(html).toMatch(
+        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
+      )
     })
 
     // TODO-APP: handle css modules fouc in dev
@@ -238,11 +258,32 @@ describe('app dir', () => {
     })
 
     describe('rewrites', () => {
-      // TODO-APP:
+      // TODO-APP: rewrite url is broken
       it.skip('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+      })
+
+      it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
+        const browser = await webdriver(next.url, '/link-to-rewritten-path')
+
+        try {
+          // Click the link.
+          await browser.elementById('link-to-rewritten-path').click()
+          await browser.waitForElementByCss('#from-dashboard')
+
+          // Check to see that we were rewritten and not redirected.
+          // TODO-APP: rewrite url is broken
+          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+          // Check to see that the page we navigated to is in fact the dashboard.
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
+        } finally {
+          await browser.close()
+        }
       })
 
       it('should support rewrites on client-side navigation', async () => {
@@ -390,6 +431,7 @@ describe('app dir', () => {
         }
       })
 
+      // TODO-APP: Re-enable this test.
       it('should soft push', async () => {
         const browser = await webdriver(next.url, '/link-soft-push')
 
@@ -496,18 +538,21 @@ describe('app dir', () => {
         }
       })
 
-      // TODO-APP: should enable when implemented
-      it.skip('should allow linking from app page to pages page', async () => {
+      it('should allow linking from app page to pages page', async () => {
         const browser = await webdriver(next.url, '/pages-linking')
 
         try {
           // Click the link.
           await browser.elementById('app-link').click()
-          await browser.waitForElementByCss('#pages-link')
+          expect(await browser.waitForElementByCss('#pages-link').text()).toBe(
+            'To App Page'
+          )
 
           // Click the other link.
           await browser.elementById('pages-link').click()
-          await browser.waitForElementByCss('#app-link')
+          expect(await browser.waitForElementByCss('#app-link').text()).toBe(
+            'To Pages Page'
+          )
         } finally {
           await browser.close()
         }
@@ -799,8 +844,8 @@ describe('app dir', () => {
       })
 
       describe('hooks', () => {
-        describe('useCookies', () => {
-          it('should retrive cookies in a server component', async () => {
+        describe('cookies function', () => {
+          it('should retrieve cookies in a server component', async () => {
             const browser = await webdriver(next.url, '/hooks/use-cookies')
 
             try {
@@ -852,7 +897,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('useHeaders', () => {
+        describe('headers function', () => {
           it('should have access to incoming headers in a server component', async () => {
             // Check to see that we can't see the header when it's not present.
             let html = await renderViaHTTP(
@@ -889,7 +934,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('usePreviewData', () => {
+        describe('previewData function', () => {
           it('should return no preview data when there is none', async () => {
             const browser = await webdriver(next.url, '/hooks/use-preview-data')
 
@@ -985,7 +1030,7 @@ describe('app dir', () => {
 
     describe('client components', () => {
       describe('hooks', () => {
-        describe('useCookies', () => {
+        describe('cookies function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -997,7 +1042,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('usePreviewData', () => {
+        describe('previewData function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -1009,7 +1054,7 @@ describe('app dir', () => {
           })
         })
 
-        describe('useHeaders', () => {
+        describe('headers function', () => {
           // TODO-APP: should enable when implemented
           it.skip('should throw an error when imported', async () => {
             const res = await fetchViaHTTP(
@@ -1186,6 +1231,17 @@ describe('app dir', () => {
             )
           ).toBe('rgb(0, 0, 255)')
         })
+
+        if (!isDev) {
+          it('should not include unused css modules in the page in prod', async () => {
+            const browser = await webdriver(next.url, '/css/css-page')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
+              )
+            ).toBe(false)
+          })
+        }
       })
 
       describe('client layouts', () => {
@@ -1475,6 +1531,36 @@ describe('app dir', () => {
       })
     })
 
+    describe('not-found', () => {
+      it.skip('should trigger not-found in a server component', async () => {
+        const browser = await webdriver(next.url, '/not-found/servercomponent')
+
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('Not Found!')
+      })
+
+      it.skip('should trigger not-found in a client component', async () => {
+        const browser = await webdriver(next.url, '/not-found/clientcomponent')
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('Not Found!')
+      })
+      ;(isDev ? it.skip : it)(
+        'should trigger not-found client-side',
+        async () => {
+          const browser = await webdriver(next.url, '/not-found/client-side')
+          await browser
+            .elementByCss('button')
+            .click()
+            .waitForElementByCss('#not-found-component')
+          expect(
+            await browser.elementByCss('#not-found-component').text()
+          ).toBe('Not Found!')
+        }
+      )
+    })
+
     describe('redirect', () => {
       describe('components', () => {
         it.skip('should redirect in a server component', async () => {
@@ -1485,7 +1571,7 @@ describe('app dir', () => {
           )
         })
 
-        it('should redirect in a client component', async () => {
+        it.skip('should redirect in a client component', async () => {
           const browser = await webdriver(next.url, '/redirect/clientcomponent')
           await browser.waitForElementByCss('#result-page')
           expect(await browser.elementByCss('#result-page').text()).toBe(
@@ -1493,7 +1579,8 @@ describe('app dir', () => {
           )
         })
 
-        it('should redirect client-side', async () => {
+        // TODO-APP: Enable in development
+        ;(isDev ? it.skip : it)('should redirect client-side', async () => {
           const browser = await webdriver(next.url, '/redirect/client-side')
           await browser
             .elementByCss('button')
@@ -1548,6 +1635,43 @@ describe('app dir', () => {
           expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
           expect(await browser.url()).toBe(next.url + '/dashboard')
         })
+      })
+    })
+
+    describe('nested navigation', () => {
+      it('should navigate to nested pages', async () => {
+        const browser = await webdriver(next.url, '/nested-navigation')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+        const pages = [
+          ['Electronics', ['Phones', 'Tablets', 'Laptops']],
+          ['Clothing', ['Tops', 'Shorts', 'Shoes']],
+          ['Books', ['Fiction', 'Biography', 'Education']],
+        ] as const
+
+        for (const [category, subCategories] of pages) {
+          expect(
+            await browser
+              .elementByCss(
+                `a[href="/nested-navigation/${category.toLowerCase()}"]`
+              )
+              .click()
+              .waitForElementByCss(`#all-${category.toLowerCase()}`)
+              .text()
+          ).toBe(`All ${category}`)
+
+          for (const subcategory of subCategories) {
+            expect(
+              await browser
+                .elementByCss(
+                  `a[href="/nested-navigation/${category.toLowerCase()}/${subcategory.toLowerCase()}"]`
+                )
+                .click()
+                .waitForElementByCss(`#${subcategory.toLowerCase()}`)
+                .text()
+            ).toBe(`${subcategory}`)
+          }
+        }
       })
     })
   }

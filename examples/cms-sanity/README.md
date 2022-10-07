@@ -31,6 +31,8 @@ You'll get:
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
+- [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)
 
 # Configuration
 

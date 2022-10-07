@@ -1,10 +1,9 @@
-import { useHeaders } from 'next/dist/client/components/hooks-server'
+import { headers } from 'next/dist/client/components/hooks-server'
 
 export default function Page() {
-  const headers = useHeaders()
-
-  const hasHeader =
-    'x-use-headers' in headers && headers['x-use-headers'] === 'value'
+  const headersList = headers()
+  const hasHeader = headersList.get('x-use-headers') === 'value'
+  const referer = headersList.get('referer')
 
   return (
     <>
@@ -14,9 +13,7 @@ export default function Page() {
       ) : (
         <h2 id="does-not-have-header">Does not have x-use-headers header</h2>
       )}
-      {'referer' in headers && headers['referer'] && (
-        <h3 id="has-referer">Has referer header</h3>
-      )}
+      {referer && <h3 id="has-referer">Has referer header</h3>}
     </>
   )
 }

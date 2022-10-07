@@ -9,6 +9,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import browserslist from 'next/dist/compiled/browserslist'
 import {
   Redirect,
   Rewrite,
@@ -22,6 +23,7 @@ import {
   MIDDLEWARE_FILENAME,
   SERVER_RUNTIME,
 } from '../lib/constants'
+import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -39,7 +41,7 @@ import {
   LoadComponentsReturnType,
 } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
@@ -1124,7 +1126,7 @@ export async function buildAppStaticPaths({
         const result = await curGenerate.generateStaticParams({ params })
         // TODO: validate the result is valid here or wait for
         // buildStaticPaths to validate?
-        for (const item of result.params) {
+        for (const item of result) {
           newParams.push({ ...params, ...item })
         }
       }
@@ -1167,6 +1169,7 @@ export async function isPageStatic({
   configFileName,
   runtimeEnvConfig,
   httpAgentOptions,
+  enableUndici,
   locales,
   defaultLocale,
   parentId,
@@ -1182,6 +1185,7 @@ export async function isPageStatic({
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  enableUndici?: NextConfigComplete['experimental']['enableUndici']
   locales?: string[]
   defaultLocale?: string
   parentId?: any
@@ -1208,7 +1212,10 @@ export async function isPageStatic({
   return isPageStaticSpan
     .traceAsyncFn(async () => {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-      setHttpAgentOptions(httpAgentOptions)
+      setHttpClientAndAgentOptions({
+        httpAgentOptions,
+        experimental: { enableUndici },
+      })
 
       let componentsResult: LoadComponentsReturnType
       let prerenderRoutes: Array<string> | undefined
@@ -1724,4 +1731,33 @@ export class NestedMiddlewareError extends Error {
         `Read More - https://nextjs.org/docs/messages/nested-middleware`
     )
   }
+}
+
+export function getSupportedBrowsers(
+  dir: string,
+  isDevelopment: boolean,
+  config: NextConfigComplete
+): string[] | undefined {
+  let browsers: any
+  try {
+    const browsersListConfig = browserslist.loadConfig({
+      path: dir,
+      env: isDevelopment ? 'development' : 'production',
+    })
+    // Running `browserslist` resolves `extends` and other config features into a list of browsers
+    if (browsersListConfig && browsersListConfig.length > 0) {
+      browsers = browserslist(browsersListConfig)
+    }
+  } catch {}
+
+  // When user has browserslist use that target
+  if (browsers && browsers.length > 0) {
+    return browsers
+  }
+
+  // When user does not have browserslist use the default target
+  // When `experimental.legacyBrowsers: false` the modern default is used
+  return config.experimental.legacyBrowsers
+    ? undefined
+    : MODERN_BROWSERSLIST_TARGET
 }

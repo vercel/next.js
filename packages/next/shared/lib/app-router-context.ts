@@ -37,12 +37,12 @@ export interface AppRouterInstance {
    * Hard navigate to the provided href. Fetches new data from the server.
    * Pushes a new history entry.
    */
-  push(href: string, options: NavigateOptions): void
+  push(href: string, options?: NavigateOptions): void
   /**
    * Hard navigate to the provided href. Does not fetch data from the server if it was already fetched.
    * Replaces the current history entry.
    */
-  replace(href: string, options: NavigateOptions): void
+  replace(href: string, options?: NavigateOptions): void
   /**
    * Soft prefetch the provided href. Does not fetch data from the server if it was already fetched.
    */

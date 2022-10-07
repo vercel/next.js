@@ -186,7 +186,9 @@ export function hydrate() {
   const isError = document.documentElement.id === '__next_error__'
   const reactRoot = isError
     ? (ReactDOMClient as any).createRoot(appElement)
-    : (ReactDOMClient as any).hydrateRoot(appElement, reactEl)
+    : (React as any).startTransition(() =>
+        (ReactDOMClient as any).hydrateRoot(appElement, reactEl)
+      )
   if (isError) {
     reactRoot.render(reactEl)
   }

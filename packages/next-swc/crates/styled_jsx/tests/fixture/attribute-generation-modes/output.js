@@ -24,7 +24,7 @@ export const Test2 = ()=><div className={"jsx-81a68341e430a972 " + `jsx-${styles
 // external and dynamic
 export const Test3 = ({ color  })=><div className={`jsx-${styles.__hash}` + " " + _JSXStyle.dynamic([
         [
-            "e7486f61219e66af",
+            "f08108daf927b99d",
             [
                 color
             ]
@@ -33,14 +33,14 @@ export const Test3 = ({ color  })=><div className={`jsx-${styles.__hash}` + " " 
 
     <p className={`jsx-${styles.__hash}` + " " + _JSXStyle.dynamic([
         [
-            "e7486f61219e66af",
+            "f08108daf927b99d",
             [
                 color
             ]
         ]
     ])}>external and dynamic</p>
 
-    <_JSXStyle id={"e7486f61219e66af"} dynamic={[
+    <_JSXStyle id={"f08108daf927b99d"} dynamic={[
         color
     ]}>{`p.__jsx-style-dynamic-selector{color:${color}}`}</_JSXStyle>
 
@@ -50,7 +50,7 @@ export const Test3 = ({ color  })=><div className={`jsx-${styles.__hash}` + " " 
 // external, static and dynamic
 export const Test4 = ({ color  })=><div className={`jsx-${styles.__hash}` + " jsx-ceba8c9ce34e3d0c " + _JSXStyle.dynamic([
         [
-            "9ef7fdf2e339f135",
+            "9779eebad83219f8",
             [
                 color
             ]
@@ -59,7 +59,7 @@ export const Test4 = ({ color  })=><div className={`jsx-${styles.__hash}` + " js
 
     <p className={`jsx-${styles.__hash}` + " jsx-ceba8c9ce34e3d0c " + _JSXStyle.dynamic([
         [
-            "9ef7fdf2e339f135",
+            "9779eebad83219f8",
             [
                 color
             ]
@@ -68,7 +68,7 @@ export const Test4 = ({ color  })=><div className={`jsx-${styles.__hash}` + " js
 
     <_JSXStyle id={"ceba8c9ce34e3d0c"}>{"p.jsx-ceba8c9ce34e3d0c{display:inline-block}"}</_JSXStyle>
 
-    <_JSXStyle id={"9ef7fdf2e339f135"} dynamic={[
+    <_JSXStyle id={"9779eebad83219f8"} dynamic={[
         color
     ]}>{`p.__jsx-style-dynamic-selector{color:${color}}`}</_JSXStyle>
 
@@ -88,7 +88,7 @@ export const Test5 = ()=><div className={"jsx-df0159ebd3f9fb6f"}>
 // static and dynamic
 export const Test6 = ({ color  })=><div className={"jsx-ceba8c9ce34e3d0c " + _JSXStyle.dynamic([
         [
-            "9ef7fdf2e339f135",
+            "9779eebad83219f8",
             [
                 color
             ]
@@ -97,7 +97,7 @@ export const Test6 = ({ color  })=><div className={"jsx-ceba8c9ce34e3d0c " + _JS
 
     <p className={"jsx-ceba8c9ce34e3d0c " + _JSXStyle.dynamic([
         [
-            "9ef7fdf2e339f135",
+            "9779eebad83219f8",
             [
                 color
             ]
@@ -106,7 +106,7 @@ export const Test6 = ({ color  })=><div className={"jsx-ceba8c9ce34e3d0c " + _JS
 
     <_JSXStyle id={"ceba8c9ce34e3d0c"}>{"p.jsx-ceba8c9ce34e3d0c{display:inline-block}"}</_JSXStyle>
 
-    <_JSXStyle id={"9ef7fdf2e339f135"} dynamic={[
+    <_JSXStyle id={"9779eebad83219f8"} dynamic={[
         color
     ]}>{`p.__jsx-style-dynamic-selector{color:${color}}`}</_JSXStyle>
 
@@ -114,7 +114,7 @@ export const Test6 = ({ color  })=><div className={"jsx-ceba8c9ce34e3d0c " + _JS
 // dynamic only
 export const Test7 = ({ color  })=><div className={_JSXStyle.dynamic([
         [
-            "e7486f61219e66af",
+            "f08108daf927b99d",
             [
                 color
             ]
@@ -123,14 +123,14 @@ export const Test7 = ({ color  })=><div className={_JSXStyle.dynamic([
 
     <p className={_JSXStyle.dynamic([
         [
-            "e7486f61219e66af",
+            "f08108daf927b99d",
             [
                 color
             ]
         ]
     ])}>dynamic only</p>
 
-    <_JSXStyle id={"e7486f61219e66af"} dynamic={[
+    <_JSXStyle id={"f08108daf927b99d"} dynamic={[
         color
     ]}>{`p.__jsx-style-dynamic-selector{color:${color}}`}</_JSXStyle>
 
@@ -143,7 +143,7 @@ export const Test8 = ({ color  })=>{
         };
         return <div className={_JSXStyle.dynamic([
             [
-                "1f1fbf7e754ca7cb",
+                "62256c563b89bfae",
                 [
                     innerProps.color
                 ]
@@ -152,14 +152,14 @@ export const Test8 = ({ color  })=>{
 
         <p className={_JSXStyle.dynamic([
             [
-                "1f1fbf7e754ca7cb",
+                "62256c563b89bfae",
                 [
                     innerProps.color
                 ]
             ]
         ])}>dynamic with scoped compound variable</p>
 
-        <_JSXStyle id={"1f1fbf7e754ca7cb"} dynamic={[
+        <_JSXStyle id={"62256c563b89bfae"} dynamic={[
             innerProps.color
         ]}>{`p.__jsx-style-dynamic-selector{color:${innerProps.color}}`}</_JSXStyle>
 
@@ -173,7 +173,7 @@ export const Test9 = ({ color  })=>{
     };
     return <div className={_JSXStyle.dynamic([
         [
-            "460abeb3d95fb60d",
+            "708723e452f192e4",
             [
                 innerProps.color
             ]
@@ -182,14 +182,14 @@ export const Test9 = ({ color  })=>{
 
       <p className={_JSXStyle.dynamic([
         [
-            "460abeb3d95fb60d",
+            "708723e452f192e4",
             [
                 innerProps.color
             ]
         ]
     ])}>dynamic with compound variable</p>
 
-      <_JSXStyle id={"460abeb3d95fb60d"} dynamic={[
+      <_JSXStyle id={"708723e452f192e4"} dynamic={[
         innerProps.color
     ]}>{`p.__jsx-style-dynamic-selector{color:${innerProps.color}}`}</_JSXStyle>
 
@@ -210,14 +210,14 @@ export const Test11 = ({ color  })=>{
         length: 5
     }).map((item, i)=><li key={i} className={_JSXStyle.dynamic([
             [
-                "307a31332e39b502",
+                "a2585dff420632b1",
                 [
                     color
                 ]
             ]
         ]) + " " + "item"}>
 
-      <_JSXStyle id={"307a31332e39b502"} dynamic={[
+      <_JSXStyle id={"a2585dff420632b1"} dynamic={[
             color
         ]}>{`.item.__jsx-style-dynamic-selector{color:${color}}`}</_JSXStyle>
 

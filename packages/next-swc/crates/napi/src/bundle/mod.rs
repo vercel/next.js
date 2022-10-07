@@ -13,7 +13,7 @@ use swc_core::{
     common::{
         collections::AHashMap,
         errors::{ColorConfig, Handler},
-        BytePos, FileName, SourceMap, Span,
+        BytePos, FileName, Globals, SourceMap, Span, GLOBALS,
     },
     ecma::ast::*,
     ecma::atoms::JsWord,
@@ -69,10 +69,11 @@ impl Task for BundleTask {
                     .map(JsWord::from)
                     .collect::<Vec<_>>();
 
+                let globals = Globals::default();
                 let comments = self.c.comments().clone();
                 //
                 let mut bundler = Bundler::new(
-                    self.c.globals(),
+                    &globals,
                     self.c.cm.clone(),
                     CustomLoader {
                         cm: self.c.cm.clone(),
@@ -88,46 +89,46 @@ impl Task for BundleTask {
                     },
                     Box::new(CustomHook),
                 );
+                GLOBALS.set(&globals, || {
+                    let mut entries = HashMap::default();
+                    let path: PathBuf = option.entry;
+                    let path = path
+                        .canonicalize()
+                        .context("failed to canonicalize entry file")?;
+                    entries.insert("main".to_string(), FileName::Real(path));
+                    let outputs = bundler.bundle(entries)?;
 
-                let mut entries = HashMap::default();
-                let path: PathBuf = option.entry;
-                let path = path
-                    .canonicalize()
-                    .context("failed to canonicalize entry file")?;
-                entries.insert("main".to_string(), FileName::Real(path));
-                let outputs = bundler.bundle(entries)?;
+                    let output = outputs.into_iter().next().ok_or_else(|| {
+                        anyhow!("swc_bundler::Bundle::bundle returned empty result")
+                    })?;
 
-                let output = outputs
-                    .into_iter()
-                    .next()
-                    .ok_or_else(|| anyhow!("swc_bundler::Bundle::bundle returned empty result"))?;
+                    let source_map_names = {
+                        let mut v = SourceMapIdentCollector {
+                            names: Default::default(),
+                        };
 
-                let source_map_names = {
-                    let mut v = SourceMapIdentCollector {
-                        names: Default::default(),
+                        output.module.visit_with(&mut v);
+
+                        v.names
                     };
 
-                    output.module.visit_with(&mut v);
+                    let code = self.c.print(
+                        &output.module,
+                        None,
+                        None,
+                        true,
+                        EsVersion::Es5,
+                        SourceMapsConfig::Bool(true),
+                        &source_map_names,
+                        None,
+                        false,
+                        Some(&comments),
+                        true,
+                        false,
+                    )?;
 
-                    v.names
-                };
-
-                let code = self.c.print(
-                    &output.module,
-                    None,
-                    None,
-                    true,
-                    EsVersion::Es5,
-                    SourceMapsConfig::Bool(true),
-                    &source_map_names,
-                    None,
-                    false,
-                    Some(&comments),
-                    true,
-                    false,
-                )?;
-
-                Ok(code)
+                    Ok(code)
+                })
             },
         )
         .convert_err()

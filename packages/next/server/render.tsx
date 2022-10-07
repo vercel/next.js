@@ -26,6 +26,7 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
 import React from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -105,6 +106,18 @@ function noRouter() {
   const message =
     'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
   throw new Error(message)
+}
+
+async function renderToString(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToString(element)
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
+}
+
+async function renderToStaticMarkup(element: React.ReactElement) {
+  if (!shouldUseReactRoot) return ReactDOMServer.renderToStaticMarkup(element)
+  return renderToString(element)
 }
 
 class ServerRouter implements NextRouter {
@@ -232,6 +245,7 @@ export type RenderOptsPartial = {
   resolvedAsPath?: string
   serverComponentManifest?: any
   serverCSSManifest?: any
+  fontLoaderManifest?: FontLoaderManifest
   distDir?: string
   locale?: string
   locales?: string[]
@@ -451,8 +465,8 @@ export async function renderToHTML(
   ) {
     warn(
       `Detected getInitialProps on page '${pathname}'` +
-        `while running "next export". It's recommended to use getStaticProps` +
-        `which has a more correct behavior for static exporting.` +
+        ` while running "next export". It's recommended to use getStaticProps` +
+        ` which has a more correct behavior for static exporting.` +
         `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
     )
   }
@@ -721,7 +735,7 @@ export async function renderToHTML(
   const nextExport =
     !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
-  const styledJsxFlushEffect = () => {
+  const styledJsxInsertedHTML = () => {
     const styles = jsxStyleRegistry.styles()
     jsxStyleRegistry.flush()
     return <>{styles}</>
@@ -1146,16 +1160,16 @@ export async function renderToHTML(
         _Component: NextComponentType
       ) => Promise<ReactReadableStream>
     ) {
-      const renderPage: RenderPage = (
+      const renderPage: RenderPage = async (
         options: ComponentsEnhancer = {}
-      ): RenderPageResult | Promise<RenderPageResult> => {
+      ): Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
           // Always start rendering the shell even if there's an error.
           if (renderShell) {
             renderShell(App, Component)
           }
 
-          const html = ReactDOMServer.renderToString(
+          const html = await renderToString(
             <Body>
               <ErrorDebug error={ctx.err} />
             </Body>
@@ -1182,7 +1196,7 @@ export async function renderToHTML(
           )
         }
 
-        const html = ReactDOMServer.renderToString(
+        const html = await renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
               {renderPageTree(EnhancedApp, EnhancedComponent, {
@@ -1254,7 +1268,7 @@ export async function renderToHTML(
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head
-        const result = ReactDOMServer.renderToString(content)
+        const result = await renderToString(content)
         const bodyResult = (suffix: string) => streamFromArray([result, suffix])
 
         const styles = jsxStyleRegistry.styles()
@@ -1287,17 +1301,16 @@ export async function renderToHTML(
       ) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when `wrapApp` is called
-        const flushEffectHandler = (): string => {
-          const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
-          return flushed
+        const getServerInsertedHTML = async (): Promise<string> => {
+          return renderToString(styledJsxInsertedHTML())
         }
 
         return continueFromInitialStream(initialStream, {
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
-          flushEffectHandler,
-          flushEffectsToHead: false,
+          getServerInsertedHTML,
+          serverInsertedHTMLToHead: false,
         })
       }
 
@@ -1446,6 +1459,7 @@ export async function renderToHTML(
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
+    fontLoaderManifest: renderOpts.fontLoaderManifest,
   }
 
   const document = (
@@ -1456,7 +1470,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  const documentHTML = ReactDOMServer.renderToStaticMarkup(document)
+  const documentHTML = await renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []

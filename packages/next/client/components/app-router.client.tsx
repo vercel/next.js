@@ -44,18 +44,18 @@ export async function fetchServerResponse(
   prefetch?: true
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const headers: {
-    __flight__: '1'
-    __flight_router_state_tree__: string
-    __flight_prefetch__?: '1'
+    __rsc__: '1'
+    __next_router_state_tree__: string
+    __next_router_prefetch__?: '1'
   } = {
     // Enable flight response
-    __flight__: '1',
+    __rsc__: '1',
     // Provide the current router state
-    __flight_router_state_tree__: JSON.stringify(flightRouterState),
+    __next_router_state_tree__: JSON.stringify(flightRouterState),
   }
   if (prefetch) {
     // Enable prefetch response
-    headers.__flight_prefetch__ = '1'
+    headers.__next_router_prefetch__ = '1'
   }
 
   const res = await fetch(url.toString(), {
@@ -64,6 +64,14 @@ export async function fetchServerResponse(
   const canonicalUrl = res.redirected
     ? urlToUrlWithoutFlightMarker(res.url)
     : undefined
+
+  const isFlightResponse =
+    res.headers.get('content-type') === 'application/octet-stream'
+
+  // If fetch returns something different than flight response handle it like a mpa navigation
+  if (!isFlightResponse) {
+    return [res.url, undefined]
+  }
 
   // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
   const flightData: FlightData = await createFromFetch(Promise.resolve(res))
@@ -205,16 +213,15 @@ export default function AppRouter({
         if (prefetched.has(href)) {
           return
         }
-
         prefetched.add(href)
         const url = new URL(href, location.origin)
-
         try {
+          const routerTree = window.history.state?.tree || initialTree
           // TODO-APP: handle case where history.state is not the new router history entry
           const serverResponse = await fetchServerResponse(
             url,
             // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-            window.history.state?.tree || initialTree,
+            routerTree,
             true
           )
           // @ts-ignore startTransition exists
@@ -222,6 +229,7 @@ export default function AppRouter({
             dispatch({
               type: ACTION_PREFETCH,
               url,
+              tree: routerTree,
               serverResponse,
             })
           })

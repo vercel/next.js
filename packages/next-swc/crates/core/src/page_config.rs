@@ -43,7 +43,7 @@ impl Fold for PageConfig {
                     true => String::from("mock_timestamp"),
                     false => Utc::now().timestamp().to_string(),
                 };
-                return vec![ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                return vec![ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                     decls: vec![VarDeclarator {
                         name: Pat::Ident(BindingIdent {
                             id: Ident {
@@ -64,7 +64,7 @@ impl Fold for PageConfig {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Const,
                     declare: false,
-                })))];
+                }))))];
             }
         }
 

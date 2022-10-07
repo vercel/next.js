@@ -5,7 +5,8 @@ import path from 'path'
 import webdriver from 'next-webdriver'
 
 describe('app dir prefetching', () => {
-  if ((global as any).isNextDeploy) {
+  // TODO: re-enable for dev after https://vercel.slack.com/archives/C035J346QQL/p1663822388387959 is resolved (Sep 22nd 2022)
+  if ((global as any).isNextDeploy || (global as any).isNextDev) {
     it('should skip next deploy for now', () => {})
     return
   }

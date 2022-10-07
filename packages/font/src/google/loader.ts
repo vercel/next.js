@@ -1,7 +1,8 @@
+import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 // @ts-ignore
-import { calculateOverrideCSS } from 'next/dist/server/font-utils'
+import { calculateOverrideValues } from 'next/dist/server/font-utils'
 import {
   fetchCSSFromGoogleFonts,
   getFontAxes,
@@ -9,19 +10,12 @@ import {
   validateData,
 } from './utils'
 
-type FontLoaderOptions = {
-  functionName: string
-  data: any[]
-  config: any
-  emitFontFile: (content: Buffer, ext: string, preload: boolean) => string
-}
-
-export default async function downloadGoogleFonts({
+const downloadGoogleFonts: FontLoader = async ({
   functionName,
   data,
   config,
   emitFontFile,
-}: FontLoaderOptions) {
+}) => {
   if (!config?.subsets) {
     throw new Error(
       'Please specify subsets for `@next/font/google` in your `next.config.js`'
@@ -37,6 +31,7 @@ export default async function downloadGoogleFonts({
     selectedVariableAxes,
     fallback,
     adjustFontFallback,
+    variable,
   } = validateData(functionName, data)
   const fontAxes = getFontAxes(fontFamily, weight, style, selectedVariableAxes)
   const url = getUrl(fontFamily, fontAxes, display)
@@ -103,19 +98,35 @@ export default async function downloadGoogleFonts({
   }
 
   // Add fallback font
+  let adjustFontFallbackMetrics: AdjustFontFallback | undefined
   if (adjustFontFallback) {
     try {
-      updatedCssResponse += calculateOverrideCSS(
-        fontFamily,
-        require('next/dist/server/google-font-metrics.json')
+      const { ascent, descent, lineGap, fallbackFont } =
+        calculateOverrideValues(
+          fontFamily,
+          require('next/dist/server/google-font-metrics.json')
+        )
+      adjustFontFallbackMetrics = {
+        fallbackFont,
+        ascentOverride: ascent,
+        descentOverride: descent,
+        lineGapOverride: lineGap,
+      }
+    } catch {
+      console.error(
+        `Failed to find font override values for font \`${fontFamily}\``
       )
-    } catch (e) {
-      console.log('Error getting font override values - ', e)
     }
   }
 
   return {
     css: updatedCssResponse,
     fallbackFonts: fallback,
+    weight: weight === 'variable' ? undefined : Number(weight),
+    style,
+    variable,
+    adjustFontFallback: adjustFontFallbackMetrics,
   }
 }
+
+export default downloadGoogleFonts

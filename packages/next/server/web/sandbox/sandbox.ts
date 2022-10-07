@@ -92,11 +92,14 @@ export const run = withTaggedErrors(async (params) => {
     ? params.request.body?.cloneBodyStream()
     : undefined
 
+  const KUint8Array = runtime.evaluate('Uint8Array')
+
   try {
     const result = await edgeFunction({
       request: {
         ...params.request,
-        body: cloned && requestToBodyStream(runtime.context, cloned),
+        body:
+          cloned && requestToBodyStream(runtime.context, KUint8Array, cloned),
       },
     })
     for (const headerName of FORBIDDEN_HEADERS) {

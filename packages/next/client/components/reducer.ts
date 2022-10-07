@@ -7,9 +7,42 @@ import type {
   Segment,
 } from '../../server/app-render'
 // TODO-APP: change to React.use once it becomes stable
-import { experimental_use as use } from 'react'
 import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
+
+/**
+ * Create data fetching record for Promise.
+ */
+// TODO-APP: change `any` to type inference.
+function createRecordFromThenable(thenable: any) {
+  thenable.status = 'pending'
+  thenable.then(
+    (value: any) => {
+      if (thenable.status === 'pending') {
+        thenable.status = 'fulfilled'
+        thenable.value = value
+      }
+    },
+    (err: any) => {
+      if (thenable.status === 'pending') {
+        thenable.status = 'rejected'
+        thenable.value = err
+      }
+    }
+  )
+  return thenable
+}
+
+/**
+ * Read record value or throw Promise if it's not resolved yet.
+ */
+function readRecordValue(thenable: any) {
+  if (thenable.status === 'fulfilled') {
+    return thenable.value
+  } else {
+    throw thenable
+  }
+}
 
 function createHrefFromUrl(url: URL): string {
   return url.pathname + url.search + url.hash
@@ -204,7 +237,6 @@ function fillCacheWithPrefetchedSubTreeData(
 
   const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
 
-  // In case of last segment start the fetch at this level and don't copy further down.
   if (isLastEntry) {
     if (!existingChildCacheNode) {
       existingChildSegmentMap.set(segmentForCache, {
@@ -557,6 +589,7 @@ interface ServerPatchAction {
 interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
+  tree: FlightRouterState
   serverResponse: Awaited<ReturnType<typeof fetchServerResponse>>
 }
 
@@ -594,7 +627,7 @@ type AppRouterState = {
     string,
     {
       flightSegmentPath: FlightSegmentPath
-      treePatch: FlightRouterState
+      tree: FlightRouterState
       canonicalUrlOverride: URL | undefined
     }
   >
@@ -615,7 +648,7 @@ type AppRouterState = {
 /**
  * Reducer that handles the app-router state updates.
  */
-export function reducer(
+function clientReducer(
   state: Readonly<AppRouterState>,
   action: Readonly<
     | ReloadAction
@@ -658,16 +691,11 @@ export function reducer(
       const prefetchValues = state.prefetchCache.get(href)
       if (prefetchValues) {
         // The one before last item is the router state tree patch
-        const { flightSegmentPath, treePatch, canonicalUrlOverride } =
-          prefetchValues
-
-        // Create new tree based on the flightSegmentPath and router state patch
-        const newTree = applyRouterStatePatchToTree(
-          // TODO-APP: remove ''
-          ['', ...flightSegmentPath],
-          state.tree,
-          treePatch
-        )
+        const {
+          flightSegmentPath,
+          tree: newTree,
+          canonicalUrlOverride,
+        } = prefetchValues
 
         if (newTree !== null) {
           mutable.previousTree = state.tree
@@ -743,8 +771,6 @@ export function reducer(
           href
         )
 
-        // Fill in the cache with blank that holds the `data` field.
-        // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
         // Copy subTreeData for the root node of the cache.
         cache.subTreeData = state.cache.subTreeData
 
@@ -753,6 +779,7 @@ export function reducer(
         const res = fillCacheWithDataProperty(
           cache,
           state.cache,
+          // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
           segments.slice(1),
           () => fetchServerResponse(url, optimisticTree)
         )
@@ -781,11 +808,13 @@ export function reducer(
 
       // If no in-flight fetch at the top, start it.
       if (!cache.data) {
-        cache.data = fetchServerResponse(url, state.tree)
+        cache.data = createRecordFromThenable(
+          fetchServerResponse(url, state.tree)
+        )
       }
 
       // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-      const [flightData, canonicalUrlOverride] = use(cache.data)
+      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -808,7 +837,7 @@ export function reducer(
       const flightDataPath = flightData[0]
 
       // The one before last item is the router state tree patch
-      const [treePatch] = flightDataPath.slice(-2)
+      const [treePatch, subTreeData] = flightDataPath.slice(-2)
 
       // Path without the last segment, router state, and the subTreeData
       const flightSegmentPath = flightDataPath.slice(0, -3)
@@ -834,10 +863,14 @@ export function reducer(
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
 
-      // Copy subTreeData for the root node of the cache.
-      cache.subTreeData = state.cache.subTreeData
-      // Create a copy of the existing cache with the subTreeData applied.
-      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+      if (flightDataPath.length === 2) {
+        cache.subTreeData = subTreeData
+      } else {
+        // Copy subTreeData for the root node of the cache.
+        cache.subTreeData = state.cache.subTreeData
+        // Create a copy of the existing cache with the subTreeData applied.
+        fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+      }
 
       return {
         // Set href.
@@ -908,7 +941,7 @@ export function reducer(
 
       // Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
       const treePath = flightDataPath.slice(0, -3)
-      const [treePatch] = flightDataPath.slice(-2)
+      const [treePatch, subTreeData] = flightDataPath.slice(-2)
 
       const newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
@@ -931,9 +964,14 @@ export function reducer(
 
       mutable.patchedTree = newTree
 
-      // Copy subTreeData for the root node of the cache.
-      cache.subTreeData = state.cache.subTreeData
-      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+      // Root refresh
+      if (flightDataPath.length === 2) {
+        cache.subTreeData = subTreeData
+      } else {
+        // Copy subTreeData for the root node of the cache.
+        cache.subTreeData = state.cache.subTreeData
+        fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+      }
 
       return {
         // Keep href as it was set during navigate / restore
@@ -993,14 +1031,16 @@ export function reducer(
 
       if (!cache.data) {
         // Fetch data from the root of the tree.
-        cache.data = fetchServerResponse(new URL(href, location.origin), [
-          state.tree[0],
-          state.tree[1],
-          state.tree[2],
-          'refetch',
-        ])
+        cache.data = createRecordFromThenable(
+          fetchServerResponse(new URL(href, location.origin), [
+            state.tree[0],
+            state.tree[1],
+            state.tree[2],
+            'refetch',
+          ])
+        )
       }
-      const [flightData, canonicalUrlOverride] = use(cache.data)
+      const [flightData, canonicalUrlOverride] = readRecordValue(cache.data)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -1093,11 +1133,26 @@ export function reducer(
         fillCacheWithPrefetchedSubTreeData(state.cache, flightDataPath)
       }
 
+      const flightSegmentPath = flightDataPath.slice(0, -2)
+
+      const newTree = applyRouterStatePatchToTree(
+        // TODO-APP: remove ''
+        ['', ...flightSegmentPath],
+        state.tree,
+        treePatch
+      )
+
+      // Patch did not apply correctly
+      if (newTree === null) {
+        return state
+      }
+
       // Create new tree based on the flightSegmentPath and router state patch
       state.prefetchCache.set(href, {
         // Path without the last segment, router state, and the subTreeData
-        flightSegmentPath: flightDataPath.slice(0, -2),
-        treePatch,
+        flightSegmentPath,
+        // Create new tree based on the flightSegmentPath and router state patch
+        tree: newTree,
         canonicalUrlOverride,
       })
 
@@ -1108,3 +1163,20 @@ export function reducer(
       throw new Error('Unknown action')
   }
 }
+
+function serverReducer(
+  state: Readonly<AppRouterState>,
+  _action: Readonly<
+    | ReloadAction
+    | NavigateAction
+    | RestoreAction
+    | ServerPatchAction
+    | PrefetchAction
+  >
+): AppRouterState {
+  return state
+}
+
+// we don't run the client reducer on the server, so we use a noop function for better tree shaking
+export const reducer =
+  typeof window === 'undefined' ? serverReducer : clientReducer

@@ -59,6 +59,7 @@ import {
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
+  FONT_LOADER_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -300,10 +301,8 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const { pages: pagesDir, appDir } = findPagesDir(
-        dir,
-        config.experimental.appDir
-      )
+      const isAppDirEnabled = !!config.experimental.appDir
+      const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
 
       const hasPublicDir = await fileExists(publicDir)
 
@@ -395,7 +394,7 @@ export default async function build(
                   config.experimental.cpus,
                   config.experimental.workerThreads,
                   telemetry,
-                  !!config.experimental.appDir
+                  isAppDirEnabled && !!appDir
                 )
               }),
         ])
@@ -548,6 +547,28 @@ export default async function build(
               (key) => normalizeAppPath(key) || '/'
             )
           : undefined,
+      }
+
+      if (pageKeys.app) {
+        const conflictingAppPagePaths = []
+
+        for (const appPath of pageKeys.app) {
+          if (pageKeys.pages.includes(appPath)) {
+            conflictingAppPagePaths.push(`pages${appPath} - app${appPath}`)
+          }
+        }
+        const numConflicting = conflictingAppPagePaths.length
+
+        if (numConflicting > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflicting === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue. \n${conflictingAppPagePaths.join(
+              '\n'
+            )}\n`
+          )
+          process.exit(1)
+        }
       }
 
       const conflictingPublicFiles: string[] = []
@@ -828,6 +849,12 @@ export default async function build(
             config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
             BUILD_ID_FILE,
             appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
+            ...(config.experimental.fontLoaders
+              ? [
+                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+                ]
+              : []),
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),
@@ -1198,6 +1225,7 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               httpAgentOptions: config.httpAgentOptions,
+              enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               pageRuntime: config.experimental.runtime,
@@ -1328,7 +1356,7 @@ export default async function build(
                         MIDDLEWARE_MANIFEST
                       ))
                       const manifestKey =
-                        pageType === 'pages' ? page : join(page, 'page')
+                        pageType === 'pages' ? page : originalAppPath || ''
 
                       edgeInfo = manifest.functions[manifestKey]
                     }
@@ -1345,6 +1373,7 @@ export default async function build(
                           configFileName,
                           runtimeEnvConfig,
                           httpAgentOptions: config.httpAgentOptions,
+                          enableUndici: config.experimental.enableUndici,
                           locales: config.i18n?.locales,
                           defaultLocale: config.i18n?.defaultLocale,
                           parentId: isPageStaticSpan.id,
@@ -1959,7 +1988,7 @@ export default async function build(
         combinedPages.length > 0 ||
         useStatic404 ||
         useDefaultStatic500 ||
-        config.experimental.appDir
+        isAppDirEnabled
       ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')

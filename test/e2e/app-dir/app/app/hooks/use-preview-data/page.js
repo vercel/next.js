@@ -1,7 +1,7 @@
-import { usePreviewData } from 'next/dist/client/components/hooks-server'
+import { previewData } from 'next/dist/client/components/hooks-server'
 
 export default function Page() {
-  const data = usePreviewData()
+  const data = previewData()
 
   const hasData = !!data && data.key === 'value'
 

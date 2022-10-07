@@ -19,6 +19,7 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
+  FONT_LOADER_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
@@ -35,6 +36,7 @@ export interface EdgeFunctionDefinition {
   matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
+  regions?: string[] | string
 }
 
 export interface MiddlewareManifest {
@@ -51,6 +53,7 @@ interface EntryMetadata {
   env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
+  regions?: string[] | string
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -85,7 +88,7 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
-  opts: { sriEnabled: boolean }
+  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
@@ -114,6 +117,10 @@ function getEntryFiles(
       `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
+
+    if (opts.hasFontLoaders) {
+      files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+    }
   }
 
   files.push(
@@ -127,7 +134,7 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: { sriEnabled: boolean }
+  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -173,6 +180,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
+        ...(metadata.regions && { regions: metadata.regions }),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {
@@ -732,6 +740,10 @@ function getExtractMetadata(params: {
           }
         }
 
+        if (edgeFunctionConfig?.config?.regions) {
+          entryMetadata.regions = edgeFunctionConfig.config.regions
+        }
+
         /**
          * The entry module has to be either a page or a middleware and hold
          * the corresponding metadata.
@@ -790,10 +802,20 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
+  private readonly hasFontLoaders: boolean
 
-  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
+  constructor({
+    dev,
+    sriEnabled,
+    hasFontLoaders,
+  }: {
+    dev: boolean
+    sriEnabled: boolean
+    hasFontLoaders: boolean
+  }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
+    this.hasFontLoaders = hasFontLoaders
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -836,14 +858,17 @@ export default class MiddlewarePlugin {
         getCreateAssets({
           compilation,
           metadataByEntry,
-          opts: { sriEnabled: this.sriEnabled },
+          opts: {
+            sriEnabled: this.sriEnabled,
+            hasFontLoaders: this.hasFontLoaders,
+          },
         })
       )
     })
   }
 }
 
-export async function handleWebpackExtenalForEdgeRuntime({
+export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
   contextInfo,

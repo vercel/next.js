@@ -1,13 +1,14 @@
 {
   "name": "@next/font",
-  "version": "12.3.2-canary.2",
+  "version": "12.3.2-canary.22",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"
   },
   "files": [
     "dist",
-    "google"
+    "google",
+    "local"
   ],
   "license": "MIT",
   "scripts": {
@@ -15,8 +16,5 @@
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

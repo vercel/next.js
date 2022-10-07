@@ -62,7 +62,7 @@ module.exports = async (phase, { defaultConfig }) => {
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/constants.ts#L1-L5). Phases can be imported from `next/constants`:
+`phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/5e6b008b561caf2710ab7be63320a3d549474a5b/packages/next/shared/lib/constants.ts#L19-L23). Phases can be imported from `next/constants`:
 
 ```js
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
