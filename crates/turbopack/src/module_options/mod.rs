@@ -24,6 +24,7 @@ impl ModuleOptionsVc {
             enable_react_refresh,
             enable_styled_jsx,
             enable_typescript_transform,
+            preset_env_versions,
             ..
         } = *context.await?;
         let mut transforms = vec![];
@@ -36,6 +37,10 @@ impl ModuleOptionsVc {
         transforms.push(EcmascriptInputTransform::React {
             refresh: enable_react_refresh,
         });
+
+        if let Some(env) = preset_env_versions {
+            transforms.push(EcmascriptInputTransform::PresetEnv(env));
+        }
 
         let app_transforms = EcmascriptInputTransformsVc::cell(transforms);
         let no_transforms = EcmascriptInputTransformsVc::cell(Vec::new());
@@ -52,6 +57,7 @@ impl ModuleOptionsVc {
         } else {
             (no_transforms, app_transforms)
         };
+
         Ok(ModuleOptionsVc::cell(ModuleOptions {
             rules: vec![
                 ModuleRule::new(

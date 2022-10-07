@@ -12,8 +12,10 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 async-trait = "0.1.56"
+browserslist-rs = "=0.11.0"                                        # Keep consistent with preset_env_base
 lazy_static = "1.4.0"
 patricia_tree = "0.3.1"
+preset_env_base = "0.3.2"
 rand = "0.8.5"
 regex = "1.5.4"
 serde = "1.0.136"

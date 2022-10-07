@@ -1,15 +1,14 @@
 use std::{
     fmt::Display,
+    future::Future,
     io::Write,
-    mem::take,
-    rc::Rc,
     sync::{Arc, RwLock},
 };
 
 use anyhow::Result;
 use swc_core::{
+    base::SwcComments,
     common::{
-        comments::{SingleThreadedComments, SingleThreadedCommentsMapInner},
         errors::{Handler, HANDLER},
         input::StringInput,
         source_map::SourceMapGenConfig,
@@ -26,7 +25,7 @@ use swc_core::{
     },
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString};
-use turbo_tasks_fs::{File, FileContent};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{AssetContent, AssetVc},
     code_builder::{EncodedSourceMap, EncodedSourceMapVc},
@@ -37,6 +36,7 @@ use crate::{
     analyzer::graph::EvalContext,
     emitter::IssueEmitter,
     transform::{EcmascriptInputTransformsVc, TransformContext},
+    utils::WrapFuture,
     EcmascriptInputTransform,
 };
 
@@ -46,10 +46,8 @@ pub enum ParseResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
         program: Program,
-        #[turbo_tasks(trace_ignore)]
-        leading_comments: SingleThreadedCommentsMapInner,
-        #[turbo_tasks(trace_ignore)]
-        trailing_comments: SingleThreadedCommentsMapInner,
+        #[turbo_tasks(debug_ignore, trace_ignore)]
+        comments: SwcComments,
         #[turbo_tasks(debug_ignore, trace_ignore)]
         eval_context: EvalContext,
         #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -201,32 +199,29 @@ pub async fn parse(
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<ParseResultVc> {
     let content = source.content();
+    let fs_path = &*source.path().await?;
     let fs_path_str = &*source.path().to_string().await?;
     let ty = ty.into_value();
     let transforms = &*transforms.await?;
     Ok(match &*content.await? {
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
-            FileContent::Content(file) => parse_file(file, fs_path_str, source, ty, transforms)?,
+            FileContent::Content(file) => {
+                parse_file(file, fs_path, fs_path_str, source, ty, transforms).await?
+            }
         },
         AssetContent::Redirect { .. } => ParseResult::Unparseable.cell(),
     })
 }
 
-fn parse_file(
+async fn parse_file(
     file: &File,
+    fs_path: &FileSystemPath,
     fs_path_str: &str,
     source: AssetVc,
     ty: ModuleAssetType,
     transforms: &[EcmascriptInputTransform],
 ) -> Result<ParseResultVc> {
-    let string = match String::from_utf8(file.content().to_vec()) {
-        Ok(string) => string,
-        // FIXME: report error
-        Err(_err) => return Ok(ParseResult::Unparseable.into()),
-    };
-
-    let source_map: Arc<SourceMap> = Default::default();
     let handler = Handler::with_emitter(
         true,
         false,
@@ -235,104 +230,126 @@ fn parse_file(
             title: Some("Parsing failed".to_string()),
         },
     );
-
-    let file_name = FileName::Custom(fs_path_str.to_string());
-    let fm = source_map.new_source_file(file_name, string);
-
-    let comments = SingleThreadedComments::default();
-    let lexer = Lexer::new(
-        match ty {
-            ModuleAssetType::Ecmascript => Syntax::Es(EsConfig {
-                jsx: true,
-                fn_bind: true,
-                decorators: true,
-                decorators_before_export: true,
-                export_default_from: true,
-                import_assertions: true,
-                private_in_object: true,
-                allow_super_outside_method: true,
-                allow_return_outside_function: true,
-            }),
-            ModuleAssetType::Typescript => Syntax::Typescript(TsConfig {
-                decorators: true,
-                dts: false,
-                no_early_errors: true,
-                tsx: true,
-            }),
-            ModuleAssetType::TypescriptDeclaration => Syntax::Typescript(TsConfig {
-                decorators: true,
-                dts: true,
-                no_early_errors: true,
-                tsx: true,
-            }),
-        },
-        EsVersion::latest(),
-        StringInput::from(&*fm),
-        Some(&comments),
-    );
-
-    let mut parser = Parser::new_from(lexer);
-
-    let mut has_errors = false;
-    for e in parser.take_errors() {
-        e.into_diagnostic(&handler).emit();
-        has_errors = true
-    }
-
-    if has_errors {
-        return Ok(ParseResult::Unparseable.into());
-    }
-
-    let mut parsed_program = match parser.parse_program() {
-        Ok(parsed_program) => parsed_program,
-        Err(e) => {
-            e.into_diagnostic(&handler).emit();
-            return Ok(ParseResult::Unparseable.into());
-        }
-    };
-
-    drop(parser);
-
     let globals = Globals::new();
-    let eval_context = GLOBALS.set(&globals, || {
-        HANDLER.set(&handler, || {
+    let globals_ref = &globals;
+    let helpers = GLOBALS.set(globals_ref, || Helpers::new(true));
+    let mut result = WrapFuture::new(
+        |f, cx| {
+            GLOBALS.set(globals_ref, || {
+                HANDLER.set(&handler, || HELPERS.set(&helpers, || f.poll(cx)))
+            })
+        },
+        async {
+            let string = match String::from_utf8(file.content().to_vec()) {
+                Ok(string) => string,
+                // FIXME: report error
+                Err(_err) => return Ok(ParseResult::Unparseable),
+            };
+
+            let source_map: Arc<SourceMap> = Default::default();
+
+            let file_name = FileName::Custom(fs_path_str.to_string());
+            let fm = source_map.new_source_file(file_name.clone(), string);
+
+            let comments = SwcComments::default();
+
+            let mut parsed_program = {
+                let lexer = Lexer::new(
+                    match ty {
+                        ModuleAssetType::Ecmascript => Syntax::Es(EsConfig {
+                            jsx: true,
+                            fn_bind: true,
+                            decorators: true,
+                            decorators_before_export: true,
+                            export_default_from: true,
+                            import_assertions: true,
+                            private_in_object: true,
+                            allow_super_outside_method: true,
+                            allow_return_outside_function: true,
+                        }),
+                        ModuleAssetType::Typescript => Syntax::Typescript(TsConfig {
+                            decorators: true,
+                            dts: false,
+                            no_early_errors: true,
+                            tsx: true,
+                        }),
+                        ModuleAssetType::TypescriptDeclaration => Syntax::Typescript(TsConfig {
+                            decorators: true,
+                            dts: true,
+                            no_early_errors: true,
+                            tsx: true,
+                        }),
+                    },
+                    EsVersion::latest(),
+                    StringInput::from(&*fm),
+                    Some(&comments),
+                );
+
+                let mut parser = Parser::new_from(lexer);
+
+                let mut has_errors = false;
+                for e in parser.take_errors() {
+                    e.into_diagnostic(&handler).emit();
+                    has_errors = true
+                }
+
+                if has_errors {
+                    return Ok(ParseResult::Unparseable);
+                }
+
+                match parser.parse_program() {
+                    Ok(parsed_program) => parsed_program,
+                    Err(e) => {
+                        e.into_diagnostic(&handler).emit();
+                        return Ok(ParseResult::Unparseable);
+                    }
+                }
+            };
+
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            HELPERS.set(&Helpers::new(true), || {
-                let is_typescript = matches!(
-                    ty,
-                    ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration
-                );
-                parsed_program.visit_mut_with(&mut resolver(
-                    unresolved_mark,
-                    top_level_mark,
-                    is_typescript,
-                ));
+            let is_typescript = matches!(
+                ty,
+                ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration
+            );
+            parsed_program.visit_mut_with(&mut resolver(
+                unresolved_mark,
+                top_level_mark,
+                is_typescript,
+            ));
 
-                let context = TransformContext {
-                    comments: &comments,
-                    source_map: &source_map,
-                    top_level_mark,
-                    unresolved_mark,
-                };
-                for transform in transforms.iter() {
-                    transform.apply(&mut parsed_program, &context)
-                }
-            });
+            let context = TransformContext {
+                comments: &comments,
+                source_map: &source_map,
+                top_level_mark,
+                unresolved_mark,
+                file_name_str: fs_path.file_name(),
+            };
+            for transform in transforms.iter() {
+                transform.apply(&mut parsed_program, &context).await?
+            }
 
-            EvalContext::new(&parsed_program, unresolved_mark)
-        })
-    });
+            let eval_context = EvalContext::new(&parsed_program, unresolved_mark);
 
-    let (mut leading, mut trailing) = comments.take_all();
-    Ok(ParseResult::Ok {
-        program: parsed_program,
-        leading_comments: take(Rc::make_mut(&mut leading)).into_inner(),
-        trailing_comments: take(Rc::make_mut(&mut trailing)).into_inner(),
-        eval_context,
-        globals,
-        source_map,
+            Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
+                program: parsed_program,
+                comments,
+                eval_context,
+                // Temporary globals as the current one can't be moved yet, since they are
+                // borrowed
+                globals: Globals::new(),
+                source_map,
+            })
+        },
+    )
+    .await?;
+    if let ParseResult::Ok {
+        globals: ref mut g, ..
+    } = result
+    {
+        // Assign the correct globals
+        *g = globals;
     }
-    .into())
+    Ok(result.cell())
 }

@@ -199,15 +199,14 @@ pub(crate) async fn analyze_ecmascript_module(
             program,
             globals,
             eval_context,
-            leading_comments,
-            trailing_comments,
+            comments,
             ..
         } => {
             let mut import_references = Vec::new();
 
             let pos = program.span().lo;
             if is_typescript {
-                if let Some(comments) = leading_comments.get(&pos) {
+                if let Some(comments) = comments.leading.get(&pos) {
                     for comment in comments.iter() {
                         if let CommentKind::Line = comment.kind {
                             lazy_static! {
@@ -238,8 +237,8 @@ pub(crate) async fn analyze_ecmascript_module(
                     }
                 }
             }
-            trailing_comments.values().for_each(|comments| {
-                comments.iter().for_each(|comment| match comment.kind {
+            comments.trailing.iter().for_each(|r| {
+                r.value().iter().for_each(|comment| match comment.kind {
                     CommentKind::Line => {
                         lazy_static! {
                             static ref SOURCE_MAP_FILE_REFERENCE: Regex =

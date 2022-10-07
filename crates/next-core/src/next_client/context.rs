@@ -27,19 +27,19 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-pub fn get_client_environment() -> EnvironmentVc {
-    EnvironmentVc::new(
+pub fn get_client_environment(browserslist_query: &str) -> Result<EnvironmentVc> {
+    Ok(EnvironmentVc::new(
         Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
                 service_worker: false,
-                browser_version: 0,
+                browserslist_query: browserslist_query.to_owned(),
             }
             .into(),
         )),
         Value::new(EnvironmentIntention::Client),
-    )
+    ))
 }
 
 #[turbo_tasks::function]
@@ -57,6 +57,7 @@ pub fn get_client_resolve_options_context() -> ResolveOptionsContextVc {
 #[turbo_tasks::function]
 pub async fn get_client_module_options_context(
     project_root: FileSystemPathVc,
+    env: EnvironmentVc,
 ) -> Result<ModuleOptionsContextVc> {
     let resolve_options_context = get_client_resolve_options_context();
     let enable_react_refresh =
@@ -69,16 +70,20 @@ pub async fn get_client_module_options_context(
         enable_react_refresh,
         enable_styled_jsx: true,
         enable_typescript_transform: true,
+        preset_env_versions: Some(env),
         ..Default::default()
     }
     .cell())
 }
 
 #[turbo_tasks::function]
-pub fn get_client_asset_context(project_root: FileSystemPathVc) -> AssetContextVc {
-    let environment = get_client_environment();
+pub fn get_client_asset_context(
+    project_root: FileSystemPathVc,
+    browserslist_query: &str,
+) -> Result<AssetContextVc> {
+    let environment = get_client_environment(browserslist_query);
     let resolve_options_context = get_client_resolve_options_context();
-    let module_options_context = get_client_module_options_context(project_root);
+    let module_options_context = get_client_module_options_context(project_root, environment);
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
@@ -89,7 +94,7 @@ pub fn get_client_asset_context(project_root: FileSystemPathVc) -> AssetContextV
     )
     .into();
 
-    context
+    Ok(context)
 }
 
 #[turbo_tasks::function]
@@ -138,9 +143,10 @@ pub async fn get_client_runtime_entries(
 pub fn get_resolved_client_runtime_entries(
     project_root: FileSystemPathVc,
     env: ProcessEnvVc,
-) -> EcmascriptChunkPlaceablesVc {
-    let context = get_client_asset_context(project_root);
+    browserslist_query: &str,
+) -> Result<EcmascriptChunkPlaceablesVc> {
+    let context = get_client_asset_context(project_root, browserslist_query);
     let entries = get_client_runtime_entries(project_root, env);
 
-    entries.resolve_entries(context)
+    Ok(entries.resolve_entries(context))
 }

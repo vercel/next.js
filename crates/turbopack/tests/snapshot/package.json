@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "@swc/helpers": "^0.4.11"
+  },
+  "installConfig": {
+    "hoistingLimits": "workspaces"
+  }
+}

@@ -21,6 +21,7 @@ serde = "1.0.136"
 serde_json = "1.0.85"
 serde_regex = "1.1.0"
 styled_jsx = "0.22.0"
+swc_ecma_preset_env = "0.173.5"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
@@ -44,6 +45,7 @@ swc_core = { workspace = true, features = [
   "ecma_visit_path",
   "ecma_utils",
   "testing",
+  "base",
 ] }
 
 [dependencies.num-bigint]

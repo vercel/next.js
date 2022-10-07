@@ -1,3 +1,9 @@
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, Lit, Str},
@@ -96,3 +102,26 @@ format_iter!(std::fmt::Octal);
 format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
+
+pub struct WrapFuture<F, W> {
+    wrapper: W,
+    future: F,
+}
+
+impl<F: Future, W: for<'a> Fn(Pin<&mut F>, &mut Context<'a>) -> Poll<F::Output>> WrapFuture<F, W> {
+    pub fn new(wrapper: W, future: F) -> Self {
+        Self { wrapper, future }
+    }
+}
+
+impl<F: Future, W: for<'a> Fn(Pin<&mut F>, &mut Context<'a>) -> Poll<F::Output>> Future
+    for WrapFuture<F, W>
+{
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let WrapFuture { future, wrapper } = unsafe { self.get_unchecked_mut() };
+        let future = unsafe { Pin::new_unchecked(future) };
+        wrapper(future, cx)
+    }
+}

@@ -4,13 +4,14 @@ mod helpers;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     env, fs,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
 use difference::Changeset;
 use helpers::print_changeset;
 use lazy_static::lazy_static;
+use serde::Deserialize;
 use test_generator::test_resources;
 use turbo_tasks::{NothingVc, TryJoinIterExt, TurboTasks, Value};
 use turbo_tasks_env::DotenvProcessEnvVc;
@@ -21,6 +22,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
+    module_options::ModuleOptionsContext,
     register,
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
@@ -42,7 +44,27 @@ lazy_static! {
     static ref UPDATE: bool = env::var("UPDATE").is_ok();
 }
 
-#[test_resources("crates/turbopack/tests/snapshot/*/*")]
+#[derive(Debug, Deserialize)]
+struct SnapshotOptions {
+    #[serde(default = "default_browserslist")]
+    browserslist: String,
+}
+
+impl Default for SnapshotOptions {
+    fn default() -> Self {
+        SnapshotOptions {
+            browserslist: default_browserslist(),
+        }
+    }
+}
+
+fn default_browserslist() -> String {
+    // Use a specific version to avoid churn in transform over time as the
+    // preset_env crate data changes
+    "Chrome 102".to_owned()
+}
+
+#[test_resources("crates/turbopack/tests/snapshot/integration/*")]
 fn test(resource: &'static str) {
     // Separating this into a different function fixes my IDE's types for some
     // reason...
@@ -65,41 +87,58 @@ async fn run(resource: &'static str) -> Result<()> {
         test_path.to_str().unwrap()
     );
 
-    let tt = TurboTasks::new(MemoryBackend::new());
+    let options_file = fs::read_to_string(test_path.join("options.json"));
+    let options = match options_file {
+        Err(_) => SnapshotOptions::default(),
+        Ok(options_str) => serde_json::from_str(&options_str).unwrap(),
+    };
 
+    let tt = TurboTasks::new(MemoryBackend::new());
     let task = tt.spawn_once_task(async move {
-        let root_path = "tests";
-        let root_fs =
-            DiskFileSystemVc::new("root of the dev server".to_string(), root_path.to_string());
-        let project_fs = DiskFileSystemVc::new("project".to_string(), root_path.to_string());
+        let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = package_root
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap();
+
+        let root_fs = DiskFileSystemVc::new("workspace".to_string(), workspace_root.to_owned());
+        let project_fs = DiskFileSystemVc::new("project".to_string(), workspace_root.to_owned());
         let fs = FileSystemPathVc::new(project_fs.into(), "");
 
-        let path = test_path.strip_prefix("tests")?;
+        let path = Path::new(resource);
 
-        // TODO: load from options.json
         let test_entry = path.join("input/index.js");
         let entry_asset = sys_to_unix(test_entry.to_str().unwrap());
         let entry_paths = vec![FileSystemPathVc::new(project_fs.into(), &entry_asset)];
 
         let runtime_entries = maybe_load_env(project_fs.into(), path).await?;
 
+        let env = EnvironmentVc::new(
+            Value::new(ExecutionEnvironment::Browser(
+                // TODO: load more from options.json
+                BrowserEnvironment {
+                    dom: true,
+                    web_worker: false,
+                    service_worker: false,
+                    browserslist_query: options.browserslist.to_owned(),
+                }
+                .into(),
+            )),
+            Value::new(EnvironmentIntention::Client),
+        );
+
         let context: AssetContextVc = ModuleAssetContextVc::new(
             TransitionsByNameVc::cell(HashMap::new()),
             fs,
-            EnvironmentVc::new(
-                Value::new(ExecutionEnvironment::Browser(
-                    // TODO: load from options.json
-                    BrowserEnvironment {
-                        dom: true,
-                        web_worker: false,
-                        service_worker: false,
-                        browser_version: 0,
-                    }
-                    .into(),
-                )),
-                Value::new(EnvironmentIntention::Client),
-            ),
-            Default::default(),
+            env,
+            ModuleOptionsContext {
+                preset_env_versions: Some(env),
+                ..Default::default()
+            }
+            .into(),
             ResolveOptionsContext {
                 enable_typescript: true,
                 enable_react: true,
@@ -176,7 +215,7 @@ async fn run(resource: &'static str) -> Result<()> {
 
         for (path, _entry) in expected_paths {
             if *UPDATE {
-                remove_file(root_path, &path)?;
+                remove_file(workspace_root, &path)?;
                 println!("removed file {}", path);
             } else {
                 panic!("expected file {}, but it was not emitted", path);

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use preset_env_base::Versions;
 use turbo_tasks::{
     primitives::{BoolVc, StringsVc},
     Value,
@@ -68,6 +69,28 @@ impl EnvironmentVc {
             ExecutionEnvironment::NodeJsBuildTime(node_env)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
             ExecutionEnvironment::Browser(_) => CompileTargetVc::unknown(),
+            ExecutionEnvironment::EdgeFunction(_) => todo!(),
+            ExecutionEnvironment::Custom(_) => todo!(),
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn runtime_versions(self) -> Result<RuntimeVersionsVc> {
+        let this = self.await?;
+        Ok(match this.execution {
+            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+                RuntimeVersionsVc::cell(Versions::parse_versions(browserslist::resolve(
+                    // TODO: Include a RuntimeVersion in the environment for node too
+                    vec!["Node 16"],
+                    &browserslist::Opts::new(),
+                )?)?)
+            }
+            ExecutionEnvironment::Browser(browser_env) => {
+                RuntimeVersionsVc::cell(Versions::parse_versions(browserslist::resolve(
+                    browser_env.await?.browserslist_query.split(','),
+                    &browserslist::Opts::new(),
+                )?)?)
+            }
             ExecutionEnvironment::EdgeFunction(_) => todo!(),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
@@ -149,6 +172,8 @@ pub struct BrowserEnvironment {
     pub dom: bool,
     pub web_worker: bool,
     pub service_worker: bool,
-    // TODO
-    pub browser_version: u8,
+    pub browserslist_query: String,
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);

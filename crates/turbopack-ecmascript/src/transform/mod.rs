@@ -2,13 +2,19 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use swc_core::{
-    common::{comments::SingleThreadedComments, util::take::Take, FileName, Mark, SourceMap},
+    base::SwcComments,
+    common::{chain, util::take::Take, FileName, Mark, SourceMap},
     ecma::{
-        ast::{Module, Program},
-        transforms::react::react,
+        ast::{Module, ModuleItem, Program},
+        transforms::{
+            base::{feature::FeatureFlag, helpers::inject_helpers, Assumptions},
+            react::react,
+        },
         visit::{FoldWith, VisitMutWith},
     },
 };
+use swc_ecma_preset_env::{Mode, Targets};
+use turbopack_core::environment::EnvironmentVc;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -18,6 +24,7 @@ pub enum EcmascriptInputTransform {
         refresh: bool,
     },
     CommonJs,
+    PresetEnv(EnvironmentVc),
     StyledJsx,
     TypeScript,
     Custom,
@@ -28,14 +35,15 @@ pub enum EcmascriptInputTransform {
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
 pub struct TransformContext<'a> {
-    pub comments: &'a SingleThreadedComments,
+    pub comments: &'a SwcComments,
     pub top_level_mark: Mark,
     pub unresolved_mark: Mark,
     pub source_map: &'a Arc<SourceMap>,
+    pub file_name_str: &'a str,
 }
 
 impl EcmascriptInputTransform {
-    pub fn apply(
+    pub async fn apply(
         &self,
         program: &mut Program,
         &TransformContext {
@@ -43,8 +51,9 @@ impl EcmascriptInputTransform {
             source_map,
             top_level_mark,
             unresolved_mark,
-        }: &TransformContext,
-    ) {
+            file_name_str: _,
+        }: &TransformContext<'_>,
+    ) -> Result<()> {
         match *self {
             EcmascriptInputTransform::React { refresh } => {
                 program.visit_mut_with(&mut react(
@@ -78,6 +87,40 @@ impl EcmascriptInputTransform {
                     Some(comments.clone()),
                 ));
             }
+            EcmascriptInputTransform::PresetEnv(env) => {
+                let versions = env.runtime_versions().await?;
+                let config = swc_ecma_preset_env::Config {
+                    targets: Some(Targets::Versions(*versions)),
+                    mode: Some(Mode::Usage),
+                    ..Default::default()
+                };
+
+                let module_program = match program {
+                    Program::Module(_) => {
+                        std::mem::replace(program, Program::Module(Module::dummy()))
+                    }
+                    Program::Script(s) => Program::Module(Module {
+                        span: s.span,
+                        body: s
+                            .body
+                            .iter()
+                            .map(|stmt| ModuleItem::Stmt(stmt.clone()))
+                            .collect(),
+                        shebang: s.shebang.clone(),
+                    }),
+                };
+
+                *program = module_program.fold_with(&mut chain!(
+                    swc_ecma_preset_env::preset_env(
+                        top_level_mark,
+                        Some(comments.clone()),
+                        config,
+                        Assumptions::default(),
+                        &mut FeatureFlag::empty(),
+                    ),
+                    inject_helpers()
+                ));
+            }
             EcmascriptInputTransform::StyledJsx => {
                 // Modeled after https://github.com/swc-project/plugins/blob/ae735894cdb7e6cfd776626fe2bc580d3e80fed9/packages/styled-jsx/src/lib.rs
                 let real_program = std::mem::replace(program, Program::Module(Module::dummy()));
@@ -93,5 +136,6 @@ impl EcmascriptInputTransform {
             }
             EcmascriptInputTransform::Custom => todo!(),
         }
+        Ok(())
     }
 }
