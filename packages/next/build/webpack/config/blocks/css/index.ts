@@ -11,6 +11,7 @@ import {
   getGlobalModuleImportError,
   getLocalModuleImportError,
   getFontLoaderDocumentImportError,
+  getFontLoaderImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
@@ -183,12 +184,10 @@ export const css = curry(async function css(
 
   // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
   let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
-    ? Object.entries(ctx.experimental.fontLoaders).map(
-        ([fontLoader, fontLoaderOptions]: any) => [
-          path.join(require.resolve(fontLoader), '../target.css'),
-          fontLoaderOptions,
-        ]
-      )
+    ? ctx.experimental.fontLoaders.map(({ loader: fontLoader, options }) => [
+        path.join(require.resolve(fontLoader), '../target.css'),
+        options,
+      ])
     : undefined
 
   // Font loaders cannot be imported in _document.
@@ -228,6 +227,22 @@ export const css = curry(async function css(
               not: [/node_modules/],
             },
             use: getFontLoader(ctx, lazyPostCSSInitializer, fontLoaderOptions),
+          }),
+        ],
+      })
+    )
+
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            test: fontLoaderPath,
+            use: {
+              loader: 'error-loader',
+              options: {
+                reason: getFontLoaderImportError(),
+              },
+            },
           }),
         ],
       })
