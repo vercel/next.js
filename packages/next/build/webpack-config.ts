@@ -563,7 +563,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  const hasAppDir = !!config.experimental.appDir
+  const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasConcurrentFeatures = hasReactRoot
   const hasServerComponents = hasAppDir
 
@@ -1202,8 +1202,8 @@ export default async function getBaseWebpackConfig(
 
   const fontLoaderTargets =
     config.experimental.fontLoaders &&
-    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
-      const resolved = require.resolve(fontLoader)
+    config.experimental.fontLoaders.map(({ loader }) => {
+      const resolved = require.resolve(loader)
       return path.join(resolved, '../target.css')
     })
 
@@ -1587,7 +1587,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         // Alias `next/dynamic` to React.lazy implementation for RSC
-        ...(hasServerComponents && appDir
+        ...(hasServerComponents
           ? [
               {
                 test: codeCondition.test,
