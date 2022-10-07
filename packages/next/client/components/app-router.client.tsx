@@ -1,6 +1,6 @@
 'client'
 
-import type { PropsWithChildren, ReactElement, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import {
@@ -34,6 +34,12 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
   // TODO-APP: handle .rsc for static export case
   return urlWithoutFlightParameters
 }
+
+const HotReloader: typeof import('./hot-reloader').default | null =
+  process.env.NODE_ENV === 'production'
+    ? null
+    : (require('./hot-reloader')
+        .default as typeof import('./hot-reloader').default)
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -78,20 +84,6 @@ export async function fetchServerResponse(
   return [flightData, canonicalUrl]
 }
 
-/**
- * Renders development error overlay when NODE_ENV is development.
- */
-function ErrorOverlay({ children }: PropsWithChildren<{}>): ReactElement {
-  if (process.env.NODE_ENV === 'production') {
-    return <>{children}</>
-  } else {
-    const {
-      ReactDevOverlay,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
-    return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
-  }
-}
-
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 // TODO-APP: move this back into AppRouter
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
@@ -106,12 +98,12 @@ export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
   children,
-  hotReloader,
+  assetPrefix,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
-  hotReloader?: ReactNode
+  assetPrefix: string
 }) {
   const initialState = useMemo(() => {
     return {
@@ -361,16 +353,13 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              <ErrorOverlay>
-                {
-                  // ErrorOverlay intentionally only wraps the children of app-router.
-                  cache.subTreeData
-                }
-              </ErrorOverlay>
-              {
-                // HotReloader uses the router tree and router.reload() in order to apply Server Component changes.
-                hotReloader
-              }
+              {HotReloader ? (
+                <HotReloader assetPrefix={assetPrefix}>
+                  {cache.subTreeData}
+                </HotReloader>
+              ) : (
+                cache.subTreeData
+              )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
         </GlobalLayoutRouterContext.Provider>
