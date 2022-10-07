@@ -62,19 +62,6 @@ describe('Middleware Production Prefetch', () => {
     }, 'yes')
   })
 
-  it(`prefetches data when it is ssg`, async () => {
-    const browser = await webdriver(context.appPort, `/`)
-    await browser.elementByCss('#made-up-link').moveTo()
-    await check(async () => {
-      const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-      const mapped = hrefs.map((href) =>
-        new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
-      )
-      assert.deepEqual(mapped, ['/index.json'])
-      return 'yes'
-    }, 'yes')
-  })
-
   it(`prefetches provided path even if it will be rewritten`, async () => {
     const browser = await webdriver(context.appPort, `/`)
     await browser.elementByCss('#ssg-page-2').moveTo()
