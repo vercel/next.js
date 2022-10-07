@@ -45,6 +45,7 @@ const loadScript = (props: ScriptProps): void => {
   } = props
 
   const cacheKey = id || src
+  const anchor
 
   // Script has already loaded
   if (cacheKey && LoadCache.has(cacheKey)) {
@@ -125,7 +126,8 @@ const loadScript = (props: ScriptProps): void => {
 
   el.setAttribute('data-nscript', strategy)
 
-  document.body.appendChild(el)
+  const parent = (anchor && anchor.parentNode) || document.body
+  parent.appendChild(el)
 }
 
 export function handleClientScriptLoad(props: ScriptProps) {
@@ -254,7 +256,7 @@ function Script(props: ScriptProps): JSX.Element | null {
     }
   }
 
-  return null
+  return <script ref={(el) => (anchor = el)} />
 }
 
 Object.defineProperty(Script, '__nextScript', { value: true })
