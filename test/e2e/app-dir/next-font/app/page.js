@@ -13,3 +13,5 @@ export default function HomePage() {
     </>
   )
 }
+
+export const config = { runtime: 'experimental-edge' }
