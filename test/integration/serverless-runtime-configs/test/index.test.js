@@ -166,15 +166,15 @@ const runTests = (oldServerless = false) => {
   })
 }
 
-describe('Serverless runtime configs', () => {
+describe.skip('Serverless runtime configs', () => {
   beforeAll(() => cleanUp())
   afterAll(() => cleanUp())
 
-  describe('legacy serverless mode', () => {
+  describe.skip('legacy serverless mode', () => {
     runTests(true)
   })
 
-  describe('experimental-serverless-trace mode', () => {
+  describe.skip('experimental-serverless-trace mode', () => {
     runTests()
   })
 })

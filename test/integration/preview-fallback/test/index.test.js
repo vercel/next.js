@@ -303,7 +303,7 @@ describe('Preview mode with fallback pages', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       nextConfig.write(`
         module.exports = {
