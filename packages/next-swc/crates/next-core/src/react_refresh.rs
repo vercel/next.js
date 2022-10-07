@@ -12,9 +12,8 @@ use turbopack::{
     resolve_options_context::ResolveOptionsContextVc,
 };
 use turbopack_core::{
-    context::AssetContextVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    resolve::{parse::RequestVc, ResolveResult},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResult},
 };
 
 #[turbo_tasks::function]
@@ -57,8 +56,8 @@ pub async fn assert_can_resolve_react_refresh(
 
 /// Resolves the React Refresh runtime module from the given [AssetContextVc].
 #[turbo_tasks::function]
-pub async fn resolve_react_refresh(context: AssetContextVc) -> Result<EcmascriptChunkPlaceableVc> {
-    match &*cjs_resolve(react_refresh_request(), context).await? {
+pub async fn resolve_react_refresh(origin: ResolveOriginVc) -> Result<EcmascriptChunkPlaceableVc> {
+    match &*cjs_resolve(origin, react_refresh_request()).await? {
         ResolveResult::Single(asset, _) => {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 Ok(placeable)

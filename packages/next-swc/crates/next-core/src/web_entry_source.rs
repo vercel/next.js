@@ -7,7 +7,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
     chunk::{ChunkGroupVc, ChunkableAssetVc},
-    resolve::parse::RequestVc,
+    resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };
 use turbopack_dev_server::{
     html::DevHtmlAsset,
@@ -32,10 +32,11 @@ pub async fn create_web_entry_source(
     let runtime_entries =
         get_resolved_client_runtime_entries(project_root, env, browserslist_query);
 
+    let origin = PlainResolveOriginVc::new(context, project_root.join("_")).as_resolve_origin();
     let chunks: Vec<_> = stream::iter(entry_requests)
         .then(|r| {
-            context
-                .resolve_asset(context.context_path(), r, context.resolve_options())
+            origin
+                .resolve_asset(r, origin.resolve_options())
                 .primary_assets()
                 .into_future()
         })

@@ -79,7 +79,6 @@ pub async fn create_server_rendered_source(
     transitions.insert("next-client".to_string(), next_client_transition);
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        project_path,
         EnvironmentVc::new(
             Value::new(ExecutionEnvironment::NodeJsLambda(
                 NodeJsEnvironment {
@@ -111,6 +110,7 @@ pub async fn create_server_rendered_source(
         vec![ProcessEnvAssetVc::new(project_path, env).as_ecmascript_chunk_placeable()];
 
     Ok(create_server_rendered_source_for_directory(
+        project_path,
         context,
         pages_dir,
         EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
@@ -124,6 +124,7 @@ pub async fn create_server_rendered_source(
 /// Handles a single page file in the pages directory
 #[turbo_tasks::function]
 async fn create_server_rendered_source_for_file(
+    context_path: FileSystemPathVc,
     context: AssetContextVc,
     page_file: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -131,11 +132,8 @@ async fn create_server_rendered_source_for_file(
     server_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<AssetGraphContentSourceVc> {
-    let context_path = context.context_path();
     let source_asset = SourceAssetVc::new(page_file).into();
-    let entry_asset = context
-        .with_context_path(page_file.parent())
-        .process(source_asset);
+    let entry_asset = context.process(source_asset);
 
     let chunking_context = DevChunkingContextVc::new(
         context_path,
@@ -165,6 +163,7 @@ async fn create_server_rendered_source_for_file(
 /// [create_server_rendered_source_for_file] method for files.
 #[turbo_tasks::function]
 async fn create_server_rendered_source_for_directory(
+    context_path: FileSystemPathVc,
     context: AssetContextVc,
     input_dir: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -193,6 +192,7 @@ async fn create_server_rendered_source_for_directory(
                                 };
                                 sources.push(
                                     create_server_rendered_source_for_file(
+                                        context_path,
                                         context,
                                         *file,
                                         runtime_entries,
@@ -210,6 +210,7 @@ async fn create_server_rendered_source_for_directory(
                 DirectoryEntry::Directory(dir) => {
                     sources.push(
                         create_server_rendered_source_for_directory(
+                            context_path,
                             context,
                             *dir,
                             runtime_entries,

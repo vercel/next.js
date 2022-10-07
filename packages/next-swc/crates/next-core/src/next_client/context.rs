@@ -87,7 +87,6 @@ pub fn get_client_asset_context(
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
-        project_root,
         environment,
         module_options_context,
         resolve_options_context,
@@ -133,7 +132,8 @@ pub async fn get_client_runtime_entries(
         RuntimeEntry::Ecmascript(HtmlRuntimeAssetVc::new().into()).cell(),
     ];
     if enable_react_refresh {
-        runtime_entries.push(RuntimeEntry::Request(react_refresh_request(), project_root).cell())
+        runtime_entries
+            .push(RuntimeEntry::Request(react_refresh_request(), project_root.join("_")).cell())
     };
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
