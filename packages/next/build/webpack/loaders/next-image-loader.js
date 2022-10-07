@@ -11,13 +11,17 @@ function nextImageLoader(content) {
     const { isServer, isDev, assetPrefix, basePath } = this.getOptions()
     const context = this.rootContext
     const opts = { context, content }
+    const importName = loaderUtils.interpolateName(
+      this,
+      '[path][name].[ext]',
+      opts
+    )
     const interpolatedName = loaderUtils.interpolateName(
       this,
       '/static/media/[name].[hash:8].[ext]',
       opts
     )
     const outputPath = assetPrefix + '/_next' + interpolatedName
-
     let extension = loaderUtils.interpolateName(this, '[ext]', opts)
     if (extension === 'jpg') {
       extension = 'jpeg'
@@ -25,8 +29,17 @@ function nextImageLoader(content) {
 
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
     const imageSize = await imageSizeSpan.traceAsyncFn(() =>
-      getImageSize(content, extension)
+      getImageSize(content, extension).catch((err) => err)
     )
+
+    if (imageSize instanceof Error) {
+      const err = new Error(
+        `Image import "./${importName}" is not a valid image format`
+      )
+      err.name = 'InvalidImageFormatError'
+      throw err
+    }
+
     let blurDataURL
     let blurWidth
     let blurHeight
