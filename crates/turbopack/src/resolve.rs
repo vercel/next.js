@@ -105,7 +105,12 @@ async fn base_resolve_options(
             ImportMapping::Ignore.into(),
         ),
     ];
-    let import_map = ImportMap::new(direct_mappings, Default::default()).into();
+    let mut import_map = ImportMap::new(direct_mappings, Default::default());
+    if let Some(additional_import_map) = opt.import_map {
+        let additional_import_map = additional_import_map.await?;
+        import_map.extend(&additional_import_map);
+    }
+    let import_map = import_map.cell();
     let resolved_map = ResolvedMap {
         by_glob: glob_mappings,
     }

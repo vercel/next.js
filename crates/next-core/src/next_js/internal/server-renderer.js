@@ -1,6 +1,8 @@
 const END_OF_OPERATION = process.argv[2];
 
 import App from "@vercel/turbopack-next/pages/_app";
+import Document from "@vercel/turbopack-next/pages/_document";
+import { HtmlContext } from "@vercel/turbopack-next/internal/html-context";
 import Component, * as otherExports from ".";
 import { renderToString, renderToStaticMarkup } from "react-dom/server";
 ("TURBOPACK { transition: next-client }");
@@ -28,64 +30,55 @@ process.stdin.on("data", async (data) => {
   buffer.push(data);
 });
 
+const DOCTYPE = "<!DOCTYPE html>";
+
+function Body({ children }) {
+  return <div id="__next">{children}</div>;
+}
+
 async function operation(data) {
-  let staticProps = data;
   if ("getStaticProps" in otherExports) {
     // TODO(alexkirsz) Pass in `context` as defined in
     // https://nextjs.org/docs/api-reference/data-fetching/get-static-props#context-parameter
-    staticProps = otherExports.getStaticProps({});
-    if ("then" in staticProps) {
-      staticProps = await staticProps;
+    data = otherExports.getStaticProps({});
+    if ("then" in data) {
+      data = await data;
     }
   }
 
-  // TODO capture meta info during rendering
-  const rendered = {
-    __html: renderToString(<App Component={Component} pageProps={staticProps} />),
-  };
   const urls = chunkGroup.map((p) => `/${p}`);
   const scripts = urls.filter((url) => url.endsWith(".js"));
   const styles = urls.filter((url) => url.endsWith(".css"));
-  return renderToStaticMarkup(
-    <html>
-      <head>
-        {styles.map((url) => (
-          <link key={url} href={url} type="text/css" />
-        ))}
-        {scripts.map((url) => (
-          <link key={url} type="preload" href={url} as="script" />
-        ))}
-      </head>
-      <body>
-        <script
-          id="__NEXT_DATA__"
-          type="application/json"
-          dangerouslySetInnerHTML={{
-            __html: htmlEscapeJsonString(JSON.stringify(staticProps)),
-          }}
-        ></script>
-        <div id="__next" dangerouslySetInnerHTML={rendered}></div>
-        {scripts.map((url) => (
-          <script key={url} src={url} type="text/javascript"></script>
-        ))}
-      </body>
-    </html>
+  const documentHTML = renderToStaticMarkup(
+    <HtmlContext.Provider
+      value={{
+        scripts,
+        styles,
+        data,
+      }}
+    >
+      <Document />
+    </HtmlContext.Provider>
   );
-}
 
-// This utility is based on https://github.com/zertosh/htmlescape
-// License: https://github.com/zertosh/htmlescape/blob/0527ca7156a524d256101bb310a9f970f63078ad/LICENSE
+  const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
+    "<next-js-internal-body-render-target></next-js-internal-body-render-target>"
+  );
 
-const ESCAPE_LOOKUP = {
-  "&": "\\u0026",
-  ">": "\\u003e",
-  "<": "\\u003c",
-  "\u2028": "\\u2028",
-  "\u2029": "\\u2029",
-};
+  const result = [];
+  if (!documentHTML.startsWith(DOCTYPE)) {
+    result.push(DOCTYPE);
+  }
+  result.push(renderTargetPrefix);
+  // TODO capture meta info during rendering
+  result.push(
+    renderToString(
+      <Body>
+        <App Component={Component} pageProps={data} />
+      </Body>
+    )
+  );
+  result.push(renderTargetSuffix);
 
-const ESCAPE_REGEX = /[&><\u2028\u2029]/g;
-
-export function htmlEscapeJsonString(str) {
-  return str.replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match]);
+  return result.join("");
 }
