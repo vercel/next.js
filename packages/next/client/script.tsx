@@ -45,7 +45,7 @@ const loadScript = (props: ScriptProps): void => {
   } = props
 
   const cacheKey = id || src
-  const anchor
+  let anchor: HTMLScriptElement
 
   // Script has already loaded
   if (cacheKey && LoadCache.has(cacheKey)) {
