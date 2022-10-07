@@ -259,7 +259,7 @@ describe('app dir', () => {
 
     describe('rewrites', () => {
       // TODO-APP: rewrite url is broken
-      it.skip('should support rewrites on initial load', async () => {
+      it('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
@@ -826,7 +826,7 @@ describe('app dir', () => {
 
       describe('next/router', () => {
         // `useRouter` should not be accessible in server components.
-        it.skip('should always return null when accessed from /app', async () => {
+        it('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')
 
           try {
