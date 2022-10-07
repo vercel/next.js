@@ -22,6 +22,11 @@ describe('react 18 streaming SSR with custom next configs', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
+        'app/page.js': `
+        export default function Page() {
+          return 'fake-app' /* this should not enable appDir */
+        }
+      `,
         pages: new FileRef(join(__dirname, 'streaming-ssr/pages')),
       },
       nextConfig: require(join(__dirname, 'streaming-ssr/next.config.js')),
