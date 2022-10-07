@@ -103,7 +103,7 @@ describe('Custom _error', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,

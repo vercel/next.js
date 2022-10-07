@@ -259,7 +259,7 @@ describe('app dir', () => {
 
     describe('rewrites', () => {
       // TODO-APP: rewrite url is broken
-      it.skip('should support rewrites on initial load', async () => {
+      it('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
@@ -826,7 +826,7 @@ describe('app dir', () => {
 
       describe('next/router', () => {
         // `useRouter` should not be accessible in server components.
-        it.skip('should always return null when accessed from /app', async () => {
+        it('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')
 
           try {
@@ -1436,31 +1436,42 @@ describe('app dir', () => {
       })
 
       // TODO-APP: disable failing test and investigate later
-      it.skip('should render the template that is a server component and rerender on navigation', async () => {
-        const browser = await webdriver(next.url, '/template/servercomponent')
-        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+      ;(isDev ? it.skip : it)(
+        'should render the template that is a server component and rerender on navigation',
+        async () => {
+          const browser = await webdriver(next.url, '/template/servercomponent')
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('h1').text()).toStartWith(
+            'Template'
+          )
 
-        const currentTime = await browser
-          .elementByCss('#performance-now')
-          .text()
+          const currentTime = await browser
+            .elementByCss('#performance-now')
+            .text()
 
-        await browser.elementByCss('#link').click()
-        await browser.waitForElementByCss('#other-page')
+          await browser.elementByCss('#link').click()
+          await browser.waitForElementByCss('#other-page')
 
-        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('h1').text()).toStartWith(
+            'Template'
+          )
 
-        // template should rerender on navigation even when it's a server component
-        expect(await browser.elementByCss('#performance-now').text()).toBe(
-          currentTime
-        )
+          // template should rerender on navigation even when it's a server component
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('#performance-now').text()).toBe(
+            currentTime
+          )
 
-        await browser.elementByCss('#link').click()
-        await browser.waitForElementByCss('#page')
+          await browser.elementByCss('#link').click()
+          await browser.waitForElementByCss('#page')
 
-        expect(await browser.elementByCss('#performance-now').text()).toBe(
-          currentTime
-        )
-      })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('#performance-now').text()).toBe(
+            currentTime
+          )
+        }
+      )
     })
 
     // TODO-APP: This is disabled for development as the error overlay needs to be reworked.

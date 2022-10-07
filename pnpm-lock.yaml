@@ -12209,7 +12209,10 @@ packages:
     dev: true
 
   /css.escape/1.5.1:
-    resolution: { integrity: sha1-QuJ9T6BK4y+TGktNQZH6nN3ul8s= }
+    resolution:
+      {
+        integrity: sha512-YUifsXXuknHlUsmlgyY0PKzgPOr7/FjCePfHNt0jxm83wHZi44VDMQ7/fGNkjY3/jV1MC+1CmZbaHzugyeRtpg==,
+      }
     dev: false
 
   /css/3.0.0:

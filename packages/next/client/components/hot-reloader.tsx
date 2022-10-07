@@ -1,6 +1,5 @@
-'client'
-
-import {
+import type { ReactNode } from 'react'
+import React, {
   useCallback,
   useContext,
   useEffect,
@@ -15,6 +14,7 @@ import {
   onBuildError,
   onBuildOk,
   onRefresh,
+  ReactDevOverlay,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../dev/error-overlay/format-webpack-messages'
@@ -398,7 +398,13 @@ function processMessage(
   }
 }
 
-export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
+export default function HotReload({
+  assetPrefix,
+  children,
+}: {
+  assetPrefix: string
+  children?: ReactNode
+}) {
   const { tree } = useContext(GlobalLayoutRouterContext)
   const router = useRouter()
 
@@ -429,7 +435,7 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
     }
 
     const { hostname, port } = window.location
-    const protocol = getSocketProtocol(assetPrefix || '')
+    const protocol = getSocketProtocol(assetPrefix)
     const normalizedAssetPrefix = assetPrefix.replace(/^\/+/, '')
 
     let url = `${protocol}://${hostname}:${port}${
@@ -494,5 +500,6 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
 
   //   return () => clearInterval(interval)
   // })
-  return null
+
+  return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
 }

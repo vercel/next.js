@@ -57,7 +57,7 @@ describe('Dynamic Routing', () => {
     runTests()
   })
 
-  describe('serverless production mode', () => {
+  describe.skip('serverless production mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,

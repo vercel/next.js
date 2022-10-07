@@ -29,7 +29,7 @@ const runTests = () => {
 }
 
 describe('getServerSideProps', () => {
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await fs.writeFile(
