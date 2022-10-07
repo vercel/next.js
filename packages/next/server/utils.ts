@@ -24,3 +24,11 @@ export function isTargetLikeServerless(target: string) {
 
 // When react version is >= 18 opt-in using reactRoot
 export const shouldUseReactRoot = parseInt(React.version) >= 18
+
+export const isServerCold = () => {
+  // @ts-ignore
+  const isCold = Math.__next_hot === undefined
+  // @ts-ignore
+  Math.__next_hot = true
+  return isCold
+}

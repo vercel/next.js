@@ -27,6 +27,7 @@ import {
   normalizeVercelUrl,
 } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { isServerCold } from './utils'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -396,6 +397,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')
+
+    if (process.env.__NEXT_BOOT_DEBUG) {
+      res.setHeader('X-Next-Boot', isServerCold() ? 'cold' : 'warm')
+    }
 
     // Add necessary headers.
     // @TODO: Share the isomorphic logic with server/send-payload.ts.

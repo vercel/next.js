@@ -5,6 +5,7 @@ import { generateETag } from '../lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import RenderResult from '../render-result'
 import { setRevalidateHeaders } from './revalidate-headers'
+import { isServerCold } from '../utils'
 
 export type PayloadOptions =
   | { private: true }
@@ -60,6 +61,10 @@ export async function sendRenderResult({
 
   if (poweredByHeader && type === 'html') {
     res.setHeader('X-Powered-By', 'Next.js')
+  }
+
+  if (process.env.__NEXT_BOOT_DEBUG) {
+    res.setHeader('X-Next-Boot', isServerCold() ? 'cold' : 'warm')
   }
 
   const payload = result.isDynamic() ? null : await result.toUnchunkedString()
