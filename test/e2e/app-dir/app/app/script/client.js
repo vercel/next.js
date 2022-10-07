@@ -1,15 +1,15 @@
 'client'
 
 export default function Client() {
-  globalThis._script_order = globalThis._script_order || []
+  if (typeof window !== 'undefined') {
+    window._script_order = window._script_order || []
 
-  if (
-    globalThis._script_order[globalThis._script_order.length - 1] !== 'render'
-  ) {
-    globalThis._script_order.push('render')
+    if (window._script_order[window._script_order.length - 1] !== 'render') {
+      window._script_order.push('render')
+    }
+
+    console.log(window._script_order)
   }
-
-  console.log(globalThis._script_order)
 
   return null
 }
