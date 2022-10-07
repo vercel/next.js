@@ -25,10 +25,12 @@ pub async fn create_web_entry_source(
     server_root: FileSystemPathVc,
     env: ProcessEnvVc,
     eager_compile: bool,
+    browserslist_query: &str,
 ) -> Result<ContentSourceVc> {
-    let context = get_client_asset_context(project_root);
+    let context = get_client_asset_context(project_root, browserslist_query);
     let chunking_context = get_client_chunking_context(project_root, server_root);
-    let runtime_entries = get_resolved_client_runtime_entries(project_root, env);
+    let runtime_entries =
+        get_resolved_client_runtime_entries(project_root, env, browserslist_query);
 
     let chunks: Vec<_> = stream::iter(entry_requests)
         .then(|r| {

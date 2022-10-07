@@ -44,6 +44,7 @@ pub async fn create_server_rendered_source(
     output_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
     env: ProcessEnvVc,
+    browserslist_query: &str,
 ) -> Result<ContentSourceVc> {
     let pages = project_path.join("pages");
     let src_pages = project_path.join("src/pages");
@@ -56,9 +57,10 @@ pub async fn create_server_rendered_source(
     };
 
     let client_chunking_context = get_client_chunking_context(project_path, server_root);
-    let client_module_options_context = get_client_module_options_context(project_path);
+    let client_environment = get_client_environment(browserslist_query);
+    let client_module_options_context =
+        get_client_module_options_context(project_path, client_environment);
     let client_resolve_options_context = get_client_resolve_options_context();
-    let client_environment = get_client_environment();
 
     let client_runtime_entries = get_client_runtime_entries(project_path, env);
 

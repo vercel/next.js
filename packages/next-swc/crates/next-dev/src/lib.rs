@@ -29,6 +29,7 @@ pub struct NextDevServerBuilder {
     eager_compile: bool,
     hostname: Option<IpAddr>,
     port: Option<u16>,
+    browserslist_query: String,
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
@@ -48,6 +49,9 @@ impl NextDevServerBuilder {
             eager_compile: false,
             hostname: None,
             port: None,
+            browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
+                                 versions, last 1 Edge versions"
+                .to_owned(),
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
@@ -71,6 +75,11 @@ impl NextDevServerBuilder {
 
     pub fn port(mut self, port: u16) -> NextDevServerBuilder {
         self.port = Some(port);
+        self
+    }
+
+    pub fn browserslist_query(mut self, browserslist_query: String) -> NextDevServerBuilder {
+        self.browserslist_query = browserslist_query;
         self
     }
 
@@ -98,6 +107,7 @@ impl NextDevServerBuilder {
         let eager_compile = self.eager_compile;
         let show_all = self.show_all;
         let log_detail = self.log_detail;
+        let browserslist_query = self.browserslist_query;
         let log_options = LogOptions {
             project_dir: project_dir.clone(),
             show_all,
@@ -116,6 +126,7 @@ impl NextDevServerBuilder {
                     eager_compile,
                     turbo_tasks.clone().into(),
                     log_options.clone().cell(),
+                    browserslist_query.clone(),
                 )
             },
             (
@@ -171,6 +182,7 @@ async fn source(
     eager_compile: bool,
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
     log_options: LogOptionsVc,
+    browserslist_query: String,
 ) -> Result<ContentSourceVc> {
     let output_fs = output_fs(&project_dir, log_options);
     let fs = project_fs(&root_dir, log_options);
@@ -193,12 +205,14 @@ async fn source(
         dev_server_root,
         env,
         eager_compile,
+        &browserslist_query,
     );
     let rendered_source = create_server_rendered_source(
         project_path,
         FileSystemPathVc::new(output_fs, ""),
         dev_server_root,
         env,
+        &browserslist_query,
     );
     let viz = turbo_tasks_viz::TurboTasksSource {
         turbo_tasks: turbo_tasks.into(),

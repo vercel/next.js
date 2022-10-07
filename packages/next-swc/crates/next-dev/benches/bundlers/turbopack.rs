@@ -49,6 +49,9 @@ impl Bundler for Turbopack {
             &[
                 NpmPackage::new("react-refresh", "^0.12.0"),
                 NpmPackage::new("@next/react-refresh-utils", "^12.2.5"),
+                // Dependencies on these are inserted by swc's preset_env
+                NpmPackage::new("@swc/helpers", "^0.4.11"),
+                NpmPackage::new("core-js", "^3.25.3"),
             ],
         )
         .context("failed to install from npm")?;
