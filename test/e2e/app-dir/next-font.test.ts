@@ -1,12 +1,13 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { getRedboxSource, hasRedbox, renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import path from 'path'
 import webdriver from 'next-webdriver'
 
 describe('app dir next-font', () => {
-  if ((global as any).isNextDeploy || (global as any).isNextDev) {
+  const isDev = (global as any).isNextDev
+  if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
@@ -296,4 +297,27 @@ describe('app dir next-font', () => {
       })
     })
   })
+
+  if (isDev) {
+    describe('Dev errors', () => {
+      it('should recover on font loader error', async () => {
+        const browser = await webdriver(next.url, '/')
+        const font1Content = await next.readFile('fonts/font1.js')
+
+        // Break file
+        await next.patchFile(
+          'fonts/font1.js',
+          font1Content.replace('./font1.woff2', './does-not-exist.woff2')
+        )
+        expect(await hasRedbox(browser, true)).toBeTrue()
+        expect(await getRedboxSource(browser)).toInclude(
+          "Can't resolve './does-not-exist.woff2'"
+        )
+
+        // Fix file
+        await next.patchFile('fonts/font1.js', font1Content)
+        await browser.waitForElementByCss('#root-page')
+      })
+    })
+  }
 })
