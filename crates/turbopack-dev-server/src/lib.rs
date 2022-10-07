@@ -7,7 +7,10 @@ pub mod html_runtime_asset;
 pub mod source;
 pub mod update;
 
-use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc, time::Instant};
+use std::{
+    collections::btree_map::Entry, future::Future, net::SocketAddr, pin::Pin, sync::Arc,
+    time::Instant,
+};
 
 use anyhow::{anyhow, Result};
 use hyper::{
@@ -15,13 +18,18 @@ use hyper::{
     Body, Request, Response, Server,
 };
 use mime_guess::mime;
-use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, TurboTasksApi};
+use turbo_tasks::{
+    trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, TurboTasksApi, Value,
+};
 use turbo_tasks_fs::FileContent;
 use turbopack_cli_utils::issue::{group_and_display_issues, LogOptions, LogOptionsVc};
 use turbopack_core::{asset::AssetContent, issue::IssueVc};
 
-use self::{source::ContentSourceVc, update::UpdateServer};
-use crate::source::ContentSourceResult;
+use self::{
+    source::{query::Query, ContentSourceDataVary, ContentSourceVc},
+    update::UpdateServer,
+};
+use crate::source::{ContentSourceData, ContentSourceResult, HeaderValue};
 
 pub trait GetContentSource = Fn() -> ContentSourceVc + Send + Clone + 'static;
 
@@ -82,7 +90,18 @@ impl DevServer {
                             let source = get_source();
                             handle_issues(source, path, "get source", log_options).await?;
                             let resolved_source = source.resolve_strongly_consistent().await?;
-                            let content_source_result = resolved_source.get(&asset_path);
+                            let content_source_vary = resolved_source.vary(&asset_path);
+                            handle_issues(
+                                content_source_vary,
+                                path,
+                                "get vary from source",
+                                log_options,
+                            )
+                            .await?;
+                            let vary = &*content_source_vary.strongly_consistent().await?;
+                            let data = request_to_data(&request, vary)?;
+                            let content_source_result =
+                                resolved_source.get(&asset_path, Value::new(data));
                             handle_issues(
                                 content_source_result,
                                 path,
@@ -175,6 +194,48 @@ impl DevServer {
             }),
         }
     }
+}
+
+fn request_to_data(
+    request: &Request<Body>,
+    vary: &ContentSourceDataVary,
+) -> Result<ContentSourceData> {
+    let mut data = ContentSourceData::default();
+    if vary.method {
+        data.method = Some(request.method().to_string());
+    }
+    if let Some(filter) = vary.query.as_ref() {
+        if let Some(query) = request.uri().query() {
+            let mut query: Query = serde_qs::from_str(query)?;
+            query.filter_with(filter);
+            data.query = query;
+        }
+    }
+    if let Some(filter) = vary.headers.as_ref() {
+        for (header_name, header_value) in request.headers().iter() {
+            if !filter.contains(header_name.as_str()) {
+                continue;
+            }
+            match data.headers.entry(header_name.to_string()) {
+                Entry::Vacant(e) => {
+                    if let Ok(s) = header_value.to_str() {
+                        e.insert(HeaderValue::SingleString(s.to_string()));
+                    } else {
+                        e.insert(HeaderValue::SingleBytes(header_value.as_bytes().to_vec()));
+                    }
+                }
+                Entry::Occupied(mut e) => {
+                    if let Ok(s) = header_value.to_str() {
+                        e.get_mut().extend_with_string(s.to_string());
+                    } else {
+                        e.get_mut()
+                            .extend_with_bytes(header_value.as_bytes().to_vec());
+                    }
+                }
+            }
+        }
+    }
+    Ok(data)
 }
 
 pub fn register() {

@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use mime::Mime;
-use turbo_tasks::{get_invalidator, TurboTasks};
+use turbo_tasks::{get_invalidator, TurboTasks, Value};
 use turbo_tasks_fs::{File, FileContent};
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
@@ -10,7 +10,7 @@ use turbo_tasks_memory::{
 };
 use turbopack_core::asset::AssetContent;
 use turbopack_dev_server::source::{
-    ContentSource, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
 };
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
@@ -30,7 +30,7 @@ const INVALIDATION_INTERVAL: Duration = Duration::from_secs(3);
 #[turbo_tasks::value_impl]
 impl ContentSource for TurboTasksSource {
     #[turbo_tasks::function]
-    fn get(&self, path: &str) -> Result<ContentSourceResultVc> {
+    fn get(&self, path: &str, _data: Value<ContentSourceData>) -> Result<ContentSourceResultVc> {
         let tt = &self.turbo_tasks;
         let invalidator = get_invalidator();
         tokio::spawn({

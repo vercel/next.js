@@ -4,11 +4,13 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{get_invalidator, Invalidator, ValueToString};
+use turbo_tasks::{get_invalidator, Invalidator, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{asset::AssetVc, reference::all_referenced_assets};
 
-use super::{ContentSource, ContentSourceResult, ContentSourceResultVc, ContentSourceVc};
+use super::{
+    ContentSource, ContentSourceData, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+};
 
 struct State {
     expanded: HashSet<AssetVc>,
@@ -110,7 +112,11 @@ impl AssetGraphContentSourceVc {
 #[turbo_tasks::value_impl]
 impl ContentSource for AssetGraphContentSource {
     #[turbo_tasks::function]
-    async fn get(self_vc: AssetGraphContentSourceVc, path: &str) -> Result<ContentSourceResultVc> {
+    async fn get(
+        self_vc: AssetGraphContentSourceVc,
+        path: &str,
+        _data: Value<ContentSourceData>,
+    ) -> Result<ContentSourceResultVc> {
         let assets = self_vc.all_assets_map().strongly_consistent().await?;
 
         if let Some(asset) = assets.get(path) {
@@ -138,7 +144,7 @@ impl ContentSource for AssetGraphContentSource {
         let root_path_str = self_vc.await?.root_path.to_string().await?;
         if id.starts_with(&*root_path_str) {
             let path = &id[root_path_str.len()..];
-            Ok(self_vc.get(path))
+            Ok(self_vc.get(path, Value::new(ContentSourceData::default())))
         } else {
             Ok(ContentSourceResult::NotFound.cell())
         }
