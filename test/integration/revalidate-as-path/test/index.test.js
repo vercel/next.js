@@ -78,7 +78,7 @@ const runTests = (isServerless) => {
 }
 
 describe('Revalidate asPath Normalizing', () => {
-  describe('raw serverless mode', () => {
+  describe.skip('raw serverless mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await fs.writeFile(

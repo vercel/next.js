@@ -123,7 +123,7 @@ describe('Fetch polyfill', () => {
     runTests()
   })
 
-  describe('Serverless support', () => {
+  describe.skip('Serverless support', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,

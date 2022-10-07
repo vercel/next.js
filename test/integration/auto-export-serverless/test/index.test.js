@@ -8,7 +8,7 @@ const appDir = path.join(__dirname, '..')
 let appPort
 let app
 
-describe('Auto Export Serverless', () => {
+describe.skip('Auto Export Serverless', () => {
   it('Refreshes query on mount', async () => {
     await nextBuild(appDir)
     appPort = await findPort()
