@@ -553,8 +553,6 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
       hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression)
       hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
-      hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
-      hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
       hooks.call
         .for(`${prefix}WebAssembly.compile`)
         .tap(NAME, handleWrapWasmCompileExpression)
