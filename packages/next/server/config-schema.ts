@@ -265,6 +265,9 @@ const configSchema = {
             },
           ] as any,
         },
+        appDir: {
+          type: 'boolean',
+        },
         externalDir: {
           type: 'boolean',
         },

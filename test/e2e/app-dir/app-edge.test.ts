@@ -20,8 +20,8 @@ describe('app-dir edge SSR', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-edge')),
       dependencies: {
-        react: '0.0.0-experimental-cb5084d1c-20220924',
-        'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
+        react: 'experimental',
+        'react-dom': 'experimental',
         typescript: 'latest',
         '@types/react': 'latest',
         '@types/node': 'latest',

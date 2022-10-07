@@ -5,7 +5,13 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 describe('font-loader-in-document-error', () => {
+  const isDev = (global as any).isNextDev
   let next: NextInstance
+
+  if (!isDev) {
+    it('should only run on next dev', () => {})
+    return
+  }
 
   beforeAll(async () => {
     next = await createNext({
