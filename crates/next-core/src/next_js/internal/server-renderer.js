@@ -1,5 +1,6 @@
 const END_OF_OPERATION = process.argv[2];
 
+import App from "@vercel/turbopack-next/pages/_app";
 import Component, * as otherExports from ".";
 import { renderToString, renderToStaticMarkup } from "react-dom/server";
 ("TURBOPACK { transition: next-client }");
@@ -40,7 +41,7 @@ async function operation(data) {
 
   // TODO capture meta info during rendering
   const rendered = {
-    __html: renderToString(<Component {...staticProps.props} />),
+    __html: renderToString(<App Component={Component} pageProps={staticProps} />),
   };
   const urls = chunkGroup.map((p) => `/${p}`);
   const scripts = urls.filter((url) => url.endsWith(".js"));

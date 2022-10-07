@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    alias_map::{AliasMap, AliasMapIterator, AliasPattern, AliasTemplate},
+    alias_map::{AliasMap, AliasMapLookupIterator, AliasPattern, AliasTemplate},
     options::ConditionValue,
 };
 
@@ -314,7 +314,7 @@ impl ExportsField {
     /// Looks up a request string in the "exports" field. Returns an iterator of
     /// matching requests. Usually only the first one is relevant, except
     /// when conditions don't match or only partially match.
-    pub fn lookup<'a>(&'a self, request: &'a str) -> AliasMapIterator<'a, ExportsValue> {
+    pub fn lookup<'a>(&'a self, request: &'a str) -> AliasMapLookupIterator<'a, ExportsValue> {
         self.0.lookup(request)
     }
 }

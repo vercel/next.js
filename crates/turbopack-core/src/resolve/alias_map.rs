@@ -144,7 +144,10 @@ impl<T> AliasMap<T> {
     /// Looks up a request in the alias map.
     ///
     /// Returns an iterator to all the matching aliases.
-    pub fn lookup<'a>(&'a self, request: &'a str) -> AliasMapIterator<'a, T> {
+    pub fn lookup<'a>(&'a self, request: &'a str) -> AliasMapLookupIterator<'a, T>
+    where
+        T: Debug,
+    {
         // Invariant: prefixes should be sorted by increasing length (base lengths),
         // according to PATTERN_KEY_COMPARE. Since we're using a prefix tree, this is
         // the default behavior of the common prefix iterator.
@@ -152,7 +155,7 @@ impl<T> AliasMap<T> {
             .map
             .common_prefixes(request.as_bytes())
             .collect::<Vec<_>>();
-        AliasMapIterator {
+        AliasMapLookupIterator {
             request,
             current_prefix_iterator: prefixes_stack
                 .pop()
@@ -191,18 +194,105 @@ impl<T> AliasMap<T> {
     }
 }
 
+impl<T> IntoIterator for AliasMap<T> {
+    type Item = (AliasPattern, T);
+
+    type IntoIter = AliasMapIntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        AliasMapIntoIter {
+            iter: self.map.into_iter(),
+            current_prefix_iterator: None,
+        }
+    }
+}
+
+/// An owning iterator over the entries of an `AliasMap`.
+///
+/// Beware: The items are *NOT* returned in the order defined by
+/// [PATTERN_KEY_COMPARE].
+///
+/// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolver-algorithm-specification
+pub struct AliasMapIntoIter<T> {
+    iter: patricia_tree::map::IntoIter<BTreeMap<AliasKey, T>>,
+    current_prefix_iterator: Option<AliasMapIntoIterItem<T>>,
+}
+
+struct AliasMapIntoIterItem<T> {
+    prefix: String,
+    iterator: std::collections::btree_map::IntoIter<AliasKey, T>,
+}
+
+impl<T> AliasMapIntoIter<T> {
+    fn advance_iter(&mut self) -> Option<&mut AliasMapIntoIterItem<T>> {
+        let (prefix, map) = self.iter.next()?;
+        let prefix = String::from_utf8(prefix).expect("invalid UTF-8 key in AliasMap");
+        self.current_prefix_iterator = Some(AliasMapIntoIterItem {
+            prefix,
+            iterator: map.into_iter(),
+        });
+        self.current_prefix_iterator.as_mut()
+    }
+}
+
+impl<T> Iterator for AliasMapIntoIter<T> {
+    type Item = (AliasPattern, T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut current_prefix_iterator = match self.current_prefix_iterator {
+            None => self.advance_iter()?,
+            Some(ref mut current_prefix_iterator) => current_prefix_iterator,
+        };
+        let mut current_value = current_prefix_iterator.iterator.next();
+        loop {
+            match current_value {
+                None => {
+                    current_prefix_iterator = self.advance_iter()?;
+                    current_value = current_prefix_iterator.iterator.next();
+                }
+                Some(current_value) => {
+                    return Some(match current_value {
+                        (AliasKey::Exact, value) => (
+                            AliasPattern::Exact(current_prefix_iterator.prefix.clone()),
+                            value,
+                        ),
+                        (AliasKey::Wildcard { suffix }, value) => (
+                            AliasPattern::Wildcard {
+                                prefix: current_prefix_iterator.prefix.clone(),
+                                suffix,
+                            },
+                            value,
+                        ),
+                    });
+                }
+            }
+        }
+    }
+}
+
+impl<T> Extend<(AliasPattern, T)> for AliasMap<T> {
+    fn extend<It>(&mut self, iter: It)
+    where
+        It: IntoIterator<Item = (AliasPattern, T)>,
+    {
+        for (pattern, value) in iter {
+            self.insert(pattern, value);
+        }
+    }
+}
+
 /// An iterator over the aliases that match a request.
 ///
 /// The items are returned in the order defined by [PATTERN_KEY_COMPARE].
 ///
 /// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolver-algorithm-specification
-pub struct AliasMapIterator<'a, T> {
+pub struct AliasMapLookupIterator<'a, T> {
     request: &'a str,
     prefixes_stack: Vec<(&'a [u8], &'a BTreeMap<AliasKey, T>)>,
     current_prefix_iterator: Option<(&'a [u8], std::collections::btree_map::Iter<'a, AliasKey, T>)>,
 }
 
-impl<'a, T> Iterator for AliasMapIterator<'a, T>
+impl<'a, T> Iterator for AliasMapLookupIterator<'a, T>
 where
     T: AliasTemplate,
 {

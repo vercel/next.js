@@ -1,8 +1,10 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 
+mod embed_next;
 pub mod env;
 pub mod next_client;
+mod next_import_map;
 mod nodejs;
 pub mod react_refresh;
 mod server_render;

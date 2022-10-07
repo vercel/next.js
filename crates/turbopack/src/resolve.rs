@@ -11,13 +11,14 @@ use turbopack_core::resolve::{
     AliasMap, AliasPattern, FindContextFileResult,
 };
 use turbopack_ecmascript::{
-    resolve::apply_cjs_specific_options, typescript::resolve::apply_tsconfig,
+    resolve::apply_cjs_specific_options,
+    typescript::resolve::{apply_tsconfig_resolve_options, tsconfig_resolve_options},
 };
 
 use crate::resolve_options_context::ResolveOptionsContextVc;
 
 #[turbo_tasks::function]
-async fn raw_resolve_options(
+async fn base_resolve_options(
     context: FileSystemPathVc,
     options_context: ResolveOptionsContextVc,
 ) -> Result<ResolveOptionsVc> {
@@ -104,11 +105,7 @@ async fn raw_resolve_options(
             ImportMapping::Ignore.into(),
         ),
     ];
-    let import_map = ImportMap {
-        direct: direct_mappings,
-        by_glob: Vec::new(),
-    }
-    .into();
+    let import_map = ImportMap::new(direct_mappings, Default::default()).into();
     let resolved_map = ResolvedMap {
         by_glob: glob_mappings,
     }
@@ -213,19 +210,29 @@ pub async fn resolve_options(
     context: FileSystemPathVc,
     options_context: ResolveOptionsContextVc,
 ) -> Result<ResolveOptionsVc> {
-    let base_resolve_options = raw_resolve_options(context, options_context);
-    if options_context.await?.enable_typescript {
+    let resolve_options = base_resolve_options(context, options_context);
+
+    let options_context = options_context.await?;
+    let resolve_options = if options_context.enable_typescript {
         let tsconfig = find_context_file(context, "tsconfig.json").await?;
-        let cjs_resolve_options = apply_cjs_specific_options(base_resolve_options);
-        let mut options = base_resolve_options;
+        let cjs_resolve_options = apply_cjs_specific_options(resolve_options);
         match *tsconfig {
-            FindContextFileResult::Found(path, _) => {
-                options = apply_tsconfig(options, path, cjs_resolve_options);
-            }
-            FindContextFileResult::NotFound(_) => {}
+            FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
+                resolve_options,
+                tsconfig_resolve_options(path, cjs_resolve_options),
+            ),
+            FindContextFileResult::NotFound(_) => resolve_options,
         }
-        Ok(options)
     } else {
-        Ok(base_resolve_options)
-    }
+        resolve_options
+    };
+
+    // Make sure to always apply `options_context.import_map` last, so it properly
+    // overwrites any other mappings.
+    let resolve_options = options_context
+        .import_map
+        .map(|import_map| resolve_options.with_extended_import_map(import_map))
+        .unwrap_or(resolve_options);
+
+    Ok(resolve_options)
 }

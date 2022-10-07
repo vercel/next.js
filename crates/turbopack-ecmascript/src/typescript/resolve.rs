@@ -11,8 +11,8 @@ use turbopack_core::{
     resolve::{
         handle_resolve_error,
         options::{
-            ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
-            ResolveOptionsVc,
+            ConditionValue, ImportMap, ImportMapVc, ImportMapping, ResolveIntoPackage,
+            ResolveModules, ResolveOptionsVc,
         },
         origin::ResolveOriginVc,
         parse::{Request, RequestVc},
@@ -83,37 +83,49 @@ pub async fn read_from_tsconfigs<T>(
     Ok(None)
 }
 
+/// Resolve options specific to tsconfig.json.
+#[turbo_tasks::value]
+#[derive(Default)]
+pub struct TsConfigResolveOptions {
+    base_url: Option<FileSystemPathVc>,
+    import_map: Option<ImportMapVc>,
+}
+
+impl Default for TsConfigResolveOptionsVc {
+    fn default() -> Self {
+        Self::cell(Default::default())
+    }
+}
+
+/// Returns the resolve options
 #[turbo_tasks::function]
-pub async fn apply_tsconfig(
-    resolve_options: ResolveOptionsVc,
+pub async fn tsconfig_resolve_options(
     tsconfig: FileSystemPathVc,
     resolve_in_tsconfig_options: ResolveOptionsVc,
-) -> Result<ResolveOptionsVc> {
+) -> Result<TsConfigResolveOptionsVc> {
     let configs = read_tsconfigs(
         tsconfig.read().parse_json_with_comments(),
         SourceAssetVc::new(tsconfig).into(),
         resolve_in_tsconfig_options,
     )
     .await?;
+
     if configs.is_empty() {
-        return Ok(resolve_options);
+        return Ok(Default::default());
     }
-    let mut resolve_options = resolve_options.await?.clone_value();
-    if let Some(base_url) = read_from_tsconfigs(&configs, |json, source| {
+
+    let base_url = if let Some(base_url) = read_from_tsconfigs(&configs, |json, source| {
         json["compilerOptions"]["baseUrl"]
             .as_str()
             .map(|base_url| source.path().parent().try_join(base_url))
     })
     .await?
     {
-        if let Some(base_url) = *base_url.await? {
-            // We want to resolve in `compilerOptions.baseUrl` first, then in other
-            // locations as a fallback.
-            resolve_options
-                .modules
-                .insert(0, ResolveModules::Path(base_url));
-        }
-    }
+        *base_url.await?
+    } else {
+        None
+    };
+
     let mut all_paths = HashMap::new();
     for (content, source) in configs.iter().rev() {
         if let FileJsonContent::Content(json) = &*content.await? {
@@ -153,20 +165,47 @@ pub async fn apply_tsconfig(
             }
         }
     }
-    if !all_paths.is_empty() {
-        let mut import_map = if let Some(import_map) = resolve_options.import_map {
-            import_map.await?.clone_value()
-        } else {
-            ImportMap::default()
-        };
+
+    let import_map = if !all_paths.is_empty() {
+        let mut import_map = ImportMap::empty();
         for (key, value) in all_paths {
-            import_map
-                .direct
-                .insert(AliasPattern::parse(&key), value.into());
+            import_map.insert_alias(AliasPattern::parse(&key), value.into());
         }
-        resolve_options.import_map = Some(import_map.into());
+        Some(import_map.cell())
+    } else {
+        None
+    };
+
+    Ok(TsConfigResolveOptions {
+        base_url,
+        import_map,
     }
-    Ok(resolve_options.into())
+    .cell())
+}
+
+#[turbo_tasks::function]
+pub async fn apply_tsconfig_resolve_options(
+    resolve_options: ResolveOptionsVc,
+    tsconfig_resolve_options: TsConfigResolveOptionsVc,
+) -> Result<ResolveOptionsVc> {
+    let tsconfig_resolve_options = tsconfig_resolve_options.await?;
+    let mut resolve_options = resolve_options.await?.clone_value();
+    if let Some(base_url) = tsconfig_resolve_options.base_url {
+        // We want to resolve in `compilerOptions.baseUrl` first, then in other
+        // locations as a fallback.
+        resolve_options
+            .modules
+            .insert(0, ResolveModules::Path(base_url));
+    }
+    if let Some(tsconfig_import_map) = tsconfig_resolve_options.import_map {
+        resolve_options.import_map = Some(
+            resolve_options
+                .import_map
+                .map(|import_map| import_map.extend(tsconfig_import_map))
+                .unwrap_or(tsconfig_import_map),
+        );
+    }
+    Ok(resolve_options.cell())
 }
 
 #[turbo_tasks::function]

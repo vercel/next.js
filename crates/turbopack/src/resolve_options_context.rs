@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbopack_core::environment::EnvironmentVc;
+use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMapVc};
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
@@ -10,6 +10,12 @@ pub struct ResolveOptionsContext {
     pub enable_node_native_modules: bool,
     pub enable_node_modules: bool,
     pub custom_conditions: Vec<String>,
+    /// An additional import map to use when resolving modules.
+    ///
+    /// If set, this import map will be applied to `ResolveOption::import_map`.
+    /// It is always applied last, so any mapping defined within will take
+    /// precedence over any other (e.g. tsconfig.json `compilerOptions.paths`).
+    pub import_map: Option<ImportMapVc>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -25,6 +31,20 @@ impl ResolveOptionsContextVc {
         let mut clone = self.await?.clone_value();
         clone.enable_typescript = true;
         Ok(Self::cell(clone))
+    }
+
+    /// Returns a new [ResolveOptionsContextVc] with its import map extended to
+    /// include the given import map.
+    #[turbo_tasks::function]
+    pub async fn with_extended_import_map(self, import_map: ImportMapVc) -> Result<Self> {
+        let mut resolve_options_context = self.await?.clone_value();
+        resolve_options_context.import_map = Some(
+            resolve_options_context
+                .import_map
+                .map(|current_import_map| current_import_map.extend(import_map))
+                .unwrap_or(import_map),
+        );
+        Ok(resolve_options_context.into())
     }
 }
 

@@ -47,7 +47,9 @@ pub mod origin;
 pub mod parse;
 pub mod pattern;
 
-pub use alias_map::{AliasMap, AliasMapIterator, AliasMatch, AliasPattern, AliasTemplate};
+pub use alias_map::{
+    AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern, AliasTemplate,
+};
 
 #[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub enum SpecialType {

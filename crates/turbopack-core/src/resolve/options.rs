@@ -10,7 +10,7 @@ use turbo_tasks_fs::{
 
 use super::{
     alias_map::{AliasMap, AliasTemplate},
-    ResolveResult, ResolveResultVc, SpecialType,
+    AliasPattern, ResolveResult, ResolveResultVc, SpecialType,
 };
 use crate::resolve::parse::RequestVc;
 
@@ -76,9 +76,11 @@ pub enum ResolveIntoPackage {
 #[derive(Clone)]
 pub enum ImportMapping {
     External(Option<String>),
+    /// An already resolved result that will be returned directly.
+    Direct(ResolveResultVc),
     /// A request alias that will be resolved first, and fall back to resolving
     /// the original request if it fails. Useful for the tsconfig.json
-    /// `compilerOptions.paths` option.
+    /// `compilerOptions.paths` option and Next aliases.
     PrimaryAlternative(String, Option<FileSystemPathVc>),
     Ignore,
     Empty,
@@ -121,7 +123,9 @@ impl AliasTemplate for ImportMappingVc {
                 ImportMapping::PrimaryAlternative(name, context) => {
                     ImportMapping::PrimaryAlternative(name.clone().replace('*', capture), *context)
                 }
-                ImportMapping::Ignore | ImportMapping::Empty => this.clone(),
+                ImportMapping::Direct(_) | ImportMapping::Ignore | ImportMapping::Empty => {
+                    this.clone()
+                }
                 ImportMapping::Alternatives(alternatives) => ImportMapping::Alternatives(
                     alternatives
                         .iter()
@@ -138,8 +142,46 @@ impl AliasTemplate for ImportMappingVc {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ImportMap {
-    pub direct: AliasMap<ImportMappingVc>,
-    pub by_glob: Vec<(Glob, ImportMappingVc)>,
+    direct: AliasMap<ImportMappingVc>,
+    by_glob: Vec<(Glob, ImportMappingVc)>,
+}
+
+impl ImportMap {
+    /// Creates a new import map.
+    pub fn new(
+        direct: AliasMap<ImportMappingVc>,
+        by_glob: Vec<(Glob, ImportMappingVc)>,
+    ) -> ImportMap {
+        Self { direct, by_glob }
+    }
+
+    /// Creates a new empty import map.
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    /// Extends the import map with another import map.
+    pub fn extend(&mut self, other: &ImportMap) {
+        let Self { direct, by_glob } = other.clone();
+        self.direct.extend(direct);
+        self.by_glob.extend(by_glob);
+    }
+
+    /// Inserts an alias into the import map.
+    pub fn insert_alias(&mut self, alias: AliasPattern, mapping: ImportMappingVc) {
+        self.direct.insert(alias, mapping);
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMapVc {
+    /// Extends the underlying [ImportMap] with another [ImportMap].
+    #[turbo_tasks::function]
+    pub async fn extend(self, other: ImportMapVc) -> Result<Self> {
+        let mut import_map = self.await?.clone_value();
+        import_map.extend(&*other.await?);
+        Ok(import_map.cell())
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -159,6 +201,7 @@ pub enum ImportMapResult {
 
 async fn import_mapping_to_result(mapping: ImportMappingVc) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
+        ImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ImportMapping::External(name) => ImportMapResult::Result(
             ResolveResult::Special(
                 name.as_ref().map_or_else(
@@ -267,6 +310,20 @@ impl ResolveOptionsVc {
             modules: self.await?.modules.clone(),
         }
         .into())
+    }
+
+    /// Returns a new [ResolveOptionsVc] with its import map extended to include
+    /// the given import map.
+    #[turbo_tasks::function]
+    pub async fn with_extended_import_map(self, import_map: ImportMapVc) -> Result<Self> {
+        let mut resolve_options = self.await?.clone_value();
+        resolve_options.import_map = Some(
+            resolve_options
+                .import_map
+                .map(|current_import_map| current_import_map.extend(import_map))
+                .unwrap_or(import_map),
+        );
+        Ok(resolve_options.into())
     }
 }
 

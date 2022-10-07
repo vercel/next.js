@@ -3,7 +3,7 @@ pub(crate) mod runtime_entry;
 
 use anyhow::{bail, Result};
 use turbo_tasks::ValueToString;
-use turbo_tasks_fs::{embed_file, FileSystemPathVc};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
     module_options::ModuleOptionsContextVc,
@@ -19,6 +19,7 @@ use turbopack_core::{
 };
 
 use self::runtime_entry::RuntimeEntriesVc;
+use crate::embed_next_file;
 
 /// Makes a transition into a next.js client context.
 ///
@@ -39,7 +40,7 @@ pub struct NextClientTransition {
 impl Transition for NextClientTransition {
     #[turbo_tasks::function]
     fn process_source(&self, asset: AssetVc) -> AssetVc {
-        let next_hydrate = embed_file!("next_hydrate.js").into();
+        let next_hydrate = embed_next_file!("internal/next-hydrate.js").into();
 
         VirtualAssetVc::new(asset.path().join("next-hydrate.js"), next_hydrate).into()
     }
