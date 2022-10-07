@@ -27,7 +27,10 @@ use turbopack_core::{
     context::{AssetContext, AssetContextVc},
     environment::EnvironmentVc,
     reference::all_referenced_assets,
-    resolve::{options::ResolveOptionsVc, parse::RequestVc, resolve, ResolveResultVc},
+    resolve::{
+        options::ResolveOptionsVc, origin::PlainResolveOriginVc, parse::RequestVc, resolve,
+        ResolveResultVc,
+    },
 };
 
 mod graph;
@@ -115,7 +118,6 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
 #[turbo_tasks::value]
 pub struct ModuleAssetContext {
     transitions: TransitionsByNameVc,
-    context_path: FileSystemPathVc,
     environment: EnvironmentVc,
     module_options_context: ModuleOptionsContextVc,
     resolve_options_context: ResolveOptionsContextVc,
@@ -127,14 +129,12 @@ impl ModuleAssetContextVc {
     #[turbo_tasks::function]
     pub fn new(
         transitions: TransitionsByNameVc,
-        context_path: FileSystemPathVc,
         environment: EnvironmentVc,
         module_options_context: ModuleOptionsContextVc,
         resolve_options_context: ResolveOptionsContextVc,
     ) -> Self {
         Self::cell(ModuleAssetContext {
             transitions,
-            context_path,
             environment,
             module_options_context,
             resolve_options_context,
@@ -145,7 +145,6 @@ impl ModuleAssetContextVc {
     #[turbo_tasks::function]
     pub fn new_transition(
         transitions: TransitionsByNameVc,
-        context_path: FileSystemPathVc,
         environment: EnvironmentVc,
         module_options_context: ModuleOptionsContextVc,
         resolve_options_context: ResolveOptionsContextVc,
@@ -153,7 +152,6 @@ impl ModuleAssetContextVc {
     ) -> Self {
         Self::cell(ModuleAssetContext {
             transitions,
-            context_path,
             environment,
             module_options_context,
             resolve_options_context,
@@ -186,7 +184,6 @@ impl ModuleAssetContextVc {
             .await?;
         Ok(ModuleAssetContextVc::new(
             this.transitions,
-            this.context_path,
             this.environment,
             this.module_options_context,
             resolve_options_context,
@@ -197,19 +194,14 @@ impl ModuleAssetContextVc {
 #[turbo_tasks::value_impl]
 impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
-    fn context_path(&self) -> FileSystemPathVc {
-        self.context_path
-    }
-
-    #[turbo_tasks::function]
     fn environment(&self) -> EnvironmentVc {
         self.environment
     }
 
     #[turbo_tasks::function]
-    async fn resolve_options(&self) -> Result<ResolveOptionsVc> {
+    async fn resolve_options(&self, origin_path: FileSystemPathVc) -> Result<ResolveOptionsVc> {
         Ok(resolve_options(
-            self.context_path,
+            origin_path.parent().resolve().await?,
             self.resolve_options_context,
         ))
     }
@@ -217,25 +209,18 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn resolve_asset(
         self_vc: ModuleAssetContextVc,
-        context_path: FileSystemPathVc,
+        origin_path: FileSystemPathVc,
         request: RequestVc,
         resolve_options: ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
-        let this = self_vc.await?;
+        let context_path = origin_path.parent().resolve().await?;
 
         let result = resolve(context_path, request, resolve_options);
         let result = self_vc.process_resolve_result(result);
 
         if *self_vc.is_typescript_resolving_enabled().await? {
             let types_reference = TypescriptTypesAssetReferenceVc::new(
-                ModuleAssetContextVc::new(
-                    this.transitions,
-                    context_path,
-                    this.environment,
-                    this.module_options_context,
-                    this.resolve_options_context,
-                )
-                .into(),
+                PlainResolveOriginVc::new(self_vc.into(), origin_path).into(),
                 request,
             );
 
@@ -269,7 +254,6 @@ impl AssetContext for ModuleAssetContext {
                 transition.process_resolve_options_context(this.resolve_options_context);
             let context = ModuleAssetContextVc::new(
                 this.transitions,
-                asset.path().parent(),
                 environment,
                 module_options_context,
                 resolve_options_context,
@@ -279,7 +263,6 @@ impl AssetContext for ModuleAssetContext {
         } else {
             let context = ModuleAssetContextVc::new(
                 this.transitions,
-                asset.path().parent(),
                 this.environment,
                 this.module_options_context,
                 this.resolve_options_context,
@@ -289,36 +272,11 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc {
-        ModuleAssetContextVc::new(
-            self.transitions,
-            path,
-            self.environment,
-            self.module_options_context,
-            self.resolve_options_context,
-        )
-        .into()
-    }
-
-    #[turbo_tasks::function]
-    fn with_environment(&self, environment: EnvironmentVc) -> AssetContextVc {
-        ModuleAssetContextVc::new(
-            self.transitions,
-            self.context_path,
-            environment,
-            self.module_options_context,
-            self.resolve_options_context,
-        )
-        .into()
-    }
-
-    #[turbo_tasks::function]
     async fn with_transition(&self, transition: &str) -> Result<AssetContextVc> {
         Ok(
             if let Some(transition) = self.transitions.await?.get(transition) {
                 ModuleAssetContextVc::new_transition(
                     self.transitions,
-                    self.context_path,
                     self.environment,
                     self.module_options_context,
                     self.resolve_options_context,
@@ -329,7 +287,6 @@ impl AssetContext for ModuleAssetContext {
                 // TODO report issue
                 ModuleAssetContextVc::new(
                     self.transitions,
-                    self.context_path,
                     self.environment,
                     self.module_options_context,
                     self.resolve_options_context,

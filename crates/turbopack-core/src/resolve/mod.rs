@@ -23,6 +23,7 @@ use self::{
         resolve_modules_options, ImportMapResult, ResolveIntoPackage, ResolveModules,
         ResolveModulesOptionsVc, ResolveOptionsVc,
     },
+    origin::ResolveOriginVc,
     parse::{Request, RequestVc},
 };
 use crate::{
@@ -42,6 +43,7 @@ use crate::{
 mod alias_map;
 mod exports;
 pub mod options;
+pub mod origin;
 pub mod parse;
 pub mod pattern;
 
@@ -906,7 +908,7 @@ impl ValueToString for AffectingResolvingAssetReference {
 pub async fn handle_resolve_error(
     result: ResolveResultVc,
     request_type: &str,
-    context_path: FileSystemPathVc,
+    origin: ResolveOriginVc,
     request: RequestVc,
     resolve_options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
@@ -914,7 +916,7 @@ pub async fn handle_resolve_error(
         Ok(unresolveable) => {
             if *unresolveable {
                 let issue: ResolvingIssueVc = ResolvingIssue {
-                    context: context_path,
+                    context: origin.origin_path(),
                     request_type: request_type.to_string(),
                     request,
                     resolve_options,
@@ -927,7 +929,7 @@ pub async fn handle_resolve_error(
         }
         Err(err) => {
             let issue: ResolvingIssueVc = ResolvingIssue {
-                context: context_path,
+                context: origin.origin_path(),
                 request_type: request_type.to_string(),
                 request,
                 resolve_options,

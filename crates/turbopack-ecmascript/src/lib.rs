@@ -47,6 +47,7 @@ use turbopack_core::{
     context::AssetContextVc,
     environment::EnvironmentVc,
     reference::AssetReferencesVc,
+    resolve::origin::{ResolveOrigin, ResolveOriginVc},
 };
 
 use self::{
@@ -112,7 +113,7 @@ impl EcmascriptModuleAssetVc {
         let this = self.await?;
         Ok(analyze_ecmascript_module(
             this.source,
-            this.context,
+            self.as_resolve_origin(),
             Value::new(this.ty),
             this.transforms,
             this.environment,
@@ -163,6 +164,19 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self_vc: EcmascriptModuleAssetVc) -> Result<EcmascriptExportsVc> {
         Ok(self_vc.analyze().await?.exports)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolveOrigin for EcmascriptModuleAsset {
+    #[turbo_tasks::function]
+    fn origin_path(&self) -> FileSystemPathVc {
+        self.source.path()
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> AssetContextVc {
+        self.context
     }
 }
 

@@ -13,18 +13,14 @@ use crate::{
 #[turbo_tasks::value_trait]
 pub trait AssetContext {
     fn environment(&self) -> EnvironmentVc;
-    fn context_path(&self) -> FileSystemPathVc;
-    fn resolve_options(&self) -> ResolveOptionsVc;
+    fn resolve_options(&self, origin_path: FileSystemPathVc) -> ResolveOptionsVc;
     fn resolve_asset(
         &self,
-        context_path: FileSystemPathVc,
+        origin_path: FileSystemPathVc,
         request: RequestVc,
         resolve_options: ResolveOptionsVc,
     ) -> ResolveResultVc;
     fn process(&self, asset: AssetVc) -> AssetVc;
     fn process_resolve_result(&self, result: ResolveResultVc) -> ResolveResultVc;
-    fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc;
-    fn with_environment(&self, environment: EnvironmentVc) -> AssetContextVc;
     fn with_transition(&self, transition: &str) -> AssetContextVc;
-    fn with_transition_applied(&self, transition: &str) -> AssetContextVc;
 }

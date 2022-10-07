@@ -12,9 +12,8 @@ use swc_core::{
 use turbo_tasks::Value;
 use turbopack_core::{
     asset::AssetVc,
-    context::AssetContextVc,
     reference::{AssetReferenceVc, AssetReferencesVc},
-    resolve::{handle_resolve_error, parse::RequestVc, ResolveResultVc},
+    resolve::{handle_resolve_error, origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
 use crate::{
@@ -31,14 +30,14 @@ pub(crate) mod url;
 #[turbo_tasks::function]
 pub async fn analyze_css_stylesheet(
     source: AssetVc,
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
 ) -> Result<AssetReferencesVc> {
-    analyze_css_stylesheet_(source, context).await
+    analyze_css_stylesheet_(source, origin).await
 }
 
 pub async fn analyze_css_stylesheet_(
     source: AssetVc,
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
 ) -> Result<AssetReferencesVc> {
     let mut references = Vec::new();
 
@@ -56,7 +55,7 @@ pub async fn analyze_css_stylesheet_(
         HANDLER.set(&handler, || {
             GLOBALS.set(&globals, || {
                 // TODO migrate to effects
-                let mut visitor = AssetReferencesVisitor::new(context, &mut references);
+                let mut visitor = AssetReferencesVisitor::new(origin, &mut references);
                 stylesheet.visit_with_path(&mut visitor, &mut Default::default());
             })
         });
@@ -70,15 +69,15 @@ pub async fn analyze_css_stylesheet_(
 }
 
 struct AssetReferencesVisitor<'a> {
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     references: &'a mut Vec<AssetReferenceVc>,
     is_import: bool,
 }
 
 impl<'a> AssetReferencesVisitor<'a> {
-    fn new(context: AssetContextVc, references: &'a mut Vec<AssetReferenceVc>) -> Self {
+    fn new(origin: ResolveOriginVc, references: &'a mut Vec<AssetReferenceVc>) -> Self {
         Self {
-            context,
+            origin,
             references,
             is_import: false,
         }
@@ -114,7 +113,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 
         self.references.push(
             ImportAssetReferenceVc::new(
-                self.context,
+                self.origin,
                 RequestVc::parse(Value::new(src.to_string().into())),
                 AstPathVc::cell(as_parent_path(ast_path)),
                 ImportAttributes::new_from_prelude(i).into(),
@@ -136,7 +135,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 
         self.references.push(
             UrlAssetReferenceVc::new(
-                self.context,
+                self.origin,
                 RequestVc::parse(Value::new(src.to_string().into())),
                 AstPathVc::cell(as_parent_path(ast_path)),
             )
@@ -148,12 +147,11 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 }
 
 #[turbo_tasks::function]
-pub async fn css_resolve(request: RequestVc, context: AssetContextVc) -> Result<ResolveResultVc> {
-    let context_path = context.context_path();
-    let options = context.resolve_options();
-    let result = context.resolve_asset(context_path, request, options);
+pub async fn css_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result<ResolveResultVc> {
+    let options = origin.resolve_options();
+    let result = origin.resolve_asset(request, options);
 
-    handle_resolve_error(result, "css request", context_path, request, options).await
+    handle_resolve_error(result, "css request", origin, request, options).await
 }
 
 // TODO enable serialization

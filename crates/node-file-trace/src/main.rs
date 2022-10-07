@@ -191,7 +191,6 @@ async fn input_to_modules<'a>(
     );
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
-        root,
         env,
         Default::default(),
         ResolveOptionsContext {

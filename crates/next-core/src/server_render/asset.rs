@@ -140,7 +140,7 @@ fn get_intermediate_module(
             embed_file!("server_renderer.js").into(),
         )
         .into(),
-        context.with_context_path(entry_asset.path()),
+        context,
         Value::new(ModuleAssetType::Ecmascript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React { refresh: false }]),
         context.environment(),

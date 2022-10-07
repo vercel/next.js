@@ -392,7 +392,6 @@ fn node_file_trace<B: Backend + 'static>(
                 let source = SourceAssetVc::new(input);
                 let context = ModuleAssetContextVc::new(
                     TransitionsByNameVc::cell(HashMap::new()),
-                    input_dir,
                     EnvironmentVc::new(
                         Value::new(ExecutionEnvironment::NodeJsLambda(
                             NodeJsEnvironment {

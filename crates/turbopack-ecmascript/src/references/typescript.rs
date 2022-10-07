@@ -2,9 +2,8 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResult, ResolveResultVc},
     source_asset::SourceAssetVc,
 };
 
@@ -14,14 +13,14 @@ use crate::typescript::{resolve::type_resolve, TsConfigModuleAssetVc};
 #[derive(Hash, Clone, Debug)]
 pub struct TsConfigReference {
     pub tsconfig: FileSystemPathVc,
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
 }
 
 #[turbo_tasks::value_impl]
 impl TsConfigReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(tsconfig: FileSystemPathVc, context: AssetContextVc) -> Self {
-        Self::cell(TsConfigReference { tsconfig, context })
+    pub fn new(origin: ResolveOriginVc, tsconfig: FileSystemPathVc) -> Self {
+        Self::cell(TsConfigReference { tsconfig, origin })
     }
 }
 
@@ -29,9 +28,9 @@ impl TsConfigReferenceVc {
 impl AssetReference for TsConfigReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        let context = self.context.with_context_path(self.tsconfig.parent());
         ResolveResult::Single(
-            TsConfigModuleAssetVc::new(SourceAssetVc::new(self.tsconfig).into(), context).into(),
+            TsConfigModuleAssetVc::new(self.origin, SourceAssetVc::new(self.tsconfig).into())
+                .into(),
             Vec::new(),
         )
         .into()
@@ -52,15 +51,15 @@ impl ValueToString for TsConfigReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsReferencePathAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub path: String,
 }
 
 #[turbo_tasks::value_impl]
 impl TsReferencePathAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, path: String) -> Self {
-        Self::cell(TsReferencePathAssetReference { context, path })
+    pub fn new(origin: ResolveOriginVc, path: String) -> Self {
+        Self::cell(TsReferencePathAssetReference { origin, path })
     }
 }
 
@@ -69,9 +68,17 @@ impl AssetReference for TsReferencePathAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         Ok(
-            if let Some(path) = &*self.context.context_path().try_join(&self.path).await? {
+            if let Some(path) = &*self
+                .origin
+                .origin_path()
+                .parent()
+                .try_join(&self.path)
+                .await?
+            {
                 ResolveResult::Single(
-                    self.context.process(SourceAssetVc::new(*path).into()),
+                    self.origin
+                        .context()
+                        .process(SourceAssetVc::new(*path).into()),
                     Vec::new(),
                 )
                 .into()
@@ -96,15 +103,15 @@ impl ValueToString for TsReferencePathAssetReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsReferenceTypeAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub module: String,
 }
 
 #[turbo_tasks::value_impl]
 impl TsReferenceTypeAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, module: String) -> Self {
-        Self::cell(TsReferenceTypeAssetReference { context, module })
+    pub fn new(origin: ResolveOriginVc, module: String) -> Self {
+        Self::cell(TsReferenceTypeAssetReference { origin, module })
     }
 }
 
@@ -113,8 +120,8 @@ impl AssetReference for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         type_resolve(
+            self.origin,
             RequestVc::module(self.module.clone(), Value::new("".to_string().into())),
-            self.context,
         )
     }
 }

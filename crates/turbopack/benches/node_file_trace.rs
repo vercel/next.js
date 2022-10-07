@@ -89,7 +89,6 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 );
                 let context = ModuleAssetContextVc::new(
                     TransitionsByNameVc::cell(HashMap::new()),
-                    input_dir,
                     environment,
                     Default::default(),
                     ResolveOptionsContext {

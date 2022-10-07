@@ -18,6 +18,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
     reference::{AssetReference, AssetReferencesVc},
+    resolve::origin::{ResolveOrigin, ResolveOriginVc},
 };
 
 pub mod chunk;
@@ -66,9 +67,12 @@ impl Asset for CssModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<AssetReferencesVc> {
+    async fn references(self_vc: CssModuleAssetVc) -> Result<AssetReferencesVc> {
         // TODO: include CSS source map
-        Ok(analyze_css_stylesheet(self.source, self.context))
+        Ok(analyze_css_stylesheet(
+            self_vc.await?.source,
+            self_vc.as_resolve_origin(),
+        ))
     }
 }
 
@@ -91,6 +95,20 @@ impl CssChunkPlaceable for CssModuleAsset {
         .into()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl ResolveOrigin for CssModuleAsset {
+    #[turbo_tasks::function]
+    fn origin_path(&self) -> FileSystemPathVc {
+        self.source.path()
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> AssetContextVc {
+        self.context
+    }
+}
+
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: CssModuleAssetVc,

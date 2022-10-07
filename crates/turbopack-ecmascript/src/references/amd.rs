@@ -6,9 +6,8 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
-    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResultVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
 use super::pattern_mapping::{PatternMappingVc, ResolveType::Cjs};
@@ -22,15 +21,15 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct AmdDefineAssetReference {
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     request: RequestVc,
 }
 
 #[turbo_tasks::value_impl]
 impl AmdDefineAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(AmdDefineAssetReference { context, request })
+    pub fn new(origin: ResolveOriginVc, request: RequestVc) -> Self {
+        Self::cell(AmdDefineAssetReference { origin, request })
     }
 }
 
@@ -38,7 +37,7 @@ impl AmdDefineAssetReferenceVc {
 impl AssetReference for AmdDefineAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context)
+        cjs_resolve(self.origin, self.request)
     }
 }
 
@@ -60,19 +59,19 @@ impl ChunkableAssetReference for AmdDefineAssetReference {}
 #[derive(Hash, Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<RequestVc>,
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     path: AstPathVc,
 }
 
 impl AmdDefineWithDependenciesCodeGenVc {
     pub fn new(
         dependencies_requests: Vec<RequestVc>,
-        context: AssetContextVc,
+        origin: ResolveOriginVc,
         path: AstPathVc,
     ) -> Self {
         Self::cell(AmdDefineWithDependenciesCodeGen {
             dependencies_requests,
-            context,
+            origin,
             path,
         })
     }
@@ -89,9 +88,9 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
             .iter()
             .map(|request| async move {
                 PatternMappingVc::resolve_request(
-                    self.context.context_path(),
+                    self.origin,
                     context,
-                    cjs_resolve(*request, self.context),
+                    cjs_resolve(self.origin, *request),
                     Value::new(Cjs),
                 )
                 .await

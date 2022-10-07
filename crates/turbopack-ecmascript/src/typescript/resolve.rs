@@ -6,7 +6,6 @@ use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
-    context::AssetContextVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
@@ -15,6 +14,7 @@ use turbopack_core::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
             ResolveOptionsVc,
         },
+        origin::ResolveOriginVc,
         parse::{Request, RequestVc},
         resolve, AliasPattern, ResolveResult, ResolveResultVc,
     },
@@ -170,9 +170,9 @@ pub async fn apply_tsconfig(
 }
 
 #[turbo_tasks::function]
-pub async fn type_resolve(request: RequestVc, context: AssetContextVc) -> Result<ResolveResultVc> {
-    let context_path = context.context_path();
-    let options = context.resolve_options();
+pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result<ResolveResultVc> {
+    let context_path = origin.origin_path().parent();
+    let options = origin.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module { module: m, path: p } = &*request.await? {
         let m = if let Some(stripped) = m.strip_prefix('@') {
@@ -187,6 +187,7 @@ pub async fn type_resolve(request: RequestVc, context: AssetContextVc) -> Result
     } else {
         None
     };
+    let context_path = context_path.resolve().await?;
     let result = if let Some(types_request) = types_request {
         let result1 = resolve(context_path, request, options);
         if !*result1.is_unresolveable().await? {
@@ -196,13 +197,13 @@ pub async fn type_resolve(request: RequestVc, context: AssetContextVc) -> Result
     } else {
         resolve(context_path, request, options)
     };
-    let result = context.process_resolve_result(result);
-    handle_resolve_error(result, "type request", context_path, request, options).await
+    let result = origin.context().process_resolve_result(result);
+    handle_resolve_error(result, "type request", origin, request, options).await
 }
 
 #[turbo_tasks::value]
 pub struct TypescriptTypesAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
 }
 
@@ -210,7 +211,7 @@ pub struct TypescriptTypesAssetReference {
 impl AssetReference for TypescriptTypesAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        type_resolve(self.request, self.context)
+        type_resolve(self.origin, self.request)
     }
 }
 
@@ -226,8 +227,8 @@ impl ValueToString for TypescriptTypesAssetReference {
 }
 
 impl TypescriptTypesAssetReferenceVc {
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(TypescriptTypesAssetReference { context, request })
+    pub fn new(origin: ResolveOriginVc, request: RequestVc) -> Self {
+        Self::cell(TypescriptTypesAssetReference { origin, request })
     }
 }
 

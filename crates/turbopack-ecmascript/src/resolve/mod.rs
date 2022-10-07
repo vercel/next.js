@@ -1,14 +1,12 @@
 pub mod node_native_binding;
 
 use anyhow::Result;
-use turbopack_core::{
-    context::AssetContextVc,
-    resolve::{
-        handle_resolve_error,
-        options::{ConditionValue, ResolveIntoPackage, ResolveOptions, ResolveOptionsVc},
-        parse::RequestVc,
-        ResolveResultVc,
-    },
+use turbopack_core::resolve::{
+    handle_resolve_error,
+    options::{ConditionValue, ResolveIntoPackage, ResolveOptions, ResolveOptionsVc},
+    origin::ResolveOriginVc,
+    parse::RequestVc,
+    ResolveResultVc,
 };
 
 #[turbo_tasks::function]
@@ -42,25 +40,24 @@ pub async fn apply_cjs_specific_options(options: ResolveOptionsVc) -> Result<Res
 }
 
 #[turbo_tasks::function]
-pub async fn esm_resolve(request: RequestVc, context: AssetContextVc) -> Result<ResolveResultVc> {
-    let options = apply_esm_specific_options(context.resolve_options());
-    specific_resolve(request, context, options, "esm request").await
+pub async fn esm_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result<ResolveResultVc> {
+    let options = apply_esm_specific_options(origin.resolve_options());
+    specific_resolve(origin, request, options, "esm request").await
 }
 
 #[turbo_tasks::function]
-pub async fn cjs_resolve(request: RequestVc, context: AssetContextVc) -> Result<ResolveResultVc> {
-    let options = apply_cjs_specific_options(context.resolve_options());
-    specific_resolve(request, context, options, "commonjs request").await
+pub async fn cjs_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result<ResolveResultVc> {
+    let options = apply_cjs_specific_options(origin.resolve_options());
+    specific_resolve(origin, request, options, "commonjs request").await
 }
 
 async fn specific_resolve(
+    origin: ResolveOriginVc,
     request: RequestVc,
-    context: AssetContextVc,
     options: ResolveOptionsVc,
     request_type: &str,
 ) -> Result<ResolveResultVc> {
-    let context_path = context.context_path();
-    let result = context.resolve_asset(context_path, request, options);
+    let result = origin.resolve_asset(request, options);
 
-    handle_resolve_error(result, request_type, context_path, request, options).await
+    handle_resolve_error(result, request_type, origin, request, options).await
 }

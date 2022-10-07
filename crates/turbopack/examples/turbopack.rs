@@ -51,7 +51,6 @@ async fn main() -> Result<()> {
             let source = SourceAssetVc::new(entry);
             let context = turbopack::ModuleAssetContextVc::new(
                 TransitionsByNameVc::cell(HashMap::new()),
-                input,
                 EnvironmentVc::new(
                     Value::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {

@@ -33,12 +33,11 @@ use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
-    context::AssetContextVc,
     environment::EnvironmentVc,
     reference::{AssetReferenceVc, AssetReferencesVc, SourceMapVc},
     resolve::{
-        find_context_file, parse::RequestVc, pattern::Pattern, resolve, FindContextFileResult,
-        ResolveResult,
+        find_context_file, origin::ResolveOriginVc, parse::RequestVc, pattern::Pattern, resolve,
+        FindContextFileResult, ResolveResult,
     },
 };
 
@@ -160,7 +159,7 @@ impl From<AnalyzeEcmascriptModuleResultBuilder> for AnalyzeEcmascriptModuleResul
 #[turbo_tasks::function]
 pub(crate) async fn analyze_ecmascript_module(
     source: AssetVc,
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     ty: Value<ModuleAssetType>,
     transforms: EcmascriptInputTransformsVc,
     environment: EnvironmentVc,
@@ -185,7 +184,7 @@ pub(crate) async fn analyze_ecmascript_module(
     if is_typescript {
         match &*find_context_file(path.parent(), "tsconfig.json").await? {
             FindContextFileResult::Found(tsconfig, _) => {
-                analysis.add_reference(TsConfigReferenceVc::new(*tsconfig, context));
+                analysis.add_reference(TsConfigReferenceVc::new(origin, *tsconfig));
             }
             FindContextFileResult::NotFound(_) => {}
         };
@@ -223,13 +222,13 @@ pub(crate) async fn analyze_ecmascript_module(
                             if let Some(m) = REFERENCE_PATH.captures(text) {
                                 let path = &m[1];
                                 analysis.add_reference(TsReferencePathAssetReferenceVc::new(
-                                    context,
+                                    origin,
                                     path.to_string(),
                                 ));
                             } else if let Some(m) = REFERENCE_TYPES.captures(text) {
                                 let types = &m[1];
                                 analysis.add_reference(TsReferenceTypeAssetReferenceVc::new(
-                                    context,
+                                    origin,
                                     types.to_string(),
                                 ));
                             }
@@ -246,9 +245,12 @@ pub(crate) async fn analyze_ecmascript_module(
                         }
                         if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
                             let path = &m[1];
+                            // TODO this probably needs to be a field in EcmascriptModuleAsset so it
+                            // knows to use that SourceMap when running code generation.
+                            // The reference is needed too for turbotrace
                             analysis.add_reference(SourceMapVc::new(
-                                context.context_path(),
-                                context.context_path().join(path),
+                                source.path(),
+                                source.path().parent().join(path),
                             ))
                         }
                     }
@@ -277,7 +279,7 @@ pub(crate) async fn analyze_ecmascript_module(
 
                     for (src, annotations) in eval_context.imports.references() {
                         let r = EsmAssetReferenceVc::new(
-                            context,
+                            origin,
                             RequestVc::parse(Value::new(src.to_string().into())),
                             Value::new(annotations.clone()),
                         );
@@ -333,13 +335,13 @@ pub(crate) async fn analyze_ecmascript_module(
             // Check if it was a webpack entry
             if let Some((request, span)) = webpack_runtime {
                 let request = RequestVc::parse(Value::new(request.into()));
-                let runtime = resolve_as_webpack_runtime(context, request, transforms);
+                let runtime = resolve_as_webpack_runtime(origin, request, transforms);
                 match &*runtime.await? {
                     WebpackRuntime::Webpack5 { .. } => {
                         ignore_effect_span = Some(span);
                         analysis.add_reference(
                             WebpackRuntimeAssetReference {
-                                context,
+                                origin,
                                 request,
                                 runtime,
                                 transforms,
@@ -394,7 +396,7 @@ pub(crate) async fn analyze_ecmascript_module(
             >(
                 handler: &'a Handler,
                 source: AssetVc,
-                context: AssetContextVc,
+                origin: ResolveOriginVc,
                 ast_path: &'a [AstParentKind],
                 span: Span,
                 func: JsValue,
@@ -408,7 +410,7 @@ pub(crate) async fn analyze_ecmascript_module(
                 Box::pin(handle_call(
                     handler,
                     source,
-                    context,
+                    origin,
                     ast_path,
                     span,
                     func,
@@ -427,7 +429,7 @@ pub(crate) async fn analyze_ecmascript_module(
             >(
                 handler: &Handler,
                 source: AssetVc,
-                context: AssetContextVc,
+                origin: ResolveOriginVc,
                 ast_path: &[AstParentKind],
                 span: Span,
                 func: JsValue,
@@ -448,7 +450,7 @@ pub(crate) async fn analyze_ecmascript_module(
                             handle_call_boxed(
                                 handler,
                                 source,
-                                context,
+                                origin,
                                 ast_path,
                                 span,
                                 alt,
@@ -474,7 +476,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                         handle_call_boxed(
                                             handler,
                                             source,
-                                            context,
+                                            origin,
                                             ast_path,
                                             span,
                                             *callee,
@@ -507,7 +509,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 )
                             }
                             analysis.add_reference(EsmAsyncAssetReferenceVc::new(
-                                context,
+                                origin,
                                 RequestVc::parse(Value::new(pat)),
                                 AstPathVc::cell(ast_path.to_vec()),
                             ));
@@ -537,7 +539,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 )
                             }
                             analysis.add_reference(CjsRequireAssetReferenceVc::new(
-                                context,
+                                origin,
                                 RequestVc::parse(Value::new(pat)),
                                 AstPathVc::cell(ast_path.to_vec()),
                             ));
@@ -555,7 +557,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Define) => {
                         analyze_amd_define(
                             analysis,
-                            context,
+                            origin,
                             handler,
                             span,
                             ast_path,
@@ -579,7 +581,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 )
                             }
                             analysis.add_reference(CjsRequireResolveAssetReferenceVc::new(
-                                context,
+                                origin,
                                 RequestVc::parse(Value::new(pat)),
                                 AstPathVc::cell(ast_path.to_vec()),
                             ));
@@ -687,7 +689,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                     show_dynamic_warning = true;
                                 }
                                 analysis.add_reference(CjsAssetReferenceVc::new(
-                                    context,
+                                    origin,
                                     RequestVc::parse(Value::new(pat)),
                                 ));
                             }
@@ -734,7 +736,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 );
                             }
                             analysis.add_reference(CjsAssetReferenceVc::new(
-                                context,
+                                origin,
                                 RequestVc::parse(Value::new(pat)),
                             ));
                             return Ok(());
@@ -797,6 +799,7 @@ pub(crate) async fn analyze_ecmascript_module(
                         if args.len() == 1 {
                             let first_arg = link_value(args[0].clone()).await?;
                             if let Some(s) = first_arg.as_str() {
+                                // TODO this resolving should happen within NodeGypBuildReferenceVc
                                 let current_context = FileSystemPathVc::new(
                                     source.path().fs(),
                                     s.trim_start_matches("/ROOT/"),
@@ -896,7 +899,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                             if pkg != "html" {
                                                 let pat = js_value_to_pattern(pkg_or_dir);
                                                 analysis.add_reference(CjsAssetReferenceVc::new(
-                                                    context,
+                                                    origin,
                                                     RequestVc::parse(Value::new(pat)),
                                                 ));
                                             }
@@ -959,7 +962,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
                         if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
                             analysis.add_reference(CjsAssetReferenceVc::new(
-                                context,
+                                origin,
                                 RequestVc::parse(Value::new(js_value_to_pattern(&args[1]))),
                             ));
                             return Ok(());
@@ -1050,7 +1053,7 @@ pub(crate) async fn analyze_ecmascript_module(
             }
 
             let cache = Mutex::new(LinkCache::new());
-            let linker = |value| value_visitor(source, context, value, environment);
+            let linker = |value| value_visitor(source, origin, value, environment);
             let effects = take(&mut var_graph.effects);
             let link_value = |value| link(&var_graph, value, &linker, &cache);
 
@@ -1072,7 +1075,7 @@ pub(crate) async fn analyze_ecmascript_module(
                         handle_call(
                             &handler,
                             source,
-                            context,
+                            origin,
                             &ast_path,
                             span,
                             func,
@@ -1103,7 +1106,7 @@ pub(crate) async fn analyze_ecmascript_module(
                         handle_call(
                             &handler,
                             source,
-                            context,
+                            origin,
                             &ast_path,
                             span,
                             func,
@@ -1155,7 +1158,7 @@ pub(crate) async fn analyze_ecmascript_module(
 
 fn analyze_amd_define(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     handler: &Handler,
     span: Span,
     ast_path: &[AstParentKind],
@@ -1167,7 +1170,7 @@ fn analyze_amd_define(
         {
             analyze_amd_define_with_deps(
                 analysis,
-                context,
+                origin,
                 handler,
                 span,
                 ast_path,
@@ -1176,7 +1179,7 @@ fn analyze_amd_define(
             );
         }
         [JsValue::Array(_, deps), JsValue::Function(_, _)] => {
-            analyze_amd_define_with_deps(analysis, context, handler, span, ast_path, None, deps);
+            analyze_amd_define_with_deps(analysis, origin, handler, span, ast_path, None, deps);
         }
         _ => {
             handler.span_err_with_code(
@@ -1190,7 +1193,7 @@ fn analyze_amd_define(
 
 fn analyze_amd_define_with_deps(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     handler: &Handler,
     span: Span,
     ast_path: &[AstParentKind],
@@ -1201,7 +1204,7 @@ fn analyze_amd_define_with_deps(
     for dep in deps {
         if let Some(dep) = dep.as_str() {
             let request = RequestVc::parse_string(dep.to_string());
-            let reference = AmdDefineAssetReferenceVc::new(context, request);
+            let reference = AmdDefineAssetReferenceVc::new(origin, request);
             requests.push(request);
             analysis.add_reference(reference);
         } else {
@@ -1225,7 +1228,7 @@ fn analyze_amd_define_with_deps(
 
     analysis.add_code_gen(AmdDefineWithDependenciesCodeGenVc::new(
         requests,
-        context,
+        origin,
         AstPathVc::cell(ast_path.to_vec()),
     ));
 }
@@ -1236,18 +1239,18 @@ async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
 
 async fn value_visitor(
     source: AssetVc,
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     v: JsValue,
     environment: EnvironmentVc,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, modified) = value_visitor_inner(source, context, v, environment).await?;
+    let (mut v, modified) = value_visitor_inner(source, origin, v, environment).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
 
 async fn value_visitor_inner(
     source: AssetVc,
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     v: JsValue,
     environment: EnvironmentVc,
 ) -> Result<(JsValue, bool)> {
@@ -1261,7 +1264,7 @@ async fn value_visitor_inner(
                 if args.len() == 1 {
                     let pat = js_value_to_pattern(&args[0]);
                     let request = RequestVc::parse(Value::new(pat.clone()));
-                    let resolved = cjs_resolve(request, context).await?;
+                    let resolved = cjs_resolve(origin, request).await?;
                     match &*resolved {
                         ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
                         ResolveResult::Alternatives(assets, _) => JsValue::alternatives(
@@ -1762,15 +1765,19 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 
 #[turbo_tasks::function]
 async fn resolve_as_webpack_runtime(
-    context: AssetContextVc,
+    origin: ResolveOriginVc,
     request: RequestVc,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<WebpackRuntimeVc> {
-    let options = context.resolve_options();
+    let options = origin.resolve_options();
 
     let options = apply_cjs_specific_options(options);
 
-    let resolved = resolve(context.context_path(), request, options);
+    let resolved = resolve(
+        origin.origin_path().parent().resolve().await?,
+        request,
+        options,
+    );
 
     if let ResolveResult::Single(source, _) = &*resolved.await? {
         Ok(webpack_runtime(*source, transforms))

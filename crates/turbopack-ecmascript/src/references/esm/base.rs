@@ -12,9 +12,8 @@ use turbopack_core::{
         ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ChunkingType,
         ChunkingTypeOptionVc, ModuleId,
     },
-    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResultVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
 use crate::{
@@ -42,18 +41,18 @@ pub(super) async fn get_ident(asset: EcmascriptChunkPlaceableVc) -> Result<Strin
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub annotations: ImportAnnotations,
 }
 
 impl EsmAssetReference {
-    fn get_context(&self) -> AssetContextVc {
-        let mut context = self.context;
+    fn get_origin(&self) -> ResolveOriginVc {
+        let mut origin = self.origin;
         if let Some(transition) = self.annotations.transition() {
-            context = context.with_transition(transition);
+            origin = origin.with_transition(transition);
         }
-        context
+        origin
     }
 }
 
@@ -62,7 +61,7 @@ impl EsmAssetReferenceVc {
     #[turbo_tasks::function]
     pub(super) async fn get_referenced_asset(self) -> Result<ReferencedAssetVc> {
         let this = self.await?;
-        let assets = esm_resolve(this.request, this.get_context()).primary_assets();
+        let assets = esm_resolve(this.get_origin(), this.request).primary_assets();
         for asset in assets.await?.iter() {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 return Ok(ReferencedAssetVc::cell(ReferencedAsset::Some(placeable)));
@@ -73,12 +72,12 @@ impl EsmAssetReferenceVc {
 
     #[turbo_tasks::function]
     pub fn new(
-        context: AssetContextVc,
+        origin: ResolveOriginVc,
         request: RequestVc,
         annotations: Value<ImportAnnotations>,
     ) -> Self {
         Self::cell(EsmAssetReference {
-            context,
+            origin,
             request,
             annotations: annotations.into_value(),
         })
@@ -89,7 +88,7 @@ impl EsmAssetReferenceVc {
 impl AssetReference for EsmAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.request, self.get_context())
+        esm_resolve(self.get_origin(), self.request)
     }
 }
 

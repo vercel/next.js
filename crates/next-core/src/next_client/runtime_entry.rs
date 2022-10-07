@@ -1,7 +1,10 @@
 use anyhow::{bail, Result};
 use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{context::AssetContextVc, resolve::parse::RequestVc};
+use turbopack_core::{
+    context::AssetContextVc,
+    resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
+};
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
     resolve::cjs_resolve,
@@ -25,8 +28,9 @@ impl RuntimeEntryVc {
             RuntimeEntry::Request(r, path) => (r, path),
         };
 
-        let context = context.with_context_path(path);
-        let assets = cjs_resolve(request, context).primary_assets().await?;
+        let assets = cjs_resolve(PlainResolveOriginVc::new(context, path).into(), request)
+            .primary_assets()
+            .await?;
 
         let mut runtime_entries = Vec::with_capacity(assets.len());
         for asset in &assets {

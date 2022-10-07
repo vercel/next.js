@@ -7,9 +7,8 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::AssetVc,
     chunk::ChunkingContextVc,
-    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResultVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
 use crate::{
@@ -28,7 +27,7 @@ pub enum ReferencedAsset {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct UrlAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
 }
@@ -36,9 +35,9 @@ pub struct UrlAssetReference {
 #[turbo_tasks::value_impl]
 impl UrlAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc, path: AstPathVc) -> Self {
+    pub fn new(origin: ResolveOriginVc, request: RequestVc, path: AstPathVc) -> Self {
         Self::cell(UrlAssetReference {
-            context,
+            origin,
             request,
             path,
         })
@@ -63,7 +62,7 @@ impl UrlAssetReferenceVc {
 impl AssetReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        css_resolve(self.request, self.context)
+        css_resolve(self.origin, self.request)
     }
 }
 
@@ -86,7 +85,7 @@ impl CodeGenerateable for UrlAssetReference {
         context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let this = self_vc.await?;
-        let chunk_path = context.chunk_path(this.context.context_path(), ".css");
+        let chunk_path = context.chunk_path(this.origin.origin_path(), ".css");
         let context_path = chunk_path.parent().await?;
 
         let mut visitors = Vec::new();

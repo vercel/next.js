@@ -132,7 +132,6 @@ async fn run(resource: &'static str) -> Result<()> {
 
         let context: AssetContextVc = ModuleAssetContextVc::new(
             TransitionsByNameVc::cell(HashMap::new()),
-            fs,
             env,
             ModuleOptionsContext {
                 preset_env_versions: Some(env),

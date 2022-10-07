@@ -6,11 +6,10 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc, Value, ValueToString};
-use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     chunk::{ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleId},
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
-    resolve::{ResolveResult, ResolveResultVc, SpecialType},
+    resolve::{origin::ResolveOriginVc, ResolveResult, ResolveResultVc, SpecialType},
 };
 
 use crate::{chunk::EcmascriptChunkItemVc, utils::module_id_to_lit};
@@ -108,7 +107,7 @@ impl PatternMappingVc {
     // impl.
     #[turbo_tasks::function]
     pub async fn resolve_request(
-        issue_context_path: FileSystemPathVc,
+        origin: ResolveOriginVc,
         context: ChunkingContextVc,
         resolve_result: ResolveResultVc,
         resolve_type: Value<ResolveType>,
@@ -146,7 +145,7 @@ impl PatternMappingVc {
                          yet: {:?}",
                         resolve_result.dbg().await?
                     )),
-                    path: issue_context_path,
+                    path: origin.origin_path(),
                 }
                 .cell()
                 .as_issue()
@@ -180,7 +179,7 @@ impl PatternMappingVc {
                 "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
                 asset.path().to_string().await?
             )),
-            path: issue_context_path,
+            path: origin.origin_path(),
         }
         .cell()
         .as_issue()

@@ -7,9 +7,8 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
-    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResultVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
 use super::pattern_mapping::{PatternMapping, PatternMappingVc, ResolveType::Cjs};
@@ -23,15 +22,15 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
 }
 
 #[turbo_tasks::value_impl]
 impl CjsAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(CjsAssetReference { context, request })
+    pub fn new(origin: ResolveOriginVc, request: RequestVc) -> Self {
+        Self::cell(CjsAssetReference { origin, request })
     }
 }
 
@@ -39,7 +38,7 @@ impl CjsAssetReferenceVc {
 impl AssetReference for CjsAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context)
+        cjs_resolve(self.origin, self.request)
     }
 }
 
@@ -60,7 +59,7 @@ impl ChunkableAssetReference for CjsAssetReference {}
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsRequireAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
 }
@@ -68,9 +67,9 @@ pub struct CjsRequireAssetReference {
 #[turbo_tasks::value_impl]
 impl CjsRequireAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc, path: AstPathVc) -> Self {
+    pub fn new(origin: ResolveOriginVc, request: RequestVc, path: AstPathVc) -> Self {
         Self::cell(CjsRequireAssetReference {
-            context,
+            origin,
             request,
             path,
         })
@@ -81,7 +80,7 @@ impl CjsRequireAssetReferenceVc {
 impl AssetReference for CjsRequireAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context)
+        cjs_resolve(self.origin, self.request)
     }
 }
 
@@ -113,9 +112,9 @@ impl CodeGenerateable for CjsRequireAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
-            self.context.context_path(),
+            self.origin,
             context,
-            cjs_resolve(self.request, self.context),
+            cjs_resolve(self.origin, self.request),
             Value::new(Cjs),
         )
         .await?;
@@ -149,7 +148,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsRequireResolveAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
 }
@@ -157,9 +156,9 @@ pub struct CjsRequireResolveAssetReference {
 #[turbo_tasks::value_impl]
 impl CjsRequireResolveAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc, path: AstPathVc) -> Self {
+    pub fn new(origin: ResolveOriginVc, request: RequestVc, path: AstPathVc) -> Self {
         Self::cell(CjsRequireResolveAssetReference {
-            context,
+            origin,
             request,
             path,
         })
@@ -170,7 +169,7 @@ impl CjsRequireResolveAssetReferenceVc {
 impl AssetReference for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context)
+        cjs_resolve(self.origin, self.request)
     }
 }
 
@@ -193,9 +192,9 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
-            self.context.context_path(),
+            self.origin,
             context,
-            cjs_resolve(self.request, self.context),
+            cjs_resolve(self.origin, self.request),
             Value::new(Cjs),
         )
         .await?;

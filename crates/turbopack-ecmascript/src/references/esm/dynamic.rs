@@ -9,9 +9,8 @@ use turbopack_core::{
         ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ChunkingType,
         ChunkingTypeOptionVc,
     },
-    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResultVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
 use super::super::pattern_mapping::{PatternMapping, PatternMappingVc, ResolveType::EsmAsync};
@@ -25,7 +24,7 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAsyncAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
 }
@@ -33,9 +32,9 @@ pub struct EsmAsyncAssetReference {
 #[turbo_tasks::value_impl]
 impl EsmAsyncAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc, path: AstPathVc) -> Self {
+    pub fn new(origin: ResolveOriginVc, request: RequestVc, path: AstPathVc) -> Self {
         Self::cell(EsmAsyncAssetReference {
-            context,
+            origin,
             request,
             path,
         })
@@ -46,7 +45,7 @@ impl EsmAsyncAssetReferenceVc {
 impl AssetReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.request, self.context)
+        esm_resolve(self.origin, self.request)
     }
 }
 
@@ -74,9 +73,9 @@ impl CodeGenerateable for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
-            self.context.context_path(),
+            self.origin,
             context,
-            esm_resolve(self.request, self.context),
+            esm_resolve(self.origin, self.request),
             Value::new(EsmAsync),
         )
         .await?;

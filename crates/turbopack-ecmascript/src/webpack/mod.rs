@@ -4,9 +4,8 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
-    resolve::{parse::RequestVc, resolve, ResolveResult, ResolveResultVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, resolve, ResolveResult, ResolveResultVc},
     source_asset::SourceAssetVc,
 };
 
@@ -141,7 +140,7 @@ impl ValueToString for WebpackEntryAssetReference {
 
 #[turbo_tasks::value(shared)]
 pub struct WebpackRuntimeAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub runtime: WebpackRuntimeVc,
     pub transforms: EcmascriptInputTransformsVc,
@@ -151,11 +150,15 @@ pub struct WebpackRuntimeAssetReference {
 impl AssetReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let options = self.context.resolve_options();
+        let options = self.origin.resolve_options();
 
         let options = apply_cjs_specific_options(options);
 
-        let resolved = resolve(self.context.context_path(), self.request, options);
+        let resolved = resolve(
+            self.origin.origin_path().parent().resolve().await?,
+            self.request,
+            options,
+        );
 
         if let ResolveResult::Single(source, ref refs) = *resolved.await? {
             return Ok(ResolveResult::Single(

@@ -9,9 +9,8 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
-    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, ResolveResultVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
 use crate::references::{css_resolve, AstPathVc};
@@ -142,7 +141,7 @@ impl ImportAttributes {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct ImportAssetReference {
-    pub context: AssetContextVc,
+    pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
     pub attributes: ImportAttributesVc,
@@ -152,13 +151,13 @@ pub struct ImportAssetReference {
 impl ImportAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(
-        context: AssetContextVc,
+        origin: ResolveOriginVc,
         request: RequestVc,
         path: AstPathVc,
         attributes: ImportAttributesVc,
     ) -> Self {
         Self::cell(ImportAssetReference {
-            context,
+            origin,
             request,
             path,
             attributes,
@@ -170,7 +169,7 @@ impl ImportAssetReferenceVc {
 impl AssetReference for ImportAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        css_resolve(self.request, self.context)
+        css_resolve(self.origin, self.request)
     }
 }
 
