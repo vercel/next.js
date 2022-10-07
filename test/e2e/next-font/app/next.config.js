@@ -1,10 +1,13 @@
 module.exports = {
   experimental: {
-    fontLoaders: {
-      '@next/font/google': {
-        subsets: ['latin'],
+    fontLoaders: [
+      {
+        loader: '@next/font/google',
+        options: { subsets: ['latin'] },
       },
-      '@next/font/local': {},
-    },
+      {
+        loader: '@next/font/local',
+      },
+    ],
   },
 }
