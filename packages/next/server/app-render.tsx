@@ -1421,37 +1421,40 @@ export async function renderToHTMLOrFlight(
         }))
 
       const content = (
-        <>
-          {polyfills.map((polyfill) => {
-            return (
-              <script
-                noModule={true}
-                dangerouslySetInnerHTML={{
-                  __html: `(self.__next_scripts=self.__next_scripts||[]).push([${JSON.stringify(
-                    polyfill.src
-                  )},${
-                    polyfill.integrity
-                      ? JSON.stringify({ integrity: polyfill.integrity })
-                      : '{}'
-                  }])`,
-                }}
-              />
-            )
-          })}
-          <InsertedHTML>
-            <ServerComponentsRenderer />
-          </InsertedHTML>
-        </>
+        <InsertedHTML>
+          <ServerComponentsRenderer />
+        </InsertedHTML>
       )
 
+      let polyfillsFlushed = false
       const getServerInsertedHTML = (): Promise<string> => {
         const flushed = renderToString(
           <>
             {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
               callback()
             )}
+            {polyfillsFlushed
+              ? null
+              : polyfills?.map((polyfill) => {
+                  return (
+                    <script
+                      key={polyfill.src}
+                      noModule={true}
+                      dangerouslySetInnerHTML={{
+                        __html: `(self.__next_s=self.__next_s||[]).push([${JSON.stringify(
+                          polyfill.src
+                        )},${
+                          polyfill.integrity
+                            ? JSON.stringify({ integrity: polyfill.integrity })
+                            : '{}'
+                        }])`,
+                      }}
+                    />
+                  )
+                })}
           </>
         )
+        polyfillsFlushed = true
         return flushed
       }
 

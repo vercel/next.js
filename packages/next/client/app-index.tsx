@@ -7,6 +7,7 @@ import React, { experimental_use as use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 
 import measureWebVitals from './performance-relayer'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 
 console.log('app-index')
 
@@ -177,9 +178,15 @@ function RSCComponent(props: any): JSX.Element {
 export function hydrate() {
   const reactEl = (
     <React.StrictMode>
-      <Root>
-        <RSCComponent />
-      </Root>
+      <HeadManagerContext.Provider
+        value={{
+          appDir: true,
+        }}
+      >
+        <Root>
+          <RSCComponent />
+        </Root>
+      </HeadManagerContext.Provider>
     </React.StrictMode>
   )
 
