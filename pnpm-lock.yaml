@@ -431,11 +431,12 @@ importers:
   packages/font:
     specifiers:
       '@types/fontkit': 2.0.0
-      fontkit: 2.0.2
-    dependencies:
+      '@vercel/ncc': 0.34.0
       fontkit: 2.0.2
     devDependencies:
       '@types/fontkit': 2.0.0
+      '@vercel/ncc': 0.34.0
+      fontkit: 2.0.2
 
   packages/next:
     specifiers:
@@ -9816,6 +9817,7 @@ packages:
       {
         integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==,
       }
+    dev: true
 
   /bcrypt-pbkdf/1.0.2:
     resolution:
@@ -10050,7 +10052,7 @@ packages:
       }
     dependencies:
       base64-js: 1.5.1
-    dev: false
+    dev: true
 
   /browser-process-hrtime/1.0.0:
     resolution:
@@ -11118,7 +11120,7 @@ packages:
         integrity: sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==,
       }
     engines: { node: '>=0.8' }
-    dev: false
+    dev: true
 
   /clor/5.2.0:
     resolution:
@@ -13031,7 +13033,7 @@ packages:
       {
         integrity: sha512-ED3jP8saaweFTjeGX8HQPjeC1YYyZs98jGNZx6IiBvxW7JG5v492kamAQB3m2wop07CvU/RQmzcKr6bgcC5D/Q==,
       }
-    dev: false
+    dev: true
 
   /diagnostics_channel/1.1.0:
     resolution:
@@ -15261,7 +15263,7 @@ packages:
       tiny-inflate: 1.0.3
       unicode-properties: 1.4.1
       unicode-trie: 2.0.0
-    dev: false
+    dev: true
 
   /for-in/1.0.2:
     resolution:
@@ -22898,7 +22900,7 @@ packages:
       {
         integrity: sha512-NUcwaKxUxWrZLpDG+z/xZaCgQITkA/Dv4V/T6bw7VON6l1Xz/VnrBqrYjZQ12TamKHzITTfOEIYUj48y2KXImA==,
       }
-    dev: false
+    dev: true
 
   /pako/1.0.11:
     resolution:
@@ -26420,7 +26422,7 @@ packages:
       {
         integrity: sha512-Xj8/MEIhhfj9X2rmD9iJ4Gga9EFqVlpMj3vfLnV2r/Mh5jRMryNV+6lWh9GdJtDBcBSPIqzRdfBQ3wDtNFv/uw==,
       }
-    dev: false
+    dev: true
 
   /ret/0.1.15:
     resolution:
@@ -28684,7 +28686,7 @@ packages:
       {
         integrity: sha512-pkY1fj1cKHb2seWDy0B16HeWyczlJA9/WW3u3c4z/NiWDsO3DOU5D7nhTLE9CF0yXv/QZFY7sEJmj24dK+Rrqw==,
       }
-    dev: false
+    dev: true
 
   /tinydate/1.2.0:
     resolution:
@@ -29377,7 +29379,7 @@ packages:
     dependencies:
       base64-js: 1.5.1
       unicode-trie: 2.0.0
-    dev: false
+    dev: true
 
   /unicode-property-aliases-ecmascript/1.0.5:
     resolution:
@@ -29402,7 +29404,7 @@ packages:
     dependencies:
       pako: 0.2.9
       tiny-inflate: 1.0.3
-    dev: false
+    dev: true
 
   /unified-diff/3.1.0:
     resolution:

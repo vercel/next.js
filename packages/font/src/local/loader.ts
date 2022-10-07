@@ -1,6 +1,8 @@
 // @ts-ignore
 import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
-import fontkit from 'fontkit'
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import fontFromBuffer from '@next/font/dist/fontkit'
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 
 import { promisify } from 'util'
@@ -37,9 +39,9 @@ const fetchFonts: FontLoader = async ({
   const fileBuffer = await promisify(fs.readFile)(resolved)
   const fontUrl = emitFontFile(fileBuffer, ext, preload)
 
-  let fontMetadata: fontkit.Font | undefined
+  let fontMetadata: any
   try {
-    fontMetadata = fontkit.create(fileBuffer)
+    fontMetadata = fontFromBuffer(fileBuffer)
   } catch (e) {
     console.error(`Failed to load font file: ${resolved}\n${e}`)
   }
