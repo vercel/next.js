@@ -387,4 +387,61 @@ describe('Edge runtime configurable guards', () => {
       expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
     })
   })
+
+  describe.each([
+    {
+      title: 'Edge API',
+      url: routeUrl,
+      init() {
+        context.api.write(`
+          export default async function handler(request) {
+            return Response.json({ result: (() => {}) instanceof Function })
+          }
+          export const config = { runtime: 'experimental-edge' }
+        `)
+      },
+    },
+    {
+      title: 'Middleware',
+      url: middlewareUrl,
+      init() {
+        context.middleware.write(`
+          import { NextResponse } from 'next/server'
+          import { returnTrue } from './lib'
+          export default async function () {
+            (() => {}) instanceof Function
+            return NextResponse.next()
+          }
+        `)
+      },
+    },
+  ])('$title with use of Function as a type', ({ init, url }) => {
+    beforeEach(() => init())
+
+    it('does not warn in dev at runtime', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, url)
+      await waitFor(500)
+      expect(res.status).toBe(200)
+      expect(context.logs.output).not.toContain(
+        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+      )
+    })
+
+    // eslint-disable-next-line jest/no-identical-title
+    it('build and does not warn at runtime', async () => {
+      const output = await nextBuild(context.appDir, undefined, {
+        stdout: true,
+        stderr: true,
+      })
+      expect(output.stderr).not.toContain(`Build failed`)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, url)
+      expect(res.status).toBe(200)
+      expect(context.logs.output).not.toContain(`warn`)
+      expect(context.logs.output).not.toContain(
+        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+      )
+    })
+  })
 })
