@@ -25,7 +25,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
-describe('app dir - react server components', () => {
+describe('app dir - rsc basics', () => {
   let next: NextInstance
   let distDir: string
 
@@ -44,9 +44,8 @@ describe('app dir - react server components', () => {
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/* ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          build: 'next build',
+          dev: 'next dev',
           start: 'next start',
         },
       },
@@ -79,7 +78,7 @@ describe('app dir - react server components', () => {
 
     const inlineFlightContents = []
     const $ = cheerio.load(homeHTML)
-    $('script').each((index, tag) => {
+    $('script').each((_index, tag) => {
       const content = $(tag).text()
       if (content) inlineFlightContents.push(content)
     })
@@ -244,20 +243,6 @@ describe('app dir - react server components', () => {
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
-  it('should handle external async module libraries correctly', async () => {
-    const clientHtml = await renderViaHTTP(next.url, '/external-imports/client')
-    const serverHtml = await renderViaHTTP(next.url, '/external-imports/server')
-
-    expect(clientHtml).toContain('module type:esm-export')
-    expect(clientHtml).toContain('export named:named')
-    expect(clientHtml).toContain('export value:123')
-    expect(clientHtml).toContain('export array:4,5,6')
-    expect(clientHtml).toContain('export object:{x:1}')
-
-    // support esm module on server side
-    expect(serverHtml).toContain('random-module-instance')
-  })
-
   it('should handle various kinds of exports correctly', async () => {
     const html = await renderViaHTTP(next.url, '/various-exports')
     const content = getNodeBySelector(html, 'body').text()
@@ -396,45 +381,6 @@ describe('app dir - react server components', () => {
     )
     expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
       'count: 1'
-    )
-  })
-
-  it('should resolve the subset react in server components based on the react-server condition', async () => {
-    await fetchViaHTTP(next.url, '/react-server').then(async (response) => {
-      const result = await resolveStreamResponse(response)
-      expect(result).toContain('Server: <!-- -->subset')
-      expect(result).toContain('Client: <!-- -->full')
-    })
-  })
-
-  it('should resolve 3rd party package exports based on the react-server condition', async () => {
-    await fetchViaHTTP(next.url, '/react-server/3rd-party-package').then(
-      async (response) => {
-        const result = await resolveStreamResponse(response)
-
-        // Package should be resolved based on the react-server condition,
-        // as well as package's internal & external dependencies.
-        expect(result).toContain(
-          'Server: index.react-server:react.subset:dep.server'
-        )
-        expect(result).toContain('Client: index.default:react.full:dep.default')
-
-        // Subpath exports should be resolved based on the condition too.
-        expect(result).toContain('Server subpath: subpath.react-server')
-        expect(result).toContain('Client subpath: subpath.default')
-      }
-    )
-  })
-
-  it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
-    await fetchViaHTTP(next.url, '/react-server/optout').then(
-      async (response) => {
-        const result = await resolveStreamResponse(response)
-        expect(result).toContain('Server: index.default')
-        expect(result).toContain('Server subpath: subpath.default')
-        expect(result).toContain('Client: index.default')
-        expect(result).toContain('Client subpath: subpath.default')
-      }
     )
   })
 
