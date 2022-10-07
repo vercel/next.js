@@ -1,1 +1,2 @@
-console.log('4')
+;(globalThis._script_order = globalThis._script_order || []).push(4)
+console.log(globalThis._script_order)

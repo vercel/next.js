@@ -114,9 +114,7 @@ describe('app dir', () => {
 
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toMatch(
-        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
-      )
+      expect(html).toInclude('/_next/static/chunks/polyfills.js')
     })
 
     // TODO-APP: handle css modules fouc in dev
@@ -1683,6 +1681,40 @@ describe('app dir', () => {
             ).toBe(`${subcategory}`)
           }
         }
+      })
+    })
+
+    describe('next/script', () => {
+      it('should support next/script and render in correct order', async () => {
+        const browser = await webdriver(next.url, '/script')
+
+        expect(await browser.eval(`window._script_order`)).toStrictEqual([
+          1,
+          1.5,
+          2,
+          2.5,
+          'render',
+          3,
+          4,
+        ])
+      })
+
+      it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
+        const html = await renderViaHTTP(next.url, '/script')
+        expect(html).toContain(
+          '<link href="/test1.js" rel="preload" as="script"/>'
+        )
+        expect(html).toContain(
+          '<link href="/test2.js" rel="preload" as="script"/>'
+        )
+        expect(html).toContain(
+          '<link href="/test3.js" rel="preload" as="script"/>'
+        )
+
+        // test4.js has lazyOnload which doesn't need to be preloaded
+        expect(html).not.toContain(
+          '<script src="/test4.js" rel="preload" as="script"/>'
+        )
       })
     })
   }
