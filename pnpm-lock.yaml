@@ -18,7 +18,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.33
+      '@edge-runtime/jest-environment': 1.1.0-beta.34
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -144,8 +144,8 @@ importers:
       react-17: npm:react@17.0.2
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-exp: npm:react-dom@0.0.0-experimental-cb5084d1c-20220924
-      react-exp: npm:react@0.0.0-experimental-cb5084d1c-20220924
+      react-dom-exp: npm:react-dom@0.0.0-experimental-e40893d09-20221005
+      react-exp: npm:react@0.0.0-experimental-e40893d09-20221005
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -177,7 +177,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.33
+      '@edge-runtime/jest-environment': 1.1.0-beta.34
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -303,8 +303,8 @@ importers:
       react-17: /react/17.0.2
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-exp: /react-dom/0.0.0-experimental-cb5084d1c-20220924_react@18.2.0
-      react-exp: /react/0.0.0-experimental-cb5084d1c-20220924
+      react-dom-exp: /react-dom/0.0.0-experimental-e40893d09-20221005_react@18.2.0
+      react-exp: /react/0.0.0-experimental-e40893d09-20221005
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -397,7 +397,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.3.2-canary.21
+      '@next/eslint-plugin-next': 12.3.2-canary.22
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -454,16 +454,16 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.34
+      '@edge-runtime/primitives': 1.1.0-beta.36
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.3.2-canary.21
-      '@next/polyfill-module': 12.3.2-canary.21
-      '@next/polyfill-nomodule': 12.3.2-canary.21
-      '@next/react-dev-overlay': 12.3.2-canary.21
-      '@next/react-refresh-utils': 12.3.2-canary.21
-      '@next/swc': 12.3.2-canary.21
+      '@next/env': 12.3.2-canary.22
+      '@next/polyfill-module': 12.3.2-canary.22
+      '@next/polyfill-nomodule': 12.3.2-canary.22
+      '@next/react-dev-overlay': 12.3.2-canary.22
+      '@next/react-refresh-utils': 12.3.2-canary.22
+      '@next/swc': 12.3.2-canary.22
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.11
       '@taskr/clear': 1.1.0
@@ -535,7 +535,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.34
+      edge-runtime: 1.1.0-beta.37
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -648,7 +648,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.34
+      '@edge-runtime/primitives': 1.1.0-beta.36
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.7.0
       '@napi-rs/triples': 1.1.0
@@ -726,7 +726,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.34
+      edge-runtime: 1.1.0-beta.37
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -3984,13 +3984,13 @@ packages:
       }
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.33:
+  /@edge-runtime/jest-environment/1.1.0-beta.34:
     resolution:
       {
-        integrity: sha512-OoUX2+yhtBH6FGtPoI3gP0YQfjDyLWUzifuvZ3cZwF8AF8Gs7DWM9Lg8/9OfhP4I9ZL8DAuK+hSwxOKdvOLXew==,
+        integrity: sha512-kv2we4QY4pyW4fsf5Q+ssLW6x6HB7BY1X24DFN7RHInmgbzgVZAopy1iv9GmcaUGIt0neU48rq3woqDjcTrsHQ==,
       }
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.34
+      '@edge-runtime/vm': 1.1.0-beta.36
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
@@ -3998,20 +3998,20 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.34:
+  /@edge-runtime/primitives/1.1.0-beta.36:
     resolution:
       {
-        integrity: sha512-gFubu4qIqg1k6sOM2Ho/txFUE/vZCn057wGiY0NIQ8h6tySiUO5FULCaebPrp+Yfxb3ZCWqDLeWanQGFB3TYQQ==,
+        integrity: sha512-Tji7SGWmn1+JGSnzFtWUoS7+kODIFprTyIAw0EBOVWEQKWfs7r0aTEm1XkJR0+d1jP9f0GB5LBKG/Z7KFyhx7g==,
       }
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.34:
+  /@edge-runtime/vm/1.1.0-beta.36:
     resolution:
       {
-        integrity: sha512-1rLtF7pQTnBCkz+1vYsUXTeecJ+PJSqZDRlCUPZbw2C4E0qZzn6P9Zt0ed+lhofosPnMNiagXoVZIuEWZAkZaA==,
+        integrity: sha512-uPZmL7X+lKBFJsTg8nC0qPDBx4JGgpRqlgJi2s77g2NOtqitQOI90BfIKHZSSoMQEwTqfvAkpu2ui8nazOwHxA==,
       }
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.34
+      '@edge-runtime/primitives': 1.1.0-beta.36
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -4574,7 +4574,7 @@ packages:
       jest-changed-files: 27.0.6
       jest-config: 27.0.6
       jest-haste-map: 27.0.6
-      jest-message-util: 27.0.6
+      jest-message-util: 27.5.1
       jest-regex-util: 27.0.6
       jest-resolve: 27.0.6
       jest-resolve-dependencies: 27.0.6
@@ -12209,7 +12209,10 @@ packages:
     dev: true
 
   /css.escape/1.5.1:
-    resolution: { integrity: sha1-QuJ9T6BK4y+TGktNQZH6nN3ul8s= }
+    resolution:
+      {
+        integrity: sha512-YUifsXXuknHlUsmlgyY0PKzgPOr7/FjCePfHNt0jxm83wHZi44VDMQ7/fGNkjY3/jV1MC+1CmZbaHzugyeRtpg==,
+      }
     dev: false
 
   /css/3.0.0:
@@ -13393,15 +13396,15 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.34:
+  /edge-runtime/1.1.0-beta.37:
     resolution:
       {
-        integrity: sha512-hl2xMOWpzyZDLHKo8zyby6tWELxsIf2l+EqYeoPjnNkHNjFSmOgOa2l7cyQ4xbK1mBfbyR8FdHcOhYMouvx+zQ==,
+        integrity: sha512-IP0xYNmp0XXoXVnrAf/e67224ZkMUUBMyUUohVxWWI5XdyetIGRNWp3GifDy3LpbuE02yv42rgtoE+tm+whcLA==,
       }
     hasBin: true
     dependencies:
       '@edge-runtime/format': 1.1.0-beta.33
-      '@edge-runtime/vm': 1.1.0-beta.34
+      '@edge-runtime/vm': 1.1.0-beta.36
       exit-hook: 2.2.1
       http-status: 1.5.3
       mri: 1.2.0
@@ -18695,24 +18698,6 @@ packages:
       graceful-fs: 4.2.10
       micromatch: 4.0.4
       pretty-format: 26.6.2
-      slash: 3.0.0
-      stack-utils: 2.0.5
-    dev: true
-
-  /jest-message-util/27.0.6:
-    resolution:
-      {
-        integrity: sha512-rBxIs2XK7rGy+zGxgi+UJKP6WqQ+KrBbD1YMj517HYN3v2BG66t3Xan3FWqYHKZwjdB700KiAJ+iES9a0M+ixw==,
-      }
-    engines: { node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0 }
-    dependencies:
-      '@babel/code-frame': 7.16.7
-      '@jest/types': 27.5.1
-      '@types/stack-utils': 2.0.0
-      chalk: 4.1.2
-      graceful-fs: 4.2.10
-      micromatch: 4.0.4
-      pretty-format: 27.5.1
       slash: 3.0.0
       stack-utils: 2.0.5
     dev: true
@@ -25239,17 +25224,17 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
-  /react-dom/0.0.0-experimental-cb5084d1c-20220924_react@18.2.0:
+  /react-dom/0.0.0-experimental-e40893d09-20221005_react@18.2.0:
     resolution:
       {
-        integrity: sha512-0IHzPGHESn3uu8nI1w5596GX8bCGCE94DpaHkKSGWOlB6uhoVecU0fyOCkkNuB4cMc9WeOWiH2gsM100EWZDPQ==,
+        integrity: sha512-Zw1FWTy9XEiiLU1KCYFpLUs1KAMiNfWW1Clz0DCX1diGLeSfBhp2Jd3/7+v8U9SWs3jFFZJ2ttTOgTs+T2aheA==,
       }
     peerDependencies:
-      react: 0.0.0-experimental-cb5084d1c-20220924
+      react: 0.0.0-experimental-e40893d09-20221005
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.0.0-experimental-cb5084d1c-20220924
+      scheduler: 0.0.0-experimental-e40893d09-20221005
     dev: true
 
   /react-dom/17.0.2_react@18.2.0:
@@ -25363,10 +25348,10 @@ packages:
       react-lifecycles-compat: 3.0.4
     dev: true
 
-  /react/0.0.0-experimental-cb5084d1c-20220924:
+  /react/0.0.0-experimental-e40893d09-20221005:
     resolution:
       {
-        integrity: sha512-66AdfxkJrwCaCEKT0LQRd9J9GQ9T+yN7Wx9XT+tNxKycYQ0Exm+DZxOTedagWDlsFMXroyhrTWzgdC18R2PaOQ==,
+        integrity: sha512-Ecty2+zCaj6yG/4QC5cdhwRQ2kF3FuMMniyUxvmfvtlz9oOMus3tQpnEeITD01rN/nkDO8CXqQfdChSk/qVL6w==,
       }
     engines: { node: '>=0.10.0' }
     dependencies:
@@ -26739,10 +26724,10 @@ packages:
       xmlchars: 2.2.0
     dev: true
 
-  /scheduler/0.0.0-experimental-cb5084d1c-20220924:
+  /scheduler/0.0.0-experimental-e40893d09-20221005:
     resolution:
       {
-        integrity: sha512-SeszKCdhM5OHxNMStjpKIAaloARUMZqIpDZjkZeGuRsyr7YlAqvlsCXyee4ZQOOU1pbr7BIvQntKy5Hil+DQJA==,
+        integrity: sha512-rvE4D7bJ9P97/Ukc8zh3fTbRi5kGB4xBus3fuWhs1afwSJH7P5LIo6mtL9eO7o69KdxyYfcjjIB2i+P8yrSOGA==,
       }
     dependencies:
       loose-envify: 1.4.0

@@ -563,7 +563,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  const hasAppDir = !!config.experimental.appDir
+  const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasConcurrentFeatures = hasReactRoot
   const hasServerComponents = hasAppDir
 
@@ -1049,7 +1049,7 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+      if (/^(?:next$|react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -1202,8 +1202,8 @@ export default async function getBaseWebpackConfig(
 
   const fontLoaderTargets =
     config.experimental.fontLoaders &&
-    Object.keys(config.experimental.fontLoaders).map((fontLoader) => {
-      const resolved = require.resolve(fontLoader)
+    config.experimental.fontLoaders.map(({ loader }) => {
+      const resolved = require.resolve(loader)
       return path.join(resolved, '../target.css')
     })
 
@@ -1586,6 +1586,21 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
+        // Alias `next/dynamic` to React.lazy implementation for RSC
+        ...(hasServerComponents
+          ? [
+              {
+                test: codeCondition.test,
+                include: [appDir],
+                resolve: {
+                  alias: {
+                    [require.resolve('next/dynamic')]:
+                      'next/dist/client/components/dynamic',
+                  },
+                },
+              },
+            ]
+          : []),
         ...(hasServerComponents && (isNodeServer || isEdgeServer)
           ? [
               // RSC server compilation loaders
@@ -1949,8 +1964,11 @@ export default async function getBaseWebpackConfig(
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
-        config.experimental.fontLoaders &&
-        new FontLoaderManifestPlugin(),
+        fontLoaderTargets &&
+        new FontLoaderManifestPlugin({
+          appDirEnabled: !!config.experimental.appDir,
+          fontLoaderTargets,
+        }),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(

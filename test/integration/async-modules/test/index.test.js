@@ -131,7 +131,7 @@ describe('Async modules', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       nextConfig.replace('// target:', 'target:')
       await nextBuild(appDir)

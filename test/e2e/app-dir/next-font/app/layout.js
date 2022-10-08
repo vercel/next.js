@@ -1,4 +1,4 @@
-import { font1 } from '../fonts/fonts'
+import font1 from '../fonts/font1'
 
 export default function Root({ children }) {
   return (

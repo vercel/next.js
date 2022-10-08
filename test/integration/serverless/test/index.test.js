@@ -25,7 +25,7 @@ let stderr = ''
 let appPort
 let app
 
-describe('Serverless', () => {
+describe.skip('Serverless', () => {
   let output
 
   beforeAll(async () => {

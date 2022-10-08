@@ -96,6 +96,7 @@ interface RenderOpts {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
+  supportsDynamicHTML?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -389,6 +390,7 @@ export default async function exportPage({
             ? requireFontManifest(distDir, serverless)
             : null,
           locale: locale as string,
+          supportsDynamicHTML: false,
         }
 
         // during build we attempt rendering app dir paths
@@ -406,8 +408,7 @@ export default async function exportPage({
               res as any,
               page,
               query,
-              curRenderOpts as any,
-              true
+              curRenderOpts as any
             )
             const html = result?.toUnchunkedString()
             const flightData = (curRenderOpts as any).pageData
