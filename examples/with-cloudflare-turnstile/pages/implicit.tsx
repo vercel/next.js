@@ -11,7 +11,7 @@ const ImplicitRender = () => {
       <form method="POST" action="/api/handler">
         <h2>Dummy Login Demo</h2>
         <div
-          className="cf-turnstile"
+          className="cf-turnstile checkbox"
           data-sitekey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY}
         />
         <button type="submit">Sign in</button>
