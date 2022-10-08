@@ -178,7 +178,7 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  const { updateScripts, scripts, getIsSsr, appDir } =
+  const { updateScripts, scripts, getIsSsr, appDir, nonce } =
     useContext(HeadManagerContext)
 
   /**
@@ -270,6 +270,7 @@ function Script(props: ScriptProps): JSX.Element | null {
 
         return (
           <script
+            nonce={nonce}
             dangerouslySetInnerHTML={{
               __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
                 0,
@@ -289,6 +290,7 @@ function Script(props: ScriptProps): JSX.Element | null {
       )
       return (
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
               src,

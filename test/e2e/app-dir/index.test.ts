@@ -114,7 +114,7 @@ describe('app dir', () => {
 
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toInclude('/_next/static/chunks/polyfills.js')
+      expect(html).toMatch(/\/_next\/static\/chunks\/polyfills(-.+)?\.js/)
     })
 
     // TODO-APP: handle css modules fouc in dev
@@ -1687,6 +1687,9 @@ describe('app dir', () => {
     describe('next/script', () => {
       it('should support next/script and render in correct order', async () => {
         const browser = await webdriver(next.url, '/script')
+
+        // Wait for lazyOnload scripts to be ready.
+        await new Promise((resolve) => setTimeout(resolve, 1000))
 
         expect(await browser.eval(`window._script_order`)).toStrictEqual([
           1,

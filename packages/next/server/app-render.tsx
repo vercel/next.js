@@ -1400,6 +1400,7 @@ export async function renderToHTMLOrFlight(
         <HeadManagerContext.Provider
           value={{
             appDir: true,
+            nonce,
           }}
         >
           <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
@@ -1440,6 +1441,7 @@ export async function renderToHTMLOrFlight(
                     <script
                       key={polyfill.src}
                       noModule={true}
+                      nonce={nonce}
                       dangerouslySetInnerHTML={{
                         __html: `(self.__next_s=self.__next_s||[]).push([${JSON.stringify(
                           polyfill.src
