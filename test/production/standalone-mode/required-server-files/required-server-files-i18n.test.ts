@@ -41,11 +41,9 @@ describe('should set-up next', () => {
 
     next = await createNext({
       files: {
-        pages: new FileRef(join(__dirname, 'required-server-files/pages')),
-        lib: new FileRef(join(__dirname, 'required-server-files/lib')),
-        'data.txt': new FileRef(
-          join(__dirname, 'required-server-files/data.txt')
-        ),
+        pages: new FileRef(join(__dirname, 'pages')),
+        lib: new FileRef(join(__dirname, 'lib')),
+        'data.txt': new FileRef(join(__dirname, 'data.txt')),
       },
       packageJson: {
         scripts: {

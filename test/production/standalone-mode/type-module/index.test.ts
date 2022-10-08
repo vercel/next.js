@@ -1,9 +1,13 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
-import { fork } from 'child_process'
 import fs from 'fs-extra'
-import { fetchViaHTTP, waitFor } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  findPort,
+  initNextServerScript,
+  killApp,
+} from 'next-test-utils'
 
 describe('type-module', () => {
   let next: NextInstance
@@ -36,13 +40,16 @@ describe('type-module', () => {
     await fs.move(staticSrc, staticDest)
 
     const serverFile = join(standalonePath, 'server.mjs')
-    const childProcess = fork(serverFile)
-    try {
-      await waitFor(1000)
-      const res = await fetchViaHTTP(3000, '/')
-      expect(await res.text()).toContain('hello world')
-    } finally {
-      childProcess.kill()
-    }
+    const appPort = await findPort()
+    const server = await initNextServerScript(
+      serverFile,
+      /Listening on/,
+      { ...process.env, PORT: appPort },
+      undefined,
+      { cwd: next.testDir }
+    )
+    const res = await fetchViaHTTP(appPort, '/')
+    expect(await res.text()).toContain('hello world')
+    await killApp(server)
   })
 })

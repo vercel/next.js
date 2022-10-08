@@ -28,21 +28,13 @@ describe('should set-up next', () => {
 
     next = await createNext({
       files: {
-        pages: new FileRef(join(__dirname, 'required-server-files/pages')),
-        lib: new FileRef(join(__dirname, 'required-server-files/lib')),
-        'middleware.js': new FileRef(
-          join(__dirname, 'required-server-files/middleware.js')
-        ),
-        'data.txt': new FileRef(
-          join(__dirname, 'required-server-files/data.txt')
-        ),
-        '.env': new FileRef(join(__dirname, 'required-server-files/.env')),
-        '.env.local': new FileRef(
-          join(__dirname, 'required-server-files/.env.local')
-        ),
-        '.env.production': new FileRef(
-          join(__dirname, 'required-server-files/.env.production')
-        ),
+        pages: new FileRef(join(__dirname, 'pages')),
+        lib: new FileRef(join(__dirname, 'lib')),
+        'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+        'data.txt': new FileRef(join(__dirname, 'data.txt')),
+        '.env': new FileRef(join(__dirname, '.env')),
+        '.env.local': new FileRef(join(__dirname, '.env.local')),
+        '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
         eslint: {
