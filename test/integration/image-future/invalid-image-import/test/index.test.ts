@@ -17,7 +17,7 @@ let appPort: number
 let app
 let stderr = ''
 const msg =
-  'Error: Image import "../public/invalid.svg" is not a valid image file'
+  'Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
 
 function runTests({ isDev }) {
   it('should show error', async () => {

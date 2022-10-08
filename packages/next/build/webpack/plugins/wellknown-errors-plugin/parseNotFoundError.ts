@@ -145,6 +145,8 @@ export async function getImageError(
     `${chalk.cyan(page)}:${chalk.yellow(lineNumber.toString())}`,
     chalk.red
       .bold('Error')
-      .concat(`: Image import "${importedFile}" is not a valid image file`)
+      .concat(
+        `: Image import "${importedFile}" is not a valid image file. The image may be corrupted or an unsupported format.`
+      )
   )
 }

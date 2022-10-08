@@ -11,11 +11,6 @@ function nextImageLoader(content) {
     const { isServer, isDev, assetPrefix, basePath } = this.getOptions()
     const context = this.rootContext
     const opts = { context, content }
-    const importName = loaderUtils.interpolateName(
-      this,
-      '[path][name].[ext]',
-      opts
-    )
     const interpolatedName = loaderUtils.interpolateName(
       this,
       '/static/media/[name].[hash:8].[ext]',
@@ -33,9 +28,7 @@ function nextImageLoader(content) {
     )
 
     if (imageSize instanceof Error) {
-      const err = new Error(
-        `Image import "./${importName}" is not a valid image format`
-      )
+      const err = imageSize
       err.name = 'InvalidImageFormatError'
       throw err
     }
