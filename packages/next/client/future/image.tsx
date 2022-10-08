@@ -350,7 +350,8 @@ const ImageElement = ({
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
         loading={loading}
-        fetchPriority={priority ? "high" : null}
+        // https://web.dev/priority-hints/#increase-the-priority-of-the-lcp-image
+        fetchPriority={priority ? "high" : undefined}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp | null) => {
