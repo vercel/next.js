@@ -182,7 +182,10 @@ function linkClicked(
       // If `beforePopState` doesn't exist on the router it's the AppRouter.
       const method: keyof AppRouterInstance = replace ? 'replace' : 'push'
 
-      router[method](href, { forceOptimisticNavigation: !prefetchEnabled })
+      // Apply `as` if it's provided.
+      router[method](as || href, {
+        forceOptimisticNavigation: !prefetchEnabled,
+      })
     }
   }
 

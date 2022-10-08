@@ -54,6 +54,7 @@ export class FontLoaderManifestPlugin {
 
           if (this.appDirEnabled) {
             for (const mod of fontLoaderModules) {
+              if (!mod.buildInfo?.assets) continue
               const modAssets = Object.keys(mod.buildInfo.assets)
               const fontFiles: string[] = modAssets.filter((file: string) =>
                 /\.(woff|woff2|eot|ttf|otf)$/.test(file)
