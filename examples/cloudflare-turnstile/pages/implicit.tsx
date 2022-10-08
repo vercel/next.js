@@ -1,6 +1,6 @@
 import Script from 'next/script'
 
-const ImplicitRender = () => {
+export default function ImplicitRender() {
   return (
     <main>
       <Script
@@ -22,5 +22,3 @@ const ImplicitRender = () => {
     </main>
   )
 }
-
-export default ImplicitRender

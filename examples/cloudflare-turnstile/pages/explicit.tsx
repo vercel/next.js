@@ -16,7 +16,7 @@ declare global {
   }
 }
 
-const ExplicitRender = () => {
+export default function ExplicitRender() {
   useEffect(() => {
     window.onloadTurnstileCallback = function () {
       window.turnstile.render('#my-widget', {
@@ -43,5 +43,3 @@ const ExplicitRender = () => {
     </main>
   )
 }
-
-export default ExplicitRender
