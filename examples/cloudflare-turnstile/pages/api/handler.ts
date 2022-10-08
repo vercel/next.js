@@ -7,7 +7,7 @@ export default async function Handler(
   const form = new URLSearchParams()
   form.append('secret', process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY)
   form.append('response', req.body['cf-turnstile-response'])
-  form.append('remoteip', req.headers['CF-Connecting-IP'] as string)
+  form.append('remoteip', req.headers['x-forwarded-for'] as string)
 
   const result = await fetch(
     'https://challenges.cloudflare.com/turnstile/v0/siteverify',
