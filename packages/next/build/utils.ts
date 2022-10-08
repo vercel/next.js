@@ -1693,7 +1693,8 @@ server.listen(currentPort, (err) => {
   handler = nextServer.getRequestHandler()
 
   console.log(
-    'started server on 0.0.0.0:' + currentPort,
+    'Listening on port',
+    currentPort,
     'url: http://localhost:' + currentPort
   )
 })`
