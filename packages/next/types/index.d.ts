@@ -61,6 +61,22 @@ export type Redirect =
  */
 export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
 
+export type FileSizeSuffix = `${
+  | 'k'
+  | 'K'
+  | 'm'
+  | 'M'
+  | 'g'
+  | 'G'
+  | 't'
+  | 'T'
+  | 'p'
+  | 'P'}${'b' | 'B'}`
+
+export type SizeLimit = number | `${number}${FileSizeSuffix}`
+
+export type ResponseLimit = SizeLimit | boolean
+
 /**
  * `Config` type, use it for export const config
  */
@@ -72,12 +88,16 @@ export type PageConfig = {
      * any string format supported by `bytes`, for example `1000`, `'500kb'` or
      * `'3mb'`.
      */
-    responseLimit?: number | string | boolean
+    responseLimit?: ResponseLimit
     /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
-    bodyParser?: { sizeLimit?: number | string } | false
+    bodyParser?:
+      | {
+          sizeLimit?: SizeLimit
+        }
+      | false
     /**
      * Flag to disable warning "API page resolved
      * without sending a response", due to explicitly

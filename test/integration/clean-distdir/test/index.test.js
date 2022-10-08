@@ -33,7 +33,7 @@ describe('Cleaning distDir', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       nextConfigContent = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(

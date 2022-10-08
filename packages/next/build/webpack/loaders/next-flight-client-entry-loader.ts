@@ -20,25 +20,15 @@ export default async function transformSource(this: any): Promise<string> {
   }
 
   const requests = modules as string[]
-  const code =
-    requests
-      // Filter out css files on the server
-      .filter((request) => (isServer ? !request.endsWith('.css') : true))
-      .map((request) =>
-        request.endsWith('.css')
-          ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(
-              request
-            )}))`
-          : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
-      )
-      .join(';\n') +
-    `
-    export const __next_rsc__ = {
-      server: false,
-      __webpack_require__
-    };
-    export default function RSC() {};
-    `
+  const code = requests
+    // Filter out css files on the server
+    .filter((request) => (isServer ? !request.endsWith('.css') : true))
+    .map((request) =>
+      request.endsWith('.css')
+        ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(request)}))`
+        : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
+    )
+    .join(';\n')
 
   const buildInfo = getModuleBuildInfo(this._module)
   const resolve = this.getResolve()

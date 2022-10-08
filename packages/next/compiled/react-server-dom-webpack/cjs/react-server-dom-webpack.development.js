@@ -677,17 +677,20 @@ function resolveSymbol(response, id, name) {
 
   chunks.set(id, createInitializedChunk(response, Symbol.for(name)));
 }
-function resolveError(response, id, message, stack) {
-  // eslint-disable-next-line react-internal/prod-error-codes
-  var error = new Error(message);
+function resolveErrorDev(response, id, digest, message, stack) {
+
+
+  var error = new Error(message || 'An error occurred in the Server Components render but no message was provided');
   error.stack = stack;
+  error.digest = digest;
+  var errorWithDigest = error;
   var chunks = response._chunks;
   var chunk = chunks.get(id);
 
   if (!chunk) {
-    chunks.set(id, createErrorChunk(response, error));
+    chunks.set(id, createErrorChunk(response, errorWithDigest));
   } else {
-    triggerErrorOnChunk(chunk, error);
+    triggerErrorOnChunk(chunk, errorWithDigest);
   }
 }
 function close(response) {
@@ -740,7 +743,11 @@ function processFullRow(response, row) {
     case 'E':
       {
         var errorInfo = JSON.parse(text);
-        resolveError(response, id, errorInfo.message, errorInfo.stack);
+
+        {
+          resolveErrorDev(response, id, errorInfo.digest, errorInfo.message, errorInfo.stack);
+        }
+
         return;
       }
 

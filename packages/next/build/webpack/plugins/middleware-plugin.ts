@@ -36,6 +36,7 @@ export interface EdgeFunctionDefinition {
   matchers: MiddlewareMatcher[]
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
+  regions?: string[] | string
 }
 
 export interface MiddlewareManifest {
@@ -52,6 +53,7 @@ interface EntryMetadata {
   env: Set<string>
   wasmBindings: Map<string, string>
   assetBindings: Map<string, string>
+  regions?: string[] | string
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -178,6 +180,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
+        ...(metadata.regions && { regions: metadata.regions }),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {
@@ -550,8 +553,6 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
       hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression)
       hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
-      hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
-      hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
       hooks.call
         .for(`${prefix}WebAssembly.compile`)
         .tap(NAME, handleWrapWasmCompileExpression)
@@ -737,6 +738,10 @@ function getExtractMetadata(params: {
           }
         }
 
+        if (edgeFunctionConfig?.config?.regions) {
+          entryMetadata.regions = edgeFunctionConfig.config.regions
+        }
+
         /**
          * The entry module has to be either a page or a middleware and hold
          * the corresponding metadata.
@@ -861,7 +866,7 @@ export default class MiddlewarePlugin {
   }
 }
 
-export async function handleWebpackExtenalForEdgeRuntime({
+export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
   contextInfo,

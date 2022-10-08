@@ -23,12 +23,14 @@ import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
+import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
+import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 
 loadRequireHook()
 const envConfig = require('../shared/lib/runtime-config')
@@ -68,6 +70,7 @@ interface ExportPageInput {
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
   appPaths: string[]
+  enableUndici: NextConfigComplete['experimental']['enableUndici']
 }
 
 interface ExportPageResults {
@@ -93,6 +96,7 @@ interface RenderOpts {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
+  supportsDynamicHTML?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -117,8 +121,12 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
   serverComponents,
+  enableUndici,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpAgentOptions(httpAgentOptions)
+  setHttpClientAndAgentOptions({
+    httpAgentOptions,
+    experimental: { enableUndici },
+  })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
@@ -382,14 +390,13 @@ export default async function exportPage({
             ? requireFontManifest(distDir, serverless)
             : null,
           locale: locale as string,
+          supportsDynamicHTML: false,
         }
 
         // during build we attempt rendering app dir paths
         // and bail when dynamic dependencies are detected
         // only fully static paths are fully generated here
         if (isAppDir) {
-          const { DynamicServerError } = components.ComponentMod.serverHooks
-
           const { renderToHTMLOrFlight } =
             require('../server/app-render') as typeof import('../server/app-render')
 
@@ -401,9 +408,7 @@ export default async function exportPage({
               res as any,
               page,
               query,
-              curRenderOpts as any,
-              false,
-              true
+              curRenderOpts as any
             )
             const html = result?.toUnchunkedString()
             const flightData = (curRenderOpts as any).pageData
@@ -417,10 +422,11 @@ export default async function exportPage({
                 flightData
               )
             }
-          } catch (err) {
+          } catch (err: any) {
             if (
-              !(err instanceof DynamicServerError) &&
-              (err as any).code !== REDIRECT_ERROR_CODE
+              err.digest !== DYNAMIC_ERROR_CODE &&
+              err.digest !== NOT_FOUND_ERROR_CODE &&
+              !err.digest?.startsWith(REDIRECT_ERROR_CODE)
             ) {
               throw err
             }

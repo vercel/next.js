@@ -28,6 +28,8 @@ declare module 'next/dist/compiled/node-fetch' {
   export * from 'node-fetch'
 }
 
+declare module 'next/dist/compiled/undici' {}
+
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
 }
@@ -305,6 +307,8 @@ declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
   export = m
 }
+declare module 'next/dist/compiled/web-vitals-attribution' {}
+
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m

@@ -251,7 +251,7 @@ impl VisitMut for TranspileCssProp {
                                     if expr.is_fn_expr() || expr.is_arrow() {
                                         acc.push(expr);
                                         return acc;
-                                    } else if let Some(root) = trace_root_value(&mut *expr) {
+                                    } else if let Some(root) = trace_root_value(&mut expr) {
                                         let direct_access = match root {
                                             Expr::Lit(_) => true,
                                             Expr::Ident(id) if self.is_top_level_ident(id) => true,
@@ -643,7 +643,7 @@ fn trace_root_value(e: &mut Expr) -> Option<&mut Expr> {
     match e {
         Expr::Member(e) => trace_root_value(&mut e.obj),
         Expr::Call(e) => match &mut e.callee {
-            Callee::Expr(e) => trace_root_value(&mut **e),
+            Callee::Expr(e) => trace_root_value(e),
             _ => None,
         },
         Expr::Ident(_) => Some(e),

@@ -65,7 +65,7 @@ describe('Fallback Dynamic Route Params', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       nextConfig.write(`
         module.exports = {

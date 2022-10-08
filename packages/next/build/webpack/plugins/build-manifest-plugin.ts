@@ -266,11 +266,9 @@ export default class BuildManifestPlugin {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsBuildManifest',
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {

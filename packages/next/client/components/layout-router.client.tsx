@@ -29,27 +29,7 @@ import {
 import { fetchServerResponse } from './app-router.client'
 import { createInfinitePromise } from './infinite-promise'
 
-// import { matchSegment } from './match-segments'
-
-/**
- * Check if every segment in array a and b matches
- */
-// function equalSegmentPaths(a: Segment[], b: Segment[]) {
-//   // Comparing length is a fast path.
-//   return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
-// }
-
-/**
- * Check if flightDataPath matches layoutSegmentPath
- */
-// function segmentPathMatches(
-//   flightDataPath: FlightDataPath,
-//   layoutSegmentPath: FlightSegmentPath
-// ): boolean {
-//   // The last three items are the current segment, tree, and subTreeData
-//   const pathToLayout = flightDataPath.slice(0, -3)
-//   return equalSegmentPaths(layoutSegmentPath, pathToLayout)
-// }
+import { matchSegment } from './match-segments'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -63,7 +43,7 @@ function walkAddRefetch(
     const [segment, parallelRouteKey] = segmentPathToWalk
     const isLast = segmentPathToWalk.length === 2
 
-    if (treeToRecreate[0] === segment) {
+    if (matchSegment(treeToRecreate[0], segment)) {
       if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
         if (isLast) {
           const subTree = walkAddRefetch(
@@ -278,11 +258,14 @@ export function InnerLayoutRouter({
 function LoadingBoundary({
   children,
   loading,
+  hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
+  hasLoading: boolean
 }): JSX.Element {
-  if (loading) {
+  if (hasLoading) {
+    // @ts-expect-error TODO-APP: React.Suspense fallback type is wrong
     return <React.Suspense fallback={loading}>{children}</React.Suspense>
   }
 
@@ -309,8 +292,9 @@ class RedirectErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.code === 'NEXT_REDIRECT') {
-      return { redirect: error.url }
+    if (error.digest?.startsWith('NEXT_REDIRECT')) {
+      const url = error.digest.split(';')[1]
+      return { redirect: url }
     }
     // Re-throw if error is not for 404
     throw error
@@ -354,7 +338,7 @@ class NotFoundErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.code === 'NEXT_NOT_FOUND') {
+    if (error.digest === 'NEXT_NOT_FOUND') {
       return { notFoundTriggered: true }
     }
     // Re-throw if error is not for 404
@@ -449,6 +433,7 @@ export default function OuterLayoutRouter({
   childProp,
   error,
   loading,
+  hasLoading,
   template,
   notFound,
   rootLayoutIncluded,
@@ -459,6 +444,7 @@ export default function OuterLayoutRouter({
   error: ErrorComponent
   template: React.ReactNode
   loading: React.ReactNode | undefined
+  hasLoading: boolean
   notFound: React.ReactNode | undefined
   rootLayoutIncluded: boolean
 }) {
@@ -509,7 +495,7 @@ export default function OuterLayoutRouter({
             key={preservedSegment}
             value={
               <ErrorBoundary errorComponent={error}>
-                <LoadingBoundary loading={loading}>
+                <LoadingBoundary hasLoading={hasLoading} loading={loading}>
                   <NotFoundBoundary notFound={notFound}>
                     <RedirectBoundary>
                       <InnerLayoutRouter

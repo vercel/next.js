@@ -92,8 +92,11 @@ export const OPTIMIZED_FONT_PROVIDERS = [
   { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },
   { url: 'https://use.typekit.net', preconnect: 'https://use.typekit.net' },
 ]
-export const DEFAULT_SERIF_FONT = 'Times New Roman'
-export const DEFAULT_SANS_SERIF_FONT = 'Arial'
+export const DEFAULT_SERIF_FONT = {
+  name: 'Times New Roman',
+  xAvgCharWidth: 821,
+}
+export const DEFAULT_SANS_SERIF_FONT = { name: 'Arial', xAvgCharWidth: 904 }
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
 

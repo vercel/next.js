@@ -176,7 +176,7 @@ impl Fold for StyledJSXTransformer {
         if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
             if sym != "style"
                 && sym != self.style_import_name.as_ref().unwrap()
-                && (!is_capitalized(&**sym)
+                && (!is_capitalized(sym)
                     || self
                         .nearest_scope_bindings
                         .contains(&(sym.clone(), span.ctxt)))
@@ -750,7 +750,7 @@ fn get_style_expr(el: &JSXElement) -> Result<StyleExpr, Error> {
     {
         return Ok(match &**expr {
             Expr::Lit(Lit::Str(str)) => StyleExpr::Str(str),
-            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, &**expr),
+            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, expr),
             Expr::Ident(ident) => StyleExpr::Ident(ident),
             _ => {
                 HANDLER.with(|handler| {

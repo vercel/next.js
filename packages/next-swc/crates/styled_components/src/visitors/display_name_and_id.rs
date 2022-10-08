@@ -309,12 +309,10 @@ impl VisitMut for DisplayNameAndId {
                                                 PropOrSpread::Prop(prop) => {
                                                     match get_prop_name(prop) {
                                                         Some(PropName::Ident(prop_name)) => {
-                                                            match &*prop_name.sym {
-                                                                "componentId" | "displayName" => {
-                                                                    true
-                                                                }
-                                                                _ => false,
-                                                            }
+                                                            matches!(
+                                                                &*prop_name.sym,
+                                                                "componentId" | "displayName"
+                                                            )
                                                         }
                                                         _ => false,
                                                     }
@@ -354,7 +352,7 @@ impl VisitMut for DisplayNameAndId {
 
         self.add_config(
             expr,
-            display_name.map(|s| DISPLAY_NAME_REGEX.replace_all(&*s, "").into()),
+            display_name.map(|s| DISPLAY_NAME_REGEX.replace_all(&s, "").into()),
             component_id,
         )
     }

@@ -38,7 +38,6 @@ describe('Middleware Production Prefetch', () => {
     context.app = await nextStart(context.appDir, context.appPort, {
       env: {
         MIDDLEWARE_TEST: 'asdf',
-        NEXT_RUNTIME: 'edge',
       },
       onStdout(msg) {
         context.logs.output += msg

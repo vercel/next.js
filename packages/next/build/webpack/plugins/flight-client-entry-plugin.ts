@@ -1,5 +1,6 @@
 import { stringify } from 'querystring'
 import path from 'path'
+import { relative } from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   getInvalidator,
@@ -11,22 +12,28 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../../lib/constants'
 import {
   COMPILER_NAMES,
+  EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest } from './flight-manifest-plugin'
+import { FlightCSSManifest, traverseModules } from './flight-manifest-plugin'
+import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule } from '../loaders/utils'
 
 interface Options {
   dev: boolean
   isEdgeServer: boolean
+  fontLoaderTargets?: string[]
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export const injectedClientEntries = new Map()
+
+export const serverModuleIds = new Map<string, string | number>()
+export const edgeServerModuleIds = new Map<string, string | number>()
 
 // TODO-APP: ensure .scss / .sass also works.
 const regexCSS = /\.css$/
@@ -37,10 +44,12 @@ const flightCSSManifest: FlightCSSManifest = {}
 export class FlightClientEntryPlugin {
   dev: boolean
   isEdgeServer: boolean
+  fontLoaderTargets?: string[]
 
   constructor(options: Options) {
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
+    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -61,6 +70,72 @@ export class FlightClientEntryPlugin {
     compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
       return this.createClientEntries(compiler, compilation)
     })
+
+    compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
+      traverseModules(compilation, (mod) => {
+        // The module must has request, and resource so it's not a new entry created with loader.
+        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
+        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
+          if (compilation.moduleGraph.isAsync(mod)) {
+            ASYNC_CLIENT_MODULES.add(mod.resource)
+          }
+        }
+      })
+
+      const recordModule = (id: number | string, mod: any) => {
+        const modResource = mod.resourceResolveData?.path || mod.resource
+
+        if (
+          mod.resourceResolveData?.context?.issuerLayer ===
+          WEBPACK_LAYERS.server
+        ) {
+          return
+        }
+
+        if (typeof id !== 'undefined' && modResource) {
+          // Note that this isn't that reliable as webpack is still possible to assign
+          // additional queries to make sure there's no conflict even using the `named`
+          // module ID strategy.
+          let ssrNamedModuleId = relative(compiler.context, modResource)
+          if (!ssrNamedModuleId.startsWith('.')) {
+            // TODO use getModuleId instead
+            ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
+          }
+
+          if (this.isEdgeServer) {
+            edgeServerModuleIds.set(
+              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/'),
+              id
+            )
+          } else {
+            serverModuleIds.set(ssrNamedModuleId, id)
+          }
+        }
+      }
+
+      compilation.chunkGroups.forEach((chunkGroup) => {
+        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
+            chunk
+          ) as Iterable<webpack.NormalModule>
+
+          for (const mod of chunkModules) {
+            const modId = compilation.chunkGraph.getModuleId(mod)
+
+            recordModule(modId, mod)
+
+            // If this is a concatenation, register each child to the parent ID.
+            // TODO: remove any
+            const anyModule = mod as any
+            if (anyModule.modules) {
+              anyModule.modules.forEach((concatenatedMod: any) => {
+                recordModule(modId, concatenatedMod)
+              })
+            }
+          }
+        })
+      })
+    })
   }
 
   async createClientEntries(compiler: any, compilation: any) {
@@ -68,35 +143,54 @@ export class FlightClientEntryPlugin {
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
 
+    // Loop over all the entry modules.
+    function forEachEntryModule(
+      callback: ({
+        name,
+        entryModule,
+      }: {
+        name: string
+        entryModule: any
+      }) => void
+    ) {
+      for (const [name, entry] of compilation.entries.entries()) {
+        // Skip for entries under pages/
+        if (name.startsWith('pages/')) continue
+
+        // Check if the page entry is a server component or not.
+        const entryDependency: webpack.NormalModule | undefined =
+          entry.dependencies?.[0]
+        // Ensure only next-app-loader entries are handled.
+        if (!entryDependency || !entryDependency.request) continue
+
+        const request = entryDependency.request
+
+        if (
+          !request.startsWith('next-edge-ssr-loader?') &&
+          !request.startsWith('next-app-loader?')
+        )
+          continue
+
+        let entryModule: webpack.NormalModule =
+          compilation.moduleGraph.getResolvedModule(entryDependency)
+
+        if (request.startsWith('next-edge-ssr-loader?')) {
+          entryModule.dependencies.forEach((dependency) => {
+            const modRequest: string | undefined = (dependency as any).request
+            if (modRequest?.includes('next-app-loader')) {
+              entryModule =
+                compilation.moduleGraph.getResolvedModule(dependency)
+            }
+          })
+        }
+
+        callback({ name, entryModule })
+      }
+    }
+
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
-    for (const [name, entry] of compilation.entries.entries()) {
-      // Check if the page entry is a server component or not.
-      const entryDependency: webpack.NormalModule | undefined =
-        entry.dependencies?.[0]
-      // Ensure only next-app-loader entries are handled.
-      if (!entryDependency || !entryDependency.request) continue
-
-      const request = entryDependency.request
-
-      if (
-        !request.startsWith('next-edge-ssr-loader?') &&
-        !request.startsWith('next-app-loader?')
-      )
-        continue
-
-      let entryModule: webpack.NormalModule =
-        compilation.moduleGraph.getResolvedModule(entryDependency)
-
-      if (request.startsWith('next-edge-ssr-loader?')) {
-        entryModule.dependencies.forEach((dependency) => {
-          const modRequest: string | undefined = (dependency as any).request
-          if (modRequest?.includes('next-app-loader')) {
-            entryModule = compilation.moduleGraph.getResolvedModule(dependency)
-          }
-        })
-      }
-
+    forEachEntryModule(({ name, entryModule }) => {
       const internalClientComponentEntryImports = new Set<
         ClientComponentImports[0]
       >()
@@ -107,14 +201,12 @@ export class FlightClientEntryPlugin {
         const layoutOrPageDependency = connection.dependency
         const layoutOrPageRequest = connection.dependency.request
 
-        const [clientComponentImports, cssImports] =
+        const [clientComponentImports] =
           this.collectClientComponentsAndCSSForDependency({
             layoutOrPageRequest,
             compilation,
             dependency: layoutOrPageDependency,
           })
-
-        Object.assign(flightCSSManifest, cssImports)
 
         const isAbsoluteRequest = layoutOrPageRequest[0] === '/'
 
@@ -154,7 +246,28 @@ export class FlightClientEntryPlugin {
           bundlePath: 'app-internals',
         })
       )
-    }
+    })
+
+    // After optimizing all the modules, we collect the CSS that are still used.
+    compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
+      forEachEntryModule(({ entryModule }) => {
+        for (const connection of compilation.moduleGraph.getOutgoingConnections(
+          entryModule
+        )) {
+          const layoutOrPageDependency = connection.dependency
+          const layoutOrPageRequest = connection.dependency.request
+
+          const [, cssImports] =
+            this.collectClientComponentsAndCSSForDependency({
+              layoutOrPageRequest,
+              compilation,
+              dependency: layoutOrPageDependency,
+            })
+
+          Object.assign(flightCSSManifest, cssImports)
+        }
+      })
+    })
 
     compilation.hooks.processAssets.tap(
       {
@@ -216,12 +329,17 @@ export class FlightClientEntryPlugin {
       // Request could be undefined or ''
       if (!rawRequest) return
 
+      const isFontLoader = this.fontLoaderTargets?.some((fontLoaderTarget) =>
+        mod.userRequest.startsWith(`${fontLoaderTarget}?`)
+      )
       const modRequest: string | undefined =
         !rawRequest.endsWith('.css') &&
         !rawRequest.startsWith('.') &&
         !rawRequest.startsWith('/') &&
         !rawRequest.startsWith(APP_DIR_ALIAS)
-          ? rawRequest
+          ? isFontLoader
+            ? mod.userRequest
+            : rawRequest
           : mod.resourceResolveData?.path
 
       // Ensure module is not walked again if it's already been visited
@@ -236,10 +354,25 @@ export class FlightClientEntryPlugin {
       }
       visitedBySegment[layoutOrPageRequest].add(modRequest)
 
-      const isCSS = regexCSS.test(modRequest)
+      const isCSS = isFontLoader || regexCSS.test(modRequest)
       const isClientComponent = isClientComponentModule(mod)
 
       if (isCSS) {
+        const sideEffectFree =
+          mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
+
+        if (sideEffectFree) {
+          const unused = !compilation.moduleGraph
+            .getExportsInfo(mod)
+            .isModuleUsed(
+              this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : 'webpack-runtime'
+            )
+
+          if (unused) {
+            return
+          }
+        }
+
         serverCSSImports[layoutOrPageRequest] =
           serverCSSImports[layoutOrPageRequest] || []
         serverCSSImports[layoutOrPageRequest].push(modRequest)
@@ -248,6 +381,7 @@ export class FlightClientEntryPlugin {
       // Check if request is for css file.
       if ((!inClientComponentBoundary && isClientComponent) || isCSS) {
         clientComponentImports.push(modRequest)
+
         return
       }
 
@@ -286,9 +420,19 @@ export class FlightClientEntryPlugin {
       modules: clientComponentImports,
       server: false,
     }
-    const clientLoader = `next-flight-client-entry-loader?${stringify(
-      loaderOptions
-    )}!`
+
+    // For the client entry, we always use the CJS build of Next.js. If the
+    // server is using the ESM build (when using the Edge runtime), we need to
+    // replace them.
+    const clientLoader = `next-flight-client-entry-loader?${stringify({
+      modules: this.isEdgeServer
+        ? clientComponentImports.map((importPath) =>
+            importPath.replace('next/dist/esm/', 'next/dist/')
+          )
+        : clientComponentImports,
+      server: false,
+    })}!`
+
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
       ...loaderOptions,
       server: true,
@@ -372,6 +516,7 @@ export class FlightClientEntryPlugin {
             compilation.hooks.failedEntry.call(entry, options, err)
             return reject(err)
           }
+
           compilation.hooks.succeedEntry.call(entry, options, module)
           return resolve(module)
         }

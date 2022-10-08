@@ -44,6 +44,14 @@ const Page = () => {
         height={500}
       />
       <Image
+        id="numeric-string-types"
+        alt="numeric-string-types"
+        src="https://image-optimization-test.vercel.app/test.jpg"
+        quality="80"
+        width="500"
+        height="500"
+      />
+      <Image
         id="data-protocol"
         src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
         width={100}

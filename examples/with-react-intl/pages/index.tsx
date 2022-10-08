@@ -1,19 +1,20 @@
+import type { GetStaticPropsContext } from 'next'
 import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl'
-import Layout from '../components/Layout'
 import loadIntlMessages from '../helper/loadIntlMessages'
-import { InferGetStaticPropsType } from 'next'
+import Layout from '../components/Layout'
 
-export async function getStaticProps(ctx) {
+export async function getStaticProps({
+  defaultLocale,
+  locale,
+}: GetStaticPropsContext) {
   return {
     props: {
-      intlMessages: await loadIntlMessages(ctx),
+      intlMessages: await loadIntlMessages(locale as string, defaultLocale),
     },
   }
 }
 
-type HomePageProps = InferGetStaticPropsType<typeof getStaticProps>
-
-export default function HomePage(props: HomePageProps) {
+export default function IndexPage() {
   const intl = useIntl()
   return (
     <Layout

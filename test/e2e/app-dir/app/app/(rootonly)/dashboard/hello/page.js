@@ -5,3 +5,7 @@ export default function HelloPage(props) {
     </>
   )
 }
+
+export const config = {
+  runtime: 'experimental-edge',
+}

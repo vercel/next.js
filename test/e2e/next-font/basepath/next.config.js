@@ -1,10 +1,11 @@
 module.exports = {
   basePath: '/dashboard',
   experimental: {
-    fontLoaders: {
-      '@next/font/google': {
-        subsets: ['latin'],
+    fontLoaders: [
+      {
+        loader: '@next/font/google',
+        options: { subsets: ['latin'] },
       },
-    },
+    ],
   },
 }
