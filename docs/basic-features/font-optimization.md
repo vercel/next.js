@@ -15,7 +15,7 @@ Next.js helps you optimize loading web fonts by inlining font CSS during `next b
 
 // After
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<style data-href="https://fonts.googleapis.com/css2?family=Inter&display=optional">
+<style data-href="https://fonts.googleapis.com/css2?family=Inter&display=swap">
   @font-face{font-family:'Inter';font-style:normal...
 </style>
 ```
