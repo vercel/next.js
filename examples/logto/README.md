@@ -20,17 +20,16 @@ yarn create next-app --example logto logto-app
 pnpm create next-app --example logto logto-app
 ```
 
-### Update configs
+### Set up environment variables
 
-To connect the app with Logto, you'll need to setup an application in Logto's Admin Console, and then update the [libraries/logto.ts](./libraries/logto.ts) file.
+To connect the app with Logto, you'll need to setup an application in Logto's Admin Console, and get the settings as environment variables.
 
-```ts
-export const logtoClient = new LogtoClient({
-  appId: '<your-application-id>',
-  appSecret: '<your-app-secret-copied-from-console>',
-  endpoint: '<your-logto-endpoint>', // E.g. http://localhost:3001
-  baseUrl: '<your-nextjs-app-base-url>', // E.g. http://localhost:3000
-  cookieSecret: 'complex_password_at_least_32_characters_long',
-  cookieSecure: process.env.NODE_ENV === 'production',
-})
-```
+Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git).
+
+Then, open `.env.local` and add the missing environment variables:
+
+- `LOGTO_APP_ID`: Can be found in `Application` page of Logto's Admin Console.
+- `LOGTO_APP_SECRET`: Can be found in `Application` page of Logto's Admin Console.
+- `LOGTO_ENDPOINT`: Your Logto instance's endpoint. For example, `https://logto.dev`.
+- `BASE_URL`: The base URL of your application. For example, `http://localhost:3000`.
+- `COOKIE_SECRET`: A random complex password that at least 32 characters long.
