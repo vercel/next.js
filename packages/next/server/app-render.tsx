@@ -1455,7 +1455,6 @@ export async function renderToHTMLOrFlight(
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
           polyfills,
           dev,
         })
@@ -1487,7 +1486,6 @@ export async function renderToHTMLOrFlight(
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
           polyfills,
           dev,
         })

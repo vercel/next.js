@@ -305,7 +305,6 @@ export async function continueFromInitialStream(
     dataStream,
     generateStaticHTML,
     getServerInsertedHTML,
-    serverInsertedHTMLToHead,
     polyfills,
   }: {
     dev?: boolean
@@ -313,7 +312,6 @@ export async function continueFromInitialStream(
     dataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     getServerInsertedHTML?: () => Promise<string>
-    serverInsertedHTMLToHead: boolean
     polyfills?: { src: string; integrity: string | undefined }[]
   }
 ): Promise<ReadableStream<Uint8Array>> {
@@ -326,7 +324,7 @@ export async function continueFromInitialStream(
 
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
     createBufferedTransformStream(),
-    getServerInsertedHTML && !serverInsertedHTMLToHead
+    getServerInsertedHTML
       ? createInsertedHTMLStream(getServerInsertedHTML)
       : null,
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
@@ -345,14 +343,7 @@ export async function continueFromInitialStream(
             )
             .join('')
         : ''
-
-      // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
-      // hydration errors. Remove this once it's ready to be handled by react itself.
-      const serverInsertedHTML =
-        getServerInsertedHTML && serverInsertedHTMLToHead
-          ? await getServerInsertedHTML()
-          : ''
-      return polyfillScripts + serverInsertedHTML
+      return polyfillScripts
     }),
     dev ? createRootLayoutValidatorStream() : null,
   ].filter(nonNullable)

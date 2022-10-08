@@ -1310,7 +1310,6 @@ export async function renderToHTML(
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
           getServerInsertedHTML,
-          serverInsertedHTMLToHead: false,
         })
       }
 
