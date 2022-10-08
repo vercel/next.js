@@ -71,12 +71,7 @@ export async function getModuleBuildError(
     return notFoundError
   }
 
-  const imageError = await getImageError(
-    compilation,
-    input,
-    sourceFilename,
-    err
-  )
+  const imageError = await getImageError(compilation, input, err)
   if (imageError !== false) {
     return imageError
   }
