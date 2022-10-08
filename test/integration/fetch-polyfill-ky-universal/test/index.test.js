@@ -104,7 +104,7 @@ describe('Fetch polyfill with ky-universal', () => {
     runTests()
   })
 
-  describe('Serverless support', () => {
+  describe.skip('Serverless support', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
