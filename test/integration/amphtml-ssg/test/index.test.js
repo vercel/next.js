@@ -99,7 +99,7 @@ const runTests = (isDev = false) => {
 }
 
 describe('AMP SSG Support', () => {
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,

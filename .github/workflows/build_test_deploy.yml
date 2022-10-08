@@ -9,8 +9,8 @@ name: Build, test, and deploy
 env:
   NAPI_CLI_VERSION: 2.7.0
   TURBO_VERSION: 1.3.2-canary.1
-  RUST_TOOLCHAIN: nightly-2022-09-14
-  PNPM_VERSION: 7.2.1
+  RUST_TOOLCHAIN: nightly-2022-09-23
+  PNPM_VERSION: 7.3.0
 
 jobs:
   check-examples:
@@ -208,6 +208,7 @@ jobs:
     name: Test Unit
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -242,6 +243,7 @@ jobs:
     name: Test Development
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -281,6 +283,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
@@ -340,6 +343,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
@@ -360,6 +364,7 @@ jobs:
     name: Test Development (E2E)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -400,11 +405,30 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
+      - run: npx @replayio/playwright install chromium
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
+        env:
+          RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testDevE2E / Group ${{ matrix.group }} / Node ${{ matrix.node }}
+          RECORD_ALL_CONTENT: 1
+          RECORD_REPLAY: 1
+          NEXT_TEST_MODE: dev
+          RECORD_REPLAY_TEST_METRICS: 1
+          RECORD_REPLAY_WEBHOOK_URL: ${{ secrets.RECORD_REPLAY_WEBHOOK_URL }}
+          # DEBUG: pw:browser*
+
+      - uses: replayio/action-upload@v0.4.5
+        if: always()
+        with:
+          api-key: rwk_iKsQnEoQwKd31WAJxgN9ARPFuAlyXlVrDH4uhYpRnti
+          public: true
+          filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
       - name: Upload test trace
         if: always()
@@ -460,6 +484,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
@@ -480,6 +505,7 @@ jobs:
     name: Test Production
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -519,6 +545,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
@@ -568,6 +595,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
@@ -578,6 +606,7 @@ jobs:
     name: Test Production (E2E)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 25
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -618,6 +647,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
@@ -668,6 +698,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
@@ -678,6 +709,7 @@ jobs:
     name: Test Integration
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -739,6 +771,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
@@ -758,6 +791,7 @@ jobs:
     name: Test Electron
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -813,6 +847,7 @@ jobs:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 5
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -847,6 +882,7 @@ jobs:
     name: Test Safari (production)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 10
     env:
       BROWSER_NAME: 'safari'
       NEXT_TEST_MODE: 'start'
@@ -892,6 +928,7 @@ jobs:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
+    timeout-minutes: 5
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
@@ -938,6 +975,7 @@ jobs:
     name: Test Firefox Node.js 18
     runs-on: ubuntu-latest
     needs: [build, testFirefox, build-native-test]
+    timeout-minutes: 5
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -1043,6 +1081,7 @@ jobs:
         name: Install pnpm
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         name: Install playwright dependencies
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
@@ -1209,6 +1248,7 @@ jobs:
   test-wasm:
     name: Test the wasm build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [build, build-native-test, build-wasm-dev]
 
     steps:
@@ -1243,6 +1283,7 @@ jobs:
           check-latest: true
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+        timeout-minutes: 5
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: node ./scripts/setup-wasm.mjs

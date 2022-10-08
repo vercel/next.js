@@ -55,7 +55,7 @@ describe('bigint API route support', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,

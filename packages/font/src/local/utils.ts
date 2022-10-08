@@ -1,3 +1,5 @@
+import { AdjustFontFallback } from 'next/font'
+
 const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
 
 const formatValues = (values: string[]) =>
@@ -20,10 +22,11 @@ type FontOptions = {
     unicodeRange?: string
   }>
   display: string
-  weight?: string
+  weight?: number
   style?: string
   fallback?: string[]
   preload: boolean
+  variable?: string
   ascentOverride?: string
   descentOverride?: string
   fontStretch?: string
@@ -32,6 +35,7 @@ type FontOptions = {
   fontVariationSettings?: string
   lineGapOverride?: string
   sizeAdjust?: string
+  adjustFontFallback?: AdjustFontFallback
 }
 export function validateData(functionName: string, data: any): FontOptions {
   if (functionName) {
@@ -44,6 +48,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     style,
     fallback,
     preload = true,
+    variable,
     ascentOverride,
     descentOverride,
     fontStretch,
@@ -52,6 +57,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     fontVariationSettings,
     lineGapOverride,
     sizeAdjust,
+    adjustFontFallback,
   } = data[0] || ({} as any)
 
   if (!allowedDisplayValues.includes(display)) {
@@ -100,6 +106,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     style,
     fallback,
     preload,
+    variable,
     ascentOverride,
     descentOverride,
     fontStretch,
@@ -108,5 +115,6 @@ export function validateData(functionName: string, data: any): FontOptions {
     fontVariationSettings,
     lineGapOverride,
     sizeAdjust,
+    adjustFontFallback,
   }
 }

@@ -10,7 +10,5 @@ export default function Layout({ children, params }) {
 export function generateStaticParams({ params }) {
   console.log('/blog/[author] generateStaticParams', JSON.stringify(params))
 
-  return {
-    params: [{ author: 'tim' }, { author: 'seb' }, { author: 'styfle' }],
-  }
+  return [{ author: 'tim' }, { author: 'seb' }, { author: 'styfle' }]
 }

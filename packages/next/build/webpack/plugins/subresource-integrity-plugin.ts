@@ -17,17 +17,10 @@ export class SubresourceIntegrityPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets) => {
-          // Collect all the entrypoint files.
+          // Collect all the assets.
           let files = new Set<string>()
-          for (const entrypoint of compilation.entrypoints.values()) {
-            const iterator = entrypoint?.getFiles()
-            if (!iterator) {
-              continue
-            }
-
-            for (const file of iterator) {
-              files.add(file)
-            }
+          for (const asset of compilation.getAssets()) {
+            files.add(asset.name)
           }
 
           // For each file, deduped, calculate the file hash.

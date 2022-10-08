@@ -44,7 +44,7 @@ use std::{
 };
 use swc_core::{
     base::{try_with_handler, Compiler, TransformOutput},
-    common::{errors::ColorConfig, FileName},
+    common::{errors::ColorConfig, FileName, GLOBALS},
     ecma::transforms::base::pass::noop,
 };
 
@@ -68,83 +68,85 @@ impl Task for TransformTask {
     type JsValue = JsObject;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
-        let res = catch_unwind(AssertUnwindSafe(|| {
-            try_with_handler(
-                self.c.cm.clone(),
-                swc_core::base::HandlerOpts {
-                    color: ColorConfig::Never,
-                    skip_filename: true,
-                },
-                |handler| {
-                    self.c.run(|| {
-                        let options: TransformOptions = deserialize_json(&self.options)?;
-                        let fm = match &self.input {
-                            Input::Source { src } => {
-                                let filename = if options.swc.filename.is_empty() {
-                                    FileName::Anon
-                                } else {
-                                    FileName::Real(options.swc.filename.clone().into())
-                                };
+        GLOBALS.set(&Default::default(), || {
+            let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
+            let res = catch_unwind(AssertUnwindSafe(|| {
+                try_with_handler(
+                    self.c.cm.clone(),
+                    swc_core::base::HandlerOpts {
+                        color: ColorConfig::Never,
+                        skip_filename: true,
+                    },
+                    |handler| {
+                        self.c.run(|| {
+                            let options: TransformOptions = deserialize_json(&self.options)?;
+                            let fm = match &self.input {
+                                Input::Source { src } => {
+                                    let filename = if options.swc.filename.is_empty() {
+                                        FileName::Anon
+                                    } else {
+                                        FileName::Real(options.swc.filename.clone().into())
+                                    };
 
-                                self.c.cm.new_source_file(filename, src.to_string())
-                            }
-                            Input::FromFilename => {
-                                let filename = &options.swc.filename;
-                                if filename.is_empty() {
-                                    bail!("no filename is provided via options");
+                                    self.c.cm.new_source_file(filename, src.to_string())
                                 }
+                                Input::FromFilename => {
+                                    let filename = &options.swc.filename;
+                                    if filename.is_empty() {
+                                        bail!("no filename is provided via options");
+                                    }
 
-                                self.c.cm.new_source_file(
-                                    FileName::Real(filename.into()),
-                                    read_to_string(filename).with_context(|| {
-                                        format!("Failed to read source code from {}", filename)
-                                    })?,
-                                )
-                            }
-                        };
-                        let options = options.patch(&fm);
+                                    self.c.cm.new_source_file(
+                                        FileName::Real(filename.into()),
+                                        read_to_string(filename).with_context(|| {
+                                            format!("Failed to read source code from {}", filename)
+                                        })?,
+                                    )
+                                }
+                            };
+                            let options = options.patch(&fm);
 
-                        let cm = self.c.cm.clone();
-                        let file = fm.clone();
+                            let cm = self.c.cm.clone();
+                            let file = fm.clone();
 
-                        self.c.process_js_with_custom_pass(
-                            fm,
-                            None,
-                            handler,
-                            &options.swc,
-                            |_, comments| {
-                                custom_before_pass(
-                                    cm,
-                                    file,
-                                    &options,
-                                    comments.clone(),
-                                    eliminated_packages.clone(),
-                                )
-                            },
-                            |_, _| noop(),
-                        )
-                    })
-                },
-            )
-        }))
-        .map_err(|err| {
-            if let Some(s) = err.downcast_ref::<String>() {
-                anyhow!("failed to process {}", s)
-            } else {
-                anyhow!("failed to process")
+                            self.c.process_js_with_custom_pass(
+                                fm,
+                                None,
+                                handler,
+                                &options.swc,
+                                |_, comments| {
+                                    custom_before_pass(
+                                        cm,
+                                        file,
+                                        &options,
+                                        comments.clone(),
+                                        eliminated_packages.clone(),
+                                    )
+                                },
+                                |_, _| noop(),
+                            )
+                        })
+                    },
+                )
+            }))
+            .map_err(|err| {
+                if let Some(s) = err.downcast_ref::<String>() {
+                    anyhow!("failed to process {}", s)
+                } else {
+                    anyhow!("failed to process")
+                }
+            });
+
+            match res {
+                Ok(res) => res
+                    .map(|o| (o, eliminated_packages.replace(Default::default())))
+                    .convert_err(),
+                Err(err) => Err(napi::Error::new(
+                    Status::GenericFailure,
+                    format!("{:?}", err),
+                )),
             }
-        });
-
-        match res {
-            Ok(res) => res
-                .map(|o| (o, eliminated_packages.replace(Default::default())))
-                .convert_err(),
-            Err(err) => Err(napi::Error::new(
-                Status::GenericFailure,
-                format!("{:?}", err),
-            )),
-        }
+        })
     }
 
     fn resolve(

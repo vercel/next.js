@@ -1,8 +1,8 @@
-import type { FontLoader } from 'next/font'
+import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 // @ts-ignore
-import { calculateOverrideCSS } from 'next/dist/server/font-utils'
+import { calculateOverrideValues } from 'next/dist/server/font-utils'
 import {
   fetchCSSFromGoogleFonts,
   getFontAxes,
@@ -31,6 +31,7 @@ const downloadGoogleFonts: FontLoader = async ({
     selectedVariableAxes,
     fallback,
     adjustFontFallback,
+    variable,
   } = validateData(functionName, data)
   const fontAxes = getFontAxes(fontFamily, weight, style, selectedVariableAxes)
   const url = getUrl(fontFamily, fontAxes, display)
@@ -97,20 +98,34 @@ const downloadGoogleFonts: FontLoader = async ({
   }
 
   // Add fallback font
+  let adjustFontFallbackMetrics: AdjustFontFallback | undefined
   if (adjustFontFallback) {
     try {
-      updatedCssResponse += calculateOverrideCSS(
-        fontFamily,
-        require('next/dist/server/google-font-metrics.json')
+      const { ascent, descent, lineGap, fallbackFont } =
+        calculateOverrideValues(
+          fontFamily,
+          require('next/dist/server/google-font-metrics.json')
+        )
+      adjustFontFallbackMetrics = {
+        fallbackFont,
+        ascentOverride: ascent,
+        descentOverride: descent,
+        lineGapOverride: lineGap,
+      }
+    } catch {
+      console.error(
+        `Failed to find font override values for font \`${fontFamily}\``
       )
-    } catch (e) {
-      console.log('Error getting font override values - ', e)
     }
   }
 
   return {
     css: updatedCssResponse,
     fallbackFonts: fallback,
+    weight: weight === 'variable' ? undefined : Number(weight),
+    style,
+    variable,
+    adjustFontFallback: adjustFontFallbackMetrics,
   }
 }
 

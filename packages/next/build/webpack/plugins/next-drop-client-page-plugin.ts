@@ -18,7 +18,6 @@ export class DropClientPage implements webpack.WebpackPluginInstance {
         function findEntryModule(mod: any): webpack.Module | null {
           const queue = new Set([mod])
           for (const module of queue) {
-            // @ts-ignore TODO: webpack 5 types
             const incomingConnections =
               compilation.moduleGraph.getIncomingConnections(module)
 
@@ -73,11 +72,9 @@ export class DropClientPage implements webpack.WebpackPluginInstance {
         compilation.hooks.seal.tap(PLUGIN_NAME, () => {
           for (const [name, entryData] of compilation.entries) {
             for (const dependency of entryData.dependencies) {
-              // @ts-ignore TODO: webpack 5 types
               const module = compilation.moduleGraph.getModule(dependency)
               if (module?.buildInfo?.NEXT_ampFirst) {
                 ampFirstEntryNamesItem.push(name)
-                // @ts-ignore @types/webpack has outdated types for webpack 5
                 compilation.entries.delete(name)
               }
             }

@@ -23,7 +23,7 @@ import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
@@ -70,6 +70,7 @@ interface ExportPageInput {
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
   appPaths: string[]
+  enableUndici: NextConfigComplete['experimental']['enableUndici']
 }
 
 interface ExportPageResults {
@@ -95,6 +96,7 @@ interface RenderOpts {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
+  supportsDynamicHTML?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -119,8 +121,12 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
   serverComponents,
+  enableUndici,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpAgentOptions(httpAgentOptions)
+  setHttpClientAndAgentOptions({
+    httpAgentOptions,
+    experimental: { enableUndici },
+  })
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
@@ -384,6 +390,7 @@ export default async function exportPage({
             ? requireFontManifest(distDir, serverless)
             : null,
           locale: locale as string,
+          supportsDynamicHTML: false,
         }
 
         // during build we attempt rendering app dir paths
@@ -401,9 +408,7 @@ export default async function exportPage({
               res as any,
               page,
               query,
-              curRenderOpts as any,
-              false,
-              true
+              curRenderOpts as any
             )
             const html = result?.toUnchunkedString()
             const flightData = (curRenderOpts as any).pageData

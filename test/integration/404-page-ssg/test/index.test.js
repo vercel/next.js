@@ -114,7 +114,7 @@ describe('404 Page Support SSG', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     afterAll(async () => {
       await fs.writeFile(nextConfig, nextConfigContent)
       await killApp(app)

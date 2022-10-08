@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-before-interactive-script-outside-document'
+import rule from '@next/eslint-plugin-next/dist/rules/no-before-interactive-script-outside-document'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

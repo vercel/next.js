@@ -178,7 +178,7 @@ export default class DevServer extends Server {
       })
     }
     if (fs.existsSync(pathJoin(this.dir, 'static'))) {
-      console.warn(
+      Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
       )
     }
@@ -190,10 +190,10 @@ export default class DevServer extends Server {
     }
 
     this.isCustomServer = !options.isNextDevCommand
-    // TODO: hot-reload root/pages dirs?
-    const { pages: pagesDir, appDir } = findPagesDir(
+
+    const { pagesDir, appDir } = findPagesDir(
       this.dir,
-      this.nextConfig.experimental.appDir
+      !!this.nextConfig.experimental.appDir
     )
     this.pagesDir = pagesDir
     this.appDir = appDir
@@ -207,7 +207,7 @@ export default class DevServer extends Server {
     // Makes `next export` exportPathMap work in development mode.
     // So that the user doesn't have to define a custom server reading the exportPathMap
     if (this.nextConfig.exportPathMap) {
-      console.log('Defining routes from exportPathMap')
+      Log.info('Defining routes from exportPathMap')
       const exportPathMap = await this.nextConfig.exportPathMap(
         {},
         {
@@ -231,7 +231,7 @@ export default class DevServer extends Server {
             Object.keys(urlQuery)
               .filter((key) => query[key] === undefined)
               .forEach((key) =>
-                console.warn(
+                Log.warn(
                   `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
                 )
               )
@@ -613,7 +613,7 @@ export default class DevServer extends Server {
             reject(e)
             resolved = true
           } else {
-            console.warn('Failed to reload dynamic routes:', e)
+            Log.warn('Failed to reload dynamic routes:', e)
           }
         }
       })
@@ -981,16 +981,18 @@ export default class DevServer extends Server {
     try {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
-      res.statusCode = 500
       const err = getProperError(error)
-      try {
-        this.logErrorWithOriginalStack(err).catch(() => {})
-        return await this.renderError(err, req, res, pathname!, {
-          __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
-        })
-      } catch (internalErr) {
-        console.error(internalErr)
-        res.body('Internal Server Error').send()
+      this.logErrorWithOriginalStack(err).catch(() => {})
+      if (!res.sent) {
+        res.statusCode = 500
+        try {
+          return await this.renderError(err, req, res, pathname!, {
+            __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
+          })
+        } catch (internalErr) {
+          console.error(internalErr)
+          res.body('Internal Server Error').send()
+        }
       }
     }
   }
@@ -1286,6 +1288,7 @@ export default class DevServer extends Server {
         publicRuntimeConfig,
         serverRuntimeConfig,
         httpAgentOptions,
+        experimental: { enableUndici },
       } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
@@ -1299,6 +1302,7 @@ export default class DevServer extends Server {
           serverRuntimeConfig,
         },
         httpAgentOptions,
+        enableUndici,
         locales,
         defaultLocale,
         originalAppPath,
@@ -1353,7 +1357,7 @@ export default class DevServer extends Server {
 
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (this.nextConfig.experimental.appDir) {
+      if (!!this.appDir) {
         this.serverComponentManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }

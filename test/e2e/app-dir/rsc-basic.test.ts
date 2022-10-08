@@ -25,7 +25,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
-describe('app dir - react server components', () => {
+describe('app dir - rsc basics', () => {
   let next: NextInstance
   let distDir: string
 
@@ -75,12 +75,10 @@ describe('app dir - react server components', () => {
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('header:test-util')
-    // support esm module on server side
-    expect(homeHTML).toContain('random-module-instance')
 
     const inlineFlightContents = []
     const $ = cheerio.load(homeHTML)
-    $('script').each((index, tag) => {
+    $('script').each((_index, tag) => {
       const content = $(tag).text()
       if (content) inlineFlightContents.push(content)
     })
@@ -90,9 +88,9 @@ describe('app dir - react server components', () => {
       '__nextLocale',
       '__nextDefaultLocale',
       '__nextIsNotFound',
-      '__flight__',
-      '__flight_router_state_tree__',
-      '__flight_prefetch__',
+      '__rsc__',
+      '__next_router_state_tree__',
+      '__next_router_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -110,9 +108,9 @@ describe('app dir - react server components', () => {
           requestsCount++
           return request.allHeaders().then((headers) => {
             if (
-              headers.__flight__ === '1' &&
-              // Prefetches also include `__flight__`
-              headers.__flight_prefetch__ !== '1'
+              headers.__rsc__ === '1' &&
+              // Prefetches also include `__rsc__`
+              headers.__next_router_prefetch__ !== '1'
             ) {
               hasFlightRequest = true
             }
@@ -196,8 +194,8 @@ describe('app dir - react server components', () => {
         page.on('request', (request) => {
           return request.allHeaders().then((headers) => {
             if (
-              headers.__flight__ === '1' &&
-              headers.__flight_prefetch__ !== '1'
+              headers.__rsc__ === '1' &&
+              headers.__next_router_prefetch__ !== '1'
             ) {
               hasFlightRequest = true
             }
@@ -243,15 +241,6 @@ describe('app dir - react server components', () => {
     const imageTag = getNodeBySelector(imageHTML, '#myimg')
 
     expect(imageTag.attr('src')).toContain('data:image')
-  })
-
-  it('should handle external async module libraries correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/external-imports')
-    expect(html).toContain('module type:esm-export')
-    expect(html).toContain('export named:named')
-    expect(html).toContain('export value:123')
-    expect(html).toContain('export array:4,5,6')
-    expect(html).toContain('export object:{x:1}')
   })
 
   it('should handle various kinds of exports correctly', async () => {
@@ -313,6 +302,11 @@ describe('app dir - react server components', () => {
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)
+
+    // css-in-js like styled-jsx in server components won't be transformed
+    expect(html).toMatch(
+      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
+    )
   })
 
   it('should stick to the url without trailing /page suffix', async () => {
@@ -336,7 +330,7 @@ describe('app dir - react server components', () => {
       {},
       {
         headers: {
-          __flight__: '1',
+          __rsc__: '1',
         },
       }
     ).then(async (response) => {
@@ -387,43 +381,6 @@ describe('app dir - react server components', () => {
     )
     expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
       'count: 1'
-    )
-  })
-
-  it('should resolve the subset react in server components based on the react-server condition', async () => {
-    await fetchViaHTTP(next.url, '/react-server').then(async (response) => {
-      const result = await resolveStreamResponse(response)
-      expect(result).toContain('Server: <!-- -->subset')
-      expect(result).toContain('Client: <!-- -->full')
-    })
-  })
-
-  it('should resolve 3rd party package exports based on the react-server condition', async () => {
-    await fetchViaHTTP(next.url, '/react-server/3rd-party-package').then(
-      async (response) => {
-        const result = await resolveStreamResponse(response)
-
-        // Package should be resolved based on the react-server condition,
-        // as well as package's dependencies.
-        expect(result).toContain('Server: index.react-server:react.subset')
-        expect(result).toContain('Client: index.default:react.full')
-
-        // Subpath exports should be resolved based on the condition too.
-        expect(result).toContain('Server subpath: subpath.react-server')
-        expect(result).toContain('Client subpath: subpath.default')
-      }
-    )
-  })
-
-  it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
-    await fetchViaHTTP(next.url, '/react-server/optout').then(
-      async (response) => {
-        const result = await resolveStreamResponse(response)
-        expect(result).toContain('Server: index.default')
-        expect(result).toContain('Server subpath: subpath.default')
-        expect(result).toContain('Client: index.default')
-        expect(result).toContain('Client subpath: subpath.default')
-      }
     )
   })
 

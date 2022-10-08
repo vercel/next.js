@@ -86,6 +86,8 @@ const externals = {
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
+
+  undici: 'undici',
 }
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
@@ -165,6 +167,14 @@ export async function ncc_node_fetch(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('node-fetch')))
     .ncc({ packageName: 'node-fetch', externals })
     .target('compiled/node-fetch')
+}
+
+externals['undici'] = 'next/dist/compiled/undici'
+export async function ncc_undici(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('undici')))
+    .ncc({ packageName: 'undici', externals })
+    .target('compiled/undici')
 }
 
 // eslint-disable-next-line camelcase
@@ -1636,6 +1646,27 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
+externals['web-vitals-attribution'] =
+  'next/dist/compiled/web-vitals-attribution'
+export async function ncc_web_vitals_attribution(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          resolve(require.resolve('web-vitals'), '../web-vitals.attribution.js')
+        )
+    )
+    .ncc({
+      packageName: 'web-vitals',
+      bundleName: 'web-vitals-attribution',
+      externals,
+      target: 'es5',
+      esm: false,
+    })
+    .target('compiled/web-vitals-attribution')
+}
+// eslint-disable-next-line camelcase
 externals['webpack-sources'] = 'error webpack-sources version not specified'
 externals['webpack-sources1'] = 'next/dist/compiled/webpack-sources1'
 export async function ncc_webpack_sources1(task, opts) {
@@ -1720,6 +1751,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
     })
     .target('compiled/mini-css-extract-plugin')
 }
+
 // eslint-disable-next-line camelcase
 externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
 export async function ncc_ua_parser_js(task, opts) {
@@ -1818,6 +1850,7 @@ export async function ncc(task, opts) {
         'ncc_get_orientation',
         'ncc_hapi_accept',
         'ncc_node_fetch',
+        'ncc_undici',
         'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',
@@ -1900,6 +1933,7 @@ export async function ncc(task, opts) {
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
+        'ncc_web_vitals_attribution',
         'ncc_webpack_bundle5',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',

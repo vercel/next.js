@@ -45,7 +45,7 @@ describe('Custom 404 Page for static site generation with dynamic routes', () =>
     runTests('server')
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     afterAll(async () => {
       await fs.remove(nextConfig)
       await killApp(app)
