@@ -1540,6 +1540,16 @@ describe('app dir', () => {
           expect($('#category-id').text()).toBe('electronicsabc')
         }
       })
+      it('should handle as on next/link', async () => {
+        const browser = await webdriver(next.url, '/link-with-as')
+        expect(
+          await browser
+            .elementByCss('#link-to-info-123')
+            .click()
+            .waitForElementByCss('#message')
+            .text()
+        ).toBe(`hello from app/dashboard/deployments/info/[id]. ID is: 123`)
+      })
     })
 
     describe('not-found', () => {
