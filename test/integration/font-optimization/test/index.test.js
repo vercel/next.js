@@ -250,7 +250,7 @@ describe('Font Optimization', () => {
         runTests()
       })
 
-      describe('Font optimization for serverless apps', () => {
+      describe.skip('Font optimization for serverless apps', () => {
         const origNextConfig = fs.readFileSync(nextConfig)
 
         beforeAll(async () => {
@@ -272,7 +272,7 @@ describe('Font Optimization', () => {
         runTests()
       })
 
-      describe('Font optimization for emulated serverless apps', () => {
+      describe.skip('Font optimization for emulated serverless apps', () => {
         const origNextConfig = fs.readFileSync(nextConfig)
 
         beforeAll(async () => {

@@ -31,6 +31,7 @@ const downloadGoogleFonts: FontLoader = async ({
     selectedVariableAxes,
     fallback,
     adjustFontFallback,
+    variable,
   } = validateData(functionName, data)
   const fontAxes = getFontAxes(fontFamily, weight, style, selectedVariableAxes)
   const url = getUrl(fontFamily, fontAxes, display)
@@ -121,11 +122,9 @@ const downloadGoogleFonts: FontLoader = async ({
   return {
     css: updatedCssResponse,
     fallbackFonts: fallback,
-    weight: weight === 'variable' ? undefined : weight,
+    weight: weight === 'variable' ? undefined : Number(weight),
     style,
-    variable: `--next-font-${fontFamily.toLowerCase().replace(/ /g, '-')}${
-      weight !== 'variable' ? `-${weight}` : ''
-    }${style === 'italic' ? `-italic` : ''}`,
+    variable,
     adjustFontFallback: adjustFontFallbackMetrics,
   }
 }

@@ -8,6 +8,7 @@ import {
 } from '../shared/lib/image-config'
 import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import { WEB_VITALS } from '../shared/lib/utils'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -78,6 +79,8 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  skipMiddlewareUrlNormalize?: boolean
+  skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   legacyBrowsers?: boolean
   browsersListForSwc?: boolean
@@ -154,9 +157,11 @@ export interface ExperimentalConfig {
   adjustFontFallbacksWithSizeAdjust?: boolean
 
   // A list of packages that should be treated as external in the RSC server build
-  optoutServerComponentsBundle?: string[]
+  serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: { [fontLoader: string]: any }
+  fontLoaders?: [{ loader: string; options?: any }]
+
+  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 }
 
 export type ExportPathMap = {

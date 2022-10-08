@@ -1,6 +1,6 @@
 {
   "name": "@next/eslint-plugin-next",
-  "version": "12.3.2-canary.15",
+  "version": "12.3.2-canary.22",
   "description": "ESLint plugin for NextJS.",
   "main": "dist/index.js",
   "license": "MIT",
@@ -15,6 +15,7 @@
     "glob": "7.1.7"
   },
   "devDependencies": {
+    "@types/glob": "7.1.1",
     "eslint": "7.24.0"
   },
   "scripts": {

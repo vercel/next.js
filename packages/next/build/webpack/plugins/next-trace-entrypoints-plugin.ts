@@ -24,7 +24,7 @@ const TRACE_IGNORES = [
 function getModuleFromDependency(
   compilation: any,
   dep: any
-): webpack.Module & { resource?: string } {
+): webpack.Module & { resource?: string; request?: string } {
   return compilation.moduleGraph.getModule(dep)
 }
 
@@ -84,30 +84,30 @@ function getFilesMapFromReasons(
 
 export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private appDir: string
+  private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
   private excludeFiles: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
-  private staticImageImports?: boolean
 
   constructor({
     appDir,
+    appDirEnabled,
     excludeFiles,
     esmExternals,
-    staticImageImports,
     outputFileTracingRoot,
   }: {
     appDir: string
+    appDirEnabled?: boolean
     excludeFiles?: string[]
-    staticImageImports: boolean
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
     this.esmExternals = esmExternals
+    this.appDirEnabled = appDirEnabled
     this.excludeFiles = excludeFiles || []
-    this.staticImageImports = staticImageImports
     this.tracingRoot = outputFileTracingRoot || appDir
   }
 
@@ -257,15 +257,44 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
             finishModulesSpan.traceChild('get-entries').traceFn(() => {
               compilation.entries.forEach((entry, name) => {
-                if (name?.replace(/\\/g, '/').startsWith('pages/')) {
+                const normalizedName = name?.replace(/\\/g, '/')
+
+                const isPage = normalizedName.startsWith('pages/')
+                const isApp =
+                  this.appDirEnabled && normalizedName.startsWith('app/')
+
+                if (isApp || isPage) {
                   for (const dep of entry.dependencies) {
                     if (!dep) continue
                     const entryMod = getModuleFromDependency(compilation, dep)
 
+                    // since app entries are wrapped in next-app-loader
+                    // we need to pull the original pagePath for
+                    // referencing during tracing
+                    if (isApp && entryMod.request) {
+                      const loaderQueryIdx = entryMod.request.indexOf('?')
+
+                      const loaderQuery = new URLSearchParams(
+                        entryMod.request.substring(loaderQueryIdx)
+                      )
+                      const resource =
+                        loaderQuery
+                          .get('pagePath')
+                          ?.replace(
+                            'private-next-app-dir',
+                            nodePath.join(this.appDir, 'app')
+                          ) || ''
+
+                      entryModMap.set(resource, entryMod)
+                      entryNameMap.set(resource, name)
+                    }
+
                     if (entryMod && entryMod.resource) {
-                      if (
-                        entryMod.resource.replace(/\\/g, '/').includes('pages/')
-                      ) {
+                      const normalizedResource = entryMod.resource.replace(
+                        /\\/g,
+                        '/'
+                      )
+                      if (normalizedResource.includes('pages/')) {
                         entryNameMap.set(entryMod.resource, name)
                         entryModMap.set(entryMod.resource, entryMod)
                       } else {

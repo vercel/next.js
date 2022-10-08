@@ -25,15 +25,15 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```sh
-npx create-next-app --example cms-contentful cms-contentful-app
+npx create-next-app --example with-xata with-xata-app
 ```
 
 ```sh
-yarn create next-app --example cms-contentful cms-contentful-app
+yarn create next-app --example with-xata with-xata-app
 ```
 
 ```sh
-pnpm create next-app --example cms-contentful cms-contentful-app
+pnpm create next-app --example with-xata with-xata-app
 ```
 
 ### Link Your Xata Workspace and Run Codegen

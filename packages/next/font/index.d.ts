@@ -24,6 +24,6 @@ export type FontLoader = (options: {
   fallbackFonts?: string[]
   variable?: string
   adjustFontFallback?: AdjustFontFallback
-  weight?: string
+  weight?: number
   style?: string
 }>

@@ -240,9 +240,6 @@ const configSchema = {
           },
           type: 'object',
         },
-        appDir: {
-          type: 'boolean',
-        },
         browsersListForSwc: {
           type: 'boolean',
         },
@@ -267,6 +264,9 @@ const configSchema = {
               const: 'loose',
             },
           ] as any,
+        },
+        appDir: {
+          type: 'boolean',
         },
         externalDir: {
           type: 'boolean',
@@ -323,7 +323,7 @@ const configSchema = {
         optimisticClientCache: {
           type: 'boolean',
         },
-        optoutServerComponentsBundle: {
+        serverComponentsExternalPackages: {
           items: {
             type: 'string',
           },
@@ -352,6 +352,12 @@ const configSchema = {
           type: 'boolean',
         },
         sharedPool: {
+          type: 'boolean',
+        },
+        skipMiddlewareUrlNormalize: {
+          type: 'boolean',
+        },
+        skipTrailingSlashRedirect: {
           type: 'boolean',
         },
         sri: {
@@ -400,7 +406,25 @@ const configSchema = {
           type: 'boolean',
         },
         fontLoaders: {
-          type: 'object',
+          items: {
+            additionalProperties: false,
+            properties: {
+              loader: {
+                type: 'string',
+              },
+              options: {},
+            },
+            type: 'object',
+            required: ['loader'],
+          },
+          type: 'array',
+        } as any,
+        webVitalsAttribution: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
+          } as any,
         },
       },
       type: 'object',
