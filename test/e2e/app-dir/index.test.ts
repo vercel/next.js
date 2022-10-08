@@ -639,16 +639,27 @@ describe('app dir', () => {
           const route = params.join('/')
           const html = await renderViaHTTP(
             next.url,
-            `/optional-catch-all/${route}`
+            `/catch-all-optional/${route}`
           )
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
         })
 
         it('should handle optional segments root', async () => {
-          const html = await renderViaHTTP(next.url, `/optional-catch-all`)
+          const html = await renderViaHTTP(next.url, `/catch-all-optional`)
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe('')
+        })
+
+        it('should handle optional catch-all segments link', async () => {
+          const browser = await webdriver(next.url, '/catch-all-link')
+          expect(
+            await browser
+              .elementByCss('#to-catch-all-optional')
+              .click()
+              .waitForElementByCss('#text')
+              .text()
+          ).toBe(`hello from /catch-all-optional/this/is/a/test`)
         })
 
         it('should handle required segments', async () => {
@@ -667,6 +678,17 @@ describe('app dir', () => {
           const res = await fetchViaHTTP(next.url, `/catch-all`)
           expect(res.status).toBe(404)
           expect(await res.text()).toContain('This page could not be found')
+        })
+
+        it('should handle catch-all segments link', async () => {
+          const browser = await webdriver(next.url, '/catch-all-link')
+          expect(
+            await browser
+              .elementByCss('#to-catch-all')
+              .click()
+              .waitForElementByCss('#text')
+              .text()
+          ).toBe(`hello from /catch-all/this/is/a/test`)
         })
       })
 
