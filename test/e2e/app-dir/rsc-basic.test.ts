@@ -347,7 +347,7 @@ describe('app dir - rsc basics', () => {
         let gotInlinedData = false
 
         await resolveStreamResponse(response, (_, result) => {
-          gotInlinedData = result.includes('self.__next_s=')
+          gotInlinedData = result.includes('self.__next_f=')
           gotData = result.includes('next_streaming_data')
           if (!gotFallback) {
             gotFallback = result.includes('next_streaming_fallback')

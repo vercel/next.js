@@ -1,12 +1,10 @@
-import { hydrate, version } from './app-index'
-
 // TODO-APP: hydration warning
 
-window.next = {
-  version,
-  appDir: true,
-}
+import { appBootstrap } from './app-bootstrap'
 
-hydrate()
+appBootstrap(() => {
+  const { hydrate } = require('./app-index')
+  hydrate()
+})
 
 // TODO-APP: build indicator
