@@ -134,7 +134,9 @@ function getBaseSWCOptions({
     fontLoaders:
       nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot
         ? {
-            fontLoaders: Object.keys(nextConfig.experimental.fontLoaders),
+            fontLoaders: nextConfig.experimental.fontLoaders.map(
+              ({ loader }) => loader
+            ),
             relativeFilePathFromRoot,
           }
         : null,

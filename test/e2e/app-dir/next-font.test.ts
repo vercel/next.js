@@ -1,12 +1,13 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { getRedboxSource, hasRedbox, renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import path from 'path'
 import webdriver from 'next-webdriver'
 
 describe('app dir next-font', () => {
-  if ((global as any).isNextDeploy || (global as any).isNextDev) {
+  const isDev = (global as any).isNextDev
+  if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
@@ -230,4 +231,93 @@ describe('app dir next-font', () => {
       ).toBe('normal')
     })
   })
+
+  describe('preload', () => {
+    it('should preload correctly with server components', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      expect($('link[as="font"]').length).toBe(3)
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/b2104791981359ae.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(2).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/b61859a50be14c53.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
+
+    it('should preload correctly with client components', async () => {
+      const html = await renderViaHTTP(next.url, '/client')
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      expect($('link[as="font"]').length).toBe(3)
+      // From root layout
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/e9b9dc0d8ba35f48.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/e1053f04babc7571.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+      expect($('link[as="font"]').get(2).attribs).toEqual({
+        as: 'font',
+        crossorigin: '',
+        href: '/_next/static/media/feab2c68f2a8e9a4.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
+  })
+
+  if (isDev) {
+    describe('Dev errors', () => {
+      it('should recover on font loader error', async () => {
+        const browser = await webdriver(next.url, '/')
+        const font1Content = await next.readFile('fonts/font1.js')
+
+        // Break file
+        await next.patchFile(
+          'fonts/font1.js',
+          font1Content.replace('./font1.woff2', './does-not-exist.woff2')
+        )
+        expect(await hasRedbox(browser, true)).toBeTrue()
+        expect(await getRedboxSource(browser)).toInclude(
+          "Can't resolve './does-not-exist.woff2'"
+        )
+
+        // Fix file
+        await next.patchFile('fonts/font1.js', font1Content)
+        await browser.waitForElementByCss('#root-page')
+      })
+    })
+  }
 })

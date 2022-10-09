@@ -185,12 +185,6 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     export const AppRouter = require('next/dist/client/components/app-router.client.js').default
     export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
     export const RenderFromTemplateContext = require('next/dist/client/components/render-from-template-context.client.js').default
-    export const HotReloader = ${
-      // Disable HotReloader component in production
-      this.mode === 'development'
-        ? `require('next/dist/client/components/hot-reloader.client.js').default`
-        : 'null'
-    }
 
     export const staticGenerationAsyncStorage = require('next/dist/client/components/static-generation-async-storage.js').staticGenerationAsyncStorage
     export const requestAsyncStorage = require('next/dist/client/components/request-async-storage.js').requestAsyncStorage
