@@ -19,7 +19,7 @@ use crate::{
     analyzer::{graph::EvalContext, JsValue},
     parse::{parse, ParseResult},
     utils::unparen,
-    EcmascriptInputTransformsVc, ModuleAssetType,
+    EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
 };
 
 #[turbo_tasks::value(shared, serialization = "none")]
@@ -185,7 +185,12 @@ pub async fn webpack_runtime(
     asset: AssetVc,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<WebpackRuntimeVc> {
-    let parsed = parse(asset, Value::new(ModuleAssetType::Ecmascript), transforms).await?;
+    let parsed = parse(
+        asset,
+        Value::new(EcmascriptModuleAssetType::Ecmascript),
+        transforms,
+    )
+    .await?;
     match &*parsed {
         ParseResult::Ok {
             program,

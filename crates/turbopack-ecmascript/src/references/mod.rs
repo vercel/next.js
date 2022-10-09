@@ -72,7 +72,7 @@ use super::{
         parse::{webpack_runtime, WebpackRuntime, WebpackRuntimeVc},
         WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
     },
-    ModuleAssetType,
+    EcmascriptModuleAssetType,
 };
 use crate::{
     analyzer::{graph::EvalContext, imports::Reexport, ModuleValue},
@@ -160,7 +160,7 @@ impl From<AnalyzeEcmascriptModuleResultBuilder> for AnalyzeEcmascriptModuleResul
 pub(crate) async fn analyze_ecmascript_module(
     source: AssetVc,
     origin: ResolveOriginVc,
-    ty: Value<ModuleAssetType>,
+    ty: Value<EcmascriptModuleAssetType>,
     transforms: EcmascriptInputTransformsVc,
     environment: EnvironmentVc,
 ) -> Result<AnalyzeEcmascriptModuleResultVc> {
@@ -168,8 +168,9 @@ pub(crate) async fn analyze_ecmascript_module(
     let path = source.path();
 
     let is_typescript = match &*ty {
-        ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration => true,
-        ModuleAssetType::Ecmascript => false,
+        EcmascriptModuleAssetType::Typescript
+        | EcmascriptModuleAssetType::TypescriptDeclaration => true,
+        EcmascriptModuleAssetType::Ecmascript => false,
     };
 
     let parsed = parse(source, ty, transforms);
@@ -199,6 +200,7 @@ pub(crate) async fn analyze_ecmascript_module(
             globals,
             eval_context,
             comments,
+            source_map,
             ..
         } => {
             let mut import_references = Vec::new();
@@ -263,6 +265,7 @@ pub(crate) async fn analyze_ecmascript_module(
                 false,
                 box IssueEmitter {
                     source,
+                    source_map: source_map.clone(),
                     title: None,
                 },
             );

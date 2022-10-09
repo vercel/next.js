@@ -22,6 +22,7 @@ use crate::{
         import::{ImportAssetReferenceVc, ImportAttributes},
         url::UrlAssetReferenceVc,
     },
+    CssInputTransformsVc, CssModuleAssetType,
 };
 
 pub(crate) mod import;
@@ -31,17 +32,12 @@ pub(crate) mod url;
 pub async fn analyze_css_stylesheet(
     source: AssetVc,
     origin: ResolveOriginVc,
-) -> Result<AssetReferencesVc> {
-    analyze_css_stylesheet_(source, origin).await
-}
-
-pub async fn analyze_css_stylesheet_(
-    source: AssetVc,
-    origin: ResolveOriginVc,
+    ty: Value<CssModuleAssetType>,
+    transforms: CssInputTransformsVc,
 ) -> Result<AssetReferencesVc> {
     let mut references = Vec::new();
 
-    let parsed = parse(source).await?;
+    let parsed = parse(source, ty, transforms).await?;
 
     if let ParseResult::Ok {
         stylesheet,

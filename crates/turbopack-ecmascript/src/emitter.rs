@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use swc_core::common::{
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
     source_map::Pos,
+    SourceMap,
 };
 use turbo_tasks::primitives::StringVc;
 use turbopack_core::{
@@ -13,6 +16,7 @@ use turbopack_core::{
 
 pub struct IssueEmitter {
     pub source: AssetVc,
+    pub source_map: Arc<SourceMap>,
     pub title: Option<String>,
 }
 
@@ -42,8 +46,8 @@ impl Emitter for IssueEmitter {
         let source = db.span.primary_span().map(|span| {
             IssueSourceVc::from_byte_offset(
                 self.source,
-                span.lo().to_usize().saturating_sub(1),
-                span.hi().to_usize().saturating_sub(1),
+                self.source_map.lookup_byte_offset(span.lo()).pos.to_usize(),
+                self.source_map.lookup_byte_offset(span.lo()).pos.to_usize(),
             )
         });
         // TODO add other primary and secondary spans with labels as sub_issues

@@ -78,7 +78,7 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
                     context.into(),
-                    Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
+                    Value::new(turbopack_ecmascript::EcmascriptModuleAssetType::Ecmascript),
                     *transforms,
                     context.environment(),
                 )
@@ -88,7 +88,7 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
                     context.with_typescript_resolving_enabled().into(),
-                    Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
+                    Value::new(turbopack_ecmascript::EcmascriptModuleAssetType::Typescript),
                     *transforms,
                     context.environment(),
                 )
@@ -98,7 +98,9 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
                 turbopack_ecmascript::EcmascriptModuleAssetVc::new(
                     source,
                     context.with_typescript_resolving_enabled().into(),
-                    Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
+                    Value::new(
+                        turbopack_ecmascript::EcmascriptModuleAssetType::TypescriptDeclaration,
+                    ),
                     *transforms,
                     context.environment(),
                 )
@@ -106,7 +108,13 @@ async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetV
             }
             ModuleType::Json => turbopack_json::JsonModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
-            ModuleType::Css => turbopack_css::CssModuleAssetVc::new(source, context.into()).into(),
+            ModuleType::Css(transforms) => turbopack_css::CssModuleAssetVc::new(
+                source,
+                context.into(),
+                Value::new(turbopack_css::CssModuleAssetType::Global),
+                *transforms,
+            )
+            .into(),
             ModuleType::Static => {
                 turbopack_static::StaticModuleAssetVc::new(source, context.into()).into()
             }

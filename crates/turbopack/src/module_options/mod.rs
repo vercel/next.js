@@ -1,5 +1,6 @@
 use anyhow::Result;
 use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_css::CssInputTransformsVc;
 use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 
 pub mod module_options_context;
@@ -58,6 +59,8 @@ impl ModuleOptionsVc {
             (no_transforms, app_transforms)
         };
 
+        let css_transforms = CssInputTransformsVc::cell(Vec::new());
+
         Ok(ModuleOptionsVc::cell(ModuleOptions {
             rules: vec![
                 ModuleRule::new(
@@ -66,7 +69,9 @@ impl ModuleOptionsVc {
                 ),
                 ModuleRule::new(
                     ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css)],
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css(
+                        css_transforms,
+                    ))],
                 ),
                 ModuleRule::new(
                     ModuleRuleCondition::any(vec![

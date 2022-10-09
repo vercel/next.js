@@ -4,6 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::FileSystemPath;
+use turbopack_css::CssInputTransformsVc;
 use turbopack_ecmascript::EcmascriptInputTransformsVc;
 
 #[derive(TraceRawVcs, Debug, Serialize, Deserialize)]
@@ -90,7 +91,7 @@ pub enum ModuleType {
     TypescriptDeclaration(EcmascriptInputTransformsVc),
     Json,
     Raw,
-    Css,
+    Css(CssInputTransformsVc),
     Static,
     // TODO allow custom function when we support function pointers
     Custom(u8),

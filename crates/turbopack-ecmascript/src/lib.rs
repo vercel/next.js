@@ -64,7 +64,7 @@ use crate::{
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
-pub enum ModuleAssetType {
+pub enum EcmascriptModuleAssetType {
     Ecmascript,
     Typescript,
     TypescriptDeclaration,
@@ -75,7 +75,7 @@ pub enum ModuleAssetType {
 pub struct EcmascriptModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
-    pub ty: ModuleAssetType,
+    pub ty: EcmascriptModuleAssetType,
     pub transforms: EcmascriptInputTransformsVc,
     pub environment: EnvironmentVc,
 }
@@ -86,7 +86,7 @@ impl EcmascriptModuleAssetVc {
     pub fn new(
         source: AssetVc,
         context: AssetContextVc,
-        ty: Value<ModuleAssetType>,
+        ty: Value<EcmascriptModuleAssetType>,
         transforms: EcmascriptInputTransformsVc,
         environment: EnvironmentVc,
     ) -> Self {

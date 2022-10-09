@@ -14,8 +14,9 @@ use turbopack_core::{
 
 use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
 use crate::{
-    parse::{parse, Buffer, ParseResult},
-    EcmascriptInputTransformsVc, ModuleAssetType,
+    emitter::IssueEmitter,
+    parse::{parse, ParseResult},
+    EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
 };
 
 #[turbo_tasks::function]
@@ -24,7 +25,12 @@ pub async fn module_references(
     runtime: WebpackRuntimeVc,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<AssetReferencesVc> {
-    let parsed = parse(source, Value::new(ModuleAssetType::Ecmascript), transforms).await?;
+    let parsed = parse(
+        source,
+        Value::new(EcmascriptModuleAssetType::Ecmascript),
+        transforms,
+    )
+    .await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -37,16 +43,18 @@ pub async fn module_references(
                 runtime,
                 transforms,
             };
-            let buf = Buffer::new();
-            let handler =
-                Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
+            let handler = Handler::with_emitter(
+                true,
+                false,
+                box IssueEmitter {
+                    source,
+                    source_map: source_map.clone(),
+                    title: Some("Parsing webpack bundle failed".to_string()),
+                },
+            );
             HANDLER.set(&handler, || {
                 program.visit_with(&mut visitor);
             });
-            if !buf.is_empty() {
-                // TODO report them in a stream
-                println!("{}", buf);
-            }
             Ok(AssetReferencesVc::cell(references))
         }
         ParseResult::Unparseable | ParseResult::NotFound => Ok(AssetReferencesVc::cell(Vec::new())),

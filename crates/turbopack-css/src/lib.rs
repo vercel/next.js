@@ -2,6 +2,14 @@
 #![feature(box_patterns)]
 #![feature(box_syntax)]
 
+pub mod chunk;
+mod code_gen;
+pub mod embed;
+pub(crate) mod parse;
+mod path_visitor;
+pub(crate) mod references;
+pub(crate) mod transform;
+
 use anyhow::Result;
 use swc_core::{
     common::{Globals, GLOBALS},
@@ -11,7 +19,8 @@ use swc_core::{
         visit::{VisitMutWith, VisitMutWithPath},
     },
 };
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
+pub use transform::{CssInputTransform, CssInputTransformsVc};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -20,13 +29,6 @@ use turbopack_core::{
     reference::{AssetReference, AssetReferencesVc},
     resolve::origin::{ResolveOrigin, ResolveOriginVc},
 };
-
-pub mod chunk;
-mod code_gen;
-pub mod embed;
-pub(crate) mod parse;
-mod path_visitor;
-pub(crate) mod references;
 
 use crate::{
     chunk::{
@@ -39,18 +41,37 @@ use crate::{
     references::{analyze_css_stylesheet, import::ImportAssetReferenceVc},
 };
 
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+pub enum CssModuleAssetType {
+    Global,
+    // TODO add Module
+}
+
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct CssModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
+    pub ty: CssModuleAssetType,
+    pub transforms: CssInputTransformsVc,
 }
 
 #[turbo_tasks::value_impl]
 impl CssModuleAssetVc {
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc, context: AssetContextVc) -> Self {
-        Self::cell(CssModuleAsset { source, context })
+    pub fn new(
+        source: AssetVc,
+        context: AssetContextVc,
+        ty: Value<CssModuleAssetType>,
+        transforms: CssInputTransformsVc,
+    ) -> Self {
+        Self::cell(CssModuleAsset {
+            source,
+            context,
+            ty: ty.into_value(),
+            transforms,
+        })
     }
 }
 
@@ -68,10 +89,13 @@ impl Asset for CssModuleAsset {
 
     #[turbo_tasks::function]
     async fn references(self_vc: CssModuleAssetVc) -> Result<AssetReferencesVc> {
+        let this = self_vc.await?;
         // TODO: include CSS source map
         Ok(analyze_css_stylesheet(
-            self_vc.await?.source,
+            this.source,
             self_vc.as_resolve_origin(),
+            Value::new(this.ty),
+            this.transforms,
         ))
     }
 }
@@ -175,7 +199,7 @@ impl CssChunkItem for ModuleChunkItem {
         }
 
         let module = self.module.await?;
-        let parsed = parse(module.source).await?;
+        let parsed = parse(module.source, Value::new(module.ty), module.transforms).await?;
 
         if let ParseResult::Ok { stylesheet, .. } = &*parsed {
             let mut stylesheet = stylesheet.clone();
