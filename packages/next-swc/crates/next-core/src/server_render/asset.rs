@@ -5,7 +5,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetVc, ModuleAssetType,
+    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+    EcmascriptModuleAssetVc,
 };
 use turbopack_core::{
     self,
@@ -144,7 +145,7 @@ fn get_intermediate_module(
         )
         .into(),
         context,
-        Value::new(ModuleAssetType::Ecmascript),
+        Value::new(EcmascriptModuleAssetType::Ecmascript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::React { refresh: false }]),
         context.environment(),
     )
