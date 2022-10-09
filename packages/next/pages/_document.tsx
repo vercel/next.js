@@ -472,7 +472,7 @@ export class Head extends React.Component<HeadProps> {
             crossOrigin={this.props.crossOrigin || crossOrigin}
             data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
             data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
-          />
+          /> 
         )
       }
     })
