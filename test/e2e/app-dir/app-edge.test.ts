@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { check, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 
 describe('app-dir edge SSR', () => {
@@ -20,8 +20,8 @@ describe('app-dir edge SSR', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-edge')),
       dependencies: {
-        react: '0.0.0-experimental-cb5084d1c-20220924',
-        'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
+        react: 'experimental',
+        'react-dom': 'experimental',
         typescript: 'latest',
         '@types/react': 'latest',
         '@types/node': 'latest',
@@ -37,4 +37,26 @@ describe('app-dir edge SSR', () => {
     const pageHtml = await renderViaHTTP(next.url, '/pages-edge')
     expect(pageHtml).toContain('<p>pages-edge-ssr</p>')
   })
+
+  if ((globalThis as any).isNextDev) {
+    it('should handle edge rsc hmr', async () => {
+      const pageFile = 'app/app-edge/page.tsx'
+      const content = await next.readFile(pageFile)
+
+      // Update rendered content
+      const updatedContent = content.replace('app-edge-ssr', 'edge-hmr')
+      await next.patchFile(pageFile, updatedContent)
+      await check(async () => {
+        const html = await renderViaHTTP(next.url, '/app-edge')
+        return html
+      }, /edge-hmr/)
+
+      // Revert
+      await next.patchFile(pageFile, content)
+      await check(async () => {
+        const html = await renderViaHTTP(next.url, '/app-edge')
+        return html
+      }, /app-edge-ssr/)
+    })
+  }
 })

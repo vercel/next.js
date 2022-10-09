@@ -68,6 +68,7 @@ import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
 import loadRequireHook from '../build/webpack/require-hook'
+import { consumeUint8ArrayReadableStream } from 'next/dist/compiled/edge-runtime'
 
 import BaseServer, {
   Options,
@@ -84,7 +85,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { toNodeHeaders } from './web/utils'
+import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -95,7 +96,7 @@ import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
+import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import { shouldUseReactRoot, isTargetLikeServerless } from './utils'
 import ResponseCache from './response-cache'
@@ -286,7 +287,7 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       serverDistDir: this.serverDistDir,
-      appDir: this.nextConfig.experimental.appDir,
+      appDir: this.hasAppDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -323,7 +324,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (this.nextConfig.experimental.appDir) {
+    if (this.hasAppDir) {
       const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
       return require(appPathsManifestPath)
     }
@@ -472,6 +473,18 @@ export default class NextNodeServer extends BaseServer {
         },
       },
     ]
+  }
+
+  protected getHasAppDir(dev: boolean): boolean {
+    const appDirectory = dev
+      ? join(this.dir, 'app')
+      : join(this.serverDistDir, 'app')
+
+    try {
+      return fs.statSync(appDirectory).isDirectory()
+    } catch (err) {
+      return false
+    }
   }
 
   protected generateStaticRoutes(): Route[] {
@@ -823,7 +836,7 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
-    if (this.nextConfig.experimental.appDir && renderOpts.isAppPath) {
+    if (this.hasAppDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
@@ -882,7 +895,7 @@ export default class NextNodeServer extends BaseServer {
       this._isLikeServerless,
       this.renderOpts.dev,
       locales,
-      this.nextConfig.experimental.appDir
+      this.hasAppDir
     )
   }
 
@@ -998,12 +1011,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.appDir) return undefined
+    if (!this.hasAppDir) return undefined
     return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getServerCSSManifest() {
-    if (!this.nextConfig.experimental.appDir) return undefined
+    if (!this.hasAppDir) return undefined
     return require(join(
       this.distDir,
       'server',
@@ -1796,9 +1809,16 @@ export default class NextNodeServer extends BaseServer {
     } else {
       for (let [key, value] of allHeaders) {
         result.response.headers.set(key, value)
+
+        if (key.toLowerCase() === 'set-cookie') {
+          addRequestMeta(
+            params.request,
+            '_nextMiddlewareCookie',
+            splitCookiesString(value)
+          )
+        }
       }
     }
-
     return result
   }
 
@@ -2097,15 +2117,27 @@ export default class NextNodeServer extends BaseServer {
     params.res.statusCode = result.response.status
     params.res.statusMessage = result.response.statusText
 
-    result.response.headers.forEach((value, key) => {
-      params.res.appendHeader(key, value)
+    result.response.headers.forEach((value: string, key) => {
+      // the append handling is special cased for `set-cookie`
+      if (key.toLowerCase() === 'set-cookie') {
+        params.res.setHeader(key, value)
+      } else {
+        params.res.appendHeader(key, value)
+      }
     })
 
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
-      bodyStreamToNodeStream(result.response.body).pipe(
-        (params.res as NodeNextResponse).originalResponse
-      )
+      const nodeResStream = (params.res as NodeNextResponse).originalResponse
+      try {
+        for await (const chunk of consumeUint8ArrayReadableStream(
+          result.response.body
+        )) {
+          nodeResStream.write(chunk)
+        }
+      } finally {
+        nodeResStream.end()
+      }
     } else {
       ;(params.res as NodeNextResponse).originalResponse.end()
     }

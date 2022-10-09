@@ -5,7 +5,7 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
 
-describe('Handle non-page in pages when target: serverless', () => {
+describe.skip('Handle non-page in pages when target: serverless', () => {
   it('Fails softly with descriptive error', async () => {
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
 

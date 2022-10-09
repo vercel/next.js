@@ -737,6 +737,10 @@
         {
           "title": "nonce-contained-invalid-characters",
           "path": "/errors/nonce-contained-invalid-characters.md"
+        },
+        {
+          "title": "babel-font-loader-conflict",
+          "path": "/errors/babel-font-loader-conflict.md"
         }
       ]
     }

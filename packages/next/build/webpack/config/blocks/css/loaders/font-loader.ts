@@ -15,7 +15,7 @@ export function getFontLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
-        isAppDir: !!ctx.experimental.appDir,
+        hasAppDir: ctx.hasAppDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })

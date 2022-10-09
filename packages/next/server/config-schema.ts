@@ -240,9 +240,6 @@ const configSchema = {
           },
           type: 'object',
         },
-        appDir: {
-          type: 'boolean',
-        },
         browsersListForSwc: {
           type: 'boolean',
         },
@@ -267,6 +264,9 @@ const configSchema = {
               const: 'loose',
             },
           ] as any,
+        },
+        appDir: {
+          type: 'boolean',
         },
         externalDir: {
           type: 'boolean',
@@ -354,6 +354,12 @@ const configSchema = {
         sharedPool: {
           type: 'boolean',
         },
+        skipMiddlewareUrlNormalize: {
+          type: 'boolean',
+        },
+        skipTrailingSlashRedirect: {
+          type: 'boolean',
+        },
         sri: {
           properties: {
             algorithm: {
@@ -400,8 +406,19 @@ const configSchema = {
           type: 'boolean',
         },
         fontLoaders: {
-          type: 'object',
-        },
+          items: {
+            additionalProperties: false,
+            properties: {
+              loader: {
+                type: 'string',
+              },
+              options: {},
+            },
+            type: 'object',
+            required: ['loader'],
+          },
+          type: 'array',
+        } as any,
         webVitalsAttribution: {
           type: 'array',
           items: {

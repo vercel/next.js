@@ -624,50 +624,52 @@ export default async function loadCustomRoutes(
     )
   }
 
-  if (config.trailingSlash) {
-    redirects.unshift(
-      {
-        source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
-        destination: '/:file',
-        permanent: true,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect,
-      {
-        source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
-        destination: '/:notfile/',
-        permanent: true,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect
-    )
-    if (config.basePath) {
+  if (!config.experimental?.skipTrailingSlashRedirect) {
+    if (config.trailingSlash) {
+      redirects.unshift(
+        {
+          source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
+          destination: '/:file',
+          permanent: true,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect,
+        {
+          source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
+          destination: '/:notfile/',
+          permanent: true,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect
+      )
+      if (config.basePath) {
+        redirects.unshift({
+          source: config.basePath,
+          destination: config.basePath + '/',
+          permanent: true,
+          basePath: false,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect)
+      }
+    } else {
       redirects.unshift({
-        source: config.basePath,
-        destination: config.basePath + '/',
+        source: '/:path+/',
+        destination: '/:path+',
         permanent: true,
-        basePath: false,
         locale: config.i18n ? false : undefined,
         internal: true,
       } as Redirect)
-    }
-  } else {
-    redirects.unshift({
-      source: '/:path+/',
-      destination: '/:path+',
-      permanent: true,
-      locale: config.i18n ? false : undefined,
-      internal: true,
-    } as Redirect)
-    if (config.basePath) {
-      redirects.unshift({
-        source: config.basePath + '/',
-        destination: config.basePath,
-        permanent: true,
-        basePath: false,
-        locale: config.i18n ? false : undefined,
-        internal: true,
-      } as Redirect)
+      if (config.basePath) {
+        redirects.unshift({
+          source: config.basePath + '/',
+          destination: config.basePath,
+          permanent: true,
+          basePath: false,
+          locale: config.i18n ? false : undefined,
+          internal: true,
+        } as Redirect)
+      }
     }
   }
 

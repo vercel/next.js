@@ -1,6 +1,6 @@
 'client'
 
-import type { PropsWithChildren, ReactElement, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import {
@@ -15,7 +15,7 @@ import type {
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import {
   ACTION_NAVIGATE,
-  // ACTION_PREFETCH,
+  ACTION_PREFETCH,
   ACTION_RELOAD,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
@@ -34,6 +34,12 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
   // TODO-APP: handle .rsc for static export case
   return urlWithoutFlightParameters
 }
+
+const HotReloader: typeof import('./hot-reloader').default | null =
+  process.env.NODE_ENV === 'production'
+    ? null
+    : (require('./hot-reloader')
+        .default as typeof import('./hot-reloader').default)
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -78,26 +84,12 @@ export async function fetchServerResponse(
   return [flightData, canonicalUrl]
 }
 
-/**
- * Renders development error overlay when NODE_ENV is development.
- */
-function ErrorOverlay({ children }: PropsWithChildren<{}>): ReactElement {
-  if (process.env.NODE_ENV === 'production') {
-    return <>{children}</>
-  } else {
-    const {
-      ReactDevOverlay,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
-    return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
-  }
-}
-
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 // TODO-APP: move this back into AppRouter
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
   typeof window === 'undefined' ? null! : new Map()
 
-// const prefetched = new Set<string>()
+const prefetched = new Set<string>()
 
 /**
  * The global router that wraps the application components.
@@ -106,12 +98,12 @@ export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
   children,
-  hotReloader,
+  assetPrefix,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: ReactNode
-  hotReloader?: ReactNode
+  assetPrefix: string
 }) {
   const initialState = useMemo(() => {
     return {
@@ -208,32 +200,34 @@ export default function AppRouter({
 
     const routerInstance: AppRouterInstance = {
       // TODO-APP: implement prefetching of flight
-      prefetch: async (_href) => {
+      prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
-        // if (prefetched.has(href)) {
-        //   return
-        // }
-        // prefetched.add(href)
-        // const url = new URL(href, location.origin)
-        // try {
-        //   // TODO-APP: handle case where history.state is not the new router history entry
-        //   const serverResponse = await fetchServerResponse(
-        //     url,
-        //     // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-        //     window.history.state?.tree || initialTree,
-        //     true
-        //   )
-        //   // @ts-ignore startTransition exists
-        //   React.startTransition(() => {
-        //     dispatch({
-        //       type: ACTION_PREFETCH,
-        //       url,
-        //       serverResponse,
-        //     })
-        //   })
-        // } catch (err) {
-        //   console.error('PREFETCH ERROR', err)
-        // }
+        if (prefetched.has(href)) {
+          return
+        }
+        prefetched.add(href)
+        const url = new URL(href, location.origin)
+        try {
+          const routerTree = window.history.state?.tree || initialTree
+          // TODO-APP: handle case where history.state is not the new router history entry
+          const serverResponse = await fetchServerResponse(
+            url,
+            // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
+            routerTree,
+            true
+          )
+          // @ts-ignore startTransition exists
+          React.startTransition(() => {
+            dispatch({
+              type: ACTION_PREFETCH,
+              url,
+              tree: routerTree,
+              serverResponse,
+            })
+          })
+        } catch (err) {
+          console.error('PREFETCH ERROR', err)
+        }
       },
       replace: (href, options = {}) => {
         // @ts-ignore startTransition exists
@@ -266,7 +260,7 @@ export default function AppRouter({
     }
 
     return routerInstance
-  }, [dispatch /*, initialTree*/])
+  }, [dispatch, initialTree])
 
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
@@ -359,16 +353,13 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              <ErrorOverlay>
-                {
-                  // ErrorOverlay intentionally only wraps the children of app-router.
-                  cache.subTreeData
-                }
-              </ErrorOverlay>
-              {
-                // HotReloader uses the router tree and router.reload() in order to apply Server Component changes.
-                hotReloader
-              }
+              {HotReloader ? (
+                <HotReloader assetPrefix={assetPrefix}>
+                  {cache.subTreeData}
+                </HotReloader>
+              ) : (
+                cache.subTreeData
+              )}
             </LayoutRouterContext.Provider>
           </AppRouterContext.Provider>
         </GlobalLayoutRouterContext.Provider>

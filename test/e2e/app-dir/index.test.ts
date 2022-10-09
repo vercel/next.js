@@ -25,8 +25,8 @@ describe('app dir', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
-          react: '0.0.0-experimental-cb5084d1c-20220924',
-          'react-dom': '0.0.0-experimental-cb5084d1c-20220924',
+          react: 'experimental',
+          'react-dom': 'experimental',
         },
         skipStart: true,
       })
@@ -114,9 +114,7 @@ describe('app dir', () => {
 
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toMatch(
-        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
-      )
+      expect(html).toMatch(/\/_next\/static\/chunks\/polyfills(-.+)?\.js/)
     })
 
     // TODO-APP: handle css modules fouc in dev
@@ -259,7 +257,7 @@ describe('app dir', () => {
 
     describe('rewrites', () => {
       // TODO-APP: rewrite url is broken
-      it.skip('should support rewrites on initial load', async () => {
+      it('should support rewrites on initial load', async () => {
         const browser = await webdriver(next.url, '/rewritten-to-dashboard')
         expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
         expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
@@ -432,7 +430,7 @@ describe('app dir', () => {
       })
 
       // TODO-APP: Re-enable this test.
-      it.skip('should soft push', async () => {
+      it('should soft push', async () => {
         const browser = await webdriver(next.url, '/link-soft-push')
 
         try {
@@ -639,16 +637,27 @@ describe('app dir', () => {
           const route = params.join('/')
           const html = await renderViaHTTP(
             next.url,
-            `/optional-catch-all/${route}`
+            `/catch-all-optional/${route}`
           )
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
         })
 
         it('should handle optional segments root', async () => {
-          const html = await renderViaHTTP(next.url, `/optional-catch-all`)
+          const html = await renderViaHTTP(next.url, `/catch-all-optional`)
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe('')
+        })
+
+        it('should handle optional catch-all segments link', async () => {
+          const browser = await webdriver(next.url, '/catch-all-link')
+          expect(
+            await browser
+              .elementByCss('#to-catch-all-optional')
+              .click()
+              .waitForElementByCss('#text')
+              .text()
+          ).toBe(`hello from /catch-all-optional/this/is/a/test`)
         })
 
         it('should handle required segments', async () => {
@@ -667,6 +676,17 @@ describe('app dir', () => {
           const res = await fetchViaHTTP(next.url, `/catch-all`)
           expect(res.status).toBe(404)
           expect(await res.text()).toContain('This page could not be found')
+        })
+
+        it('should handle catch-all segments link', async () => {
+          const browser = await webdriver(next.url, '/catch-all-link')
+          expect(
+            await browser
+              .elementByCss('#to-catch-all')
+              .click()
+              .waitForElementByCss('#text')
+              .text()
+          ).toBe(`hello from /catch-all/this/is/a/test`)
         })
       })
 
@@ -826,7 +846,7 @@ describe('app dir', () => {
 
       describe('next/router', () => {
         // `useRouter` should not be accessible in server components.
-        it.skip('should always return null when accessed from /app', async () => {
+        it('should always return null when accessed from /app', async () => {
           const browser = await webdriver(next.url, '/old-router')
 
           try {
@@ -1436,31 +1456,42 @@ describe('app dir', () => {
       })
 
       // TODO-APP: disable failing test and investigate later
-      it.skip('should render the template that is a server component and rerender on navigation', async () => {
-        const browser = await webdriver(next.url, '/template/servercomponent')
-        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+      ;(isDev ? it.skip : it)(
+        'should render the template that is a server component and rerender on navigation',
+        async () => {
+          const browser = await webdriver(next.url, '/template/servercomponent')
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('h1').text()).toStartWith(
+            'Template'
+          )
 
-        const currentTime = await browser
-          .elementByCss('#performance-now')
-          .text()
+          const currentTime = await browser
+            .elementByCss('#performance-now')
+            .text()
 
-        await browser.elementByCss('#link').click()
-        await browser.waitForElementByCss('#other-page')
+          await browser.elementByCss('#link').click()
+          await browser.waitForElementByCss('#other-page')
 
-        expect(await browser.elementByCss('h1').text()).toStartWith('Template')
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('h1').text()).toStartWith(
+            'Template'
+          )
 
-        // template should rerender on navigation even when it's a server component
-        expect(await browser.elementByCss('#performance-now').text()).toBe(
-          currentTime
-        )
+          // template should rerender on navigation even when it's a server component
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('#performance-now').text()).toBe(
+            currentTime
+          )
 
-        await browser.elementByCss('#link').click()
-        await browser.waitForElementByCss('#page')
+          await browser.elementByCss('#link').click()
+          await browser.waitForElementByCss('#page')
 
-        expect(await browser.elementByCss('#performance-now').text()).toBe(
-          currentTime
-        )
-      })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('#performance-now').text()).toBe(
+            currentTime
+          )
+        }
+      )
     })
 
     // TODO-APP: This is disabled for development as the error overlay needs to be reworked.
@@ -1528,6 +1559,16 @@ describe('app dir', () => {
           const $ = cheerio.load(text)
           expect($('#category-id').text()).toBe('electronicsabc')
         }
+      })
+      it('should handle as on next/link', async () => {
+        const browser = await webdriver(next.url, '/link-with-as')
+        expect(
+          await browser
+            .elementByCss('#link-to-info-123')
+            .click()
+            .waitForElementByCss('#message')
+            .text()
+        ).toBe(`hello from app/dashboard/deployments/info/[id]. ID is: 123`)
       })
     })
 
@@ -1635,6 +1676,80 @@ describe('app dir', () => {
           expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
           expect(await browser.url()).toBe(next.url + '/dashboard')
         })
+      })
+    })
+
+    describe('nested navigation', () => {
+      it('should navigate to nested pages', async () => {
+        const browser = await webdriver(next.url, '/nested-navigation')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+        const pages = [
+          ['Electronics', ['Phones', 'Tablets', 'Laptops']],
+          ['Clothing', ['Tops', 'Shorts', 'Shoes']],
+          ['Books', ['Fiction', 'Biography', 'Education']],
+        ] as const
+
+        for (const [category, subCategories] of pages) {
+          expect(
+            await browser
+              .elementByCss(
+                `a[href="/nested-navigation/${category.toLowerCase()}"]`
+              )
+              .click()
+              .waitForElementByCss(`#all-${category.toLowerCase()}`)
+              .text()
+          ).toBe(`All ${category}`)
+
+          for (const subcategory of subCategories) {
+            expect(
+              await browser
+                .elementByCss(
+                  `a[href="/nested-navigation/${category.toLowerCase()}/${subcategory.toLowerCase()}"]`
+                )
+                .click()
+                .waitForElementByCss(`#${subcategory.toLowerCase()}`)
+                .text()
+            ).toBe(`${subcategory}`)
+          }
+        }
+      })
+    })
+
+    describe('next/script', () => {
+      it('should support next/script and render in correct order', async () => {
+        const browser = await webdriver(next.url, '/script')
+
+        // Wait for lazyOnload scripts to be ready.
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        expect(await browser.eval(`window._script_order`)).toStrictEqual([
+          1,
+          1.5,
+          2,
+          2.5,
+          'render',
+          3,
+          4,
+        ])
+      })
+
+      it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
+        const html = await renderViaHTTP(next.url, '/script')
+        expect(html).toContain(
+          '<link href="/test1.js" rel="preload" as="script"/>'
+        )
+        expect(html).toContain(
+          '<link href="/test2.js" rel="preload" as="script"/>'
+        )
+        expect(html).toContain(
+          '<link href="/test3.js" rel="preload" as="script"/>'
+        )
+
+        // test4.js has lazyOnload which doesn't need to be preloaded
+        expect(html).not.toContain(
+          '<script src="/test4.js" rel="preload" as="script"/>'
+        )
       })
     })
   }

@@ -1751,6 +1751,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
     })
     .target('compiled/mini-css-extract-plugin')
 }
+
 // eslint-disable-next-line camelcase
 externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
 export async function ncc_ua_parser_js(task, opts) {
