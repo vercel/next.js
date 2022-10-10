@@ -1570,6 +1570,24 @@ describe('app dir', () => {
             .text()
         ).toBe(`hello from app/dashboard/deployments/info/[id]. ID is: 123`)
       })
+      it('should handle next/link back to initially loaded page', async () => {
+        const browser = await webdriver(next.url, '/linking/about')
+        expect(
+          await browser
+            .elementByCss('a[href="/linking"]')
+            .click()
+            .waitForElementByCss('#home-page')
+            .text()
+        ).toBe(`Home page`)
+
+        expect(
+          await browser
+            .elementByCss('a[href="/linking/about"]')
+            .click()
+            .waitForElementByCss('#about-page')
+            .text()
+        ).toBe(`About page`)
+      })
     })
 
     describe('not-found', () => {
