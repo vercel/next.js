@@ -114,9 +114,7 @@ describe('app dir', () => {
 
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await renderViaHTTP(next.url, '/dashboard/index')
-      expect(html).toMatch(
-        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" nomodule="">/
-      )
+      expect(html).toMatch(/\/_next\/static\/chunks\/polyfills(-.+)?\.js/)
     })
 
     // TODO-APP: handle css modules fouc in dev
@@ -639,16 +637,27 @@ describe('app dir', () => {
           const route = params.join('/')
           const html = await renderViaHTTP(
             next.url,
-            `/optional-catch-all/${route}`
+            `/catch-all-optional/${route}`
           )
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe(route)
         })
 
         it('should handle optional segments root', async () => {
-          const html = await renderViaHTTP(next.url, `/optional-catch-all`)
+          const html = await renderViaHTTP(next.url, `/catch-all-optional`)
           const $ = cheerio.load(html)
           expect($('#text').attr('data-params')).toBe('')
+        })
+
+        it('should handle optional catch-all segments link', async () => {
+          const browser = await webdriver(next.url, '/catch-all-link')
+          expect(
+            await browser
+              .elementByCss('#to-catch-all-optional')
+              .click()
+              .waitForElementByCss('#text')
+              .text()
+          ).toBe(`hello from /catch-all-optional/this/is/a/test`)
         })
 
         it('should handle required segments', async () => {
@@ -667,6 +676,17 @@ describe('app dir', () => {
           const res = await fetchViaHTTP(next.url, `/catch-all`)
           expect(res.status).toBe(404)
           expect(await res.text()).toContain('This page could not be found')
+        })
+
+        it('should handle catch-all segments link', async () => {
+          const browser = await webdriver(next.url, '/catch-all-link')
+          expect(
+            await browser
+              .elementByCss('#to-catch-all')
+              .click()
+              .waitForElementByCss('#text')
+              .text()
+          ).toBe(`hello from /catch-all/this/is/a/test`)
         })
       })
 
@@ -1540,6 +1560,34 @@ describe('app dir', () => {
           expect($('#category-id').text()).toBe('electronicsabc')
         }
       })
+      it('should handle as on next/link', async () => {
+        const browser = await webdriver(next.url, '/link-with-as')
+        expect(
+          await browser
+            .elementByCss('#link-to-info-123')
+            .click()
+            .waitForElementByCss('#message')
+            .text()
+        ).toBe(`hello from app/dashboard/deployments/info/[id]. ID is: 123`)
+      })
+      it('should handle next/link back to initially loaded page', async () => {
+        const browser = await webdriver(next.url, '/linking/about')
+        expect(
+          await browser
+            .elementByCss('a[href="/linking"]')
+            .click()
+            .waitForElementByCss('#home-page')
+            .text()
+        ).toBe(`Home page`)
+
+        expect(
+          await browser
+            .elementByCss('a[href="/linking/about"]')
+            .click()
+            .waitForElementByCss('#about-page')
+            .text()
+        ).toBe(`About page`)
+      })
     })
 
     describe('not-found', () => {
@@ -1683,6 +1731,43 @@ describe('app dir', () => {
             ).toBe(`${subcategory}`)
           }
         }
+      })
+    })
+
+    describe('next/script', () => {
+      it('should support next/script and render in correct order', async () => {
+        const browser = await webdriver(next.url, '/script')
+
+        // Wait for lazyOnload scripts to be ready.
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        expect(await browser.eval(`window._script_order`)).toStrictEqual([
+          1,
+          1.5,
+          2,
+          2.5,
+          'render',
+          3,
+          4,
+        ])
+      })
+
+      it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
+        const html = await renderViaHTTP(next.url, '/script')
+        expect(html).toContain(
+          '<link href="/test1.js" rel="preload" as="script"/>'
+        )
+        expect(html).toContain(
+          '<link href="/test2.js" rel="preload" as="script"/>'
+        )
+        expect(html).toContain(
+          '<link href="/test3.js" rel="preload" as="script"/>'
+        )
+
+        // test4.js has lazyOnload which doesn't need to be preloaded
+        expect(html).not.toContain(
+          '<script src="/test4.js" rel="preload" as="script"/>'
+        )
       })
     })
   }

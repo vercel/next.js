@@ -34,6 +34,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { NextCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
@@ -287,7 +288,7 @@ function useFlightResponse(
         bootstrapped = true
         writer.write(
           encodeText(
-            `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+            `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
               JSON.stringify([0])
             )})</script>`
           )
@@ -298,7 +299,7 @@ function useFlightResponse(
         writer.close()
       } else {
         const responsePartial = decodeText(value)
-        const scripts = `${startScriptTag}(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+        const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
 
@@ -1396,30 +1397,20 @@ export async function renderToHTMLOrFlight(
       )
 
       return (
-        <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
-          {children}
-        </ServerInsertedHTMLContext.Provider>
+        <HeadManagerContext.Provider
+          value={{
+            appDir: true,
+            nonce,
+          }}
+        >
+          <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
+            {children}
+          </ServerInsertedHTMLContext.Provider>
+        </HeadManagerContext.Provider>
       )
     }
 
     const bodyResult = async () => {
-      const content = (
-        <InsertedHTML>
-          <ServerComponentsRenderer />
-        </InsertedHTML>
-      )
-
-      const getServerInsertedHTML = (): Promise<string> => {
-        const flushed = renderToString(
-          <>
-            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-              callback()
-            )}
-          </>
-        )
-        return flushed
-      }
-
       const polyfills = buildManifest.polyfillFiles
         .filter(
           (polyfill) =>
@@ -1429,6 +1420,45 @@ export async function renderToHTMLOrFlight(
           src: `${renderOpts.assetPrefix || ''}/_next/${polyfill}`,
           integrity: subresourceIntegrityManifest?.[polyfill],
         }))
+
+      const content = (
+        <InsertedHTML>
+          <ServerComponentsRenderer />
+        </InsertedHTML>
+      )
+
+      let polyfillsFlushed = false
+      const getServerInsertedHTML = (): Promise<string> => {
+        const flushed = renderToString(
+          <>
+            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+              callback()
+            )}
+            {polyfillsFlushed
+              ? null
+              : polyfills?.map((polyfill) => {
+                  return (
+                    <script
+                      key={polyfill.src}
+                      noModule={true}
+                      nonce={nonce}
+                      dangerouslySetInnerHTML={{
+                        __html: `(self.__next_s=self.__next_s||[]).push([${JSON.stringify(
+                          polyfill.src
+                        )},${
+                          polyfill.integrity
+                            ? JSON.stringify({ integrity: polyfill.integrity })
+                            : '{}'
+                        }])`,
+                      }}
+                    />
+                  )
+                })}
+          </>
+        )
+        polyfillsFlushed = true
+        return flushed
+      }
 
       try {
         const renderStream = await renderToInitialStream({
@@ -1456,7 +1486,6 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          polyfills,
           dev,
         })
       } catch (err: any) {
@@ -1488,7 +1517,6 @@ export async function renderToHTMLOrFlight(
           generateStaticHTML: isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
-          polyfills,
           dev,
         })
       }

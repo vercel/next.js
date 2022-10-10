@@ -7,6 +7,7 @@ import React, { experimental_use as use } from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 
 import measureWebVitals from './performance-relayer'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 
 /// <reference types="react-dom/experimental" />
 
@@ -41,8 +42,6 @@ self.__next_require__ = __webpack_require__
   // eslint-disable-next-line no-undef
   return __webpack_chunk_load__(chunkId)
 }
-
-export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
 
@@ -115,8 +114,8 @@ if (document.readyState === 'loading') {
   DOMContentLoaded()
 }
 
-const nextServerDataLoadingGlobal = ((self as any).__next_s =
-  (self as any).__next_s || [])
+const nextServerDataLoadingGlobal = ((self as any).__next_f =
+  (self as any).__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
@@ -177,9 +176,15 @@ function RSCComponent(props: any): JSX.Element {
 export function hydrate() {
   const reactEl = (
     <React.StrictMode>
-      <Root>
-        <RSCComponent />
-      </Root>
+      <HeadManagerContext.Provider
+        value={{
+          appDir: true,
+        }}
+      >
+        <Root>
+          <RSCComponent />
+        </Root>
+      </HeadManagerContext.Provider>
     </React.StrictMode>
   )
 
